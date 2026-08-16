@@ -1,0 +1,22 @@
+name: Android
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager "platforms;android-37" "build-tools;37.0.0"
+      - run: ./gradlew :app:assembleOfflineDebug :app:assembleOfflineRelease test lint
+      - run: python tools/verify_design_handoff.py
+      - run: python tools/verify_offline_release.py

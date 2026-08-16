@@ -1,0 +1,7 @@
+<resources>
+    <string name="photos_title">Photos</string>
+    <string name="library_local">Only on this device</string>
+    <string name="empty_library_title">No photos yet</string>
+    <string name="empty_library_body">Photos saved on this device will appear here after access is granted.</string>
+</resources>
+

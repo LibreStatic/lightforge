@@ -1,0 +1,4 @@
+<resources>
+    <string name="photos_title">Fotos</string><string name="library_local">Nur auf diesem Gerät</string>
+    <string name="empty_library_title">Noch keine Fotos</string><string name="empty_library_body">Auf diesem Gerät gespeicherte Fotos werden nach der Freigabe hier angezeigt.</string>
+</resources>

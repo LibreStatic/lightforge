@@ -1,0 +1,15 @@
+# Approved dependency group prefixes for the offline application runtime.
+androidx.
+com.google.android.material
+com.google.code.findbugs
+com.google.dagger
+com.google.devtools.ksp
+com.google.errorprone
+com.google.guava
+com.google.j2objc
+javax.inject
+jakarta.inject
+org.jetbrains
+org.jetbrains.kotlin
+org.jetbrains.kotlinx
+org.jspecify

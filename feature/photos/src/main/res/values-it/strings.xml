@@ -1,0 +1,4 @@
+<resources>
+    <string name="photos_title">Foto</string><string name="library_local">Solo su questo dispositivo</string>
+    <string name="empty_library_title">Nessuna foto</string><string name="empty_library_body">Le foto salvate su questo dispositivo appariranno qui dopo l’autorizzazione.</string>
+</resources>
