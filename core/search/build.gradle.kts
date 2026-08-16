@@ -25,4 +25,6 @@ dependencies {
     implementation(libs.androidx.appsearch.local.storage)
     implementation("com.google.guava:guava:33.5.0-android")
     testImplementation(libs.junit4)
+    androidTestImplementation(libs.androidx.test.ext)
+    androidTestImplementation(libs.androidx.test.runner)
 }
