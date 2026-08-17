@@ -8,6 +8,8 @@ import com.ugallery.core.database.MediaItemEntity
 import com.ugallery.core.database.MediaLabelEntity
 import com.ugallery.core.database.MediaOcrEntity
 import com.ugallery.core.database.LabelSuppressionEntity
+import com.ugallery.core.database.DuplicateHashEntity
+import com.ugallery.core.database.SimilarityFeatureEntity
 import com.ugallery.core.database.VirtualAlbumEntity
 import com.ugallery.core.database.VirtualAlbumMediaEntity
 import com.ugallery.core.model.MediaKey
@@ -105,6 +107,44 @@ class RoomSelectionTargetSourceDeviceTest {
         assertEquals(listOf(MediaKey("sd", 1)), second.map { it.key })
         assertEquals(MediaKind.Video, second.single().kind)
         assertTrue(terminal.isEmpty())
+    }
+
+    @Test fun cleanupScopesStreamTypedTargetsWithoutMaterializingIds() = runBlocking {
+        val dao = database.libraryDao()
+        dao.upsertMedia(
+            listOf(
+                media("external_primary", 20, MediaKind.Video).copy(sizeBytes = 200L * 1_024 * 1_024),
+                media("external_primary", 21, MediaKind.Image).copy(bucketDisplayName = "Screenshots"),
+                media("external_primary", 22, MediaKind.Image),
+                media("external_primary", 23, MediaKind.Image).copy(sizeBytes = 1_000),
+                media("external_primary", 24, MediaKind.Image).copy(sizeBytes = 1_000),
+            ),
+        )
+        dao.upsertSimilarityFeature(
+            SimilarityFeatureEntity(
+                "external_primary", 22, 1, "phash64-rgb48-v1", 0, ByteArray(48),
+                0, 0, 0, 0, 5f, 1,
+            ),
+        )
+        val sha = "a".repeat(64)
+        dao.upsertDuplicateHashes(listOf(23L, 24L).map { id ->
+            DuplicateHashEntity("external_primary", id, 1, 1_000, "sha256-sampled-v1", "sample", sha, 1)
+        })
+
+        assertEquals(1, source.count(MediaQuery(scope = MediaQuery.Scope.LargeVideos(100L * 1_024 * 1_024))))
+        assertEquals(1, source.count(MediaQuery(scope = MediaQuery.Scope.Screenshots)))
+        assertEquals(
+            listOf(MediaKey("external_primary", 22)),
+            source.page(
+                MediaQuery(scope = MediaQuery.Scope.BlurryCandidates(20f, "phash64-rgb48-v1")),
+                null,
+                500,
+            ).map { it.key },
+        )
+        assertEquals(
+            2,
+            source.count(MediaQuery(scope = MediaQuery.Scope.ExactDuplicateGroup(sha, 1_000, "sha256-sampled-v1"))),
+        )
     }
 
     private fun media(

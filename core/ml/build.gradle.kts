@@ -23,6 +23,7 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:database"))
     implementation(project(":core:search"))
+    implementation(project(":core:selection"))
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.work.runtime)
     implementation(libs.kotlinx.coroutines.core)

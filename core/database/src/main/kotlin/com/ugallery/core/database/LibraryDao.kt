@@ -327,6 +327,40 @@ interface LibraryDao {
     @Query("DELETE FROM similarity_exclusions")
     suspend fun purgeSimilarityExclusions(): Int
 
+    @Query(
+        """SELECT
+            (SELECT COUNT(*) FROM (SELECT 1 FROM duplicate_hashes h JOIN media_items m
+                ON m.volumeName=h.volumeName AND m.mediaStoreId=h.mediaStoreId
+                WHERE h.hashVersion=:hashVersion AND h.sha256 IS NOT NULL
+                    AND h.generationModified=m.generationModified AND h.sizeBytes=m.sizeBytes
+                    AND m.isAccessible=1 AND m.isTrashed=0 GROUP BY h.sizeBytes,h.sha256 HAVING COUNT(*)>1))
+                AS exactGroupCount,
+            COALESCE((SELECT SUM(recoverable) FROM (SELECT h.sizeBytes*(COUNT(*)-1) AS recoverable
+                FROM duplicate_hashes h JOIN media_items m ON m.volumeName=h.volumeName
+                    AND m.mediaStoreId=h.mediaStoreId WHERE h.hashVersion=:hashVersion
+                    AND h.sha256 IS NOT NULL AND h.generationModified=m.generationModified
+                    AND h.sizeBytes=m.sizeBytes AND m.isAccessible=1 AND m.isTrashed=0
+                    GROUP BY h.sizeBytes,h.sha256 HAVING COUNT(*)>1)),0) AS exactRecoverableBytes,
+            (SELECT COUNT(*) FROM media_items WHERE mediaType=3 AND sizeBytes>=:largeVideoBytes
+                AND isAccessible=1 AND isTrashed=0) AS largeVideoCount,
+            COALESCE((SELECT SUM(sizeBytes) FROM media_items WHERE mediaType=3 AND sizeBytes>=:largeVideoBytes
+                AND isAccessible=1 AND isTrashed=0),0) AS largeVideoBytes,
+            (SELECT COUNT(*) FROM media_items WHERE mediaType=1 AND isAccessible=1 AND isTrashed=0
+                AND (LOWER(COALESCE(bucketDisplayName,'')) LIKE '%screenshot%'
+                OR LOWER(COALESCE(relativePath,'')) LIKE '%screenshot%'
+                OR LOWER(COALESCE(displayName,'')) LIKE '%screenshot%')) AS screenshotCount,
+            (SELECT COUNT(*) FROM similarity_features f JOIN media_items m ON m.volumeName=f.volumeName
+                AND m.mediaStoreId=f.mediaStoreId WHERE f.algorithmVersion=:similarityVersion
+                AND f.generationModified=m.generationModified AND f.blurScore<=:maximumBlurScore
+                AND m.isAccessible=1 AND m.isTrashed=0) AS blurryCandidateCount""",
+    )
+    fun cleanupSummaryFlow(
+        hashVersion: String,
+        similarityVersion: String,
+        largeVideoBytes: Long,
+        maximumBlurScore: Float,
+    ): Flow<CleanupSummaryRow>
+
     @Upsert
     suspend fun upsertMedia(items: List<MediaItemEntity>)
 
