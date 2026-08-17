@@ -21,5 +21,11 @@ android {
 
 dependencies {
     implementation(project(":core:model"))
+    implementation(libs.androidx.work.runtime)
+    implementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.junit4)
+    testImplementation(libs.kotlinx.coroutines.test)
+    androidTestImplementation(libs.androidx.test.ext)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation("androidx.work:work-testing:2.11.2")
 }

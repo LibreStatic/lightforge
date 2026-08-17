@@ -1,0 +1,67 @@
+package com.ugallery.core.ml
+
+import android.content.Context
+import androidx.work.BackoffPolicy
+import androidx.work.CoroutineWorker
+import androidx.work.Data
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequest
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.WorkerParameters
+import androidx.work.workDataOf
+import java.time.Duration
+
+class MlChunkWorker(
+    context: Context,
+    parameters: WorkerParameters,
+) : CoroutineWorker(context, parameters) {
+    override suspend fun doWork(): Result {
+        val task = inputData.getString(Input.Task)?.let { runCatching { MlTaskType.valueOf(it) }.getOrNull() }
+            ?: return Result.failure()
+        val mode = inputData.getString(Input.Mode)?.let { runCatching { MlRunMode.valueOf(it) }.getOrNull() }
+            ?: return Result.failure()
+        val engine = MlRuntimeRegistry.engine(task) ?: return Result.retry()
+        val policy = MlWorkPolicy.forMode(mode)
+        val runner = MlChunkRunner(
+            MlStateStore(applicationContext),
+            MlExecutionController(AndroidThermalStatusProvider(applicationContext)),
+        )
+        return when (val result = runner.run(engine, policy)) {
+            is MlRunnerResult.Continue -> {
+                setProgress(workDataOf(Output.Completed to result.checkpoint.completedItems))
+                WorkManager.getInstance(applicationContext).enqueueUniqueWork(
+                    uniqueName(task),
+                    ExistingWorkPolicy.APPEND_OR_REPLACE,
+                    request(task, mode),
+                )
+                Result.success()
+            }
+            is MlRunnerResult.Finished -> {
+                setProgress(workDataOf(Output.Completed to result.checkpoint.completedItems))
+                Result.success(workDataOf(Output.Completed to result.checkpoint.completedItems))
+            }
+            is MlRunnerResult.Retry -> Result.retry()
+            MlRunnerResult.Stopped -> Result.success()
+        }
+    }
+
+    companion object {
+        internal fun uniqueName(task: MlTaskType) = "ugallery-ml-${task.name}"
+        internal fun request(task: MlTaskType, mode: MlRunMode): OneTimeWorkRequest {
+            val policy = MlWorkPolicy.forMode(mode)
+            return OneTimeWorkRequestBuilder<MlChunkWorker>()
+                .setInputData(input(task, mode))
+                .setConstraints(policy.constraints)
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, Duration.ofSeconds(30))
+                .addTag(uniqueName(task))
+                .build()
+        }
+
+        internal fun input(task: MlTaskType, mode: MlRunMode): Data =
+            workDataOf(Input.Task to task.name, Input.Mode to mode.name)
+    }
+
+    private object Input { const val Task = "task"; const val Mode = "mode" }
+    private object Output { const val Completed = "completed" }
+}
