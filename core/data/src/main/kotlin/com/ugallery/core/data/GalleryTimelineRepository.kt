@@ -50,4 +50,6 @@ internal fun MediaItemEntity.toTimelineMedia() = TimelineMedia(
     height = height,
     durationMillis = durationMillis,
     dateExpiresMillis = dateExpiresSeconds?.times(1_000),
+    isFavorite = isFavorite,
+    isTrashed = isTrashed,
 )

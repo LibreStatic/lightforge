@@ -29,6 +29,7 @@ class GalleryTrashRepository(private val database: GalleryDatabase) {
     ).flow.map { page -> page.map { it.toTimelineMedia() } }
 
     suspend fun count(): Long = dao.trashCount()
+    fun countFlow(): Flow<Long> = dao.observeTrashCount()
 
     fun emptyTrashQuery(): MediaQuery = MediaQuery(trashedOnly = true)
 

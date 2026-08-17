@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface LibraryDao {
@@ -92,6 +93,9 @@ interface LibraryDao {
 
     @Query("SELECT COUNT(*) FROM media_items WHERE isAccessible = 1 AND isTrashed = 1")
     suspend fun trashCount(): Long
+
+    @Query("SELECT COUNT(*) FROM media_items WHERE isAccessible = 1 AND isTrashed = 1")
+    fun observeTrashCount(): Flow<Long>
 
     @Query(
         """

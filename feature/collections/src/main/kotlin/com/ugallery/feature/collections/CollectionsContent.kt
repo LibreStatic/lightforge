@@ -37,8 +37,8 @@ fun CollectionsContent(
     modifier: Modifier = Modifier,
 ) {
     val albums = buildList {
-        repeat(virtualAlbums.itemCount) { virtualAlbums.peek(it)?.let(::add) }
-        repeat(physicalAlbums.itemCount) { physicalAlbums.peek(it)?.let(::add) }
+        repeat(virtualAlbums.itemCount) { virtualAlbums[it]?.let(::add) }
+        repeat(physicalAlbums.itemCount) { physicalAlbums[it]?.let(::add) }
     }
     Column(modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(

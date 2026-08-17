@@ -74,6 +74,12 @@ dependencies {
     implementation(project(":core:thumbnail"))
     implementation(project(":feature:photos"))
     implementation(project(":feature:permissions"))
+    implementation(project(":feature:collections"))
+    implementation(project(":feature:album"))
+    implementation(project(":feature:viewer"))
+    implementation(project(":feature:details"))
+    implementation(project(":feature:trash"))
+    implementation(project(":core:selection"))
 
     implementation(platform(libs.compose.bom))
     implementation("androidx.compose.ui:ui")
