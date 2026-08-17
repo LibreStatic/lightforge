@@ -21,7 +21,10 @@ android {
 
 dependencies {
     implementation(project(":core:domain"))
+    implementation(project(":core:model"))
     implementation(project(":core:database"))
     implementation(project(":core:mediastore"))
+    implementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.junit4)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

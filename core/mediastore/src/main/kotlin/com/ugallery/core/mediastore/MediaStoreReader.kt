@@ -69,11 +69,15 @@ object MediaStoreUriFactory {
 }
 
 /** Bounded, per-volume MediaStore reads for initial indexing. */
-class MediaStoreReader(private val resolver: ContentResolver) {
-    fun readIdPage(
+fun interface MediaStorePageSource {
+    fun readIdPage(volumeName: String, afterId: Long, limit: Int): MediaStoreIdPage
+}
+
+class MediaStoreReader(private val resolver: ContentResolver) : MediaStorePageSource {
+    override fun readIdPage(
         volumeName: String,
-        afterId: Long = -1,
-        limit: Int = 256,
+        afterId: Long,
+        limit: Int,
     ): MediaStoreIdPage {
         require(volumeName.isNotBlank())
         require(afterId >= -1)

@@ -25,6 +25,12 @@ interface LibraryDao {
         upsertCheckpoint(checkpoint)
     }
 
+    @Transaction
+    suspend fun resetVolumeForScan(checkpoint: MediaStoreCheckpointEntity) {
+        deleteVolumeIndex(checkpoint.volumeName)
+        upsertCheckpoint(checkpoint)
+    }
+
     @Query(
         """
         SELECT * FROM media_items
