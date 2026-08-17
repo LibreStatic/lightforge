@@ -18,6 +18,7 @@ data class TimelineMedia(
     val width: Int,
     val height: Int,
     val durationMillis: Long,
+    val dateExpiresMillis: Long? = null,
 )
 
 sealed interface TimelineEntry {

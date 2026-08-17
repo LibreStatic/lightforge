@@ -48,6 +48,7 @@ data class MediaItemEntity(
     val isTrashed: Boolean,
     val isAccessible: Boolean,
     val lastSeenScanId: Long,
+    val dateExpiresSeconds: Long? = null,
 )
 
 @Entity(tableName = "media_store_checkpoints")

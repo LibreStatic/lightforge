@@ -29,6 +29,7 @@ data class MediaStoreRecord(
     val relativePath: String?,
     val isFavorite: Boolean,
     val isTrashed: Boolean,
+    val dateExpiresSeconds: Long? = null,
 )
 
 data class MediaStoreIdPage(
@@ -64,6 +65,7 @@ object MediaStoreProjection {
         MediaStore.MediaColumns.RELATIVE_PATH,
         MediaStore.MediaColumns.IS_FAVORITE,
         MediaStore.MediaColumns.IS_TRASHED,
+        MediaStore.MediaColumns.DATE_EXPIRES,
     )
 }
 
@@ -125,6 +127,7 @@ class MediaStoreReader(private val resolver: ContentResolver) : MediaStorePageSo
                 ContentResolver.QUERY_SORT_DIRECTION_ASCENDING,
             )
             putInt(ContentResolver.QUERY_ARG_LIMIT, limit)
+            putInt(MediaStore.QUERY_ARG_MATCH_TRASHED, MediaStore.MATCH_INCLUDE)
         }
 
         val records = resolver.query(
@@ -183,6 +186,7 @@ class MediaStoreReader(private val resolver: ContentResolver) : MediaStorePageSo
             )
             putInt(ContentResolver.QUERY_ARG_SORT_DIRECTION, ContentResolver.QUERY_SORT_DIRECTION_ASCENDING)
             putInt(ContentResolver.QUERY_ARG_LIMIT, limit)
+            putInt(MediaStore.QUERY_ARG_MATCH_TRASHED, MediaStore.MATCH_INCLUDE)
         }
         val records = resolver.query(
             MediaStore.Files.getContentUri(volumeName),
@@ -206,8 +210,7 @@ class MediaStoreReader(private val resolver: ContentResolver) : MediaStorePageSo
     override fun readOne(key: MediaKey): MediaStoreRecord? = resolver.query(
         MediaStoreUriFactory.uriFor(key),
         MediaStoreProjection.Columns,
-        null,
-        null,
+        Bundle().apply { putInt(MediaStore.QUERY_ARG_MATCH_TRASHED, MediaStore.MATCH_INCLUDE) },
         null,
     )?.use { cursor -> if (cursor.moveToFirst()) cursor.toRecord(key.volumeName) else null }
 }
@@ -244,6 +247,7 @@ private fun Cursor.toRecord(requestedVolume: String): MediaStoreRecord? {
         relativePath = stringOrNull(MediaStore.MediaColumns.RELATIVE_PATH),
         isFavorite = int(MediaStore.MediaColumns.IS_FAVORITE) != 0,
         isTrashed = int(MediaStore.MediaColumns.IS_TRASHED) != 0,
+        dateExpiresSeconds = longOrNull(MediaStore.MediaColumns.DATE_EXPIRES),
     )
 }
 

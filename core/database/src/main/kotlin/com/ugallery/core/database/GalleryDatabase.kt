@@ -17,7 +17,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         VirtualAlbumMediaEntity::class,
         MediaExifEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 abstract class GalleryDatabase : RoomDatabase() {
@@ -99,9 +99,15 @@ object GalleryDatabaseFactory {
         }
     }
 
+    val Migration4To5 = object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE media_items ADD COLUMN dateExpiresSeconds INTEGER")
+        }
+    }
+
     private fun build(context: Context, name: String): GalleryDatabase = Room.databaseBuilder(
         context.applicationContext,
         GalleryDatabase::class.java,
         name,
-    ).addMigrations(Migration1To2, Migration2To3, Migration3To4).build()
+    ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5).build()
 }

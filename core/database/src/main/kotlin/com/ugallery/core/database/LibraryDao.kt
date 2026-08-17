@@ -63,6 +63,39 @@ interface LibraryDao {
     @Query(
         """
         SELECT * FROM media_items
+        WHERE isAccessible = 1 AND isTrashed = 1
+        ORDER BY timelineSortMillis DESC, mediaStoreId DESC, volumeName DESC
+        LIMIT :limit
+        """,
+    )
+    suspend fun firstTrashPage(limit: Int): List<MediaItemEntity>
+
+    @Query(
+        """
+        SELECT * FROM media_items
+        WHERE isAccessible = 1 AND isTrashed = 1 AND (
+            timelineSortMillis < :afterSortMillis OR
+            (timelineSortMillis = :afterSortMillis AND mediaStoreId < :afterMediaStoreId) OR
+            (timelineSortMillis = :afterSortMillis AND mediaStoreId = :afterMediaStoreId
+                AND volumeName < :afterVolumeName)
+        )
+        ORDER BY timelineSortMillis DESC, mediaStoreId DESC, volumeName DESC
+        LIMIT :limit
+        """,
+    )
+    suspend fun trashPageAfter(
+        afterSortMillis: Long,
+        afterMediaStoreId: Long,
+        afterVolumeName: String,
+        limit: Int,
+    ): List<MediaItemEntity>
+
+    @Query("SELECT COUNT(*) FROM media_items WHERE isAccessible = 1 AND isTrashed = 1")
+    suspend fun trashCount(): Long
+
+    @Query(
+        """
+        SELECT * FROM media_items
         WHERE isAccessible = 1 AND isTrashed = 0 AND (
             timelineSortMillis < :afterSortMillis OR
             (timelineSortMillis = :afterSortMillis AND mediaStoreId < :afterMediaStoreId) OR

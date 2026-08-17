@@ -162,4 +162,5 @@ internal fun MediaStoreRecord.toEntity(scanId: Long): MediaItemEntity = MediaIte
     isTrashed = isTrashed,
     isAccessible = true,
     lastSeenScanId = scanId,
+    dateExpiresSeconds = dateExpiresSeconds,
 )

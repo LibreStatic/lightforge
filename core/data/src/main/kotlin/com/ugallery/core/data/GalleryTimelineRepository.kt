@@ -49,4 +49,5 @@ internal fun MediaItemEntity.toTimelineMedia() = TimelineMedia(
     width = width,
     height = height,
     durationMillis = durationMillis,
+    dateExpiresMillis = dateExpiresSeconds?.times(1_000),
 )
