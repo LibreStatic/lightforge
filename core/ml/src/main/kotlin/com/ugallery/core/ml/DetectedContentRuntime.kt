@@ -19,6 +19,7 @@ object DetectedContentRuntime {
     private var labelEngine: ImageLabelMlEngine? = null
     private var ocrEngine: OcrMlEngine? = null
     private var duplicateEngine: ExactDuplicateMlEngine? = null
+    private var similarityEngine: SimilarityMlEngine? = null
 
     @Synchronized
     fun install(context: Context) {
@@ -31,6 +32,7 @@ object DetectedContentRuntime {
         MlRuntimeRegistry.register(
             LazyEngine(MlTaskType.ExactDuplicates, ExactDuplicateMlEngine.HashVersion),
         )
+        MlRuntimeRegistry.register(LazyEngine(MlTaskType.Similarity, SimilarityMlEngine.AlgorithmVersion))
     }
 
     @Synchronized
@@ -38,6 +40,7 @@ object DetectedContentRuntime {
         MlRuntimeRegistry.unregister(MlTaskType.ImageLabels)
         MlRuntimeRegistry.unregister(MlTaskType.Ocr)
         MlRuntimeRegistry.unregister(MlTaskType.ExactDuplicates)
+        MlRuntimeRegistry.unregister(MlTaskType.Similarity)
         labelEngine?.close()
         ocrEngine?.close()
         database?.close()
@@ -45,6 +48,7 @@ object DetectedContentRuntime {
         labelEngine = null
         ocrEngine = null
         duplicateEngine = null
+        similarityEngine = null
         database = null
     }
 
@@ -53,6 +57,7 @@ object DetectedContentRuntime {
         labelEngine?.takeIf { task == MlTaskType.ImageLabels }?.let { return it }
         ocrEngine?.takeIf { task == MlTaskType.Ocr }?.let { return it }
         duplicateEngine?.takeIf { task == MlTaskType.ExactDuplicates }?.let { return it }
+        similarityEngine?.takeIf { task == MlTaskType.Similarity }?.let { return it }
         val context = checkNotNull(application) { "DetectedContentRuntime is not installed" }
         val activeDatabase = database ?: GalleryDatabaseFactory.open(context).also { database = it }
         val imagePermission = { context.hasReadableImages() }
@@ -74,7 +79,11 @@ object DetectedContentRuntime {
                 ResolverDuplicateContentHasher(context.contentResolver),
                 { context.hasReadableMedia() },
             ).also { duplicateEngine = it }
-            else -> error("Unsupported detected-content task: $task")
+            MlTaskType.Similarity -> SimilarityMlEngine(
+                activeDatabase,
+                NativeSimilarityFeatureExtractor(context.contentResolver),
+                imagePermission,
+            ).also { similarityEngine = it }
         }
     }
 

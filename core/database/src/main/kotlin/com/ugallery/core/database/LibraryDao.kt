@@ -200,6 +200,133 @@ interface LibraryDao {
     @Query("DELETE FROM duplicate_hashes")
     suspend fun purgeDuplicateHashes(): Int
 
+    @Query(
+        "SELECT m.* FROM media_items m WHERE m.mediaType=1 AND m.isAccessible=1 AND m.isTrashed=0 " +
+            "AND NOT EXISTS (SELECT 1 FROM similarity_features f WHERE f.volumeName=m.volumeName " +
+            "AND f.mediaStoreId=m.mediaStoreId AND f.generationModified=m.generationModified " +
+            "AND f.algorithmVersion=:algorithmVersion) " +
+            "ORDER BY m.timelineSortMillis DESC, m.mediaStoreId DESC, m.volumeName DESC LIMIT :limit",
+    )
+    suspend fun pendingSimilarityCandidates(algorithmVersion: String, limit: Int): List<MediaItemEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertSimilarityFeature(feature: SimilarityFeatureEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertSimilarityFeatures(features: List<SimilarityFeatureEntity>)
+
+    @Query("SELECT * FROM similarity_features WHERE volumeName=:volumeName AND mediaStoreId=:mediaStoreId")
+    suspend fun similarityFeature(volumeName: String, mediaStoreId: Long): SimilarityFeatureEntity?
+
+    @Query("DELETE FROM similarity_features WHERE volumeName=:volumeName AND mediaStoreId=:mediaStoreId")
+    suspend fun deleteSimilarityFeature(volumeName: String, mediaStoreId: Long): Int
+
+    @Query(
+        "SELECT f.* FROM similarity_features f JOIN media_items m ON m.volumeName=f.volumeName " +
+            "AND m.mediaStoreId=f.mediaStoreId LEFT JOIN similarity_exclusions x " +
+            "ON x.volumeName=f.volumeName AND x.mediaStoreId=f.mediaStoreId " +
+            "WHERE f.algorithmVersion=:algorithmVersion AND f.generationModified=m.generationModified " +
+            "AND m.isAccessible=1 AND m.isTrashed=0 AND x.mediaStoreId IS NULL " +
+            "AND (f.volumeName!=:volumeName OR f.mediaStoreId!=:mediaStoreId) AND " +
+            "(f.lsh0=:lsh0 OR f.lsh1=:lsh1 OR f.lsh2=:lsh2 OR f.lsh3=:lsh3) " +
+            "ORDER BY m.timelineSortMillis DESC, m.mediaStoreId DESC, m.volumeName DESC LIMIT :limit",
+    )
+    suspend fun similarityLshCandidates(
+        algorithmVersion: String,
+        volumeName: String,
+        mediaStoreId: Long,
+        lsh0: Int,
+        lsh1: Int,
+        lsh2: Int,
+        lsh3: Int,
+        limit: Int,
+    ): List<SimilarityFeatureEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertSimilarityEdges(edges: List<SimilarityEdgeEntity>)
+
+    @Query("DELETE FROM similarity_edges WHERE (aVolumeName=:volumeName AND aMediaStoreId=:mediaStoreId) OR (bVolumeName=:volumeName AND bMediaStoreId=:mediaStoreId)")
+    suspend fun deleteSimilarityEdges(volumeName: String, mediaStoreId: Long): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertSimilarityMemberships(memberships: List<SimilarityMembershipEntity>)
+
+    @Query("SELECT * FROM similarity_memberships WHERE volumeName=:volumeName AND mediaStoreId=:mediaStoreId")
+    suspend fun similarityMembership(volumeName: String, mediaStoreId: Long): SimilarityMembershipEntity?
+
+    @Query("SELECT COUNT(*) FROM similarity_memberships WHERE clusterId=:clusterId")
+    suspend fun similarityClusterSize(clusterId: String): Int
+
+    @Query("UPDATE similarity_memberships SET clusterId=:toClusterId WHERE clusterId=:fromClusterId")
+    suspend fun moveSimilarityCluster(fromClusterId: String, toClusterId: String): Int
+
+    @Query("DELETE FROM similarity_memberships WHERE volumeName=:volumeName AND mediaStoreId=:mediaStoreId")
+    suspend fun deleteSimilarityMembership(volumeName: String, mediaStoreId: Long): Int
+
+    @Query(
+        "SELECT f.* FROM similarity_memberships s JOIN similarity_features f " +
+            "ON f.volumeName=s.volumeName AND f.mediaStoreId=s.mediaStoreId " +
+            "WHERE s.clusterId=:clusterId ORDER BY f.volumeName, f.mediaStoreId LIMIT :limit",
+    )
+    suspend fun similarityClusterFeatures(clusterId: String, limit: Int): List<SimilarityFeatureEntity>
+
+    @Query(
+        "SELECT e.* FROM similarity_edges e JOIN similarity_memberships a " +
+            "ON a.volumeName=e.aVolumeName AND a.mediaStoreId=e.aMediaStoreId " +
+            "JOIN similarity_memberships b ON b.volumeName=e.bVolumeName AND b.mediaStoreId=e.bMediaStoreId " +
+            "WHERE a.clusterId=:clusterId AND b.clusterId=:clusterId",
+    )
+    suspend fun similarityClusterEdges(clusterId: String): List<SimilarityEdgeEntity>
+
+    @Query("DELETE FROM similarity_memberships WHERE clusterId=:clusterId")
+    suspend fun deleteSimilarityClusterMemberships(clusterId: String): Int
+
+    @Query(
+        """WITH ranked AS (
+            SELECT s.clusterId AS clusterId,
+                COUNT(*) OVER (PARTITION BY s.clusterId) AS memberCount,
+                MAX(s.bestScore) OVER (PARTITION BY s.clusterId) AS bestScore,
+                m.volumeName AS recommendedVolumeName, m.mediaStoreId AS recommendedMediaStoreId,
+                ROW_NUMBER() OVER (PARTITION BY s.clusterId ORDER BY m.isFavorite DESC,
+                    (CAST(m.width AS INTEGER) * m.height) DESC, s.bestScore DESC,
+                    m.timelineSortMillis DESC, m.volumeName, m.mediaStoreId) AS keepRank
+            FROM similarity_memberships s JOIN media_items m ON m.volumeName=s.volumeName
+                AND m.mediaStoreId=s.mediaStoreId WHERE m.isAccessible=1 AND m.isTrashed=0)
+        SELECT clusterId, memberCount, bestScore, recommendedVolumeName, recommendedMediaStoreId
+        FROM ranked WHERE keepRank=1 AND memberCount>1 AND (:afterClusterId IS NULL OR clusterId>:afterClusterId)
+        ORDER BY clusterId ASC LIMIT :limit""",
+    )
+    suspend fun similarityStacks(afterClusterId: String?, limit: Int): List<SimilarityStackRow>
+
+    @Query(
+        "SELECT m.* FROM similarity_memberships s JOIN media_items m ON m.volumeName=s.volumeName " +
+            "AND m.mediaStoreId=s.mediaStoreId WHERE s.clusterId=:clusterId AND " +
+            "(:afterVolume IS NULL OR m.volumeName>:afterVolume OR " +
+            "(m.volumeName=:afterVolume AND m.mediaStoreId>:afterId)) " +
+            "ORDER BY m.volumeName, m.mediaStoreId LIMIT :limit",
+    )
+    suspend fun similarityStackMembers(
+        clusterId: String,
+        afterVolume: String?,
+        afterId: Long,
+        limit: Int,
+    ): List<MediaItemEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun excludeSimilarity(exclusion: SimilarityExclusionEntity)
+
+    @Query("DELETE FROM similarity_exclusions WHERE volumeName=:volumeName AND mediaStoreId=:mediaStoreId")
+    suspend fun restoreSimilarity(volumeName: String, mediaStoreId: Long): Int
+
+    @Query("SELECT EXISTS(SELECT 1 FROM similarity_exclusions WHERE volumeName=:volumeName AND mediaStoreId=:mediaStoreId)")
+    suspend fun isSimilarityExcluded(volumeName: String, mediaStoreId: Long): Boolean
+
+    @Query("DELETE FROM similarity_features")
+    suspend fun purgeSimilarityFeatures(): Int
+
+    @Query("DELETE FROM similarity_exclusions")
+    suspend fun purgeSimilarityExclusions(): Int
+
     @Upsert
     suspend fun upsertMedia(items: List<MediaItemEntity>)
 

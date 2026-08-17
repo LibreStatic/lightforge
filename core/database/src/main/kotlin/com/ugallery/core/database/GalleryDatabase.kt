@@ -21,8 +21,12 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         LabelSuppressionEntity::class,
         MediaOcrEntity::class,
         DuplicateHashEntity::class,
+        SimilarityFeatureEntity::class,
+        SimilarityEdgeEntity::class,
+        SimilarityMembershipEntity::class,
+        SimilarityExclusionEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 abstract class GalleryDatabase : RoomDatabase() {
@@ -139,11 +143,27 @@ object GalleryDatabaseFactory {
         }
     }
 
+    val Migration7To8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS `similarity_features` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `generationModified` INTEGER NOT NULL, `algorithmVersion` TEXT NOT NULL, `pHash` INTEGER NOT NULL, `compactEmbedding` BLOB NOT NULL, `lsh0` INTEGER NOT NULL, `lsh1` INTEGER NOT NULL, `lsh2` INTEGER NOT NULL, `lsh3` INTEGER NOT NULL, `blurScore` REAL NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`), FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `media_items`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_similarity_lsh0` ON `similarity_features` (`algorithmVersion`, `lsh0`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_similarity_lsh1` ON `similarity_features` (`algorithmVersion`, `lsh1`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_similarity_lsh2` ON `similarity_features` (`algorithmVersion`, `lsh2`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_similarity_lsh3` ON `similarity_features` (`algorithmVersion`, `lsh3`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `similarity_edges` (`aVolumeName` TEXT NOT NULL, `aMediaStoreId` INTEGER NOT NULL, `bVolumeName` TEXT NOT NULL, `bMediaStoreId` INTEGER NOT NULL, `score` REAL NOT NULL, PRIMARY KEY(`aVolumeName`, `aMediaStoreId`, `bVolumeName`, `bMediaStoreId`), FOREIGN KEY(`aVolumeName`, `aMediaStoreId`) REFERENCES `similarity_features`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`bVolumeName`, `bMediaStoreId`) REFERENCES `similarity_features`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_similarity_edge_b` ON `similarity_edges` (`bVolumeName`, `bMediaStoreId`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `similarity_memberships` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `clusterId` TEXT NOT NULL, `bestScore` REAL NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`), FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `similarity_features`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_similarity_cluster` ON `similarity_memberships` (`clusterId`, `bestScore`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `similarity_exclusions` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `excludedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`), FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `media_items`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+        }
+    }
+
     private fun build(context: Context, name: String): GalleryDatabase = Room.databaseBuilder(
         context.applicationContext,
         GalleryDatabase::class.java,
         name,
     ).addMigrations(
         Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7,
+        Migration7To8,
     ).build()
 }
