@@ -20,8 +20,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MediaLabelEntity::class,
         LabelSuppressionEntity::class,
         MediaOcrEntity::class,
+        DuplicateHashEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 abstract class GalleryDatabase : RoomDatabase() {
@@ -121,9 +122,28 @@ object GalleryDatabaseFactory {
         }
     }
 
+    val Migration6To7 = object : Migration(6, 7) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """CREATE TABLE IF NOT EXISTS `duplicate_hashes` (
+                    `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL,
+                    `generationModified` INTEGER NOT NULL, `sizeBytes` INTEGER NOT NULL,
+                    `hashVersion` TEXT NOT NULL, `sampleSha256` TEXT NOT NULL,
+                    `sha256` TEXT, `updatedAtMillis` INTEGER NOT NULL,
+                    PRIMARY KEY(`volumeName`, `mediaStoreId`),
+                    FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `media_items`(`volumeName`, `mediaStoreId`)
+                    ON UPDATE NO ACTION ON DELETE CASCADE)""",
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_duplicate_sample` ON `duplicate_hashes` (`hashVersion`, `sizeBytes`, `sampleSha256`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_duplicate_full` ON `duplicate_hashes` (`hashVersion`, `sizeBytes`, `sha256`)")
+        }
+    }
+
     private fun build(context: Context, name: String): GalleryDatabase = Room.databaseBuilder(
         context.applicationContext,
         GalleryDatabase::class.java,
         name,
-    ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6).build()
+    ).addMigrations(
+        Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7,
+    ).build()
 }

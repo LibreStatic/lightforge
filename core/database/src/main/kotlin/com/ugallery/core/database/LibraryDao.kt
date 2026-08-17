@@ -101,6 +101,105 @@ interface LibraryDao {
 
     @Query("DELETE FROM media_ocr")
     suspend fun purgeOcr(): Int
+
+    @Query(
+        "SELECT m.* FROM media_items m WHERE m.isAccessible=1 AND m.isTrashed=0 AND m.sizeBytes>0 " +
+            "AND NOT EXISTS (SELECT 1 FROM duplicate_hashes h WHERE h.volumeName=m.volumeName " +
+            "AND h.mediaStoreId=m.mediaStoreId AND h.generationModified=m.generationModified " +
+            "AND h.sizeBytes=m.sizeBytes AND h.hashVersion=:hashVersion) " +
+            "ORDER BY m.timelineSortMillis DESC, m.mediaStoreId DESC, m.volumeName DESC LIMIT :limit",
+    )
+    suspend fun pendingDuplicateSampleCandidates(hashVersion: String, limit: Int): List<MediaItemEntity>
+
+    @Query(
+        "SELECT m.* FROM media_items m JOIN duplicate_hashes h ON h.volumeName=m.volumeName " +
+            "AND h.mediaStoreId=m.mediaStoreId WHERE m.isAccessible=1 AND m.isTrashed=0 " +
+            "AND h.hashVersion=:hashVersion AND h.generationModified=m.generationModified " +
+            "AND h.sizeBytes=m.sizeBytes AND h.sha256 IS NULL AND EXISTS (SELECT 1 " +
+            "FROM duplicate_hashes h2 JOIN media_items m2 ON m2.volumeName=h2.volumeName " +
+            "AND m2.mediaStoreId=h2.mediaStoreId WHERE h2.hashVersion=:hashVersion " +
+            "AND h2.sizeBytes=h.sizeBytes AND h2.sampleSha256=h.sampleSha256 " +
+            "AND h2.generationModified=m2.generationModified AND m2.sizeBytes=h2.sizeBytes " +
+            "AND m2.isAccessible=1 AND m2.isTrashed=0 AND " +
+            "(h2.volumeName!=h.volumeName OR h2.mediaStoreId!=h.mediaStoreId)) " +
+            "ORDER BY m.timelineSortMillis DESC, m.mediaStoreId DESC, m.volumeName DESC LIMIT :limit",
+    )
+    suspend fun pendingDuplicateFullCandidates(hashVersion: String, limit: Int): List<MediaItemEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertDuplicateHash(hash: DuplicateHashEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertDuplicateHashes(hashes: List<DuplicateHashEntity>)
+
+    @Query(
+        "UPDATE duplicate_hashes SET sha256=:sha256, updatedAtMillis=:updatedAtMillis " +
+            "WHERE volumeName=:volumeName AND mediaStoreId=:mediaStoreId " +
+            "AND generationModified=:generationModified AND hashVersion=:hashVersion",
+    )
+    suspend fun setDuplicateFullHash(
+        volumeName: String,
+        mediaStoreId: Long,
+        generationModified: Long,
+        hashVersion: String,
+        sha256: String,
+        updatedAtMillis: Long,
+    ): Int
+
+    @Query("SELECT * FROM duplicate_hashes WHERE volumeName=:volumeName AND mediaStoreId=:mediaStoreId")
+    suspend fun duplicateHash(volumeName: String, mediaStoreId: Long): DuplicateHashEntity?
+
+    @Query(
+        """WITH ranked AS (
+            SELECT (CAST(h.sizeBytes AS TEXT) || ':' || h.sha256) AS groupId,
+                h.sha256 AS sha256, h.sizeBytes AS sizeBytes,
+                COUNT(*) OVER (PARTITION BY h.sizeBytes, h.sha256) AS memberCount,
+                h.sizeBytes * (COUNT(*) OVER (PARTITION BY h.sizeBytes, h.sha256) - 1) AS recoverableBytes,
+                m.volumeName AS recommendedVolumeName,
+                m.mediaStoreId AS recommendedMediaStoreId,
+                ROW_NUMBER() OVER (PARTITION BY h.sizeBytes, h.sha256 ORDER BY
+                    m.isFavorite DESC, (CAST(m.width AS INTEGER) * m.height) DESC,
+                    m.timelineSortMillis DESC, m.volumeName ASC, m.mediaStoreId ASC) AS keepRank
+            FROM duplicate_hashes h JOIN media_items m ON m.volumeName=h.volumeName
+                AND m.mediaStoreId=h.mediaStoreId
+            WHERE h.hashVersion=:hashVersion AND h.sha256 IS NOT NULL
+                AND h.generationModified=m.generationModified AND h.sizeBytes=m.sizeBytes
+                AND m.isAccessible=1 AND m.isTrashed=0)
+        SELECT groupId, sha256, sizeBytes, memberCount, recoverableBytes,
+            recommendedVolumeName, recommendedMediaStoreId FROM ranked
+        WHERE keepRank=1 AND memberCount>1 AND (
+            :afterRecoverableBytes IS NULL OR recoverableBytes<:afterRecoverableBytes OR
+            (recoverableBytes=:afterRecoverableBytes AND groupId>:afterGroupId))
+        ORDER BY recoverableBytes DESC, groupId ASC LIMIT :limit""",
+    )
+    suspend fun exactDuplicateGroups(
+        hashVersion: String,
+        afterRecoverableBytes: Long?,
+        afterGroupId: String?,
+        limit: Int,
+    ): List<ExactDuplicateGroupRow>
+
+    @Query(
+        "SELECT m.* FROM duplicate_hashes h JOIN media_items m ON m.volumeName=h.volumeName " +
+            "AND m.mediaStoreId=h.mediaStoreId WHERE h.hashVersion=:hashVersion " +
+            "AND h.sha256=:sha256 AND h.sizeBytes=:sizeBytes AND h.generationModified=m.generationModified " +
+            "AND m.sizeBytes=h.sizeBytes AND m.isAccessible=1 AND m.isTrashed=0 AND " +
+            "(:afterVolume IS NULL OR m.volumeName>:afterVolume OR " +
+            "(m.volumeName=:afterVolume AND m.mediaStoreId>:afterId)) " +
+            "ORDER BY m.volumeName ASC, m.mediaStoreId ASC LIMIT :limit",
+    )
+    suspend fun exactDuplicateMembers(
+        hashVersion: String,
+        sha256: String,
+        sizeBytes: Long,
+        afterVolume: String?,
+        afterId: Long,
+        limit: Int,
+    ): List<MediaItemEntity>
+
+    @Query("DELETE FROM duplicate_hashes")
+    suspend fun purgeDuplicateHashes(): Int
+
     @Upsert
     suspend fun upsertMedia(items: List<MediaItemEntity>)
 
