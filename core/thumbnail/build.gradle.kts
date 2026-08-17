@@ -23,6 +23,7 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:mediastore"))
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.exifinterface)
     implementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.junit4)
     testImplementation(libs.kotlinx.coroutines.test)

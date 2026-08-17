@@ -28,6 +28,8 @@ class LargeImageDecoderDeviceTest {
         try {
             forceGc()
             var peakPssKb = Debug.getPss()
+            var previewPssKb = peakPssKb
+            val tilePssKb = mutableListOf<Long>()
 
             val previewStartNs = SystemClock.elapsedRealtimeNanos()
             var previewWidth = 0
@@ -38,20 +40,34 @@ class LargeImageDecoderDeviceTest {
                 previewWidth = preview.width
                 previewHeight = preview.height
                 peakPssKb = maxOf(peakPssKb, Debug.getPss())
+                previewPssKb = Debug.getPss()
                 preview.recycle()
             }
             val previewMs = (SystemClock.elapsedRealtimeNanos() - previewStartNs) / 1_000_000
 
             val tilesStartNs = SystemClock.elapsedRealtimeNanos()
-            listOf(
-                Rect(0, 0, 2_048, 2_048),
-                Rect(8_976, 3_976, 11_024, 6_024),
-                Rect(17_952, 7_952, 20_000, 10_000),
-            ).forEach { region ->
-                val tile = decoder.tile(uri, region, sampleSize = 1)
-                assertNotNull("region decode failed for $region", tile)
-                peakPssKb = maxOf(peakPssKb, Debug.getPss())
-                tile?.recycle()
+            val deepZoom = decoder.deepZoomAvailability(uri)
+            if (deepZoom is DeepZoomAvailability.Available) {
+                listOf(
+                    Rect(0, 0, 2_048, 2_048),
+                    Rect(8_976, 3_976, 11_024, 6_024),
+                    Rect(17_952, 7_952, 20_000, 10_000),
+                ).forEach { region ->
+                    val tile = decoder.tile(uri, region, sampleSize = 1)
+                    assertNotNull("region decode failed for $region", tile)
+                    assertTrue("tile width=${tile?.width}", requireNotNull(tile).width <= 1_024)
+                    assertTrue("tile height=${tile.height}", tile.height <= 1_024)
+                    peakPssKb = maxOf(peakPssKb, Debug.getPss())
+                    tilePssKb.add(Debug.getPss())
+                    tile.recycle()
+                }
+            } else {
+                assertTrue(
+                    "unexpected deep zoom state=$deepZoom",
+                    deepZoom == DeepZoomAvailability.Unavailable(
+                        DeepZoomUnavailableReason.DeviceDecoderMemoryRisk,
+                    ),
+                )
             }
             val tilesMs = (SystemClock.elapsedRealtimeNanos() - tilesStartNs) / 1_000_000
 
@@ -59,7 +75,8 @@ class LargeImageDecoderDeviceTest {
             val finalPssKb = Debug.getPss()
             println(
                 "UGALLERY_LARGE_IMAGE_METRICS fixture=$FIXTURE_NAME preview=${previewWidth}x$previewHeight " +
-                    "previewMs=$previewMs threeTilesMs=$tilesMs peakPssKb=$peakPssKb finalPssKb=$finalPssKb",
+                    "previewMs=$previewMs threeTilesMs=$tilesMs peakPssKb=$peakPssKb finalPssKb=$finalPssKb " +
+                    "previewPssKb=$previewPssKb tilePssKb=$tilePssKb deepZoom=$deepZoom",
             )
             assertTrue("peak PSS ${peakPssKb}KB exceeds ${EDITOR_PSS_GATE_KB}KB", peakPssKb <= EDITOR_PSS_GATE_KB)
         } finally {
