@@ -10,6 +10,29 @@ data class MediaKey(val volumeName: String, val mediaStoreId: Long) {
 
 enum class MediaKind { Image, Video }
 
+data class TimelineMedia(
+    val key: MediaKey,
+    val kind: MediaKind,
+    val generationModified: Long,
+    val timelineSortMillis: Long,
+    val width: Int,
+    val height: Int,
+    val durationMillis: Long,
+)
+
+sealed interface TimelineEntry {
+    val stableKey: String
+
+    data class DayHeader(val epochDay: Long) : TimelineEntry {
+        override val stableKey: String = "day:$epochDay"
+    }
+
+    data class Media(val value: TimelineMedia) : TimelineEntry {
+        override val stableKey: String =
+            "media:${value.key.volumeName}:${value.key.mediaStoreId}"
+    }
+}
+
 enum class GrantLevel { None, Selected, Full }
 
 data class LibraryAccess(
@@ -19,4 +42,3 @@ data class LibraryAccess(
 ) {
     val isLimited: Boolean get() = images == GrantLevel.Selected || videos == GrantLevel.Selected
 }
-
