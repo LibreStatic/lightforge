@@ -1,7 +1,10 @@
+@file:OptIn(androidx.benchmark.macro.ExperimentalMetricApi::class)
+
 package com.ugallery.benchmark
 
 import androidx.benchmark.macro.CompilationMode
 import androidx.benchmark.macro.FrameTimingMetric
+import androidx.benchmark.macro.MemoryUsageMetric
 import androidx.benchmark.macro.StartupMode
 import androidx.benchmark.macro.StartupTimingMetric
 import androidx.benchmark.macro.junit4.BaselineProfileRule
@@ -15,6 +18,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 private const val TARGET_PACKAGE = "com.ugallery.app"
+private const val BENCHMARK_ITEM_COUNT_EXTRA = "com.ugallery.app.extra.BENCHMARK_ITEM_COUNT"
 
 @RunWith(AndroidJUnit4::class)
 class StartupBenchmark {
@@ -44,7 +48,49 @@ class TimelineScrollBenchmark {
         compilationMode = CompilationMode.Partial(),
         startupMode = StartupMode.WARM,
         iterations = 5,
-        setupBlock = { startActivityAndWait() },
+        setupBlock = { startActivityAndWait { it.putExtra(BENCHMARK_ITEM_COUNT_EXTRA, 100_000) } },
+    ) {
+        val grid = device.wait(Until.findObject(By.res("timeline_grid")), 5_000)
+            ?: error("Timeline grid was not exposed to UI Automator")
+        repeat(12) { grid.fling(Direction.DOWN) }
+    }
+}
+
+@RunWith(AndroidJUnit4::class)
+class TimelineStress250kBenchmark {
+    @get:Rule val rule = MacrobenchmarkRule()
+
+    @Test
+    fun flingVirtual250kGrid() = rule.measureRepeated(
+        packageName = TARGET_PACKAGE,
+        metrics = listOf(FrameTimingMetric()),
+        compilationMode = CompilationMode.Partial(),
+        startupMode = StartupMode.WARM,
+        iterations = 3,
+        setupBlock = {
+            startActivityAndWait { it.putExtra(BENCHMARK_ITEM_COUNT_EXTRA, 250_000) }
+        },
+    ) {
+        val grid = device.wait(Until.findObject(By.res("timeline_grid")), 5_000)
+            ?: error("Timeline grid was not exposed to UI Automator")
+        repeat(12) { grid.fling(Direction.DOWN) }
+    }
+}
+
+@RunWith(AndroidJUnit4::class)
+class TimelineMemory250kBenchmark {
+    @get:Rule val rule = MacrobenchmarkRule()
+
+    @Test
+    fun peakMemoryVirtual250kGrid() = rule.measureRepeated(
+        packageName = TARGET_PACKAGE,
+        metrics = listOf(MemoryUsageMetric(MemoryUsageMetric.Mode.Max)),
+        compilationMode = CompilationMode.Partial(),
+        startupMode = StartupMode.WARM,
+        iterations = 3,
+        setupBlock = {
+            startActivityAndWait { it.putExtra(BENCHMARK_ITEM_COUNT_EXTRA, 250_000) }
+        },
     ) {
         val grid = device.wait(Until.findObject(By.res("timeline_grid")), 5_000)
             ?: error("Timeline grid was not exposed to UI Automator")
@@ -68,4 +114,3 @@ class BaselineProfileGenerator {
         }
     }
 }
-

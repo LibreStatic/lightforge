@@ -13,10 +13,19 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val benchmarkItemCount = if (BuildConfig.BUILD_TYPE == "benchmark") {
+            intent.getIntExtra(BENCHMARK_ITEM_COUNT_EXTRA, 100_000).coerceIn(0, 250_000)
+        } else {
+            0
+        }
         setContent {
             UGalleryTheme {
-                PhotosRoute(itemCount = if (BuildConfig.BUILD_TYPE == "benchmark") 100_000 else 0)
+                PhotosRoute(itemCount = benchmarkItemCount)
             }
         }
+    }
+
+    private companion object {
+        const val BENCHMARK_ITEM_COUNT_EXTRA = "com.ugallery.app.extra.BENCHMARK_ITEM_COUNT"
     }
 }
