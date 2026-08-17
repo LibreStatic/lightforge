@@ -3,6 +3,7 @@ package com.ugallery.feature.viewer
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
+import android.view.SurfaceView
 import androidx.annotation.MainThread
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
@@ -39,6 +40,7 @@ internal interface VideoEngine {
     fun seekTo(positionMillis: Long)
     fun stopAndClear()
     fun release()
+    fun attachSurface(surfaceView: SurfaceView?)
 }
 
 /** Owns exactly one player/decoder chain for the entire viewer surface. */
@@ -78,6 +80,7 @@ class VideoViewerController internal constructor(private val engine: VideoEngine
     @MainThread fun pause() { if (!released) engine.pause() }
     @MainThread fun seekTo(positionMillis: Long) { check(!released); engine.seekTo(positionMillis.coerceAtLeast(0)) }
     @MainThread fun onBackground() = pause()
+    @MainThread fun attachSurface(surfaceView: SurfaceView?) { check(!released); engine.attachSurface(surfaceView) }
 
     @MainThread
     override fun close() {
@@ -128,6 +131,10 @@ private class Media3VideoEngine(context: Context) : VideoEngine {
     override fun seekTo(positionMillis: Long) = player.seekTo(positionMillis)
     override fun stopAndClear() { player.stop(); player.clearMediaItems() }
     override fun release() = player.release()
+    override fun attachSurface(surfaceView: SurfaceView?) {
+        player.clearVideoSurface()
+        if (surfaceView != null) player.setVideoSurfaceView(surfaceView)
+    }
 
     private companion object {
         val UnsupportedErrorCodes = setOf(

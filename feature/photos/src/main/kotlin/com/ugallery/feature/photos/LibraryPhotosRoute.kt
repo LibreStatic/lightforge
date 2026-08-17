@@ -25,6 +25,7 @@ import com.ugallery.core.designsystem.GallerySpacing
 import com.ugallery.core.designsystem.GalleryStateContent
 import com.ugallery.core.model.LibraryAccess
 import com.ugallery.core.model.TimelineEntry
+import com.ugallery.core.model.TimelineMedia
 import com.ugallery.core.thumbnail.ThumbnailLoader
 
 enum class LibraryUiState { Starting, Indexing, Ready, PermissionRequired, Error }
@@ -36,6 +37,8 @@ fun LibraryPhotosRoute(
     entries: LazyPagingItems<TimelineEntry>,
     thumbnailLoader: ThumbnailLoader?,
     onRequestAccess: () -> Unit,
+    onMediaClick: (TimelineMedia) -> Unit = {},
+    onMediaLongClick: (TimelineMedia) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -97,6 +100,8 @@ fun LibraryPhotosRoute(
                 AdaptivePagedPhotosTimeline(
                     entries = entries,
                     thumbnailLoader = thumbnailLoader,
+                    onMediaClick = onMediaClick,
+                    onMediaLongClick = onMediaLongClick,
                     modifier = Modifier.fillMaxSize(),
                 )
             }

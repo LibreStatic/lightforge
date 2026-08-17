@@ -56,5 +56,6 @@ class VideoViewerControllerTest {
         override fun seekTo(positionMillis: Long) = Unit
         override fun stopAndClear() { clearCalls++ }
         override fun release() { releaseCalls++ }
+        override fun attachSurface(surfaceView: android.view.SurfaceView?) = Unit
     }
 }

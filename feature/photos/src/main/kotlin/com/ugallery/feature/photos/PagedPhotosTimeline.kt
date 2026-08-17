@@ -1,6 +1,7 @@
 package com.ugallery.feature.photos
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -22,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
@@ -33,12 +35,12 @@ import com.ugallery.core.designsystem.GalleryColors
 import com.ugallery.core.designsystem.GalleryGridMetrics
 import com.ugallery.core.designsystem.GallerySpacing
 import com.ugallery.core.model.TimelineEntry
+import com.ugallery.core.model.TimelineMedia
 import com.ugallery.core.thumbnail.ThumbnailLoader
 import com.ugallery.core.thumbnail.ThumbnailRequest
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
-import java.util.Locale
 
 @Composable
 fun AdaptivePagedPhotosTimeline(
@@ -47,6 +49,8 @@ fun AdaptivePagedPhotosTimeline(
     modifier: Modifier = Modifier,
     state: LazyGridState = rememberLazyGridState(),
     densityState: TimelineDensityState = rememberTimelineDensityState(),
+    onMediaClick: (TimelineMedia) -> Unit = {},
+    onMediaLongClick: (TimelineMedia) -> Unit = {},
 ) {
     BoxWithConstraints(modifier) {
         val widthDp = maxWidth.value.toInt()
@@ -72,6 +76,8 @@ fun AdaptivePagedPhotosTimeline(
             modifier = Modifier.fillMaxWidth(),
             state = state,
             densityState = densityState,
+            onMediaClick = onMediaClick,
+            onMediaLongClick = onMediaLongClick,
         )
     }
 }
@@ -85,6 +91,8 @@ fun PagedPhotosTimeline(
     modifier: Modifier = Modifier,
     state: LazyGridState = rememberLazyGridState(),
     densityState: TimelineDensityState? = null,
+    onMediaClick: (TimelineMedia) -> Unit = {},
+    onMediaLongClick: (TimelineMedia) -> Unit = {},
 ) {
     require(columns > 0 && thumbnailSizePx > 0)
     LazyVerticalGrid(
@@ -114,6 +122,8 @@ fun PagedPhotosTimeline(
                     entry = entry,
                     loader = thumbnailLoader,
                     sizePx = thumbnailSizePx,
+                    onClick = { onMediaClick(entry.value) },
+                    onLongClick = { onMediaLongClick(entry.value) },
                 )
                 null -> Box(
                     Modifier
@@ -141,8 +151,9 @@ fun PagedPhotosTimeline(
 
 @Composable
 private fun TimelineDayHeader(epochDay: Long) {
+    val locale = LocalConfiguration.current.locales[0]
     val text = LocalDate.ofEpochDay(epochDay).format(
-        DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(Locale.getDefault()),
+        DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale),
     )
     Text(
         text = text,
@@ -161,6 +172,8 @@ private fun TimelineThumbnail(
     entry: TimelineEntry.Media,
     loader: ThumbnailLoader,
     sizePx: Int,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
 ) {
     val contentDescription = stringResource(
         if (entry.value.kind == com.ugallery.core.model.MediaKind.Video) {
@@ -184,6 +197,7 @@ private fun TimelineThumbnail(
         .aspectRatio(1f)
         .testTag("media_${entry.value.key.volumeName}_${entry.value.key.mediaStoreId}")
         .semantics { this.contentDescription = contentDescription }
+        .combinedClickable(onClick = onClick, onLongClick = onLongClick)
     if (loaded == null) {
         Box(
             cellModifier.background(GalleryColors.Muted.copy(alpha = 0.16f)),
