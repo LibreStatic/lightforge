@@ -3,5 +3,15 @@
     <string name="library_local">Only on this device</string>
     <string name="empty_library_title">No photos yet</string>
     <string name="empty_library_body">Photos saved on this device will appear here after access is granted.</string>
+    <string name="limited_access_label">Limited access</string>
+    <string name="limited_access_body">Only selected photos and videos are visible.</string>
+    <string name="manage_access_action">Manage</string>
+    <string name="library_error_title">Library unavailable</string>
+    <string name="library_error_body">Your files are safe. Try opening the gallery again.</string>
+    <string name="library_loading_title">Preparing your library</string>
+    <string name="library_loading_body">Photos already indexed remain available while local indexing continues.</string>
+    <string name="permission_title">Allow photo and video access</string>
+    <string name="permission_body">Choose full or selected access. You can change this later in system settings.</string>
+    <string name="grant_access_action">Choose access</string>
 </resources>
 

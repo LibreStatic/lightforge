@@ -147,7 +147,7 @@ fun PhotosRoute(
 }
 
 @Composable
-private fun EmptyLibrary(modifier: Modifier = Modifier) {
+internal fun EmptyLibrary(modifier: Modifier = Modifier) {
     GalleryStateContent(
         title = stringResource(R.string.empty_library_title),
         body = stringResource(R.string.empty_library_body),

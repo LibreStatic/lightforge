@@ -1,4 +1,14 @@
 <resources>
     <string name="photos_title">Photos</string><string name="library_local">Uniquement sur cet appareil</string>
     <string name="empty_library_title">Aucune photo</string><string name="empty_library_body">Les photos enregistrées sur cet appareil apparaîtront ici après autorisation.</string>
+    <string name="limited_access_label">Accès limité</string>
+    <string name="limited_access_body">Seuls les contenus sélectionnés sont visibles.</string>
+    <string name="manage_access_action">Gérer</string>
+    <string name="library_error_title">Bibliothèque indisponible</string>
+    <string name="library_error_body">Vos fichiers sont en sécurité. Rouvrez la galerie.</string>
+    <string name="library_loading_title">Préparation de la bibliothèque</string>
+    <string name="library_loading_body">Les éléments déjà indexés restent disponibles pendant l’indexation locale.</string>
+    <string name="permission_title">Autoriser l’accès aux photos et vidéos</string>
+    <string name="permission_body">Choisissez un accès complet ou limité. Ce choix reste modifiable dans les réglages système.</string>
+    <string name="grant_access_action">Choisir l’accès</string>
 </resources>

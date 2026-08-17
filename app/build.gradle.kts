@@ -67,6 +67,11 @@ android {
 dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:navigation"))
+    implementation(project(":core:model"))
+    implementation(project(":core:data"))
+    implementation(project(":core:database"))
+    implementation(project(":core:mediastore"))
+    implementation(project(":core:thumbnail"))
     implementation(project(":feature:photos"))
     implementation(project(":feature:permissions"))
 
@@ -77,6 +82,9 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime)
+    implementation(libs.androidx.paging.compose)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.kotlinx.coroutines.core)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.profileinstaller)
     implementation(libs.hilt.android)

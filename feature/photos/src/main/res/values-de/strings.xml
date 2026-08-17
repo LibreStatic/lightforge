@@ -1,4 +1,14 @@
 <resources>
     <string name="photos_title">Fotos</string><string name="library_local">Nur auf diesem Gerät</string>
     <string name="empty_library_title">Noch keine Fotos</string><string name="empty_library_body">Auf diesem Gerät gespeicherte Fotos werden nach der Freigabe hier angezeigt.</string>
+    <string name="limited_access_label">Eingeschränkter Zugriff</string>
+    <string name="limited_access_body">Nur ausgewählte Fotos und Videos sind sichtbar.</string>
+    <string name="manage_access_action">Verwalten</string>
+    <string name="library_error_title">Mediathek nicht verfügbar</string>
+    <string name="library_error_body">Deine Dateien sind sicher. Öffne die Galerie erneut.</string>
+    <string name="library_loading_title">Mediathek wird vorbereitet</string>
+    <string name="library_loading_body">Bereits indexierte Elemente bleiben während der lokalen Indexierung verfügbar.</string>
+    <string name="permission_title">Zugriff auf Fotos und Videos erlauben</string>
+    <string name="permission_body">Wähle vollständigen oder ausgewählten Zugriff. Dies lässt sich später in den Systemeinstellungen ändern.</string>
+    <string name="grant_access_action">Zugriff wählen</string>
 </resources>
