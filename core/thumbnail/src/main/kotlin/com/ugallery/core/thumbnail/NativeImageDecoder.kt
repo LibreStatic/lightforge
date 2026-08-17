@@ -10,6 +10,8 @@ import android.net.Uri
 import android.os.CancellationSignal
 import android.util.Size
 import androidx.annotation.WorkerThread
+import java.io.IOException
+import kotlin.math.ceil
 import kotlin.math.max
 
 class NativeImageDecoder(private val resolver: ContentResolver) {
@@ -19,9 +21,18 @@ class NativeImageDecoder(private val resolver: ContentResolver) {
 
     @WorkerThread
     fun screenPreview(uri: Uri, targetWidth: Int, targetHeight: Int): Bitmap {
+        require(targetWidth > 0 && targetHeight > 0) { "Preview bounds must be positive" }
         val source = ImageDecoder.createSource(resolver, uri)
         return ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
-            val divisor = max(1, max(info.size.width / targetWidth, info.size.height / targetHeight))
+            val divisor = max(
+                1,
+                ceil(
+                    max(
+                        info.size.width.toDouble() / targetWidth,
+                        info.size.height.toDouble() / targetHeight,
+                    ),
+                ).toInt(),
+            )
             decoder.setTargetSampleSize(divisor)
             decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
         }
@@ -29,22 +40,29 @@ class NativeImageDecoder(private val resolver: ContentResolver) {
 
     /** Returns null for formats/providers that cannot expose a seekable region decoder. */
     @WorkerThread
-    fun tile(uri: Uri, region: Rect, sampleSize: Int): Bitmap? =
-        resolver.openFileDescriptor(uri, "r")?.use { descriptor ->
-            @Suppress("DEPRECATION")
-            val decoder = BitmapRegionDecoder.newInstance(descriptor.fileDescriptor, false)
-            try {
-                if (!Rect(0, 0, decoder.width, decoder.height).contains(region)) return null
-                decoder.decodeRegion(
-                    region,
-                    BitmapFactory.Options().apply {
-                        inSampleSize = sampleSize.coerceAtLeast(1)
-                        inPreferredConfig = Bitmap.Config.ARGB_8888
-                    },
-                )
-            } finally {
+    fun tile(uri: Uri, region: Rect, sampleSize: Int): Bitmap? {
+        return try {
+            resolver.openFileDescriptor(uri, "r")?.use { descriptor ->
                 @Suppress("DEPRECATION")
-                decoder.recycle()
+                val decoder = BitmapRegionDecoder.newInstance(descriptor.fileDescriptor, false)
+                try {
+                    if (!Rect(0, 0, decoder.width, decoder.height).contains(region)) return null
+                    decoder.decodeRegion(
+                        region,
+                        BitmapFactory.Options().apply {
+                            inSampleSize = sampleSize.coerceAtLeast(1)
+                            inPreferredConfig = Bitmap.Config.ARGB_8888
+                        },
+                    )
+                } finally {
+                    @Suppress("DEPRECATION")
+                    decoder.recycle()
+                }
             }
+        } catch (_: IOException) {
+            null
+        } catch (_: IllegalArgumentException) {
+            null
         }
+    }
 }
