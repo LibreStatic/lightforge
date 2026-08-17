@@ -21,17 +21,6 @@ class MediaStoreGenerationProbe(private val context: Context) {
         }
 
     companion object {
-        val MinimalProjection = arrayOf(
-            MediaStore.MediaColumns._ID,
-            MediaStore.MediaColumns.MIME_TYPE,
-            MediaStore.MediaColumns.SIZE,
-            MediaStore.MediaColumns.WIDTH,
-            MediaStore.MediaColumns.HEIGHT,
-            MediaStore.MediaColumns.DATE_TAKEN,
-            MediaStore.MediaColumns.DATE_MODIFIED,
-            MediaStore.MediaColumns.GENERATION_ADDED,
-            MediaStore.MediaColumns.GENERATION_MODIFIED,
-        )
+        val MinimalProjection: Array<String> get() = MediaStoreProjection.Columns.clone()
     }
 }
-
