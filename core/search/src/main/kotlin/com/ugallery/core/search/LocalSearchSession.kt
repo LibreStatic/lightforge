@@ -21,7 +21,7 @@ class LocalSearchSession(private val context: Context) {
 
 object MediaSearchSchema {
     const val Type = "MediaDocument"
-    const val Version = 1L
+    const val Version = 2L
 
     object Property {
         const val MediaKey = "mediaKey"
@@ -32,11 +32,13 @@ object MediaSearchSchema {
         const val DisplayName = "displayName"
         const val BucketName = "bucketName"
         const val OcrText = "ocrText"
+        const val NormalizedText = "normalizedText"
         const val CanonicalLabels = "canonicalLabels"
         const val PersonIds = "personIds"
         const val TimelineSortMillis = "timelineSortMillis"
         const val GenerationModified = "generationModified"
         const val Favorite = "favorite"
+        const val FavoriteToken = "favoriteToken"
         const val SchemaVersion = "schemaVersion"
         const val LabelModelVersion = "labelModelVersion"
         const val OcrModelVersion = "ocrModelVersion"
@@ -51,11 +53,13 @@ object MediaSearchSchema {
         .addProperty(prefix(Property.DisplayName))
         .addProperty(prefix(Property.BucketName))
         .addProperty(prefix(Property.OcrText))
+        .addProperty(prefix(Property.NormalizedText))
         .addProperty(prefix(Property.CanonicalLabels, repeated = true))
         .addProperty(exact(Property.PersonIds, repeated = true))
         .addProperty(number(Property.TimelineSortMillis, range = true))
         .addProperty(number(Property.GenerationModified))
         .addProperty(boolean(Property.Favorite))
+        .addProperty(exact(Property.FavoriteToken, required = true))
         .addProperty(number(Property.SchemaVersion))
         .addProperty(number(Property.LabelModelVersion))
         .addProperty(number(Property.OcrModelVersion))
@@ -65,7 +69,7 @@ object MediaSearchSchema {
         AppSearchSchema.StringPropertyConfig.Builder(name)
             .setCardinality(cardinality(required, repeated))
             .setIndexingType(AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_EXACT_TERMS)
-            .setTokenizerType(AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
+            .setTokenizerType(AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_VERBATIM)
             .build()
 
     private fun prefix(name: String, repeated: Boolean = false) =

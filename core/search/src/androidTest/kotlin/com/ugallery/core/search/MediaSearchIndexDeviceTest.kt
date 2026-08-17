@@ -17,6 +17,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.UUID
 import java.util.concurrent.TimeUnit
+import java.time.LocalDate
+import java.time.ZoneOffset
 
 @RunWith(AndroidJUnit4::class)
 class MediaSearchIndexDeviceTest {
@@ -97,6 +99,40 @@ class MediaSearchIndexDeviceTest {
         assertEquals(null, state.read())
     }
 
+    @Test fun SpanishStructuredQueryRanksAndPaginatesWithoutMaterializingAllResults() = runBlocking {
+        val database = uniqueDatabase()
+        val august = LocalDate.of(2025, 8, 10).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        AppSearchMediaIndex(context, database).use { index ->
+            index.ensureSchema(forceOverride = true)
+            index.put(
+                listOf(
+                    document("external_primary", 10, ocr = "Cámara en la playa", labels = listOf("beach"), timeline = august, favorite = true, people = listOf("p1")),
+                    document("external_primary", 11, ocr = "Playa", labels = listOf("beach"), timeline = august + 1),
+                    document("external_primary", 12, ocr = "Playa", labels = listOf("beach"), timeline = august + 2),
+                ),
+            )
+        }
+        val repository = AppSearchMediaSearchRepository(
+            context,
+            database,
+            SearchQueryParser(ZoneOffset.UTC),
+        )
+        repository.search("FÓTOS playa favoritos fecha:2025-08 persona:p1", pageSize = 2).use { cursor ->
+            val page = cursor.nextPage()
+            assertEquals(listOf(MediaKey("external_primary", 10)), page.hits.map { it.key })
+            assertEquals("relevance", page.hits.single().debug.strategy)
+            assertTrue(page.hits.single().debug.queryExpression.contains("timelineSortMillis >="))
+        }
+        repository.search("playa", pageSize = 2).use { cursor ->
+            assertEquals(2, cursor.nextPage().hits.size)
+            assertEquals(1, cursor.nextPage().hits.size)
+            assertTrue(cursor.nextPage().isTerminal)
+        }
+        repository.search("camara", pageSize = 10).use { cursor ->
+            assertEquals(listOf(MediaKey("external_primary", 10)), cursor.nextPage().hits.map { it.key })
+        }
+    }
+
     private fun queryIds(database: String, query: String, pageSize: Int = 100): List<String> {
         val owner = LocalSearchSession(context)
         return owner.open(database).get(30, TimeUnit.SECONDS).use { session ->
@@ -125,11 +161,14 @@ class MediaSearchIndexDeviceTest {
         id: Long,
         ocr: String,
         labels: List<String> = emptyList(),
+        timeline: Long = id,
+        favorite: Boolean = false,
+        people: List<String> = emptyList(),
     ) = MediaSearchDocument(
         key = MediaKey(volume, id), kind = MediaKind.Image, mimeType = "image/jpeg",
-        displayName = "$id.jpg", bucketName = "Camera", timelineSortMillis = id,
-        generationModified = 1, favorite = false, ocrText = ocr,
-        canonicalLabels = labels, ocrModelVersion = 1, labelModelVersion = 1,
+        displayName = "$id.jpg", bucketName = "Camera", timelineSortMillis = timeline,
+        generationModified = 1, favorite = favorite, ocrText = ocr,
+        canonicalLabels = labels, personIds = people, ocrModelVersion = 1, labelModelVersion = 1,
     )
 
     private fun uniqueDatabase() = "m3-${UUID.randomUUID()}"

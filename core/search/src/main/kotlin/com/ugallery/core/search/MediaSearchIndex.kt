@@ -123,6 +123,7 @@ internal fun MediaSearchDocument.genericDocument(): GenericDocument =
         key.documentId(),
         MediaSearchSchema.Type,
     )
+        .setCreationTimestampMillis(timelineSortMillis.coerceAtLeast(0))
         .setPropertyString(MediaSearchSchema.Property.MediaKey, "${key.volumeName}:${key.mediaStoreId}")
         .setPropertyString(MediaSearchSchema.Property.VolumeName, key.volumeName)
         .setPropertyLong(MediaSearchSchema.Property.MediaStoreId, key.mediaStoreId)
@@ -131,11 +132,18 @@ internal fun MediaSearchDocument.genericDocument(): GenericDocument =
         .setPropertyStringIfPresent(MediaSearchSchema.Property.DisplayName, displayName)
         .setPropertyStringIfPresent(MediaSearchSchema.Property.BucketName, bucketName)
         .setPropertyStringIfPresent(MediaSearchSchema.Property.OcrText, ocrText)
+        .setPropertyString(
+            MediaSearchSchema.Property.NormalizedText,
+            SearchTextNormalizer.normalizeForIndex(
+                listOfNotNull(displayName, bucketName, ocrText) + canonicalLabels,
+            ),
+        )
         .setPropertyStringsIfPresent(MediaSearchSchema.Property.CanonicalLabels, canonicalLabels)
         .setPropertyStringsIfPresent(MediaSearchSchema.Property.PersonIds, personIds)
         .setPropertyLong(MediaSearchSchema.Property.TimelineSortMillis, timelineSortMillis)
         .setPropertyLong(MediaSearchSchema.Property.GenerationModified, generationModified)
         .setPropertyBoolean(MediaSearchSchema.Property.Favorite, favorite)
+        .setPropertyString(MediaSearchSchema.Property.FavoriteToken, if (favorite) "favorite" else "normal")
         .setPropertyLong(MediaSearchSchema.Property.SchemaVersion, MediaSearchSchema.Version)
         .setPropertyLong(MediaSearchSchema.Property.LabelModelVersion, labelModelVersion)
         .setPropertyLong(MediaSearchSchema.Property.OcrModelVersion, ocrModelVersion)
