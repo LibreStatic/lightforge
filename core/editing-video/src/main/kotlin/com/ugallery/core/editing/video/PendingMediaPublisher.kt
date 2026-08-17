@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.ContentValues
 import android.net.Uri
+import android.os.Bundle
 import android.provider.MediaStore
 import java.io.File
 
@@ -44,15 +45,29 @@ class PendingMediaPublisher(private val resolver: ContentResolver) {
         val abandonedIds = buildList {
             resolver.query(
                 collection,
-                arrayOf(MediaStore.MediaColumns._ID),
-                "${MediaStore.MediaColumns.IS_PENDING} = 1 AND " +
-                    "${MediaStore.MediaColumns.OWNER_PACKAGE_NAME} = ? AND " +
-                    "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ? AND " +
-                    "${MediaStore.MediaColumns.DATE_ADDED} < ?",
-                arrayOf(ownerPackageName, "$relativePathPrefix%", olderThanEpochSeconds.toString()),
+                arrayOf(
+                    MediaStore.MediaColumns._ID,
+                    MediaStore.MediaColumns.OWNER_PACKAGE_NAME,
+                    MediaStore.MediaColumns.RELATIVE_PATH,
+                    MediaStore.MediaColumns.DATE_ADDED,
+                ),
+                Bundle().apply {
+                    putInt(MediaStore.QUERY_ARG_MATCH_PENDING, MediaStore.MATCH_ONLY)
+                },
                 null,
             )?.use { cursor ->
-                while (cursor.moveToNext()) add(cursor.getLong(0))
+                while (cursor.moveToNext()) {
+                    val owner = cursor.getString(1)
+                    val path = cursor.getString(2).orEmpty()
+                    val added = cursor.getLong(3)
+                    if (
+                        owner == ownerPackageName &&
+                        path.startsWith(relativePathPrefix) &&
+                        added < olderThanEpochSeconds
+                    ) {
+                        add(cursor.getLong(0))
+                    }
+                }
             }
         }
         return abandonedIds.sumOf { id ->

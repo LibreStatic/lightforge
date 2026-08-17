@@ -102,6 +102,24 @@ class Media3ExportDeviceTest {
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }))
         resolver.openOutputStream(pending, "w")!!.use { it.write(byteArrayOf(0, 1, 2, 3)) }
+        resolver.query(
+            pending,
+            arrayOf(
+                MediaStore.MediaColumns.OWNER_PACKAGE_NAME,
+                MediaStore.MediaColumns.RELATIVE_PATH,
+                MediaStore.MediaColumns.DATE_ADDED,
+                MediaStore.MediaColumns.IS_PENDING,
+            ),
+            null,
+            null,
+            null,
+        )!!.use { cursor ->
+            check(cursor.moveToFirst())
+            println(
+                "UGALLERY_PENDING_RECOVERY owner=${cursor.getString(0)} expected=${context.packageName} " +
+                    "path=${cursor.getString(1)} added=${cursor.getLong(2)} pending=${cursor.getInt(3)}",
+            )
+        }
 
         val deleted = PendingMediaPublisher(resolver).recoverAbandonedExports(
             ownerPackageName = context.packageName,
