@@ -130,6 +130,13 @@ object MediaActionReducer {
         return snapshot.copy(progress = progress, phase = nextPhase(progress))
     }
 
+    fun failUnresolvedRemainder(snapshot: MediaActionSnapshot): MediaActionSnapshot {
+        require(snapshot.phase == MediaActionPhase.ReadyForChunk)
+        val remaining = snapshot.progress.totalSelected - snapshot.progress.accounted
+        val progress = snapshot.progress.copy(failed = snapshot.progress.failed + remaining)
+        return snapshot.copy(progress = progress, phase = MediaActionPhase.Complete)
+    }
+
     fun validate(snapshot: MediaActionSnapshot) {
         require(snapshot.version == MediaActionSnapshot.CurrentVersion)
         require(snapshot.nextRequestId > 0)

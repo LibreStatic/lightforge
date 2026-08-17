@@ -9,6 +9,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
@@ -46,7 +49,7 @@ import com.ugallery.core.mediastore.MediaAction
 import com.ugallery.core.mediastore.MediaActionPhase
 import com.ugallery.core.model.MediaKind
 import com.ugallery.core.model.TimelineMedia
-import com.ugallery.core.selection.SelectionReducer
+import com.ugallery.core.selection.SelectionSpec
 import com.ugallery.feature.album.AlbumContent
 import com.ugallery.feature.collections.CollectionsContent
 import com.ugallery.feature.details.DetailsContent
@@ -71,6 +74,7 @@ internal fun ProductionGalleryApp(
     val currentMedia by viewModel.currentMedia.collectAsState()
     val selectedAlbum by viewModel.selectedAlbum.collectAsState()
     val selection by viewModel.selection.collectAsState()
+    val selectionCount by viewModel.selectionCount.collectAsState()
     val photoState by viewModel.photoState.collectAsState()
     val trashCount by viewModel.trashCount.collectAsState()
     val cheap by viewModel.cheapDetails.collectAsState()
@@ -89,6 +93,8 @@ internal fun ProductionGalleryApp(
     var sort by rememberSaveable { mutableStateOf(AlbumSort.NewestFirst) }
     var showDetails by rememberSaveable { mutableStateOf(false) }
     var showCreateAlbum by rememberSaveable { mutableStateOf(false) }
+    var showAddToAlbum by rememberSaveable { mutableStateOf(false) }
+    var showEmptyTrashConfirmation by rememberSaveable { mutableStateOf(false) }
     var newAlbumName by rememberSaveable { mutableStateOf("") }
     var pendingRequestId by rememberSaveable { mutableStateOf<Long?>(null) }
 
@@ -149,7 +155,7 @@ internal fun ProductionGalleryApp(
                         thumbnailLoader = thumbnails,
                         onRequestAccess = ::requestAccess,
                         onMediaClick = { media ->
-                            if (SelectionReducer.count(selection, 0) > 0) viewModel.toggleSelection(media)
+                            if (selectionCount > 0) viewModel.toggleSelection(media)
                             else { viewModel.openMedia(media); route = SurfaceRoute.Viewer }
                         },
                         onMediaLongClick = viewModel::toggleSelection,
@@ -179,7 +185,7 @@ internal fun ProductionGalleryApp(
                             onFilterChange = { filter = it; viewModel.selectAlbum(album, filter, sort) },
                             onSortChange = { sort = it; viewModel.selectAlbum(album, filter, sort) },
                             onMediaClick = { media ->
-                                if (SelectionReducer.count(selection, album.itemCount) > 0) viewModel.toggleSelection(media)
+                                if (selectionCount > 0) viewModel.toggleSelection(media)
                                 else { viewModel.openMedia(media); route = SurfaceRoute.Viewer }
                             },
                             onMediaLongClick = viewModel::toggleSelection,
@@ -203,8 +209,49 @@ internal fun ProductionGalleryApp(
                     totalCount = trashCount,
                     onRestore = { media -> viewModel.openMedia(media); viewModel.beginSystemAction(media, MediaAction.Trash(false)) },
                     onDeletePermanently = { media -> viewModel.openMedia(media); viewModel.beginSystemAction(media, MediaAction.Delete) },
-                    onEmptyTrash = { /* confirmation below; bounded bulk wiring follows selection chunks */ },
+                    onEmptyTrash = { showEmptyTrashConfirmation = true },
                 )
+            }
+        }
+        val controls: @Composable () -> Unit = {
+            if (selectionCount == 0L && (
+                    route == SurfaceRoute.Album ||
+                        route == SurfaceRoute.Root && rootTab == RootTab.Photos
+                )
+            ) {
+                TextButton(onClick = {
+                    if (route == SurfaceRoute.Album && selectedAlbum != null) {
+                        viewModel.selectAllAlbum(requireNotNull(selectedAlbum), filter, sort)
+                    } else viewModel.selectAllTimeline()
+                }) { Text(stringResource(R.string.selection_select_all)) }
+            }
+            if (selectionCount > 0) {
+                SelectionActions(
+                    count = selectionCount,
+                    canShare = selection is SelectionSpec.Explicit && selectionCount <= 500,
+                    onSelectAll = {
+                        if (route == SurfaceRoute.Album && selectedAlbum != null) {
+                            viewModel.selectAllAlbum(requireNotNull(selectedAlbum), filter, sort)
+                        } else viewModel.selectAllTimeline()
+                    },
+                    onFavorite = { viewModel.beginSelectionSystemAction(MediaAction.Favorite(true)) },
+                    onTrash = { viewModel.beginSelectionSystemAction(MediaAction.Trash(true)) },
+                    onDelete = { viewModel.beginSelectionSystemAction(MediaAction.Delete) },
+                    onAddToAlbum = { showAddToAlbum = true },
+                    onShare = {
+                        viewModel.selectionShareIntent()?.let {
+                            context.startActivity(Intent.createChooser(it, null))
+                        }
+                    },
+                    onClear = viewModel::clearSelection,
+                )
+            }
+            actionState?.let { state ->
+                if (state.phase is MediaActionPhase.Cancelled) {
+                    Button(onClick = viewModel::retrySystemAction) {
+                        Text(stringResource(R.string.action_retry))
+                    }
+                }
             }
         }
         Scaffold(
@@ -215,20 +262,16 @@ internal fun ProductionGalleryApp(
             if (expanded && route == SurfaceRoute.Root) {
                 Row(Modifier.fillMaxSize().padding(padding)) {
                     RootNavigationRail(rootTab) { rootTab = it }
-                    Column(Modifier.weight(1f)) { content() }
+                    Column(Modifier.weight(1f)) {
+                        controls()
+                        content()
+                    }
                 }
             } else Column(Modifier.fillMaxSize().padding(padding)) {
                 if (route != SurfaceRoute.Root) Button(onClick = { route = SurfaceRoute.Root }) {
                     Text(stringResource(R.string.nav_back))
                 }
-                if (runCatching { SelectionReducer.count(selection, selectedAlbum?.itemCount ?: 0) }.getOrDefault(0) > 0) {
-                    Button(onClick = viewModel::clearSelection) { Text(stringResource(R.string.selection_clear)) }
-                }
-                actionState?.let { state ->
-                    if (state.phase is MediaActionPhase.Cancelled) {
-                        Button(onClick = viewModel::retrySystemAction) { Text(stringResource(R.string.action_retry)) }
-                    }
-                }
+                controls()
                 content()
             }
         }
@@ -246,6 +289,94 @@ internal fun ProductionGalleryApp(
             },
         )
     }
+    if (showAddToAlbum) {
+        ChooseAlbumDialog(
+            albums = virtualAlbums.itemSnapshotList.items,
+            onDismiss = { showAddToAlbum = false },
+            onSelect = { album ->
+                (album.key as? com.ugallery.core.model.AlbumKey.Virtual)?.let {
+                    viewModel.addSelectionToVirtualAlbum(it.albumId)
+                }
+                showAddToAlbum = false
+            },
+        )
+    }
+    if (showEmptyTrashConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showEmptyTrashConfirmation = false },
+            title = { Text(stringResource(R.string.trash_empty_confirm_title)) },
+            text = { Text(stringResource(R.string.trash_empty_confirm_body, trashCount)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showEmptyTrashConfirmation = false
+                    viewModel.emptyTrash()
+                }) { Text(stringResource(R.string.trash_empty_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEmptyTrashConfirmation = false }) {
+                    Text(stringResource(R.string.album_cancel))
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun SelectionActions(
+    count: Long,
+    canShare: Boolean,
+    onSelectAll: () -> Unit,
+    onFavorite: () -> Unit,
+    onTrash: () -> Unit,
+    onDelete: () -> Unit,
+    onAddToAlbum: () -> Unit,
+    onShare: () -> Unit,
+    onClear: () -> Unit,
+) {
+    Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+        Text(stringResource(R.string.selection_count, count), style = MaterialTheme.typography.titleMedium)
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            TextButton(onClick = onSelectAll) { Text(stringResource(R.string.selection_select_all)) }
+            TextButton(onClick = onFavorite) { Text(stringResource(R.string.selection_favorite)) }
+            TextButton(onClick = onTrash) { Text(stringResource(R.string.selection_trash)) }
+            TextButton(onClick = onAddToAlbum) { Text(stringResource(R.string.selection_add_album)) }
+        }
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (canShare) TextButton(onClick = onShare) { Text(stringResource(R.string.selection_share)) }
+            TextButton(onClick = onDelete) { Text(stringResource(R.string.selection_delete)) }
+            TextButton(onClick = onClear) { Text(stringResource(R.string.selection_clear)) }
+        }
+    }
+}
+
+@Composable
+private fun ChooseAlbumDialog(
+    albums: List<com.ugallery.core.model.AlbumSummary>,
+    onDismiss: () -> Unit,
+    onSelect: (com.ugallery.core.model.AlbumSummary) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.selection_choose_album)) },
+        text = {
+            Column {
+                if (albums.isEmpty()) Text(stringResource(R.string.selection_no_albums))
+                albums.forEach { album ->
+                    TextButton(onClick = { onSelect(album) }) {
+                        Text(album.name ?: stringResource(com.ugallery.feature.album.R.string.album_untitled))
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.album_cancel)) } },
+    )
 }
 
 @Composable

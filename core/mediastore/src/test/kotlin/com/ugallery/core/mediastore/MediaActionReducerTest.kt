@@ -77,6 +77,22 @@ class MediaActionReducerTest {
         )
     }
 
+    @Test
+    fun `exhausted query accounts unresolved remainder as failed`() {
+        val awaiting = MediaActionReducer.stage(
+            MediaActionReducer.start(MediaAction.Delete, 3),
+            listOf(target(1), target(2)),
+        )
+        val verified = MediaActionReducer.verified(
+            awaiting, 1, succeeded = 2, failed = 0, VerifiedDisposition.Completed,
+        )
+        val exhausted = MediaActionReducer.failUnresolvedRemainder(verified)
+
+        assertEquals(2L, exhausted.progress.completed)
+        assertEquals(1L, exhausted.progress.failed)
+        assertTrue(exhausted.phase is MediaActionPhase.Complete)
+    }
+
     private fun key(id: Long) = MediaKey("external_primary", id)
     private fun target(id: Long) = MediaActionTarget(key(id), MediaKind.Image)
 }

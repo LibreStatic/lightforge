@@ -6,10 +6,17 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
+import androidx.room.RawQuery
+import androidx.sqlite.db.SupportSQLiteQuery
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface LibraryDao {
+    @RawQuery
+    suspend fun rawSelectionPage(query: SupportSQLiteQuery): List<MediaItemEntity>
+
+    @RawQuery
+    suspend fun rawSelectionCount(query: SupportSQLiteQuery): Long
     @Upsert
     suspend fun upsertMedia(items: List<MediaItemEntity>)
 

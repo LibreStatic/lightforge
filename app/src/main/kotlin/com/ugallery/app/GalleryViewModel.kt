@@ -19,6 +19,7 @@ import com.ugallery.core.data.IncrementalSyncResult
 import com.ugallery.core.data.InitialMediaScanner
 import com.ugallery.core.data.MediaStoreChangeMonitor
 import com.ugallery.core.data.RoomMediaIndexStore
+import com.ugallery.core.data.RoomSelectionTargetSource
 import com.ugallery.core.database.GalleryDatabase
 import com.ugallery.core.database.GalleryDatabaseFactory
 import com.ugallery.core.mediastore.MediaStoreGenerationProbe
@@ -36,6 +37,7 @@ import com.ugallery.core.mediastore.MediaWriteSpec
 import com.ugallery.core.mediastore.PublishedCopy
 import com.ugallery.core.model.AlbumKey
 import com.ugallery.core.model.AlbumSummary
+import com.ugallery.core.model.MediaKey
 import com.ugallery.core.model.CheapMediaDetails
 import com.ugallery.core.model.ExifLoadResult
 import com.ugallery.core.model.MediaKind
@@ -43,6 +45,7 @@ import com.ugallery.core.model.TimelineEntry
 import com.ugallery.core.model.TimelineMedia
 import com.ugallery.core.selection.SelectionReducer
 import com.ugallery.core.selection.SelectionSpec
+import com.ugallery.core.selection.MediaQuery
 import com.ugallery.core.thumbnail.NativeImageDecoder
 import com.ugallery.core.thumbnail.ThumbnailLoader
 import com.ugallery.feature.permissions.PermissionCoordinator
@@ -51,6 +54,7 @@ import com.ugallery.feature.viewer.PhotoViewerPipeline
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -87,10 +91,12 @@ private data class GalleryRuntime(
     val albums: GalleryAlbumRepository,
     val trash: GalleryTrashRepository,
     val metadata: MediaMetadataRepository,
+    val selectionTargets: RoomSelectionTargetSource,
     var monitor: MediaStoreChangeMonitor? = null,
 )
 
 @HiltViewModel
+@OptIn(ExperimentalCoroutinesApi::class)
 class GalleryViewModel @Inject constructor(
     application: Application,
     val permissions: PermissionCoordinator,
@@ -136,6 +142,9 @@ class GalleryViewModel @Inject constructor(
     val selectedAlbum = mutableSelectedAlbum.asStateFlow()
     private val mutableSelection = MutableStateFlow<SelectionSpec>(SelectionSpec.explicit())
     val selection = mutableSelection.asStateFlow()
+    private val mutableSelectionCount = MutableStateFlow(0L)
+    val selectionCount = mutableSelectionCount.asStateFlow()
+    private val explicitTargets = linkedMapOf<com.ugallery.core.model.MediaKey, MediaActionTarget>()
     private val mutablePhotoState = MutableStateFlow<PhotoLoadState?>(null)
     val photoState = mutablePhotoState.asStateFlow()
     private val mutableCheapDetails = MutableStateFlow<CheapMediaDetails?>(null)
@@ -148,6 +157,7 @@ class GalleryViewModel @Inject constructor(
     val actionLaunches = mutableActionLaunches.asSharedFlow()
     private var currentSystemCoordinator: MediaStoreActionCoordinator? = null
     private var photoJob: Job? = null
+    private var bulkCursor: BulkCursor? = savedStateHandle[BulkStateKey]
     private val mutableExternalMedia = MutableStateFlow<ExternalMedia?>(null)
     val externalMedia = mutableExternalMedia.asStateFlow()
     private val mutableExternalPhotoState = MutableStateFlow<PhotoLoadState?>(null)
@@ -236,13 +246,102 @@ class GalleryViewModel @Inject constructor(
     }
 
     fun toggleSelection(media: TimelineMedia) {
-        mutableSelection.value = SelectionReducer.toggle(mutableSelection.value, media.key)
+        val before = mutableSelection.value
+        val wasSelected = SelectionReducer.isSelected(before, media.key)
+        val updated = SelectionReducer.toggle(before, media.key)
+        mutableSelection.value = updated
+        when (updated) {
+            is SelectionSpec.Explicit -> {
+                if (SelectionReducer.isSelected(updated, media.key)) {
+                    explicitTargets[media.key] = MediaActionTarget(media.key, media.kind)
+                } else explicitTargets.remove(media.key)
+                mutableSelectionCount.value = explicitTargets.size.toLong()
+            }
+            is SelectionSpec.QueryAll -> {
+                explicitTargets.clear()
+                mutableSelectionCount.value = (
+                    mutableSelectionCount.value + if (wasSelected) -1 else 1
+                ).coerceAtLeast(0)
+            }
+        }
     }
 
-    fun clearSelection() { mutableSelection.value = SelectionReducer.clear() }
+    fun clearSelection() {
+        mutableSelection.value = SelectionReducer.clear()
+        explicitTargets.clear()
+        mutableSelectionCount.value = 0
+    }
+
+    fun selectAllAlbum(album: AlbumSummary, filter: AlbumMediaFilter, sort: AlbumSort) {
+        val query = albumQuery(album.key, filter, sort)
+        mutableSelection.value = SelectionSpec.queryAll(query)
+        explicitTargets.clear()
+        viewModelScope.launch {
+            mutableSelectionCount.value = runtime.value?.selectionTargets?.count(query) ?: 0
+        }
+    }
+
+    fun selectAllTimeline() = selectAll(MediaQuery())
+
+    private fun selectAll(query: MediaQuery) {
+        mutableSelection.value = SelectionSpec.queryAll(query)
+        explicitTargets.clear()
+        viewModelScope.launch {
+            mutableSelectionCount.value = runtime.value?.selectionTargets?.count(query) ?: 0
+        }
+    }
+
+    fun beginSelectionSystemAction(action: MediaAction) {
+        when (val selected = mutableSelection.value) {
+            is SelectionSpec.Explicit -> {
+                val targets = selected.keys.mapNotNull(explicitTargets::get)
+                if (targets.isEmpty()) return
+                beginTargetsAction(targets, action)
+            }
+            is SelectionSpec.QueryAll -> beginQueryAction(selected, action)
+        }
+    }
+
+    fun emptyTrash() = beginQueryAction(
+        SelectionSpec.queryAll(MediaQuery(trashedOnly = true)),
+        MediaAction.Delete,
+    )
 
     fun createVirtualAlbum(name: String) {
         viewModelScope.launch { runtime.value?.albums?.createVirtualAlbum(name) }
+    }
+
+    fun addSelectionToVirtualAlbum(albumId: Long) {
+        require(albumId > 0)
+        val selected = mutableSelection.value
+        viewModelScope.launch(Dispatchers.IO) {
+            val active = runtime.value ?: return@launch
+            when (selected) {
+                is SelectionSpec.Explicit -> selected.keys.chunked(500).forEach { chunk ->
+                    active.albums.addToVirtualAlbum(albumId, chunk)
+                }
+                is SelectionSpec.QueryAll -> {
+                    var after: MediaKey? = null
+                    while (true) {
+                        val page = active.selectionTargets.page(selected.querySnapshot, after, 500)
+                        if (page.isEmpty()) break
+                        after = page.last().key
+                        val keys = page.map(MediaActionTarget::key).filterNot(selected.exclusions::contains)
+                        if (keys.isNotEmpty()) active.albums.addToVirtualAlbum(albumId, keys)
+                    }
+                }
+            }
+            withContext(Dispatchers.Main) { clearSelection() }
+        }
+    }
+
+    fun selectionShareIntent(): Intent? {
+        val selected = mutableSelection.value as? SelectionSpec.Explicit ?: return null
+        val targets = selected.keys.mapNotNull(explicitTargets::get)
+        if (targets.isEmpty() || targets.size > 500) return null
+        return ShareCoordinator(getApplication<Application>().contentResolver).original(
+            targets.map { ShareCandidate(it, mediaMime(it.kind)) },
+        ).intent
     }
 
     fun openMedia(media: TimelineMedia) {
@@ -279,17 +378,31 @@ class GalleryViewModel @Inject constructor(
     ).intent
 
     fun beginSystemAction(media: TimelineMedia, action: MediaAction) {
-        val initial = MediaActionReducer.start(action, 1)
-        val coordinator = coordinator(initial)
+        beginTargetsAction(listOf(MediaActionTarget(media.key, media.kind)), action)
+    }
+
+    private fun beginTargetsAction(targets: List<MediaActionTarget>, action: MediaAction) {
+        require(targets.size <= MediaActionReducer.MaxChunkSize)
+        val sizedInitial = MediaActionReducer.start(action, targets.size.toLong())
+        val coordinator = coordinator(sizedInitial)
         currentSystemCoordinator = coordinator
-        mutableActionLaunches.tryEmit(coordinator.stageChunk(listOf(MediaActionTarget(media.key, media.kind))))
+        mutableActionLaunches.tryEmit(coordinator.stageChunk(targets))
     }
 
     fun resumePendingSystemAction() {
         val snapshot = mutableSystemAction.value ?: return
         val coordinator = coordinator(snapshot)
         currentSystemCoordinator = coordinator
-        runCatching { coordinator.recreateCurrentRequest() }.getOrNull()?.let(mutableActionLaunches::tryEmit)
+        when (snapshot.phase) {
+            is com.ugallery.core.mediastore.MediaActionPhase.AwaitingSystem -> {
+                runCatching { coordinator.recreateCurrentRequest() }
+                    .getOrNull()?.let(mutableActionLaunches::tryEmit)
+            }
+            com.ugallery.core.mediastore.MediaActionPhase.ReadyForChunk -> {
+                if (bulkCursor != null) viewModelScope.launch { stageNextBulkChunk() }
+            }
+            else -> Unit
+        }
     }
 
     fun retrySystemAction() {
@@ -301,20 +414,27 @@ class GalleryViewModel @Inject constructor(
     fun onSystemActionResult(requestId: Long, approved: Boolean) {
         val media = mutableCurrentMedia.value
         viewModelScope.launch {
-            currentSystemCoordinator?.onSystemResult(requestId, approved)
+            val snapshot = currentSystemCoordinator?.onSystemResult(requestId, approved)
             if (approved && media != null) runtime.value?.synchronizer?.applyRowHint(media.key)
+            if (snapshot?.phase == com.ugallery.core.mediastore.MediaActionPhase.ReadyForChunk) {
+                stageNextBulkChunk()
+            } else if (snapshot?.phase == com.ugallery.core.mediastore.MediaActionPhase.Complete) {
+                clearSelection()
+                bulkCursor = null
+                savedStateHandle[BulkStateKey] = null
+            }
         }
     }
 
     fun mediaUri(media: TimelineMedia): Uri = media.uri()
 
-    private suspend fun refreshLibrary() = refreshMutex.withLock {
-        val active = runtime.value ?: return
+    private suspend fun refreshLibrary(): Unit = refreshMutex.withLock {
+        val active = runtime.value ?: return@withLock
         if (access.value.images == com.ugallery.core.model.GrantLevel.None &&
             access.value.videos == com.ugallery.core.model.GrantLevel.None
         ) {
             mutableEngineState.value = LibraryEngineState.PermissionRequired
-            return
+            return@withLock
         }
         mutableEngineState.value = LibraryEngineState.Indexing
         try {
@@ -373,6 +493,7 @@ class GalleryViewModel @Inject constructor(
             albums = GalleryAlbumRepository(database),
             trash = GalleryTrashRepository(database),
             metadata = MediaMetadataRepository(context.contentResolver, database),
+            selectionTargets = RoomSelectionTargetSource(database),
         )
     }
 
@@ -394,6 +515,55 @@ class GalleryViewModel @Inject constructor(
     )
 
     private fun mediaMime(kind: MediaKind) = if (kind == MediaKind.Image) "image/*" else "video/*"
+
+    private fun albumQuery(key: AlbumKey, filter: AlbumMediaFilter, sort: AlbumSort) = MediaQuery(
+        scope = when (key) {
+            is AlbumKey.Physical -> MediaQuery.Scope.PhysicalAlbum(key.volumeName, key.bucketId)
+            is AlbumKey.Virtual -> MediaQuery.Scope.VirtualAlbum(key.albumId)
+        },
+        kindFilter = when (filter) {
+            AlbumMediaFilter.All -> MediaQuery.KindFilter.ImagesAndVideos
+            AlbumMediaFilter.Images -> MediaQuery.KindFilter.Images
+            AlbumMediaFilter.Videos -> MediaQuery.KindFilter.Videos
+        },
+        sort = if (sort == AlbumSort.NewestFirst) MediaQuery.Sort.NewestFirst else MediaQuery.Sort.OldestFirst,
+    )
+
+    private fun beginQueryAction(selection: SelectionSpec.QueryAll, action: MediaAction) {
+        viewModelScope.launch {
+            val source = runtime.value?.selectionTargets ?: return@launch
+            val total = (source.count(selection.querySnapshot) - selection.exclusions.size).coerceAtLeast(0)
+            if (total == 0L) return@launch
+            val coordinator = coordinator(MediaActionReducer.start(action, total))
+            currentSystemCoordinator = coordinator
+            bulkCursor = BulkCursor(selection, action, null).also { savedStateHandle[BulkStateKey] = it }
+            stageNextBulkChunk()
+        }
+    }
+
+    private suspend fun stageNextBulkChunk() {
+        val cursor = bulkCursor ?: return
+        val source = runtime.value?.selectionTargets ?: return
+        var after = cursor.afterExclusive
+        while (true) {
+            val page = source.page(cursor.selection.querySnapshot, after, 500)
+            if (page.isEmpty()) {
+                val coordinator = currentSystemCoordinator ?: return
+                val finished = MediaActionReducer.failUnresolvedRemainder(coordinator.snapshot.value)
+                currentSystemCoordinator = coordinator(finished)
+                bulkCursor = null
+                savedStateHandle[BulkStateKey] = null
+                return
+            }
+            after = page.last().key
+            bulkCursor = cursor.copy(afterExclusive = after).also { savedStateHandle[BulkStateKey] = it }
+            val targets = page.filterNot { it.key in cursor.selection.exclusions }
+            if (targets.isNotEmpty()) {
+                currentSystemCoordinator?.stageChunk(targets)?.let { mutableActionLaunches.emit(it) }
+                return
+            }
+        }
+    }
 
     private fun loadExternalPhoto(uri: Uri) {
         photoJob?.cancel()
@@ -418,6 +588,12 @@ class GalleryViewModel @Inject constructor(
 
     private data class AlbumRequest(val key: AlbumKey, val filter: AlbumMediaFilter, val sort: AlbumSort)
 
+    private data class BulkCursor(
+        val selection: SelectionSpec.QueryAll,
+        val action: MediaAction,
+        val afterExclusive: com.ugallery.core.model.MediaKey?,
+    ) : java.io.Serializable
+
     data class ExternalMedia(
         val uri: Uri,
         val mimeType: String?,
@@ -426,5 +602,8 @@ class GalleryViewModel @Inject constructor(
         val available: Boolean,
     )
 
-    private companion object { const val ActionStateKey = "media_action_state" }
+    private companion object {
+        const val ActionStateKey = "media_action_state"
+        const val BulkStateKey = "bulk_action_state"
+    }
 }
