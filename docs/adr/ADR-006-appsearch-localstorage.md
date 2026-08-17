@@ -18,3 +18,5 @@ Rebuilds enumerate accessible, non-trashed Room rows in stable composite-key ord
 ## Consequences
 
 Volume/permission loss purges the affected namespaces or bounded key batches. The decision is enforced by module boundaries, tests, build guards, and physical-device evidence. Any incompatible change must update this ADR, affected backlog tickets, and regression coverage.
+
+Production lifecycle wiring rebuilds only on first schema use or an actual full-volume reconciliation. Row-specific `ContentObserver` hints update/remove one composite document directly; generation sync triggers a Room-backed rebuild only when it reports more changed rows than were covered by hints. App startup with an unchanged schema and generation never performs a full AppSearch rebuild.

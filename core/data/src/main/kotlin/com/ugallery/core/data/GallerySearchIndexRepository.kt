@@ -26,6 +26,9 @@ class RoomSearchDocumentSource(database: GalleryDatabase) : SearchDocumentSource
         ).map { it.searchDocument() }
     }
 
+    suspend fun document(key: MediaKey): MediaSearchDocument? =
+        dao.searchRebuildRow(key.volumeName, key.mediaStoreId)?.searchDocument()
+
     private fun SearchRebuildRow.searchDocument() = MediaSearchDocument(
         key = MediaKey(media.volumeName, media.mediaStoreId),
         kind = if (media.mediaType == 3) MediaKind.Video else MediaKind.Image,
@@ -59,9 +62,10 @@ class GallerySearchIndexRepository(
     databaseName: String = MediaSearchIndex.DefaultDatabase,
 ) : Closeable {
     private val index = AppSearchMediaIndex(context, databaseName)
+    private val source = RoomSearchDocumentSource(database)
     private val coordinator = SearchIndexCoordinator(
         index,
-        RoomSearchDocumentSource(database),
+        source,
         SharedPreferencesSearchRebuildStateStore(context, databaseName),
     )
 
@@ -77,6 +81,12 @@ class GallerySearchIndexRepository(
     suspend fun purgeUnavailableVolume(volumeName: String) = coordinator.onVolumeUnavailable(volumeName)
 
     suspend fun deleteDerivedIndex() = coordinator.deleteAndReset()
+
+    suspend fun indexKey(key: MediaKey) {
+        val document = source.document(key)
+        if (document == null) coordinator.onPermissionRevoked(listOf(key))
+        else coordinator.onMediaChanged(listOf(document))
+    }
 
     override fun close() = index.close()
 }

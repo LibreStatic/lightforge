@@ -58,8 +58,9 @@ import com.ugallery.feature.photos.LibraryPhotosRoute
 import com.ugallery.feature.trash.TrashContent
 import com.ugallery.feature.viewer.VideoViewerController
 import com.ugallery.feature.viewer.ViewerContent
+import com.ugallery.feature.search.SearchContent
 
-private enum class RootTab { Photos, Collections }
+private enum class RootTab { Photos, Collections, Search }
 private enum class SurfaceRoute { Root, Album, Viewer, Trash }
 
 @Composable
@@ -79,6 +80,9 @@ internal fun ProductionGalleryApp(
     val trashCount by viewModel.trashCount.collectAsState()
     val cheap by viewModel.cheapDetails.collectAsState()
     val exif by viewModel.exifDetails.collectAsState()
+    val search by viewModel.search.collectAsState()
+    val searchIndexReady by viewModel.searchIndexReady.collectAsState()
+    val detectedContentEnabled by viewModel.detectedContentEnabled.collectAsState()
     val actionState by viewModel.systemAction.collectAsState()
     val external by viewModel.externalMedia.collectAsState()
     val externalPhoto by viewModel.externalPhotoState.collectAsState()
@@ -170,6 +174,24 @@ internal fun ProductionGalleryApp(
                         },
                         onCreateAlbum = { showCreateAlbum = true },
                         onTrashClick = { route = SurfaceRoute.Trash },
+                    )
+                    RootTab.Search -> SearchContent(
+                        query = search.query,
+                        hits = search.hits,
+                        loading = search.loading,
+                        terminal = search.terminal,
+                        partialIndex = !searchIndexReady,
+                        error = search.error,
+                        detectedContentEnabled = detectedContentEnabled,
+                        thumbnailLoader = thumbnails,
+                        onQueryChange = viewModel::setSearchQuery,
+                        onSearch = { viewModel.search() },
+                        onPresetSearch = viewModel::search,
+                        onLoadMore = viewModel::loadMoreSearch,
+                        onHit = { hit -> viewModel.openSearchHit(hit); route = SurfaceRoute.Viewer },
+                        onEnableDetectedContent = viewModel::enableDetectedContent,
+                        onPauseDetectedContent = viewModel::pauseDetectedContent,
+                        onDeleteDetectedContent = viewModel::deleteDetectedContent,
                     )
                 }
                 SurfaceRoute.Album -> selectedAlbum?.let { album ->
@@ -505,7 +527,11 @@ private fun ViewerRoute(
     } }
 }
 
-private fun RootTab.label() = if (this == RootTab.Photos) R.string.nav_photos else R.string.nav_collections
+private fun RootTab.label() = when (this) {
+    RootTab.Photos -> R.string.nav_photos
+    RootTab.Collections -> R.string.nav_collections
+    RootTab.Search -> R.string.nav_search
+}
 
 @Composable
 private fun AlbumNameDialog(value: String, onValue: (String) -> Unit, onDismiss: () -> Unit, onConfirm: () -> Unit) {

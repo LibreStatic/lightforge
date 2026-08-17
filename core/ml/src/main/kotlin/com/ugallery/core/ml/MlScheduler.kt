@@ -48,4 +48,5 @@ class MlScheduler(context: Context) {
     }
 
     fun checkpoint(task: MlTaskType): MlCheckpoint? = state.checkpoint(task)
+    fun hasConsent(task: MlTaskType): Boolean = state.isConsentEnabled(task)
 }

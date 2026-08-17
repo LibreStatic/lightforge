@@ -73,6 +73,7 @@ dependencies {
     implementation(project(":core:mediastore"))
     implementation(project(":core:thumbnail"))
     implementation(project(":core:ml"))
+    implementation(project(":core:search"))
     implementation(project(":feature:photos"))
     implementation(project(":feature:permissions"))
     implementation(project(":feature:collections"))
@@ -80,6 +81,7 @@ dependencies {
     implementation(project(":feature:viewer"))
     implementation(project(":feature:details"))
     implementation(project(":feature:trash"))
+    implementation(project(":feature:search"))
     implementation(project(":core:selection"))
 
     implementation(platform(libs.compose.bom))

@@ -20,6 +20,7 @@ import com.ugallery.core.data.InitialMediaScanner
 import com.ugallery.core.data.MediaStoreChangeMonitor
 import com.ugallery.core.data.RoomMediaIndexStore
 import com.ugallery.core.data.RoomSelectionTargetSource
+import com.ugallery.core.data.GallerySearchIndexRepository
 import com.ugallery.core.database.GalleryDatabase
 import com.ugallery.core.database.GalleryDatabaseFactory
 import com.ugallery.core.mediastore.MediaStoreGenerationProbe
@@ -36,6 +37,12 @@ import com.ugallery.core.mediastore.PendingMediaWriter
 import com.ugallery.core.mediastore.MediaWriteSpec
 import com.ugallery.core.mediastore.PublishedCopy
 import com.ugallery.core.ml.DetectedContentRepository
+import com.ugallery.core.ml.MlScheduler
+import com.ugallery.core.ml.MlTaskType
+import com.ugallery.core.ml.MlRunMode
+import com.ugallery.core.search.AppSearchMediaSearchRepository
+import com.ugallery.core.search.MediaSearchCursor
+import com.ugallery.core.search.MediaSearchHit
 import com.ugallery.core.model.AlbumKey
 import com.ugallery.core.model.AlbumSummary
 import com.ugallery.core.model.MediaKey
@@ -81,6 +88,14 @@ import javax.inject.Inject
 
 enum class LibraryEngineState { Starting, Indexing, Ready, PermissionRequired, Error }
 
+data class GallerySearchUiState(
+    val query: String = "",
+    val hits: List<MediaSearchHit> = emptyList(),
+    val loading: Boolean = false,
+    val terminal: Boolean = true,
+    val error: Boolean = false,
+)
+
 private data class GalleryRuntime(
     val database: GalleryDatabase,
     val timeline: GalleryTimelineRepository,
@@ -93,6 +108,7 @@ private data class GalleryRuntime(
     val trash: GalleryTrashRepository,
     val metadata: MediaMetadataRepository,
     val selectionTargets: RoomSelectionTargetSource,
+    val searchIndex: GallerySearchIndexRepository,
     var monitor: MediaStoreChangeMonitor? = null,
 )
 
@@ -105,6 +121,16 @@ class GalleryViewModel @Inject constructor(
 ) : AndroidViewModel(application) {
     private val runtime = MutableStateFlow<GalleryRuntime?>(null)
     private val mutableEngineState = MutableStateFlow(LibraryEngineState.Starting)
+    private val mutableSearch = MutableStateFlow(GallerySearchUiState())
+    val search = mutableSearch.asStateFlow()
+    private val mutableSearchIndexReady = MutableStateFlow(false)
+    val searchIndexReady = mutableSearchIndexReady.asStateFlow()
+    private val mlScheduler = MlScheduler(application)
+    private val mutableDetectedContentEnabled = MutableStateFlow(
+        mlScheduler.hasConsent(MlTaskType.ImageLabels) || mlScheduler.hasConsent(MlTaskType.Ocr),
+    )
+    val detectedContentEnabled = mutableDetectedContentEnabled.asStateFlow()
+    private var searchCursor: MediaSearchCursor? = null
     val engineState = mutableEngineState.stateIn(
         viewModelScope,
         SharingStarted.Eagerly,
@@ -181,8 +207,11 @@ class GalleryViewModel @Inject constructor(
             }
             runtime.value = created
             created.monitor = MediaStoreChangeMonitor(application.contentResolver, viewModelScope) { batch ->
-                batch.rowHints.forEach { created.synchronizer.applyRowHint(it) }
-                refreshLibrary()
+                batch.rowHints.forEach {
+                    created.synchronizer.applyRowHint(it)
+                    created.searchIndex.indexKey(it)
+                }
+                refreshLibrary(batch.rowHints.size)
             }.also { it.start() }
             refreshLibrary()
         }
@@ -194,6 +223,73 @@ class GalleryViewModel @Inject constructor(
         if (before && !after) viewModelScope.launch { runtime.value?.metadata?.onLocationPermissionRevoked() }
         viewModelScope.launch { refreshLibrary() }
         revalidateExternalGrant()
+    }
+
+    fun setSearchQuery(value: String) { mutableSearch.value = mutableSearch.value.copy(query = value) }
+
+    fun search(value: String = mutableSearch.value.query) {
+        val raw = value.trim()
+        if (raw.isEmpty()) return
+        mutableSearch.value = GallerySearchUiState(query = raw, loading = true, terminal = false)
+        searchCursor?.close()
+        searchCursor = null
+        viewModelScope.launch {
+            try {
+                val cursor = AppSearchMediaSearchRepository(getApplication()).search(raw, 100)
+                searchCursor = cursor
+                val page = cursor.nextPage()
+                mutableSearch.value = GallerySearchUiState(raw, page.hits, false, page.isTerminal, false)
+            } catch (_: Throwable) {
+                mutableSearch.value = GallerySearchUiState(raw, error = true)
+            }
+        }
+    }
+
+    fun loadMoreSearch() {
+        val cursor = searchCursor ?: return
+        if (mutableSearch.value.loading || mutableSearch.value.terminal) return
+        mutableSearch.value = mutableSearch.value.copy(loading = true)
+        viewModelScope.launch {
+            runCatching { cursor.nextPage() }.onSuccess { page ->
+                mutableSearch.value = mutableSearch.value.copy(
+                    hits = mutableSearch.value.hits + page.hits,
+                    loading = false,
+                    terminal = page.isTerminal,
+                )
+            }.onFailure { mutableSearch.value = mutableSearch.value.copy(loading = false, error = true) }
+        }
+    }
+
+    fun openSearchHit(hit: MediaSearchHit) {
+        viewModelScope.launch {
+            val row = runtime.value?.database?.libraryDao()?.media(hit.key.volumeName, hit.key.mediaStoreId) ?: return@launch
+            openMedia(
+                TimelineMedia(
+                    hit.key, hit.kind, row.generationModified, row.timelineSortMillis, row.width, row.height,
+                    row.durationMillis, row.dateExpiresSeconds?.times(1_000), row.isFavorite, row.isTrashed,
+                ),
+            )
+        }
+    }
+
+    fun enableDetectedContent() {
+        listOf(MlTaskType.ImageLabels, MlTaskType.Ocr).forEach {
+            mlScheduler.grantConsent(it); mlScheduler.enqueue(it, MlRunMode.Recent)
+        }
+        mutableDetectedContentEnabled.value = true
+    }
+
+    fun pauseDetectedContent() {
+        listOf(MlTaskType.ImageLabels, MlTaskType.Ocr).forEach(mlScheduler::pause)
+        mutableDetectedContentEnabled.value = false
+    }
+
+    fun deleteDetectedContent() {
+        viewModelScope.launch {
+            mlScheduler.deleteDerivedData(MlTaskType.ImageLabels)
+            mlScheduler.deleteDerivedData(MlTaskType.Ocr)
+            mutableDetectedContentEnabled.value = false
+        }
     }
 
     fun openExternal(intent: Intent): Boolean {
@@ -436,7 +532,7 @@ class GalleryViewModel @Inject constructor(
 
     fun mediaUri(media: TimelineMedia): Uri = media.uri()
 
-    private suspend fun refreshLibrary(): Unit = refreshMutex.withLock {
+    private suspend fun refreshLibrary(indexedHintCount: Int = 0): Unit = refreshMutex.withLock {
         val active = runtime.value ?: return@withLock
         if (access.value.images == com.ugallery.core.model.GrantLevel.None &&
             access.value.videos == com.ugallery.core.model.GrantLevel.None
@@ -446,17 +542,29 @@ class GalleryViewModel @Inject constructor(
         }
         mutableEngineState.value = LibraryEngineState.Indexing
         try {
+            var requiresSearchRebuild = false
+            var changedItems = 0L
             val completed = withContext(Dispatchers.IO) {
                 for (volume in active.generations.snapshot()) {
-                    when (active.synchronizer.sync(volume)) {
+                    when (val result = active.synchronizer.sync(volume)) {
                         IncrementalSyncResult.NeedsInitialScan,
                         IncrementalSyncResult.NeedsFullVolumeReconciliation,
-                        -> active.scanner.scan(volume)
+                        -> { active.scanner.scan(volume); requiresSearchRebuild = true }
+                        is IncrementalSyncResult.Complete -> changedItems += result.changedItems
                         is IncrementalSyncResult.PausedPermission -> return@withContext false
                         else -> Unit
                     }
                 }
                 true
+            }
+            if (completed) withContext(Dispatchers.IO) {
+                val prefs = getApplication<Application>().getSharedPreferences("search-production", Context.MODE_PRIVATE)
+                val needsInitial = prefs.getLong("schema", 0) != com.ugallery.core.search.MediaSearchSchema.Version
+                if (needsInitial || requiresSearchRebuild || changedItems > indexedHintCount) {
+                    active.searchIndex.rebuild(restart = true)
+                    prefs.edit().putLong("schema", com.ugallery.core.search.MediaSearchSchema.Version).commit()
+                }
+                mutableSearchIndexReady.value = true
             }
             mutableEngineState.value = if (completed) {
                 LibraryEngineState.Ready
@@ -479,6 +587,7 @@ class GalleryViewModel @Inject constructor(
             it.monitor?.close()
             it.thumbnails.close()
             it.database.close()
+            it.searchIndex.close()
         }
     }
 
@@ -502,6 +611,7 @@ class GalleryViewModel @Inject constructor(
             trash = GalleryTrashRepository(database),
             metadata = MediaMetadataRepository(context.contentResolver, database),
             selectionTargets = RoomSelectionTargetSource(database),
+            searchIndex = GallerySearchIndexRepository(context, database),
         )
     }
 

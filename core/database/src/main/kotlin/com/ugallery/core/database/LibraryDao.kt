@@ -39,6 +39,17 @@ interface LibraryDao {
     ): List<SearchRebuildRow>
 
     @Query(
+        "SELECT m.*, o.rawText AS ocrText, o.modelVersion AS ocrModelVersion, " +
+            "GROUP_CONCAT(l.canonicalLabel) AS canonicalLabelsCsv, MAX(l.modelVersion) AS labelModelVersion " +
+            "FROM media_items m LEFT JOIN media_ocr o ON o.volumeName=m.volumeName AND o.mediaStoreId=m.mediaStoreId " +
+            "LEFT JOIN media_labels l ON l.volumeName=m.volumeName AND l.mediaStoreId=m.mediaStoreId " +
+            "AND NOT EXISTS (SELECT 1 FROM label_suppressions s WHERE s.canonicalLabel=l.canonicalLabel) " +
+            "WHERE m.volumeName=:volumeName AND m.mediaStoreId=:mediaStoreId AND m.isAccessible=1 AND m.isTrashed=0 " +
+            "GROUP BY m.volumeName,m.mediaStoreId",
+    )
+    suspend fun searchRebuildRow(volumeName: String, mediaStoreId: Long): SearchRebuildRow?
+
+    @Query(
         "SELECT m.* FROM media_items m WHERE m.mediaType=1 AND m.isAccessible=1 AND m.isTrashed=0 " +
             "AND NOT EXISTS (SELECT 1 FROM media_label_runs r WHERE r.volumeName=m.volumeName " +
             "AND r.mediaStoreId=m.mediaStoreId AND r.generationModified=m.generationModified " +

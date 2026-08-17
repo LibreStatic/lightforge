@@ -24,6 +24,7 @@ data class MediaSearchHit(
     val kind: MediaKind,
     val displayName: String?,
     val timelineSortMillis: Long,
+    val generationModified: Long,
     val favorite: Boolean,
     val debug: SearchRankingDebug,
 )
@@ -67,6 +68,7 @@ class MediaSearchCursor internal constructor(
             } else MediaKind.Image,
             displayName = document.getPropertyString(MediaSearchSchema.Property.DisplayName),
             timelineSortMillis = document.getPropertyLong(MediaSearchSchema.Property.TimelineSortMillis),
+            generationModified = document.getPropertyLong(MediaSearchSchema.Property.GenerationModified),
             favorite = document.getPropertyBoolean(MediaSearchSchema.Property.Favorite),
             debug = SearchRankingDebug(
                 expression,
