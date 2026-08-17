@@ -38,7 +38,7 @@ interface MediaIndexStore {
     suspend fun upsertCheckpoint(checkpoint: MediaStoreCheckpointEntity)
 }
 
-class RoomMediaIndexStore(private val dao: LibraryDao) : MediaIndexStore {
+class RoomMediaIndexStore(private val dao: LibraryDao) : IncrementalMediaIndexStore {
     override suspend fun checkpoint(volumeName: String) = dao.checkpoint(volumeName)
     override suspend fun resetVolumeForScan(checkpoint: MediaStoreCheckpointEntity) =
         dao.resetVolumeForScan(checkpoint)
@@ -48,6 +48,8 @@ class RoomMediaIndexStore(private val dao: LibraryDao) : MediaIndexStore {
     ) = dao.commitMediaPage(items, checkpoint)
     override suspend fun upsertCheckpoint(checkpoint: MediaStoreCheckpointEntity) =
         dao.upsertCheckpoint(checkpoint)
+    override suspend fun deleteMedia(volumeName: String, id: Long): Int =
+        dao.deleteMedia(volumeName, id)
 }
 
 /** Performs bounded, resumable reads; each page and its checkpoint are one short transaction. */

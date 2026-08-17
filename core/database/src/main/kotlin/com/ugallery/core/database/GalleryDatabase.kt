@@ -5,6 +5,8 @@ import android.database.sqlite.SQLiteDatabaseCorruptException
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [
@@ -12,7 +14,7 @@ import androidx.room.RoomDatabase
         MediaStoreCheckpointEntity::class,
         AlbumAggregateEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class GalleryDatabase : RoomDatabase() {
@@ -34,9 +36,23 @@ object GalleryDatabaseFactory {
         }
     }
 
+    val Migration1To2 = object : Migration(1, 2) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE media_store_checkpoints ADD COLUMN deltaTargetGeneration INTEGER")
+            db.execSQL(
+                "ALTER TABLE media_store_checkpoints ADD COLUMN deltaGenerationCursor INTEGER " +
+                    "NOT NULL DEFAULT 0",
+            )
+            db.execSQL(
+                "ALTER TABLE media_store_checkpoints ADD COLUMN deltaMediaStoreIdCursor INTEGER " +
+                    "NOT NULL DEFAULT -1",
+            )
+        }
+    }
+
     private fun build(context: Context, name: String): GalleryDatabase = Room.databaseBuilder(
         context.applicationContext,
         GalleryDatabase::class.java,
         name,
-    ).build()
+    ).addMigrations(Migration1To2).build()
 }

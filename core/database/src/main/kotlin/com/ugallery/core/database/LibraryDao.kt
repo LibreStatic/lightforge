@@ -64,6 +64,9 @@ interface LibraryDao {
     @Query("SELECT * FROM media_items WHERE volumeName = :volumeName AND mediaStoreId = :id")
     suspend fun media(volumeName: String, id: Long): MediaItemEntity?
 
+    @Query("DELETE FROM media_items WHERE volumeName = :volumeName AND mediaStoreId = :id")
+    suspend fun deleteMedia(volumeName: String, id: Long): Int
+
     @Query("SELECT * FROM media_store_checkpoints WHERE volumeName = :volumeName")
     suspend fun checkpoint(volumeName: String): MediaStoreCheckpointEntity?
 

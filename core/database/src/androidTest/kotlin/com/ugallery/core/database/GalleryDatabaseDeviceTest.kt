@@ -102,14 +102,14 @@ class GalleryDatabaseDeviceTest {
     }
 
     @Test
-    fun exportedVersionOneSchemaCanBeOpenedAndValidated() {
+    fun exportedVersionOneMigratesToCurrentSchemaAndValidates() {
         val name = "migration-v1.db"
         val helper = MigrationTestHelper(
             InstrumentationRegistry.getInstrumentation(),
             GalleryDatabase::class.java,
         )
         helper.createDatabase(name, 1).close()
-        helper.runMigrationsAndValidate(name, 1, true).close()
+        helper.runMigrationsAndValidate(name, 2, true, GalleryDatabaseFactory.Migration1To2).close()
     }
 
     @Test

@@ -36,6 +36,12 @@ data class MediaStoreIdPage(
     val nextAfterId: Long?,
 )
 
+data class MediaStoreGenerationPage(
+    val records: List<MediaStoreRecord>,
+    val nextGeneration: Long?,
+    val nextMediaStoreId: Long?,
+)
+
 object MediaStoreProjection {
     val Columns = arrayOf(
         MediaStore.MediaColumns._ID,
@@ -73,7 +79,19 @@ fun interface MediaStorePageSource {
     fun readIdPage(volumeName: String, afterId: Long, limit: Int): MediaStoreIdPage
 }
 
-class MediaStoreReader(private val resolver: ContentResolver) : MediaStorePageSource {
+interface MediaStoreDeltaSource {
+    fun readGenerationPage(
+        volumeName: String,
+        afterGeneration: Long,
+        afterId: Long,
+        throughGeneration: Long,
+        limit: Int,
+    ): MediaStoreGenerationPage
+
+    fun readOne(key: MediaKey): MediaStoreRecord?
+}
+
+class MediaStoreReader(private val resolver: ContentResolver) : MediaStorePageSource, MediaStoreDeltaSource {
     override fun readIdPage(
         volumeName: String,
         afterId: Long,
@@ -127,6 +145,71 @@ class MediaStoreReader(private val resolver: ContentResolver) : MediaStorePageSo
             nextAfterId = records.lastOrNull()?.key?.mediaStoreId,
         )
     }
+
+    override fun readGenerationPage(
+        volumeName: String,
+        afterGeneration: Long,
+        afterId: Long,
+        throughGeneration: Long,
+        limit: Int,
+    ): MediaStoreGenerationPage {
+        require(volumeName.isNotBlank())
+        require(afterGeneration >= 0 && throughGeneration >= afterGeneration)
+        require(afterId >= -1)
+        require(limit in 1..1_000)
+        val generation = MediaStore.MediaColumns.GENERATION_MODIFIED
+        val queryArgs = Bundle().apply {
+            putString(
+                ContentResolver.QUERY_ARG_SQL_SELECTION,
+                "(${MediaStore.Files.FileColumns.MEDIA_TYPE}=? OR " +
+                    "${MediaStore.Files.FileColumns.MEDIA_TYPE}=?) AND " +
+                    "(($generation>? OR ($generation=? AND ${MediaStore.MediaColumns._ID}>?)) " +
+                    "AND $generation<=?)",
+            )
+            putStringArray(
+                ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS,
+                arrayOf(
+                    MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString(),
+                    MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString(),
+                    afterGeneration.toString(),
+                    afterGeneration.toString(),
+                    afterId.toString(),
+                    throughGeneration.toString(),
+                ),
+            )
+            putStringArray(
+                ContentResolver.QUERY_ARG_SORT_COLUMNS,
+                arrayOf(generation, MediaStore.MediaColumns._ID),
+            )
+            putInt(ContentResolver.QUERY_ARG_SORT_DIRECTION, ContentResolver.QUERY_SORT_DIRECTION_ASCENDING)
+            putInt(ContentResolver.QUERY_ARG_LIMIT, limit)
+        }
+        val records = resolver.query(
+            MediaStore.Files.getContentUri(volumeName),
+            MediaStoreProjection.Columns,
+            queryArgs,
+            null,
+        )?.use { cursor ->
+            buildList(capacity = minOf(limit, cursor.count.coerceAtLeast(0))) {
+                while (size < limit && cursor.moveToNext()) cursor.toRecord(volumeName)?.let(::add)
+            }
+        }.orEmpty()
+        val last = records.lastOrNull()
+        return MediaStoreGenerationPage(
+            records,
+            last?.generationModified,
+            last?.key?.mediaStoreId,
+        )
+    }
+
+    /** Returns null when a row hint was deleted or is no longer accessible. */
+    override fun readOne(key: MediaKey): MediaStoreRecord? = resolver.query(
+        MediaStoreUriFactory.uriFor(key),
+        MediaStoreProjection.Columns,
+        null,
+        null,
+        null,
+    )?.use { cursor -> if (cursor.moveToFirst()) cursor.toRecord(key.volumeName) else null }
 }
 
 private fun Cursor.toRecord(requestedVolume: String): MediaStoreRecord? {

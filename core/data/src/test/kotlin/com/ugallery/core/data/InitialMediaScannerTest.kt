@@ -142,6 +142,7 @@ class InitialMediaScannerTest {
         override suspend fun upsertCheckpoint(checkpoint: MediaStoreCheckpointEntity) {
             this.checkpoint = checkpoint
         }
+
     }
 
     private companion object {

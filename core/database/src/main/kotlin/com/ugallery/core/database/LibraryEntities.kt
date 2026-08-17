@@ -57,6 +57,9 @@ data class MediaStoreCheckpointEntity(
     val activeScanId: Long?,
     val scanState: String,
     val lastSuccessfulSyncMillis: Long?,
+    val deltaTargetGeneration: Long? = null,
+    val deltaGenerationCursor: Long = 0,
+    val deltaMediaStoreIdCursor: Long = -1,
 )
 
 @Entity(
