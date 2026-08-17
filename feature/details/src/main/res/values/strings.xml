@@ -1,0 +1,15 @@
+<resources>
+    <string name="details_title">Details</string>
+    <string name="details_name">Name</string><string name="details_type">Type</string>
+    <string name="details_size">Size</string><string name="details_dimensions">Dimensions</string>
+    <string name="details_date">Date</string><string name="details_folder">Folder</string>
+    <string name="details_unknown">Unknown</string><string name="details_load_metadata">Load camera metadata</string>
+    <string name="details_camera_make">Camera maker</string><string name="details_camera_model">Camera model</string>
+    <string name="details_lens">Lens</string><string name="details_iso">ISO</string>
+    <string name="details_exposure">Exposure</string><string name="details_original_time">Original time</string>
+    <string name="details_location">Location</string><string name="details_location_missing">No location</string>
+    <string name="details_location_permission">Location permission required</string>
+    <string name="details_metadata_not_image">Camera metadata is not available for videos.</string>
+    <string name="details_metadata_unavailable">Metadata is corrupt or unsupported.</string>
+    <string name="details_media_unavailable">This media is currently unavailable.</string>
+</resources>

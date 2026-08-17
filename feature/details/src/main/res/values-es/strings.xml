@@ -1,0 +1,9 @@
+<resources>
+    <string name="details_title">Detalles</string><string name="details_name">Nombre</string><string name="details_type">Tipo</string>
+    <string name="details_size">Tamaño</string><string name="details_dimensions">Dimensiones</string><string name="details_date">Fecha</string>
+    <string name="details_folder">Carpeta</string><string name="details_unknown">Desconocido</string><string name="details_load_metadata">Cargar metadatos de cámara</string>
+    <string name="details_camera_make">Fabricante</string><string name="details_camera_model">Modelo de cámara</string><string name="details_lens">Lente</string>
+    <string name="details_iso">ISO</string><string name="details_exposure">Exposición</string><string name="details_original_time">Hora original</string>
+    <string name="details_location">Ubicación</string><string name="details_location_missing">Sin ubicación</string><string name="details_location_permission">Se requiere permiso de ubicación</string>
+    <string name="details_metadata_not_image">Los metadatos de cámara no están disponibles para videos.</string><string name="details_metadata_unavailable">Los metadatos están dañados o no son compatibles.</string><string name="details_media_unavailable">Este elemento no está disponible.</string>
+</resources>

@@ -18,6 +18,23 @@ interface LibraryDao {
     @Upsert
     suspend fun upsertAlbumAggregates(aggregates: List<AlbumAggregateEntity>)
 
+    @Upsert
+    suspend fun upsertExif(exif: MediaExifEntity)
+
+    @Query("SELECT * FROM media_exif_cache WHERE volumeName = :volumeName AND mediaStoreId = :id")
+    suspend fun exif(volumeName: String, id: Long): MediaExifEntity?
+
+    @Query("DELETE FROM media_exif_cache WHERE volumeName = :volumeName AND mediaStoreId = :id")
+    suspend fun deleteExif(volumeName: String, id: Long): Int
+
+    @Query(
+        """
+        UPDATE media_exif_cache SET latitude = NULL, longitude = NULL,
+            locationReadWithPermission = 0
+        """,
+    )
+    suspend fun purgeCachedLocations(): Int
+
     @Transaction
     suspend fun commitMediaPage(
         items: List<MediaItemEntity>,

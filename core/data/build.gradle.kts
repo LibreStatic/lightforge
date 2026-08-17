@@ -25,6 +25,7 @@ dependencies {
     implementation(project(":core:database"))
     implementation(project(":core:mediastore"))
     implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.exifinterface)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.androidx.paging.runtime)
     testImplementation(libs.junit4)

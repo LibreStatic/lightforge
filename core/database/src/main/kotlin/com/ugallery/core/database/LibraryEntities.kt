@@ -133,6 +133,30 @@ data class VirtualAlbumRow(
     val coverMediaStoreId: Long?,
 )
 
+@Entity(
+    tableName = "media_exif_cache",
+    primaryKeys = ["volumeName", "mediaStoreId"],
+)
+data class MediaExifEntity(
+    val volumeName: String,
+    val mediaStoreId: Long,
+    val generationModified: Long,
+    val orientation: Int,
+    val dateTimeOriginal: String?,
+    val offsetTimeOriginal: String?,
+    val make: String?,
+    val model: String?,
+    val lensModel: String?,
+    val focalLength: String?,
+    val aperture: String?,
+    val exposureTime: String?,
+    val iso: Int?,
+    val latitude: Double?,
+    val longitude: Double?,
+    val locationReadWithPermission: Boolean,
+    val cachedAtMillis: Long,
+)
+
 data class TimelineKeyset(
     val timelineSortMillis: Long,
     val mediaStoreId: Long,

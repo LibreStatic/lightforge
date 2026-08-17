@@ -15,8 +15,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AlbumAggregateEntity::class,
         VirtualAlbumEntity::class,
         VirtualAlbumMediaEntity::class,
+        MediaExifEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class GalleryDatabase : RoomDatabase() {
@@ -83,9 +84,24 @@ object GalleryDatabaseFactory {
         }
     }
 
+    val Migration3To4 = object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """CREATE TABLE IF NOT EXISTS `media_exif_cache` (
+                    `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL,
+                    `generationModified` INTEGER NOT NULL, `orientation` INTEGER NOT NULL,
+                    `dateTimeOriginal` TEXT, `offsetTimeOriginal` TEXT, `make` TEXT, `model` TEXT,
+                    `lensModel` TEXT, `focalLength` TEXT, `aperture` TEXT, `exposureTime` TEXT,
+                    `iso` INTEGER, `latitude` REAL, `longitude` REAL,
+                    `locationReadWithPermission` INTEGER NOT NULL, `cachedAtMillis` INTEGER NOT NULL,
+                    PRIMARY KEY(`volumeName`, `mediaStoreId`))""",
+            )
+        }
+    }
+
     private fun build(context: Context, name: String): GalleryDatabase = Room.databaseBuilder(
         context.applicationContext,
         GalleryDatabase::class.java,
         name,
-    ).addMigrations(Migration1To2, Migration2To3).build()
+    ).addMigrations(Migration1To2, Migration2To3, Migration3To4).build()
 }
