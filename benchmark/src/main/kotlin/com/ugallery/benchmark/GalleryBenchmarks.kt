@@ -113,6 +113,49 @@ class TimelineDensityAnchorBenchmark {
     }
 }
 
+@RunWith(AndroidJUnit4::class)
+class ProductionFoldPostureBenchmark {
+    @get:Rule val rule = MacrobenchmarkRule()
+
+    @Test
+    fun openHalfOpenClosedAndReopenKeepContext() {
+        var expectedAnchor = ""
+        rule.measureRepeated(
+            packageName = TARGET_PACKAGE,
+            metrics = listOf(FrameTimingMetric()),
+            compilationMode = CompilationMode.Partial(BaselineProfileMode.Require),
+            startupMode = StartupMode.WARM,
+            iterations = 1,
+            setupBlock = {
+                device.executeShellCommand("cmd device_state state 2")
+                killProcess()
+                device.executeShellCommand("pm clear $TARGET_PACKAGE")
+                device.executeShellCommand("pm grant $TARGET_PACKAGE android.permission.READ_MEDIA_IMAGES")
+                device.executeShellCommand("pm grant $TARGET_PACKAGE android.permission.READ_MEDIA_VIDEO")
+                startActivityAndWait { it.putExtra(PRODUCTION_TIMELINE_EXTRA, true) }
+                check(device.wait(Until.hasObject(By.res("timeline_grid")), 30_000))
+                repeat(4) { device.findObject(By.res("timeline_grid"))!!.fling(Direction.DOWN) }
+                expectedAnchor = waitForStableProductionContext(device, verticalFraction = 0.15f)
+                    ?: error("Production foldable timeline exposed no stable context")
+            },
+        ) {
+            try {
+                listOf(1, 0, 2).forEach { posture ->
+                    device.executeShellCommand("cmd device_state state $posture")
+                    check(device.wait(Until.hasObject(By.res("timeline_grid")), 5_000))
+                    device.waitForIdle(5_000)
+                    Thread.sleep(500)
+                    check(expectedAnchor in visibleProductionMedia(device)) {
+                        "Posture $posture lost $expectedAnchor"
+                    }
+                }
+            } finally {
+                device.executeShellCommand("cmd device_state state 2")
+            }
+        }
+    }
+}
+
 private val mediaCellResource = Pattern.compile("media_[0-9]+")
 
 private fun visibleMediaIndices(device: UiDevice): Set<Int> =
