@@ -1,7 +1,9 @@
 package com.ugallery.core.database
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.Index
+import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "media_items",
@@ -75,6 +77,60 @@ data class AlbumAggregateEntity(
     val latestSortMillis: Long,
     val coverMediaStoreId: Long?,
     val updatedAtMillis: Long,
+)
+
+@Entity(
+    tableName = "virtual_albums",
+    indices = [Index(name = "index_virtual_album_name", value = ["normalizedName"], unique = true)],
+)
+data class VirtualAlbumEntity(
+    @PrimaryKey(autoGenerate = true) val albumId: Long = 0,
+    val name: String,
+    val normalizedName: String,
+    val createdAtMillis: Long,
+    val updatedAtMillis: Long,
+)
+
+@Entity(
+    tableName = "virtual_album_media",
+    primaryKeys = ["albumId", "volumeName", "mediaStoreId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = VirtualAlbumEntity::class,
+            parentColumns = ["albumId"],
+            childColumns = ["albumId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [
+        Index(name = "index_virtual_album_media_key", value = ["volumeName", "mediaStoreId"]),
+        Index(name = "index_virtual_album_added", value = ["albumId", "addedAtMillis"]),
+    ],
+)
+data class VirtualAlbumMediaEntity(
+    val albumId: Long,
+    val volumeName: String,
+    val mediaStoreId: Long,
+    val addedAtMillis: Long,
+)
+
+data class PhysicalAlbumRow(
+    val volumeName: String,
+    val bucketId: Long,
+    val displayName: String?,
+    val itemCount: Long,
+    val latestSortMillis: Long,
+    val coverMediaStoreId: Long?,
+    val isAvailable: Boolean,
+)
+
+data class VirtualAlbumRow(
+    val albumId: Long,
+    val name: String,
+    val itemCount: Long,
+    val latestSortMillis: Long?,
+    val coverVolumeName: String?,
+    val coverMediaStoreId: Long?,
 )
 
 data class TimelineKeyset(

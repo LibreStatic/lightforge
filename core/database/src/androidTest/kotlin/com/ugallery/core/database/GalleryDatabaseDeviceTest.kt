@@ -142,7 +142,13 @@ class GalleryDatabaseDeviceTest {
             GalleryDatabase::class.java,
         )
         helper.createDatabase(name, 1).close()
-        helper.runMigrationsAndValidate(name, 2, true, GalleryDatabaseFactory.Migration1To2).close()
+        helper.runMigrationsAndValidate(
+            name,
+            3,
+            true,
+            GalleryDatabaseFactory.Migration1To2,
+            GalleryDatabaseFactory.Migration2To3,
+        ).close()
     }
 
     @Test

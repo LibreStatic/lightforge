@@ -41,7 +41,7 @@ class GalleryTimelineRepository(private val database: GalleryDatabase) {
 internal fun TimelineMedia.epochDay(zoneId: ZoneId): Long =
     Instant.ofEpochMilli(timelineSortMillis).atZone(zoneId).toLocalDate().toEpochDay()
 
-private fun MediaItemEntity.toTimelineMedia() = TimelineMedia(
+internal fun MediaItemEntity.toTimelineMedia() = TimelineMedia(
     key = MediaKey(volumeName, mediaStoreId),
     kind = if (mediaType == 3) MediaKind.Video else MediaKind.Image,
     generationModified = generationModified,
