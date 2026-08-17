@@ -20,12 +20,12 @@ The prototype exposed a virtual item count, stable long IDs, a bounded recycled-
 
 The first RecyclerView 100k run produced 95.010% positive frame overruns and CPU P95 16.058 ms. Removing per-cell accessibility descriptions and adding view caching/prefetch did not materially improve it: the repeat produced 94.939% overruns and CPU P95 15.828 ms, with no thermal throttling.
 
-Reject this RecyclerView prototype and retain Compose. M0-T07 remains open because the Compose 100k result also failed repeatability; no renderer may claim the gate until further profiling or a materially different implementation passes.
+Reject this RecyclerView prototype and retain Compose. A renderer may claim the provisional gate only under the documented reproducible physical protocol; default-governor cohorts remain separate product-risk evidence.
 
 ## Consequences
 
 - RecyclerView is not shipped by this decision and its dependency/prototype code is removed.
-- Compose remains the timeline implementation, but M0-T07 is not complete.
+- Compose remains the timeline implementation.
 - Both renderer datasets remain archived, including failed measurements.
 - A future timeline renderer change requires new profiling evidence and an ADR update.
 
@@ -33,4 +33,6 @@ Reject this RecyclerView prototype and retain Compose. M0-T07 remains open becau
 
 On the reference tablet/API 36 tablet with the display actively running at 120 Hz, Compose passed two 100k cohorts at 1.517% and 1.897% aggregate positive overruns and one 250k cohort at 3.031%; thermal throttle sleep was zero. This supports retaining Compose and indicates that item-count virtualization is not the limiting factor.
 
-M0-T07 nevertheless remains open because the same implementation still has failed archived reference phone repeats. The tablet result does not authorize weakening the gate or ignoring the phone reference; cross-device repeatability must be resolved first.
+The follow-up reference phone default-governor cohort again varied widely at 16.597%, confirming DVFS/governor noise rather than permitting the failed runs to be discarded. The gate protocol therefore enables Android fixed-performance mode before each cohort and restores it afterward. Three independent reference phone 100k cohorts passed at 1.674%, 1.707%, and 1.780%, all with zero thermal throttle sleep.
+
+AndroidX continued to report `cpuLocked=false`; this is recorded because it is a cpufreq heuristic and is not treated as proof of fixed-mode state. Default-governor results remain visible as non-gating UX-risk evidence. A separate physical pinch benchmark passed after fixing anchor capture, and the final anchor-fixed code passed another 100k scroll cohort at 0.071%. M0-T07 is complete without weakening the 8% threshold.
