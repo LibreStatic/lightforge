@@ -8,15 +8,12 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -44,10 +41,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
-import androidx.compose.ui.unit.dp
 import com.ugallery.core.designsystem.GalleryColors
 import com.ugallery.core.designsystem.GalleryGridMetrics
+import com.ugallery.core.designsystem.GalleryRadii
 import com.ugallery.core.designsystem.GallerySpacing
+import com.ugallery.core.designsystem.GalleryStateContent
 
 private val densityColumns = intArrayOf(3, 4, 5, 7)
 
@@ -138,20 +136,12 @@ fun PhotosRoute(
 
 @Composable
 private fun EmptyLibrary(modifier: Modifier = Modifier) {
-    Box(modifier = modifier.padding(GallerySpacing.Xxl), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(
-                modifier = Modifier
-                    .size(72.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-            )
-            Spacer(Modifier.height(GallerySpacing.Xl))
-            Text(stringResource(R.string.empty_library_title), style = MaterialTheme.typography.headlineSmall)
-            Spacer(Modifier.height(GallerySpacing.Sm))
-            Text(stringResource(R.string.empty_library_body), color = GalleryColors.Muted)
-        }
-    }
+    GalleryStateContent(
+        title = stringResource(R.string.empty_library_title),
+        body = stringResource(R.string.empty_library_body),
+        illustrationDescription = stringResource(R.string.empty_library_title),
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -165,7 +155,7 @@ private fun BenchmarkMediaCell(index: Int) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(4.dp))
+            .clip(RoundedCornerShape(GalleryRadii.Small))
             .background(palette[index % palette.size])
             .aspectRatio(1f)
             .testTag("media_$index"),

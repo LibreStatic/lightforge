@@ -1,7 +1,10 @@
 package com.ugallery.core.designsystem
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -9,6 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -43,6 +47,33 @@ object GalleryGridMetrics {
     val CompactCell = 112.dp
     val MediumCell = 92.dp
     val ExpandedCell = 88.dp
+}
+
+object GalleryRadii {
+    val Small = 4.dp
+    val Medium = 12.dp
+    val Large = 24.dp
+    val Pill = 9999.dp
+}
+
+object GalleryMotion {
+    const val FastMillis = 150
+    const val BaseMillis = 250
+    val StandardEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+}
+
+enum class GalleryWindowClass { Compact, Medium, Expanded }
+
+fun galleryWindowClass(width: Dp): GalleryWindowClass = when {
+    width < 600.dp -> GalleryWindowClass.Compact
+    width < 840.dp -> GalleryWindowClass.Medium
+    else -> GalleryWindowClass.Expanded
+}
+
+fun galleryGridCellSize(width: Dp): Dp = when (galleryWindowClass(width)) {
+    GalleryWindowClass.Compact -> GalleryGridMetrics.CompactCell
+    GalleryWindowClass.Medium -> GalleryGridMetrics.MediumCell
+    GalleryWindowClass.Expanded -> GalleryGridMetrics.ExpandedCell
 }
 
 private val LightScheme = lightColorScheme(
@@ -87,6 +118,12 @@ private val GalleryTypography = androidx.compose.material3.Typography(
         fontSize = 16.sp,
         lineHeight = 20.sp,
     ),
+    titleLarge = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Medium,
+        fontSize = 18.sp,
+        lineHeight = 24.sp,
+    ),
     bodyMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontSize = 14.sp,
@@ -99,6 +136,14 @@ private val GalleryTypography = androidx.compose.material3.Typography(
     ),
 )
 
+private val GalleryShapes = Shapes(
+    extraSmall = RoundedCornerShape(GalleryRadii.Small),
+    small = RoundedCornerShape(GalleryRadii.Medium),
+    medium = RoundedCornerShape(GalleryRadii.Medium),
+    large = RoundedCornerShape(GalleryRadii.Large),
+    extraLarge = RoundedCornerShape(GalleryRadii.Large),
+)
+
 @Composable
 fun UGalleryTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -107,7 +152,7 @@ fun UGalleryTheme(
     MaterialTheme(
         colorScheme = if (darkTheme) DarkScheme else LightScheme,
         typography = GalleryTypography,
+        shapes = GalleryShapes,
         content = content,
     )
 }
-
