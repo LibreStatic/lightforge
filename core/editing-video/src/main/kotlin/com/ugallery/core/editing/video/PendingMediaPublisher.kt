@@ -1,6 +1,7 @@
 package com.ugallery.core.editing.video
 
 import android.content.ContentResolver
+import android.content.ContentUris
 import android.content.ContentValues
 import android.net.Uri
 import android.provider.MediaStore
@@ -30,5 +31,32 @@ class PendingMediaPublisher(private val resolver: ContentResolver) {
             throw failure
         }
     }
-}
 
+    /** Deletes only this app's stale, unpublished rows after a crash or process kill. */
+    fun recoverAbandonedExports(
+        ownerPackageName: String,
+        relativePathPrefix: String,
+        olderThanEpochSeconds: Long,
+    ): Int {
+        require(ownerPackageName.isNotBlank())
+        require(relativePathPrefix.isNotBlank())
+        val collection = MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        val abandonedIds = buildList {
+            resolver.query(
+                collection,
+                arrayOf(MediaStore.MediaColumns._ID),
+                "${MediaStore.MediaColumns.IS_PENDING} = 1 AND " +
+                    "${MediaStore.MediaColumns.OWNER_PACKAGE_NAME} = ? AND " +
+                    "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ? AND " +
+                    "${MediaStore.MediaColumns.DATE_ADDED} < ?",
+                arrayOf(ownerPackageName, "$relativePathPrefix%", olderThanEpochSeconds.toString()),
+                null,
+            )?.use { cursor ->
+                while (cursor.moveToNext()) add(cursor.getLong(0))
+            }
+        }
+        return abandonedIds.sumOf { id ->
+            resolver.delete(ContentUris.withAppendedId(collection, id), null, null)
+        }
+    }
+}
