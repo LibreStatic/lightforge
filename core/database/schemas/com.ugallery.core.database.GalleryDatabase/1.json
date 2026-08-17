@@ -1,0 +1,311 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "6d4e41f8fd80549602926675ed4fec1e",
+    "entities": [
+      {
+        "tableName": "media_items",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `mediaType` INTEGER NOT NULL, `mimeType` TEXT, `displayName` TEXT, `sizeBytes` INTEGER NOT NULL, `width` INTEGER NOT NULL, `height` INTEGER NOT NULL, `durationMillis` INTEGER NOT NULL, `orientationDegrees` INTEGER NOT NULL, `dateTakenMillis` INTEGER, `dateAddedSeconds` INTEGER NOT NULL, `dateModifiedSeconds` INTEGER NOT NULL, `timelineSortMillis` INTEGER NOT NULL, `generationAdded` INTEGER NOT NULL, `generationModified` INTEGER NOT NULL, `bucketId` INTEGER, `bucketDisplayName` TEXT, `relativePath` TEXT, `isFavorite` INTEGER NOT NULL, `isTrashed` INTEGER NOT NULL, `isAccessible` INTEGER NOT NULL, `lastSeenScanId` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`))",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaType",
+            "columnName": "mediaType",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mimeType",
+            "columnName": "mimeType",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "displayName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sizeBytes",
+            "columnName": "sizeBytes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "width",
+            "columnName": "width",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "height",
+            "columnName": "height",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationMillis",
+            "columnName": "durationMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "orientationDegrees",
+            "columnName": "orientationDegrees",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dateTakenMillis",
+            "columnName": "dateTakenMillis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "dateAddedSeconds",
+            "columnName": "dateAddedSeconds",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dateModifiedSeconds",
+            "columnName": "dateModifiedSeconds",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timelineSortMillis",
+            "columnName": "timelineSortMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generationAdded",
+            "columnName": "generationAdded",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generationModified",
+            "columnName": "generationModified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bucketId",
+            "columnName": "bucketId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "bucketDisplayName",
+            "columnName": "bucketDisplayName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "relativePath",
+            "columnName": "relativePath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isFavorite",
+            "columnName": "isFavorite",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isTrashed",
+            "columnName": "isTrashed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isAccessible",
+            "columnName": "isAccessible",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastSeenScanId",
+            "columnName": "lastSeenScanId",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName",
+            "mediaStoreId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_media_timeline_keyset",
+            "unique": false,
+            "columnNames": [
+              "timelineSortMillis",
+              "mediaStoreId",
+              "volumeName"
+            ],
+            "orders": [
+              "DESC",
+              "DESC",
+              "DESC"
+            ],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_media_timeline_keyset` ON `${TABLE_NAME}` (`timelineSortMillis` DESC, `mediaStoreId` DESC, `volumeName` DESC)"
+          },
+          {
+            "name": "index_media_volume_generation",
+            "unique": false,
+            "columnNames": [
+              "volumeName",
+              "generationModified"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_media_volume_generation` ON `${TABLE_NAME}` (`volumeName`, `generationModified`)"
+          },
+          {
+            "name": "index_media_volume_bucket",
+            "unique": false,
+            "columnNames": [
+              "volumeName",
+              "bucketId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_media_volume_bucket` ON `${TABLE_NAME}` (`volumeName`, `bucketId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "media_store_checkpoints",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `providerVersion` TEXT NOT NULL, `generation` INTEGER NOT NULL, `lastScannedId` INTEGER NOT NULL, `activeScanId` INTEGER, `scanState` TEXT NOT NULL, `lastSuccessfulSyncMillis` INTEGER, PRIMARY KEY(`volumeName`))",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "providerVersion",
+            "columnName": "providerVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generation",
+            "columnName": "generation",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastScannedId",
+            "columnName": "lastScannedId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activeScanId",
+            "columnName": "activeScanId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "scanState",
+            "columnName": "scanState",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastSuccessfulSyncMillis",
+            "columnName": "lastSuccessfulSyncMillis",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName"
+          ]
+        }
+      },
+      {
+        "tableName": "album_aggregates",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `bucketId` INTEGER NOT NULL, `displayName` TEXT, `itemCount` INTEGER NOT NULL, `latestSortMillis` INTEGER NOT NULL, `coverMediaStoreId` INTEGER, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `bucketId`))",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bucketId",
+            "columnName": "bucketId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "displayName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "itemCount",
+            "columnName": "itemCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "latestSortMillis",
+            "columnName": "latestSortMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "coverMediaStoreId",
+            "columnName": "coverMediaStoreId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "updatedAtMillis",
+            "columnName": "updatedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName",
+            "bucketId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_album_latest",
+            "unique": false,
+            "columnNames": [
+              "latestSortMillis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_album_latest` ON `${TABLE_NAME}` (`latestSortMillis`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6d4e41f8fd80549602926675ed4fec1e')"
+    ]
+  }
+}
