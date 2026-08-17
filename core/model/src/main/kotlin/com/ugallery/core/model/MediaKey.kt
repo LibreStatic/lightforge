@@ -1,7 +1,7 @@
 package com.ugallery.core.model
 
 /** Stable identity inside MediaStore. IDs are only unique within a volume. */
-data class MediaKey(val volumeName: String, val mediaStoreId: Long) {
+data class MediaKey(val volumeName: String, val mediaStoreId: Long) : java.io.Serializable {
     init {
         require(volumeName.isNotBlank())
         require(mediaStoreId >= 0)
