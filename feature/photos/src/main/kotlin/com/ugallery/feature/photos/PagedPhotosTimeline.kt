@@ -22,6 +22,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import androidx.paging.compose.LazyPagingItems
 import com.ugallery.core.designsystem.GalleryColors
@@ -77,8 +80,12 @@ fun PagedPhotosTimeline(
         state = state,
         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(GalleryGridMetrics.Gap),
         verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(GalleryGridMetrics.Gap),
-        modifier = if (densityState == null) modifier else
-            modifier.timelinePinchDensity(densityState, state),
+        modifier = (if (densityState == null) modifier else
+        modifier.timelinePinchDensity(densityState, state) { index ->
+            entries.peek(index)?.stableKey
+        })
+            .testTag("timeline_grid")
+            .semantics { testTagsAsResourceId = true },
     ) {
         items(
             count = entries.itemCount,
@@ -106,7 +113,17 @@ fun PagedPhotosTimeline(
         }
     }
     if (densityState != null) {
-        PreserveTimelineAnchor(densityState, state, columns, entries.itemCount)
+        PreserveTimelineAnchor(
+            densityState = densityState,
+            gridState = state,
+            columns = columns,
+            itemCount = entries.itemCount,
+            resolveStableKey = { stableKey ->
+                val snapshot = entries.itemSnapshotList
+                val loadedIndex = snapshot.items.indexOfFirst { it.stableKey == stableKey }
+                if (loadedIndex < 0) null else snapshot.placeholdersBefore + loadedIndex
+            },
+        )
     }
 }
 
@@ -143,19 +160,20 @@ private fun TimelineThumbnail(
         if (value == null) value = runCatching { loader.load(request) }.getOrNull()
     }
     val loaded = bitmap
+    val cellModifier = Modifier
+        .fillMaxWidth()
+        .aspectRatio(1f)
+        .testTag("media_${entry.value.key.volumeName}_${entry.value.key.mediaStoreId}")
     if (loaded == null) {
         Box(
-            Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .background(GalleryColors.Muted.copy(alpha = 0.16f)),
+            cellModifier.background(GalleryColors.Muted.copy(alpha = 0.16f)),
         )
     } else {
         Image(
             bitmap = loaded.asImageBitmap(),
             contentDescription = null,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxWidth().aspectRatio(1f),
+            modifier = cellModifier,
         )
     }
 }

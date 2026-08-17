@@ -19,6 +19,7 @@ rootProject.name = "UGallery"
 include(
     ":app",
     ":benchmark",
+    ":baselineprofile",
     ":testdata",
     ":core:common",
     ":core:model",
@@ -52,4 +53,3 @@ include(
     ":feature:cleanup",
     ":feature:privatealbum",
 )
-

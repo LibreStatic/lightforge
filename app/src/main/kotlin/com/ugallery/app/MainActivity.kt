@@ -23,19 +23,24 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
     @Inject lateinit var permissionCoordinator: PermissionCoordinator
     private val galleryViewModel: GalleryViewModel by viewModels()
+    private var usesProductionRuntime = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         lifecycle.addObserver(permissionCoordinator)
         enableEdgeToEdge()
-        val benchmarkItemCount = if (BuildConfig.BUILD_TYPE == "benchmark") {
+        val performanceBuild = BuildConfig.BUILD_TYPE.contains("benchmark", ignoreCase = true) ||
+            BuildConfig.BUILD_TYPE.contains("nonMinified", ignoreCase = true)
+        usesProductionRuntime = !performanceBuild ||
+            intent.getBooleanExtra(PRODUCTION_TIMELINE_EXTRA, false)
+        val benchmarkItemCount = if (performanceBuild) {
             intent.getIntExtra(BENCHMARK_ITEM_COUNT_EXTRA, 100_000).coerceIn(0, 250_000)
         } else {
             0
         }
         setContent {
             UGalleryTheme {
-                if (BuildConfig.BUILD_TYPE == "benchmark") {
+                if (!usesProductionRuntime) {
                     PhotosRoute(itemCount = benchmarkItemCount)
                 } else {
                     val access by galleryViewModel.access.collectAsState()
@@ -66,13 +71,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        if (BuildConfig.BUILD_TYPE != "benchmark" && ::permissionCoordinator.isInitialized) {
+        if (usesProductionRuntime && ::permissionCoordinator.isInitialized) {
             galleryViewModel.onForeground()
         }
     }
 
     private companion object {
         const val BENCHMARK_ITEM_COUNT_EXTRA = "com.ugallery.app.extra.BENCHMARK_ITEM_COUNT"
+        const val PRODUCTION_TIMELINE_EXTRA = "com.ugallery.app.extra.PRODUCTION_TIMELINE"
     }
 }
 

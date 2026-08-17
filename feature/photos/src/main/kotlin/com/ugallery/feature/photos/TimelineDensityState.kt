@@ -2,7 +2,6 @@ package com.ugallery.feature.photos
 
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.runtime.Composable
@@ -15,8 +14,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
 import kotlinx.coroutines.flow.collectLatest
 
 internal fun adaptiveDensityColumns(widthDp: Int): IntArray = when {
@@ -31,6 +30,8 @@ class TimelineDensityState internal constructor(
     anchorIndex: Int,
     anchorOffset: Int,
 ) {
+    private var anchorRestorePending = false
+    private var anchorStableKey: String? = null
     var densityIndex by mutableIntStateOf(densityIndex)
         private set
     var anchorIndex by mutableIntStateOf(anchorIndex)
@@ -43,19 +44,36 @@ class TimelineDensityState internal constructor(
         return options[densityIndex.coerceIn(options.indices)]
     }
 
-    fun changeDensity(delta: Int, anchorIndex: Int, anchorOffset: Int = 0): Boolean {
+    fun changeDensity(
+        delta: Int,
+        anchorIndex: Int,
+        anchorOffset: Int = 0,
+        anchorStableKey: String? = null,
+    ): Boolean {
         val next = (densityIndex + delta).coerceIn(0, 3)
         if (next == densityIndex) return false
         this.anchorIndex = anchorIndex.coerceAtLeast(0)
         this.anchorOffset = anchorOffset.coerceAtLeast(0)
+        this.anchorStableKey = anchorStableKey
+        anchorRestorePending = true
         densityIndex = next
         return true
     }
 
     internal fun observeAnchor(index: Int, offset: Int) {
+        if (anchorRestorePending) return
         anchorIndex = index.coerceAtLeast(0)
         anchorOffset = offset.coerceAtLeast(0)
     }
+
+    internal fun completeAnchorRestore(index: Int, offset: Int) {
+        anchorRestorePending = false
+        anchorStableKey = null
+        observeAnchor(index, offset)
+    }
+
+    internal fun resolveRestoreIndex(resolveStableKey: (String) -> Int?): Int =
+        anchorStableKey?.let(resolveStableKey) ?: anchorIndex
 
     companion object {
         val Saver = Saver<TimelineDensityState, List<Int>>(
@@ -76,15 +94,21 @@ internal fun PreserveTimelineAnchor(
     gridState: LazyGridState,
     columns: Int,
     itemCount: Int,
+    resolveStableKey: (String) -> Int? = { null },
 ) {
     val hasItems = itemCount > 0
     val restoreIndex = densityState.anchorIndex
     val restoreOffset = densityState.anchorOffset
     LaunchedEffect(columns, hasItems) {
         if (hasItems) {
+            val resolvedIndex = densityState.resolveRestoreIndex(resolveStableKey)
             gridState.scrollToItem(
-                restoreIndex.coerceIn(0, itemCount - 1),
+                resolvedIndex.coerceIn(0, itemCount - 1),
                 restoreOffset,
+            )
+            densityState.completeAnchorRestore(
+                gridState.firstVisibleItemIndex,
+                gridState.firstVisibleItemScrollOffset,
             )
         }
     }
@@ -97,29 +121,33 @@ internal fun PreserveTimelineAnchor(
 internal fun Modifier.timelinePinchDensity(
     densityState: TimelineDensityState,
     gridState: LazyGridState,
+    stableKeyAt: (Int) -> String? = { null },
 ): Modifier = pointerInput(densityState.densityIndex) {
     awaitEachGesture {
-        awaitFirstDown(requireUnconsumed = false)
+        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        val gestureStartAnchor = gridState.firstVisibleItemIndex
+        val gestureStartStableKey = stableKeyAt(gestureStartAnchor)
         var zoom = 1f
         var changed = false
         do {
-            val event = awaitPointerEvent()
+            val event = awaitPointerEvent(PointerEventPass.Initial)
             if (event.changes.count { it.pressed } >= 2) {
                 zoom *= event.calculateZoom()
-                val centroid = event.calculateCentroid(useCurrent = true)
-                val anchor = gridState.mediaIndexAt(centroid) ?: gridState.firstVisibleItemIndex
                 event.changes.forEach { it.consume() }
                 if (!changed && zoom > 1.22f) {
-                    changed = densityState.changeDensity(-1, anchor)
+                    changed = densityState.changeDensity(
+                        delta = -1,
+                        anchorIndex = gestureStartAnchor,
+                        anchorStableKey = gestureStartStableKey,
+                    )
                 } else if (!changed && zoom < 0.82f) {
-                    changed = densityState.changeDensity(1, anchor)
+                    changed = densityState.changeDensity(
+                        delta = 1,
+                        anchorIndex = gestureStartAnchor,
+                        anchorStableKey = gestureStartStableKey,
+                    )
                 }
             }
         } while (event.changes.any { it.pressed })
     }
 }
-
-private fun LazyGridState.mediaIndexAt(point: Offset): Int? = layoutInfo.visibleItemsInfo.firstOrNull { item ->
-    point.x >= item.offset.x && point.x < item.offset.x + item.size.width &&
-        point.y >= item.offset.y && point.y < item.offset.y + item.size.height
-}?.index

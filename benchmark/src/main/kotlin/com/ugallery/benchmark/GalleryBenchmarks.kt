@@ -3,6 +3,7 @@
 package com.ugallery.benchmark
 
 import androidx.benchmark.macro.CompilationMode
+import androidx.benchmark.macro.BaselineProfileMode
 import androidx.benchmark.macro.FrameTimingMetric
 import androidx.benchmark.macro.MemoryUsageMetric
 import androidx.benchmark.macro.StartupMode
@@ -21,16 +22,29 @@ import org.junit.runner.RunWith
 
 private const val TARGET_PACKAGE = "com.ugallery.app"
 private const val BENCHMARK_ITEM_COUNT_EXTRA = "com.ugallery.app.extra.BENCHMARK_ITEM_COUNT"
+private const val PRODUCTION_TIMELINE_EXTRA = "com.ugallery.app.extra.PRODUCTION_TIMELINE"
 
 @RunWith(AndroidJUnit4::class)
 class StartupBenchmark {
     @get:Rule val rule = MacrobenchmarkRule()
 
     @Test
-    fun coldStartup() = rule.measureRepeated(
+    fun coldStartupWithBaselineProfile() = rule.measureRepeated(
         packageName = TARGET_PACKAGE,
         metrics = listOf(StartupTimingMetric()),
-        compilationMode = CompilationMode.Partial(),
+        compilationMode = CompilationMode.Partial(BaselineProfileMode.Require),
+        startupMode = StartupMode.COLD,
+        iterations = 10,
+    ) {
+        pressHome()
+        startActivityAndWait()
+    }
+
+    @Test
+    fun coldStartupWithoutProfile() = rule.measureRepeated(
+        packageName = TARGET_PACKAGE,
+        metrics = listOf(StartupTimingMetric()),
+        compilationMode = CompilationMode.None(),
         startupMode = StartupMode.COLD,
         iterations = 10,
     ) {
@@ -152,6 +166,142 @@ class TimelineMemory250kBenchmark {
             ?: error("Timeline grid was not exposed to UI Automator")
         repeat(12) { grid.fling(Direction.DOWN) }
     }
+}
+
+@RunWith(AndroidJUnit4::class)
+class ProductionTimelineScrollBenchmark {
+    @get:Rule val rule = MacrobenchmarkRule()
+
+    @Test
+    fun scrollIndexedPhysicalLibrary() = rule.measureRepeated(
+        packageName = TARGET_PACKAGE,
+        metrics = listOf(FrameTimingMetric(), MemoryUsageMetric(MemoryUsageMetric.Mode.Max)),
+        compilationMode = CompilationMode.Partial(BaselineProfileMode.Require),
+        startupMode = StartupMode.WARM,
+        iterations = 3,
+        setupBlock = {
+            device.executeShellCommand("pm grant $TARGET_PACKAGE android.permission.READ_MEDIA_IMAGES")
+            device.executeShellCommand("pm grant $TARGET_PACKAGE android.permission.READ_MEDIA_VIDEO")
+            startActivityAndWait { it.putExtra(PRODUCTION_TIMELINE_EXTRA, true) }
+            check(device.wait(Until.hasObject(By.res("timeline_grid")), 30_000)) {
+                "Production timeline did not finish initial indexing"
+            }
+        },
+    ) {
+        repeat(12) {
+            val grid = device.findObject(By.res("timeline_grid"))
+                ?: error("Production timeline disappeared")
+            grid.fling(Direction.DOWN)
+        }
+    }
+}
+
+@RunWith(AndroidJUnit4::class)
+class ProductionTimelineAnchorBenchmark {
+    @get:Rule val rule = MacrobenchmarkRule()
+
+    @Test
+    fun pinchAndRotationKeepMediaAnchor() {
+        var expectedAnchor = ""
+        rule.measureRepeated(
+            packageName = TARGET_PACKAGE,
+            metrics = listOf(FrameTimingMetric()),
+            compilationMode = CompilationMode.Partial(BaselineProfileMode.Require),
+            startupMode = StartupMode.WARM,
+            iterations = 1,
+            setupBlock = {
+                killProcess()
+                device.executeShellCommand("pm clear $TARGET_PACKAGE")
+                device.executeShellCommand("pm grant $TARGET_PACKAGE android.permission.READ_MEDIA_IMAGES")
+                device.executeShellCommand("pm grant $TARGET_PACKAGE android.permission.READ_MEDIA_VIDEO")
+                startActivityAndWait { it.putExtra(PRODUCTION_TIMELINE_EXTRA, true) }
+                check(device.wait(Until.hasObject(By.res("timeline_grid")), 30_000))
+                repeat(4) {
+                    device.findObject(By.res("timeline_grid"))!!.fling(Direction.DOWN)
+                }
+                device.waitForIdle(5_000)
+                expectedAnchor = waitForStableProductionAnchor(device)
+                    ?: error("Production timeline exposed no leading media anchor")
+            },
+        ) {
+            val grid = device.findObject(By.res("timeline_grid"))
+                ?: error("Production timeline disappeared")
+            grid.pinchClose(0.75f, 200)
+            device.waitForIdle(5_000)
+            val visibleAfterPinch = visibleProductionMedia(device)
+            check(expectedAnchor in visibleAfterPinch) {
+                "Pinch lost $expectedAnchor; visible=$visibleAfterPinch"
+            }
+            try {
+                device.setOrientationLeft()
+                check(device.wait(Until.hasObject(By.res("timeline_grid")), 5_000))
+                device.waitForIdle(5_000)
+                check(expectedAnchor in visibleProductionMedia(device)) {
+                    "Rotation lost $expectedAnchor"
+                }
+            } finally {
+                device.unfreezeRotation()
+            }
+        }
+    }
+}
+
+private val productionMediaCellResource = Pattern.compile("media_.*_[0-9]+")
+
+private fun visibleProductionMedia(device: UiDevice): Set<String> =
+    device.findObject(By.res("timeline_grid"))?.visibleBounds?.let { gridBounds ->
+        device.findObjects(By.res(productionMediaCellResource))
+            .filter { cell ->
+                val bounds = cell.visibleBounds
+                !bounds.isEmpty && android.graphics.Rect.intersects(gridBounds, bounds)
+            }
+            .mapNotNull { it.resourceName }
+            .toSet()
+    }.orEmpty()
+
+private fun firstVisibleProductionMedia(device: UiDevice): String? {
+    val visibleResources = visibleProductionMedia(device)
+    return device.findObjects(By.res(productionMediaCellResource))
+        .filter { it.resourceName in visibleResources }
+        .minByOrNull { cell ->
+            val bounds = cell.visibleBounds
+            bounds.top.toLong() * 10_000L + bounds.left
+        }
+        ?.resourceName
+}
+
+private fun waitForStableProductionAnchor(device: UiDevice): String? {
+    val deadline = System.nanoTime() + 10_000_000_000L
+    var candidate: String? = null
+    var unchangedSamples = 0
+    while (System.nanoTime() < deadline) {
+        val current = centralVisibleProductionMedia(device)
+        if (current != null && current == candidate) {
+            unchangedSamples += 1
+            if (unchangedSamples >= 5) return current
+        } else {
+            candidate = current
+            unchangedSamples = 0
+        }
+        Thread.sleep(250)
+    }
+    return null
+}
+
+private fun centralVisibleProductionMedia(device: UiDevice): String? {
+    val grid = device.findObject(By.res("timeline_grid")) ?: return null
+    val visibleResources = visibleProductionMedia(device)
+    val centerX = grid.visibleBounds.centerX()
+    val centerY = grid.visibleBounds.centerY()
+    return device.findObjects(By.res(productionMediaCellResource))
+        .filter { it.resourceName in visibleResources }
+        .minByOrNull { cell ->
+            val bounds = cell.visibleBounds
+            val dx = bounds.centerX() - centerX
+            val dy = bounds.centerY() - centerY
+            dx.toLong() * dx + dy.toLong() * dy
+        }
+        ?.resourceName
 }
 
 @RunWith(AndroidJUnit4::class)

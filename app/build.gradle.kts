@@ -90,7 +90,7 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
 
-    baselineProfile(project(":benchmark"))
+    baselineProfile(project(":baselineprofile"))
     testImplementation(libs.junit4)
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
