@@ -28,3 +28,9 @@ Reject this RecyclerView prototype and retain Compose. M0-T07 remains open becau
 - Compose remains the timeline implementation, but M0-T07 is not complete.
 - Both renderer datasets remain archived, including failed measurements.
 - A future timeline renderer change requires new profiling evidence and an ADR update.
+
+## Follow-up physical evidence
+
+On the reference tablet/API 36 tablet with the display actively running at 120 Hz, Compose passed two 100k cohorts at 1.517% and 1.897% aggregate positive overruns and one 250k cohort at 3.031%; thermal throttle sleep was zero. This supports retaining Compose and indicates that item-count virtualization is not the limiting factor.
+
+M0-T07 nevertheless remains open because the same implementation still has failed archived reference phone repeats. The tablet result does not authorize weakening the gate or ignoring the phone reference; cross-device repeatability must be resolved first.
