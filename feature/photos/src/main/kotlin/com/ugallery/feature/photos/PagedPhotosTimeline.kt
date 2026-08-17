@@ -23,7 +23,9 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import androidx.paging.compose.LazyPagingItems
@@ -49,6 +51,16 @@ fun AdaptivePagedPhotosTimeline(
     BoxWithConstraints(modifier) {
         val widthDp = maxWidth.value.toInt()
         val columns = densityState.columns(widthDp)
+        val leadingIndex = state.firstVisibleItemIndex
+        densityState.prepareColumnChange(
+            columns = columns,
+            index = leadingIndex,
+            stableKey = if (leadingIndex < entries.itemCount) {
+                entries.peek(leadingIndex)?.stableKey
+            } else {
+                null
+            },
+        )
         val sizePx = with(LocalDensity.current) {
             ((maxWidth - GalleryGridMetrics.Gap * (columns - 1)) / columns).roundToPx()
         }.coerceAtLeast(1)
@@ -150,6 +162,13 @@ private fun TimelineThumbnail(
     loader: ThumbnailLoader,
     sizePx: Int,
 ) {
+    val contentDescription = stringResource(
+        if (entry.value.kind == com.ugallery.core.model.MediaKind.Video) {
+            R.string.video_thumbnail_description
+        } else {
+            R.string.photo_thumbnail_description
+        },
+    )
     val request = ThumbnailRequest(
         mediaKey = entry.value.key,
         generationModified = entry.value.generationModified,
@@ -164,6 +183,7 @@ private fun TimelineThumbnail(
         .fillMaxWidth()
         .aspectRatio(1f)
         .testTag("media_${entry.value.key.volumeName}_${entry.value.key.mediaStoreId}")
+        .semantics { this.contentDescription = contentDescription }
     if (loaded == null) {
         Box(
             cellModifier.background(GalleryColors.Muted.copy(alpha = 0.16f)),

@@ -11,4 +11,6 @@
     <string name="permission_title">Permití el acceso a fotos y videos</string>
     <string name="permission_body">Elegí acceso completo o seleccionado. Podés cambiarlo luego en los ajustes del sistema.</string>
     <string name="grant_access_action">Elegir acceso</string>
+    <string name="photo_thumbnail_description">Foto</string>
+    <string name="video_thumbnail_description">Video</string>
 </resources>

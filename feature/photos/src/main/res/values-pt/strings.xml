@@ -11,4 +11,6 @@
     <string name="permission_title">Permitir acesso a fotos e vídeos</string>
     <string name="permission_body">Escolha acesso completo ou selecionado. Você pode alterar isso depois nas configurações do sistema.</string>
     <string name="grant_access_action">Escolher acesso</string>
+    <string name="photo_thumbnail_description">Foto</string>
+    <string name="video_thumbnail_description">Vídeo</string>
 </resources>

@@ -32,6 +32,7 @@ class TimelineDensityState internal constructor(
 ) {
     private var anchorRestorePending = false
     private var anchorStableKey: String? = null
+    private var lastColumns = -1
     var densityIndex by mutableIntStateOf(densityIndex)
         private set
     var anchorIndex by mutableIntStateOf(anchorIndex)
@@ -64,6 +65,21 @@ class TimelineDensityState internal constructor(
         if (anchorRestorePending) return
         anchorIndex = index.coerceAtLeast(0)
         anchorOffset = offset.coerceAtLeast(0)
+    }
+
+    internal fun prepareColumnChange(columns: Int, index: Int, stableKey: String?) {
+        if (lastColumns < 0) {
+            lastColumns = columns
+            return
+        }
+        if (columns == lastColumns) return
+        lastColumns = columns
+        if (!anchorRestorePending) {
+            anchorIndex = index.coerceAtLeast(0)
+            anchorOffset = 0
+            anchorStableKey = stableKey
+            anchorRestorePending = true
+        }
     }
 
     internal fun completeAnchorRestore(index: Int, offset: Int) {

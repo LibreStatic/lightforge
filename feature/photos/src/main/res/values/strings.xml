@@ -13,5 +13,6 @@
     <string name="permission_title">Allow photo and video access</string>
     <string name="permission_body">Choose full or selected access. You can change this later in system settings.</string>
     <string name="grant_access_action">Choose access</string>
+    <string name="photo_thumbnail_description">Photo</string>
+    <string name="video_thumbnail_description">Video</string>
 </resources>
-

@@ -53,4 +53,16 @@ class TimelineDensityStateTest {
 
         assertEquals(39, state.resolveRestoreIndex { key -> if (key.endsWith(":123")) 39 else null })
     }
+
+    @Test
+    fun adaptiveColumnChangeCapturesPreLayoutStableAnchor() {
+        val state = TimelineDensityState(0, 5, 0)
+
+        state.prepareColumnChange(columns = 7, index = 5, stableKey = "media:primary:5")
+        state.prepareColumnChange(columns = 5, index = 42, stableKey = "media:sd:42")
+        state.observeAnchor(index = 99, offset = 7)
+
+        assertEquals(42, state.anchorIndex)
+        assertEquals(37, state.resolveRestoreIndex { key -> if (key == "media:sd:42") 37 else null })
+    }
 }

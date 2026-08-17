@@ -246,6 +246,54 @@ class ProductionTimelineAnchorBenchmark {
     }
 }
 
+@RunWith(AndroidJUnit4::class)
+class ProductionTabletResizeAnchorBenchmark {
+    @get:Rule val rule = MacrobenchmarkRule()
+
+    @Test
+    fun expandedMediumAndCompactKeepMediaContext() {
+        var expectedAnchor = ""
+        rule.measureRepeated(
+            packageName = TARGET_PACKAGE,
+            metrics = listOf(FrameTimingMetric()),
+            compilationMode = CompilationMode.Partial(BaselineProfileMode.Require),
+            startupMode = StartupMode.WARM,
+            iterations = 1,
+            setupBlock = {
+                device.executeShellCommand("wm size reset")
+                killProcess()
+                device.executeShellCommand("pm clear $TARGET_PACKAGE")
+                device.executeShellCommand("pm grant $TARGET_PACKAGE android.permission.READ_MEDIA_IMAGES")
+                device.executeShellCommand("pm grant $TARGET_PACKAGE android.permission.READ_MEDIA_VIDEO")
+                startActivityAndWait { it.putExtra(PRODUCTION_TIMELINE_EXTRA, true) }
+                check(device.wait(Until.hasObject(By.res("timeline_grid")), 30_000))
+                repeat(4) { device.findObject(By.res("timeline_grid"))!!.fling(Direction.DOWN) }
+                expectedAnchor = waitForStableProductionContext(device, verticalFraction = 0.15f)
+                    ?: error("Production tablet timeline exposed no stable media context")
+            },
+        ) {
+            try {
+                device.executeShellCommand("wm size 1200x1600")
+                check(device.wait(Until.hasObject(By.res("timeline_grid")), 5_000))
+                device.waitForIdle(5_000)
+                check(expectedAnchor in visibleProductionMedia(device)) {
+                    "Medium resize lost $expectedAnchor"
+                }
+
+                device.executeShellCommand("wm size 800x1600")
+                check(device.wait(Until.hasObject(By.res("timeline_grid")), 5_000))
+                device.waitForIdle(5_000)
+                check(expectedAnchor in visibleProductionMedia(device)) {
+                    "Compact resize lost $expectedAnchor"
+                }
+            } finally {
+                device.executeShellCommand("wm size reset")
+                device.unfreezeRotation()
+            }
+        }
+    }
+}
+
 private val productionMediaCellResource = Pattern.compile("media_.*_[0-9]+")
 
 private fun visibleProductionMedia(device: UiDevice): Set<String> =
@@ -271,11 +319,18 @@ private fun firstVisibleProductionMedia(device: UiDevice): String? {
 }
 
 private fun waitForStableProductionAnchor(device: UiDevice): String? {
+    return waitForStableProductionContext(device, verticalFraction = 0.5f)
+}
+
+private fun waitForStableProductionContext(
+    device: UiDevice,
+    verticalFraction: Float,
+): String? {
     val deadline = System.nanoTime() + 10_000_000_000L
     var candidate: String? = null
     var unchangedSamples = 0
     while (System.nanoTime() < deadline) {
-        val current = centralVisibleProductionMedia(device)
+        val current = visibleProductionMediaNear(device, verticalFraction)
         if (current != null && current == candidate) {
             unchangedSamples += 1
             if (unchangedSamples >= 5) return current
@@ -288,17 +343,17 @@ private fun waitForStableProductionAnchor(device: UiDevice): String? {
     return null
 }
 
-private fun centralVisibleProductionMedia(device: UiDevice): String? {
+private fun visibleProductionMediaNear(device: UiDevice, verticalFraction: Float): String? {
     val grid = device.findObject(By.res("timeline_grid")) ?: return null
     val visibleResources = visibleProductionMedia(device)
     val centerX = grid.visibleBounds.centerX()
-    val centerY = grid.visibleBounds.centerY()
+    val targetY = grid.visibleBounds.top + (grid.visibleBounds.height() * verticalFraction).toInt()
     return device.findObjects(By.res(productionMediaCellResource))
         .filter { it.resourceName in visibleResources }
         .minByOrNull { cell ->
             val bounds = cell.visibleBounds
             val dx = bounds.centerX() - centerX
-            val dy = bounds.centerY() - centerY
+            val dy = bounds.centerY() - targetY
             dx.toLong() * dx + dy.toLong() * dy
         }
         ?.resourceName
