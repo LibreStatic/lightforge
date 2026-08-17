@@ -23,7 +23,9 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:mediastore"))
     implementation(libs.androidx.core.ktx)
+    implementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.junit4)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.test.ext)
     androidTestImplementation(libs.androidx.test.runner)
 }
