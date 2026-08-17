@@ -3,6 +3,7 @@ package com.ugallery.feature.photos
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,6 +21,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.paging.compose.LazyPagingItems
 import com.ugallery.core.designsystem.GalleryColors
@@ -34,6 +36,32 @@ import java.time.format.FormatStyle
 import java.util.Locale
 
 @Composable
+fun AdaptivePagedPhotosTimeline(
+    entries: LazyPagingItems<TimelineEntry>,
+    thumbnailLoader: ThumbnailLoader,
+    modifier: Modifier = Modifier,
+    state: LazyGridState = rememberLazyGridState(),
+    densityState: TimelineDensityState = rememberTimelineDensityState(),
+) {
+    BoxWithConstraints(modifier) {
+        val widthDp = maxWidth.value.toInt()
+        val columns = densityState.columns(widthDp)
+        val sizePx = with(LocalDensity.current) {
+            ((maxWidth - GalleryGridMetrics.Gap * (columns - 1)) / columns).roundToPx()
+        }.coerceAtLeast(1)
+        PagedPhotosTimeline(
+            entries = entries,
+            thumbnailLoader = thumbnailLoader,
+            columns = columns,
+            thumbnailSizePx = sizePx,
+            modifier = Modifier.fillMaxWidth(),
+            state = state,
+            densityState = densityState,
+        )
+    }
+}
+
+@Composable
 fun PagedPhotosTimeline(
     entries: LazyPagingItems<TimelineEntry>,
     thumbnailLoader: ThumbnailLoader,
@@ -41,6 +69,7 @@ fun PagedPhotosTimeline(
     thumbnailSizePx: Int,
     modifier: Modifier = Modifier,
     state: LazyGridState = rememberLazyGridState(),
+    densityState: TimelineDensityState? = null,
 ) {
     require(columns > 0 && thumbnailSizePx > 0)
     LazyVerticalGrid(
@@ -48,7 +77,8 @@ fun PagedPhotosTimeline(
         state = state,
         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(GalleryGridMetrics.Gap),
         verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(GalleryGridMetrics.Gap),
-        modifier = modifier,
+        modifier = if (densityState == null) modifier else
+            modifier.timelinePinchDensity(densityState, state),
     ) {
         items(
             count = entries.itemCount,
@@ -74,6 +104,9 @@ fun PagedPhotosTimeline(
                 )
             }
         }
+    }
+    if (densityState != null) {
+        PreserveTimelineAnchor(densityState, state, columns, entries.itemCount)
     }
 }
 
