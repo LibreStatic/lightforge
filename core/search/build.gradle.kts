@@ -23,8 +23,10 @@ dependencies {
     implementation(project(":core:model"))
     implementation(libs.androidx.appsearch)
     implementation(libs.androidx.appsearch.local.storage)
+    implementation(libs.kotlinx.coroutines.core)
     implementation("com.google.guava:guava:33.5.0-android")
     testImplementation(libs.junit4)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.test.ext)
     androidTestImplementation(libs.androidx.test.runner)
 }

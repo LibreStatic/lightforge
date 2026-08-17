@@ -25,6 +25,7 @@ dependencies {
     implementation(project(":core:database"))
     implementation(project(":core:mediastore"))
     implementation(project(":core:selection"))
+    implementation(project(":core:search"))
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.exifinterface)
     implementation(libs.kotlinx.coroutines.core)

@@ -2,13 +2,13 @@ package com.ugallery.core.search
 
 import androidx.appsearch.app.AppSearchBatchResult
 import androidx.appsearch.app.AppSearchSession
-import androidx.appsearch.app.GenericDocument
 import androidx.appsearch.app.PutDocumentsRequest
 import androidx.appsearch.app.SearchSpec
-import androidx.appsearch.app.SetSchemaRequest
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.ugallery.core.model.MediaKey
+import com.ugallery.core.model.MediaKind
 import java.io.File
 import java.util.concurrent.TimeUnit
 import kotlin.system.measureTimeMillis
@@ -27,21 +27,25 @@ class AppSearchScaleBenchmarkTest {
         val session = owner.open("scale-benchmark").get(30, TimeUnit.SECONDS)
         try {
             session.setSchemaAsync(
-                SetSchemaRequest.Builder(owner.schemaRequest()).setForceOverride(true).build(),
+                owner.schemaRequest(forceOverride = true),
             ).get(30, TimeUnit.SECONDS)
 
             val indexMs = measureTimeMillis {
                 repeat(DOCUMENT_COUNT / BATCH_SIZE) { batch ->
                     val documents = List(BATCH_SIZE) { offset ->
                         val index = batch * BATCH_SIZE + offset
-                        GenericDocument.Builder<GenericDocument.Builder<*>>(
-                            "media",
-                            "external_primary:$index",
-                            "MediaDocument",
-                        )
-                            .setPropertyString("mediaKey", "external_primary:$index")
-                            .setPropertyString("text", if (index % 10 == 0) "beach july" else "local photo")
-                            .build()
+                        MediaSearchDocument(
+                            key = MediaKey("external_primary", index.toLong()),
+                            kind = MediaKind.Image,
+                            mimeType = "image/jpeg",
+                            displayName = "photo-$index.jpg",
+                            bucketName = "Camera",
+                            timelineSortMillis = index.toLong(),
+                            generationModified = 1,
+                            favorite = false,
+                            ocrText = if (index % 10 == 0) "beach july" else "local photo",
+                            ocrModelVersion = 1,
+                        ).genericDocument()
                     }
                     val result = session.putAsync(
                         PutDocumentsRequest.Builder().addGenericDocuments(documents).build(),
@@ -83,6 +87,6 @@ class AppSearchScaleBenchmarkTest {
 
     private companion object {
         const val DOCUMENT_COUNT = 100_000
-        const val BATCH_SIZE = 1_000
+        const val BATCH_SIZE = MediaSearchIndex.MaxBatchSize
     }
 }

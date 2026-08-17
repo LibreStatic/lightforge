@@ -8,25 +8,89 @@ import androidx.appsearch.localstorage.LocalStorage
 import com.google.common.util.concurrent.ListenableFuture
 
 class LocalSearchSession(private val context: Context) {
-    fun open(databaseName: String = "media"): ListenableFuture<AppSearchSession> =
+    fun open(databaseName: String = MediaSearchIndex.DefaultDatabase): ListenableFuture<AppSearchSession> =
         LocalStorage.createSearchSessionAsync(
             LocalStorage.SearchContext.Builder(context, databaseName).build(),
         )
 
-    fun schemaRequest(): SetSchemaRequest {
-        val schema = AppSearchSchema.Builder("MediaDocument")
-            .addProperty(AppSearchSchema.StringPropertyConfig.Builder("mediaKey")
-                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REQUIRED)
-                .setIndexingType(AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_EXACT_TERMS)
-                .setTokenizerType(AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
-                .build())
-            .addProperty(AppSearchSchema.StringPropertyConfig.Builder("text")
-                .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL)
-                .setIndexingType(AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
-                .setTokenizerType(AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
-                .build())
-            .build()
-        return SetSchemaRequest.Builder().addSchemas(schema).build()
-    }
+    fun schemaRequest(forceOverride: Boolean = false): SetSchemaRequest = SetSchemaRequest.Builder()
+        .addSchemas(MediaSearchSchema.schema())
+        .setForceOverride(forceOverride)
+        .build()
 }
 
+object MediaSearchSchema {
+    const val Type = "MediaDocument"
+    const val Version = 1L
+
+    object Property {
+        const val MediaKey = "mediaKey"
+        const val VolumeName = "volumeName"
+        const val MediaStoreId = "mediaStoreId"
+        const val Kind = "kind"
+        const val MimeType = "mimeType"
+        const val DisplayName = "displayName"
+        const val BucketName = "bucketName"
+        const val OcrText = "ocrText"
+        const val CanonicalLabels = "canonicalLabels"
+        const val PersonIds = "personIds"
+        const val TimelineSortMillis = "timelineSortMillis"
+        const val GenerationModified = "generationModified"
+        const val Favorite = "favorite"
+        const val SchemaVersion = "schemaVersion"
+        const val LabelModelVersion = "labelModelVersion"
+        const val OcrModelVersion = "ocrModelVersion"
+    }
+
+    fun schema(): AppSearchSchema = AppSearchSchema.Builder(Type)
+        .addProperty(exact(Property.MediaKey, required = true))
+        .addProperty(exact(Property.VolumeName, required = true))
+        .addProperty(number(Property.MediaStoreId, range = true))
+        .addProperty(exact(Property.Kind, required = true))
+        .addProperty(exact(Property.MimeType))
+        .addProperty(prefix(Property.DisplayName))
+        .addProperty(prefix(Property.BucketName))
+        .addProperty(prefix(Property.OcrText))
+        .addProperty(prefix(Property.CanonicalLabels, repeated = true))
+        .addProperty(exact(Property.PersonIds, repeated = true))
+        .addProperty(number(Property.TimelineSortMillis, range = true))
+        .addProperty(number(Property.GenerationModified))
+        .addProperty(boolean(Property.Favorite))
+        .addProperty(number(Property.SchemaVersion))
+        .addProperty(number(Property.LabelModelVersion))
+        .addProperty(number(Property.OcrModelVersion))
+        .build()
+
+    private fun exact(name: String, required: Boolean = false, repeated: Boolean = false) =
+        AppSearchSchema.StringPropertyConfig.Builder(name)
+            .setCardinality(cardinality(required, repeated))
+            .setIndexingType(AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_EXACT_TERMS)
+            .setTokenizerType(AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
+            .build()
+
+    private fun prefix(name: String, repeated: Boolean = false) =
+        AppSearchSchema.StringPropertyConfig.Builder(name)
+            .setCardinality(cardinality(required = false, repeated))
+            .setIndexingType(AppSearchSchema.StringPropertyConfig.INDEXING_TYPE_PREFIXES)
+            .setTokenizerType(AppSearchSchema.StringPropertyConfig.TOKENIZER_TYPE_PLAIN)
+            .build()
+
+    private fun number(name: String, range: Boolean = false) =
+        AppSearchSchema.LongPropertyConfig.Builder(name)
+            .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REQUIRED)
+            .setIndexingType(
+                if (range) AppSearchSchema.LongPropertyConfig.INDEXING_TYPE_RANGE
+                else AppSearchSchema.LongPropertyConfig.INDEXING_TYPE_NONE,
+            )
+            .build()
+
+    private fun boolean(name: String) = AppSearchSchema.BooleanPropertyConfig.Builder(name)
+        .setCardinality(AppSearchSchema.PropertyConfig.CARDINALITY_REQUIRED)
+        .build()
+
+    private fun cardinality(required: Boolean, repeated: Boolean): Int = when {
+        repeated -> AppSearchSchema.PropertyConfig.CARDINALITY_REPEATED
+        required -> AppSearchSchema.PropertyConfig.CARDINALITY_REQUIRED
+        else -> AppSearchSchema.PropertyConfig.CARDINALITY_OPTIONAL
+    }
+}

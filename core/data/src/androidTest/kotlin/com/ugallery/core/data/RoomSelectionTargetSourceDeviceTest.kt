@@ -13,6 +13,7 @@ import com.ugallery.core.selection.MediaQuery
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -62,6 +63,27 @@ class RoomSelectionTargetSourceDeviceTest {
         val query = MediaQuery(scope = MediaQuery.Scope.VirtualAlbum(albumId))
         assertEquals(listOf(MediaKey("sd", 8)), source.page(query, null, 500).map { it.key })
         assertEquals(1, source.count(query))
+    }
+
+    @Test fun searchRebuildSourceUsesCompositeKeysetAndExcludesRevokedOrTrashedRows() = runBlocking {
+        database.libraryDao().upsertMedia(
+            listOf(
+                media("external_primary", 2, MediaKind.Image),
+                media("sd", 1, MediaKind.Video),
+                media("sd", 2, MediaKind.Image, trashed = true),
+                media("sd", 3, MediaKind.Image).copy(isAccessible = false),
+            ),
+        )
+        val source = RoomSearchDocumentSource(database)
+
+        val first = source.page(null, 1)
+        val second = source.page(first.single().key, 1)
+        val terminal = source.page(second.single().key, 1)
+
+        assertEquals(listOf(MediaKey("external_primary", 2)), first.map { it.key })
+        assertEquals(listOf(MediaKey("sd", 1)), second.map { it.key })
+        assertEquals(MediaKind.Video, second.single().kind)
+        assertTrue(terminal.isEmpty())
     }
 
     private fun media(

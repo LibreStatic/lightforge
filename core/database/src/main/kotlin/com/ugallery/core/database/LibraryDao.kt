@@ -17,6 +17,18 @@ interface LibraryDao {
 
     @RawQuery
     suspend fun rawSelectionCount(query: SupportSQLiteQuery): Long
+
+    @Query(
+        "SELECT * FROM media_items WHERE isAccessible=1 AND isTrashed=0 AND " +
+            "(:afterVolume IS NULL OR volumeName>:afterVolume OR " +
+            "(volumeName=:afterVolume AND mediaStoreId>:afterId)) " +
+            "ORDER BY volumeName ASC, mediaStoreId ASC LIMIT :limit",
+    )
+    suspend fun searchRebuildPage(
+        afterVolume: String?,
+        afterId: Long,
+        limit: Int,
+    ): List<MediaItemEntity>
     @Upsert
     suspend fun upsertMedia(items: List<MediaItemEntity>)
 
