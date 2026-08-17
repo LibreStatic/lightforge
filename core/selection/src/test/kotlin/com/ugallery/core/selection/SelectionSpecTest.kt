@@ -1,0 +1,107 @@
+package com.ugallery.core.selection
+
+import com.ugallery.core.model.MediaKey
+import kotlinx.coroutines.runBlocking
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.ObjectInputStream
+import java.io.ObjectOutputStream
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class SelectionSpecTest {
+    @Test
+    fun `select all over 100k retains only query and exclusions`() {
+        val query = MediaQuery(scope = MediaQuery.Scope.PhysicalAlbum("external_primary", 7))
+        var selection = SelectionReducer.selectAll(query)
+
+        selection = SelectionReducer.toggle(selection, key(10))
+        selection = SelectionReducer.toggle(selection, key(20))
+
+        assertTrue(selection is SelectionSpec.QueryAll)
+        selection as SelectionSpec.QueryAll
+        assertEquals(query, selection.querySnapshot)
+        assertEquals(2, selection.exclusions.size)
+        assertEquals(99_998L, SelectionReducer.count(selection, 100_000))
+        assertFalse(SelectionReducer.isSelected(selection, key(10)))
+        assertTrue(SelectionReducer.isSelected(selection, key(11)))
+    }
+
+    @Test
+    fun `query all snapshot is not replaced when visible filters change`() {
+        val original = MediaQuery(favoriteOnly = false)
+        val changed = MediaQuery(favoriteOnly = true)
+        val selection = SelectionReducer.selectAll(original) as SelectionSpec.QueryAll
+
+        assertEquals(original, selection.querySnapshot)
+        assertFalse(selection.querySnapshot == changed)
+        assertFalse(SelectionReducer.isSelected(selection, key(1), belongsToQuerySnapshot = false))
+    }
+
+    @Test
+    fun `saved state round trips explicit and query all modes`() {
+        val explicit = SelectionSpec.explicit(listOf(key(1), key(2)))
+        assertEquals(explicit, SelectionStateCodec.restore(SelectionStateCodec.save(explicit)))
+
+        val queryAll = SelectionSpec.queryAll(
+            MediaQuery(scope = MediaQuery.Scope.Search("summer")),
+            listOf(key(3)),
+        )
+        assertEquals(queryAll, SelectionStateCodec.restore(SelectionStateCodec.save(queryAll)))
+    }
+
+    @Test
+    fun `query all survives process-style serialization with constant state size`() {
+        val selection = SelectionSpec.queryAll(
+            MediaQuery(scope = MediaQuery.Scope.VirtualAlbum(42)),
+            listOf(key(8), key(9)),
+        )
+        val encoded = ByteArrayOutputStream().also { bytes ->
+            ObjectOutputStream(bytes).use { it.writeObject(SelectionStateCodec.save(selection)) }
+        }.toByteArray()
+        val restoredState = ObjectInputStream(ByteArrayInputStream(encoded)).use {
+            it.readObject() as SelectionSavedState
+        }
+
+        assertTrue("Select-all saved state must stay small", encoded.size < 4_096)
+        assertEquals(selection, SelectionStateCodec.restore(restoredState))
+    }
+
+    @Test
+    fun `query all chunking stays bounded and applies exclusions`() = runBlocking {
+        val all = (0L until 100_000L).map(::key)
+        var largestRequest = 0
+        var calls = 0
+        val source = SelectionKeySource { _, after, limit ->
+            calls++
+            largestRequest = maxOf(largestRequest, limit)
+            val start = after?.mediaStoreId?.plus(1)?.toInt() ?: 0
+            all.subList(start.coerceAtMost(all.size), (start + limit).coerceAtMost(all.size))
+        }
+        val chunks = mutableListOf<Int>()
+        var emitted = 0L
+        SelectionChunker(source).forEachChunk(
+            SelectionSpec.queryAll(MediaQuery(), listOf(key(0), key(50_000), key(99_999))),
+            chunkSize = 256,
+        ) { chunk ->
+            chunks += chunk.size
+            emitted += chunk.size
+            assertTrue(key(0) !in chunk && key(50_000) !in chunk && key(99_999) !in chunk)
+        }
+
+        assertEquals(99_997L, emitted)
+        assertTrue(chunks.all { it in 1..256 })
+        assertEquals(256, largestRequest)
+        assertTrue(calls > 390)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun `chunk source cannot repeat a keyset page`() = runBlocking {
+        val source = SelectionKeySource { _, _, _ -> listOf(key(1)) }
+        SelectionChunker(source).forEachChunk(SelectionSpec.queryAll(MediaQuery()), 10) {}
+    }
+
+    private fun key(id: Long) = MediaKey("external_primary", id)
+}
