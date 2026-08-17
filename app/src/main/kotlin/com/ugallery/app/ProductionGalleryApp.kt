@@ -450,6 +450,7 @@ private fun ViewerRoute(
     val context = LocalContext.current
     val cheap by viewModel.cheapDetails.collectAsState()
     val exif by viewModel.exifDetails.collectAsState()
+    val detectedText by viewModel.detectedText.collectAsState()
     val videoController = if (media.kind == MediaKind.Video) remember(media.key) {
         VideoViewerController(context).also { it.select(viewModel.mediaUri(media)) }
     } else null
@@ -475,7 +476,7 @@ private fun ViewerRoute(
             Surface(Modifier.weight(0.38f)) {
                 Column {
                     TextButton(onClick = onHideDetails) { Text(stringResource(R.string.details_close)) }
-                    DetailsContent(requireNotNull(cheap), exif, false, viewModel::loadDetails)
+                    DetailsContent(requireNotNull(cheap), exif, false, viewModel::loadDetails, detectedText)
                 }
             }
         }
@@ -485,7 +486,7 @@ private fun ViewerRoute(
             Surface(shape = MaterialTheme.shapes.large) {
                 Column {
                     TextButton(onClick = onHideDetails) { Text(stringResource(R.string.details_close)) }
-                    DetailsContent(requireNotNull(cheap), exif, false, viewModel::loadDetails)
+                    DetailsContent(requireNotNull(cheap), exif, false, viewModel::loadDetails, detectedText)
                 }
             }
         }

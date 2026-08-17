@@ -2,7 +2,7 @@ package com.ugallery.core.data
 
 import android.content.Context
 import com.ugallery.core.database.GalleryDatabase
-import com.ugallery.core.database.MediaItemEntity
+import com.ugallery.core.database.SearchRebuildRow
 import com.ugallery.core.model.MediaKey
 import com.ugallery.core.model.MediaKind
 import com.ugallery.core.search.AppSearchMediaIndex
@@ -26,16 +26,31 @@ class RoomSearchDocumentSource(database: GalleryDatabase) : SearchDocumentSource
         ).map { it.searchDocument() }
     }
 
-    private fun MediaItemEntity.searchDocument() = MediaSearchDocument(
-        key = MediaKey(volumeName, mediaStoreId),
-        kind = if (mediaType == 3) MediaKind.Video else MediaKind.Image,
-        mimeType = mimeType,
-        displayName = displayName,
-        bucketName = bucketDisplayName,
-        timelineSortMillis = timelineSortMillis,
-        generationModified = generationModified,
-        favorite = isFavorite,
+    private fun SearchRebuildRow.searchDocument() = MediaSearchDocument(
+        key = MediaKey(media.volumeName, media.mediaStoreId),
+        kind = if (media.mediaType == 3) MediaKind.Video else MediaKind.Image,
+        mimeType = media.mimeType,
+        displayName = media.displayName,
+        bucketName = media.bucketDisplayName,
+        timelineSortMillis = media.timelineSortMillis,
+        generationModified = media.generationModified,
+        favorite = media.isFavorite,
+        ocrText = ocrText,
+        canonicalLabels = canonicalLabelsCsv?.split(',').orEmpty(),
+        labelModelVersion = labelModelVersion.versionCode(),
+        ocrModelVersion = ocrModelVersion.versionCode(),
     )
+
+    private fun String?.versionCode(): Long {
+        val parts = this?.let { Regex("\\d+").findAll(it).map(MatchResult::value).toList() }.orEmpty()
+        return when {
+            parts.size >= 3 -> {
+                val (major, minor, patch) = parts.takeLast(3).map(String::toLong)
+                major * 1_000 + minor * 100 + patch
+            }
+            else -> 0L
+        }
+    }
 }
 
 class GallerySearchIndexRepository(

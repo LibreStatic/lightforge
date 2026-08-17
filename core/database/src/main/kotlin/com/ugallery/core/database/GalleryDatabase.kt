@@ -16,8 +16,12 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         VirtualAlbumEntity::class,
         VirtualAlbumMediaEntity::class,
         MediaExifEntity::class,
+        MediaLabelRunEntity::class,
+        MediaLabelEntity::class,
+        LabelSuppressionEntity::class,
+        MediaOcrEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 abstract class GalleryDatabase : RoomDatabase() {
@@ -105,9 +109,21 @@ object GalleryDatabaseFactory {
         }
     }
 
+    val Migration5To6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS `media_label_runs` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `generationModified` INTEGER NOT NULL, `modelVersion` TEXT NOT NULL, `completedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`))")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_label_run_version` ON `media_label_runs` (`modelVersion`, `generationModified`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `media_labels` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `canonicalLabel` TEXT NOT NULL, `rawLabel` TEXT NOT NULL, `confidence` REAL NOT NULL, `modelVersion` TEXT NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`, `canonicalLabel`))")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_media_label_canonical` ON `media_labels` (`canonicalLabel`, `confidence`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `label_suppressions` (`canonicalLabel` TEXT NOT NULL, `suppressedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`canonicalLabel`))")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `media_ocr` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `generationModified` INTEGER NOT NULL, `modelVersion` TEXT NOT NULL, `rawText` TEXT NOT NULL, `normalizedText` TEXT NOT NULL, `blocksJson` TEXT NOT NULL, `completedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`))")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_media_ocr_version` ON `media_ocr` (`modelVersion`, `generationModified`)")
+        }
+    }
+
     private fun build(context: Context, name: String): GalleryDatabase = Room.databaseBuilder(
         context.applicationContext,
         GalleryDatabase::class.java,
         name,
-    ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5).build()
+    ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6).build()
 }

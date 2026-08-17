@@ -6,4 +6,5 @@
     <string name="details_iso">ISO</string><string name="details_exposure">Exposición</string><string name="details_original_time">Hora original</string>
     <string name="details_location">Ubicación</string><string name="details_location_missing">Sin ubicación</string><string name="details_location_permission">Se requiere permiso de ubicación</string>
     <string name="details_metadata_not_image">Los metadatos de cámara no están disponibles para videos.</string><string name="details_metadata_unavailable">Los metadatos están dañados o no son compatibles.</string><string name="details_media_unavailable">Este elemento no está disponible.</string>
+    <string name="details_detected_text">Texto detectado</string><string name="details_copy_text">Copiar texto</string>
 </resources>

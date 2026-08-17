@@ -19,16 +19,88 @@ interface LibraryDao {
     suspend fun rawSelectionCount(query: SupportSQLiteQuery): Long
 
     @Query(
-        "SELECT * FROM media_items WHERE isAccessible=1 AND isTrashed=0 AND " +
-            "(:afterVolume IS NULL OR volumeName>:afterVolume OR " +
-            "(volumeName=:afterVolume AND mediaStoreId>:afterId)) " +
-            "ORDER BY volumeName ASC, mediaStoreId ASC LIMIT :limit",
+        "SELECT m.*, o.rawText AS ocrText, o.modelVersion AS ocrModelVersion, " +
+            "GROUP_CONCAT(l.canonicalLabel) AS canonicalLabelsCsv, " +
+            "MAX(l.modelVersion) AS labelModelVersion FROM media_items m " +
+            "LEFT JOIN media_ocr o ON o.volumeName=m.volumeName AND o.mediaStoreId=m.mediaStoreId " +
+            "LEFT JOIN media_labels l ON l.volumeName=m.volumeName AND l.mediaStoreId=m.mediaStoreId " +
+            "AND NOT EXISTS (SELECT 1 FROM label_suppressions s " +
+            "WHERE s.canonicalLabel=l.canonicalLabel) " +
+            "WHERE m.isAccessible=1 AND m.isTrashed=0 AND " +
+            "(:afterVolume IS NULL OR m.volumeName>:afterVolume OR " +
+            "(m.volumeName=:afterVolume AND m.mediaStoreId>:afterId)) " +
+            "GROUP BY m.volumeName, m.mediaStoreId " +
+            "ORDER BY m.volumeName ASC, m.mediaStoreId ASC LIMIT :limit",
     )
     suspend fun searchRebuildPage(
         afterVolume: String?,
         afterId: Long,
         limit: Int,
-    ): List<MediaItemEntity>
+    ): List<SearchRebuildRow>
+
+    @Query(
+        "SELECT m.* FROM media_items m WHERE m.mediaType=1 AND m.isAccessible=1 AND m.isTrashed=0 " +
+            "AND NOT EXISTS (SELECT 1 FROM media_label_runs r WHERE r.volumeName=m.volumeName " +
+            "AND r.mediaStoreId=m.mediaStoreId AND r.generationModified=m.generationModified " +
+            "AND r.modelVersion=:modelVersion) " +
+            "ORDER BY m.timelineSortMillis DESC, m.mediaStoreId DESC, m.volumeName DESC LIMIT :limit",
+    )
+    suspend fun pendingLabelCandidates(modelVersion: String, limit: Int): List<MediaItemEntity>
+
+    @Query(
+        "SELECT m.* FROM media_items m WHERE m.mediaType=1 AND m.isAccessible=1 AND m.isTrashed=0 " +
+            "AND NOT EXISTS (SELECT 1 FROM media_ocr o WHERE o.volumeName=m.volumeName " +
+            "AND o.mediaStoreId=m.mediaStoreId AND o.generationModified=m.generationModified " +
+            "AND o.modelVersion=:modelVersion) ORDER BY CASE WHEN " +
+            "LOWER(COALESCE(m.bucketDisplayName,'')) LIKE '%screenshot%' OR " +
+            "LOWER(COALESCE(m.relativePath,'')) LIKE '%screenshot%' OR " +
+            "LOWER(COALESCE(m.displayName,'')) LIKE '%scan%' THEN 0 ELSE 1 END, " +
+            "m.timelineSortMillis DESC, m.mediaStoreId DESC, m.volumeName DESC LIMIT :limit",
+    )
+    suspend fun pendingOcrCandidates(modelVersion: String, limit: Int): List<MediaItemEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertLabelRun(run: MediaLabelRunEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertLabels(labels: List<MediaLabelEntity>)
+
+    @Query("DELETE FROM media_labels WHERE volumeName=:volumeName AND mediaStoreId=:mediaStoreId")
+    suspend fun deleteLabels(volumeName: String, mediaStoreId: Long)
+
+    @Transaction
+    suspend fun replaceLabelResult(run: MediaLabelRunEntity, labels: List<MediaLabelEntity>) {
+        deleteLabels(run.volumeName, run.mediaStoreId)
+        if (labels.isNotEmpty()) upsertLabels(labels)
+        upsertLabelRun(run)
+    }
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertOcr(result: MediaOcrEntity)
+
+    @Query("SELECT * FROM media_labels WHERE volumeName=:volumeName AND mediaStoreId=:mediaStoreId ORDER BY confidence DESC")
+    suspend fun labels(volumeName: String, mediaStoreId: Long): List<MediaLabelEntity>
+
+    @Query("SELECT * FROM media_ocr WHERE volumeName=:volumeName AND mediaStoreId=:mediaStoreId")
+    suspend fun ocr(volumeName: String, mediaStoreId: Long): MediaOcrEntity?
+
+    @Query("SELECT canonicalLabel FROM label_suppressions")
+    suspend fun suppressedLabels(): List<String>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun suppressLabel(suppression: LabelSuppressionEntity)
+
+    @Query("DELETE FROM label_suppressions WHERE canonicalLabel=:canonicalLabel")
+    suspend fun unsuppressLabel(canonicalLabel: String): Int
+
+    @Query("DELETE FROM media_label_runs")
+    suspend fun purgeLabelRuns(): Int
+
+    @Query("DELETE FROM media_labels")
+    suspend fun purgeLabels(): Int
+
+    @Query("DELETE FROM media_ocr")
+    suspend fun purgeOcr(): Int
     @Upsert
     suspend fun upsertMedia(items: List<MediaItemEntity>)
 

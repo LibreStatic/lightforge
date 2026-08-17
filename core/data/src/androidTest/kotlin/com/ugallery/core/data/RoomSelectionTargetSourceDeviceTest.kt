@@ -5,6 +5,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.ugallery.core.database.GalleryDatabase
 import com.ugallery.core.database.MediaItemEntity
+import com.ugallery.core.database.MediaLabelEntity
+import com.ugallery.core.database.MediaOcrEntity
+import com.ugallery.core.database.LabelSuppressionEntity
 import com.ugallery.core.database.VirtualAlbumEntity
 import com.ugallery.core.database.VirtualAlbumMediaEntity
 import com.ugallery.core.model.MediaKey
@@ -66,12 +69,26 @@ class RoomSelectionTargetSourceDeviceTest {
     }
 
     @Test fun searchRebuildSourceUsesCompositeKeysetAndExcludesRevokedOrTrashedRows() = runBlocking {
-        database.libraryDao().upsertMedia(
+        val dao = database.libraryDao()
+        dao.upsertMedia(
             listOf(
                 media("external_primary", 2, MediaKind.Image),
                 media("sd", 1, MediaKind.Video),
                 media("sd", 2, MediaKind.Image, trashed = true),
                 media("sd", 3, MediaKind.Image).copy(isAccessible = false),
+            ),
+        )
+        dao.upsertLabels(
+            listOf(
+                MediaLabelEntity("external_primary", 2, "beach", "Beach", .9f, "mlkit-image-labeling-17.0.9-default"),
+                MediaLabelEntity("external_primary", 2, "dog", "Dog", .8f, "mlkit-image-labeling-17.0.9-default"),
+            ),
+        )
+        dao.suppressLabel(LabelSuppressionEntity("dog", 1))
+        dao.upsertOcr(
+            MediaOcrEntity(
+                "external_primary", 2, 1, "mlkit-text-recognition-16.0.1-latin",
+                "FACTURA 123", "factura 123", "[]", 1,
             ),
         )
         val source = RoomSearchDocumentSource(database)
@@ -81,6 +98,10 @@ class RoomSelectionTargetSourceDeviceTest {
         val terminal = source.page(second.single().key, 1)
 
         assertEquals(listOf(MediaKey("external_primary", 2)), first.map { it.key })
+        assertEquals(listOf("beach"), first.single().canonicalLabels)
+        assertEquals("FACTURA 123", first.single().ocrText)
+        assertEquals(17_009, first.single().labelModelVersion)
+        assertEquals(16_001, first.single().ocrModelVersion)
         assertEquals(listOf(MediaKey("sd", 1)), second.map { it.key })
         assertEquals(MediaKind.Video, second.single().kind)
         assertTrue(terminal.isEmpty())

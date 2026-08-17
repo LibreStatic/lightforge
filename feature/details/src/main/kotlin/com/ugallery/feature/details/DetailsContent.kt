@@ -2,6 +2,8 @@ package com.ugallery.feature.details
 
 import android.text.format.DateFormat
 import android.text.format.Formatter
+import android.content.ClipData
+import android.content.ClipboardManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,6 +32,7 @@ fun DetailsContent(
     exif: ExifLoadResult?,
     isExifLoading: Boolean,
     onLoadExif: () -> Unit,
+    detectedText: String? = null,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -48,6 +51,17 @@ fun DetailsContent(
             DateFormat.getMediumDateFormat(context).format(Date(cheap.timelineSortMillis)),
         )
         cheap.relativePath?.let { DetailRow(stringResource(R.string.details_folder), it) }
+        detectedText?.let { text ->
+            val detectedTextLabel = stringResource(R.string.details_detected_text)
+            Text(detectedTextLabel, style = MaterialTheme.typography.titleMedium)
+            Text(text, style = MaterialTheme.typography.bodyMedium)
+            Button(
+                onClick = {
+                    context.getSystemService(ClipboardManager::class.java)
+                        .setPrimaryClip(ClipData.newPlainText(detectedTextLabel, text))
+                },
+            ) { Text(stringResource(R.string.details_copy_text)) }
+        }
 
         when {
             isExifLoading -> CircularProgressIndicator()

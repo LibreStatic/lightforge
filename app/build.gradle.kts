@@ -72,6 +72,7 @@ dependencies {
     implementation(project(":core:database"))
     implementation(project(":core:mediastore"))
     implementation(project(":core:thumbnail"))
+    implementation(project(":core:ml"))
     implementation(project(":feature:photos"))
     implementation(project(":feature:permissions"))
     implementation(project(":feature:collections"))

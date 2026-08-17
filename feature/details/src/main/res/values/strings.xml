@@ -12,4 +12,6 @@
     <string name="details_metadata_not_image">Camera metadata is not available for videos.</string>
     <string name="details_metadata_unavailable">Metadata is corrupt or unsupported.</string>
     <string name="details_media_unavailable">This media is currently unavailable.</string>
+    <string name="details_detected_text">Detected text</string>
+    <string name="details_copy_text">Copy text</string>
 </resources>

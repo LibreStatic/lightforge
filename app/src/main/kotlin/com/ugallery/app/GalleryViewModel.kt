@@ -35,6 +35,7 @@ import com.ugallery.core.mediastore.ShareCoordinator
 import com.ugallery.core.mediastore.PendingMediaWriter
 import com.ugallery.core.mediastore.MediaWriteSpec
 import com.ugallery.core.mediastore.PublishedCopy
+import com.ugallery.core.ml.DetectedContentRepository
 import com.ugallery.core.model.AlbumKey
 import com.ugallery.core.model.AlbumSummary
 import com.ugallery.core.model.MediaKey
@@ -151,6 +152,8 @@ class GalleryViewModel @Inject constructor(
     val cheapDetails = mutableCheapDetails.asStateFlow()
     private val mutableExifDetails = MutableStateFlow<ExifLoadResult?>(null)
     val exifDetails = mutableExifDetails.asStateFlow()
+    private val mutableDetectedText = MutableStateFlow<String?>(null)
+    val detectedText = mutableDetectedText.asStateFlow()
     private val mutableSystemAction = MutableStateFlow(savedStateHandle[ActionStateKey] as? MediaActionSnapshot)
     val systemAction = mutableSystemAction.asStateFlow()
     private val mutableActionLaunches = MutableSharedFlow<MediaActionLaunch>(extraBufferCapacity = 1)
@@ -348,6 +351,7 @@ class GalleryViewModel @Inject constructor(
         mutableCurrentMedia.value = media
         mutableCheapDetails.value = null
         mutableExifDetails.value = null
+        mutableDetectedText.value = null
         mutablePhotoState.value = null
         photoJob?.cancel()
         if (media.kind == MediaKind.Image) {
@@ -368,6 +372,10 @@ class GalleryViewModel @Inject constructor(
                 media.key,
                 permissions.access.value.unredactedLocation,
             )
+            mutableDetectedText.value = DetectedContentRepository(active.database)
+                .ocr(media.key)
+                ?.rawText
+                ?.takeIf(String::isNotBlank)
         }
     }
 

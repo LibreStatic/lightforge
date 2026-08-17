@@ -1,5 +1,7 @@
 package com.ugallery.core.ml
 
+import kotlinx.coroutines.CancellationException
+
 sealed interface MlRunnerResult {
     data class Continue(val checkpoint: MlCheckpoint) : MlRunnerResult
     data class Finished(val checkpoint: MlCheckpoint) : MlRunnerResult
@@ -38,7 +40,15 @@ class MlChunkRunner(
             engine.task, engine.modelVersion, null, 0, MlCheckpoint.Status.Ready,
         )
         state.write(current.copy(status = MlCheckpoint.Status.Running))
-        return when (val outcome = engine.process(current.afterExclusive, policy.chunkSize)) {
+        val outcome = try {
+            engine.process(current.afterExclusive, policy.chunkSize)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Throwable) {
+            state.write(current.copy(status = MlCheckpoint.Status.Ready))
+            return MlRunnerResult.Retry(failure.javaClass.simpleName.take(100))
+        }
+        return when (outcome) {
             is MlChunkOutcome.More -> {
                 require(outcome.processedItems in 1..policy.chunkSize)
                 require(outcome.nextAfterExclusive != current.afterExclusive)
