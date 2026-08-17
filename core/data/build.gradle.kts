@@ -28,4 +28,7 @@ dependencies {
     implementation(libs.androidx.paging.runtime)
     testImplementation(libs.junit4)
     testImplementation(libs.kotlinx.coroutines.test)
+    androidTestImplementation(libs.androidx.room.runtime)
+    androidTestImplementation(libs.androidx.test.ext)
+    androidTestImplementation(libs.androidx.test.runner)
 }

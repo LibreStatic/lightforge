@@ -1,6 +1,7 @@
 package com.ugallery.core.mediastore
 
 import android.content.ContentValues
+import android.content.ContentUris
 import android.graphics.Bitmap
 import android.provider.MediaStore
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -53,7 +54,10 @@ class MediaStoreReaderDeviceTest {
             assertEquals(MediaKey(volume, id), mapped.key)
             assertEquals(MediaKind.Image, mapped.kind)
             assertEquals(name, mapped.displayName)
-            assertEquals(uri, MediaStoreUriFactory.uriFor(mapped.key))
+            assertEquals(
+                ContentUris.withAppendedId(MediaStore.Files.getContentUri(volume), id),
+                MediaStoreUriFactory.uriFor(mapped.key),
+            )
             assertTrue(mapped.sizeBytes > 0)
         } finally {
             resolver.delete(uri, null, null)

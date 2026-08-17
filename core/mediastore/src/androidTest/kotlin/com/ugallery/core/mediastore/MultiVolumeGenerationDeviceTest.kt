@@ -11,6 +11,7 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeNotNull
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -22,7 +23,7 @@ class MultiVolumeGenerationDeviceTest {
         val context = instrumentation.targetContext
         val resolver = context.contentResolver
         val volumes = MediaStore.getExternalVolumeNames(context).sorted()
-        assertTrue("expected primary plus removable volume, found $volumes", volumes.size >= 2)
+        assumeTrue("requires a removable MediaStore volume; found $volumes", volumes.size >= 2)
         assertTrue(volumes.contains(MediaStore.VOLUME_EXTERNAL_PRIMARY))
 
         val results = JSONArray()
