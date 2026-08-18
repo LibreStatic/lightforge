@@ -59,3 +59,30 @@ data class DetectedFaceEntity(
     val qualityScore: Float,
     val landmarksJson: String,
 )
+
+/** L2-normalized embedding compacted to exactly 128 signed int8 components. */
+@Entity(
+    tableName = "face_embeddings",
+    primaryKeys = ["volumeName", "mediaStoreId", "faceOrdinal"],
+    foreignKeys = [
+        ForeignKey(
+            entity = DetectedFaceEntity::class,
+            parentColumns = ["volumeName", "mediaStoreId", "faceOrdinal"],
+            childColumns = ["volumeName", "mediaStoreId", "faceOrdinal"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [
+        Index(name = "index_face_embedding_version", value = ["embeddingModelVersion"]),
+        Index(name = "index_face_embedding_media", value = ["volumeName", "mediaStoreId"]),
+    ],
+)
+data class FaceEmbeddingEntity(
+    val volumeName: String,
+    val mediaStoreId: Long,
+    val faceOrdinal: Int,
+    val detectionModelVersion: String,
+    val embeddingModelVersion: String,
+    val quantizedVector: ByteArray,
+    val completedAtMillis: Long,
+)

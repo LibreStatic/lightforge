@@ -21,6 +21,7 @@ object DetectedContentRuntime {
     private var duplicateEngine: ExactDuplicateMlEngine? = null
     private var similarityEngine: SimilarityMlEngine? = null
     private var faceDetectionEngine: FaceDetectionMlEngine? = null
+    private var faceEmbeddingEngine: FaceEmbeddingMlEngine? = null
 
     @Synchronized
     fun install(context: Context) {
@@ -35,6 +36,7 @@ object DetectedContentRuntime {
         )
         MlRuntimeRegistry.register(LazyEngine(MlTaskType.Similarity, SimilarityMlEngine.AlgorithmVersion))
         MlRuntimeRegistry.register(LazyEngine(MlTaskType.FaceDetection, FaceDetectionMlEngine.ModelVersion))
+        MlRuntimeRegistry.register(LazyEngine(MlTaskType.FaceEmbeddings, SFaceLiteRtEmbeddingInference.ModelVersion))
     }
 
     @Synchronized
@@ -44,8 +46,10 @@ object DetectedContentRuntime {
         MlRuntimeRegistry.unregister(MlTaskType.ExactDuplicates)
         MlRuntimeRegistry.unregister(MlTaskType.Similarity)
         MlRuntimeRegistry.unregister(MlTaskType.FaceDetection)
+        MlRuntimeRegistry.unregister(MlTaskType.FaceEmbeddings)
         labelEngine?.close()
         ocrEngine?.close()
+        faceEmbeddingEngine?.close()
         database?.close()
         application = null
         labelEngine = null
@@ -53,6 +57,7 @@ object DetectedContentRuntime {
         duplicateEngine = null
         similarityEngine = null
         faceDetectionEngine = null
+        faceEmbeddingEngine = null
         database = null
     }
 
@@ -63,6 +68,7 @@ object DetectedContentRuntime {
         duplicateEngine?.takeIf { task == MlTaskType.ExactDuplicates }?.let { return it }
         similarityEngine?.takeIf { task == MlTaskType.Similarity }?.let { return it }
         faceDetectionEngine?.takeIf { task == MlTaskType.FaceDetection }?.let { return it }
+        faceEmbeddingEngine?.takeIf { task == MlTaskType.FaceEmbeddings }?.let { return it }
         val context = checkNotNull(application) { "DetectedContentRuntime is not installed" }
         val activeDatabase = activeDatabase(context)
         val imagePermission = { context.hasReadableImages() }
@@ -94,6 +100,12 @@ object DetectedContentRuntime {
                 activeDatabase,
                 imagePermission,
             ).also { faceDetectionEngine = it }
+            MlTaskType.FaceEmbeddings -> FaceEmbeddingMlEngine(
+                context.contentResolver,
+                activeDatabase,
+                imagePermission,
+                SFaceLiteRtEmbeddingInference(context),
+            ).also { faceEmbeddingEngine = it }
         }
     }
 
@@ -124,6 +136,7 @@ object DetectedContentRuntime {
                 dao.purgeSimilarityExclusions()
             }
             MlTaskType.FaceDetection -> dao.purgeFaceDetections()
+            MlTaskType.FaceEmbeddings -> dao.purgeFaceEmbeddings()
         }
     }
 

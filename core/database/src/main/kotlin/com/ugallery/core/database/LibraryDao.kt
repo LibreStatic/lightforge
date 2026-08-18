@@ -59,6 +59,35 @@ interface LibraryDao {
     @Query("DELETE FROM face_detection_runs")
     suspend fun purgeFaceDetections(): Int
 
+    @Query(
+        "SELECT m.* FROM media_items m " +
+            "WHERE m.isAccessible=1 AND m.isTrashed=0 AND EXISTS " +
+            "(SELECT 1 FROM detected_faces f WHERE f.volumeName=m.volumeName AND f.mediaStoreId=m.mediaStoreId " +
+            "AND NOT EXISTS (SELECT 1 FROM face_embeddings e WHERE e.volumeName=f.volumeName " +
+            "AND e.mediaStoreId=f.mediaStoreId AND e.faceOrdinal=f.faceOrdinal " +
+            "AND e.detectionModelVersion=f.modelVersion AND e.embeddingModelVersion=:embeddingModelVersion)) " +
+            "ORDER BY m.volumeName ASC, m.mediaStoreId ASC LIMIT :limit",
+    )
+    suspend fun pendingFaceEmbeddingMedia(
+        embeddingModelVersion: String,
+        limit: Int,
+    ): List<MediaItemEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertFaceEmbeddings(embeddings: List<FaceEmbeddingEntity>)
+
+    @Query("SELECT * FROM face_embeddings WHERE volumeName=:volumeName AND mediaStoreId=:mediaStoreId ORDER BY faceOrdinal")
+    suspend fun faceEmbeddings(volumeName: String, mediaStoreId: Long): List<FaceEmbeddingEntity>
+
+    @Query("SELECT COUNT(*) FROM face_embeddings")
+    suspend fun faceEmbeddingCount(): Long
+
+    @Query("SELECT COALESCE(SUM(length(quantizedVector)), 0) FROM face_embeddings")
+    suspend fun faceEmbeddingPayloadBytes(): Long
+
+    @Query("DELETE FROM face_embeddings")
+    suspend fun purgeFaceEmbeddings(): Int
+
     @RawQuery
     suspend fun rawSelectionPage(query: SupportSQLiteQuery): List<MediaItemEntity>
 

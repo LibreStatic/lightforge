@@ -1,7 +1,10 @@
 .gradle/
+.kotlin/
 .idea/
 **/build/
 local.properties
 *.iml
 captures/
 benchmark-results/
+testdata/open-images-miap-face-corpus/images/
+core/ml/src/androidTest/assets/images/

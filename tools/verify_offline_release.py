@@ -51,7 +51,14 @@ def verify_dependencies() -> list[str]:
         text=True,
     )
     coordinates = set(re.findall(r"--- ([A-Za-z0-9_.-]+):([A-Za-z0-9_.-]+):", process.stdout))
-    return sorted(f"{group}:{artifact}" for group, artifact in coordinates if not any(group.startswith(prefix) for prefix in allowlist))
+    def approved(group: str, artifact: str) -> bool:
+        coordinate = f"{group}:{artifact}"
+        return any(
+            coordinate == rule if ":" in rule else group.startswith(rule)
+            for rule in allowlist
+        )
+
+    return sorted(f"{group}:{artifact}" for group, artifact in coordinates if not approved(group, artifact))
 
 
 def main() -> int:

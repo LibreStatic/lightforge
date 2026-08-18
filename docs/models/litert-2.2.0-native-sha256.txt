@@ -1,0 +1,6 @@
+97355a36cb8ac7628cf407773291e98da79f3ef184cc43cb0e57dedf5f0c0637  core/ml/src/main/jniLibs/arm64-v8a/libLiteRt.so
+7c63d606a48e9479499c012f6732623f9e6fc26250c5bdf6724af205d73eb0fb  core/ml/src/main/jniLibs/arm64-v8a/libLiteRtClGlAccelerator.so
+5860fcecc1cef9bfb69a33b799465eba058102aa4d80e05320bc9be7a687e075  core/ml/src/main/jniLibs/armeabi-v7a/libLiteRt.so
+a41bd0231a2fe943c045ae3ea632ee02f95c9b506c5f817afe43a8fbb156f5c2  core/ml/src/main/jniLibs/armeabi-v7a/libLiteRtClGlAccelerator.so
+38a71966ac2ccd76c2782d5d96e317f5e6d3322ae9f8e3dfff6e3327e284c591  core/ml/src/main/jniLibs/x86_64/libLiteRt.so
+6dee7371b6d8fd3f9fc904fe94dca813ed2dac592ae7bff01f9f296a2c907753  core/ml/src/main/jniLibs/x86_64/libLiteRtClGlAccelerator.so
