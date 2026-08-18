@@ -27,12 +27,18 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SimilarityExclusionEntity::class,
         FaceDetectionRunEntity::class,
         DetectedFaceEntity::class,
+        MomentEntity::class,
+        MomentMemberEntity::class,
+        MomentCoverEntity::class,
+        MomentRunEntity::class,
+        MomentRunCandidateEntity::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
 )
 abstract class GalleryDatabase : RoomDatabase() {
     abstract fun libraryDao(): LibraryDao
+    abstract fun momentDao(): MomentDao
 }
 
 object GalleryDatabaseFactory {
@@ -169,12 +175,29 @@ object GalleryDatabaseFactory {
         }
     }
 
+    val Migration9To10 = object : Migration(9, 10) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS `moments` (`momentId` TEXT NOT NULL, `origin` TEXT NOT NULL, `state` TEXT NOT NULL, `algorithmVersion` TEXT NOT NULL, `startMillis` INTEGER NOT NULL, `endMillis` INTEGER NOT NULL, `title` TEXT, `titleMode` TEXT NOT NULL, `isUserEdited` INTEGER NOT NULL, `createdAtMillis` INTEGER NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`momentId`))")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_moment_state_updated` ON `moments` (`state`,`updatedAtMillis`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_moment_state_start` ON `moments` (`state`,`startMillis`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `moment_members` (`momentId` TEXT NOT NULL, `ordinal` INTEGER NOT NULL, `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `generationModifiedAtSelection` INTEGER NOT NULL, `origin` TEXT NOT NULL, `score` REAL NOT NULL, PRIMARY KEY(`momentId`,`ordinal`), FOREIGN KEY(`momentId`) REFERENCES `moments`(`momentId`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`volumeName`,`mediaStoreId`) REFERENCES `media_items`(`volumeName`,`mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_moment_member_key` ON `moment_members` (`volumeName`,`mediaStoreId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_moment_member_order` ON `moment_members` (`momentId`,`ordinal`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `moment_covers` (`momentId` TEXT NOT NULL, `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `isUserSelected` INTEGER NOT NULL, PRIMARY KEY(`momentId`), FOREIGN KEY(`momentId`) REFERENCES `moments`(`momentId`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`volumeName`,`mediaStoreId`) REFERENCES `media_items`(`volumeName`,`mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_moment_cover_key` ON `moment_covers` (`volumeName`,`mediaStoreId`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `moment_runs` (`algorithmVersion` TEXT NOT NULL, `runId` TEXT NOT NULL, `status` TEXT NOT NULL, `afterTimelineSortMillis` INTEGER, `afterMediaStoreId` INTEGER, `afterVolumeName` TEXT, `openStartMillis` INTEGER, `openEndMillis` INTEGER, `openLastMillis` INTEGER, `openItemCount` INTEGER NOT NULL, `processedItems` INTEGER NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`algorithmVersion`))")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `moment_run_candidates` (`algorithmVersion` TEXT NOT NULL, `rank` INTEGER NOT NULL, `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `generationModified` INTEGER NOT NULL, `timelineSortMillis` INTEGER NOT NULL, `score` REAL NOT NULL, `timeBucket` INTEGER NOT NULL, `visualBucket` TEXT NOT NULL, PRIMARY KEY(`algorithmVersion`,`rank`), FOREIGN KEY(`algorithmVersion`) REFERENCES `moment_runs`(`algorithmVersion`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`volumeName`,`mediaStoreId`) REFERENCES `media_items`(`volumeName`,`mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_moment_run_candidate_key` ON `moment_run_candidates` (`volumeName`,`mediaStoreId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_media_moment_scan` ON `media_items` (`isAccessible`,`isTrashed`,`timelineSortMillis`,`mediaStoreId`,`volumeName`)")
+        }
+    }
+
     private fun build(context: Context, name: String): GalleryDatabase = Room.databaseBuilder(
         context.applicationContext,
         GalleryDatabase::class.java,
         name,
     ).addMigrations(
         Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7,
-        Migration7To8, Migration8To9,
+        Migration7To8, Migration8To9, Migration9To10,
     ).build()
 }

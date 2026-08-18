@@ -22,6 +22,10 @@ import androidx.room.PrimaryKey
             name = "index_media_volume_bucket",
             value = ["volumeName", "bucketId"],
         ),
+        Index(
+            name = "index_media_moment_scan",
+            value = ["isAccessible", "isTrashed", "timelineSortMillis", "mediaStoreId", "volumeName"],
+        ),
     ],
 )
 data class MediaItemEntity(

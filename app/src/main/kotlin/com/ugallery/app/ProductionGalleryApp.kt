@@ -34,6 +34,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -52,6 +54,8 @@ import com.ugallery.core.model.TimelineMedia
 import com.ugallery.core.selection.SelectionSpec
 import com.ugallery.feature.album.AlbumContent
 import com.ugallery.feature.collections.CollectionsContent
+import com.ugallery.feature.collections.MomentContent
+import com.ugallery.feature.collections.formatMomentDateRange
 import com.ugallery.feature.details.DetailsContent
 import com.ugallery.feature.permissions.PermissionCoordinator
 import com.ugallery.feature.photos.LibraryPhotosRoute
@@ -64,7 +68,7 @@ import com.ugallery.feature.settings.FaceAnalysisUiState
 import com.ugallery.feature.settings.RecognitionSettingsContent
 
 private enum class RootTab { Photos, Collections, Search }
-private enum class SurfaceRoute { Root, Album, Viewer, Trash, Settings }
+private enum class SurfaceRoute { Root, Album, Viewer, Trash, Settings, Moment }
 
 @Composable
 internal fun ProductionGalleryApp(
@@ -89,6 +93,9 @@ internal fun ProductionGalleryApp(
     val faceAnalysis by viewModel.faceAnalysis.collectAsState()
     val petCollectionsEnabled by viewModel.petCollectionsEnabled.collectAsState()
     val petSummary by viewModel.petSummary.collectAsState()
+    val selectedMoment by viewModel.selectedMoment.collectAsState()
+    val momentSummaries by viewModel.momentSummaries.collectAsState()
+    val momentMembers by viewModel.momentMembers.collectAsState(initial = emptyList())
     val actionState by viewModel.systemAction.collectAsState()
     val external by viewModel.externalMedia.collectAsState()
     val externalPhoto by viewModel.externalPhotoState.collectAsState()
@@ -174,6 +181,8 @@ internal fun ProductionGalleryApp(
                         physicalAlbums,
                         virtualAlbums,
                         trashCount,
+                        momentSummaries,
+                        onMomentClick = { viewModel.openMoment(it.momentId); route = SurfaceRoute.Moment },
                         onAlbumClick = { album ->
                             viewModel.selectAlbum(album, filter, sort)
                             route = SurfaceRoute.Album
@@ -239,6 +248,22 @@ internal fun ProductionGalleryApp(
                         onShowDetails = { showDetails = true; viewModel.loadDetails() },
                         onHideDetails = { showDetails = false },
                         onBack = { route = SurfaceRoute.Root },
+                    )
+                }
+                SurfaceRoute.Moment -> selectedMoment?.let { moment ->
+                    val scope = rememberCoroutineScope()
+                    MomentContent(
+                        moment = moment,
+                        members = momentMembers,
+                        thumbnailLoader = thumbnails,
+                        dateLabel = formatMomentDateRange(moment.startMillis, moment.endMillis),
+                        stateLabel = stringResource(R.string.moment_state_label),
+                        onBack = { route = SurfaceRoute.Root },
+                        onSave = { scope.launch { viewModel.saveMoment() } },
+                        onDelete = { viewModel.deleteSelectedMoment(); route = SurfaceRoute.Root },
+                        onRename = { scope.launch { viewModel.renameMoment(it) } },
+                        onSetCover = { scope.launch { viewModel.setMomentCover(it) } },
+                        onReorder = { scope.launch { viewModel.reorderMoment(it) } },
                     )
                 }
                 SurfaceRoute.Trash -> TrashContent(

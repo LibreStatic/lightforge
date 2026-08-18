@@ -99,7 +99,11 @@ class GalleryDatabaseDeviceTest {
                 while (it.moveToNext()) add(it.getString(3))
             }
         }
-        assertTrue(details.joinToString().contains("index_media_timeline_keyset"))
+        val plan = details.joinToString()
+        assertTrue(
+            plan.contains("index_media_timeline_keyset") ||
+                plan.contains("index_media_moment_scan"),
+        )
     }
 
     @Test
@@ -144,7 +148,7 @@ class GalleryDatabaseDeviceTest {
         helper.createDatabase(name, 1).close()
         helper.runMigrationsAndValidate(
             name,
-            9,
+            10,
             true,
             GalleryDatabaseFactory.Migration1To2,
             GalleryDatabaseFactory.Migration2To3,
@@ -154,6 +158,7 @@ class GalleryDatabaseDeviceTest {
             GalleryDatabaseFactory.Migration6To7,
             GalleryDatabaseFactory.Migration7To8,
             GalleryDatabaseFactory.Migration8To9,
+            GalleryDatabaseFactory.Migration9To10,
         ).close()
     }
 

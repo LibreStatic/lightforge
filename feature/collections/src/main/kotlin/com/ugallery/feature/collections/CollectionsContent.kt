@@ -22,6 +22,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import com.ugallery.core.database.MomentEntity
+import com.ugallery.core.database.MomentSummaryRow
 import com.ugallery.core.designsystem.GalleryStateContent
 import com.ugallery.core.model.AlbumAvailability
 import com.ugallery.core.model.AlbumSummary
@@ -31,6 +35,8 @@ fun CollectionsContent(
     physicalAlbums: LazyPagingItems<AlbumSummary>,
     virtualAlbums: LazyPagingItems<AlbumSummary>,
     trashCount: Long,
+    momentSummaries: List<MomentSummaryRow>,
+    onMomentClick: (MomentEntity) -> Unit,
     onAlbumClick: (AlbumSummary) -> Unit,
     onCreateAlbum: () -> Unit,
     onTrashClick: () -> Unit,
@@ -78,6 +84,23 @@ fun CollectionsContent(
                             title = stringResource(R.string.collections_cats),
                             body = stringResource(R.string.collections_item_count, catCount),
                             onClick = { onPetCollectionClick("cat") },
+                        )
+                    }
+                }
+                if (momentSummaries.isNotEmpty()) {
+                    item {
+                        Text(
+                            stringResource(R.string.collections_moments),
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(vertical = 4.dp),
+                        )
+                    }
+                    items(momentSummaries.count(), key = { "moment_${it.hashCode()}" }) { index ->
+                        val summary = momentSummaries[index]
+                        CollectionCard(
+                            title = summary.moment.title ?: stringResource(R.string.moment_untitled),
+                            body = stringResource(R.string.collections_item_count, summary.memberCount),
+                            onClick = { onMomentClick(summary.moment) },
                         )
                     }
                 }

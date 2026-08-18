@@ -8,6 +8,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
+import com.ugallery.core.data.MomentRepository
+import com.ugallery.core.database.MomentEntity
+import com.ugallery.core.database.MomentMemberRow
+import com.ugallery.core.database.MomentSummaryRow
 import com.ugallery.core.data.GalleryTimelineRepository
 import com.ugallery.core.data.GalleryAlbumRepository
 import com.ugallery.core.data.GalleryTrashRepository
@@ -60,6 +64,7 @@ import com.ugallery.core.selection.SelectionSpec
 import com.ugallery.core.selection.MediaQuery
 import com.ugallery.core.thumbnail.NativeImageDecoder
 import com.ugallery.core.thumbnail.ThumbnailLoader
+import com.ugallery.feature.collections.MomentMemberUi
 import com.ugallery.feature.permissions.PermissionCoordinator
 import com.ugallery.feature.viewer.PhotoLoadState
 import com.ugallery.feature.viewer.PhotoViewerPipeline
@@ -71,13 +76,14 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -116,6 +122,7 @@ private data class GalleryRuntime(
     val metadata: MediaMetadataRepository,
     val selectionTargets: RoomSelectionTargetSource,
     val searchIndex: GallerySearchIndexRepository,
+    val moments: MomentRepository,
     var monitor: MediaStoreChangeMonitor? = null,
 )
 
@@ -175,6 +182,8 @@ class GalleryViewModel @Inject constructor(
         .cachedIn(viewModelScope)
     val trashCount = runtime.filterNotNull().flatMapLatest { it.trash.countFlow() }
         .stateIn(viewModelScope, SharingStarted.Eagerly, 0L)
+    val momentSummaries = runtime.filterNotNull().flatMapLatest { it.moments.summaries() }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList<MomentSummaryRow>())
     private val albumRequest = MutableStateFlow<AlbumRequest?>(null)
     val albumMedia: Flow<PagingData<TimelineMedia>> = runtime.filterNotNull()
         .flatMapLatest { active ->
@@ -212,6 +221,8 @@ class GalleryViewModel @Inject constructor(
     val externalPhotoState = mutableExternalPhotoState.asStateFlow()
     private val mutableExternalSaved = MutableSharedFlow<Uri>(extraBufferCapacity = 1)
     val externalSaved = mutableExternalSaved.asSharedFlow()
+    private val mutableSelectedMoment = MutableStateFlow<MomentEntity?>(null)
+    val selectedMoment = mutableSelectedMoment.asStateFlow()
     private val refreshMutex = Mutex()
 
     init {
@@ -568,6 +579,7 @@ class GalleryViewModel @Inject constructor(
 
     fun openMedia(media: TimelineMedia) {
         mutableCurrentMedia.value = media
+        mutableSelectedMoment.value = null
         mutableCheapDetails.value = null
         mutableExifDetails.value = null
         mutableDetectedText.value = null
@@ -607,6 +619,41 @@ class GalleryViewModel @Inject constructor(
     fun beginSystemAction(media: TimelineMedia, action: MediaAction) {
         beginTargetsAction(listOf(MediaActionTarget(media.key, media.kind)), action)
     }
+
+    fun openMoment(momentId: String) {
+        val repo = runtime.value?.moments ?: return
+        viewModelScope.launch {
+            mutableSelectedMoment.value = repo.summaries().first().firstOrNull { it.moment.momentId == momentId }?.moment
+        }
+    }
+
+    suspend fun saveMoment() {
+        selectedMoment.value?.let { runtime.value?.moments?.save(it.momentId) }
+    }
+
+    fun deleteSelectedMoment() {
+        selectedMoment.value?.let { viewModelScope.launch { runtime.value?.moments?.delete(it.momentId) } }
+    }
+
+    suspend fun renameMoment(title: String) {
+        selectedMoment.value?.let { runtime.value?.moments?.rename(it.momentId, title) }
+    }
+
+    suspend fun reorderMoment(orderedKeys: List<MediaKey>) {
+        selectedMoment.value?.let { runtime.value?.moments?.reorder(it.momentId, orderedKeys) }
+    }
+
+    suspend fun setMomentCover(ordinal: Int) {
+        val moment = selectedMoment.value ?: return
+        val target = momentMembers.value.firstOrNull { it.member.ordinal == ordinal } ?: return
+        runtime.value?.moments?.setCover(moment.momentId, target.key)
+    }
+
+    val momentMembers = selectedMoment.filterNotNull().flatMapLatest { moment ->
+        runtime.value?.moments?.members(moment.momentId)?.let { rows: List<MomentMemberRow> ->
+            flowOf(rows.map { row: MomentMemberRow -> MomentMemberUi(row.member, MediaKey(row.media.volumeName, row.media.mediaStoreId)) })
+        } ?: flowOf(emptyList())
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private fun beginTargetsAction(targets: List<MediaActionTarget>, action: MediaAction) {
         require(targets.size <= MediaActionReducer.MaxChunkSize)
@@ -735,6 +782,7 @@ class GalleryViewModel @Inject constructor(
             metadata = MediaMetadataRepository(context.contentResolver, database),
             selectionTargets = RoomSelectionTargetSource(database),
             searchIndex = GallerySearchIndexRepository(context, database),
+            moments = MomentRepository(database),
         )
     }
 
