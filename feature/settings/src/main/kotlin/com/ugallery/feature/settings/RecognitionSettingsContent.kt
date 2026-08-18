@@ -24,7 +24,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 
 enum class AnalysisStatus { Ready, Running, Paused, Complete }
@@ -52,6 +54,7 @@ fun RecognitionSettingsContent(
     modifier: Modifier = Modifier,
 ) {
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
+    val petCollectionsLabel = stringResource(R.string.pet_collections_enable)
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -82,8 +85,14 @@ fun RecognitionSettingsContent(
         Text(stringResource(R.string.pet_collections_title), style = MaterialTheme.typography.titleLarge)
         Text(stringResource(R.string.pet_collections_no_identity))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(stringResource(R.string.pet_collections_enable), modifier = Modifier.weight(1f))
-            Switch(checked = petCollectionsEnabled, onCheckedChange = onPetCollectionsEnabledChange)
+            Text(petCollectionsLabel, modifier = Modifier.weight(1f))
+            Switch(
+                checked = petCollectionsEnabled,
+                onCheckedChange = onPetCollectionsEnabledChange,
+                modifier = Modifier.testTag("pet_collections_switch").semantics {
+                    contentDescription = petCollectionsLabel
+                },
+            )
         }
         if (petCollectionsEnabled) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
