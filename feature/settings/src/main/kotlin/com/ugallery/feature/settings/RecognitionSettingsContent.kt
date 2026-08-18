@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.LinearProgressIndicator
@@ -13,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,11 +44,16 @@ fun RecognitionSettingsContent(
     onResume: () -> Unit,
     onAnalyzeAll: () -> Unit,
     onDelete: () -> Unit,
+    petCollectionsEnabled: Boolean,
+    onPetCollectionsEnabledChange: (Boolean) -> Unit,
+    onHideDogResults: () -> Unit,
+    onHideCatResults: () -> Unit,
+    onRestorePetResults: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     Column(
-        modifier.fillMaxSize().padding(20.dp),
+        modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text(
@@ -70,6 +78,19 @@ fun RecognitionSettingsContent(
             TextButton(onClick = { confirmDelete = true }) {
                 Text(stringResource(R.string.face_analysis_delete), color = MaterialTheme.colorScheme.error)
             }
+        }
+        Text(stringResource(R.string.pet_collections_title), style = MaterialTheme.typography.titleLarge)
+        Text(stringResource(R.string.pet_collections_no_identity))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(stringResource(R.string.pet_collections_enable), modifier = Modifier.weight(1f))
+            Switch(checked = petCollectionsEnabled, onCheckedChange = onPetCollectionsEnabledChange)
+        }
+        if (petCollectionsEnabled) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onHideDogResults) { Text(stringResource(R.string.pet_hide_dog)) }
+                TextButton(onClick = onHideCatResults) { Text(stringResource(R.string.pet_hide_cat)) }
+            }
+            TextButton(onClick = onRestorePetResults) { Text(stringResource(R.string.pet_restore)) }
         }
     }
     if (confirmDelete) AlertDialog(

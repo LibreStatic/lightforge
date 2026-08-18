@@ -39,6 +39,10 @@ import com.ugallery.core.mediastore.PublishedCopy
 import com.ugallery.core.ml.DetectedContentRepository
 import com.ugallery.core.ml.MlScheduler
 import com.ugallery.core.ml.MlTaskType
+import com.ugallery.core.ml.PetCollectionRepository
+import com.ugallery.core.ml.PetCollectionSettings
+import com.ugallery.core.ml.PetCollectionSummary
+import com.ugallery.core.ml.PetType
 import com.ugallery.core.ml.MlRunMode
 import com.ugallery.core.search.AppSearchMediaSearchRepository
 import com.ugallery.core.search.MediaSearchCursor
@@ -129,12 +133,18 @@ class GalleryViewModel @Inject constructor(
     private val mutableSearchIndexReady = MutableStateFlow(false)
     val searchIndexReady = mutableSearchIndexReady.asStateFlow()
     private val mlScheduler = MlScheduler(application)
+    private val petSettings = PetCollectionSettings(application)
     private val mutableDetectedContentEnabled = MutableStateFlow(
         mlScheduler.hasConsent(MlTaskType.ImageLabels) || mlScheduler.hasConsent(MlTaskType.Ocr),
     )
     val detectedContentEnabled = mutableDetectedContentEnabled.asStateFlow()
     private val mutableFaceAnalysis = MutableStateFlow(mlScheduler.controlState(MlTaskType.FaceDetection))
     val faceAnalysis = mutableFaceAnalysis.asStateFlow()
+    private val mutablePetCollectionsEnabled = MutableStateFlow(petSettings.isEnabled())
+    val petCollectionsEnabled = mutablePetCollectionsEnabled.asStateFlow()
+    val petSummary = runtime.filterNotNull()
+        .flatMapLatest { PetCollectionRepository(it.database).summary() }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, PetCollectionSummary())
     private var faceProgressJob: Job? = null
     private val mutableBenchmarkMlRunning = MutableStateFlow(false)
     val benchmarkMlRunning = mutableBenchmarkMlRunning.asStateFlow()
@@ -331,6 +341,34 @@ class GalleryViewModel @Inject constructor(
             mlScheduler.deleteDerivedData(MlTaskType.FaceDetection)
             faceProgressJob?.cancel()
             mutableFaceAnalysis.value = mlScheduler.controlState(MlTaskType.FaceDetection)
+        }
+    }
+
+    fun enablePetCollections() {
+        petSettings.setEnabled(true)
+        mutablePetCollectionsEnabled.value = true
+        mlScheduler.grantConsent(MlTaskType.ImageLabels)
+        mlScheduler.enqueue(MlTaskType.ImageLabels, MlRunMode.Recent)
+        mutableDetectedContentEnabled.value = true
+    }
+
+    fun disablePetCollections() {
+        petSettings.setEnabled(false)
+        mutablePetCollectionsEnabled.value = false
+    }
+
+    fun suppressPetType(type: PetType) {
+        viewModelScope.launch {
+            runtime.value?.let { DetectedContentRepository(it.database).suppressLabel(type.canonicalLabel) }
+        }
+    }
+
+    fun restorePetType(type: PetType) {
+        viewModelScope.launch {
+            runtime.value?.let { DetectedContentRepository(it.database).unsuppressLabel(type.canonicalLabel) }
+            if (mlScheduler.hasConsent(MlTaskType.ImageLabels)) {
+                mlScheduler.enqueue(MlTaskType.ImageLabels, MlRunMode.Recent)
+            }
         }
     }
 

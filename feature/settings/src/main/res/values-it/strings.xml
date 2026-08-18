@@ -13,4 +13,10 @@
     <string name="face_analysis_delete_body">Geometria, avanzamento e consenso verranno rimossi. Le foto non vengono mai modificate.</string>
     <string name="face_analysis_delete_confirm">Elimina dati</string>
     <string name="face_analysis_cancel">Annulla</string>
+    <string name="pet_collections_title">Animali</string>
+    <string name="pet_collections_no_identity">Le raccolte di cani e gatti usano etichette locali e non identificano mai un singolo animale.</string>
+    <string name="pet_collections_enable">Mostra raccolte di cani e gatti</string>
+    <string name="pet_hide_dog">Nascondi risultati cani</string>
+    <string name="pet_hide_cat">Nascondi risultati gatti</string>
+    <string name="pet_restore">Ripristina etichette animali</string>
 </resources>

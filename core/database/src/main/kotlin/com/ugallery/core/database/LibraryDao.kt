@@ -13,6 +13,19 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface LibraryDao {
     @Query(
+        "SELECT " +
+            "(SELECT COUNT(DISTINCT l.volumeName || ':' || l.mediaStoreId) FROM media_labels l " +
+            "JOIN media_items m ON m.volumeName=l.volumeName AND m.mediaStoreId=l.mediaStoreId " +
+            "WHERE l.canonicalLabel='dog' AND m.isAccessible=1 AND m.isTrashed=0 AND NOT EXISTS " +
+            "(SELECT 1 FROM label_suppressions s WHERE s.canonicalLabel='dog')) AS dogCount, " +
+            "(SELECT COUNT(DISTINCT l.volumeName || ':' || l.mediaStoreId) FROM media_labels l " +
+            "JOIN media_items m ON m.volumeName=l.volumeName AND m.mediaStoreId=l.mediaStoreId " +
+            "WHERE l.canonicalLabel='cat' AND m.isAccessible=1 AND m.isTrashed=0 AND NOT EXISTS " +
+            "(SELECT 1 FROM label_suppressions s WHERE s.canonicalLabel='cat')) AS catCount",
+    )
+    fun petCollectionSummaryFlow(): Flow<PetCollectionSummaryRow>
+
+    @Query(
         "SELECT m.* FROM media_items m WHERE m.mediaType=1 AND m.isAccessible=1 AND m.isTrashed=0 " +
             "AND NOT EXISTS (SELECT 1 FROM face_detection_runs r WHERE r.volumeName=m.volumeName " +
             "AND r.mediaStoreId=m.mediaStoreId AND r.generationModified=m.generationModified " +

@@ -13,4 +13,10 @@
     <string name="face_analysis_delete_body">Erkannte Geometrie, Fortschritt und Zustimmung werden entfernt. Ihre Fotos bleiben unverändert.</string>
     <string name="face_analysis_delete_confirm">Daten löschen</string>
     <string name="face_analysis_cancel">Abbrechen</string>
+    <string name="pet_collections_title">Haustiere</string>
+    <string name="pet_collections_no_identity">Hunde- und Katzensammlungen verwenden lokale Labels und identifizieren keine einzelnen Tiere.</string>
+    <string name="pet_collections_enable">Hunde- und Katzensammlungen anzeigen</string>
+    <string name="pet_hide_dog">Hundeergebnisse ausblenden</string>
+    <string name="pet_hide_cat">Katzenergebnisse ausblenden</string>
+    <string name="pet_restore">Haustier-Labels wiederherstellen</string>
 </resources>

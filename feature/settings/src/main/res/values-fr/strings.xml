@@ -13,4 +13,10 @@
     <string name="face_analysis_delete_body">La géométrie détectée, la progression et le consentement seront supprimés. Vos photos ne sont jamais modifiées.</string>
     <string name="face_analysis_delete_confirm">Supprimer</string>
     <string name="face_analysis_cancel">Annuler</string>
+    <string name="pet_collections_title">Animaux</string>
+    <string name="pet_collections_no_identity">Les collections chiens et chats utilisent des libellés locaux sans identifier un animal individuel.</string>
+    <string name="pet_collections_enable">Afficher les collections chiens et chats</string>
+    <string name="pet_hide_dog">Masquer les chiens</string>
+    <string name="pet_hide_cat">Masquer les chats</string>
+    <string name="pet_restore">Restaurer les libellés</string>
 </resources>

@@ -87,6 +87,8 @@ internal fun ProductionGalleryApp(
     val searchIndexReady by viewModel.searchIndexReady.collectAsState()
     val detectedContentEnabled by viewModel.detectedContentEnabled.collectAsState()
     val faceAnalysis by viewModel.faceAnalysis.collectAsState()
+    val petCollectionsEnabled by viewModel.petCollectionsEnabled.collectAsState()
+    val petSummary by viewModel.petSummary.collectAsState()
     val actionState by viewModel.systemAction.collectAsState()
     val external by viewModel.externalMedia.collectAsState()
     val externalPhoto by viewModel.externalPhotoState.collectAsState()
@@ -179,6 +181,14 @@ internal fun ProductionGalleryApp(
                         onCreateAlbum = { showCreateAlbum = true },
                         onTrashClick = { route = SurfaceRoute.Trash },
                         onLocalAnalysisClick = { route = SurfaceRoute.Settings },
+                        petCollectionsEnabled = petCollectionsEnabled,
+                        dogCount = petSummary.dogCount,
+                        catCount = petSummary.catCount,
+                        onPetCollectionClick = { label ->
+                            viewModel.setSearchQuery(label)
+                            viewModel.search(label)
+                            rootTab = RootTab.Search
+                        },
                     )
                     RootTab.Search -> SearchContent(
                         query = search.query,
@@ -257,6 +267,16 @@ internal fun ProductionGalleryApp(
                     onResume = viewModel::resumeFaceDetection,
                     onAnalyzeAll = viewModel::analyzeAllFaces,
                     onDelete = viewModel::deleteFaceDetectionData,
+                    petCollectionsEnabled = petCollectionsEnabled,
+                    onPetCollectionsEnabledChange = {
+                        if (it) viewModel.enablePetCollections() else viewModel.disablePetCollections()
+                    },
+                    onHideDogResults = { viewModel.suppressPetType(com.ugallery.core.ml.PetType.Dog) },
+                    onHideCatResults = { viewModel.suppressPetType(com.ugallery.core.ml.PetType.Cat) },
+                    onRestorePetResults = {
+                        viewModel.restorePetType(com.ugallery.core.ml.PetType.Dog)
+                        viewModel.restorePetType(com.ugallery.core.ml.PetType.Cat)
+                    },
                 )
             }
         }

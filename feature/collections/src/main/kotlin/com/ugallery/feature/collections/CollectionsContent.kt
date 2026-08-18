@@ -35,6 +35,10 @@ fun CollectionsContent(
     onCreateAlbum: () -> Unit,
     onTrashClick: () -> Unit,
     onLocalAnalysisClick: () -> Unit,
+    petCollectionsEnabled: Boolean,
+    dogCount: Long,
+    catCount: Long,
+    onPetCollectionClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val albums = buildList {
@@ -60,6 +64,22 @@ fun CollectionsContent(
                         body = stringResource(R.string.collections_local_analysis_body),
                         onClick = onLocalAnalysisClick,
                     )
+                }
+                if (petCollectionsEnabled) {
+                    item {
+                        CollectionCard(
+                            title = stringResource(R.string.collections_dogs),
+                            body = stringResource(R.string.collections_item_count, dogCount),
+                            onClick = { onPetCollectionClick("dog") },
+                        )
+                    }
+                    item {
+                        CollectionCard(
+                            title = stringResource(R.string.collections_cats),
+                            body = stringResource(R.string.collections_item_count, catCount),
+                            onClick = { onPetCollectionClick("cat") },
+                        )
+                    }
                 }
                 item {
                     CollectionCard(

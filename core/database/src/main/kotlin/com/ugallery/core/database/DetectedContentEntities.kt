@@ -60,3 +60,8 @@ data class SearchRebuildRow(
     val canonicalLabelsCsv: String?,
     val labelModelVersion: String?,
 )
+
+data class PetCollectionSummaryRow(
+    val dogCount: Long,
+    val catCount: Long,
+)

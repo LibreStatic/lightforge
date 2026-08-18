@@ -13,4 +13,10 @@
     <string name="face_analysis_delete_body">Detection geometry, progress and consent will be removed. Your photos are never changed.</string>
     <string name="face_analysis_delete_confirm">Delete data</string>
     <string name="face_analysis_cancel">Cancel</string>
+    <string name="pet_collections_title">Pets</string>
+    <string name="pet_collections_no_identity">Dog and cat collections use local labels and never claim to identify an individual pet.</string>
+    <string name="pet_collections_enable">Show dog and cat collections</string>
+    <string name="pet_hide_dog">Hide dog results</string>
+    <string name="pet_hide_cat">Hide cat results</string>
+    <string name="pet_restore">Restore pet labels</string>
 </resources>
