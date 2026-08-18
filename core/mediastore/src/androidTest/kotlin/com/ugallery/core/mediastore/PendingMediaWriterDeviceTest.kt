@@ -13,6 +13,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.runBlocking
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -80,6 +81,23 @@ class PendingMediaWriterDeviceTest {
             assertEquals(0, rowsNamed(cancelName, includePending = true))
         } finally {
             resolver.delete(source, null, null)
+        }
+    }
+
+    @Test
+    fun renderedFilePublishesThroughPendingVerification() = runBlocking {
+        val file = File(context.cacheDir, "rendered-${System.nanoTime()}.jpg").apply {
+            writeBytes(ByteArray(64 * 1024) { (it % 173).toByte() })
+        }
+        var published: PublishedCopy? = null
+        try {
+            published = PendingMediaWriter(resolver).publishFile(file, spec("writer-rendered.jpg"))
+            assertEquals(file.length(), published.bytes)
+            assertEquals(0, pendingFlag(published.uri))
+            assertTrue(exists(published.uri))
+        } finally {
+            published?.let { resolver.delete(it.uri, null, null) }
+            file.delete()
         }
     }
 

@@ -21,6 +21,9 @@ android {
 
 dependencies {
     implementation(project(":core:model"))
+    implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.exifinterface)
     testImplementation(libs.junit4)
+    androidTestImplementation(libs.androidx.test.ext)
+    androidTestImplementation(libs.androidx.test.runner)
 }

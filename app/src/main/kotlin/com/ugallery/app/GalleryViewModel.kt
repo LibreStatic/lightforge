@@ -40,6 +40,7 @@ import com.ugallery.core.mediastore.ShareCoordinator
 import com.ugallery.core.mediastore.PendingMediaWriter
 import com.ugallery.core.mediastore.MediaWriteSpec
 import com.ugallery.core.mediastore.PublishedCopy
+import com.ugallery.core.mediastore.LocalShareSanitizer
 import com.ugallery.core.ml.DetectedContentRepository
 import com.ugallery.core.ml.MlScheduler
 import com.ugallery.core.ml.MlTaskType
@@ -61,6 +62,14 @@ import com.ugallery.core.model.ExifLoadResult
 import com.ugallery.core.model.MediaKind
 import com.ugallery.core.model.TimelineEntry
 import com.ugallery.core.model.TimelineMedia
+import com.ugallery.core.model.EditHistory
+import com.ugallery.core.model.EditOperation
+import com.ugallery.core.model.EditRecipe
+import com.ugallery.core.editing.image.PhotoExportOutcome
+import com.ugallery.core.editing.image.PhotoImageRenderer
+import com.ugallery.core.editing.video.Media3VideoExporter
+import com.ugallery.core.editing.video.VideoEditRecipe
+import com.ugallery.core.editing.video.VideoExportRequest
 import com.ugallery.core.selection.SelectionReducer
 import com.ugallery.core.selection.SelectionSpec
 import com.ugallery.core.selection.MediaQuery
@@ -74,6 +83,8 @@ import com.ugallery.feature.collections.PersonMemberCardUi
 import com.ugallery.feature.permissions.PermissionCoordinator
 import com.ugallery.feature.viewer.PhotoLoadState
 import com.ugallery.feature.viewer.PhotoViewerPipeline
+import com.ugallery.feature.photoeditor.PhotoEditorContentState
+import com.ugallery.feature.videoeditor.VideoEditorContentState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
@@ -113,6 +124,18 @@ data class GallerySearchUiState(
     val loading: Boolean = false,
     val terminal: Boolean = true,
     val error: Boolean = false,
+)
+
+data class PhotoEditorSession(
+    val media: TimelineMedia,
+    val history: EditHistory,
+    val content: PhotoEditorContentState,
+)
+
+data class VideoEditorSession(
+    val media: TimelineMedia,
+    val recipe: VideoEditRecipe,
+    val content: VideoEditorContentState,
 )
 
 private data class GalleryRuntime(
@@ -244,6 +267,8 @@ class GalleryViewModel @Inject constructor(
     val actionLaunches = mutableActionLaunches.asSharedFlow()
     private var currentSystemCoordinator: MediaStoreActionCoordinator? = null
     private var photoJob: Job? = null
+    private var photoEditorJob: Job? = null
+    private var videoEditorJob: Job? = null
     private var bulkCursor: BulkCursor? = savedStateHandle[BulkStateKey]
     private val mutableExternalMedia = MutableStateFlow<ExternalMedia?>(null)
     val externalMedia = mutableExternalMedia.asStateFlow()
@@ -251,6 +276,14 @@ class GalleryViewModel @Inject constructor(
     val externalPhotoState = mutableExternalPhotoState.asStateFlow()
     private val mutableExternalSaved = MutableSharedFlow<Uri>(extraBufferCapacity = 1)
     val externalSaved = mutableExternalSaved.asSharedFlow()
+    private val mutablePhotoEditor = MutableStateFlow<PhotoEditorSession?>(null)
+    val photoEditor = mutablePhotoEditor.asStateFlow()
+    private val mutableVideoEditor = MutableStateFlow<VideoEditorSession?>(null)
+    val videoEditor = mutableVideoEditor.asStateFlow()
+    private val mutableSanitizedShare = MutableSharedFlow<Intent>(extraBufferCapacity = 1)
+    val sanitizedShare = mutableSanitizedShare.asSharedFlow()
+    private val mutableShareError = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val shareError = mutableShareError.asSharedFlow()
     private val mutableSelectedMoment = MutableStateFlow<MomentEntity?>(null)
     val selectedMoment = mutableSelectedMoment.asStateFlow()
     private val refreshMutex = Mutex()
@@ -777,6 +810,285 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
+    fun openPhotoEditor(media: TimelineMedia) {
+        if (media.kind != MediaKind.Image) return
+        mutableCurrentMedia.value = media
+        photoEditorJob?.cancel()
+        photoEditorJob = viewModelScope.launch {
+            val active = runtime.value ?: return@launch
+            val initial = withContext(Dispatchers.IO) {
+                active.database.editRecipeDao().load(
+                    EditRecipe.forSource(media.key, media.generationModified).recipeId,
+                )
+            } ?: EditRecipe.forSource(media.key, media.generationModified)
+            mutablePhotoEditor.value = PhotoEditorSession(
+                media = media,
+                history = EditHistory.initial(initial),
+                content = PhotoEditorContentState(isRendering = true, selectedFilter = selectedFilter(initial)),
+            )
+            renderPhotoEditorPreview(active, media, initial)
+        }
+    }
+
+    fun applyPhotoEdit(operation: EditOperation) {
+        val session = mutablePhotoEditor.value ?: return
+        val updated = session.history.apply(operation)
+        mutablePhotoEditor.value = session.copy(
+            history = updated,
+            content = session.content.copy(
+                isRendering = true,
+                canUndo = updated.past.isNotEmpty(),
+                canRedo = false,
+                selectedFilter = selectedFilter(updated.present),
+                statusMessage = null,
+            ),
+        )
+        photoEditorJob?.cancel()
+        photoEditorJob = viewModelScope.launch {
+            val active = runtime.value ?: return@launch
+            withContext(Dispatchers.IO) {
+                active.database.editRecipeDao().replace(updated.present, System.currentTimeMillis())
+            }
+            renderPhotoEditorPreview(active, session.media, updated.present)
+        }
+    }
+
+    fun undoPhotoEdit() = movePhotoHistory { it.undo() }
+    fun redoPhotoEdit() = movePhotoHistory { it.redo() }
+
+    private fun movePhotoHistory(transform: (EditHistory) -> EditHistory) {
+        val session = mutablePhotoEditor.value ?: return
+        val updated = transform(session.history)
+        if (updated == session.history) return
+        mutablePhotoEditor.value = session.copy(
+            history = updated,
+            content = session.content.copy(
+                isRendering = true,
+                canUndo = updated.past.isNotEmpty(),
+                canRedo = updated.future.isNotEmpty(),
+                selectedFilter = selectedFilter(updated.present),
+                statusMessage = null,
+            ),
+        )
+        photoEditorJob?.cancel()
+        photoEditorJob = viewModelScope.launch {
+            val active = runtime.value ?: return@launch
+            withContext(Dispatchers.IO) {
+                active.database.editRecipeDao().replace(updated.present, System.currentTimeMillis())
+            }
+            renderPhotoEditorPreview(active, session.media, updated.present)
+        }
+    }
+
+    fun savePhotoEditorCopy() {
+        val session = mutablePhotoEditor.value ?: return
+        if (session.content.isExporting) return
+        mutablePhotoEditor.value = session.copy(content = session.content.copy(isExporting = true, statusMessage = null))
+        photoEditorJob?.cancel()
+        photoEditorJob = viewModelScope.launch {
+            val active = runtime.value ?: return@launch
+            val mime = withContext(Dispatchers.IO) {
+                active.database.libraryDao().media(session.media.key.volumeName, session.media.key.mediaStoreId)?.mimeType
+            }
+            val outputMime = imageExportMime(mime)
+            val extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(outputMime) ?: "jpg"
+            val temp = java.io.File(getApplication<Application>().cacheDir, "photo-edit-${System.nanoTime()}.$extension")
+            try {
+                when (val result = PhotoImageRenderer(getApplication<Application>().contentResolver).export(
+                    mediaUri(session.media), session.history.present, temp,
+                )) {
+                    is PhotoExportOutcome.Completed -> {
+                        val published = PendingMediaWriter(getApplication<Application>().contentResolver).publishFile(
+                            result.file,
+                            MediaWriteSpec(
+                                MediaStore.VOLUME_EXTERNAL_PRIMARY,
+                                MediaKind.Image,
+                                "UGallery-edited-${System.currentTimeMillis()}.$extension",
+                                outputMime,
+                                "Pictures/UGallery",
+                            ),
+                        )
+                        mutablePhotoEditor.value = mutablePhotoEditor.value?.copy(
+                            content = mutablePhotoEditor.value!!.content.copy(
+                                isExporting = false,
+                                statusMessage = buildString {
+                                    append("Copy saved")
+                                    if (result.warnings.isNotEmpty()) append(" — ").append(result.warnings.joinToString("; "))
+                                },
+                            ),
+                        )
+                        refreshLibrary()
+                        @Suppress("UNUSED_VARIABLE") val ignored = published
+                    }
+                    is PhotoExportOutcome.Failure -> mutablePhotoEditor.value = mutablePhotoEditor.value?.copy(
+                        content = mutablePhotoEditor.value!!.content.copy(
+                            isExporting = false,
+                            statusMessage = result.reason,
+                        ),
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Throwable) {
+                mutablePhotoEditor.value = mutablePhotoEditor.value?.copy(
+                    content = mutablePhotoEditor.value!!.content.copy(
+                        isExporting = false,
+                        statusMessage = failure.message ?: "Could not save copy",
+                    ),
+                )
+            } finally {
+                temp.delete()
+            }
+        }
+    }
+
+    fun closePhotoEditor() {
+        photoEditorJob?.cancel()
+        mutablePhotoEditor.value?.content?.preview?.recycle()
+        mutablePhotoEditor.value = null
+    }
+
+    private suspend fun renderPhotoEditorPreview(
+        active: GalleryRuntime,
+        media: TimelineMedia,
+        recipe: EditRecipe,
+    ) {
+        val preview = try {
+            PhotoImageRenderer(getApplication<Application>().contentResolver)
+                .renderPreview(mediaUri(media), recipe, 1_600)
+        } catch (failure: Throwable) {
+            val current = mutablePhotoEditor.value
+            if (current?.history?.present?.revision == recipe.revision) {
+                mutablePhotoEditor.value = current.copy(
+                    content = current.content.copy(isRendering = false, statusMessage = failure.message),
+                )
+            }
+            return
+        }
+        val current = mutablePhotoEditor.value
+        if (current?.history?.present?.revision == recipe.revision) {
+            current.content.preview?.takeIf { it !== preview }?.recycle()
+            mutablePhotoEditor.value = current.copy(
+                content = current.content.copy(preview = preview, isRendering = false),
+            )
+        } else preview.recycle()
+    }
+
+    fun openVideoEditor(media: TimelineMedia) {
+        if (media.kind != MediaKind.Video) return
+        mutableCurrentMedia.value = media
+        mutableVideoEditor.value = VideoEditorSession(
+            media = media,
+            recipe = VideoEditRecipe(),
+            content = VideoEditorContentState(
+                durationMillis = media.durationMillis,
+                trimEndMillis = media.durationMillis,
+            ),
+        )
+    }
+
+    fun setVideoTrim(startMillis: Long, endMillis: Long) {
+        val session = mutableVideoEditor.value ?: return
+        val duration = session.content.durationMillis.coerceAtLeast(1)
+        val start = startMillis.coerceIn(0, duration - 1)
+        val end = endMillis.coerceIn(start + 1, duration)
+        val recipe = session.recipe.copy(startMillis = start, endMillis = end)
+        mutableVideoEditor.value = session.copy(
+            recipe = recipe,
+            content = session.content.copy(trimStartMillis = start, trimEndMillis = end),
+        )
+    }
+
+    fun setVideoSpeed(speed: Float) {
+        val session = mutableVideoEditor.value ?: return
+        val recipe = session.recipe.copy(speed = speed)
+        mutableVideoEditor.value = session.copy(recipe = recipe, content = session.content.copy(speed = speed))
+    }
+
+    fun setVideoOriginalVolume(volume: Float) {
+        val session = mutableVideoEditor.value ?: return
+        val recipe = session.recipe.copy(originalAudioVolume = volume)
+        mutableVideoEditor.value = session.copy(recipe = recipe, content = session.content.copy(originalAudioVolume = volume))
+    }
+
+    fun setVideoMusic(uri: Uri, displayName: String) {
+        val session = mutableVideoEditor.value ?: return
+        val recipe = session.recipe.copy(musicUri = uri)
+        mutableVideoEditor.value = session.copy(
+            recipe = recipe,
+            content = session.content.copy(selectedMusicName = displayName),
+        )
+    }
+
+    fun removeVideoMusic() {
+        val session = mutableVideoEditor.value ?: return
+        mutableVideoEditor.value = session.copy(
+            recipe = session.recipe.copy(musicUri = null),
+            content = session.content.copy(selectedMusicName = null),
+        )
+    }
+
+    fun seekVideo(positionMillis: Long) {
+        val session = mutableVideoEditor.value ?: return
+        mutableVideoEditor.value = session.copy(content = session.content.copy(currentMillis = positionMillis))
+    }
+
+    fun saveVideoEditorCopy() {
+        val session = mutableVideoEditor.value ?: return
+        if (session.content.isExporting) return
+        mutableVideoEditor.value = session.copy(content = session.content.copy(isExporting = true, statusMessage = null))
+        videoEditorJob?.cancel()
+        videoEditorJob = viewModelScope.launch {
+            val temp = java.io.File(getApplication<Application>().cacheDir, "video-edit-${System.nanoTime()}.mp4")
+            try {
+                val result = Media3VideoExporter(getApplication<Application>()).export(
+                    VideoExportRequest(mediaUri(session.media), temp, session.recipe),
+                )
+                PendingMediaWriter(getApplication<Application>().contentResolver).publishFile(
+                    result.output,
+                    MediaWriteSpec(
+                        MediaStore.VOLUME_EXTERNAL_PRIMARY,
+                        MediaKind.Video,
+                        "UGallery-edited-${System.currentTimeMillis()}.mp4",
+                        "video/mp4",
+                        "Movies/UGallery",
+                    ),
+                )
+                mutableVideoEditor.value = mutableVideoEditor.value?.copy(
+                    content = mutableVideoEditor.value!!.content.copy(
+                        isExporting = false,
+                        statusMessage = result.fallbackWarning ?: "Copy saved",
+                    ),
+                )
+                refreshLibrary()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Throwable) {
+                mutableVideoEditor.value = mutableVideoEditor.value?.copy(
+                    content = mutableVideoEditor.value!!.content.copy(
+                        isExporting = false,
+                        statusMessage = failure.message ?: "Could not save copy",
+                    ),
+                )
+            } finally {
+                temp.delete()
+            }
+        }
+    }
+
+    fun closeVideoEditor() {
+        videoEditorJob?.cancel()
+        mutableVideoEditor.value = null
+    }
+
+    private fun selectedFilter(recipe: EditRecipe): String =
+        recipe.operations.asReversed().filterIsInstance<EditOperation.Filter>().firstOrNull()?.name ?: "none"
+
+    private fun imageExportMime(sourceMime: String?): String = when (sourceMime?.lowercase()) {
+        "image/png", "image/webp" -> sourceMime.lowercase()
+        else -> "image/jpeg"
+    }
+
     fun loadDetails() {
         val media = mutableCurrentMedia.value ?: return
         val active = runtime.value ?: return
@@ -798,6 +1110,24 @@ class GalleryViewModel @Inject constructor(
     ).original(
         listOf(ShareCandidate(MediaActionTarget(media.key, media.kind), mediaMime(media.kind))),
     ).intent
+
+    fun sanitizedShare(media: TimelineMedia) {
+        viewModelScope.launch {
+            try {
+                val candidate = ShareCandidate(
+                    MediaActionTarget(media.key, media.kind),
+                    mediaMime(media.kind),
+                )
+                val asset = LocalShareSanitizer(getApplication<Application>()).prepare(candidate)
+                mutableSanitizedShare.emit(
+                    ShareCoordinator(getApplication<Application>().contentResolver)
+                        .sanitized(listOf(asset), excludedPrivateCount = 0).intent,
+                )
+            } catch (failure: Throwable) {
+                mutableShareError.emit(failure.message ?: "Could not prepare a sanitized share copy")
+            }
+        }
+    }
 
     fun beginSystemAction(media: TimelineMedia, action: MediaAction) {
         beginTargetsAction(listOf(MediaActionTarget(media.key, media.kind)), action)

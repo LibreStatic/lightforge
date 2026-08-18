@@ -41,7 +41,9 @@ fun ViewerContent(
     isFavorite: Boolean,
     onToggleFavorite: () -> Unit,
     onShare: () -> Unit,
+    onShareSanitized: () -> Unit,
     onDetails: () -> Unit,
+    onEdit: () -> Unit,
     onTrash: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -68,7 +70,9 @@ fun ViewerContent(
                 Text(stringResource(if (isFavorite) R.string.viewer_unfavorite else R.string.viewer_favorite))
             }
             Button(onClick = onShare) { Text(stringResource(R.string.viewer_share)) }
+            Button(onClick = onShareSanitized) { Text(stringResource(R.string.viewer_share_private)) }
             Button(onClick = onDetails) { Text(stringResource(R.string.viewer_details)) }
+            Button(onClick = onEdit) { Text(stringResource(R.string.viewer_edit)) }
             Button(onClick = onTrash) { Text(stringResource(R.string.viewer_trash)) }
         }
     }

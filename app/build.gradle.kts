@@ -84,6 +84,10 @@ dependencies {
     implementation(project(":feature:search"))
     implementation(project(":feature:settings"))
     implementation(project(":core:selection"))
+    implementation(project(":core:editing-image"))
+    implementation(project(":core:editing-video"))
+    implementation(project(":feature:photoeditor"))
+    implementation(project(":feature:videoeditor"))
 
     implementation(platform(libs.compose.bom))
     implementation("androidx.compose.ui:ui")

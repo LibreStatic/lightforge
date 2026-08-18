@@ -14,6 +14,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.security.MessageDigest
+import java.io.File
 import kotlin.coroutines.coroutineContext
 
 data class MediaWriteSpec(
@@ -64,6 +65,60 @@ class PendingMediaWriter(
     private val nowMillis: () -> Long = System::currentTimeMillis,
     private val persistPending: (PendingWriteSnapshot?) -> Unit = {},
 ) {
+    /** Publishes an already-rendered local file through the same pending/verify protocol as a URI copy. */
+    suspend fun publishFile(
+        source: File,
+        spec: MediaWriteSpec,
+        onProgress: suspend (Long) -> Unit = {},
+    ): PublishedCopy = withContext(ioDispatcher) {
+        require(source.isFile && source.length() > 0) { "Rendered source is empty" }
+        val expectedSize = source.length()
+        val available = spaceProbe.availableBytes(spec.destinationVolume)
+        if (available != null && available < expectedSize) {
+            throw InsufficientDestinationSpaceException(expectedSize, available)
+        }
+        val pending = resolver.insert(spec.collection(), ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, spec.displayName)
+            put(MediaStore.MediaColumns.MIME_TYPE, spec.mimeType)
+            put(MediaStore.MediaColumns.RELATIVE_PATH, spec.relativePath)
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }) ?: error("MediaStore rejected pending output")
+        persistPending(PendingWriteSnapshot(pending.toString(), spec, nowMillis()))
+        try {
+            val sourceDigest = MessageDigest.getInstance("SHA-256")
+            val copied = pendingOutput(pending) { output ->
+                source.inputStream().use { input ->
+                    val buffer = ByteArray(BufferBytes)
+                    var total = 0L
+                    while (true) {
+                        coroutineContext.ensureActive()
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        if (read == 0) continue
+                        output.write(buffer, 0, read)
+                        sourceDigest.update(buffer, 0, read)
+                        total += read
+                        onProgress(total)
+                    }
+                    total
+                }
+            }
+            check(copied == expectedSize) { "Rendered source changed while publishing" }
+            val expectedDigest = sourceDigest.digest().hex()
+            verifyAndPublish(pending, copied, expectedDigest)
+            persistPending(null)
+            PublishedCopy(pending, copied, expectedDigest)
+        } catch (cancelled: CancellationException) {
+            resolver.delete(pending, null, null)
+            persistPending(null)
+            throw cancelled
+        } catch (failure: Throwable) {
+            resolver.delete(pending, null, null)
+            persistPending(null)
+            throw failure
+        }
+    }
+
     suspend fun copy(
         source: Uri,
         spec: MediaWriteSpec,
@@ -190,6 +245,45 @@ class PendingMediaWriter(
     )?.use { if (it.moveToFirst()) it.getInt(0) else null }
 
     private fun MediaWriteSpec.collection() = collection(destinationVolume, kind)
+
+    private suspend fun pendingOutput(
+        pending: Uri,
+        block: suspend (java.io.OutputStream) -> Long,
+    ): Long {
+        val output = resolver.openOutputStream(pending, "w")
+            ?: throw IOException("Could not open pending output")
+        return try {
+            block(output)
+        } finally {
+            output.close()
+        }
+    }
+
+    private fun verifyAndPublish(pending: Uri, copied: Long, expectedDigest: String) {
+        check(resolver.openFileDescriptor(pending, "r")?.use { it.statSize } == copied) {
+            "Destination size verification failed"
+        }
+        val destinationDigest = resolver.openInputStream(pending)?.use { input ->
+            val digest = MessageDigest.getInstance("SHA-256")
+            val buffer = ByteArray(BufferBytes)
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                if (read > 0) digest.update(buffer, 0, read)
+            }
+            digest.digest().hex()
+        } ?: throw IOException("Could not verify destination")
+        check(destinationDigest == expectedDigest) { "Destination digest verification failed" }
+        check(
+            resolver.update(
+                pending,
+                ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) },
+                null,
+                null,
+            ) == 1,
+        ) { "MediaStore did not publish the verified copy" }
+        check(pendingFlag(pending) == 0) { "Published output remained pending" }
+    }
 
     private fun collection(volume: String, kind: MediaKind): Uri = when (kind) {
         MediaKind.Image -> MediaStore.Images.Media.getContentUri(volume)

@@ -1,0 +1,16 @@
+<resources>
+    <string name="video_editor_title">Edit video</string>
+    <string name="video_editor_cancel">Cancel</string>
+    <string name="video_editor_save_copy">Save copy</string>
+    <string name="video_editor_preview_description">Video edit preview</string>
+    <string name="video_editor_preview_unavailable">Preview unavailable</string>
+    <string name="video_editor_speed">Speed</string>
+    <string name="video_editor_audio">Audio</string>
+    <string name="video_editor_music">Music</string>
+    <string name="video_editor_speed_slow">0.5× Slow</string>
+    <string name="video_editor_speed_normal">1× Normal</string>
+    <string name="video_editor_speed_fast">2× Fast</string>
+    <string name="video_editor_original_audio">Original audio</string>
+    <string name="video_editor_choose_music">Choose local track</string>
+    <string name="video_editor_remove_music">Remove music</string>
+</resources>

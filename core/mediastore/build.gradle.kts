@@ -21,6 +21,8 @@ android {
 
 dependencies {
     implementation(project(":core:model"))
+    implementation(project(":core:editing-image"))
+    implementation(project(":core:editing-video"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.junit4)

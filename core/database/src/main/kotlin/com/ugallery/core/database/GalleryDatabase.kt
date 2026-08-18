@@ -41,14 +41,17 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MomentCoverEntity::class,
         MomentRunEntity::class,
         MomentRunCandidateEntity::class,
+        EditRecipeEntity::class,
+        EditOperationEntity::class,
     ],
-    version = 12,
+    version = 13,
     exportSchema = true,
 )
 abstract class GalleryDatabase : RoomDatabase() {
     abstract fun libraryDao(): LibraryDao
     abstract fun momentDao(): MomentDao
     abstract fun personDao(): PersonDao
+    abstract fun editRecipeDao(): EditRecipeDao
 }
 
 object GalleryDatabaseFactory {
@@ -230,6 +233,30 @@ object GalleryDatabaseFactory {
         }
     }
 
+    val Migration12To13 = object : Migration(12, 13) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """CREATE TABLE IF NOT EXISTS `edit_recipes` (
+                    `recipeId` TEXT NOT NULL, `volumeName` TEXT NOT NULL,
+                    `mediaStoreId` INTEGER NOT NULL, `sourceGenerationModified` INTEGER NOT NULL,
+                    `revision` INTEGER NOT NULL, `createdAtMillis` INTEGER NOT NULL,
+                    `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`recipeId`),
+                    FOREIGN KEY(`volumeName`,`mediaStoreId`) REFERENCES `media_items`(`volumeName`,`mediaStoreId`)
+                    ON UPDATE NO ACTION ON DELETE CASCADE)""",
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_edit_recipe_source` ON `edit_recipes` (`volumeName`,`mediaStoreId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_edit_recipe_updated` ON `edit_recipes` (`updatedAtMillis`)")
+            db.execSQL(
+                """CREATE TABLE IF NOT EXISTS `edit_operations` (
+                    `recipeId` TEXT NOT NULL, `ordinal` INTEGER NOT NULL,
+                    `encodedOperation` TEXT NOT NULL, PRIMARY KEY(`recipeId`,`ordinal`),
+                    FOREIGN KEY(`recipeId`) REFERENCES `edit_recipes`(`recipeId`)
+                    ON UPDATE NO ACTION ON DELETE CASCADE)""",
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_edit_operation_recipe` ON `edit_operations` (`recipeId`,`ordinal`)")
+        }
+    }
+
     private fun build(context: Context, name: String): GalleryDatabase = Room.databaseBuilder(
         context.applicationContext,
         GalleryDatabase::class.java,
@@ -237,5 +264,6 @@ object GalleryDatabaseFactory {
     ).addMigrations(
         Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7,
         Migration7To8, Migration8To9, Migration9To10, Migration10To11, Migration11To12,
+        Migration12To13,
     ).build()
 }

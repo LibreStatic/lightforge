@@ -3,6 +3,7 @@ package com.ugallery.app
 import android.app.Activity
 import android.content.Intent
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -64,13 +65,15 @@ import com.ugallery.feature.photos.LibraryPhotosRoute
 import com.ugallery.feature.trash.TrashContent
 import com.ugallery.feature.viewer.VideoViewerController
 import com.ugallery.feature.viewer.ViewerContent
+import com.ugallery.feature.photoeditor.PhotoEditorContent
+import com.ugallery.feature.videoeditor.VideoEditorContent
 import com.ugallery.feature.search.SearchContent
 import com.ugallery.feature.settings.AnalysisStatus
 import com.ugallery.feature.settings.FaceAnalysisUiState
 import com.ugallery.feature.settings.RecognitionSettingsContent
 
 private enum class RootTab { Photos, Collections, Search }
-private enum class SurfaceRoute { Root, Album, Viewer, Trash, Settings, Moment, People }
+private enum class SurfaceRoute { Root, Album, Viewer, PhotoEditor, VideoEditor, Trash, Settings, Moment, People }
 
 @Composable
 internal fun ProductionGalleryApp(
@@ -106,6 +109,8 @@ internal fun ProductionGalleryApp(
     val actionState by viewModel.systemAction.collectAsState()
     val external by viewModel.externalMedia.collectAsState()
     val externalPhoto by viewModel.externalPhotoState.collectAsState()
+    val photoEditor by viewModel.photoEditor.collectAsState()
+    val videoEditor by viewModel.videoEditor.collectAsState()
     val timeline = viewModel.timeline.collectAsLazyPagingItems()
     val physicalAlbums = viewModel.physicalAlbums.collectAsLazyPagingItems()
     val virtualAlbums = viewModel.virtualAlbums.collectAsLazyPagingItems()
@@ -121,6 +126,18 @@ internal fun ProductionGalleryApp(
     var showEmptyTrashConfirmation by rememberSaveable { mutableStateOf(false) }
     var newAlbumName by rememberSaveable { mutableStateOf("") }
     var pendingRequestId by rememberSaveable { mutableStateOf<Long?>(null) }
+
+    val musicPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
+            viewModel.setVideoMusic(uri, uri.lastPathSegment?.substringAfterLast('/') ?: "Local track")
+        }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -144,6 +161,16 @@ internal fun ProductionGalleryApp(
                 setResult(Activity.RESULT_OK, Intent().setData(uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
                 finish()
             }
+        }
+    }
+    LaunchedEffect(Unit) {
+        viewModel.sanitizedShare.collect { intent ->
+            context.startActivity(Intent.createChooser(intent, null))
+        }
+    }
+    LaunchedEffect(Unit) {
+        viewModel.shareError.collect { message ->
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -258,6 +285,44 @@ internal fun ProductionGalleryApp(
                         onShowDetails = { showDetails = true; viewModel.loadDetails() },
                         onHideDetails = { showDetails = false },
                         onBack = { route = SurfaceRoute.Root },
+                        onEdit = {
+                            if (media.kind == MediaKind.Image) {
+                                viewModel.openPhotoEditor(media)
+                                route = SurfaceRoute.PhotoEditor
+                            } else {
+                                viewModel.openVideoEditor(media)
+                                route = SurfaceRoute.VideoEditor
+                            }
+                        },
+                        onShareSanitized = { viewModel.sanitizedShare(media) },
+                    )
+                }
+                SurfaceRoute.PhotoEditor -> photoEditor?.let { session ->
+                    PhotoEditorContent(
+                        state = session.content,
+                        onBack = { viewModel.closePhotoEditor(); route = SurfaceRoute.Viewer },
+                        onSaveCopy = viewModel::savePhotoEditorCopy,
+                        onApply = viewModel::applyPhotoEdit,
+                        onUndo = viewModel::undoPhotoEdit,
+                        onRedo = viewModel::redoPhotoEdit,
+                    )
+                }
+                SurfaceRoute.VideoEditor -> videoEditor?.let { session ->
+                    val controller = remember(session.media.key) {
+                        VideoViewerController(context).also { it.select(viewModel.mediaUri(session.media)) }
+                    }
+                    DisposableEffect(controller) { onDispose { controller.close() } }
+                    VideoEditorContent(
+                        state = session.content,
+                        controller = controller,
+                        onBack = { viewModel.closeVideoEditor(); route = SurfaceRoute.Viewer },
+                        onSaveCopy = viewModel::saveVideoEditorCopy,
+                        onSpeedChange = viewModel::setVideoSpeed,
+                        onOriginalVolumeChange = viewModel::setVideoOriginalVolume,
+                        onChooseMusic = { musicPicker.launch(arrayOf("audio/*")) },
+                        onRemoveMusic = viewModel::removeVideoMusic,
+                        onSeek = { position -> viewModel.seekVideo(position); controller.seekTo(position) },
+                        onTrimChange = viewModel::setVideoTrim,
                     )
                 }
                 SurfaceRoute.Moment -> selectedMoment?.let { moment ->
@@ -394,7 +459,7 @@ internal fun ProductionGalleryApp(
                     }
                 }
             } else Column(Modifier.fillMaxSize().padding(padding)) {
-                if (route != SurfaceRoute.Root) Button(onClick = { route = SurfaceRoute.Root }) {
+                if (route != SurfaceRoute.Root && route != SurfaceRoute.PhotoEditor && route != SurfaceRoute.VideoEditor) Button(onClick = { route = SurfaceRoute.Root }) {
                     Text(stringResource(R.string.nav_back))
                 }
                 controls()
@@ -572,6 +637,8 @@ private fun ViewerRoute(
     onShowDetails: () -> Unit,
     onHideDetails: () -> Unit,
     onBack: () -> Unit,
+    onEdit: () -> Unit,
+    onShareSanitized: () -> Unit,
 ) {
     val context = LocalContext.current
     val cheap by viewModel.cheapDetails.collectAsState()
@@ -592,6 +659,8 @@ private fun ViewerRoute(
                 context.startActivity(Intent.createChooser(viewModel.originalShareIntent(media), null))
             },
             onDetails = onShowDetails,
+            onEdit = onEdit,
+            onShareSanitized = onShareSanitized,
             onTrash = { viewModel.beginSystemAction(media, MediaAction.Trash(true)) },
             modifier = Modifier.fillMaxSize(),
         )

@@ -1,0 +1,18 @@
+<resources>
+    <string name="photo_editor_title">Edit photo</string>
+    <string name="photo_editor_cancel">Cancel</string>
+    <string name="photo_editor_save_copy">Save copy</string>
+    <string name="photo_editor_preview_description">Photo edit preview</string>
+    <string name="photo_editor_preview_unavailable">Preview unavailable</string>
+    <string name="photo_editor_filters">Filters</string>
+    <string name="photo_editor_filter_original">Original</string>
+    <string name="photo_editor_filter_natural">Natural</string>
+    <string name="photo_editor_filter_vivid">Vivid</string>
+    <string name="photo_editor_filter_mono">Mono</string>
+    <string name="photo_editor_crop">Crop</string>
+    <string name="photo_editor_rotate">Rotate</string>
+    <string name="photo_editor_flip">Flip</string>
+    <string name="photo_editor_undo">Undo</string>
+    <string name="photo_editor_redo">Redo</string>
+    <string name="photo_editor_copy_policy">Edits are non-destructive. Save copy creates a new local MediaStore item; the original stays unchanged.</string>
+</resources>
