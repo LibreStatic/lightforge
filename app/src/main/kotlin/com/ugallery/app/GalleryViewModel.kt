@@ -734,6 +734,10 @@ class GalleryViewModel @Inject constructor(
                     active.searchIndex.rebuild(restart = true)
                     prefs.edit().putLong("schema", com.ugallery.core.search.MediaSearchSchema.Version).commit()
                 }
+                // Moment generation is a resumable Room keyset pass, not a MediaStore scan.
+                // Run it once after the initial index; the completed checkpoint prevents
+                // repeating the bounded pass on every foreground/startup.
+                active.moments.generateIfNeeded()
                 mutableSearchIndexReady.value = true
             }
             mutableEngineState.value = if (completed) {

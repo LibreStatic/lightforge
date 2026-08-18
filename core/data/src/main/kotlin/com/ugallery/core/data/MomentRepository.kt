@@ -87,6 +87,15 @@ class MomentRepository(
         }
     }
 
+    /** Runs the bounded keyset generation only when no completed checkpoint exists. */
+    suspend fun generateIfNeeded(
+        pageSize: Int = 256,
+        onProgress: (MomentGenerationProgress) -> Unit = {},
+    ): MomentGenerationProgress? {
+        if (dao.run(AlgorithmVersion)?.status == "COMPLETE") return null
+        return generate(pageSize, onProgress)
+    }
+
     suspend fun restartGeneration() {
         dao.deleteRun(AlgorithmVersion)
     }
