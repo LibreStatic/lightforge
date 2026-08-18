@@ -1,6 +1,6 @@
 # M4-T03 face embedding candidate report
 
-Status: **OpenCV Zoo SFace approved for technical integration; identity corpus gate remains open**  
+Status: **OpenCV Zoo SFace approved; research identity gate passed, production corpus rights open**  
 Date: 2026-08-18
 
 ## Required gate
@@ -45,7 +45,9 @@ Primary references:
 
 ## Consequence
 
-The accepted artifact may enter the local embedding runtime and benchmark lane. Automatic person
-clusters, People/Me routes, and identity claims remain gated until the user-provided identity corpus
-passes stability and false-merge thresholds. The checkpoint's incomplete exact training-recipe
-metadata remains a documented release-review risk rather than being silently presented as known.
+The accepted artifact may enter the local embedding runtime and benchmark lane. The user-supplied
+DigiFace-derived v3 corpus passed the research false-merge holdout at the conservative `0.47` gate,
+but its R-UDA limits data/results to non-commercial research. Automatic People/Me production
+surfaces therefore remain disabled until product scope is confirmed compatible or a corpus with
+production-compatible rights passes the same gate. The checkpoint's incomplete exact training
+recipe remains a documented release-review risk rather than being silently presented as known.

@@ -22,6 +22,7 @@ object DetectedContentRuntime {
     private var similarityEngine: SimilarityMlEngine? = null
     private var faceDetectionEngine: FaceDetectionMlEngine? = null
     private var faceEmbeddingEngine: FaceEmbeddingMlEngine? = null
+    private var personClusteringEngine: PersonClusteringMlEngine? = null
 
     @Synchronized
     fun install(context: Context) {
@@ -58,6 +59,7 @@ object DetectedContentRuntime {
         similarityEngine = null
         faceDetectionEngine = null
         faceEmbeddingEngine = null
+        personClusteringEngine = null
         database = null
     }
 
@@ -69,6 +71,7 @@ object DetectedContentRuntime {
         similarityEngine?.takeIf { task == MlTaskType.Similarity }?.let { return it }
         faceDetectionEngine?.takeIf { task == MlTaskType.FaceDetection }?.let { return it }
         faceEmbeddingEngine?.takeIf { task == MlTaskType.FaceEmbeddings }?.let { return it }
+        personClusteringEngine?.takeIf { task == MlTaskType.PersonClustering }?.let { return it }
         val context = checkNotNull(application) { "DetectedContentRuntime is not installed" }
         val activeDatabase = activeDatabase(context)
         val imagePermission = { context.hasReadableImages() }
@@ -106,6 +109,10 @@ object DetectedContentRuntime {
                 imagePermission,
                 SFaceLiteRtEmbeddingInference(context),
             ).also { faceEmbeddingEngine = it }
+            MlTaskType.PersonClustering -> PersonClusteringMlEngine(
+                activeDatabase,
+                imagePermission,
+            ).also { personClusteringEngine = it }
         }
     }
 
@@ -135,8 +142,18 @@ object DetectedContentRuntime {
                 dao.purgeSimilarityFeatures()
                 dao.purgeSimilarityExclusions()
             }
-            MlTaskType.FaceDetection -> dao.purgeFaceDetections()
-            MlTaskType.FaceEmbeddings -> dao.purgeFaceEmbeddings()
+            MlTaskType.FaceDetection -> purgeAllPersonIdentityData(activeDatabase(context))
+            MlTaskType.FaceEmbeddings -> {
+                activeDatabase(context).personDao().deleteMeProfile()
+                dao.purgeFaceEmbeddings()
+            }
+            MlTaskType.PersonClustering -> activeDatabase(context).personDao().run {
+                deleteMeProfile()
+                purgeMemberships()
+                purgeClusters()
+                purgeConstraints()
+                purgeFaceOverrides()
+            }
         }
     }
 

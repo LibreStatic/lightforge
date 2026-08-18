@@ -1,6 +1,6 @@
 # ADR-008: Face recognition privacy
 
-- Status: Accepted
+- Status: Accepted; M4 implementation details continued by ADR-031 and ADR-032
 - Date: 2026-08-16
 
 ## Context
@@ -28,5 +28,9 @@ an independently distributable model artifact and evaluation corpus pass the gat
 
 The decision is enforced by module boundaries, tests, build guards, and device evidence. Any incompatible change must update this ADR, affected backlog tickets, and regression coverage.
 
-Until M4-T03 passes, releases contain no face embedding model, People/Me UI, feature stub, or identity claim.
-The detection/privacy screen must explicitly distinguish face-region detection from recognition.
+M4-T03 subsequently approved the Apache-2.0 OpenCV Zoo SFace artifact and physical accelerator
+evidence (ADR-031). M4-T04/T05 backend implementation is covered by ADR-032. People/Me production
+surfaces remain disabled because the available false-merge corpus is R-UDA research-only; the
+original prohibition now applies to **activation and identity claims**, not to the licensed bundled
+model or tested backend. The detection/privacy screen must still distinguish face-region detection
+from recognition.

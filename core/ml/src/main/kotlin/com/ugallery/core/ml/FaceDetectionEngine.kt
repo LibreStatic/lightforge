@@ -135,7 +135,7 @@ object FaceCropper {
 
 class FaceDetectionMlEngine(
     private val resolver: ContentResolver,
-    database: GalleryDatabase,
+    private val database: GalleryDatabase,
     private val permission: () -> Boolean,
     private val nowMillis: () -> Long = System::currentTimeMillis,
     private val inference: FaceDetectionInference = BundledMlKitFaceDetectionInference(),
@@ -194,7 +194,9 @@ class FaceDetectionMlEngine(
         else MlChunkOutcome.Complete(candidates.size)
     }
 
-    override suspend fun purgeDerivedData() { dao.purgeFaceDetections() }
+    override suspend fun purgeDerivedData() {
+        purgeAllPersonIdentityData(database)
+    }
     override fun close() { (inference as? Closeable)?.close() }
 
     companion object {

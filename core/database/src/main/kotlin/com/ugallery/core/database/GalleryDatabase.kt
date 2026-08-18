@@ -28,18 +28,27 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         FaceDetectionRunEntity::class,
         DetectedFaceEntity::class,
         FaceEmbeddingEntity::class,
+        PersonClusterEntity::class,
+        PersonMembershipEntity::class,
+        PersonClusterProjectionEntity::class,
+        PersonConstraintEntity::class,
+        PersonFaceOverrideEntity::class,
+        MeProfileEntity::class,
+        MeReferenceEntity::class,
+        MeMatchEntity::class,
         MomentEntity::class,
         MomentMemberEntity::class,
         MomentCoverEntity::class,
         MomentRunEntity::class,
         MomentRunCandidateEntity::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = true,
 )
 abstract class GalleryDatabase : RoomDatabase() {
     abstract fun libraryDao(): LibraryDao
     abstract fun momentDao(): MomentDao
+    abstract fun personDao(): PersonDao
 }
 
 object GalleryDatabaseFactory {
@@ -201,12 +210,32 @@ object GalleryDatabaseFactory {
         }
     }
 
+    val Migration11To12 = object : Migration(11, 12) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS `person_clusters` (`clusterId` TEXT NOT NULL, `algorithmVersion` TEXT NOT NULL, `centroidVector` BLOB NOT NULL, `memberCount` INTEGER NOT NULL, `displayName` TEXT, `isHidden` INTEGER NOT NULL, `isUserEdited` INTEGER NOT NULL, `createdAtMillis` INTEGER NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`clusterId`))")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_person_cluster_visible` ON `person_clusters` (`algorithmVersion`, `isHidden`, `updatedAtMillis`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `person_memberships` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `faceOrdinal` INTEGER NOT NULL, `clusterId` TEXT NOT NULL, `algorithmVersion` TEXT NOT NULL, `assignmentSource` TEXT NOT NULL, `similarity` REAL NOT NULL, `assignedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`), FOREIGN KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`) REFERENCES `face_embeddings`(`volumeName`, `mediaStoreId`, `faceOrdinal`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`clusterId`) REFERENCES `person_clusters`(`clusterId`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_person_membership_cluster` ON `person_memberships` (`clusterId`, `similarity`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `person_cluster_projections` (`clusterId` TEXT NOT NULL, `band` INTEGER NOT NULL, `q0` INTEGER NOT NULL, `q1` INTEGER NOT NULL, `q2` INTEGER NOT NULL, `q3` INTEGER NOT NULL, `q4` INTEGER NOT NULL, `q5` INTEGER NOT NULL, PRIMARY KEY(`clusterId`, `band`), FOREIGN KEY(`clusterId`) REFERENCES `person_clusters`(`clusterId`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_person_projection_lookup` ON `person_cluster_projections` (`band`, `q0`, `q1`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `person_constraints` (`leftVolumeName` TEXT NOT NULL, `leftMediaStoreId` INTEGER NOT NULL, `leftFaceOrdinal` INTEGER NOT NULL, `rightVolumeName` TEXT NOT NULL, `rightMediaStoreId` INTEGER NOT NULL, `rightFaceOrdinal` INTEGER NOT NULL, `relation` TEXT NOT NULL, `preferredClusterId` TEXT, `createdAtMillis` INTEGER NOT NULL, PRIMARY KEY(`leftVolumeName`, `leftMediaStoreId`, `leftFaceOrdinal`, `rightVolumeName`, `rightMediaStoreId`, `rightFaceOrdinal`), FOREIGN KEY(`leftVolumeName`, `leftMediaStoreId`, `leftFaceOrdinal`) REFERENCES `detected_faces`(`volumeName`, `mediaStoreId`, `faceOrdinal`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`rightVolumeName`, `rightMediaStoreId`, `rightFaceOrdinal`) REFERENCES `detected_faces`(`volumeName`, `mediaStoreId`, `faceOrdinal`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_person_constraint_right` ON `person_constraints` (`rightVolumeName`, `rightMediaStoreId`, `rightFaceOrdinal`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `person_face_overrides` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `faceOrdinal` INTEGER NOT NULL, `clusterId` TEXT NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`), FOREIGN KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`) REFERENCES `detected_faces`(`volumeName`, `mediaStoreId`, `faceOrdinal`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`clusterId`) REFERENCES `person_clusters`(`clusterId`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_person_face_override_cluster` ON `person_face_overrides` (`clusterId`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `me_profiles` (`profileId` INTEGER NOT NULL, `embeddingModelVersion` TEXT NOT NULL, `centroidVector` BLOB NOT NULL, `matchThreshold` REAL NOT NULL, `referenceCount` INTEGER NOT NULL, `state` TEXT NOT NULL, `afterVolumeName` TEXT, `afterMediaStoreId` INTEGER, `afterFaceOrdinal` INTEGER, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`profileId`))")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `me_references` (`profileId` INTEGER NOT NULL, `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `faceOrdinal` INTEGER NOT NULL, `addedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`profileId`, `volumeName`, `mediaStoreId`, `faceOrdinal`), FOREIGN KEY(`profileId`) REFERENCES `me_profiles`(`profileId`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`) REFERENCES `face_embeddings`(`volumeName`, `mediaStoreId`, `faceOrdinal`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_me_reference_face` ON `me_references` (`volumeName`, `mediaStoreId`, `faceOrdinal`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `me_matches` (`profileId` INTEGER NOT NULL, `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `faceOrdinal` INTEGER NOT NULL, `similarity` REAL NOT NULL, `matchedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`profileId`, `volumeName`, `mediaStoreId`, `faceOrdinal`), FOREIGN KEY(`profileId`) REFERENCES `me_profiles`(`profileId`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`) REFERENCES `face_embeddings`(`volumeName`, `mediaStoreId`, `faceOrdinal`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_me_match_score` ON `me_matches` (`profileId`, `similarity`)")
+        }
+    }
+
     private fun build(context: Context, name: String): GalleryDatabase = Room.databaseBuilder(
         context.applicationContext,
         GalleryDatabase::class.java,
         name,
     ).addMigrations(
         Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7,
-        Migration7To8, Migration8To9, Migration9To10, Migration10To11,
+        Migration7To8, Migration8To9, Migration9To10, Migration10To11, Migration11To12,
     ).build()
 }

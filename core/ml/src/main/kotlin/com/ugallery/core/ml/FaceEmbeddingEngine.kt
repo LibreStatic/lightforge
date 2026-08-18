@@ -12,6 +12,7 @@ import android.graphics.Rect
 import android.os.CancellationSignal
 import android.provider.MediaStore
 import android.util.Size
+import androidx.room.withTransaction
 import com.google.ai.edge.litert.Accelerator
 import com.google.ai.edge.litert.CompiledModel
 import com.google.ai.edge.litert.Environment
@@ -112,6 +113,15 @@ object CompactFaceEmbedding {
 object SFaceAligner {
     fun align(source: Bitmap, face: DetectedFaceEntity): Bitmap {
         val landmarks = parseLandmarks(face.landmarksJson, source.width, source.height)
+        return align(source, landmarks, face.cropRect(source.width, source.height))
+    }
+
+    fun align(source: Bitmap, face: RawDetectedFace, fallbackCrop: Rect): Bitmap {
+        val landmarks = face.landmarks.associate { it.type to PointF(it.x, it.y) }
+        return align(source, landmarks, fallbackCrop)
+    }
+
+    private fun align(source: Bitmap, landmarks: Map<Int, PointF>, fallbackCrop: Rect): Bitmap {
         val eyes = listOfNotNull(landmarks[FaceLandmark.LEFT_EYE], landmarks[FaceLandmark.RIGHT_EYE]).sortedBy(PointF::x)
         val mouths = listOfNotNull(landmarks[FaceLandmark.MOUTH_LEFT], landmarks[FaceLandmark.MOUTH_RIGHT]).sortedBy(PointF::x)
         if (eyes.size == 2 && mouths.size == 2) {
@@ -131,7 +141,7 @@ object SFaceAligner {
                 }
             }
         }
-        return FaceCropper.crop(source, face.cropRect(source.width, source.height), InputPixels)
+        return FaceCropper.crop(source, fallbackCrop, InputPixels)
     }
 
     private fun parseLandmarks(json: String, width: Int, height: Int): Map<Int, PointF> {
@@ -159,6 +169,7 @@ class FaceEmbeddingMlEngine(
     private val nowMillis: () -> Long = System::currentTimeMillis,
 ) : MlTaskEngine, Closeable {
     private val dao = database.libraryDao()
+    private val personDao = database.personDao()
     override val task = MlTaskType.FaceEmbeddings
     override val modelVersion = embeddingModelVersion
     override fun hasCurrentPermission() = permission()
@@ -208,7 +219,10 @@ class FaceEmbeddingMlEngine(
         else MlChunkOutcome.Complete(processed)
     }
 
-    override suspend fun purgeDerivedData() { dao.purgeFaceEmbeddings() }
+    override suspend fun purgeDerivedData() {
+        personDao.deleteMeProfile()
+        dao.purgeFaceEmbeddings()
+    }
     override fun close() { (inference as? Closeable)?.close() }
 
     private companion object { const val DetectionThumbnail = 1_024 }
@@ -225,3 +239,13 @@ private fun MediaItemEntity.key() = MediaKey(volumeName, mediaStoreId)
 private fun MediaItemEntity.uri() = ContentUris.withAppendedId(
     MediaStore.Images.Media.getContentUri(volumeName), mediaStoreId,
 )
+
+internal suspend fun purgeAllPersonIdentityData(database: GalleryDatabase) = database.withTransaction {
+    val person = database.personDao()
+    person.deleteMeProfile()
+    person.purgeMemberships()
+    person.purgeFaceOverrides()
+    person.purgeClusters()
+    person.purgeConstraints()
+    database.libraryDao().purgeFaceDetections()
+}
