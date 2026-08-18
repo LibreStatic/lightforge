@@ -3,6 +3,7 @@ package com.ugallery.core.ml
 import android.content.Context
 import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkManager
+import androidx.work.await
 
 class MlScheduler(context: Context) {
     private val appContext = context.applicationContext
@@ -40,7 +41,7 @@ class MlScheduler(context: Context) {
     fun resume(task: MlTaskType, mode: MlRunMode = MlRunMode.Recent): Boolean = enqueue(task, mode)
 
     suspend fun deleteDerivedData(task: MlTaskType) {
-        workManager.cancelUniqueWork(MlChunkWorker.uniqueName(task))
+        workManager.cancelUniqueWork(MlChunkWorker.uniqueName(task)).await()
         MlRuntimeRegistry.engine(task)?.purgeDerivedData()
         state.clear(task)
         state.setConsent(task, false)

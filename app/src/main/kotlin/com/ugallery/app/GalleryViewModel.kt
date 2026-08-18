@@ -68,12 +68,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -130,6 +133,9 @@ class GalleryViewModel @Inject constructor(
         mlScheduler.hasConsent(MlTaskType.ImageLabels) || mlScheduler.hasConsent(MlTaskType.Ocr),
     )
     val detectedContentEnabled = mutableDetectedContentEnabled.asStateFlow()
+    private val mutableBenchmarkMlRunning = MutableStateFlow(false)
+    val benchmarkMlRunning = mutableBenchmarkMlRunning.asStateFlow()
+    private var benchmarkMlJob: Job? = null
     private var searchCursor: MediaSearchCursor? = null
     val engineState = mutableEngineState.stateIn(
         viewModelScope,
@@ -289,6 +295,35 @@ class GalleryViewModel @Inject constructor(
             mlScheduler.deleteDerivedData(MlTaskType.ImageLabels)
             mlScheduler.deleteDerivedData(MlTaskType.Ocr)
             mutableDetectedContentEnabled.value = false
+        }
+    }
+
+    /** Benchmark-build hook that runs real bundled analysis against the indexed physical library. */
+    internal fun startBenchmarkMlLoad() {
+        if (!BuildConfig.BUILD_TYPE.contains("benchmark", ignoreCase = true)) return
+        benchmarkMlJob?.cancel()
+        benchmarkMlJob = viewModelScope.launch {
+            mutableEngineState.first { it == LibraryEngineState.Ready }
+            val tasks = listOf(MlTaskType.ImageLabels, MlTaskType.Ocr, MlTaskType.Similarity)
+            tasks.forEach { mlScheduler.deleteDerivedData(it) }
+            tasks.forEach {
+                mlScheduler.grantConsent(it)
+                check(mlScheduler.enqueue(it, MlRunMode.Recent))
+            }
+            var observedRunning = false
+            while (isActive) {
+                val checkpoints = tasks.mapNotNull(mlScheduler::checkpoint)
+                observedRunning = observedRunning || checkpoints.any {
+                    it.status == com.ugallery.core.ml.MlCheckpoint.Status.Running
+                }
+                val complete = checkpoints.size == tasks.size && checkpoints.all {
+                        it.status == com.ugallery.core.ml.MlCheckpoint.Status.Complete
+                    }
+                mutableBenchmarkMlRunning.value = observedRunning && !complete
+                if (complete) break
+                delay(50)
+            }
+            mutableBenchmarkMlRunning.value = false
         }
     }
 

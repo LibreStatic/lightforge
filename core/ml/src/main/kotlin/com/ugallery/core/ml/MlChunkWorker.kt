@@ -1,6 +1,7 @@
 package com.ugallery.core.ml
 
 import android.content.Context
+import android.util.Log
 import androidx.work.BackoffPolicy
 import androidx.work.CoroutineWorker
 import androidx.work.Data
@@ -41,12 +42,16 @@ class MlChunkWorker(
                 setProgress(workDataOf(Output.Completed to result.checkpoint.completedItems))
                 Result.success(workDataOf(Output.Completed to result.checkpoint.completedItems))
             }
-            is MlRunnerResult.Retry -> Result.retry()
+            is MlRunnerResult.Retry -> {
+                Log.w(LogTag, "Backing off ${task.name}: ${result.reason}")
+                Result.retry()
+            }
             MlRunnerResult.Stopped -> Result.success()
         }
     }
 
     companion object {
+        private const val LogTag = "UGalleryMl"
         internal fun uniqueName(task: MlTaskType) = "ugallery-ml-${task.name}"
         internal fun request(task: MlTaskType, mode: MlRunMode): OneTimeWorkRequest {
             val policy = MlWorkPolicy.forMode(mode)

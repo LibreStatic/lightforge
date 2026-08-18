@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.runtime.collectAsState
 import com.ugallery.feature.photos.PhotosRoute
 import com.ugallery.feature.photos.LibraryUiState
 import com.ugallery.core.designsystem.UGalleryTheme
@@ -26,9 +27,12 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val performanceBuild = BuildConfig.BUILD_TYPE.contains("benchmark", ignoreCase = true) ||
             BuildConfig.BUILD_TYPE.contains("nonMinified", ignoreCase = true)
+        val benchmarkMlLoad = performanceBuild &&
+            intent.getBooleanExtra(BENCHMARK_ML_LOAD_EXTRA, false)
         usesProductionRuntime = !performanceBuild ||
             intent.getBooleanExtra(PRODUCTION_TIMELINE_EXTRA, false)
         if (usesProductionRuntime) galleryViewModel.openExternal(intent)
+        if (benchmarkMlLoad) galleryViewModel.startBenchmarkMlLoad()
         val benchmarkItemCount = if (performanceBuild) {
             intent.getIntExtra(BENCHMARK_ITEM_COUNT_EXTRA, 100_000).coerceIn(0, 250_000)
         } else {
@@ -37,7 +41,13 @@ class MainActivity : ComponentActivity() {
         setContent {
             UGalleryTheme {
                 if (!usesProductionRuntime) {
-                    PhotosRoute(itemCount = benchmarkItemCount)
+                    val benchmarkMlRunning = if (benchmarkMlLoad) {
+                        galleryViewModel.benchmarkMlRunning.collectAsState().value
+                    } else false
+                    PhotosRoute(
+                        itemCount = benchmarkItemCount,
+                        benchmarkMlRunning = benchmarkMlRunning,
+                    )
                 } else {
                     ProductionGalleryApp(galleryViewModel, permissionCoordinator)
                 }
@@ -60,6 +70,7 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val BENCHMARK_ITEM_COUNT_EXTRA = "com.ugallery.app.extra.BENCHMARK_ITEM_COUNT"
+        const val BENCHMARK_ML_LOAD_EXTRA = "com.ugallery.app.extra.BENCHMARK_ML_LOAD"
         const val PRODUCTION_TIMELINE_EXTRA = "com.ugallery.app.extra.PRODUCTION_TIMELINE"
     }
 }

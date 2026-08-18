@@ -22,6 +22,7 @@ import org.junit.runner.RunWith
 
 private const val TARGET_PACKAGE = "com.ugallery.app"
 private const val BENCHMARK_ITEM_COUNT_EXTRA = "com.ugallery.app.extra.BENCHMARK_ITEM_COUNT"
+private const val BENCHMARK_ML_LOAD_EXTRA = "com.ugallery.app.extra.BENCHMARK_ML_LOAD"
 private const val PRODUCTION_TIMELINE_EXTRA = "com.ugallery.app.extra.PRODUCTION_TIMELINE"
 
 @RunWith(AndroidJUnit4::class)
@@ -69,6 +70,41 @@ class TimelineScrollBenchmark {
         val grid = device.wait(Until.findObject(By.res("timeline_grid")), 5_000)
             ?: error("Timeline grid was not exposed to UI Automator")
         repeat(12) { grid.fling(Direction.DOWN) }
+    }
+}
+
+@RunWith(AndroidJUnit4::class)
+class ConcurrentMlTimelineBenchmark {
+    @get:Rule val rule = MacrobenchmarkRule()
+
+    @Test
+    fun flingVirtual100kGridWhileBundledMlRuns() = rule.measureRepeated(
+        packageName = TARGET_PACKAGE,
+        metrics = listOf(FrameTimingMetric()),
+        compilationMode = CompilationMode.Partial(),
+        startupMode = StartupMode.WARM,
+        iterations = 5,
+        setupBlock = {
+            device.executeShellCommand("pm grant $TARGET_PACKAGE android.permission.READ_MEDIA_IMAGES")
+            device.executeShellCommand("pm grant $TARGET_PACKAGE android.permission.READ_MEDIA_VIDEO")
+            startActivityAndWait {
+                it.putExtra(BENCHMARK_ITEM_COUNT_EXTRA, 100_000)
+                it.putExtra(BENCHMARK_ML_LOAD_EXTRA, true)
+            }
+            check(device.wait(Until.hasObject(By.res("timeline_grid")), 30_000)) {
+                "Virtual timeline did not become ready"
+            }
+            check(device.wait(Until.hasObject(By.res("benchmark_ml_running")), 120_000)) {
+                "Real label, OCR, and similarity workers did not start"
+            }
+        },
+    ) {
+        val grid = device.findObject(By.res("timeline_grid"))
+            ?: error("Timeline grid disappeared")
+        repeat(12) { grid.fling(Direction.DOWN) }
+        check(device.hasObject(By.res("benchmark_ml_running"))) {
+            "ML workers completed before the measured scroll ended"
+        }
     }
 }
 

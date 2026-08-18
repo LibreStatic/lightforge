@@ -59,7 +59,7 @@ object DetectedContentRuntime {
         duplicateEngine?.takeIf { task == MlTaskType.ExactDuplicates }?.let { return it }
         similarityEngine?.takeIf { task == MlTaskType.Similarity }?.let { return it }
         val context = checkNotNull(application) { "DetectedContentRuntime is not installed" }
-        val activeDatabase = database ?: GalleryDatabaseFactory.open(context).also { database = it }
+        val activeDatabase = activeDatabase(context)
         val imagePermission = { context.hasReadableImages() }
         return when (task) {
             MlTaskType.ImageLabels -> ImageLabelMlEngine(
@@ -87,6 +87,35 @@ object DetectedContentRuntime {
         }
     }
 
+    @Synchronized
+    private fun activeDatabase(context: Context = checkNotNull(application)): GalleryDatabase =
+        database ?: GalleryDatabaseFactory.open(context).also { database = it }
+
+    private suspend fun purgeWithoutLoadingModel(task: MlTaskType) {
+        val context = checkNotNull(application) { "DetectedContentRuntime is not installed" }
+        val dao = activeDatabase(context).libraryDao()
+        when (task) {
+            MlTaskType.ImageLabels -> {
+                dao.purgeLabels()
+                dao.purgeLabelRuns()
+                AppSearchMediaIndex(context).also { index ->
+                    try { index.clear() } finally { index.close() }
+                }
+            }
+            MlTaskType.Ocr -> {
+                dao.purgeOcr()
+                AppSearchMediaIndex(context).also { index ->
+                    try { index.clear() } finally { index.close() }
+                }
+            }
+            MlTaskType.ExactDuplicates -> dao.purgeDuplicateHashes()
+            MlTaskType.Similarity -> {
+                dao.purgeSimilarityFeatures()
+                dao.purgeSimilarityExclusions()
+            }
+        }
+    }
+
     private class LazyEngine(
         override val task: MlTaskType,
         override val modelVersion: String,
@@ -97,7 +126,7 @@ object DetectedContentRuntime {
         } == true
         override suspend fun process(afterExclusive: com.ugallery.core.model.MediaKey?, limit: Int) =
             resolved(task).process(afterExclusive, limit)
-        override suspend fun purgeDerivedData() = resolved(task).purgeDerivedData()
+        override suspend fun purgeDerivedData() = purgeWithoutLoadingModel(task)
     }
 }
 

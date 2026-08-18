@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -42,6 +43,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
+import androidx.compose.ui.unit.dp
 import com.ugallery.core.designsystem.GalleryColors
 import com.ugallery.core.designsystem.GalleryGridMetrics
 import com.ugallery.core.designsystem.GalleryRadii
@@ -55,6 +57,7 @@ private val densityColumns = intArrayOf(3, 4, 5, 7)
 fun PhotosRoute(
     itemCount: Int = 0,
     modifier: Modifier = Modifier,
+    benchmarkMlRunning: Boolean = false,
 ) {
     var densityIndex by rememberSaveable { mutableIntStateOf(0) }
     var anchorIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -79,6 +82,11 @@ fun PhotosRoute(
             .semantics { testTagsAsResourceId = true }
             .padding(WindowInsets.safeDrawing.asPaddingValues()),
     ) {
+        Box(
+            Modifier
+                .size(1.dp)
+                .then(if (benchmarkMlRunning) Modifier.testTag("benchmark_ml_running") else Modifier),
+        )
         Row(
             modifier = Modifier
                 .fillMaxWidth()
