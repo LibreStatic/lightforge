@@ -47,7 +47,9 @@ import com.ugallery.core.ml.PetCollectionRepository
 import com.ugallery.core.ml.PetCollectionSettings
 import com.ugallery.core.ml.PetCollectionSummary
 import com.ugallery.core.ml.PetType
+import com.ugallery.core.ml.PeopleRepository
 import com.ugallery.core.ml.MlRunMode
+import com.ugallery.core.ml.MlControlState
 import com.ugallery.core.search.AppSearchMediaSearchRepository
 import com.ugallery.core.search.MediaSearchCursor
 import com.ugallery.core.search.MediaSearchHit
@@ -64,7 +66,11 @@ import com.ugallery.core.selection.SelectionSpec
 import com.ugallery.core.selection.MediaQuery
 import com.ugallery.core.thumbnail.NativeImageDecoder
 import com.ugallery.core.thumbnail.ThumbnailLoader
+import com.ugallery.feature.collections.LocalMeUiState
 import com.ugallery.feature.collections.MomentMemberUi
+import com.ugallery.feature.collections.PeopleUiState
+import com.ugallery.feature.collections.PersonCardUi
+import com.ugallery.feature.collections.PersonMemberCardUi
 import com.ugallery.feature.permissions.PermissionCoordinator
 import com.ugallery.feature.viewer.PhotoLoadState
 import com.ugallery.feature.viewer.PhotoViewerPipeline
@@ -147,12 +153,36 @@ class GalleryViewModel @Inject constructor(
     val detectedContentEnabled = mutableDetectedContentEnabled.asStateFlow()
     private val mutableFaceAnalysis = MutableStateFlow(mlScheduler.controlState(MlTaskType.FaceDetection))
     val faceAnalysis = mutableFaceAnalysis.asStateFlow()
+    private val mutablePeopleAnalysis = MutableStateFlow(peopleControlState())
+    val peopleAnalysis = mutablePeopleAnalysis.asStateFlow()
     private val mutablePetCollectionsEnabled = MutableStateFlow(petSettings.isEnabled())
     val petCollectionsEnabled = mutablePetCollectionsEnabled.asStateFlow()
     val petSummary = runtime.filterNotNull()
         .flatMapLatest { PetCollectionRepository(it.database).summary() }
         .stateIn(viewModelScope, SharingStarted.Eagerly, PetCollectionSummary())
+    val peopleSummaries = runtime.filterNotNull()
+        .flatMapLatest { PeopleRepository(it.database).people() }
+        .map { rows ->
+            rows.map { row ->
+                PersonCardUi(
+                    clusterId = row.cluster.clusterId,
+                    displayName = row.cluster.displayName,
+                    memberCount = row.visibleMemberCount,
+                    coverKey = row.coverVolumeName?.let { volume ->
+                        row.coverMediaStoreId?.let { id -> MediaKey(volume, id) }
+                    },
+                )
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    private val mutableSelectedPerson = MutableStateFlow<PersonCardUi?>(null)
+    val selectedPerson = mutableSelectedPerson.asStateFlow()
+    private val mutableSelectedPersonMembers = MutableStateFlow<List<PersonMemberCardUi>>(emptyList())
+    val selectedPersonMembers = mutableSelectedPersonMembers.asStateFlow()
+    private val mutableMe = MutableStateFlow<LocalMeUiState?>(null)
+    val me = mutableMe.asStateFlow()
     private var faceProgressJob: Job? = null
+    private var peopleProgressJob: Job? = null
     private val mutableBenchmarkMlRunning = MutableStateFlow(false)
     val benchmarkMlRunning = mutableBenchmarkMlRunning.asStateFlow()
     private var benchmarkMlJob: Job? = null
@@ -227,6 +257,7 @@ class GalleryViewModel @Inject constructor(
 
     init {
         if (mlScheduler.hasConsent(MlTaskType.FaceDetection)) monitorFaceProgress()
+        if (mlScheduler.hasConsent(MlTaskType.PersonClustering)) monitorPeopleProgress()
         viewModelScope.launch {
             val created = try {
                 withContext(Dispatchers.IO) { createRuntime(application) }
@@ -351,7 +382,102 @@ class GalleryViewModel @Inject constructor(
         viewModelScope.launch {
             mlScheduler.deleteDerivedData(MlTaskType.FaceDetection)
             faceProgressJob?.cancel()
+            peopleProgressJob?.cancel()
+            mutableSelectedPerson.value = null
+            mutableSelectedPersonMembers.value = emptyList()
+            mutableMe.value = null
             mutableFaceAnalysis.value = mlScheduler.controlState(MlTaskType.FaceDetection)
+            mutablePeopleAnalysis.value = peopleControlState()
+        }
+    }
+
+    fun enablePeopleRecognition() {
+        listOf(MlTaskType.FaceDetection, MlTaskType.FaceEmbeddings, MlTaskType.PersonClustering).forEach(mlScheduler::grantConsent)
+        mlScheduler.enqueue(MlTaskType.FaceDetection, MlRunMode.Recent)
+        mutablePeopleAnalysis.value = peopleControlState()
+        monitorFaceProgress()
+        monitorPeopleProgress()
+    }
+
+    fun pausePeopleRecognition() {
+        listOf(MlTaskType.FaceDetection, MlTaskType.FaceEmbeddings, MlTaskType.PersonClustering).forEach(mlScheduler::pause)
+        mutablePeopleAnalysis.value = peopleControlState()
+        peopleProgressJob?.cancel()
+    }
+
+    fun resumePeopleRecognition() {
+        listOf(MlTaskType.FaceDetection, MlTaskType.FaceEmbeddings, MlTaskType.PersonClustering).forEach(mlScheduler::grantConsent)
+        val next = nextPeopleTask() ?: MlTaskType.FaceDetection
+        mlScheduler.enqueue(next, MlRunMode.Recent)
+        mutablePeopleAnalysis.value = peopleControlState()
+        monitorFaceProgress()
+        monitorPeopleProgress()
+    }
+
+    fun analyzeAllPeople() {
+        viewModelScope.launch {
+            listOf(MlTaskType.PersonClustering, MlTaskType.FaceEmbeddings, MlTaskType.FaceDetection).forEach {
+                mlScheduler.deleteDerivedData(it)
+            }
+            listOf(MlTaskType.FaceDetection, MlTaskType.FaceEmbeddings, MlTaskType.PersonClustering).forEach(mlScheduler::grantConsent)
+            mlScheduler.restart(MlTaskType.FaceDetection, MlRunMode.FullLibrary)
+            monitorFaceProgress()
+            monitorPeopleProgress()
+        }
+    }
+
+    fun deletePeopleRecognitionData() {
+        viewModelScope.launch {
+            listOf(MlTaskType.PersonClustering, MlTaskType.FaceEmbeddings, MlTaskType.FaceDetection).forEach {
+                mlScheduler.deleteDerivedData(it)
+            }
+            peopleProgressJob?.cancel()
+            faceProgressJob?.cancel()
+            mutableSelectedPerson.value = null
+            mutableSelectedPersonMembers.value = emptyList()
+            mutableMe.value = null
+            mutableFaceAnalysis.value = mlScheduler.controlState(MlTaskType.FaceDetection)
+            mutablePeopleAnalysis.value = peopleControlState()
+        }
+    }
+
+    fun openPerson(clusterId: String) {
+        val selected = peopleSummaries.value.firstOrNull { it.clusterId == clusterId } ?: return
+        mutableSelectedPerson.value = selected
+        viewModelScope.launch {
+            val repo = runtime.value?.database?.let(::PeopleRepository) ?: return@launch
+            mutableSelectedPersonMembers.value = repo.members(clusterId).map {
+                PersonMemberCardUi(MediaKey(it.media.volumeName, it.media.mediaStoreId), it.membership.faceOrdinal)
+            }
+        }
+    }
+
+    fun renamePerson(clusterId: String, name: String?) {
+        viewModelScope.launch {
+            runtime.value?.database?.let(::PeopleRepository)?.rename(clusterId, name)
+            mutableSelectedPerson.value = mutableSelectedPerson.value?.takeIf { it.clusterId == clusterId }?.copy(displayName = name)
+        }
+    }
+
+    fun hidePerson(clusterId: String) {
+        viewModelScope.launch {
+            runtime.value?.database?.let(::PeopleRepository)?.hide(clusterId)
+            mutableSelectedPerson.value = null
+            mutableSelectedPersonMembers.value = emptyList()
+        }
+    }
+
+    fun setSelectedPersonAsMe(clusterId: String) {
+        viewModelScope.launch {
+            runtime.value?.database?.let(::PeopleRepository)?.setAsMeFromCluster(clusterId)
+            refreshMeState()
+        }
+    }
+
+    fun resetMe() {
+        viewModelScope.launch {
+            runtime.value?.database?.let(::PeopleRepository)?.resetMe()
+            mutableMe.value = null
         }
     }
 
@@ -395,6 +521,63 @@ class GalleryViewModel @Inject constructor(
                 delay(500)
             }
         }
+    }
+
+    private fun peopleControlState(): MlControlState {
+        val tasks = listOf(MlTaskType.FaceDetection, MlTaskType.FaceEmbeddings, MlTaskType.PersonClustering)
+        val states = tasks.map(mlScheduler::controlState)
+        val statuses = states.mapNotNull { it.status }
+        val status = when {
+            statuses.any { it == com.ugallery.core.ml.MlCheckpoint.Status.Running } -> com.ugallery.core.ml.MlCheckpoint.Status.Running
+            states.any { it.paused } -> com.ugallery.core.ml.MlCheckpoint.Status.Paused
+            statuses.size == tasks.size && statuses.all { it == com.ugallery.core.ml.MlCheckpoint.Status.Complete } -> com.ugallery.core.ml.MlCheckpoint.Status.Complete
+            statuses.isNotEmpty() -> com.ugallery.core.ml.MlCheckpoint.Status.Ready
+            else -> null
+        }
+        return MlControlState(
+            consentGranted = states.any { it.consentGranted },
+            paused = states.any { it.paused },
+            completedItems = states.sumOf { it.completedItems },
+            status = status,
+        )
+    }
+
+    private fun nextPeopleTask(): MlTaskType? {
+        val face = mlScheduler.checkpoint(MlTaskType.FaceDetection)
+        val embeddings = mlScheduler.checkpoint(MlTaskType.FaceEmbeddings)
+        val clustering = mlScheduler.checkpoint(MlTaskType.PersonClustering)
+        return when {
+            face?.status != com.ugallery.core.ml.MlCheckpoint.Status.Complete -> MlTaskType.FaceDetection
+            embeddings?.status != com.ugallery.core.ml.MlCheckpoint.Status.Complete -> MlTaskType.FaceEmbeddings
+            clustering?.status != com.ugallery.core.ml.MlCheckpoint.Status.Complete -> MlTaskType.PersonClustering
+            else -> null
+        }
+    }
+
+    private fun monitorPeopleProgress() {
+        peopleProgressJob?.cancel()
+        peopleProgressJob = viewModelScope.launch {
+            while (isActive) {
+                val next = nextPeopleTask()
+                if (next != null && mlScheduler.hasConsent(next)) mlScheduler.enqueue(next, MlRunMode.Recent)
+                mutablePeopleAnalysis.value = peopleControlState()
+                refreshMeState()
+                if (next == null) break
+                if (listOf(MlTaskType.FaceDetection, MlTaskType.FaceEmbeddings, MlTaskType.PersonClustering).any {
+                    mlScheduler.controlState(it).paused
+                }) break
+                delay(750)
+            }
+        }
+    }
+
+    private suspend fun refreshMeState() {
+        val repo = runtime.value?.database?.let(::PeopleRepository) ?: return
+        val state = repo.meState() ?: run { mutableMe.value = null; return }
+        val matches = repo.meMatches().map {
+            PersonMemberCardUi(MediaKey(it.media.volumeName, it.media.mediaStoreId), it.match.faceOrdinal)
+        }
+        mutableMe.value = LocalMeUiState(state.referenceCount, state.isReady, state.matchCount, matches)
     }
 
     /** Benchmark-build hook that runs real bundled analysis against the indexed physical library. */

@@ -55,6 +55,8 @@ import com.ugallery.core.selection.SelectionSpec
 import com.ugallery.feature.album.AlbumContent
 import com.ugallery.feature.collections.CollectionsContent
 import com.ugallery.feature.collections.MomentContent
+import com.ugallery.feature.collections.PeopleContent
+import com.ugallery.feature.collections.PeopleUiState
 import com.ugallery.feature.collections.formatMomentDateRange
 import com.ugallery.feature.details.DetailsContent
 import com.ugallery.feature.permissions.PermissionCoordinator
@@ -68,7 +70,7 @@ import com.ugallery.feature.settings.FaceAnalysisUiState
 import com.ugallery.feature.settings.RecognitionSettingsContent
 
 private enum class RootTab { Photos, Collections, Search }
-private enum class SurfaceRoute { Root, Album, Viewer, Trash, Settings, Moment }
+private enum class SurfaceRoute { Root, Album, Viewer, Trash, Settings, Moment, People }
 
 @Composable
 internal fun ProductionGalleryApp(
@@ -91,11 +93,16 @@ internal fun ProductionGalleryApp(
     val searchIndexReady by viewModel.searchIndexReady.collectAsState()
     val detectedContentEnabled by viewModel.detectedContentEnabled.collectAsState()
     val faceAnalysis by viewModel.faceAnalysis.collectAsState()
+    val peopleAnalysis by viewModel.peopleAnalysis.collectAsState()
     val petCollectionsEnabled by viewModel.petCollectionsEnabled.collectAsState()
     val petSummary by viewModel.petSummary.collectAsState()
     val selectedMoment by viewModel.selectedMoment.collectAsState()
     val momentSummaries by viewModel.momentSummaries.collectAsState()
     val momentMembers by viewModel.momentMembers.collectAsState(initial = emptyList())
+    val people by viewModel.peopleSummaries.collectAsState()
+    val selectedPerson by viewModel.selectedPerson.collectAsState()
+    val selectedPersonMembers by viewModel.selectedPersonMembers.collectAsState()
+    val me by viewModel.me.collectAsState()
     val actionState by viewModel.systemAction.collectAsState()
     val external by viewModel.externalMedia.collectAsState()
     val externalPhoto by viewModel.externalPhotoState.collectAsState()
@@ -190,6 +197,9 @@ internal fun ProductionGalleryApp(
                         onCreateAlbum = { showCreateAlbum = true },
                         onTrashClick = { route = SurfaceRoute.Trash },
                         onLocalAnalysisClick = { route = SurfaceRoute.Settings },
+                        peopleEnabled = true,
+                        peopleCount = people.size.toLong(),
+                        onPeopleClick = { route = SurfaceRoute.People },
                         petCollectionsEnabled = petCollectionsEnabled,
                         dogCount = petSummary.dogCount,
                         catCount = petSummary.catCount,
@@ -266,6 +276,30 @@ internal fun ProductionGalleryApp(
                         onReorder = { scope.launch { viewModel.reorderMoment(it) } },
                     )
                 }
+                SurfaceRoute.People -> PeopleContent(
+                    state = PeopleUiState(
+                        consentGranted = peopleAnalysis.consentGranted || people.isNotEmpty(),
+                        paused = peopleAnalysis.paused,
+                        running = peopleAnalysis.status == com.ugallery.core.ml.MlCheckpoint.Status.Running,
+                        completedItems = peopleAnalysis.completedItems,
+                        people = people,
+                        selectedPerson = selectedPerson,
+                        selectedMembers = selectedPersonMembers,
+                        me = me,
+                    ),
+                    thumbnailLoader = thumbnails,
+                    onBack = { route = SurfaceRoute.Root },
+                    onEnable = viewModel::enablePeopleRecognition,
+                    onPause = viewModel::pausePeopleRecognition,
+                    onResume = viewModel::resumePeopleRecognition,
+                    onAnalyzeAll = viewModel::analyzeAllPeople,
+                    onDeleteAll = viewModel::deletePeopleRecognitionData,
+                    onPersonClick = viewModel::openPerson,
+                    onRenamePerson = viewModel::renamePerson,
+                    onHidePerson = viewModel::hidePerson,
+                    onSetSelectedAsMe = viewModel::setSelectedPersonAsMe,
+                    onResetMe = viewModel::resetMe,
+                )
                 SurfaceRoute.Trash -> TrashContent(
                     visibleItems = trashItems.itemSnapshotList.items,
                     totalCount = trashCount,

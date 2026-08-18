@@ -41,6 +41,9 @@ fun CollectionsContent(
     onCreateAlbum: () -> Unit,
     onTrashClick: () -> Unit,
     onLocalAnalysisClick: () -> Unit,
+    peopleEnabled: Boolean,
+    peopleCount: Long,
+    onPeopleClick: () -> Unit,
     petCollectionsEnabled: Boolean,
     dogCount: Long,
     catCount: Long,
@@ -70,6 +73,15 @@ fun CollectionsContent(
                         body = stringResource(R.string.collections_local_analysis_body),
                         onClick = onLocalAnalysisClick,
                     )
+                }
+                if (peopleEnabled) {
+                    item {
+                        CollectionCard(
+                            title = stringResource(R.string.collections_people),
+                            body = stringResource(R.string.collections_item_count, peopleCount),
+                            onClick = onPeopleClick,
+                        )
+                    }
                 }
                 if (petCollectionsEnabled) {
                     item {

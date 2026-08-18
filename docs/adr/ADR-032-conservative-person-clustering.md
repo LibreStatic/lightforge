@@ -1,14 +1,13 @@
 # ADR-032 — Conservative local person clustering with persistent corrections
 
-Status: backend accepted; production activation license-gated  
+Status: accepted for non-commercial activation; commercial activation requires a new compatible corpus gate  
 Date: 2026-08-18
 
 ## Context
 
 M4 requires incremental local grouping over compact SFace embeddings, zero hidden cloud work,
 bounded memory, conservative automatic merges and manual corrections that survive reclustering.
-Loading all embeddings or all face IDs is forbidden. The available identity corpus is useful for
-research but is licensed only under DigiFace-1M R-UDA v1.0.
+Loading all embeddings or all face IDs is forbidden. The user confirmed UGallery is non-commercial, which is compatible with the available DigiFace-derived R-UDA research corpus for this M4 gate.
 
 ## Decision
 
@@ -23,8 +22,7 @@ research but is licensed only under DigiFace-1M R-UDA v1.0.
   split, rename and hide are always manual; no name is generated automatically.
 - Use deterministic automatic IDs and explicit manual split IDs so display names/hidden state and
   assignments survive embedding rebuilds.
-- Keep the runtime unscheduled and People/Me UI unavailable until the corpus license is compatible
-  with the intended product scope or a production-compatible corpus passes the same gate.
+- Register the clustering runtime and expose People/Me only after explicit user consent. The activation remains scoped to non-commercial use; commercial/unrestricted release must repeat the identity gate with compatible rights.
 
 ## Local Me profile
 
@@ -38,5 +36,4 @@ constraints, overrides, names and the profile without deleting photos.
 - False negatives/fragmentation are preferable to an unsafe automatic merge.
 - The projection index is rebuildable and bounded but remains approximate; manual corrections are
   first-class product state rather than model output.
-- The reference phone research holdout passed 7/7 positives and 0/48 negatives, but the sample is small and its
-  R-UDA license prevents presenting it as an unrestricted production/commercial validation.
+- The reference phone research holdout passed 7/7 positives and 0/48 negatives. The sample is small and its R-UDA license still prevents presenting it as an unrestricted production/commercial validation.

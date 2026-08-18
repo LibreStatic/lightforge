@@ -213,3 +213,21 @@ data class MeMatchEntity(
     val similarity: Float,
     val matchedAtMillis: Long,
 )
+
+
+data class PersonClusterSummaryRow(
+    @androidx.room.Embedded val cluster: PersonClusterEntity,
+    val visibleMemberCount: Int,
+    val coverVolumeName: String?,
+    val coverMediaStoreId: Long?,
+)
+
+data class PersonMembershipMediaRow(
+    @androidx.room.Embedded val membership: PersonMembershipEntity,
+    @androidx.room.Embedded(prefix = "media_") val media: MediaItemEntity,
+)
+
+data class MeMatchMediaRow(
+    @androidx.room.Embedded val match: MeMatchEntity,
+    @androidx.room.Embedded(prefix = "media_") val media: MediaItemEntity,
+)

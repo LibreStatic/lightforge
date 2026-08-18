@@ -1,6 +1,6 @@
 # M4-T03 face embedding candidate report
 
-Status: **OpenCV Zoo SFace approved; research identity gate passed, production corpus rights open**  
+Status: **OpenCV Zoo SFace approved; non-commercial identity gate passed**  
 Date: 2026-08-18
 
 ## Required gate
@@ -47,7 +47,5 @@ Primary references:
 
 The accepted artifact may enter the local embedding runtime and benchmark lane. The user-supplied
 DigiFace-derived v3 corpus passed the research false-merge holdout at the conservative `0.47` gate,
-but its R-UDA limits data/results to non-commercial research. Automatic People/Me production
-surfaces therefore remain disabled until product scope is confirmed compatible or a corpus with
-production-compatible rights passes the same gate. The checkpoint's incomplete exact training
+and the user confirmed UGallery is non-commercial. Automatic People/Me surfaces may be enabled for that scope, but the R-UDA corpus cannot support an unrestricted commercial claim unless a production-compatible corpus passes the same gate. The checkpoint's incomplete exact training
 recipe remains a documented release-review risk rather than being silently presented as known.

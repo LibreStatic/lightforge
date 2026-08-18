@@ -38,6 +38,7 @@ object DetectedContentRuntime {
         MlRuntimeRegistry.register(LazyEngine(MlTaskType.Similarity, SimilarityMlEngine.AlgorithmVersion))
         MlRuntimeRegistry.register(LazyEngine(MlTaskType.FaceDetection, FaceDetectionMlEngine.ModelVersion))
         MlRuntimeRegistry.register(LazyEngine(MlTaskType.FaceEmbeddings, SFaceLiteRtEmbeddingInference.ModelVersion))
+        MlRuntimeRegistry.register(LazyEngine(MlTaskType.PersonClustering, PersonClusteringMlEngine.AlgorithmVersion))
     }
 
     @Synchronized
@@ -48,6 +49,7 @@ object DetectedContentRuntime {
         MlRuntimeRegistry.unregister(MlTaskType.Similarity)
         MlRuntimeRegistry.unregister(MlTaskType.FaceDetection)
         MlRuntimeRegistry.unregister(MlTaskType.FaceEmbeddings)
+        MlRuntimeRegistry.unregister(MlTaskType.PersonClustering)
         labelEngine?.close()
         ocrEngine?.close()
         faceEmbeddingEngine?.close()

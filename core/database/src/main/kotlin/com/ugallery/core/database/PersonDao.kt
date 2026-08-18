@@ -5,9 +5,61 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Upsert
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PersonDao {
+
+    @Query(
+        "SELECT c.*, COUNT(p.faceOrdinal) AS visibleMemberCount, " +
+            "(SELECT pm.volumeName FROM person_memberships pm JOIN media_items m ON " +
+            "m.volumeName=pm.volumeName AND m.mediaStoreId=pm.mediaStoreId WHERE pm.clusterId=c.clusterId " +
+            "AND m.isAccessible=1 AND m.isTrashed=0 ORDER BY pm.similarity DESC, pm.volumeName, pm.mediaStoreId LIMIT 1) " +
+            "AS coverVolumeName, " +
+            "(SELECT pm.mediaStoreId FROM person_memberships pm JOIN media_items m ON " +
+            "m.volumeName=pm.volumeName AND m.mediaStoreId=pm.mediaStoreId WHERE pm.clusterId=c.clusterId " +
+            "AND m.isAccessible=1 AND m.isTrashed=0 ORDER BY pm.similarity DESC, pm.volumeName, pm.mediaStoreId LIMIT 1) " +
+            "AS coverMediaStoreId FROM person_clusters c JOIN person_memberships p ON p.clusterId=c.clusterId " +
+            "JOIN media_items m ON m.volumeName=p.volumeName AND m.mediaStoreId=p.mediaStoreId " +
+            "WHERE c.algorithmVersion=:algorithmVersion AND c.isHidden=0 AND m.isAccessible=1 AND m.isTrashed=0 " +
+            "GROUP BY c.clusterId HAVING visibleMemberCount>0 ORDER BY visibleMemberCount DESC, c.updatedAtMillis DESC LIMIT :limit",
+    )
+    fun visiblePersonSummaries(algorithmVersion: String, limit: Int): Flow<List<PersonClusterSummaryRow>>
+
+    @Query(
+        "SELECT p.*,m.volumeName AS media_volumeName,m.mediaStoreId AS media_mediaStoreId," +
+            "m.mediaType AS media_mediaType,m.mimeType AS media_mimeType,m.displayName AS media_displayName," +
+            "m.sizeBytes AS media_sizeBytes,m.width AS media_width,m.height AS media_height," +
+            "m.durationMillis AS media_durationMillis,m.orientationDegrees AS media_orientationDegrees," +
+            "m.dateTakenMillis AS media_dateTakenMillis,m.dateAddedSeconds AS media_dateAddedSeconds," +
+            "m.dateModifiedSeconds AS media_dateModifiedSeconds,m.timelineSortMillis AS media_timelineSortMillis," +
+            "m.generationAdded AS media_generationAdded,m.generationModified AS media_generationModified," +
+            "m.bucketId AS media_bucketId,m.bucketDisplayName AS media_bucketDisplayName," +
+            "m.relativePath AS media_relativePath,m.isFavorite AS media_isFavorite,m.isTrashed AS media_isTrashed," +
+            "m.isAccessible AS media_isAccessible,m.lastSeenScanId AS media_lastSeenScanId," +
+            "m.dateExpiresSeconds AS media_dateExpiresSeconds FROM person_memberships p JOIN media_items m ON " +
+            "m.volumeName=p.volumeName AND m.mediaStoreId=p.mediaStoreId WHERE p.clusterId=:clusterId " +
+            "AND m.isAccessible=1 AND m.isTrashed=0 ORDER BY p.similarity DESC, p.volumeName, p.mediaStoreId LIMIT :limit",
+    )
+    suspend fun visibleClusterMembers(clusterId: String, limit: Int): List<PersonMembershipMediaRow>
+
+    @Query(
+        "SELECT mm.*,m.volumeName AS media_volumeName,m.mediaStoreId AS media_mediaStoreId," +
+            "m.mediaType AS media_mediaType,m.mimeType AS media_mimeType,m.displayName AS media_displayName," +
+            "m.sizeBytes AS media_sizeBytes,m.width AS media_width,m.height AS media_height," +
+            "m.durationMillis AS media_durationMillis,m.orientationDegrees AS media_orientationDegrees," +
+            "m.dateTakenMillis AS media_dateTakenMillis,m.dateAddedSeconds AS media_dateAddedSeconds," +
+            "m.dateModifiedSeconds AS media_dateModifiedSeconds,m.timelineSortMillis AS media_timelineSortMillis," +
+            "m.generationAdded AS media_generationAdded,m.generationModified AS media_generationModified," +
+            "m.bucketId AS media_bucketId,m.bucketDisplayName AS media_bucketDisplayName," +
+            "m.relativePath AS media_relativePath,m.isFavorite AS media_isFavorite,m.isTrashed AS media_isTrashed," +
+            "m.isAccessible AS media_isAccessible,m.lastSeenScanId AS media_lastSeenScanId," +
+            "m.dateExpiresSeconds AS media_dateExpiresSeconds FROM me_matches mm JOIN media_items m ON " +
+            "m.volumeName=mm.volumeName AND m.mediaStoreId=mm.mediaStoreId WHERE mm.profileId=:profileId " +
+            "AND m.isAccessible=1 AND m.isTrashed=0 ORDER BY mm.similarity DESC LIMIT :limit",
+    )
+    suspend fun visibleMeMatches(profileId: Int = 0, limit: Int): List<MeMatchMediaRow>
+
     @Query("SELECT * FROM face_embeddings WHERE volumeName=:volumeName AND mediaStoreId=:mediaStoreId AND faceOrdinal=:faceOrdinal")
     suspend fun embedding(volumeName: String, mediaStoreId: Long, faceOrdinal: Int): FaceEmbeddingEntity?
 
