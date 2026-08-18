@@ -8,6 +8,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Rect
 import android.net.Uri
+import android.util.Log
 import android.provider.MediaStore
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -114,6 +115,38 @@ class DetectedContentEngineDeviceTest {
         assertTrue("Bundled cold label+OCR inference took ${elapsed}ms", elapsed < 15_000)
     }
 
+    @Test fun bundledFaceDetectorSyntheticCorpusCompletesWithinCalibrationBudget() = runBlocking {
+        // This deliberately uses generated, non-identifying fixtures. It is a pipeline/latency
+        // calibration corpus, not a demographic accuracy claim; a licensed photographic corpus
+        // is still required before enabling identity-related work.
+        val corpus = listOf(
+            faceLikeBitmap(1f, 0f),
+            faceLikeBitmap(.75f, -12f),
+            faceLikeBitmap(.55f, 18f),
+            faceLikeBitmap(.35f, 0f),
+            faceLikeBitmap(.22f, 28f),
+            faceLikeBitmap(.12f, -25f),
+        )
+        val elapsed = mutableListOf<Long>()
+        BundledMlKitFaceDetectionInference().use { detector ->
+            corpus.forEachIndexed { index, bitmap ->
+                try {
+                    val started = android.os.SystemClock.elapsedRealtime()
+                    val faces = detector.infer(bitmap)
+                    elapsed += android.os.SystemClock.elapsedRealtime() - started
+                    assertTrue("Synthetic fixture $index returned too many detections", faces.size <= 20)
+                } finally {
+                    bitmap.recycle()
+                }
+            }
+        }
+        val sorted = elapsed.sorted()
+        val p50 = sorted[sorted.lastIndex / 2]
+        val p95 = sorted[((sorted.size - 1) * 95) / 100]
+        Log.i("UGalleryFaceCalibration", "synthetic_count=${elapsed.size} p50_ms=$p50 p95_ms=$p95 max_ms=${sorted.last()} model=${FaceDetectionMlEngine.ModelVersion}")
+        assertTrue("Synthetic face calibration p95=${p95}ms", p95 < 5_000)
+    }
+
     @Test fun faceDetectionFiltersLowQualityAndStoresOnlyGeometry() = runBlocking {
         val fixture = imageFixture("faces-${UUID.randomUUID()}.png", "FACES")
         database.libraryDao().upsertMedia(listOf(media(fixture, bucket = "Camera", sort = 40)))
@@ -210,6 +243,30 @@ class DetectedContentEngineDeviceTest {
             drawText(text, 80f, 330f, Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = Color.BLACK; textSize = 150f; typeface = android.graphics.Typeface.DEFAULT_BOLD
             })
+        }
+    }
+
+    private fun faceLikeBitmap(scale: Float, tilt: Float): Bitmap = Bitmap.createBitmap(1_024, 1_024, Bitmap.Config.ARGB_8888).also {
+        Canvas(it).apply {
+            drawColor(Color.rgb(235, 235, 235))
+            save()
+            rotate(tilt, 512f, 512f)
+            val radius = 350f * scale.coerceAtLeast(.12f)
+            val centerX = 512f
+            val centerY = 512f
+            drawCircle(centerX, centerY, radius, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(218, 170, 130) })
+            val eyeRadius = (radius * .09f).coerceAtLeast(8f)
+            drawCircle(centerX - radius * .32f, centerY - radius * .18f, eyeRadius, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.DKGRAY })
+            drawCircle(centerX + radius * .32f, centerY - radius * .18f, eyeRadius, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.DKGRAY })
+            drawCircle(centerX, centerY + radius * .05f, eyeRadius * .65f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(180, 130, 100) })
+            drawArc(
+                centerX - radius * .28f, centerY + radius * .12f,
+                centerX + radius * .28f, centerY + radius * .52f,
+                15f, 150f, false, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = Color.DKGRAY; style = Paint.Style.STROKE; strokeWidth = eyeRadius * .55f
+                },
+            )
+            restore()
         }
     }
 
