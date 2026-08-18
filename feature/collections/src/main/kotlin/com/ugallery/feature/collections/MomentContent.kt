@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -78,7 +80,10 @@ fun MomentContent(
     var renaming by remember { mutableStateOf(false) }
     var editTitle by remember { mutableStateOf(moment.title ?: "") }
 
-    Column(modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(TileSpacing)) {
+    Column(
+        modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(TileSpacing),
+    ) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onBack) { Text(stringResource(android.R.string.cancel)) }
             Text(
