@@ -110,6 +110,26 @@ class MlSchedulerPolicyDeviceTest {
         assertEquals(ListenableWorker.Result.retry(), worker.doWork())
     }
 
+    @Test fun faceDetectionNeverRunsBeforeConsentAndDeleteResetsEverything() = runBlocking {
+        val engine = FakeEngine(task = MlTaskType.FaceDetection)
+        MlRuntimeRegistry.register(engine)
+        val scheduler = MlScheduler(context)
+
+        assertEquals(MlRunnerResult.Stopped, runner().run(engine, MlWorkPolicy.forMode(MlRunMode.Recent)))
+        assertEquals(0, engine.processCalls)
+
+        scheduler.grantConsent(MlTaskType.FaceDetection)
+        assertTrue(runner().run(engine, MlWorkPolicy.forMode(MlRunMode.Recent)) is MlRunnerResult.Finished)
+        assertTrue(scheduler.controlState(MlTaskType.FaceDetection).consentGranted)
+
+        scheduler.deleteDerivedData(MlTaskType.FaceDetection)
+        val deleted = scheduler.controlState(MlTaskType.FaceDetection)
+        assertFalse(deleted.consentGranted)
+        assertFalse(deleted.paused)
+        assertNull(deleted.status)
+        assertEquals(1, engine.purgeCalls)
+    }
+
     private fun runner() = MlChunkRunner(
         state,
         MlExecutionController(ThermalStatusProvider { PowerManager.THERMAL_STATUS_NONE }),

@@ -1,0 +1,16 @@
+<resources>
+    <string name="face_analysis_title">Análisis de rostros</string>
+    <string name="face_analysis_privacy">Las regiones faciales se detectan localmente después de tu autorización. Podés pausar el análisis y borrar todos los datos derivados.</string>
+    <string name="face_analysis_no_identity">La detección no identifica ni nombra personas.</string>
+    <string name="face_analysis_enable">Activar detección facial local</string>
+    <string name="face_analysis_progress">%1$d fotos analizadas</string>
+    <string name="face_analysis_pause">Pausar</string>
+    <string name="face_analysis_resume">Analizar ahora</string>
+    <string name="face_analysis_all">Analizar toda la biblioteca</string>
+    <string name="face_analysis_all_requirements">El análisis completo espera carga, reposo y suficiente batería y almacenamiento.</string>
+    <string name="face_analysis_delete">Borrar datos de análisis facial</string>
+    <string name="face_analysis_delete_title">¿Borrar datos faciales locales?</string>
+    <string name="face_analysis_delete_body">Se eliminarán la geometría detectada, el progreso y el consentimiento. Tus fotos nunca se modifican.</string>
+    <string name="face_analysis_delete_confirm">Borrar datos</string>
+    <string name="face_analysis_cancel">Cancelar</string>
+</resources>

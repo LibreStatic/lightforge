@@ -2,7 +2,7 @@ package com.ugallery.core.ml
 
 import com.ugallery.core.model.MediaKey
 
-enum class MlTaskType { ImageLabels, Ocr, ExactDuplicates, Similarity }
+enum class MlTaskType { ImageLabels, Ocr, ExactDuplicates, Similarity, FaceDetection }
 enum class MlRunMode { Recent, FullLibrary }
 
 data class MlCheckpoint(

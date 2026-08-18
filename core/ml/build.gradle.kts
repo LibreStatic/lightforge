@@ -29,6 +29,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation("com.google.mlkit:image-labeling:17.0.9")
     implementation("com.google.mlkit:text-recognition:16.0.1")
+    implementation("com.google.mlkit:face-detection:16.1.7")
     testImplementation(libs.junit4)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.test.ext)

@@ -82,6 +82,7 @@ dependencies {
     implementation(project(":feature:details"))
     implementation(project(":feature:trash"))
     implementation(project(":feature:search"))
+    implementation(project(":feature:settings"))
     implementation(project(":core:selection"))
 
     implementation(platform(libs.compose.bom))

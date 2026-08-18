@@ -12,6 +12,40 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface LibraryDao {
+    @Query(
+        "SELECT m.* FROM media_items m WHERE m.mediaType=1 AND m.isAccessible=1 AND m.isTrashed=0 " +
+            "AND NOT EXISTS (SELECT 1 FROM face_detection_runs r WHERE r.volumeName=m.volumeName " +
+            "AND r.mediaStoreId=m.mediaStoreId AND r.generationModified=m.generationModified " +
+            "AND r.modelVersion=:modelVersion) " +
+            "ORDER BY m.timelineSortMillis DESC, m.mediaStoreId DESC, m.volumeName DESC LIMIT :limit",
+    )
+    suspend fun pendingFaceDetectionCandidates(modelVersion: String, limit: Int): List<MediaItemEntity>
+
+    @Query("DELETE FROM detected_faces WHERE volumeName=:volumeName AND mediaStoreId=:mediaStoreId")
+    suspend fun deleteDetectedFaces(volumeName: String, mediaStoreId: Long): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertFaceDetectionRun(run: FaceDetectionRunEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertDetectedFaces(faces: List<DetectedFaceEntity>)
+
+    @Transaction
+    suspend fun replaceFaceDetection(run: FaceDetectionRunEntity, faces: List<DetectedFaceEntity>) {
+        deleteDetectedFaces(run.volumeName, run.mediaStoreId)
+        upsertFaceDetectionRun(run)
+        if (faces.isNotEmpty()) upsertDetectedFaces(faces)
+    }
+
+    @Query("SELECT * FROM detected_faces WHERE volumeName=:volumeName AND mediaStoreId=:mediaStoreId ORDER BY faceOrdinal")
+    suspend fun detectedFaces(volumeName: String, mediaStoreId: Long): List<DetectedFaceEntity>
+
+    @Query("SELECT COUNT(*) FROM detected_faces")
+    suspend fun detectedFaceCount(): Long
+
+    @Query("DELETE FROM face_detection_runs")
+    suspend fun purgeFaceDetections(): Int
+
     @RawQuery
     suspend fun rawSelectionPage(query: SupportSQLiteQuery): List<MediaItemEntity>
 

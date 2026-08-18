@@ -144,7 +144,7 @@ class GalleryDatabaseDeviceTest {
         helper.createDatabase(name, 1).close()
         helper.runMigrationsAndValidate(
             name,
-            8,
+            9,
             true,
             GalleryDatabaseFactory.Migration1To2,
             GalleryDatabaseFactory.Migration2To3,
@@ -153,6 +153,7 @@ class GalleryDatabaseDeviceTest {
             GalleryDatabaseFactory.Migration5To6,
             GalleryDatabaseFactory.Migration6To7,
             GalleryDatabaseFactory.Migration7To8,
+            GalleryDatabaseFactory.Migration8To9,
         ).close()
     }
 

@@ -1,0 +1,16 @@
+<resources>
+    <string name="face_analysis_title">Face analysis</string>
+    <string name="face_analysis_privacy">Face regions are detected locally after you opt in. Analysis can be paused and all derived data can be deleted.</string>
+    <string name="face_analysis_no_identity">Detection does not identify or name people.</string>
+    <string name="face_analysis_enable">Enable local face detection</string>
+    <string name="face_analysis_progress">%1$d photos analyzed</string>
+    <string name="face_analysis_pause">Pause</string>
+    <string name="face_analysis_resume">Analyze now</string>
+    <string name="face_analysis_all">Analyze full library</string>
+    <string name="face_analysis_all_requirements">Full-library analysis waits for charging, idle mode, sufficient battery and storage.</string>
+    <string name="face_analysis_delete">Delete face-analysis data</string>
+    <string name="face_analysis_delete_title">Delete local face data?</string>
+    <string name="face_analysis_delete_body">Detection geometry, progress and consent will be removed. Your photos are never changed.</string>
+    <string name="face_analysis_delete_confirm">Delete data</string>
+    <string name="face_analysis_cancel">Cancel</string>
+</resources>

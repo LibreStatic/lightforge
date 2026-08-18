@@ -1,0 +1,16 @@
+<resources>
+    <string name="face_analysis_title">Gesichtsanalyse</string>
+    <string name="face_analysis_privacy">Gesichtsbereiche werden nach Ihrer Zustimmung lokal erkannt. Die Analyse kann pausiert und alle abgeleiteten Daten können gelöscht werden.</string>
+    <string name="face_analysis_no_identity">Die Erkennung identifiziert oder benennt keine Personen.</string>
+    <string name="face_analysis_enable">Lokale Gesichtserkennung aktivieren</string>
+    <string name="face_analysis_progress">%1$d Fotos analysiert</string>
+    <string name="face_analysis_pause">Pausieren</string>
+    <string name="face_analysis_resume">Jetzt analysieren</string>
+    <string name="face_analysis_all">Gesamte Mediathek analysieren</string>
+    <string name="face_analysis_all_requirements">Die vollständige Analyse wartet auf Laden, Leerlauf sowie ausreichend Akku und Speicher.</string>
+    <string name="face_analysis_delete">Gesichtsanalyse-Daten löschen</string>
+    <string name="face_analysis_delete_title">Lokale Gesichtsdaten löschen?</string>
+    <string name="face_analysis_delete_body">Erkannte Geometrie, Fortschritt und Zustimmung werden entfernt. Ihre Fotos bleiben unverändert.</string>
+    <string name="face_analysis_delete_confirm">Daten löschen</string>
+    <string name="face_analysis_cancel">Abbrechen</string>
+</resources>

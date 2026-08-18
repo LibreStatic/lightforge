@@ -5,6 +5,13 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.await
 
+data class MlControlState(
+    val consentGranted: Boolean,
+    val paused: Boolean,
+    val completedItems: Long,
+    val status: MlCheckpoint.Status?,
+)
+
 class MlScheduler(context: Context) {
     private val appContext = context.applicationContext
     private val workManager = WorkManager.getInstance(appContext)
@@ -40,6 +47,12 @@ class MlScheduler(context: Context) {
 
     fun resume(task: MlTaskType, mode: MlRunMode = MlRunMode.Recent): Boolean = enqueue(task, mode)
 
+    suspend fun restart(task: MlTaskType, mode: MlRunMode): Boolean {
+        if (!state.isConsentEnabled(task)) return false
+        workManager.cancelUniqueWork(MlChunkWorker.uniqueName(task)).await()
+        return enqueue(task, mode)
+    }
+
     suspend fun deleteDerivedData(task: MlTaskType) {
         workManager.cancelUniqueWork(MlChunkWorker.uniqueName(task)).await()
         MlRuntimeRegistry.engine(task)?.purgeDerivedData()
@@ -50,4 +63,14 @@ class MlScheduler(context: Context) {
 
     fun checkpoint(task: MlTaskType): MlCheckpoint? = state.checkpoint(task)
     fun hasConsent(task: MlTaskType): Boolean = state.isConsentEnabled(task)
+
+    fun controlState(task: MlTaskType): MlControlState {
+        val checkpoint = state.checkpoint(task)
+        return MlControlState(
+            consentGranted = state.isConsentEnabled(task),
+            paused = state.isPaused(task),
+            completedItems = checkpoint?.completedItems ?: 0,
+            status = checkpoint?.status,
+        )
+    }
 }

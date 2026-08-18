@@ -1,0 +1,16 @@
+<resources>
+    <string name="face_analysis_title">Analyse des visages</string>
+    <string name="face_analysis_privacy">Les zones de visage sont détectées localement après votre accord. Vous pouvez suspendre l’analyse et supprimer toutes les données dérivées.</string>
+    <string name="face_analysis_no_identity">La détection n’identifie ni ne nomme personne.</string>
+    <string name="face_analysis_enable">Activer la détection locale</string>
+    <string name="face_analysis_progress">%1$d photos analysées</string>
+    <string name="face_analysis_pause">Suspendre</string>
+    <string name="face_analysis_resume">Analyser maintenant</string>
+    <string name="face_analysis_all">Analyser toute la photothèque</string>
+    <string name="face_analysis_all_requirements">L’analyse complète attend la charge, l’inactivité et suffisamment de batterie et de stockage.</string>
+    <string name="face_analysis_delete">Supprimer les données faciales</string>
+    <string name="face_analysis_delete_title">Supprimer les données faciales locales ?</string>
+    <string name="face_analysis_delete_body">La géométrie détectée, la progression et le consentement seront supprimés. Vos photos ne sont jamais modifiées.</string>
+    <string name="face_analysis_delete_confirm">Supprimer</string>
+    <string name="face_analysis_cancel">Annuler</string>
+</resources>

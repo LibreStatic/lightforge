@@ -1,0 +1,16 @@
+<resources>
+    <string name="face_analysis_title">Analisi dei volti</string>
+    <string name="face_analysis_privacy">Le aree dei volti vengono rilevate localmente dopo il consenso. Puoi sospendere l’analisi ed eliminare tutti i dati derivati.</string>
+    <string name="face_analysis_no_identity">Il rilevamento non identifica né nomina le persone.</string>
+    <string name="face_analysis_enable">Attiva rilevamento locale</string>
+    <string name="face_analysis_progress">%1$d foto analizzate</string>
+    <string name="face_analysis_pause">Pausa</string>
+    <string name="face_analysis_resume">Analizza ora</string>
+    <string name="face_analysis_all">Analizza l’intera raccolta</string>
+    <string name="face_analysis_all_requirements">L’analisi completa attende ricarica, inattività e batteria e spazio sufficienti.</string>
+    <string name="face_analysis_delete">Elimina dati di analisi volti</string>
+    <string name="face_analysis_delete_title">Eliminare i dati locali dei volti?</string>
+    <string name="face_analysis_delete_body">Geometria, avanzamento e consenso verranno rimossi. Le foto non vengono mai modificate.</string>
+    <string name="face_analysis_delete_confirm">Elimina dati</string>
+    <string name="face_analysis_cancel">Annulla</string>
+</resources>

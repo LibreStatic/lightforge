@@ -34,6 +34,7 @@ fun CollectionsContent(
     onAlbumClick: (AlbumSummary) -> Unit,
     onCreateAlbum: () -> Unit,
     onTrashClick: () -> Unit,
+    onLocalAnalysisClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val albums = buildList {
@@ -53,6 +54,13 @@ fun CollectionsContent(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                item {
+                    CollectionCard(
+                        title = stringResource(R.string.collections_local_analysis),
+                        body = stringResource(R.string.collections_local_analysis_body),
+                        onClick = onLocalAnalysisClick,
+                    )
+                }
                 item {
                     CollectionCard(
                         title = stringResource(R.string.collections_create_album),

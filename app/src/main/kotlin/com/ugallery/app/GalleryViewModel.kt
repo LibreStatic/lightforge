@@ -133,6 +133,9 @@ class GalleryViewModel @Inject constructor(
         mlScheduler.hasConsent(MlTaskType.ImageLabels) || mlScheduler.hasConsent(MlTaskType.Ocr),
     )
     val detectedContentEnabled = mutableDetectedContentEnabled.asStateFlow()
+    private val mutableFaceAnalysis = MutableStateFlow(mlScheduler.controlState(MlTaskType.FaceDetection))
+    val faceAnalysis = mutableFaceAnalysis.asStateFlow()
+    private var faceProgressJob: Job? = null
     private val mutableBenchmarkMlRunning = MutableStateFlow(false)
     val benchmarkMlRunning = mutableBenchmarkMlRunning.asStateFlow()
     private var benchmarkMlJob: Job? = null
@@ -202,6 +205,7 @@ class GalleryViewModel @Inject constructor(
     private val refreshMutex = Mutex()
 
     init {
+        if (mlScheduler.hasConsent(MlTaskType.FaceDetection)) monitorFaceProgress()
         viewModelScope.launch {
             val created = try {
                 withContext(Dispatchers.IO) { createRuntime(application) }
@@ -295,6 +299,52 @@ class GalleryViewModel @Inject constructor(
             mlScheduler.deleteDerivedData(MlTaskType.ImageLabels)
             mlScheduler.deleteDerivedData(MlTaskType.Ocr)
             mutableDetectedContentEnabled.value = false
+        }
+    }
+
+    fun enableFaceDetection() {
+        mlScheduler.grantConsent(MlTaskType.FaceDetection)
+        mlScheduler.enqueue(MlTaskType.FaceDetection, MlRunMode.Recent)
+        monitorFaceProgress()
+    }
+
+    fun pauseFaceDetection() {
+        mlScheduler.pause(MlTaskType.FaceDetection)
+        mutableFaceAnalysis.value = mlScheduler.controlState(MlTaskType.FaceDetection)
+        faceProgressJob?.cancel()
+    }
+
+    fun resumeFaceDetection() {
+        mlScheduler.resume(MlTaskType.FaceDetection, MlRunMode.Recent)
+        monitorFaceProgress()
+    }
+
+    fun analyzeAllFaces() {
+        viewModelScope.launch {
+            mlScheduler.restart(MlTaskType.FaceDetection, MlRunMode.FullLibrary)
+            monitorFaceProgress()
+        }
+    }
+
+    fun deleteFaceDetectionData() {
+        viewModelScope.launch {
+            mlScheduler.deleteDerivedData(MlTaskType.FaceDetection)
+            faceProgressJob?.cancel()
+            mutableFaceAnalysis.value = mlScheduler.controlState(MlTaskType.FaceDetection)
+        }
+    }
+
+    private fun monitorFaceProgress() {
+        faceProgressJob?.cancel()
+        faceProgressJob = viewModelScope.launch {
+            while (isActive) {
+                val current = mlScheduler.controlState(MlTaskType.FaceDetection)
+                mutableFaceAnalysis.value = current
+                if (!current.consentGranted || current.paused ||
+                    current.status == com.ugallery.core.ml.MlCheckpoint.Status.Complete
+                ) break
+                delay(500)
+            }
         }
     }
 

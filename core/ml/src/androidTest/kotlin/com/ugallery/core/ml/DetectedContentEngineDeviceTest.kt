@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Rect
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.room.Room
@@ -16,6 +17,7 @@ import com.ugallery.core.database.MediaItemEntity
 import com.ugallery.core.model.MediaKey
 import com.ugallery.core.search.AppSearchMediaIndex
 import com.ugallery.core.search.AppSearchMediaSearchRepository
+import com.google.mlkit.vision.face.FaceLandmark
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -107,8 +109,63 @@ class DetectedContentEngineDeviceTest {
         BundledMlKitOcrInference().use { ocr ->
             assertTrue(ocr.infer(bitmap).text.uppercase().contains("FACTURA"))
         }
+        BundledMlKitFaceDetectionInference().use { faces -> faces.infer(bitmap) }
         val elapsed = android.os.SystemClock.elapsedRealtime() - started
         assertTrue("Bundled cold label+OCR inference took ${elapsed}ms", elapsed < 15_000)
+    }
+
+    @Test fun faceDetectionFiltersLowQualityAndStoresOnlyGeometry() = runBlocking {
+        val fixture = imageFixture("faces-${UUID.randomUUID()}.png", "FACES")
+        database.libraryDao().upsertMedia(listOf(media(fixture, bucket = "Camera", sort = 40)))
+        val engine = FaceDetectionMlEngine(
+            context.contentResolver,
+            database,
+            { true },
+            inference = FaceDetectionInference { bitmap ->
+                listOf(
+                    RawDetectedFace(
+                        Rect(180, 80, 460, 360), 2f, -4f, 1f,
+                        listOf(RawFaceLandmark(FaceLandmark.LEFT_EYE, 260f, 180f)),
+                    ),
+                    RawDetectedFace(Rect(10, 10, 55, 55), 0f, 0f, 0f, emptyList()),
+                    RawDetectedFace(
+                        Rect(bitmap.width - 80, 40, bitmap.width + 100, 260),
+                        0f, 0f, 0f, emptyList(),
+                    ),
+                )
+            },
+        )
+        engine.use { assertEquals(MlChunkOutcome.Complete(1), it.process(null, 50)) }
+
+        val key = fixture.key()
+        val stored = database.libraryDao().detectedFaces(key.volumeName, key.mediaStoreId)
+        assertEquals(1, stored.size)
+        assertTrue(stored.single().qualityScore >= FaceQualityFilter.MinimumScore)
+        assertTrue(stored.single().landmarksJson.contains("\"t\""))
+        assertTrue(stored.single().cropLeftPermille in 0..1000)
+        assertEquals(1, database.libraryDao().detectedFaceCount())
+
+        engine.purgeDerivedData()
+        assertEquals(0, database.libraryDao().detectedFaceCount())
+    }
+
+    @Test fun missingMediaRowDoesNotStarveFaceDetectionQueue() = runBlocking {
+        val missing = imageFixture("missing-face-${UUID.randomUUID()}.png", "MISSING")
+        database.libraryDao().upsertMedia(listOf(media(missing, bucket = "Camera", sort = 50)))
+        context.contentResolver.delete(missing, null, null)
+        fixtures.remove(missing)
+        val engine = FaceDetectionMlEngine(
+            context.contentResolver,
+            database,
+            { true },
+            inference = FaceDetectionInference { error("inference must not run for missing media") },
+        )
+
+        engine.use {
+            assertEquals(MlChunkOutcome.Complete(1), it.process(null, 50))
+            assertEquals(MlChunkOutcome.Complete(0), it.process(null, 50))
+        }
+        assertEquals(0, database.libraryDao().detectedFaceCount())
     }
 
     @Test fun inferenceFailureDoesNotCommitAnEmptyResult() = runBlocking {

@@ -59,9 +59,12 @@ import com.ugallery.feature.trash.TrashContent
 import com.ugallery.feature.viewer.VideoViewerController
 import com.ugallery.feature.viewer.ViewerContent
 import com.ugallery.feature.search.SearchContent
+import com.ugallery.feature.settings.AnalysisStatus
+import com.ugallery.feature.settings.FaceAnalysisUiState
+import com.ugallery.feature.settings.RecognitionSettingsContent
 
 private enum class RootTab { Photos, Collections, Search }
-private enum class SurfaceRoute { Root, Album, Viewer, Trash }
+private enum class SurfaceRoute { Root, Album, Viewer, Trash, Settings }
 
 @Composable
 internal fun ProductionGalleryApp(
@@ -83,6 +86,7 @@ internal fun ProductionGalleryApp(
     val search by viewModel.search.collectAsState()
     val searchIndexReady by viewModel.searchIndexReady.collectAsState()
     val detectedContentEnabled by viewModel.detectedContentEnabled.collectAsState()
+    val faceAnalysis by viewModel.faceAnalysis.collectAsState()
     val actionState by viewModel.systemAction.collectAsState()
     val external by viewModel.externalMedia.collectAsState()
     val externalPhoto by viewModel.externalPhotoState.collectAsState()
@@ -174,6 +178,7 @@ internal fun ProductionGalleryApp(
                         },
                         onCreateAlbum = { showCreateAlbum = true },
                         onTrashClick = { route = SurfaceRoute.Trash },
+                        onLocalAnalysisClick = { route = SurfaceRoute.Settings },
                     )
                     RootTab.Search -> SearchContent(
                         query = search.query,
@@ -232,6 +237,26 @@ internal fun ProductionGalleryApp(
                     onRestore = { media -> viewModel.openMedia(media); viewModel.beginSystemAction(media, MediaAction.Trash(false)) },
                     onDeletePermanently = { media -> viewModel.openMedia(media); viewModel.beginSystemAction(media, MediaAction.Delete) },
                     onEmptyTrash = { showEmptyTrashConfirmation = true },
+                )
+                SurfaceRoute.Settings -> RecognitionSettingsContent(
+                    state = FaceAnalysisUiState(
+                        consentGranted = faceAnalysis.consentGranted,
+                        paused = faceAnalysis.paused,
+                        completedItems = faceAnalysis.completedItems,
+                        status = faceAnalysis.status?.let {
+                            when (it) {
+                                com.ugallery.core.ml.MlCheckpoint.Status.Ready -> AnalysisStatus.Ready
+                                com.ugallery.core.ml.MlCheckpoint.Status.Running -> AnalysisStatus.Running
+                                com.ugallery.core.ml.MlCheckpoint.Status.Paused -> AnalysisStatus.Paused
+                                com.ugallery.core.ml.MlCheckpoint.Status.Complete -> AnalysisStatus.Complete
+                            }
+                        },
+                    ),
+                    onEnable = viewModel::enableFaceDetection,
+                    onPause = viewModel::pauseFaceDetection,
+                    onResume = viewModel::resumeFaceDetection,
+                    onAnalyzeAll = viewModel::analyzeAllFaces,
+                    onDelete = viewModel::deleteFaceDetectionData,
                 )
             }
         }

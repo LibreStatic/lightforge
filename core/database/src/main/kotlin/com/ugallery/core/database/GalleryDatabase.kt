@@ -25,8 +25,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SimilarityEdgeEntity::class,
         SimilarityMembershipEntity::class,
         SimilarityExclusionEntity::class,
+        FaceDetectionRunEntity::class,
+        DetectedFaceEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 abstract class GalleryDatabase : RoomDatabase() {
@@ -158,12 +160,21 @@ object GalleryDatabaseFactory {
         }
     }
 
+    val Migration8To9 = object : Migration(8, 9) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS `face_detection_runs` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `generationModified` INTEGER NOT NULL, `modelVersion` TEXT NOT NULL, `acceptedFaceCount` INTEGER NOT NULL, `completedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`), FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `media_items`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_face_run_version` ON `face_detection_runs` (`modelVersion`, `generationModified`)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `detected_faces` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `faceOrdinal` INTEGER NOT NULL, `modelVersion` TEXT NOT NULL, `leftPermille` INTEGER NOT NULL, `topPermille` INTEGER NOT NULL, `rightPermille` INTEGER NOT NULL, `bottomPermille` INTEGER NOT NULL, `cropLeftPermille` INTEGER NOT NULL, `cropTopPermille` INTEGER NOT NULL, `cropRightPermille` INTEGER NOT NULL, `cropBottomPermille` INTEGER NOT NULL, `eulerX` REAL NOT NULL, `eulerY` REAL NOT NULL, `eulerZ` REAL NOT NULL, `qualityScore` REAL NOT NULL, `landmarksJson` TEXT NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`), FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `face_detection_runs`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_detected_face_media` ON `detected_faces` (`volumeName`, `mediaStoreId`)")
+        }
+    }
+
     private fun build(context: Context, name: String): GalleryDatabase = Room.databaseBuilder(
         context.applicationContext,
         GalleryDatabase::class.java,
         name,
     ).addMigrations(
         Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7,
-        Migration7To8,
+        Migration7To8, Migration8To9,
     ).build()
 }

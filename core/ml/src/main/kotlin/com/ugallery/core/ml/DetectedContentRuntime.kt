@@ -20,6 +20,7 @@ object DetectedContentRuntime {
     private var ocrEngine: OcrMlEngine? = null
     private var duplicateEngine: ExactDuplicateMlEngine? = null
     private var similarityEngine: SimilarityMlEngine? = null
+    private var faceDetectionEngine: FaceDetectionMlEngine? = null
 
     @Synchronized
     fun install(context: Context) {
@@ -33,6 +34,7 @@ object DetectedContentRuntime {
             LazyEngine(MlTaskType.ExactDuplicates, ExactDuplicateMlEngine.HashVersion),
         )
         MlRuntimeRegistry.register(LazyEngine(MlTaskType.Similarity, SimilarityMlEngine.AlgorithmVersion))
+        MlRuntimeRegistry.register(LazyEngine(MlTaskType.FaceDetection, FaceDetectionMlEngine.ModelVersion))
     }
 
     @Synchronized
@@ -41,6 +43,7 @@ object DetectedContentRuntime {
         MlRuntimeRegistry.unregister(MlTaskType.Ocr)
         MlRuntimeRegistry.unregister(MlTaskType.ExactDuplicates)
         MlRuntimeRegistry.unregister(MlTaskType.Similarity)
+        MlRuntimeRegistry.unregister(MlTaskType.FaceDetection)
         labelEngine?.close()
         ocrEngine?.close()
         database?.close()
@@ -49,6 +52,7 @@ object DetectedContentRuntime {
         ocrEngine = null
         duplicateEngine = null
         similarityEngine = null
+        faceDetectionEngine = null
         database = null
     }
 
@@ -58,6 +62,7 @@ object DetectedContentRuntime {
         ocrEngine?.takeIf { task == MlTaskType.Ocr }?.let { return it }
         duplicateEngine?.takeIf { task == MlTaskType.ExactDuplicates }?.let { return it }
         similarityEngine?.takeIf { task == MlTaskType.Similarity }?.let { return it }
+        faceDetectionEngine?.takeIf { task == MlTaskType.FaceDetection }?.let { return it }
         val context = checkNotNull(application) { "DetectedContentRuntime is not installed" }
         val activeDatabase = activeDatabase(context)
         val imagePermission = { context.hasReadableImages() }
@@ -84,6 +89,11 @@ object DetectedContentRuntime {
                 NativeSimilarityFeatureExtractor(context.contentResolver),
                 imagePermission,
             ).also { similarityEngine = it }
+            MlTaskType.FaceDetection -> FaceDetectionMlEngine(
+                context.contentResolver,
+                activeDatabase,
+                imagePermission,
+            ).also { faceDetectionEngine = it }
         }
     }
 
@@ -113,6 +123,7 @@ object DetectedContentRuntime {
                 dao.purgeSimilarityFeatures()
                 dao.purgeSimilarityExclusions()
             }
+            MlTaskType.FaceDetection -> dao.purgeFaceDetections()
         }
     }
 
