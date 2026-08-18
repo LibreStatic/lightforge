@@ -3,13 +3,17 @@
 package com.ugallery.core.editing.video
 
 import android.content.Context
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.SpeedParameters
+import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.SpeedProvider
 import androidx.media3.transformer.EditedMediaItem
+import androidx.media3.transformer.EditedMediaItemSequence
+import androidx.media3.transformer.Composition
 import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.Transformer
@@ -33,35 +37,78 @@ data class VideoExportRequest(
 
 /** Media3 Transformer wrapper with trim, speed and PCM volume processing. */
 class Media3VideoExporter(private val context: Context) {
-    suspend fun export(request: VideoExportRequest): VideoExportResult = withContext(Dispatchers.Main.immediate) {
+    suspend fun export(request: VideoExportRequest): VideoExportResult {
+        val clipEndMillis = request.recipe.endMillis ?: withContext(Dispatchers.IO) {
+            MediaMetadataRetriever().use { retriever ->
+                retriever.setDataSource(context.applicationContext, request.input)
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong()
+            }
+        } ?: throw IllegalArgumentException("Video duration is unavailable")
+        return withContext(Dispatchers.Main.immediate) {
+            exportOnMain(request, clipEndMillis)
+        }
+    }
+
+    private suspend fun exportOnMain(
+        request: VideoExportRequest,
+        clipEndMillis: Long,
+    ): VideoExportResult {
         request.output.parentFile?.mkdirs()
         request.output.delete()
         val clipping = MediaItem.ClippingConfiguration.Builder()
             .setStartPositionMs(request.recipe.startMillis)
-            .apply { request.recipe.endMillis?.let(::setEndPositionMs) }
+            .setEndPositionMs(clipEndMillis)
             .build()
         val mediaItem = MediaItem.Builder()
             .setUri(request.input)
             .setClippingConfiguration(clipping)
             .build()
-        val edited = EditedMediaItem.Builder(mediaItem)
-            .setSpeed(
+        val editedBuilder = EditedMediaItem.Builder(mediaItem)
+        if (request.recipe.speed != 1f) {
+            editedBuilder.setSpeed(
                 SpeedParameters(
                     ConstantSpeedProvider(request.recipe.speed),
                     /* shouldMaintainPitch = */ true,
                 ),
             )
-            .setEffects(
+        }
+        val edited = editedBuilder.setEffects(
                 androidx.media3.transformer.Effects(
                     listOf(VolumeAudioProcessor(request.recipe.originalAudioVolume)),
                     emptyList(),
                 ),
             )
             .build()
-        val fallbackWarning = if (request.recipe.musicUri != null) {
-            "Music track is kept local and previewable; Media3 export currently preserves original audio only"
-        } else null
-        suspendCancellableCoroutine { continuation ->
+        val clipDurationMillis = (clipEndMillis - request.recipe.startMillis).coerceAtLeast(0L)
+        val outputDurationMillis = (clipDurationMillis.toDouble() / request.recipe.speed.toDouble())
+            .toLong().coerceAtLeast(0L)
+        val composition = request.recipe.musicUri?.let { musicUri ->
+            val musicItem = EditedMediaItem.Builder(
+                MediaItem.Builder().setUri(musicUri).build(),
+            )
+                .setRemoveVideo(true)
+                .setDurationUs(outputDurationMillis * 1_000L)
+                .setEffects(
+                    androidx.media3.transformer.Effects(
+                        listOf(VolumeAudioProcessor(request.recipe.musicVolume)),
+                        emptyList(),
+                    ),
+                )
+                .build()
+            Composition.Builder(
+                listOf(
+                    EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_AUDIO, C.TRACK_TYPE_VIDEO))
+                        .addItem(edited)
+                        .build(),
+                    EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_AUDIO))
+                        .addItem(musicItem)
+                        .setIsLooping(true)
+                        .build(),
+                ),
+            )
+                .build()
+        }
+        return suspendCancellableCoroutine { continuation ->
             lateinit var transformer: Transformer
             transformer = Transformer.Builder(context.applicationContext)
                 .setVideoMimeType(request.videoMimeType)
@@ -71,12 +118,10 @@ class Media3VideoExporter(private val context: Context) {
                         if (continuation.isActive) continuation.resume(
                             VideoExportResult(
                                 request.output,
-                                durationMillis = request.recipe.endMillis?.minus(request.recipe.startMillis)
-                                    ?.let { (it.toDouble() / request.recipe.speed.toDouble()).toLong() }
-                                    ?.coerceAtLeast(0L) ?: 0L,
+                                durationMillis = outputDurationMillis,
                                 videoMimeType = request.videoMimeType,
                                 audioMimeType = request.audioMimeType,
-                                fallbackWarning = fallbackWarning,
+                                fallbackWarning = null,
                             ),
                         )
                     }
@@ -95,7 +140,11 @@ class Media3VideoExporter(private val context: Context) {
                 request.output.delete()
             }
             try {
-                transformer.start(edited, request.output.absolutePath)
+                if (composition != null) {
+                    transformer.start(composition, request.output.absolutePath)
+                } else {
+                    transformer.start(edited, request.output.absolutePath)
+                }
             } catch (failure: Throwable) {
                 request.output.delete()
                 if (continuation.isActive) continuation.resumeWithException(failure)
@@ -106,7 +155,7 @@ class Media3VideoExporter(private val context: Context) {
 
 private class ConstantSpeedProvider(private val speed: Float) : SpeedProvider {
     override fun getSpeed(timeUs: Long): Float = speed
-    override fun getNextSpeedChangeTimeUs(timeUs: Long): Long = Long.MAX_VALUE
+    override fun getNextSpeedChangeTimeUs(timeUs: Long): Long = C.TIME_END_OF_SOURCE
 }
 
 private class VolumeAudioProcessor(private val volume: Float) : AudioProcessor {

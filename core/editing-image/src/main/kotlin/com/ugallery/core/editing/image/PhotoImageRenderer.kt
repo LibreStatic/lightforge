@@ -7,10 +7,8 @@ import android.graphics.Canvas
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
-import android.graphics.Rect
 import android.graphics.Matrix
 import android.net.Uri
-import androidx.core.graphics.applyCanvas
 import com.ugallery.core.model.EditOperation
 import com.ugallery.core.model.EditRecipe
 import kotlinx.coroutines.CancellationException
@@ -34,15 +32,16 @@ sealed interface PhotoExportOutcome {
         val height: Int,
         val wasDownscaled: Boolean,
         val warnings: List<String> = emptyList(),
+        val mimeType: String? = null,
     ) : PhotoExportOutcome
 
     data class Failure(val reason: String, val recoverable: Boolean = true) : PhotoExportOutcome
 }
 
 /**
- * Bounded native image renderer. Preview never decodes a full 200 MP source; export either
- * streams an identity copy or explicitly downsamples transformed content when the device cannot
- * hold a safe full-resolution bitmap.
+ * Bounded native image renderer. Preview never decodes a full 200 MP source; identity exports
+ * stream original bytes while large transformed sources use the tiled PNG path instead of
+ * allocating a full-resolution Android Bitmap.
  */
 class PhotoImageRenderer(
     private val resolver: ContentResolver,
@@ -81,13 +80,39 @@ class PhotoImageRenderer(
                     sourceBounds.width,
                     sourceBounds.height,
                     wasDownscaled = false,
+                    mimeType = sourceBounds.mimeType,
                 )
             }
             val sourcePixels = sourceBounds.width.toLong() * sourceBounds.height.toLong()
-            val sample = if (sourcePixels <= maxExportPixels) 1 else {
-                ceil(kotlin.math.sqrt(sourcePixels.toDouble() / maxExportPixels.toDouble()))
-                    .roundToInt().coerceAtLeast(1)
+            if (sourcePixels > maxExportPixels) {
+                val tiled = TiledPngPhotoExporter(resolver).export(
+                    uri = uri,
+                    sourceWidth = sourceBounds.width,
+                    sourceHeight = sourceBounds.height,
+                    recipe = recipe,
+                    destination = destination,
+                    onProgress = onProgress,
+                )
+                return@withContext PhotoExportOutcome.Completed(
+                    file = tiled.file,
+                    width = tiled.width,
+                    height = tiled.height,
+                    wasDownscaled = false,
+                    warnings = listOf(
+                        "Full-resolution tiled export used PNG to stay within the device bitmap budget",
+                    ) + if (sourceBounds.mimeType?.contains("heic", true) == true ||
+                        sourceBounds.mimeType?.contains("avif", true) == true
+                    ) {
+                        listOf("HDR/container metadata was not copied into the 8-bit PNG output")
+                    } else {
+                        emptyList()
+                    },
+                    mimeType = "image/png",
+                )
             }
+            // The > maxExportPixels branch above is the tiled path; regular exports stay at
+            // source resolution and therefore never silently downsample transformed content.
+            val sample = 1
             val decoded = decode(uri, sample)
                 ?: return@withContext PhotoExportOutcome.Failure("Unable to decode source image")
             val rendered = try {
@@ -117,13 +142,13 @@ class PhotoImageRenderer(
                 file = destination,
                 width = renderedWidth,
                 height = renderedHeight,
-                wasDownscaled = sample > 1,
+                wasDownscaled = false,
                 warnings = buildList {
-                    if (sample > 1) add("Source exceeded the safe full-resolution bitmap budget; export was downscaled")
                     if (sourceBounds.mimeType?.contains("heic", true) == true ||
                         sourceBounds.mimeType?.contains("avif", true) == true
                     ) add("Output was encoded as JPEG; HDR/container metadata was not copied")
                 },
+                mimeType = compressMime(sourceBounds.mimeType),
             )
         } catch (cancelled: CancellationException) {
             destination.delete()
@@ -235,5 +260,11 @@ class PhotoImageRenderer(
         "image/png" -> Bitmap.CompressFormat.PNG
         "image/webp", "image/webp-lossless" -> Bitmap.CompressFormat.WEBP_LOSSLESS
         else -> Bitmap.CompressFormat.JPEG
+    }
+
+    private fun compressMime(mimeType: String?): String = when (mimeType?.lowercase()) {
+        "image/png" -> "image/png"
+        "image/webp", "image/webp-lossless" -> "image/webp"
+        else -> "image/jpeg"
     }
 }

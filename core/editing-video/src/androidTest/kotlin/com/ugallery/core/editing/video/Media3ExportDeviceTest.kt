@@ -2,6 +2,9 @@ package com.ugallery.core.editing.video
 
 import android.content.Context
 import android.content.ContentValues
+import android.media.MediaCodec
+import android.media.MediaExtractor
+import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.MediaStore
@@ -16,14 +19,21 @@ import androidx.media3.transformer.Transformer
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
+import java.io.BufferedOutputStream
+import java.io.DataOutputStream
+import java.io.FileOutputStream
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlinx.coroutines.runBlocking
 
 @UnstableApi
 @RunWith(AndroidJUnit4::class)
@@ -87,6 +97,39 @@ class Media3ExportDeviceTest {
         assertFalse(output.exists())
         assertEquals(0, mediaRowsNamed(context, forbiddenDisplayName))
         input.delete()
+    }
+
+    @Test
+    fun compositionMixesLocalMusicIntoMutedVideoAudio() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val input = copyAssetToCache(context, "m0_h264.mp4")
+        val music = writeToneWav(context, durationMillis = 3_000)
+        val output = File(context.cacheDir, "mixed-${System.nanoTime()}.mp4")
+        try {
+            val result = Media3VideoExporter(context).export(
+                VideoExportRequest(
+                    input = Uri.fromFile(input),
+                    output = output,
+                    recipe = VideoEditRecipe(
+                        startMillis = 0,
+                        endMillis = 2_500,
+                        originalAudioVolume = 0f,
+                        musicUri = Uri.fromFile(music),
+                        musicVolume = 1f,
+                    ),
+                ),
+            )
+            assertNotNull(result)
+            assertTrue(kotlin.math.abs(result.durationMillis - 2_500L) <= 100L)
+            assertTrue(result.fallbackWarning == null)
+            assertTrue(output.isFile && output.length() > 0)
+            assertTrue("unexpected output duration", mediaDurationMs(output) in 2_300..2_800)
+            assertTrue("mixed track was silent", decodedAudioMeanAbs(output) > 500)
+        } finally {
+            input.delete()
+            music.delete()
+            output.delete()
+        }
     }
 
     @Test
@@ -223,4 +266,88 @@ class Media3ExportDeviceTest {
             arrayOf(displayName),
             null,
         )!!.use { it.count }
+
+    private fun writeToneWav(context: Context, durationMillis: Int): File {
+        val sampleRate = 48_000
+        val channels = 1
+        val bitsPerSample = 16
+        val sampleCount = sampleRate * durationMillis / 1_000
+        val dataSize = sampleCount * channels * bitsPerSample / 8
+        val output = File(context.cacheDir, "music-${System.nanoTime()}.wav")
+        DataOutputStream(BufferedOutputStream(FileOutputStream(output))).use { data ->
+            fun ascii(value: String) { data.write(value.toByteArray(Charsets.US_ASCII)) }
+            fun littleInt(value: Int) { data.writeInt(Integer.reverseBytes(value)) }
+            fun littleShort(value: Int) { data.writeShort(java.lang.Short.reverseBytes(value.toShort()).toInt()) }
+            ascii("RIFF"); littleInt(36 + dataSize); ascii("WAVE")
+            ascii("fmt "); littleInt(16); littleShort(1); littleShort(channels)
+            littleInt(sampleRate); littleInt(sampleRate * channels * bitsPerSample / 8)
+            littleShort(channels * bitsPerSample / 8); littleShort(bitsPerSample)
+            ascii("data"); littleInt(dataSize)
+            repeat(sampleCount) { index ->
+                val phase = index.toDouble() / sampleRate.toDouble()
+                val sample = (kotlin.math.sin(phase * 2.0 * Math.PI * 880.0) * Short.MAX_VALUE * 0.7).toInt()
+                littleShort(sample)
+            }
+        }
+        return output
+    }
+
+    private fun decodedAudioMeanAbs(file: File): Double {
+        val extractor = MediaExtractor()
+        extractor.setDataSource(file.absolutePath)
+        val audioTrack = (0 until extractor.trackCount).firstOrNull { index ->
+            extractor.getTrackFormat(index).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
+        } ?: error("No audio track in mixed output")
+        val format = extractor.getTrackFormat(audioTrack)
+        extractor.selectTrack(audioTrack)
+        val codec = MediaCodec.createDecoderByType(checkNotNull(format.getString(MediaFormat.KEY_MIME)))
+        codec.configure(format, null, null, 0)
+        codec.start()
+        val info = MediaCodec.BufferInfo()
+        var inputEnded = false
+        var outputEnded = false
+        var absoluteSum = 0L
+        var sampleCount = 0L
+        val deadline = System.nanoTime() + 20_000_000_000L
+        try {
+            while (!outputEnded && System.nanoTime() < deadline) {
+                if (!inputEnded) {
+                    val inputIndex = codec.dequeueInputBuffer(10_000)
+                    if (inputIndex >= 0) {
+                        val inputBuffer = checkNotNull(codec.getInputBuffer(inputIndex))
+                        inputBuffer.clear()
+                        val sampleSize = extractor.readSampleData(inputBuffer, 0)
+                        if (sampleSize < 0) {
+                            codec.queueInputBuffer(inputIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                            inputEnded = true
+                        } else {
+                            codec.queueInputBuffer(inputIndex, 0, sampleSize, extractor.sampleTime, 0)
+                            extractor.advance()
+                        }
+                    }
+                }
+                val outputIndex = codec.dequeueOutputBuffer(info, 10_000)
+                if (outputIndex >= 0) {
+                    if (info.size > 0) {
+                        val outputBuffer = checkNotNull(codec.getOutputBuffer(outputIndex)).duplicate()
+                            .order(ByteOrder.LITTLE_ENDIAN)
+                        outputBuffer.position(info.offset)
+                        outputBuffer.limit(info.offset + info.size)
+                        while (outputBuffer.remaining() >= 2) {
+                            absoluteSum += kotlin.math.abs(outputBuffer.short.toInt()).toLong()
+                            sampleCount++
+                        }
+                    }
+                    outputEnded = info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0
+                    codec.releaseOutputBuffer(outputIndex, false)
+                }
+            }
+        } finally {
+            codec.stop()
+            codec.release()
+            extractor.release()
+        }
+        check(outputEnded) { "audio decoder timed out" }
+        return if (sampleCount == 0L) 0.0 else absoluteSum.toDouble() / sampleCount.toDouble()
+    }
 }

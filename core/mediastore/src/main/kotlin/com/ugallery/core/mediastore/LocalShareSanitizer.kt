@@ -36,7 +36,7 @@ class LocalShareSanitizer(
     fun cleanupExpired(): Int = registry.cleanupExpired()
 
     private suspend fun prepareImage(source: Uri, key: MediaKey): PreparedShareAsset {
-        val destination = registry.allocate("jpg")
+        val destination = registry.allocate("out")
         val recipe = EditRecipe(
             recipeId = "share:${key.volumeName}:${key.mediaStoreId}",
             source = key,
@@ -47,7 +47,10 @@ class LocalShareSanitizer(
         return when (val result = PhotoImageRenderer(resolver, maxExportPixels = 12_000_000L)
             .export(source, recipe, destination)
         ) {
-            is PhotoExportOutcome.Completed -> PreparedShareAsset(destination.toUri(), "image/jpeg")
+            is PhotoExportOutcome.Completed -> PreparedShareAsset(
+                destination.toUri(),
+                result.mimeType ?: "image/jpeg",
+            )
             is PhotoExportOutcome.Failure -> throw IllegalStateException(result.reason)
         }
     }

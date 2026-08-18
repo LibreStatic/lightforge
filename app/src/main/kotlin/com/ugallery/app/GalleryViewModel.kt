@@ -898,13 +898,16 @@ class GalleryViewModel @Inject constructor(
                     mediaUri(session.media), session.history.present, temp,
                 )) {
                     is PhotoExportOutcome.Completed -> {
+                        val publishedMime = result.mimeType ?: outputMime
+                        val publishedExtension = MimeTypeMap.getSingleton()
+                            .getExtensionFromMimeType(publishedMime) ?: extension
                         val published = PendingMediaWriter(getApplication<Application>().contentResolver).publishFile(
                             result.file,
                             MediaWriteSpec(
                                 MediaStore.VOLUME_EXTERNAL_PRIMARY,
                                 MediaKind.Image,
-                                "UGallery-edited-${System.currentTimeMillis()}.$extension",
-                                outputMime,
+                                "UGallery-edited-${System.currentTimeMillis()}.$publishedExtension",
+                                publishedMime,
                                 "Pictures/UGallery",
                             ),
                         )

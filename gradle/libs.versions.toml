@@ -58,6 +58,7 @@ hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hil
 androidx-hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "androidx-hilt" }
 junit4 = { module = "junit:junit", version.ref = "junit4" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 litert = { module = "com.google.ai.edge.litert:litert", version.ref = "litert" }
 litert-api = { module = "com.google.ai.edge.litert:litert-api", version.ref = "litert" }
