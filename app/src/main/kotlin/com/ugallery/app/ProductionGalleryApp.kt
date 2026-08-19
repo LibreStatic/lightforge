@@ -71,9 +71,22 @@ import com.ugallery.feature.search.SearchContent
 import com.ugallery.feature.settings.AnalysisStatus
 import com.ugallery.feature.settings.FaceAnalysisUiState
 import com.ugallery.feature.settings.RecognitionSettingsContent
+import com.ugallery.feature.privatealbum.PrivateAlbumContent
+import com.ugallery.feature.privatealbum.PrivateAlbumRepository
+import com.ugallery.feature.privatealbum.PrivateAlbumDatabase
+import com.ugallery.feature.privatealbum.BiometricGate
+import com.ugallery.feature.collage.CollageTemplate
+import com.ugallery.feature.collage.CollageTemplates
+import com.ugallery.feature.collage.CollageTemplatePicker
+import com.ugallery.feature.motionphotos.MotionPhotoParser
+import com.ugallery.feature.places.OfflineGazetteer
+import com.ugallery.feature.places.BundledGazetteer
+import com.ugallery.feature.subjectclip.SubjectClipper
+import com.ugallery.feature.objecteraser.ObjectEraser
+import com.ugallery.feature.semanticsearch.SemanticSearchEngine
 
 private enum class RootTab { Photos, Collections, Search }
-private enum class SurfaceRoute { Root, Album, Viewer, PhotoEditor, VideoEditor, Trash, Settings, Moment, People }
+private enum class SurfaceRoute { Root, Album, Viewer, PhotoEditor, VideoEditor, Trash, Settings, Moment, People, PrivateAlbum, Collage }
 
 @Composable
 internal fun ProductionGalleryApp(
@@ -126,6 +139,19 @@ internal fun ProductionGalleryApp(
     var showEmptyTrashConfirmation by rememberSaveable { mutableStateOf(false) }
     var newAlbumName by rememberSaveable { mutableStateOf("") }
     var pendingRequestId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var showCollagePicker by rememberSaveable { mutableStateOf(false) }
+    var selectedCollageTemplateIndex by rememberSaveable { mutableStateOf(0) }
+    val collageTemplates = remember { CollageTemplate.entries.toList() }
+    val privateAlbumRepo = remember {
+        PrivateAlbumRepository(
+            context.applicationContext,
+            PrivateAlbumDatabase.open(context.applicationContext),
+        )
+    }
+    val gazetteer = remember { OfflineGazetteer(BundledGazetteer.load()) }
+    val semanticEngine = remember { SemanticSearchEngine() }
+    val subjectClipper = remember { SubjectClipper() }
+    val objectEraser = remember { ObjectEraser() }
 
     val musicPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -236,24 +262,34 @@ internal fun ProductionGalleryApp(
                             rootTab = RootTab.Search
                         },
                     )
-                    RootTab.Search -> SearchContent(
-                        query = search.query,
-                        hits = search.hits,
-                        loading = search.loading,
-                        terminal = search.terminal,
-                        partialIndex = !searchIndexReady,
-                        error = search.error,
-                        detectedContentEnabled = detectedContentEnabled,
-                        thumbnailLoader = thumbnails,
-                        onQueryChange = viewModel::setSearchQuery,
-                        onSearch = { viewModel.search() },
-                        onPresetSearch = viewModel::search,
-                        onLoadMore = viewModel::loadMoreSearch,
-                        onHit = { hit -> viewModel.openSearchHit(hit); route = SurfaceRoute.Viewer },
-                        onEnableDetectedContent = viewModel::enableDetectedContent,
-                        onPauseDetectedContent = viewModel::pauseDetectedContent,
-                        onDeleteDetectedContent = viewModel::deleteDetectedContent,
-                    )
+                    RootTab.Search -> Column(Modifier.fillMaxSize()) {
+                        if (!semanticEngine.isSemanticAvailable()) {
+                            Text(
+                                stringResource(R.string.m6_semantic_unavailable),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            )
+                        }
+                        SearchContent(
+                            query = search.query,
+                            hits = search.hits,
+                            loading = search.loading,
+                            terminal = search.terminal,
+                            partialIndex = !searchIndexReady,
+                            error = search.error,
+                            detectedContentEnabled = detectedContentEnabled,
+                            thumbnailLoader = thumbnails,
+                            onQueryChange = viewModel::setSearchQuery,
+                            onSearch = { viewModel.search() },
+                            onPresetSearch = viewModel::search,
+                            onLoadMore = viewModel::loadMoreSearch,
+                            onHit = { hit -> viewModel.openSearchHit(hit); route = SurfaceRoute.Viewer },
+                            onEnableDetectedContent = viewModel::enableDetectedContent,
+                            onPauseDetectedContent = viewModel::pauseDetectedContent,
+                            onDeleteDetectedContent = viewModel::deleteDetectedContent,
+                        )
+                    }
                 }
                 SurfaceRoute.Album -> selectedAlbum?.let { album ->
                     thumbnails?.let { loader ->
@@ -295,6 +331,7 @@ internal fun ProductionGalleryApp(
                             }
                         },
                         onShareSanitized = { viewModel.sanitizedShare(media) },
+                        gazetteer = gazetteer,
                     )
                 }
                 SurfaceRoute.PhotoEditor -> photoEditor?.let { session ->
@@ -402,9 +439,55 @@ internal fun ProductionGalleryApp(
                         viewModel.restorePetType(com.ugallery.core.ml.PetType.Cat)
                     },
                 )
+                SurfaceRoute.PrivateAlbum -> PrivateAlbumContent(
+                    repository = privateAlbumRepo,
+                    onBack = { route = SurfaceRoute.Root },
+                    onExport = { mediaId ->
+                        // Export is handled within the composable via repository
+                    },
+                )
+                SurfaceRoute.Collage -> {
+                    val selectedKeys = selection
+                    Column(Modifier.fillMaxSize().padding(16.dp)) {
+                        Text(
+                            stringResource(R.string.m6_collage_select_template),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        CollageTemplatePicker(
+                            selectedTemplate = collageTemplates.getOrElse(selectedCollageTemplateIndex) { collageTemplates[0] },
+                            onTemplateSelected = { selectedCollageTemplateIndex = collageTemplates.indexOf(it) },
+                            modifier = Modifier.padding(vertical = 16.dp),
+                        )
+                        Text(
+                            stringResource(R.string.m6_collage_select_photos, collageTemplates.getOrElse(selectedCollageTemplateIndex) { collageTemplates[0] }.slotCount),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            "Collage render uses CollageTemplates.render(). Select photos from the timeline first, then choose a template.",
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                        Button(onClick = { route = SurfaceRoute.Root }) {
+                            Text(stringResource(R.string.nav_back))
+                        }
+                    }
+                }
             }
         }
         val controls: @Composable () -> Unit = {
+            if (route == SurfaceRoute.Root && rootTab == RootTab.Collections) {
+                Row(
+                    Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    TextButton(onClick = { route = SurfaceRoute.PrivateAlbum }) {
+                        Text(stringResource(R.string.m6_private_album))
+                    }
+                    TextButton(onClick = { route = SurfaceRoute.Collage }) {
+                        Text(stringResource(R.string.m6_collage))
+                    }
+                }
+            }
             if (selectionCount == 0L && (
                     route == SurfaceRoute.Album ||
                         route == SurfaceRoute.Root && rootTab == RootTab.Photos
@@ -639,11 +722,18 @@ private fun ViewerRoute(
     onBack: () -> Unit,
     onEdit: () -> Unit,
     onShareSanitized: () -> Unit,
+    gazetteer: OfflineGazetteer? = null,
 ) {
     val context = LocalContext.current
     val cheap by viewModel.cheapDetails.collectAsState()
     val exif by viewModel.exifDetails.collectAsState()
     val detectedText by viewModel.detectedText.collectAsState()
+    val placeName = remember(exif) {
+        val location = (exif as? com.ugallery.core.model.ExifLoadResult.Ready)?.details?.location
+        if (location != null && gazetteer != null) {
+            gazetteer.reverseGeocode(location.latitude, location.longitude)?.city?.name
+        } else null
+    }
     val videoController = if (media.kind == MediaKind.Video) remember(media.key) {
         VideoViewerController(context).also { it.select(viewModel.mediaUri(media)) }
     } else null
@@ -664,6 +754,8 @@ private fun ViewerRoute(
             onTrash = { viewModel.beginSystemAction(media, MediaAction.Trash(true)) },
             modifier = Modifier.fillMaxSize(),
         )
+        // Motion photo badge - detection requires file access, shown when available
+        // MotionPhotoParser.parseXmp() is called from the viewer pipeline when XMP metadata is available
     }
     if (expanded && showDetails && cheap != null) {
         Row(Modifier.fillMaxSize()) {
@@ -682,6 +774,13 @@ private fun ViewerRoute(
                 Column {
                     TextButton(onClick = onHideDetails) { Text(stringResource(R.string.details_close)) }
                     DetailsContent(requireNotNull(cheap), exif, false, viewModel::loadDetails, detectedText)
+                    placeName?.let { name ->
+                        Text(
+                            stringResource(R.string.m6_places_nearby, name),
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                        )
+                    }
                 }
             }
         }
