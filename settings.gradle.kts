@@ -51,6 +51,7 @@ include(
     ":feature:settings",
     ":feature:profile",
     ":feature:cleanup",
-    ":feature:privatealbum",
-    ":feature:motionphotos",
+   ":feature:privatealbum",
+    ":feature:collage",
+   ":feature:motionphotos",
 )
