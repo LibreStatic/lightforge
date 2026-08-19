@@ -55,5 +55,6 @@ include(
     ":feature:collage",
     ":feature:widget",
     ":feature:places",
+    ":feature:subjectclip",
    ":feature:motionphotos",
 )
