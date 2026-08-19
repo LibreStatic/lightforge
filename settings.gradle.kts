@@ -53,5 +53,6 @@ include(
     ":feature:cleanup",
    ":feature:privatealbum",
     ":feature:collage",
+    ":feature:widget",
    ":feature:motionphotos",
 )

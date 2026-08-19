@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_content_description">Gallery photo</string>
+    <string name="widget_empty_text">No photos available</string>
+    <string name="widget_description">Displays a rotating photo from your gallery</string>
+</resources>
