@@ -52,4 +52,5 @@ include(
     ":feature:profile",
     ":feature:cleanup",
     ":feature:privatealbum",
+    ":feature:motionphotos",
 )
