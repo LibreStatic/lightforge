@@ -56,5 +56,6 @@ include(
     ":feature:widget",
     ":feature:places",
     ":feature:subjectclip",
+    ":feature:objecteraser",
    ":feature:motionphotos",
 )
