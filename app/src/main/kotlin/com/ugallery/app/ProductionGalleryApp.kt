@@ -20,6 +20,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
@@ -50,6 +51,7 @@ import com.ugallery.core.database.AlbumMediaFilter
 import com.ugallery.core.database.AlbumSort
 import com.ugallery.core.mediastore.MediaAction
 import com.ugallery.core.mediastore.MediaActionPhase
+import com.ugallery.core.designsystem.GalleryIcons
 import com.ugallery.core.model.MediaKind
 import com.ugallery.core.model.TimelineMedia
 import com.ugallery.core.selection.SelectionSpec
@@ -231,6 +233,7 @@ internal fun ProductionGalleryApp(
                         entries = timeline,
                         thumbnailLoader = thumbnails,
                         onRequestAccess = ::requestAccess,
+                        onOpenSettings = { route = SurfaceRoute.Settings },
                         onMediaClick = { media ->
                             if (selectionCount > 0) viewModel.toggleSelection(media)
                             else { viewModel.openMedia(media); route = SurfaceRoute.Viewer }
@@ -542,7 +545,7 @@ internal fun ProductionGalleryApp(
                     }
                 }
             } else Column(Modifier.fillMaxSize().padding(padding)) {
-                if (route != SurfaceRoute.Root && route != SurfaceRoute.PhotoEditor && route != SurfaceRoute.VideoEditor) Button(onClick = { route = SurfaceRoute.Root }) {
+                if (route != SurfaceRoute.Root && route != SurfaceRoute.Viewer && route != SurfaceRoute.PhotoEditor && route != SurfaceRoute.VideoEditor) Button(onClick = { route = SurfaceRoute.Root }) {
                     Text(stringResource(R.string.nav_back))
                 }
                 controls()
@@ -613,19 +616,31 @@ private fun SelectionActions(
             Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            TextButton(onClick = onSelectAll) { Text(stringResource(R.string.selection_select_all)) }
-            TextButton(onClick = onFavorite) { Text(stringResource(R.string.selection_favorite)) }
-            TextButton(onClick = onTrash) { Text(stringResource(R.string.selection_trash)) }
-            TextButton(onClick = onAddToAlbum) { Text(stringResource(R.string.selection_add_album)) }
+            SelectionActionButton(onClick = onSelectAll, icon = GalleryIcons.Check, label = stringResource(R.string.selection_select_all))
+            SelectionActionButton(onClick = onFavorite, icon = GalleryIcons.Heart, label = stringResource(R.string.selection_favorite))
+            SelectionActionButton(onClick = onTrash, icon = GalleryIcons.Trash, label = stringResource(R.string.selection_trash))
+            SelectionActionButton(onClick = onAddToAlbum, icon = GalleryIcons.Album, label = stringResource(R.string.selection_add_album))
         }
         Row(
             Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (canShare) TextButton(onClick = onShare) { Text(stringResource(R.string.selection_share)) }
-            TextButton(onClick = onDelete) { Text(stringResource(R.string.selection_delete)) }
-            TextButton(onClick = onClear) { Text(stringResource(R.string.selection_clear)) }
+            if (canShare) SelectionActionButton(onClick = onShare, icon = GalleryIcons.Share, label = stringResource(R.string.selection_share))
+            SelectionActionButton(onClick = onDelete, icon = GalleryIcons.Trash, label = stringResource(R.string.selection_delete))
+            SelectionActionButton(onClick = onClear, icon = GalleryIcons.Close, label = stringResource(R.string.selection_clear))
         }
+    }
+}
+
+@Composable
+private fun SelectionActionButton(
+    onClick: () -> Unit,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+) {
+    TextButton(onClick = onClick) {
+        Icon(icon, contentDescription = null)
+        Text(label)
     }
 }
 
@@ -744,6 +759,7 @@ private fun ViewerRoute(
             photoState,
             videoController,
             media.isFavorite,
+            onBack = onBack,
             onToggleFavorite = { viewModel.beginSystemAction(media, MediaAction.Favorite(!media.isFavorite)) },
             onShare = {
                 context.startActivity(Intent.createChooser(viewModel.originalShareIntent(media), null))
@@ -789,13 +805,41 @@ private fun ViewerRoute(
 
 @Composable private fun RootNavigationBar(selected: RootTab, onSelect: (RootTab) -> Unit) {
     NavigationBar { RootTab.entries.forEach { tab ->
-        NavigationBarItem(selected == tab, { onSelect(tab) }, icon = { Text(if (tab == RootTab.Photos) "●" else "■") }, label = { Text(stringResource(tab.label())) })
+        NavigationBarItem(
+            selected = selected == tab,
+            onClick = { onSelect(tab) },
+            icon = {
+                Icon(
+                    imageVector = when (tab) {
+                        RootTab.Photos -> GalleryIcons.Image
+                        RootTab.Collections -> GalleryIcons.Collections
+                        RootTab.Search -> GalleryIcons.Search
+                    },
+                    contentDescription = stringResource(tab.label()),
+                )
+            },
+            label = { Text(stringResource(tab.label())) },
+        )
     } }
 }
 
 @Composable private fun RootNavigationRail(selected: RootTab, onSelect: (RootTab) -> Unit) {
     NavigationRail { RootTab.entries.forEach { tab ->
-        NavigationRailItem(selected == tab, { onSelect(tab) }, icon = { Text(if (tab == RootTab.Photos) "●" else "■") }, label = { Text(stringResource(tab.label())) })
+        NavigationRailItem(
+            selected = selected == tab,
+            onClick = { onSelect(tab) },
+            icon = {
+                Icon(
+                    imageVector = when (tab) {
+                        RootTab.Photos -> GalleryIcons.Image
+                        RootTab.Collections -> GalleryIcons.Collections
+                        RootTab.Search -> GalleryIcons.Search
+                    },
+                    contentDescription = stringResource(tab.label()),
+                )
+            },
+            label = { Text(stringResource(tab.label())) },
+        )
     } }
 }
 

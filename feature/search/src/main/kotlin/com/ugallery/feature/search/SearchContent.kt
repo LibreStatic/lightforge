@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,10 +14,13 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -39,7 +43,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.CircleShape
 import com.ugallery.core.search.MediaSearchHit
+import com.ugallery.core.designsystem.GalleryIcons
 import com.ugallery.core.thumbnail.ThumbnailLoader
 import com.ugallery.core.thumbnail.ThumbnailRequest
 
@@ -93,6 +99,9 @@ fun SearchContent(
             Text(stringResource(R.string.search_partial_index), color = MaterialTheme.colorScheme.primary)
         }
         Text(stringResource(R.string.search_privacy), style = MaterialTheme.typography.bodySmall)
+        if (query.isBlank()) {
+            SearchDiscovery(onPresetSearch = onPresetSearch)
+        }
         when {
             error -> Text(stringResource(R.string.search_error), color = MaterialTheme.colorScheme.error)
             loading && hits.isEmpty() -> CircularProgressIndicator()
@@ -130,6 +139,53 @@ fun SearchContent(
             }
         },
     )
+}
+
+@Composable
+private fun SearchDiscovery(onPresetSearch: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(stringResource(R.string.search_people_pets), style = MaterialTheme.typography.titleMedium)
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            val people = listOf(
+                Triple(R.string.search_me, GalleryIcons.User, "me"),
+                Triple(R.string.search_people, GalleryIcons.User, "people"),
+                Triple(R.string.search_cats, GalleryIcons.Pet, "cats"),
+                Triple(R.string.search_dogs, GalleryIcons.Pet, "dogs"),
+            )
+            items(people) { (label, icon, query) ->
+                Card(onClick = { onPresetSearch(query) }) {
+                    Column(
+                        Modifier.padding(10.dp),
+                        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+                    ) {
+                        Box(
+                            Modifier.size(52.dp).background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
+                            contentAlignment = androidx.compose.ui.Alignment.Center,
+                        ) { Icon(icon, contentDescription = null) }
+                        Text(stringResource(label), style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+            }
+        }
+        Text(stringResource(R.string.search_places), style = MaterialTheme.typography.titleMedium)
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(listOf(R.string.search_coast to "coast", R.string.search_mountain to "mountain", R.string.search_city to "city", R.string.search_rain to "rain")) { (label, query) ->
+                AssistChip(onClick = { onPresetSearch(query) }, label = { Text(stringResource(label)) }, leadingIcon = { Icon(GalleryIcons.Image, contentDescription = null) })
+            }
+        }
+        Text(stringResource(R.string.search_content_types), style = MaterialTheme.typography.titleMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+            listOf(R.string.search_documents to "documents", R.string.search_screenshots to "screenshots", R.string.search_video to "videos", R.string.search_camera to "camera").forEach { (label, query) ->
+                AssistChip(onClick = { onPresetSearch(query) }, label = { Text(stringResource(label)) }, leadingIcon = { Icon(GalleryIcons.Collections, contentDescription = null) })
+            }
+        }
+        Text(stringResource(R.string.search_topics), style = MaterialTheme.typography.titleMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
+            listOf(R.string.search_landscapes to "landscapes", R.string.search_food to "food").forEach { (label, query) ->
+                AssistChip(onClick = { onPresetSearch(query) }, label = { Text(stringResource(label)) })
+            }
+        }
+    }
 }
 
 @Composable

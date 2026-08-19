@@ -10,10 +10,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -22,6 +25,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import com.ugallery.core.designsystem.GallerySpacing
+import com.ugallery.core.designsystem.GalleryIcons
 import com.ugallery.core.designsystem.GalleryStateContent
 import com.ugallery.core.model.LibraryAccess
 import com.ugallery.core.model.TimelineEntry
@@ -37,10 +41,12 @@ fun LibraryPhotosRoute(
     entries: LazyPagingItems<TimelineEntry>,
     thumbnailLoader: ThumbnailLoader?,
     onRequestAccess: () -> Unit,
+    onOpenSettings: () -> Unit = {},
     onMediaClick: (TimelineMedia) -> Unit = {},
     onMediaLongClick: (TimelineMedia) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val densityState = rememberTimelineDensityState()
     Column(
         modifier
             .fillMaxSize()
@@ -57,6 +63,36 @@ fun LibraryPhotosRoute(
                     stringResource(R.string.photos_title),
                     style = MaterialTheme.typography.headlineLarge,
                     modifier = Modifier.semantics { heading() },
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        GalleryIcons.Lock,
+                        contentDescription = stringResource(R.string.library_local),
+                        modifier = Modifier.padding(end = GallerySpacing.Xs),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        stringResource(R.string.library_local),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            IconButton(onClick = {
+                densityState.cycleDensity(
+                    anchorIndex = densityState.anchorIndex,
+                    anchorOffset = densityState.anchorOffset,
+                )
+            }) {
+                Icon(
+                    GalleryIcons.Grid,
+                    contentDescription = stringResource(R.string.change_grid_density),
+                )
+            }
+            IconButton(onClick = onOpenSettings) {
+                Icon(
+                    GalleryIcons.Settings,
+                    contentDescription = stringResource(R.string.open_settings),
                 )
             }
             if (access.isLimited) Text(
@@ -103,6 +139,7 @@ fun LibraryPhotosRoute(
                     onMediaClick = onMediaClick,
                     onMediaLongClick = onMediaLongClick,
                     modifier = Modifier.fillMaxSize(),
+                    densityState = densityState,
                 )
             }
         }

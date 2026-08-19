@@ -63,6 +63,8 @@ kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-t
 litert = { module = "com.google.ai.edge.litert:litert", version.ref = "litert" }
 litert-api = { module = "com.google.ai.edge.litert:litert-api", version.ref = "litert" }
 
+androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }

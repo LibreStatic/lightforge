@@ -15,4 +15,6 @@
     <string name="grant_access_action">Choose access</string>
     <string name="photo_thumbnail_description">Photo</string>
     <string name="video_thumbnail_description">Video</string>
+    <string name="open_settings">Open settings</string>
+    <string name="change_grid_density">Change grid density</string>
 </resources>

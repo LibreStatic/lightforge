@@ -25,6 +25,15 @@ class TimelineDensityStateTest {
     }
 
     @Test
+    fun cycleDensityWrapsAfterLargestGridAndPreservesAnchor() {
+        val state = TimelineDensityState(3, 0, 0)
+        assertTrue(state.cycleDensity(anchorIndex = 24, anchorOffset = 9))
+        assertEquals(0, state.densityIndex)
+        assertEquals(24, state.anchorIndex)
+        assertEquals(9, state.anchorOffset)
+    }
+
+    @Test
     fun pendingDensityRestoreCannotBeOverwrittenByOldLayoutObservation() {
         val state = TimelineDensityState(0, 5, 0)
 

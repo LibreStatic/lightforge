@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -39,6 +41,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.dp
 import com.ugallery.feature.viewer.VideoViewerController
+import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.GalleryMonoTypography
 import com.ugallery.feature.viewer.VideoViewerState
 
 data class VideoEditorContentState(
@@ -73,7 +77,9 @@ fun VideoEditorContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onBack) { Text(stringResource(R.string.video_editor_cancel)) }
+            IconButton(onClick = onBack) {
+                Icon(GalleryIcons.Back, contentDescription = stringResource(R.string.video_editor_cancel))
+            }
             Text(stringResource(R.string.video_editor_title), style = MaterialTheme.typography.titleLarge)
             Button(onClick = onSaveCopy, enabled = !state.isExporting) {
                 Text(stringResource(R.string.video_editor_save_copy))
@@ -120,8 +126,8 @@ private fun VideoTimeline(
     val position = state.currentMillis.coerceIn(0, duration)
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(formatMillis(position))
-            Text(formatMillis(duration))
+            Text(formatMillis(position), style = GalleryMonoTypography)
+            Text(formatMillis(duration), style = GalleryMonoTypography)
         }
         Slider(
             value = position.toFloat(),
@@ -155,8 +161,18 @@ private fun VideoControls(
     var selectedTab by remember { mutableIntStateOf(0) }
     Column(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
         TabRow(selectedTabIndex = selectedTab) {
-            listOf(R.string.video_editor_speed, R.string.video_editor_audio, R.string.video_editor_music)
-                .forEachIndexed { index, label -> Tab(selectedTab == index, { selectedTab = index }, text = { Text(stringResource(label)) }) }
+            listOf(
+                R.string.video_editor_speed to GalleryIcons.Speed,
+                R.string.video_editor_audio to GalleryIcons.Volume,
+                R.string.video_editor_music to GalleryIcons.Music,
+            ).forEachIndexed { index, (label, icon) ->
+                Tab(
+                    selected = selectedTab == index,
+                    onClick = { selectedTab = index },
+                    icon = { Icon(icon, contentDescription = null) },
+                    text = { Text(stringResource(label)) },
+                )
+            }
         }
         when (selectedTab) {
             0 -> Row(
@@ -183,7 +199,10 @@ private fun VideoControls(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (state.selectedMusicName == null) {
-                    OutlinedButton(onClick = onChooseMusic) { Text(stringResource(R.string.video_editor_choose_music)) }
+                    OutlinedButton(onClick = onChooseMusic) {
+                        Icon(GalleryIcons.Music, contentDescription = null)
+                        Text(stringResource(R.string.video_editor_choose_music))
+                    }
                 } else {
                     Text(state.selectedMusicName, Modifier.weight(1f))
                     TextButton(onClick = onRemoveMusic) { Text(stringResource(R.string.video_editor_remove_music)) }

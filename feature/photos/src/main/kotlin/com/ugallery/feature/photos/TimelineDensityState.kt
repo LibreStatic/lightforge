@@ -45,6 +45,16 @@ class TimelineDensityState internal constructor(
         return options[densityIndex.coerceIn(options.indices)]
     }
 
+    /** Cycles through density options while preserving the current media anchor. */
+    fun cycleDensity(anchorIndex: Int, anchorOffset: Int = 0, anchorStableKey: String? = null): Boolean {
+        this.anchorIndex = anchorIndex.coerceAtLeast(0)
+        this.anchorOffset = anchorOffset.coerceAtLeast(0)
+        this.anchorStableKey = anchorStableKey
+        anchorRestorePending = true
+        densityIndex = (densityIndex + 1) % 4
+        return true
+    }
+
     fun changeDensity(
         delta: Int,
         anchorIndex: Int,

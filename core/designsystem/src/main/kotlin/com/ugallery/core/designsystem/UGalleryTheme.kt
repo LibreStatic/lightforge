@@ -100,6 +100,18 @@ private val DarkScheme = darkColorScheme(
 )
 
 private val GalleryTypography = androidx.compose.material3.Typography(
+    displayLarge = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Medium,
+        fontSize = 64.sp,
+        lineHeight = 72.sp,
+    ),
+    displayMedium = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Medium,
+        fontSize = 48.sp,
+        lineHeight = 56.sp,
+    ),
     headlineLarge = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Medium,
@@ -134,6 +146,14 @@ private val GalleryTypography = androidx.compose.material3.Typography(
         fontSize = 12.sp,
         lineHeight = 16.sp,
     ),
+)
+
+
+/** Monospace style for metadata, durations, and timeline values. */
+val GalleryMonoTypography: TextStyle = TextStyle(
+    fontFamily = FontFamily.Monospace,
+    fontSize = 12.sp,
+    lineHeight = 16.sp,
 )
 
 private val GalleryShapes = Shapes(

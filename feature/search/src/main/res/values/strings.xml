@@ -5,4 +5,9 @@
     <string name="search_error">Search is temporarily unavailable.</string><string name="search_empty">No local results</string><string name="search_more">Load more</string><string name="search_result">Media result</string>
     <string name="search_analysis_title">On-device analysis</string><string name="search_analysis_body">Image labels and text recognition run locally in resumable battery-aware chunks. You can pause them or delete all derived data.</string>
     <string name="search_analysis_enable">Enable</string><string name="search_analysis_pause">Pause</string><string name="search_analysis_delete">Delete derived data</string><string name="search_close">Close</string>
+    <string name="search_people_pets">People and pets</string>
+    <string name="search_me">Me</string><string name="search_people">People</string><string name="search_cats">Cats</string><string name="search_dogs">Dogs</string>
+    <string name="search_places">Places</string><string name="search_coast">Coast</string><string name="search_mountain">Mountain</string><string name="search_city">City</string><string name="search_rain">Rain</string>
+    <string name="search_content_types">Content types</string><string name="search_screenshots">Screenshots</string><string name="search_video">Video</string><string name="search_camera">Camera</string>
+    <string name="search_topics">Topics</string><string name="search_landscapes">Landscapes</string><string name="search_food">Food</string>
 </resources>

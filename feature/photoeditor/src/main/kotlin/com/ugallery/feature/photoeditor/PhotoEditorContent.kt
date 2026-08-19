@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -33,6 +34,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.ugallery.core.model.EditOperation
+import com.ugallery.core.designsystem.GalleryIcons
 
 data class PhotoEditorContentState(
     val preview: Bitmap? = null,
@@ -60,7 +62,9 @@ fun PhotoEditorContent(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onBack) { Text(stringResource(R.string.photo_editor_cancel)) }
+            IconButton(onClick = onBack) {
+                Icon(GalleryIcons.Back, contentDescription = stringResource(R.string.photo_editor_cancel))
+            }
             Text(stringResource(R.string.photo_editor_title), style = MaterialTheme.typography.titleLarge)
             Button(onClick = onSaveCopy, enabled = !state.isExporting) {
                 Text(stringResource(R.string.photo_editor_save_copy))
@@ -127,8 +131,12 @@ private fun PhotoTools(
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(stringResource(R.string.photo_editor_filters), style = MaterialTheme.typography.titleMedium)
             Row {
-                TextButton(onClick = onUndo, enabled = state.canUndo) { Text(stringResource(R.string.photo_editor_undo)) }
-                TextButton(onClick = onRedo, enabled = state.canRedo) { Text(stringResource(R.string.photo_editor_redo)) }
+                IconButton(onClick = onUndo, enabled = state.canUndo) {
+                    Icon(GalleryIcons.Undo, contentDescription = stringResource(R.string.photo_editor_undo))
+                }
+                IconButton(onClick = onRedo, enabled = state.canRedo) {
+                    Icon(GalleryIcons.Redo, contentDescription = stringResource(R.string.photo_editor_redo))
+                }
             }
         }
         Row(
@@ -145,17 +153,21 @@ private fun PhotoTools(
                     selected = state.selectedFilter == name,
                     onClick = { onApply(EditOperation.Filter(name)) },
                     label = { Text(stringResource(label)) },
+                    leadingIcon = { Icon(GalleryIcons.Palette, contentDescription = null) },
                 )
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { onApply(EditOperation.Crop(80, 80, 920, 920)) }) {
+                Icon(GalleryIcons.Crop, contentDescription = null)
                 Text(stringResource(R.string.photo_editor_crop))
             }
             OutlinedButton(onClick = { onApply(EditOperation.Rotate(90)) }) {
+                Icon(GalleryIcons.Tune, contentDescription = null)
                 Text(stringResource(R.string.photo_editor_rotate))
             }
             OutlinedButton(onClick = { onApply(EditOperation.Flip(horizontal = true)) }) {
+                Icon(GalleryIcons.Edit, contentDescription = null)
                 Text(stringResource(R.string.photo_editor_flip))
             }
         }

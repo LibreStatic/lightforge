@@ -13,4 +13,4 @@
     <string name="grant_access_action">Zugriff wählen</string>
     <string name="photo_thumbnail_description">Foto</string>
     <string name="video_thumbnail_description">Video</string>
-</resources>
+<string name="open_settings">Einstellungen öffnen</string><string name="change_grid_density">Rasterdichte ändern</string></resources>
