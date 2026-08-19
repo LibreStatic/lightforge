@@ -57,5 +57,7 @@ include(
     ":feature:places",
     ":feature:subjectclip",
     ":feature:objecteraser",
+    ":feature:semanticsearch",
+    ":feature:petrecognition",
    ":feature:motionphotos",
 )
