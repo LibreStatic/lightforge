@@ -1,0 +1,93 @@
+# Product
+
+<!-- impeccable:product-schema 1 -->
+
+## Platform
+
+android
+
+## Stack
+
+Kotlin, Jetpack Compose, AndroidX, Android SDK (minSdk 30, compileSdk 37, targetSdk 36), Room, Paging 3, AppSearch LocalStorage, WorkManager, Media3 ExoPlayer + Transformer, ML Kit bundled, LiteRT CompiledModel, Android Keystore + BiometricPrompt, Hilt, Macrobenchmark + Baseline Profiles, Gradle Kotlin DSL with version catalog and KSP.
+
+## Users
+
+People with large personal photo and video libraries (100,000-250,000 items) who want a fast, private, offline-first gallery that organizes media locally without relying on cloud services. They need to browse, search, manage, edit, and protect their media entirely on-device.
+
+## Product Purpose
+
+UGallery is a 100% native Android gallery app that makes managing massive local photo/video libraries fast, private, and reliable. It exists because stock gallery apps and cloud-dependent solutions do not handle 250k-item libraries well, and users increasingly want privacy without sacrificing organization. Success means: the app runs entirely offline, handles 250k items without ANR/OOM, provides ML-powered organization (faces, places, semantic search) on-device, and never sends user data to any server.
+
+## Positioning
+
+A gallery that scales to quarter-million-item libraries on-device, with local ML organization, zero network dependency, and no OEM privilege assumptions. Unlike cloud galleries, it works without INTERNET permission in release. Unlike stock gallery apps, it does not assume MANAGE_EXTERNAL_STORAGE or OEM media-management privileges. The differentiator is full local-first architecture: MediaStore as authority, Room/AppSearch/ML as rebuildable indexes, and a system-permission-respecting access model.
+
+## Operating Context
+
+- Libraries of 100k-250k photos and videos stored on-device or on removable SD cards.
+- Permission states are fluid: full, partial (selected media), and revoked; revalidated on foreground return.
+- MediaStore is the single source of truth; all indexes (Room, AppSearch, thumbnails, ML) are caches that can be rebuilt.
+- Identity key is (volumeName, mediaStoreId), never absolute paths.
+- Incremental sync via ContentObserver, generation cursors, and per-volume reconciliation; never full scan at startup.
+- All ML (face detection, OCR, clustering, semantic search) runs locally with bundled models; no runtime model downloads.
+- Person/pet recognition is opt-in with pausable processing and manual correction.
+- Editing is copy-by-default; overwriting originals requires explicit action and system authorization flow.
+- All writes are atomic or recoverable (IS_PENDING pattern for exports).
+- Adaptive layouts: compact (phone), medium (foldable half-open), expanded (tablet); foldable postures and multi-window supported.
+- Tested on reference phone (API 36) and Galaxy Tab S9+ (API 36) with removable SD card.
+
+## Capabilities and Constraints
+
+- Timeline grid with pinch-to-zoom, anchor preservation on rotation/resize/fold.
+- Album management (create, add, remove) with atomic writes.
+- Full-screen viewer with large image tiling, video playback (Media3 ExoPlayer).
+- Search: keyword (AppSearch), semantic (local embeddings), by person, by place.
+- Face detection (ML Kit) + face recognition (LiteRT embeddings + clustering + manual correction); opt-in.
+- OCR, pet recognition, object eraser, subject clip; local, opt-in where applicable.
+- Moments/collections auto-grouping by time and location.
+- Private albums (biometric-encrypted, Android Keystore).
+- Collage, GIF, slideshow, motion photo playback.
+- Places map (offline reverse geocoding).
+- Trash, favorites, share.
+- Dark theme, Material 3 theming, Dynamic Color (Material You).
+- Accessibility: TalkBack, font scale, touch targets >= 48dp.
+- Localization: English, Spanish, French, Portuguese, Italian.
+- No INTERNET permission in release build (enforced and verified).
+- No MANAGE_EXTERNAL_STORAGE, no MANAGE_MEDIA, no OEM privilege assumptions.
+- No misleading P2 stubs; features either work or degrade explicitly.
+
+## Brand Commitments
+
+- App name: UGallery
+- Non-commercial use only
+- No [redacted] trade dress, code, or resources copied; functional parity with own identity
+- Local-first, privacy-first positioning
+- English-first strings with full localization support
+
+## Evidence on Hand
+
+- Complete HTML mockup (32 screens) in docs/mock/; used as visual contract, not architecture
+- Visual handoff files: DESIGN-HANDOFF.md, DESIGN-MANIFEST.json, UI_ROUTE_MAP_GALERIA_ANDROID.md
+- 41 ADRs in docs/adr/ covering all architectural decisions
+- Backlog in CODEX_BACKLOG_GALERIA_ANDROID.json with M0-M6 milestones (all complete)
+- Physical device testing: reference phone (reference phone, API 36) and Galaxy Tab S9+ (reference tablet, API 36)
+- Macrobenchmark results and Baseline Profiles in baselineprofile/ and benchmark/ modules
+- Missing: styles/gallery-components.css and scripts/gallery-prototype.js from mockup ZIP (registered as visual-fidelity blocker; does not block architecture/implementation work)
+- Face identification test datasets provided by user (face_identification_test_v2.zip, face_identification_test_v3.zip)
+
+## Product Principles
+
+1. Local-first always: no network dependency, no cloud, no runtime model downloads.
+2. MediaStore is authority; everything else is a rebuildable cache.
+3. Permission states are first-class: full, partial, and revoked all work explicitly.
+4. Scale without compromise: 250k items must work without ANR/OOM.
+5. Honesty over illusion: no misleading stubs, no hidden errors, no invented success.
+
+## Accessibility & Inclusion
+
+- TalkBack screen reader support with localized labels
+- Font scale up to 200% must not break layouts
+- Touch targets minimum 48x48dp
+- Material 3 accessibility roles and contrast variants
+- Dynamic Color and dark theme as first-class schemes
+
