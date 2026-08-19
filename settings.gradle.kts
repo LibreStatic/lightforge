@@ -54,5 +54,6 @@ include(
    ":feature:privatealbum",
     ":feature:collage",
     ":feature:widget",
+    ":feature:places",
    ":feature:motionphotos",
 )
