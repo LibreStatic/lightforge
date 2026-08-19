@@ -22,5 +22,7 @@ android {
 dependencies {
     implementation(project(":core:model"))
     implementation(libs.androidx.biometric)
+    implementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.junit4)
+    testImplementation(libs.kotlinx.coroutines.test)
 }
