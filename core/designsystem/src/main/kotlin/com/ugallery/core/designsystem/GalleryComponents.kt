@@ -1,19 +1,52 @@
 package com.ugallery.core.designsystem
 
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,8 +54,272 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+
+enum class GalleryMotionEdge { Top, Bottom, Start, End }
+
+/**
+ * Returns whether Android has disabled system animations. This observes the
+ * platform animation-scale settings so an accessibility change takes effect
+ * without restarting the activity.
+ */
+@Composable
+fun rememberGalleryReducedMotion(): Boolean {
+    val context = LocalContext.current
+    var motionScale by remember(context) { mutableFloatStateOf(readGalleryMotionScale(context)) }
+
+    DisposableEffect(context) {
+        val resolver = context.contentResolver
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                motionScale = readGalleryMotionScale(context)
+            }
+        }
+        GalleryMotionSettingNames.forEach { name ->
+            resolver.registerContentObserver(Settings.Global.getUriFor(name), false, observer)
+        }
+        onDispose { resolver.unregisterContentObserver(observer) }
+    }
+
+    return motionScale <= 0f
+}
+
+private val GalleryMotionSettingNames = listOf(
+    Settings.Global.ANIMATOR_DURATION_SCALE,
+    Settings.Global.TRANSITION_ANIMATION_SCALE,
+    Settings.Global.WINDOW_ANIMATION_SCALE,
+)
+
+private fun readGalleryMotionScale(context: android.content.Context): Float =
+    GalleryMotionSettingNames.minOf { name ->
+        runCatching {
+            Settings.Global.getFloat(context.contentResolver, name, 1f)
+        }.getOrDefault(1f)
+    }.coerceAtLeast(0f)
+
+@Composable
+fun <S> GalleryAnimatedContent(
+    targetState: S,
+    modifier: Modifier = Modifier,
+    contentKey: (S) -> Any? = { it },
+    reducedMotion: Boolean? = null,
+    content: @Composable androidx.compose.animation.AnimatedContentScope.(S) -> Unit,
+) {
+    val shouldReduceMotion = reducedMotion ?: rememberGalleryReducedMotion()
+    AnimatedContent(
+        targetState = targetState,
+        modifier = modifier,
+        contentKey = contentKey,
+        transitionSpec = {
+            if (shouldReduceMotion) {
+                fadeIn(tween(GalleryMotion.FastMillis)) togetherWith
+                    fadeOut(tween(GalleryMotion.FastMillis))
+            } else {
+                (
+                    fadeIn(
+                        animationSpec = tween(
+                            GalleryMotion.BaseMillis,
+                            easing = GalleryMotion.StandardEasing,
+                        ),
+                    ) + scaleIn(
+                        initialScale = 0.985f,
+                        animationSpec = tween(
+                            GalleryMotion.BaseMillis,
+                            easing = GalleryMotion.StandardEasing,
+                        ),
+                    )
+                ) togetherWith fadeOut(
+                    animationSpec = tween(
+                        GalleryMotion.FastMillis,
+                        easing = GalleryMotion.StandardEasing,
+                    ),
+                )
+            }.using(SizeTransform(clip = false))
+        },
+        content = content,
+    )
+}
+
+@Composable
+fun GalleryAnimatedVisibility(
+    visible: Boolean,
+    modifier: Modifier = Modifier,
+    edge: GalleryMotionEdge = GalleryMotionEdge.Bottom,
+    reducedMotion: Boolean? = null,
+    content: @Composable androidx.compose.animation.AnimatedVisibilityScope.() -> Unit,
+) {
+    val shouldReduceMotion = reducedMotion ?: rememberGalleryReducedMotion()
+    val enter: EnterTransition
+    val exit: ExitTransition
+    if (shouldReduceMotion) {
+        enter = EnterTransition.None
+        exit = ExitTransition.None
+    } else {
+        val fadeEnter = fadeIn(
+            animationSpec = tween(
+                GalleryMotion.FastMillis,
+                easing = GalleryMotion.StandardEasing,
+            ),
+        )
+        val fadeExit = fadeOut(
+            animationSpec = tween(
+                GalleryMotion.FastMillis,
+                easing = GalleryMotion.StandardEasing,
+            ),
+        )
+        enter = when (edge) {
+            GalleryMotionEdge.Top -> fadeEnter + slideInVertically(
+                animationSpec = tween(GalleryMotion.BaseMillis, easing = GalleryMotion.StandardEasing),
+                initialOffsetY = { -it },
+            )
+            GalleryMotionEdge.Bottom -> fadeEnter + slideInVertically(
+                animationSpec = tween(GalleryMotion.BaseMillis, easing = GalleryMotion.StandardEasing),
+                initialOffsetY = { it },
+            )
+            GalleryMotionEdge.Start -> fadeEnter + slideInHorizontally(
+                animationSpec = tween(GalleryMotion.BaseMillis, easing = GalleryMotion.StandardEasing),
+                initialOffsetX = { -it },
+            )
+            GalleryMotionEdge.End -> fadeEnter + slideInHorizontally(
+                animationSpec = tween(GalleryMotion.BaseMillis, easing = GalleryMotion.StandardEasing),
+                initialOffsetX = { it },
+            )
+        }
+        exit = when (edge) {
+            GalleryMotionEdge.Top -> fadeExit + slideOutVertically(
+                animationSpec = tween(GalleryMotion.FastMillis, easing = GalleryMotion.StandardEasing),
+                targetOffsetY = { -it },
+            )
+            GalleryMotionEdge.Bottom -> fadeExit + slideOutVertically(
+                animationSpec = tween(GalleryMotion.FastMillis, easing = GalleryMotion.StandardEasing),
+                targetOffsetY = { it },
+            )
+            GalleryMotionEdge.Start -> fadeExit + slideOutHorizontally(
+                animationSpec = tween(GalleryMotion.FastMillis, easing = GalleryMotion.StandardEasing),
+                targetOffsetX = { -it },
+            )
+            GalleryMotionEdge.End -> fadeExit + slideOutHorizontally(
+                animationSpec = tween(GalleryMotion.FastMillis, easing = GalleryMotion.StandardEasing),
+                targetOffsetX = { it },
+            )
+        }
+    }
+    AnimatedVisibility(
+        visible = visible,
+        modifier = modifier,
+        enter = enter,
+        exit = exit,
+        content = content,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GalleryTopAppBar(
+    title: String,
+    modifier: Modifier = Modifier,
+    onBack: (() -> Unit)? = null,
+    navigationContentDescription: String? = null,
+    actions: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit = {},
+) {
+    TopAppBar(
+        title = {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        modifier = modifier,
+        navigationIcon = {
+            if (onBack != null) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        GalleryIcons.Back,
+                        contentDescription = navigationContentDescription ?: title,
+                    )
+                }
+            }
+        },
+        actions = actions,
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.background,
+            scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+        ),
+    )
+}
+
+@Composable
+fun GalleryResponsiveContainer(
+    modifier: Modifier = Modifier,
+    maxWidth: androidx.compose.ui.unit.Dp = GalleryContentWidths.Browsing,
+    content: @Composable ColumnScope.(GalleryAdaptiveLayoutInfo) -> Unit,
+) {
+    BoxWithConstraints(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        val adaptiveInfo = galleryAdaptiveLayoutInfo(this.maxWidth)
+        Column(
+            modifier = Modifier
+                .widthIn(max = maxWidth)
+                .fillMaxSize()
+                .padding(horizontal = adaptiveInfo.gutter),
+        ) {
+            content(adaptiveInfo)
+        }
+    }
+}
+
+@Composable
+fun GallerySectionHeader(
+    title: String,
+    modifier: Modifier = Modifier,
+    supportingText: String? = null,
+) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.semantics { heading() },
+        )
+        supportingText?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+fun GalleryActionButton(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    TextButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.height(72.dp),
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
 
 @Composable
 fun GalleryStateContent(
@@ -41,6 +338,7 @@ fun GalleryStateContent(
 ) {
     Box(modifier = modifier.padding(GallerySpacing.Xxl), contentAlignment = Alignment.Center) {
         Column(
+            modifier = Modifier.widthIn(max = 480.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
@@ -55,7 +353,7 @@ fun GalleryStateContent(
             Spacer(Modifier.height(GallerySpacing.Xl))
             Text(
                 title,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleLarge,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.semantics { heading() },
             )

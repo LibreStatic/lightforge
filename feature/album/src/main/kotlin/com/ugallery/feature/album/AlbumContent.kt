@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -27,6 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
 import androidx.paging.compose.LazyPagingItems
 import com.ugallery.core.database.AlbumMediaFilter
@@ -54,27 +57,28 @@ fun AlbumContent(
     onSortChange: (AlbumSort) -> Unit,
     onMediaClick: (TimelineMedia) -> Unit,
     onMediaLongClick: (TimelineMedia) -> Unit,
+    showHeader: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.fillMaxSize()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(
+            if (showHeader) Text(
                 album.name ?: stringResource(R.string.album_untitled),
-                style = MaterialTheme.typography.headlineLarge,
+                style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.semantics { heading() },
             )
             if (album.availability == AlbumAvailability.VolumeUnavailable) {
                 Text(stringResource(R.string.album_volume_unavailable), color = MaterialTheme.colorScheme.error)
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AlbumMediaFilter.entries.forEach { value ->
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(AlbumMediaFilter.entries) { value ->
                     FilterChip(
                         selected = filter == value,
                         onClick = { onFilterChange(value) },
                         label = { Text(stringResource(value.label())) },
                     )
                 }
-                FilterChip(
+                item { FilterChip(
                     selected = sort == AlbumSort.OldestFirst,
                     onClick = {
                         onSortChange(
@@ -82,7 +86,7 @@ fun AlbumContent(
                         )
                     },
                     label = { Text(stringResource(if (sort == AlbumSort.NewestFirst) R.string.album_newest else R.string.album_oldest)) },
-                )
+                ) }
             }
             val count = runCatching { SelectionReducer.count(selection, selectionQueryCount) }.getOrDefault(0)
             if (count > 0) Text(stringResource(R.string.album_selected_count, count))
@@ -101,9 +105,8 @@ fun AlbumContent(
                 Modifier.fillMaxSize(),
             )
             else -> BoxWithConstraints(Modifier.fillMaxSize()) {
-                val columns = when { maxWidth < 600.dp -> 3; maxWidth < 840.dp -> 5; else -> 8 }
                 LazyVerticalGrid(
-                    columns = GridCells.Fixed(columns),
+                    columns = GridCells.Adaptive(104.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
@@ -143,7 +146,10 @@ private fun AlbumCell(
     )
     val modifier = Modifier.fillMaxWidth().aspectRatio(1f)
         .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-        .semantics { contentDescription = if (selected) "$description. selected" else description }
+        .semantics {
+            contentDescription = description
+            this.selected = selected
+        }
     bitmap?.let {
         Image(it.asImageBitmap(), null, modifier, contentScale = ContentScale.Crop)
     } ?: Box(modifier)

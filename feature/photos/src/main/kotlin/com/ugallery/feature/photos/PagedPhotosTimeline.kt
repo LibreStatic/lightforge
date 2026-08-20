@@ -1,5 +1,7 @@
 package com.ugallery.feature.photos
 
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.background
@@ -33,7 +35,9 @@ import androidx.compose.ui.unit.dp
 import androidx.paging.compose.LazyPagingItems
 import com.ugallery.core.designsystem.GalleryColors
 import com.ugallery.core.designsystem.GalleryGridMetrics
+import com.ugallery.core.designsystem.GalleryMotion
 import com.ugallery.core.designsystem.GallerySpacing
+import com.ugallery.core.designsystem.rememberGalleryReducedMotion
 import com.ugallery.core.model.TimelineEntry
 import com.ugallery.core.model.TimelineMedia
 import com.ugallery.core.thumbnail.ThumbnailLoader
@@ -95,6 +99,7 @@ fun PagedPhotosTimeline(
     onMediaLongClick: (TimelineMedia) -> Unit = {},
 ) {
     require(columns > 0 && thumbnailSizePx > 0)
+    val reducedMotion = rememberGalleryReducedMotion()
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
         state = state,
@@ -122,6 +127,18 @@ fun PagedPhotosTimeline(
                     entry = entry,
                     loader = thumbnailLoader,
                     sizePx = thumbnailSizePx,
+                    modifier = Modifier.animateItem(
+                        fadeInSpec = snap(),
+                        placementSpec = if (reducedMotion) {
+                            snap()
+                        } else {
+                            tween(
+                                GalleryMotion.BaseMillis,
+                                easing = GalleryMotion.StandardEasing,
+                            )
+                        },
+                        fadeOutSpec = snap(),
+                    ),
                     onClick = { onMediaClick(entry.value) },
                     onLongClick = { onMediaLongClick(entry.value) },
                 )
@@ -172,6 +189,7 @@ private fun TimelineThumbnail(
     entry: TimelineEntry.Media,
     loader: ThumbnailLoader,
     sizePx: Int,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
@@ -192,7 +210,7 @@ private fun TimelineThumbnail(
         if (value == null) value = runCatching { loader.load(request) }.getOrNull()
     }
     val loaded = bitmap
-    val cellModifier = Modifier
+    val cellModifier = modifier
         .fillMaxWidth()
         .aspectRatio(1f)
         .testTag("media_${entry.value.key.volumeName}_${entry.value.key.mediaStoreId}")

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -35,10 +36,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.viewinterop.AndroidView
 import com.ugallery.core.model.MediaKind
+import com.ugallery.core.designsystem.GalleryAnimatedVisibility
 import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.GalleryMotionEdge
 import java.text.DateFormat
 import java.util.Date
 import com.ugallery.core.model.TimelineMedia
@@ -66,9 +70,20 @@ fun ViewerContent(
     Box(
         modifier.fillMaxSize().background(Color.Black),
     ) {
-        if (chromeVisible) {
+        Box(
+            Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) { detectTapGestures(onTap = { chromeVisible = !chromeVisible }) },
+        ) {
+            if (media.kind == MediaKind.Video) VideoSurface(videoController) else PhotoSurface(photoState)
+        }
+        GalleryAnimatedVisibility(
+            visible = chromeVisible,
+            edge = GalleryMotionEdge.Top,
+            modifier = Modifier.align(Alignment.TopCenter),
+        ) {
             Row(
-                Modifier.fillMaxWidth().align(Alignment.TopCenter)
+                Modifier.fillMaxWidth()
                     .background(Color.Black.copy(alpha = 0.55f))
                     .padding(horizontal = 8.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -101,16 +116,13 @@ fun ViewerContent(
                 }
             }
         }
-        Box(
-            Modifier.fillMaxSize()
-                .padding(top = 64.dp, bottom = if (chromeVisible) 92.dp else 0.dp)
-                .pointerInput(Unit) { detectTapGestures(onTap = { chromeVisible = !chromeVisible }) },
+        GalleryAnimatedVisibility(
+            visible = chromeVisible,
+            edge = GalleryMotionEdge.Bottom,
+            modifier = Modifier.align(Alignment.BottomCenter),
         ) {
-            if (media.kind == MediaKind.Video) VideoSurface(videoController) else PhotoSurface(photoState)
-        }
-        if (chromeVisible) {
             Row(
-                Modifier.fillMaxWidth().align(Alignment.BottomCenter)
+                Modifier.fillMaxWidth()
                     .background(Color.Black.copy(alpha = 0.75f))
                     .padding(horizontal = 8.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -127,10 +139,17 @@ fun ViewerContent(
 
 @Composable
 private fun ViewerAction(onClick: () -> Unit, icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, modifier: Modifier = Modifier) {
-    androidx.compose.material3.TextButton(onClick = onClick, modifier = modifier) {
+    androidx.compose.material3.TextButton(onClick = onClick, modifier = modifier.heightIn(min = 72.dp)) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(icon, contentDescription = null, tint = Color.White)
-            Text(label, style = MaterialTheme.typography.labelSmall, color = Color.White)
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
         }
     }
 }

@@ -1,13 +1,17 @@
 package com.ugallery.core.designsystem
 
+import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -42,6 +46,11 @@ object GallerySpacing {
     val Hero = 48.dp
 }
 
+object GalleryContentWidths {
+    val Reading = 720.dp
+    val Browsing = 1_200.dp
+}
+
 object GalleryGridMetrics {
     val Gap = 4.dp
     val CompactCell = 112.dp
@@ -64,6 +73,32 @@ object GalleryMotion {
 
 enum class GalleryWindowClass { Compact, Medium, Expanded }
 
+enum class GalleryNavigationType { BottomBar, Rail }
+
+enum class GalleryFoldOrientation { Vertical, Horizontal }
+
+data class GalleryFoldInfo(
+    val orientation: GalleryFoldOrientation,
+    val isSeparating: Boolean,
+    val left: Dp,
+    val top: Dp,
+    val right: Dp,
+    val bottom: Dp,
+) {
+    val hingeWidth: Dp get() = (right - left).coerceAtLeast(0.dp)
+    val hingeHeight: Dp get() = (bottom - top).coerceAtLeast(0.dp)
+    val enablesSideBySide: Boolean
+        get() = isSeparating && orientation == GalleryFoldOrientation.Vertical
+}
+
+data class GalleryAdaptiveLayoutInfo(
+    val windowClass: GalleryWindowClass,
+    val navigationType: GalleryNavigationType,
+    val gutter: Dp,
+    val supportsTwoPane: Boolean,
+    val foldInfo: GalleryFoldInfo? = null,
+)
+
 fun galleryWindowClass(width: Dp): GalleryWindowClass = when {
     width < 600.dp -> GalleryWindowClass.Compact
     width < 840.dp -> GalleryWindowClass.Medium
@@ -74,6 +109,28 @@ fun galleryGridCellSize(width: Dp): Dp = when (galleryWindowClass(width)) {
     GalleryWindowClass.Compact -> GalleryGridMetrics.CompactCell
     GalleryWindowClass.Medium -> GalleryGridMetrics.MediumCell
     GalleryWindowClass.Expanded -> GalleryGridMetrics.ExpandedCell
+}
+
+fun galleryAdaptiveLayoutInfo(
+    width: Dp,
+    foldInfo: GalleryFoldInfo? = null,
+): GalleryAdaptiveLayoutInfo {
+    val windowClass = galleryWindowClass(width)
+    return GalleryAdaptiveLayoutInfo(
+        windowClass = windowClass,
+        navigationType = if (windowClass == GalleryWindowClass.Compact) {
+            GalleryNavigationType.BottomBar
+        } else {
+            GalleryNavigationType.Rail
+        },
+        gutter = when (windowClass) {
+            GalleryWindowClass.Compact -> GallerySpacing.Lg
+            GalleryWindowClass.Medium -> GallerySpacing.Xxl
+            GalleryWindowClass.Expanded -> GallerySpacing.Section
+        },
+        supportsTwoPane = foldInfo?.enablesSideBySide == true || windowClass == GalleryWindowClass.Expanded,
+        foldInfo = foldInfo,
+    )
 }
 
 private val LightScheme = lightColorScheme(
@@ -167,10 +224,22 @@ private val GalleryShapes = Shapes(
 @Composable
 fun UGalleryTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    dynamicColor: Boolean = true,
     content: @Composable () -> Unit,
 ) {
+    val context = LocalContext.current
+    val colors = when {
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && darkTheme -> {
+            dynamicDarkColorScheme(context)
+        }
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+            dynamicLightColorScheme(context)
+        }
+        darkTheme -> DarkScheme
+        else -> LightScheme
+    }
     MaterialTheme(
-        colorScheme = if (darkTheme) DarkScheme else LightScheme,
+        colorScheme = colors,
         typography = GalleryTypography,
         shapes = GalleryShapes,
         content = content,

@@ -1,0 +1,20 @@
+<resources>
+    <string name="private_setup_title">Private album setup</string>
+    <string name="private_setup_body">Moving media here encrypts it with your biometric credentials. If you uninstall the app, the data cannot be recovered. Export important items before uninstalling.</string>
+    <string name="private_understand">I understand</string>
+    <string name="private_cancel">Cancel</string>
+    <string name="private_locked">Private album is locked</string>
+    <string name="private_unlock_body">Authenticate with biometrics to unlock it.</string>
+    <string name="private_unlock">Unlock</string>
+    <string name="private_title_count">Private album (%1$d)</string>
+    <string name="private_back">Back</string>
+    <string name="private_empty">No private items yet. Move media here from the viewer.</string>
+    <string name="private_video">Video</string>
+    <string name="private_photo">Photo</string>
+    <string name="private_error">Error</string>
+    <string name="private_ok">OK</string>
+    <string name="private_exported">Item exported to your gallery.</string>
+    <string name="private_biometric_unavailable">Strong biometric authentication is unavailable on this device.</string>
+    <string name="private_biometric_failed">Biometric authentication was not recognized.</string>
+    <string name="private_export_failed">The item could not be exported.</string>
+</resources>

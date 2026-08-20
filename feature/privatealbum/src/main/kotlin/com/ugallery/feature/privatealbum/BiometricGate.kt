@@ -39,7 +39,7 @@ object BiometricGate {
             .setTitle(title)
             .setSubtitle(subtitle)
             .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
-            .setNegativeButtonText("Cancel")
+            .setNegativeButtonText(activity.getString(R.string.private_cancel))
             .build()
         prompt.authenticate(info)
     }

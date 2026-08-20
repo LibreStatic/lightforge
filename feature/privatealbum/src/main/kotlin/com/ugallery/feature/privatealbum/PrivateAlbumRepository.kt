@@ -5,6 +5,9 @@ import android.content.Context
 import android.net.Uri
 import android.provider.MediaStore
 import com.ugallery.core.security.PrivateAlbumCrypto
+import com.ugallery.core.mediastore.MediaWriteSpec
+import com.ugallery.core.mediastore.PendingMediaWriter
+import com.ugallery.core.model.MediaKind
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -116,8 +119,7 @@ class PrivateAlbumRepository(
     suspend fun exportToMediaStore(
         mediaId: Long,
         masterKey: SecretKey,
-        exportDir: File,
-    ): File? = withContext(ioDispatcher) {
+    ): Uri? = withContext(ioDispatcher) {
         val entity = database.privateMediaDao().getById(mediaId)
             ?: return@withContext null
 
@@ -127,16 +129,29 @@ class PrivateAlbumRepository(
         )
         val dataKey = PrivateAlbumCrypto.decryptDataKey(encryptedDataKey, masterKey)
 
-        val exportFile = File(exportDir, entity.originalDisplayName)
+        val exportFile = File(context.cacheDir, "private-export-${System.nanoTime()}-${entity.originalDisplayName}")
         val containerFile = File(entity.containerPath)
         if (!containerFile.exists()) return@withContext null
 
-        FileInputStream(containerFile).use { input ->
-            FileOutputStream(exportFile).use { output ->
-                PrivateAlbumCrypto.decryptStream(input, output, dataKey)
+        try {
+            FileInputStream(containerFile).use { input ->
+                FileOutputStream(exportFile).use { output ->
+                    PrivateAlbumCrypto.decryptStream(input, output, dataKey)
+                }
             }
+            PendingMediaWriter(context.contentResolver).publishFile(
+                exportFile,
+                MediaWriteSpec(
+                    destinationVolume = MediaStore.VOLUME_EXTERNAL_PRIMARY,
+                    kind = if (entity.mediaKind == "video") MediaKind.Video else MediaKind.Image,
+                    displayName = entity.originalDisplayName,
+                    mimeType = entity.originalMimeType,
+                    relativePath = if (entity.mediaKind == "video") "Movies/UGallery" else "Pictures/UGallery",
+                ),
+            ).uri
+        } finally {
+            exportFile.delete()
         }
-        exportFile
     }
 
     suspend fun delete(mediaId: Long) = withContext(ioDispatcher) {

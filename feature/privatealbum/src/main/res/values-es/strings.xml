@@ -1,0 +1,8 @@
+<resources>
+    <string name="private_setup_title">Configuración del álbum privado</string>
+    <string name="private_setup_body">Mover contenido aquí lo cifra con tus credenciales biométricas. Si desinstalás la aplicación, no se podrá recuperar. Exportá los elementos importantes antes de desinstalar.</string>
+    <string name="private_understand">Entiendo</string><string name="private_cancel">Cancelar</string>
+    <string name="private_locked">El álbum privado está bloqueado</string><string name="private_unlock_body">Autenticate con biometría para desbloquearlo.</string><string name="private_unlock">Desbloquear</string>
+    <string name="private_title_count">Álbum privado (%1$d)</string><string name="private_back">Volver</string>
+    <string name="private_empty">Todavía no hay elementos privados. Mové contenido desde el visor.</string><string name="private_video">Video</string><string name="private_photo">Foto</string><string name="private_error">Error</string><string name="private_ok">Aceptar</string><string name="private_exported">Elemento exportado a tu galería.</string><string name="private_biometric_unavailable">La autenticación biométrica fuerte no está disponible en este dispositivo.</string><string name="private_biometric_failed">No se reconoció la autenticación biométrica.</string><string name="private_export_failed">No se pudo exportar el elemento.</string>
+</resources>

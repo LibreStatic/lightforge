@@ -12,10 +12,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -26,6 +30,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import com.ugallery.core.model.MediaKey
 import com.ugallery.core.thumbnail.ThumbnailLoader
 import com.ugallery.core.thumbnail.ThumbnailRequest
+import com.ugallery.core.designsystem.GalleryIcons
 
 private const val PeopleThumbSize = 256
 
@@ -98,43 +105,59 @@ fun PeopleContent(
     modifier: Modifier = Modifier,
 ) {
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
-    Column(
-        modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+    val fullSpan: (androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope.() -> GridItemSpan) = {
+        GridItemSpan(maxLineSpan)
+    }
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(160.dp),
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(onClick = onBack) { Text(stringResource(R.string.people_back)) }
+        item(span = fullSpan) {
+          Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            IconButton(onClick = onBack) {
+                Icon(GalleryIcons.Back, contentDescription = stringResource(R.string.people_back))
+            }
             Text(
                 stringResource(R.string.people_title),
-                style = MaterialTheme.typography.headlineLarge,
+                style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.semantics { heading() },
             )
+          }
         }
-        Text(stringResource(R.string.people_noncommercial_notice), style = MaterialTheme.typography.bodyMedium)
-        Text(stringResource(R.string.people_privacy), color = MaterialTheme.colorScheme.primary)
+        item(span = fullSpan) { Text(stringResource(R.string.people_noncommercial_notice), style = MaterialTheme.typography.bodyMedium) }
+        item(span = fullSpan) { Text(stringResource(R.string.people_privacy), color = MaterialTheme.colorScheme.primary) }
         if (!state.consentGranted) {
-            Button(onClick = onEnable, modifier = Modifier.testTag("people_enable")) {
+            item(span = fullSpan) { Button(onClick = onEnable, modifier = Modifier.testTag("people_enable")) {
                 Text(stringResource(R.string.people_enable))
-            }
+            } }
         } else {
-            if (state.running) LinearProgressIndicator(Modifier.fillMaxWidth())
-            Text(stringResource(R.string.people_progress, state.completedItems))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (state.running) item(span = fullSpan) { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+            item(span = fullSpan) { Text(stringResource(R.string.people_progress, state.completedItems)) }
+            item(span = fullSpan) { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = if (state.paused) onResume else onPause) {
                     Text(stringResource(if (state.paused) R.string.people_resume else R.string.people_pause))
                 }
                 OutlinedButton(onClick = onAnalyzeAll) { Text(stringResource(R.string.people_analyze_all)) }
-            }
-            TextButton(onClick = { confirmDelete = true }) {
+            } }
+            item(span = fullSpan) { TextButton(onClick = { confirmDelete = true }) {
                 Text(stringResource(R.string.people_delete_all), color = MaterialTheme.colorScheme.error)
-            }
+            } }
         }
-        MeSection(state.me, thumbnailLoader, onResetMe)
+        item(span = fullSpan) { MeSection(state.me, thumbnailLoader, onResetMe) }
         val selected = state.selectedPerson
         if (selected == null) {
-            PeopleGrid(state.people, thumbnailLoader, onPersonClick)
+            if (state.people.isEmpty()) item(span = fullSpan) {
+                Text(stringResource(R.string.people_empty), modifier = Modifier.testTag("people_empty"))
+            } else items(state.people, key = { it.clusterId }) { person ->
+                PersonCard(person, thumbnailLoader) { onPersonClick(person.clusterId) }
+            }
         } else {
-            PersonDetail(selected, state.selectedMembers, thumbnailLoader, onRenamePerson, onHidePerson, onSetSelectedAsMe)
+            item(span = fullSpan) {
+                PersonDetail(selected, state.selectedMembers, thumbnailLoader, onRenamePerson, onHidePerson, onSetSelectedAsMe)
+            }
         }
     }
     if (confirmDelete) AlertDialog(
@@ -212,7 +235,7 @@ private fun PersonDetail(
     var name by rememberSaveable(person.clusterId) { mutableStateOf(person.displayName.orEmpty()) }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(person.displayName ?: stringResource(R.string.people_default_name), style = MaterialTheme.typography.titleLarge)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { onSetAsMe(person.clusterId) }) { Text(stringResource(R.string.me_set_from_person)) }
             OutlinedButton(onClick = { renaming = true }) { Text(stringResource(R.string.people_rename)) }
             TextButton(onClick = { onHide(person.clusterId) }) { Text(stringResource(R.string.people_hide)) }
@@ -233,8 +256,10 @@ private fun PersonDetail(
 
 @Composable
 private fun ThumbnailStrip(items: List<PersonMemberCardUi>, loader: ThumbnailLoader?) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items.take(6).forEach { item -> PersonThumbnail(item.key, loader, Modifier.size(72.dp)) }
+    LazyRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        items(items.take(12), key = { "${it.key}:${it.faceOrdinal}" }) { item ->
+            PersonThumbnail(item.key, loader, Modifier.size(72.dp))
+        }
     }
 }
 

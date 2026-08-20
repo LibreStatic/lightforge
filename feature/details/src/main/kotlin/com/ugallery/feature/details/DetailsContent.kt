@@ -5,11 +5,7 @@ import android.text.format.Formatter
 import android.content.ClipData
 import android.content.ClipboardManager
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -25,7 +21,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.shape.RoundedCornerShape
 import com.ugallery.core.model.CheapMediaDetails
 import com.ugallery.core.model.ExifLoadResult
 import com.ugallery.core.model.LocationAccessState
@@ -39,19 +34,16 @@ fun DetailsContent(
     onLoadExif: () -> Unit,
     detectedText: String? = null,
     modifier: Modifier = Modifier,
+    scrollable: Boolean = true,
 ) {
     val context = LocalContext.current
     val locale = LocalConfiguration.current.locales[0]
     Column(
-        modifier = modifier.verticalScroll(rememberScrollState()).padding(20.dp),
+        modifier = modifier
+            .then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)
+            .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(Modifier.fillMaxWidth(), contentAlignment = androidx.compose.ui.Alignment.Center) {
-            Box(
-                Modifier.width(32.dp).height(4.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(50)),
-            )
-        }
         Text(stringResource(R.string.details_title), style = MaterialTheme.typography.headlineSmall)
         DetailRow(stringResource(R.string.details_name), cheap.displayName ?: stringResource(R.string.details_unknown))
         DetailRow(stringResource(R.string.details_type), cheap.mimeType ?: stringResource(R.string.details_unknown))

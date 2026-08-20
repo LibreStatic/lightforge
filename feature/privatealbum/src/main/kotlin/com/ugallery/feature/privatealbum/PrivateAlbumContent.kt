@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawing
 import com.ugallery.core.security.PrivateAlbumCrypto
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -37,6 +38,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
+import com.ugallery.core.designsystem.GalleryIcons
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,14 +47,18 @@ import kotlinx.coroutines.launch
 fun PrivateAlbumContent(
     repository: PrivateAlbumRepository,
     onBack: () -> Unit,
-    onExport: (Long) -> Unit,
+    onUnlockRequest: (onSuccess: () -> Unit, onError: (String) -> Unit) -> Unit,
+    onExport: (mediaId: Long, onSuccess: () -> Unit, onError: (String) -> Unit) -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val exportedMessage = stringResource(R.string.private_exported)
+    val genericErrorMessage = stringResource(R.string.private_error)
     val mediaList by repository.allMedia.collectAsState(initial = emptyList())
     var isUnlocked by remember { mutableStateOf(false) }
     var showError by remember { mutableStateOf<String?>(null) }
     var showSetupWarning by remember { mutableStateOf(false) }
+    var setupComplete by remember { mutableStateOf(false) }
 
     // FLAG_SECURE: prevent screenshots while private album is visible
     DisposableEffect(Unit) {
@@ -65,74 +72,62 @@ fun PrivateAlbumContent(
 
     LaunchedEffect(Unit) {
         val setup = repository.isSetup()
+        setupComplete = setup
         if (!setup) showSetupWarning = true
     }
 
-    if (showSetupWarning) {
-        AlertDialog(
-            onDismissRequest = { showSetupWarning = false },
-            title = { Text("Private Album Setup") },
-            text = {
-                Text(
-                    "Moving media to the private album encrypts it with your biometric. " +
-                    "If you uninstall the app, this data cannot be recovered. " +
-                    "Always export important items back to your library before uninstalling."
-                )
-            },
-            confirmButton = {
-                Button(onClick = {
-                    showSetupWarning = false
-                    isUnlocked = true
-                    scope.launch { repository.setup(PrivateAlbumCrypto.getOrCreateMasterKey()) }
-                }) { Text("I Understand") }
-            },
-            dismissButton = {
-                TextButton(onClick = onBack) { Text("Cancel") }
-            },
-        )
-        return
-    }
-
-    if (!isUnlocked) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Private album is locked", style = MaterialTheme.typography.titleMedium)
-                Text("Authenticate with biometrics to unlock", style = MaterialTheme.typography.bodyMedium)
-                Button(
-                    onClick = { isUnlocked = true },
-                    modifier = Modifier.padding(top = 16.dp),
-                ) { Text("Unlock") }
-            }
-        }
-        return
-    }
-
     Scaffold(
+        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets.safeDrawing,
         topBar = {
             TopAppBar(
-                title = { Text("Private Album (${mediaList.size})") },
+                title = {
+                    Text(
+                        if (isUnlocked) stringResource(R.string.private_title_count, mediaList.size)
+                        else stringResource(R.string.private_locked),
+                    )
+                },
                 navigationIcon = {
-                    TextButton(onClick = onBack) { Text("Back") }
+                    IconButton(onClick = onBack) {
+                        Icon(GalleryIcons.Back, contentDescription = stringResource(R.string.private_back))
+                    }
                 },
             )
         },
     ) { padding ->
-        if (mediaList.isEmpty()) {
+        if (!isUnlocked) {
+            Box(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(GalleryIcons.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Text(stringResource(R.string.private_locked), style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.private_unlock_body), style = MaterialTheme.typography.bodyMedium)
+                    Button(
+                        onClick = {
+                            onUnlockRequest(
+                                { isUnlocked = true },
+                                { showError = it },
+                            )
+                        },
+                        enabled = setupComplete,
+                        modifier = Modifier.padding(top = 16.dp),
+                    ) { Text(stringResource(R.string.private_unlock)) }
+                }
+            }
+        } else if (mediaList.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    "No private items yet.\nMove media here from the viewer.",
+                    stringResource(R.string.private_empty),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
         } else {
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(100.dp),
+                columns = GridCells.Adaptive(140.dp),
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -141,7 +136,13 @@ fun PrivateAlbumContent(
                 items(mediaList, key = { it.id }) { item ->
                     Card(
                         modifier = Modifier.padding(2.dp),
-                        onClick = { onExport(item.id) },
+                        onClick = {
+                            onExport(
+                                item.id,
+                                { showError = exportedMessage },
+                                { showError = it },
+                            )
+                        },
                     ) {
                         Column(
                             modifier = Modifier.padding(8.dp),
@@ -151,9 +152,10 @@ fun PrivateAlbumContent(
                                 item.originalDisplayName,
                                 style = MaterialTheme.typography.bodySmall,
                                 maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                             Text(
-                                if (item.mediaKind == "video") "Video" else "Photo",
+                                stringResource(if (item.mediaKind == "video") R.string.private_video else R.string.private_photo),
                                 style = MaterialTheme.typography.labelSmall,
                             )
                         }
@@ -163,13 +165,36 @@ fun PrivateAlbumContent(
         }
     }
 
+    if (showSetupWarning) {
+        AlertDialog(
+            onDismissRequest = onBack,
+            title = { Text(stringResource(R.string.private_setup_title)) },
+            text = {
+                Text(stringResource(R.string.private_setup_body))
+            },
+            confirmButton = {
+                Button(onClick = {
+                    showSetupWarning = false
+                    scope.launch {
+                        runCatching { repository.setup(PrivateAlbumCrypto.getOrCreateMasterKey()) }
+                            .onSuccess { setupComplete = true }
+                            .onFailure { showError = it.message ?: genericErrorMessage }
+                    }
+                }) { Text(stringResource(R.string.private_understand)) }
+            },
+            dismissButton = {
+                TextButton(onClick = onBack) { Text(stringResource(R.string.private_cancel)) }
+            },
+        )
+    }
+
     showError?.let { error ->
         AlertDialog(
             onDismissRequest = { showError = null },
-            title = { Text("Error") },
+            title = { Text(stringResource(R.string.private_error)) },
             text = { Text(error) },
             confirmButton = {
-                TextButton(onClick = { showError = null }) { Text("OK") }
+                TextButton(onClick = { showError = null }) { Text(stringResource(R.string.private_ok)) }
             },
         )
     }

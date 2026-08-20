@@ -2,10 +2,12 @@ package com.ugallery.feature.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -28,6 +30,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Alignment
 
 enum class AnalysisStatus { Ready, Running, Paused, Complete }
 
@@ -51,17 +54,19 @@ fun RecognitionSettingsContent(
     onHideDogResults: () -> Unit,
     onHideCatResults: () -> Unit,
     onRestorePetResults: () -> Unit,
+    showHeader: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val petCollectionsLabel = stringResource(R.string.pet_collections_enable)
-    Column(
-        modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+    Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+      Column(
+        Modifier.fillMaxSize().widthIn(max = 720.dp).verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text(
+      ) {
+        if (showHeader) Text(
             stringResource(R.string.face_analysis_title),
-            style = MaterialTheme.typography.headlineLarge,
+            style = MaterialTheme.typography.headlineSmall,
             modifier = Modifier.semantics { heading() },
         )
         Text(stringResource(R.string.face_analysis_privacy), style = MaterialTheme.typography.bodyLarge)
@@ -71,7 +76,7 @@ fun RecognitionSettingsContent(
         } else {
             if (state.status == AnalysisStatus.Running) LinearProgressIndicator(Modifier.fillMaxWidth())
             Text(stringResource(R.string.face_analysis_progress, state.completedItems))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = if (state.paused) onResume else onPause) {
                     Text(stringResource(if (state.paused) R.string.face_analysis_resume else R.string.face_analysis_pause))
                 }
@@ -95,12 +100,13 @@ fun RecognitionSettingsContent(
             )
         }
         if (petCollectionsEnabled) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 TextButton(onClick = onHideDogResults) { Text(stringResource(R.string.pet_hide_dog)) }
                 TextButton(onClick = onHideCatResults) { Text(stringResource(R.string.pet_hide_cat)) }
             }
             TextButton(onClick = onRestorePetResults) { Text(stringResource(R.string.pet_restore)) }
         }
+      }
     }
     if (confirmDelete) AlertDialog(
         onDismissRequest = { confirmDelete = false },

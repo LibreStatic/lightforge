@@ -18,4 +18,5 @@
 <string name="m6_semantic_unavailable">Semantic search is not available. Using keyword fallback.</string>
 <string name="m6_pet_recognition">Pet recognition</string>
 <string name="m6_pet_unavailable">Pet recognition is not available. Showing labels only.</string>
-</resources>
+    <string name="m6_collage_description">Collages are rendered locally. Select photos in the timeline, then choose a template.</string>
+<string name="m6_collage_saved">Collage saved to your gallery.</string><string name="m6_collage_failed">The collage could not be created.</string></resources>

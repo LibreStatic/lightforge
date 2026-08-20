@@ -39,12 +39,28 @@ class M2ManagementUiDeviceTest {
     @Test fun longPressExposesLocalizedScalableActionsAndCancelRetry() {
         val selectAll = context.getString(R.string.selection_select_all)
         val moveToTrash = context.getString(R.string.selection_trash)
+        val grid = device.findObject(By.res("timeline_grid"))
+        val bounds = grid.visibleBounds
+        val mediaX = bounds.left + bounds.width() / 6
+        val mediaY = bounds.top + bounds.width() / 3
+        device.executeShellCommand("input swipe $mediaX $mediaY $mediaX $mediaY 800")
+        val more = context.getString(com.ugallery.feature.viewer.R.string.viewer_more)
+        assertTrue(device.wait(Until.hasObject(By.desc(more)), 5_000))
+        device.findObject(By.desc(more)).click()
         assertTrue(device.wait(Until.hasObject(By.text(selectAll)), 5_000))
         device.findObject(By.text(selectAll)).click()
         assertTrue(device.wait(Until.hasObject(By.text(moveToTrash)), 5_000))
         assertTrue(device.hasObject(By.text(moveToTrash)))
         assertTrue(device.hasObject(By.text(context.getString(R.string.selection_add_album))))
-        assertTrue(device.hasObject(By.text(context.getString(R.string.selection_clear))))
+
+        device.findObject(By.desc(more)).click()
+        assertTrue(
+            device.wait(
+                Until.hasObject(By.text(context.getString(R.string.selection_clear))),
+                5_000,
+            ),
+        )
+        device.pressBack()
 
         device.findObject(By.text(moveToTrash)).click()
         assertTrue(device.wait(Until.hasObject(By.res("android", "button2")), 5_000))
@@ -55,6 +71,23 @@ class M2ManagementUiDeviceTest {
                 5_000,
             ),
         )
+    }
+
+    @Test fun viewerDetailsOpensAsScrollableSheetWithoutCrashing() {
+        val grid = device.findObject(By.res("timeline_grid"))
+        val bounds = grid.visibleBounds
+        device.click(
+            bounds.left + bounds.width() / 6,
+            bounds.top + bounds.width() / 3,
+        )
+
+        val detailsAction = context.getString(com.ugallery.feature.viewer.R.string.viewer_details)
+        assertTrue(device.wait(Until.hasObject(By.text(detailsAction)), 5_000))
+        device.findObject(By.text(detailsAction)).click()
+
+        val detailsTitle = context.getString(com.ugallery.feature.details.R.string.details_title)
+        assertTrue(device.wait(Until.hasObject(By.text(detailsTitle)), 5_000))
+        assertTrue(device.hasObject(By.pkg(context.packageName)))
     }
 
 }

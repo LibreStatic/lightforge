@@ -13,4 +13,6 @@
     <string name="video_editor_original_audio">Original audio</string>
     <string name="video_editor_choose_music">Choose local track</string>
     <string name="video_editor_remove_music">Remove music</string>
+    <string name="video_editor_trim_description">Trim from %1$s to %2$s</string>
+    <string name="video_editor_audio_description">Original audio volume</string>
 </resources>

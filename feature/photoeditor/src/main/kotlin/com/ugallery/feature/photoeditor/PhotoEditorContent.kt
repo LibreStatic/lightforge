@@ -3,6 +3,7 @@ package com.ugallery.feature.photoeditor
 import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -13,6 +14,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -66,7 +69,7 @@ fun PhotoEditorContent(
                 Icon(GalleryIcons.Back, contentDescription = stringResource(R.string.photo_editor_cancel))
             }
             Text(stringResource(R.string.photo_editor_title), style = MaterialTheme.typography.titleLarge)
-            Button(onClick = onSaveCopy, enabled = !state.isExporting) {
+            TextButton(onClick = onSaveCopy, enabled = !state.isExporting) {
                 Text(stringResource(R.string.photo_editor_save_copy))
             }
         }
@@ -127,7 +130,10 @@ private fun PhotoTools(
     onRedo: () -> Unit,
     modifier: Modifier,
 ) {
-    Column(modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(
+        modifier.verticalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(stringResource(R.string.photo_editor_filters), style = MaterialTheme.typography.titleMedium)
             Row {
@@ -157,19 +163,19 @@ private fun PhotoTools(
                 )
             }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = { onApply(EditOperation.Crop(80, 80, 920, 920)) }) {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          item { OutlinedButton(onClick = { onApply(EditOperation.Crop(80, 80, 920, 920)) }) {
                 Icon(GalleryIcons.Crop, contentDescription = null)
                 Text(stringResource(R.string.photo_editor_crop))
-            }
-            OutlinedButton(onClick = { onApply(EditOperation.Rotate(90)) }) {
+            } }
+          item { OutlinedButton(onClick = { onApply(EditOperation.Rotate(90)) }) {
                 Icon(GalleryIcons.Tune, contentDescription = null)
                 Text(stringResource(R.string.photo_editor_rotate))
-            }
-            OutlinedButton(onClick = { onApply(EditOperation.Flip(horizontal = true)) }) {
+            } }
+          item { OutlinedButton(onClick = { onApply(EditOperation.Flip(horizontal = true)) }) {
                 Icon(GalleryIcons.Edit, contentDescription = null)
                 Text(stringResource(R.string.photo_editor_flip))
-            }
+            } }
         }
         Text(
             stringResource(R.string.photo_editor_copy_policy),

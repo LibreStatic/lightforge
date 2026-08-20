@@ -3,6 +3,7 @@ package com.ugallery.app
 import android.app.ActivityManager
 import android.app.Application
 import android.content.Context
+import android.graphics.Bitmap
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
@@ -85,6 +86,9 @@ import com.ugallery.feature.viewer.PhotoLoadState
 import com.ugallery.feature.viewer.PhotoViewerPipeline
 import com.ugallery.feature.photoeditor.PhotoEditorContentState
 import com.ugallery.feature.videoeditor.VideoEditorContentState
+import com.ugallery.feature.collage.CollageConfig
+import com.ugallery.feature.collage.CollageTemplate
+import com.ugallery.feature.collage.CollageTemplates
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
@@ -793,6 +797,57 @@ class GalleryViewModel @Inject constructor(
         ).intent
     }
 
+    fun canCreateCollage(template: CollageTemplate): Boolean {
+        val selected = mutableSelection.value as? SelectionSpec.Explicit ?: return false
+        val targets = selected.keys.mapNotNull(explicitTargets::get)
+        return targets.size == template.slotCount && targets.all { it.kind == MediaKind.Image }
+    }
+
+    suspend fun createCollage(template: CollageTemplate): Uri = withContext(Dispatchers.IO) {
+        val selected = mutableSelection.value as? SelectionSpec.Explicit
+            ?: error("Collages require an explicit selection")
+        val targets = selected.keys.mapNotNull(explicitTargets::get)
+        require(targets.size == template.slotCount && targets.all { it.kind == MediaKind.Image }) {
+            "Select exactly ${template.slotCount} photos"
+        }
+        val resolver = getApplication<Application>().contentResolver
+        val decoder = NativeImageDecoder(resolver)
+        val sources = mutableListOf<Bitmap>()
+        val output = try {
+            targets.forEach { target ->
+                sources += decoder.screenPreview(target.uri(), targetWidth = 1_600, targetHeight = 1_600)
+            }
+            CollageTemplates.render(
+                sources,
+                CollageConfig(template, outputWidth = 2_048, outputHeight = 2_048, spacing = 12f),
+            )
+        } finally {
+            sources.forEach(Bitmap::recycle)
+        }
+        val temp = java.io.File(getApplication<Application>().cacheDir, "collage-${System.nanoTime()}.jpg")
+        try {
+            temp.outputStream().buffered().use { stream ->
+                check(output.compress(Bitmap.CompressFormat.JPEG, 94, stream)) { "Collage encoding failed" }
+            }
+            PendingMediaWriter(resolver).publishFile(
+                temp,
+                MediaWriteSpec(
+                    MediaStore.VOLUME_EXTERNAL_PRIMARY,
+                    MediaKind.Image,
+                    "UGallery-collage-${System.currentTimeMillis()}.jpg",
+                    "image/jpeg",
+                    "Pictures/UGallery",
+                ),
+            ).uri
+        } finally {
+            output.recycle()
+            temp.delete()
+        }.also {
+            withContext(Dispatchers.Main) { clearSelection() }
+            refreshLibrary()
+        }
+    }
+
     fun openMedia(media: TimelineMedia) {
         mutableCurrentMedia.value = media
         mutableSelectedMoment.value = null
@@ -1316,6 +1371,14 @@ class GalleryViewModel @Inject constructor(
     )
 
     private fun TimelineMedia.uri(): Uri = ContentUris.withAppendedId(
+        when (kind) {
+            MediaKind.Image -> MediaStore.Images.Media.getContentUri(key.volumeName)
+            MediaKind.Video -> MediaStore.Video.Media.getContentUri(key.volumeName)
+        },
+        key.mediaStoreId,
+    )
+
+    private fun MediaActionTarget.uri(): Uri = ContentUris.withAppendedId(
         when (kind) {
             MediaKind.Image -> MediaStore.Images.Media.getContentUri(key.volumeName)
             MediaKind.Video -> MediaStore.Video.Media.getContentUri(key.volumeName)

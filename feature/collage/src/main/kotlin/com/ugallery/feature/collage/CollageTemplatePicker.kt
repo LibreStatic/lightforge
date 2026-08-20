@@ -7,6 +7,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 
 /**
  * Compose UI for selecting collage template and configuring output.
@@ -19,7 +20,7 @@ fun CollageTemplatePicker(
     modifier: Modifier = Modifier,
 ) {
     LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
+        columns = GridCells.Adaptive(148.dp),
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -52,14 +53,23 @@ private fun TemplateCard(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = template.displayName,
+                text = stringResource(template.labelResource()),
                 style = MaterialTheme.typography.labelMedium,
             )
             Text(
-                text = "${template.slotCount} photos",
+                text = stringResource(R.string.collage_photo_count, template.slotCount),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
+}
+
+private fun CollageTemplate.labelResource(): Int = when (this) {
+    CollageTemplate.GRID_2 -> R.string.collage_grid_2
+    CollageTemplate.GRID_3 -> R.string.collage_grid_3
+    CollageTemplate.GRID_4 -> R.string.collage_grid_4
+    CollageTemplate.STACK_3 -> R.string.collage_stack_3
+    CollageTemplate.STRIP_3 -> R.string.collage_strip_3
+    CollageTemplate.POLAROID_3 -> R.string.collage_polaroid_3
 }

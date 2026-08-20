@@ -3,8 +3,6 @@ package com.ugallery.feature.search
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Box
@@ -14,7 +12,9 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -29,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,7 +44,11 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.Alignment
 import com.ugallery.core.search.MediaSearchHit
 import com.ugallery.core.designsystem.GalleryIcons
 import com.ugallery.core.thumbnail.ThumbnailLoader
@@ -61,6 +66,7 @@ fun SearchContent(
     thumbnailLoader: ThumbnailLoader?,
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
+    onVoiceSearch: (() -> Unit)? = null,
     onPresetSearch: (String) -> Unit,
     onLoadMore: () -> Unit,
     onHit: (MediaSearchHit) -> Unit,
@@ -70,42 +76,47 @@ fun SearchContent(
     modifier: Modifier = Modifier,
 ) {
     var showDetectedContent by rememberSaveable { mutableStateOf(false) }
-    Column(modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+      Column(Modifier.fillMaxSize().widthIn(max = 1_200.dp).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
             stringResource(R.string.search_title),
-            style = MaterialTheme.typography.headlineLarge,
-            modifier = Modifier.semantics { heading() },
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.padding(top = 12.dp).semantics { heading() },
         )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-        ) {
-            OutlinedTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                label = { Text(stringResource(R.string.search_hint)) },
-                singleLine = true,
-                modifier = Modifier.weight(1f),
-            )
-            Button(onClick = onSearch, enabled = query.isNotBlank()) { Text(stringResource(R.string.search_action)) }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            AssistChip(onClick = { onPresetSearch("fotos") }, label = { Text(stringResource(R.string.search_photos)) })
-            AssistChip(onClick = { onPresetSearch("vídeos") }, label = { Text(stringResource(R.string.search_videos)) })
-            AssistChip(onClick = { onPresetSearch("documentos") }, label = { Text(stringResource(R.string.search_documents)) })
-            AssistChip(onClick = { showDetectedContent = true }, label = { Text(stringResource(R.string.search_local_analysis)) })
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            label = { Text(stringResource(R.string.search_hint)) },
+            singleLine = true,
+            leadingIcon = { Icon(GalleryIcons.Search, contentDescription = null) },
+            trailingIcon = {
+                onVoiceSearch?.let { voiceSearch ->
+                    IconButton(onClick = voiceSearch) {
+                        Icon(GalleryIcons.Mic, contentDescription = stringResource(R.string.search_voice))
+                    }
+                }
+            },
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { if (query.isNotBlank()) onSearch() }),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            item { AssistChip(onClick = { onPresetSearch("fotos") }, label = { Text(stringResource(R.string.search_photos)) }) }
+            item { AssistChip(onClick = { onPresetSearch("vídeos") }, label = { Text(stringResource(R.string.search_videos)) }) }
+            item { AssistChip(onClick = { onPresetSearch("documentos") }, label = { Text(stringResource(R.string.search_documents)) }) }
+            item { AssistChip(onClick = { showDetectedContent = true }, label = { Text(stringResource(R.string.search_local_analysis)) }) }
         }
         if (partialIndex) {
             Text(stringResource(R.string.search_partial_index), color = MaterialTheme.colorScheme.primary)
         }
         Text(stringResource(R.string.search_privacy), style = MaterialTheme.typography.bodySmall)
         if (query.isBlank()) {
-            SearchDiscovery(onPresetSearch = onPresetSearch)
+            SearchDiscovery(onPresetSearch = onPresetSearch, modifier = Modifier.weight(1f))
         }
-        when {
+        if (query.isNotBlank() || hits.isNotEmpty()) when {
             error -> Text(stringResource(R.string.search_error), color = MaterialTheme.colorScheme.error)
             loading && hits.isEmpty() -> CircularProgressIndicator()
-            hits.isEmpty() && query.isNotBlank() -> Text(stringResource(R.string.search_empty))
+            hits.isEmpty() -> Text(stringResource(R.string.search_empty))
             else -> LazyVerticalGrid(
                 columns = GridCells.Adaptive(128.dp),
                 modifier = Modifier.weight(1f),
@@ -120,6 +131,7 @@ fun SearchContent(
                 }
             }
         }
+      }
     }
     if (showDetectedContent) AlertDialog(
         onDismissRequest = { showDetectedContent = false },
@@ -142,10 +154,10 @@ fun SearchContent(
 }
 
 @Composable
-private fun SearchDiscovery(onPresetSearch: (String) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(stringResource(R.string.search_people_pets), style = MaterialTheme.typography.titleMedium)
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+private fun SearchDiscovery(onPresetSearch: (String) -> Unit, modifier: Modifier = Modifier) {
+    LazyColumn(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        item { Text(stringResource(R.string.search_people_pets), style = MaterialTheme.typography.titleMedium) }
+        item { LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             val people = listOf(
                 Triple(R.string.search_me, GalleryIcons.User, "me"),
                 Triple(R.string.search_people, GalleryIcons.User, "people"),
@@ -166,25 +178,26 @@ private fun SearchDiscovery(onPresetSearch: (String) -> Unit) {
                     }
                 }
             }
-        }
-        Text(stringResource(R.string.search_places), style = MaterialTheme.typography.titleMedium)
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        } }
+        item { Text(stringResource(R.string.search_places), style = MaterialTheme.typography.titleMedium) }
+        item { LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(listOf(R.string.search_coast to "coast", R.string.search_mountain to "mountain", R.string.search_city to "city", R.string.search_rain to "rain")) { (label, query) ->
                 AssistChip(onClick = { onPresetSearch(query) }, label = { Text(stringResource(label)) }, leadingIcon = { Icon(GalleryIcons.Image, contentDescription = null) })
             }
-        }
-        Text(stringResource(R.string.search_content_types), style = MaterialTheme.typography.titleMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
-            listOf(R.string.search_documents to "documents", R.string.search_screenshots to "screenshots", R.string.search_video to "videos", R.string.search_camera to "camera").forEach { (label, query) ->
+        } }
+        item { Text(stringResource(R.string.search_content_types), style = MaterialTheme.typography.titleMedium) }
+        item { LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(listOf(R.string.search_documents to "documents", R.string.search_screenshots to "screenshots", R.string.search_video to "videos", R.string.search_camera to "camera")) { (label, query) ->
                 AssistChip(onClick = { onPresetSearch(query) }, label = { Text(stringResource(label)) }, leadingIcon = { Icon(GalleryIcons.Collections, contentDescription = null) })
             }
-        }
-        Text(stringResource(R.string.search_topics), style = MaterialTheme.typography.titleMedium)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
-            listOf(R.string.search_landscapes to "landscapes", R.string.search_food to "food").forEach { (label, query) ->
+        } }
+        item { Text(stringResource(R.string.search_topics), style = MaterialTheme.typography.titleMedium) }
+        item { LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(listOf(R.string.search_landscapes to "landscapes", R.string.search_food to "food")) { (label, query) ->
                 AssistChip(onClick = { onPresetSearch(query) }, label = { Text(stringResource(label)) })
             }
-        }
+        } }
+        item { Box(Modifier.size(1.dp)) }
     }
 }
 

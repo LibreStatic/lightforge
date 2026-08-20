@@ -4,26 +4,40 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Build
 import android.widget.Toast
+import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,20 +52,36 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.map
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.viewinterop.AndroidView
 import android.graphics.drawable.AnimatedImageDrawable
 import android.widget.ImageView
 import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.window.layout.FoldingFeature
+import androidx.window.layout.WindowInfoTracker
+import androidx.fragment.app.FragmentActivity
 import com.ugallery.core.database.AlbumMediaFilter
 import com.ugallery.core.database.AlbumSort
 import com.ugallery.core.mediastore.MediaAction
 import com.ugallery.core.mediastore.MediaActionPhase
 import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.GalleryActionButton
+import com.ugallery.core.designsystem.GalleryAnimatedContent
+import com.ugallery.core.designsystem.GalleryAnimatedVisibility
+import com.ugallery.core.designsystem.GalleryNavigationType
+import com.ugallery.core.designsystem.GalleryAdaptiveLayoutInfo
+import com.ugallery.core.designsystem.GalleryFoldInfo
+import com.ugallery.core.designsystem.GalleryFoldOrientation
+import com.ugallery.core.designsystem.GalleryMotionEdge
+import com.ugallery.core.designsystem.GalleryTopAppBar
+import com.ugallery.core.designsystem.galleryAdaptiveLayoutInfo
 import com.ugallery.core.model.MediaKind
 import com.ugallery.core.model.TimelineMedia
 import com.ugallery.core.selection.SelectionSpec
@@ -89,6 +119,10 @@ import com.ugallery.feature.semanticsearch.SemanticSearchEngine
 
 private enum class RootTab { Photos, Collections, Search }
 private enum class SurfaceRoute { Root, Album, Viewer, PhotoEditor, VideoEditor, Trash, Settings, Moment, People, PrivateAlbum, Collage }
+private data class ScreenMotionKey(
+    val route: SurfaceRoute,
+    val rootTab: RootTab,
+)
 
 @Composable
 internal fun ProductionGalleryApp(
@@ -96,6 +130,14 @@ internal fun ProductionGalleryApp(
     permissions: PermissionCoordinator,
 ) {
     val context = LocalContext.current
+    val appScope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val voiceSearchUnavailable = stringResource(com.ugallery.feature.search.R.string.search_voice_unavailable)
+    val privateBiometricUnavailable = stringResource(com.ugallery.feature.privatealbum.R.string.private_biometric_unavailable)
+    val privateLockedTitle = stringResource(com.ugallery.feature.privatealbum.R.string.private_locked)
+    val privateUnlockSubtitle = stringResource(com.ugallery.feature.privatealbum.R.string.private_unlock_body)
+    val privateBiometricFailed = stringResource(com.ugallery.feature.privatealbum.R.string.private_biometric_failed)
+    val privateExportFailed = stringResource(com.ugallery.feature.privatealbum.R.string.private_export_failed)
     val access by viewModel.access.collectAsState()
     val engineState by viewModel.engineState.collectAsState()
     val thumbnails by viewModel.thumbnailLoader.collectAsState()
@@ -131,6 +173,29 @@ internal fun ProductionGalleryApp(
     val virtualAlbums = viewModel.virtualAlbums.collectAsLazyPagingItems()
     val albumItems = viewModel.albumMedia.collectAsLazyPagingItems()
     val trashItems = viewModel.trash.collectAsLazyPagingItems()
+    val activity = context as? Activity
+    val foldInfo by if (activity != null) {
+        remember(activity, density) {
+            WindowInfoTracker.getOrCreate(context).windowLayoutInfo(activity).map { info ->
+                info.displayFeatures.filterIsInstance<FoldingFeature>()
+                    .firstOrNull(FoldingFeature::isSeparating)
+                    ?.let { feature ->
+                        GalleryFoldInfo(
+                            orientation = if (feature.orientation == FoldingFeature.Orientation.VERTICAL) {
+                                GalleryFoldOrientation.Vertical
+                            } else GalleryFoldOrientation.Horizontal,
+                            isSeparating = feature.isSeparating,
+                            left = with(density) { feature.bounds.left.toDp() },
+                            top = with(density) { feature.bounds.top.toDp() },
+                            right = with(density) { feature.bounds.right.toDp() },
+                            bottom = with(density) { feature.bounds.bottom.toDp() },
+                        )
+                    }
+            }
+        }.collectAsState(initial = null)
+    } else {
+        remember { kotlinx.coroutines.flow.flowOf<GalleryFoldInfo?>(null) }.collectAsState(initial = null)
+    }
     var rootTab by rememberSaveable { mutableStateOf(RootTab.Photos) }
     var route by rememberSaveable { mutableStateOf(SurfaceRoute.Root) }
     var filter by rememberSaveable { mutableStateOf(AlbumMediaFilter.All) }
@@ -141,8 +206,9 @@ internal fun ProductionGalleryApp(
     var showEmptyTrashConfirmation by rememberSaveable { mutableStateOf(false) }
     var newAlbumName by rememberSaveable { mutableStateOf("") }
     var pendingRequestId by rememberSaveable { mutableStateOf<Long?>(null) }
-    var showCollagePicker by rememberSaveable { mutableStateOf(false) }
     var selectedCollageTemplateIndex by rememberSaveable { mutableStateOf(0) }
+    var collageRendering by rememberSaveable { mutableStateOf(false) }
+    var collageStatus by rememberSaveable { mutableStateOf<Int?>(null) }
     val collageTemplates = remember { CollageTemplate.entries.toList() }
     val privateAlbumRepo = remember {
         PrivateAlbumRepository(
@@ -164,6 +230,19 @@ internal fun ProductionGalleryApp(
                 )
             }
             viewModel.setVideoMusic(uri, uri.lastPathSegment?.substringAfterLast('/') ?: "Local track")
+        }
+    }
+    val voiceSearchLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                ?.firstOrNull()
+                ?.takeIf(String::isNotBlank)
+                ?.let { spoken ->
+                    viewModel.setSearchQuery(spoken)
+                    viewModel.search(spoken)
+                }
         }
     }
 
@@ -223,10 +302,10 @@ internal fun ProductionGalleryApp(
     }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val expanded = maxWidth >= 840.dp
-        val content: @Composable () -> Unit = {
-            when (route) {
-                SurfaceRoute.Root -> when (rootTab) {
+        val adaptiveInfo = galleryAdaptiveLayoutInfo(maxWidth, foldInfo)
+        val content: @Composable (SurfaceRoute, RootTab) -> Unit = { activeRoute, activeRootTab ->
+            when (activeRoute) {
+                SurfaceRoute.Root -> when (activeRootTab) {
                     RootTab.Photos -> LibraryPhotosRoute(
                         access = access,
                         engineState = engineState.toUiState(),
@@ -264,6 +343,11 @@ internal fun ProductionGalleryApp(
                             viewModel.search(label)
                             rootTab = RootTab.Search
                         },
+                        thumbnailLoader = thumbnails,
+                        privateAlbumLabel = stringResource(R.string.m6_private_album),
+                        onPrivateAlbumClick = { route = SurfaceRoute.PrivateAlbum },
+                        collageLabel = stringResource(R.string.m6_collage),
+                        onCollageClick = { route = SurfaceRoute.Collage },
                     )
                     RootTab.Search -> Column(Modifier.fillMaxSize()) {
                         if (!semanticEngine.isSemanticAvailable()) {
@@ -285,6 +369,25 @@ internal fun ProductionGalleryApp(
                             thumbnailLoader = thumbnails,
                             onQueryChange = viewModel::setSearchQuery,
                             onSearch = { viewModel.search() },
+                            onVoiceSearch = {
+                                runCatching {
+                                    voiceSearchLauncher.launch(
+                                        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                                            putExtra(
+                                                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                                                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM,
+                                            )
+                                            putExtra(RecognizerIntent.EXTRA_LANGUAGE, java.util.Locale.getDefault().toLanguageTag())
+                                        },
+                                    )
+                                }.onFailure {
+                                    Toast.makeText(
+                                        context,
+                                        voiceSearchUnavailable,
+                                        Toast.LENGTH_LONG,
+                                    ).show()
+                                }
+                            },
                             onPresetSearch = viewModel::search,
                             onLoadMore = viewModel::loadMoreSearch,
                             onHit = { hit -> viewModel.openSearchHit(hit); route = SurfaceRoute.Viewer },
@@ -311,6 +414,7 @@ internal fun ProductionGalleryApp(
                                 else { viewModel.openMedia(media); route = SurfaceRoute.Viewer }
                             },
                             onMediaLongClick = viewModel::toggleSelection,
+                            showHeader = false,
                         )
                     }
                 }
@@ -320,7 +424,7 @@ internal fun ProductionGalleryApp(
                         photoState,
                         viewModel,
                         showDetails,
-                        expanded,
+                        adaptiveInfo,
                         onShowDetails = { showDetails = true; viewModel.loadDetails() },
                         onHideDetails = { showDetails = false },
                         onBack = { route = SurfaceRoute.Root },
@@ -411,6 +515,7 @@ internal fun ProductionGalleryApp(
                     onRestore = { media -> viewModel.openMedia(media); viewModel.beginSystemAction(media, MediaAction.Trash(false)) },
                     onDeletePermanently = { media -> viewModel.openMedia(media); viewModel.beginSystemAction(media, MediaAction.Delete) },
                     onEmptyTrash = { showEmptyTrashConfirmation = true },
+                    showHeader = false,
                 )
                 SurfaceRoute.Settings -> RecognitionSettingsContent(
                     state = FaceAnalysisUiState(
@@ -441,73 +546,112 @@ internal fun ProductionGalleryApp(
                         viewModel.restorePetType(com.ugallery.core.ml.PetType.Dog)
                         viewModel.restorePetType(com.ugallery.core.ml.PetType.Cat)
                     },
+                    showHeader = false,
                 )
                 SurfaceRoute.PrivateAlbum -> PrivateAlbumContent(
                     repository = privateAlbumRepo,
                     onBack = { route = SurfaceRoute.Root },
-                    onExport = { mediaId ->
-                        // Export is handled within the composable via repository
+                    onUnlockRequest = { onSuccess, onError ->
+                        val fragmentActivity = context as? FragmentActivity
+                        if (fragmentActivity == null || !BiometricGate.canAuthenticate(context)) {
+                            onError(privateBiometricUnavailable)
+                        } else {
+                            BiometricGate.authenticate(
+                                activity = fragmentActivity,
+                                title = privateLockedTitle,
+                                subtitle = privateUnlockSubtitle,
+                                onSuccess = onSuccess,
+                                onError = onError,
+                                onFail = {
+                                    onError(privateBiometricFailed)
+                                },
+                            )
+                        }
+                    },
+                    onExport = { mediaId, onSuccess, onError ->
+                        appScope.launch {
+                            runCatching {
+                                privateAlbumRepo.exportToMediaStore(
+                                    mediaId,
+                                    com.ugallery.core.security.PrivateAlbumCrypto.getOrCreateMasterKey(),
+                                ) ?: error(privateExportFailed)
+                            }.onSuccess { onSuccess() }
+                                .onFailure {
+                                    onError(it.message ?: privateExportFailed)
+                                }
+                        }
                     },
                 )
                 SurfaceRoute.Collage -> {
-                    val selectedKeys = selection
+                    val template = collageTemplates.getOrElse(selectedCollageTemplateIndex) { collageTemplates[0] }
                     Column(Modifier.fillMaxSize().padding(16.dp)) {
                         Text(
                             stringResource(R.string.m6_collage_select_template),
                             style = MaterialTheme.typography.titleMedium,
                         )
                         CollageTemplatePicker(
-                            selectedTemplate = collageTemplates.getOrElse(selectedCollageTemplateIndex) { collageTemplates[0] },
+                            selectedTemplate = template,
                             onTemplateSelected = { selectedCollageTemplateIndex = collageTemplates.indexOf(it) },
-                            modifier = Modifier.padding(vertical = 16.dp),
+                            modifier = Modifier.weight(1f).padding(vertical = 16.dp),
                         )
                         Text(
-                            stringResource(R.string.m6_collage_select_photos, collageTemplates.getOrElse(selectedCollageTemplateIndex) { collageTemplates[0] }.slotCount),
+                            stringResource(R.string.m6_collage_select_photos, template.slotCount),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                         Text(
-                            "Collage render uses CollageTemplates.render(). Select photos from the timeline first, then choose a template.",
+                            stringResource(R.string.m6_collage_description),
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(top = 8.dp),
                         )
-                        Button(onClick = { route = SurfaceRoute.Root }) {
-                            Text(stringResource(R.string.nav_back))
+                        collageStatus?.let {
+                            Text(
+                                stringResource(it),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (it == R.string.m6_collage_failed) MaterialTheme.colorScheme.error
+                                else MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(top = 8.dp),
+                            )
+                        }
+                        Button(
+                            onClick = {
+                                collageRendering = true
+                                collageStatus = null
+                                appScope.launch {
+                                    runCatching { viewModel.createCollage(template) }
+                                        .onSuccess {
+                                            collageRendering = false
+                                            collageStatus = R.string.m6_collage_saved
+                                        }
+                                        .onFailure {
+                                            collageRendering = false
+                                            collageStatus = R.string.m6_collage_failed
+                                        }
+                                }
+                            },
+                            enabled = !collageRendering && viewModel.canCreateCollage(template),
+                            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                        ) {
+                            if (collageRendering) {
+                                androidx.compose.material3.CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                            else Text(stringResource(R.string.m6_collage_render))
                         }
                     }
                 }
             }
         }
-        val controls: @Composable () -> Unit = {
-            if (route == SurfaceRoute.Root && rootTab == RootTab.Collections) {
-                Row(
-                    Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    TextButton(onClick = { route = SurfaceRoute.PrivateAlbum }) {
-                        Text(stringResource(R.string.m6_private_album))
-                    }
-                    TextButton(onClick = { route = SurfaceRoute.Collage }) {
-                        Text(stringResource(R.string.m6_collage))
-                    }
-                }
-            }
-            if (selectionCount == 0L && (
-                    route == SurfaceRoute.Album ||
-                        route == SurfaceRoute.Root && rootTab == RootTab.Photos
-                )
+        val controls: @Composable (SurfaceRoute) -> Unit = { activeRoute ->
+            GalleryAnimatedVisibility(
+                visible = selectionCount > 0,
+                edge = GalleryMotionEdge.Top,
             ) {
-                TextButton(onClick = {
-                    if (route == SurfaceRoute.Album && selectedAlbum != null) {
-                        viewModel.selectAllAlbum(requireNotNull(selectedAlbum), filter, sort)
-                    } else viewModel.selectAllTimeline()
-                }) { Text(stringResource(R.string.selection_select_all)) }
-            }
-            if (selectionCount > 0) {
                 SelectionActions(
                     count = selectionCount,
                     canShare = selection is SelectionSpec.Explicit && selectionCount <= 500,
                     onSelectAll = {
-                        if (route == SurfaceRoute.Album && selectedAlbum != null) {
+                        if (activeRoute == SurfaceRoute.Album && selectedAlbum != null) {
                             viewModel.selectAllAlbum(requireNotNull(selectedAlbum), filter, sort)
                         } else viewModel.selectAllTimeline()
                     },
@@ -532,24 +676,66 @@ internal fun ProductionGalleryApp(
             }
         }
         Scaffold(
+            contentWindowInsets = if (
+                route == SurfaceRoute.PhotoEditor ||
+                route == SurfaceRoute.VideoEditor ||
+                route == SurfaceRoute.PrivateAlbum
+            ) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
+            topBar = {
+                when (route) {
+                    SurfaceRoute.Album -> GalleryTopAppBar(
+                        title = selectedAlbum?.name ?: stringResource(com.ugallery.feature.album.R.string.album_untitled),
+                        onBack = { route = SurfaceRoute.Root },
+                        navigationContentDescription = stringResource(R.string.nav_back),
+                    )
+                    SurfaceRoute.Trash -> GalleryTopAppBar(
+                        title = stringResource(com.ugallery.feature.trash.R.string.trash_title),
+                        onBack = { route = SurfaceRoute.Root },
+                        navigationContentDescription = stringResource(R.string.nav_back),
+                        actions = {
+                            if (trashCount > 0) TextButton(onClick = { showEmptyTrashConfirmation = true }) {
+                                Text(stringResource(com.ugallery.feature.trash.R.string.trash_empty))
+                            }
+                        },
+                    )
+                    SurfaceRoute.Settings -> GalleryTopAppBar(
+                        title = stringResource(com.ugallery.feature.settings.R.string.face_analysis_title),
+                        onBack = { route = SurfaceRoute.Root },
+                        navigationContentDescription = stringResource(R.string.nav_back),
+                    )
+                    SurfaceRoute.Collage -> GalleryTopAppBar(
+                        title = stringResource(R.string.m6_collage),
+                        onBack = { route = SurfaceRoute.Root },
+                        navigationContentDescription = stringResource(R.string.nav_back),
+                    )
+                    else -> Unit
+                }
+            },
             bottomBar = {
-                if (!expanded && route == SurfaceRoute.Root) RootNavigationBar(rootTab) { rootTab = it }
+                if (adaptiveInfo.navigationType == GalleryNavigationType.BottomBar && route == SurfaceRoute.Root) {
+                    RootNavigationBar(rootTab) { rootTab = it }
+                }
             },
         ) { padding ->
-            if (expanded && route == SurfaceRoute.Root) {
+            if (adaptiveInfo.navigationType == GalleryNavigationType.Rail) {
                 Row(Modifier.fillMaxSize().padding(padding)) {
-                    RootNavigationRail(rootTab) { rootTab = it }
-                    Column(Modifier.weight(1f)) {
-                        controls()
-                        content()
+                    if (route == SurfaceRoute.Root) {
+                        RootNavigationRail(rootTab) { rootTab = it }
                     }
+                    AnimatedSurfaceBody(
+                        key = ScreenMotionKey(route, rootTab),
+                        modifier = Modifier.weight(1f),
+                        controls = controls,
+                        content = content,
+                    )
                 }
-            } else Column(Modifier.fillMaxSize().padding(padding)) {
-                if (route != SurfaceRoute.Root && route != SurfaceRoute.Viewer && route != SurfaceRoute.PhotoEditor && route != SurfaceRoute.VideoEditor) Button(onClick = { route = SurfaceRoute.Root }) {
-                    Text(stringResource(R.string.nav_back))
-                }
-                controls()
-                content()
+            } else {
+                AnimatedSurfaceBody(
+                    key = ScreenMotionKey(route, rootTab),
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    controls = controls,
+                    content = content,
+                )
             }
         }
     }
@@ -599,6 +785,25 @@ internal fun ProductionGalleryApp(
 }
 
 @Composable
+private fun AnimatedSurfaceBody(
+    key: ScreenMotionKey,
+    modifier: Modifier,
+    controls: @Composable (SurfaceRoute) -> Unit,
+    content: @Composable (SurfaceRoute, RootTab) -> Unit,
+) {
+    GalleryAnimatedContent(
+        targetState = key,
+        modifier = modifier,
+        contentKey = { it },
+    ) { activeKey ->
+        Column(Modifier.fillMaxSize()) {
+            controls(activeKey.route)
+            content(activeKey.route, activeKey.rootTab)
+        }
+    }
+}
+
+@Composable
 private fun SelectionActions(
     count: Long,
     canShare: Boolean,
@@ -610,37 +815,66 @@ private fun SelectionActions(
     onShare: () -> Unit,
     onClear: () -> Unit,
 ) {
-    Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-        Text(stringResource(R.string.selection_count, count), style = MaterialTheme.typography.titleMedium)
-        Row(
-            Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            SelectionActionButton(onClick = onSelectAll, icon = GalleryIcons.Check, label = stringResource(R.string.selection_select_all))
-            SelectionActionButton(onClick = onFavorite, icon = GalleryIcons.Heart, label = stringResource(R.string.selection_favorite))
-            SelectionActionButton(onClick = onTrash, icon = GalleryIcons.Trash, label = stringResource(R.string.selection_trash))
-            SelectionActionButton(onClick = onAddToAlbum, icon = GalleryIcons.Album, label = stringResource(R.string.selection_add_album))
+    var menuExpanded by remember { mutableStateOf(false) }
+    Surface(color = MaterialTheme.colorScheme.surfaceContainer, tonalElevation = 2.dp) {
+      Column(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Text(
+                stringResource(R.string.selection_count, count),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f).padding(start = 8.dp),
+            )
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(GalleryIcons.More, contentDescription = stringResource(com.ugallery.feature.viewer.R.string.viewer_more))
+                }
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.selection_select_all)) },
+                        onClick = { menuExpanded = false; onSelectAll() },
+                        leadingIcon = { Icon(GalleryIcons.Check, contentDescription = null) },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.selection_delete)) },
+                        onClick = { menuExpanded = false; onDelete() },
+                        leadingIcon = { Icon(GalleryIcons.Trash, contentDescription = null) },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.selection_clear)) },
+                        onClick = { menuExpanded = false; onClear() },
+                        leadingIcon = { Icon(GalleryIcons.Close, contentDescription = null) },
+                    )
+                }
+            }
         }
-        Row(
-            Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            if (canShare) SelectionActionButton(onClick = onShare, icon = GalleryIcons.Share, label = stringResource(R.string.selection_share))
-            SelectionActionButton(onClick = onDelete, icon = GalleryIcons.Trash, label = stringResource(R.string.selection_delete))
-            SelectionActionButton(onClick = onClear, icon = GalleryIcons.Close, label = stringResource(R.string.selection_clear))
+        Row(Modifier.fillMaxWidth()) {
+            GalleryActionButton(
+                onClick = onAddToAlbum,
+                icon = GalleryIcons.Album,
+                label = stringResource(R.string.selection_add_album),
+                modifier = Modifier.weight(1f),
+            )
+            GalleryActionButton(
+                onClick = onShare,
+                icon = GalleryIcons.Share,
+                label = stringResource(R.string.selection_share),
+                enabled = canShare,
+                modifier = Modifier.weight(1f),
+            )
+            GalleryActionButton(
+                onClick = onFavorite,
+                icon = GalleryIcons.Heart,
+                label = stringResource(R.string.selection_favorite),
+                modifier = Modifier.weight(1f),
+            )
+            GalleryActionButton(
+                onClick = onTrash,
+                icon = GalleryIcons.Trash,
+                label = stringResource(R.string.selection_trash),
+                modifier = Modifier.weight(1f),
+            )
         }
-    }
-}
-
-@Composable
-private fun SelectionActionButton(
-    onClick: () -> Unit,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-) {
-    TextButton(onClick = onClick) {
-        Icon(icon, contentDescription = null)
-        Text(label)
+      }
     }
 }
 
@@ -707,15 +941,19 @@ private fun ExternalViewer(
                 else -> androidx.compose.material3.CircularProgressIndicator(Modifier.padding(24.dp))
             }
         }
-        Row(Modifier.padding(12.dp)) {
-            Button(onClick = onClose) { Text(stringResource(R.string.details_close)) }
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            item { Button(onClick = onClose) { Text(stringResource(R.string.details_close)) } }
             if (video != null) {
                 val playing = (videoState?.value as? com.ugallery.feature.viewer.VideoViewerState.Ready)?.isPlaying == true
-                Button(onClick = { if (playing) video.pause() else video.play() }) {
+                item { Button(onClick = { if (playing) video.pause() else video.play() }) {
                     Text(stringResource(if (playing) R.string.external_pause else R.string.external_play))
-                }
+                } }
             }
-            if (media.editMode) Button(onClick = onSaveCopy) { Text(stringResource(R.string.external_save_copy)) }
+            if (media.editMode) item { Button(onClick = onSaveCopy) { Text(stringResource(R.string.external_save_copy)) } }
         }
     }
     DisposableEffect(photo) {
@@ -725,13 +963,14 @@ private fun ExternalViewer(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ViewerRoute(
     media: TimelineMedia,
     photoState: com.ugallery.feature.viewer.PhotoLoadState?,
     viewModel: GalleryViewModel,
     showDetails: Boolean,
-    expanded: Boolean,
+    adaptiveInfo: GalleryAdaptiveLayoutInfo,
     onShowDetails: () -> Unit,
     onHideDetails: () -> Unit,
     onBack: () -> Unit,
@@ -773,30 +1012,58 @@ private fun ViewerRoute(
         // Motion photo badge - detection requires file access, shown when available
         // MotionPhotoParser.parseXmp() is called from the viewer pipeline when XMP metadata is available
     }
-    if (expanded && showDetails && cheap != null) {
-        Row(Modifier.fillMaxSize()) {
-            Column(Modifier.weight(0.62f)) { viewer() }
-            Surface(Modifier.weight(0.38f)) {
-                Column {
-                    TextButton(onClick = onHideDetails) { Text(stringResource(R.string.details_close)) }
-                    DetailsContent(requireNotNull(cheap), exif, false, viewModel::loadDetails, detectedText)
+    if (adaptiveInfo.supportsTwoPane && showDetails && cheap != null) {
+        val verticalFold = adaptiveInfo.foldInfo?.takeIf { it.enablesSideBySide }
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val containerWidth = maxWidth
+            Row(Modifier.fillMaxSize()) {
+                Column(
+                    if (verticalFold == null) Modifier.weight(0.62f)
+                    else Modifier.width(verticalFold.left.coerceIn(0.dp, containerWidth)),
+                ) { viewer() }
+                if (verticalFold != null) {
+                    androidx.compose.foundation.layout.Spacer(Modifier.width(verticalFold.hingeWidth))
+                }
+                GalleryAnimatedVisibility(
+                    visible = true,
+                    edge = GalleryMotionEdge.End,
+                    modifier = if (verticalFold == null) Modifier.weight(0.38f)
+                    else Modifier.width((containerWidth - verticalFold.right).coerceAtLeast(0.dp)),
+                ) {
+                    Surface(Modifier.fillMaxSize()) {
+                        Column {
+                            TextButton(onClick = onHideDetails) { Text(stringResource(R.string.details_close)) }
+                            DetailsContent(
+                                requireNotNull(cheap),
+                                exif,
+                                false,
+                                viewModel::loadDetails,
+                                detectedText,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
                 }
             }
         }
     } else {
         viewer()
-        if (showDetails && cheap != null) Dialog(onDismissRequest = onHideDetails) {
-            Surface(shape = MaterialTheme.shapes.large) {
-                Column {
-                    TextButton(onClick = onHideDetails) { Text(stringResource(R.string.details_close)) }
-                    DetailsContent(requireNotNull(cheap), exif, false, viewModel::loadDetails, detectedText)
-                    placeName?.let { name ->
-                        Text(
-                            stringResource(R.string.m6_places_nearby, name),
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(horizontal = 20.dp),
-                        )
-                    }
+        if (showDetails && cheap != null) ModalBottomSheet(onDismissRequest = onHideDetails) {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                DetailsContent(
+                    requireNotNull(cheap),
+                    exif,
+                    false,
+                    viewModel::loadDetails,
+                    detectedText,
+                    scrollable = false,
+                )
+                placeName?.let { name ->
+                    Text(
+                        stringResource(R.string.m6_places_nearby, name),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                    )
                 }
             }
         }

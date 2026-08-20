@@ -3,8 +3,10 @@ package com.ugallery.feature.videoeditor
 import android.view.SurfaceView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -81,21 +83,27 @@ fun VideoEditorContent(
                 Icon(GalleryIcons.Back, contentDescription = stringResource(R.string.video_editor_cancel))
             }
             Text(stringResource(R.string.video_editor_title), style = MaterialTheme.typography.titleLarge)
-            Button(onClick = onSaveCopy, enabled = !state.isExporting) {
+            TextButton(onClick = onSaveCopy, enabled = !state.isExporting) {
                 Text(stringResource(R.string.video_editor_save_copy))
             }
         }
     }) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
-            VideoPreview(controller, Modifier.weight(1f).fillMaxWidth())
-            VideoTimeline(state, onSeek, onTrimChange)
-            VideoControls(
-                state,
-                onSpeedChange,
-                onOriginalVolumeChange,
-                onChooseMusic,
-                onRemoveMusic,
-            )
+        BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
+            if (maxWidth >= 840.dp) {
+                Row(Modifier.fillMaxSize()) {
+                    VideoPreview(controller, Modifier.weight(1f).fillMaxSize())
+                    Column(Modifier.weight(0.44f).verticalScroll(rememberScrollState())) {
+                        VideoTimeline(state, onSeek, onTrimChange)
+                        VideoControls(state, onSpeedChange, onOriginalVolumeChange, onChooseMusic, onRemoveMusic)
+                    }
+                }
+            } else {
+                Column(Modifier.fillMaxSize()) {
+                    VideoPreview(controller, Modifier.weight(1f).fillMaxWidth())
+                    VideoTimeline(state, onSeek, onTrimChange)
+                    VideoControls(state, onSpeedChange, onOriginalVolumeChange, onChooseMusic, onRemoveMusic)
+                }
+            }
         }
     }
 }
@@ -139,12 +147,17 @@ private fun VideoTimeline(
         )
         val trimStart = state.trimStartMillis.coerceIn(0, duration)
         val trimEnd = (state.trimEndMillis.takeIf { it > 0 } ?: duration).coerceIn(trimStart + 1, duration)
+        val trimDescription = stringResource(
+            R.string.video_editor_trim_description,
+            formatMillis(trimStart),
+            formatMillis(trimEnd),
+        )
         RangeSlider(
             value = trimStart.toFloat()..trimEnd.toFloat(),
             onValueChange = { range -> onTrimChange(range.start.toLong(), range.endInclusive.toLong()) },
             valueRange = 0f..duration.toFloat(),
             modifier = Modifier.fillMaxWidth().semantics {
-                contentDescription = "Trim ${formatMillis(trimStart)} - ${formatMillis(trimEnd)}"
+                contentDescription = trimDescription
             },
         )
     }
@@ -186,17 +199,17 @@ private fun VideoControls(
             }
             1 -> Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                 Text(stringResource(R.string.video_editor_original_audio))
+                val audioDescription = stringResource(R.string.video_editor_audio_description)
                 Slider(
                     value = state.originalAudioVolume,
                     onValueChange = onOriginalVolumeChange,
                     valueRange = 0f..1f,
-                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Original audio volume" },
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = audioDescription },
                 )
             }
-            2 -> Row(
+            2 -> Column(
                 Modifier.fillMaxWidth().padding(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (state.selectedMusicName == null) {
                     OutlinedButton(onClick = onChooseMusic) {
@@ -204,7 +217,7 @@ private fun VideoControls(
                         Text(stringResource(R.string.video_editor_choose_music))
                     }
                 } else {
-                    Text(state.selectedMusicName, Modifier.weight(1f))
+                    Text(state.selectedMusicName)
                     TextButton(onClick = onRemoveMusic) { Text(stringResource(R.string.video_editor_remove_music)) }
                 }
             }

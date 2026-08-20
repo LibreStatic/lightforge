@@ -15,15 +15,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,6 +48,7 @@ import com.ugallery.core.database.MomentMemberEntity
 import com.ugallery.core.model.MediaKey
 import com.ugallery.core.thumbnail.ThumbnailLoader
 import com.ugallery.core.thumbnail.ThumbnailRequest
+import com.ugallery.core.designsystem.GalleryIcons
 import java.text.DateFormat
 import java.util.Date
 
@@ -80,29 +82,32 @@ fun MomentContent(
     var renaming by remember { mutableStateOf(false) }
     var editTitle by remember { mutableStateOf(moment.title ?: "") }
 
-    Column(
-        modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+    Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+      LazyColumn(
+        Modifier.fillMaxSize().widthIn(max = 720.dp),
         verticalArrangement = Arrangement.spacedBy(TileSpacing),
-    ) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack) { Text(stringResource(android.R.string.cancel)) }
+      ) {
+        item { Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) {
+                Icon(GalleryIcons.Back, contentDescription = stringResource(R.string.moment_cancel))
+            }
             Text(
                 moment.title ?: stringResource(R.string.moment_untitled),
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.weight(1f).semantics { heading() },
             )
             TextButton(onClick = { renaming = true }) { Text(stringResource(R.string.moment_edit)) }
-        }
-        HorizontalScrollRow(dateLabel, stateLabel)
+        } }
+        item { HorizontalScrollRow(dateLabel, stateLabel) }
         if (renaming) {
-            RenameDialog(editTitle, { editTitle = it }, { onRename(editTitle); renaming = false }) { renaming = false }
+            item { RenameDialog(editTitle, { editTitle = it }, { onRename(editTitle); renaming = false }) { renaming = false } }
         }
         if (members.isNotEmpty()) {
             val current = members[storyIndex]
-            StorySlide(current.key, thumbnailLoader, current.member.ordinal + 1, members.size)
-            StoryProgress(current.member.ordinal + 1, members.size)
+            item { StorySlide(current.key, thumbnailLoader, current.member.ordinal + 1, members.size) }
+            item { StoryProgress(current.member.ordinal + 1, members.size) }
         }
-        StoryNav(storyIndex, members.size, onMove = { delta ->
+        item { StoryNav(storyIndex, members.size, onMove = { delta ->
             val target = (storyIndex + delta).coerceIn(0, members.lastIndex)
             if (target != storyIndex) {
                 val reordered = members.map { it.key }.toMutableList()
@@ -114,11 +119,17 @@ fun MomentContent(
         }) {
             storyIndex = if (storyIndex >= members.lastIndex - StorySlotCount + 1) 0
                 else (storyIndex + StorySlotCount).coerceAtMost(members.lastIndex)
+        } }
+        itemsIndexed(
+            members.chunked(3),
+            key = { index, row -> "member-row:$index:${row.firstOrNull()?.key}" },
+        ) { _, rowMembers ->
+            ReorderRow(rowMembers, storyIndex, thumbnailLoader) { index ->
+                if (index == storyIndex) onSetCover(index) else storyIndex = index
+            }
         }
-        ReorderGrid(members, storyIndex, thumbnailLoader) { index ->
-            if (index == storyIndex) onSetCover(index) else storyIndex = index
-        }
-        BottomActions(onDelete, onSave)
+        item { BottomActions(onDelete, onSave) }
+      }
     }
 }
 
@@ -143,7 +154,7 @@ private fun RenameDialog(value: String, onValueChange: (String) -> Unit, onConfi
 
 @Composable
 private fun StorySlide(key: MediaKey, loader: ThumbnailLoader?, current: Int, total: Int) {
-    Column(Modifier.fillMaxWidth().height(StorySlideHeight), horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(Modifier.fillMaxWidth().aspectRatio(4f / 3f), horizontalAlignment = Alignment.CenterHorizontally) {
         MediaThumbnail(key, loader, Modifier.fillMaxWidth().weight(1f))
         Text(stringResource(R.string.moment_story_position, current, total), Modifier.padding(top = 8.dp))
     }
@@ -164,37 +175,36 @@ private fun StoryProgress(current: Int, total: Int) {
 private fun StoryNav(index: Int, size: Int, onMove: (Int) -> Unit, onAdvance: () -> Unit) {
     val atEnd = index >= size - 1
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-        TextButton(onClick = { onMove(-1) }, enabled = index > 0) {
-            Text(stringResource(R.string.moment_move_previous))
+        TextButton(onClick = { onMove(-1) }, enabled = index > 0, modifier = Modifier.weight(1f)) {
+            Text(stringResource(R.string.moment_move_previous), maxLines = 2)
         }
-        TextButton(onClick = onAdvance, enabled = !atEnd || index > 0) {
-            Text(stringResource(if (atEnd) android.R.string.ok else android.R.string.search_go))
+        TextButton(onClick = onAdvance, enabled = !atEnd || index > 0, modifier = Modifier.weight(1f)) {
+            Text(stringResource(if (atEnd) android.R.string.ok else android.R.string.search_go), maxLines = 2)
         }
-        TextButton(onClick = { onMove(1) }, enabled = index < size - 1) {
-            Text(stringResource(R.string.moment_move_next))
+        TextButton(onClick = { onMove(1) }, enabled = index < size - 1, modifier = Modifier.weight(1f)) {
+            Text(stringResource(R.string.moment_move_next), maxLines = 2)
         }
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ReorderGrid(members: List<MomentMemberUi>, currentIndex: Int, loader: ThumbnailLoader?, onClick: (Int) -> Unit) {
-    LazyVerticalGrid(
-        GridCells.Fixed(3),
-        modifier = Modifier.fillMaxWidth().size(400.dp).offset(y = (-8).dp),
-    ) {
-        items(members, key = { it.key.toString() }) { member: MomentMemberUi ->
+@OptIn(ExperimentalFoundationApi::class)
+private fun ReorderRow(rowMembers: List<MomentMemberUi>, currentIndex: Int, loader: ThumbnailLoader?, onClick: (Int) -> Unit) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(TileSpacing)) {
+          rowMembers.forEach { member ->
             val ordinal = member.member.ordinal
             val isCurrent = ordinal == currentIndex
             val border = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-            Box(Modifier
+            Box(Modifier.weight(1f)
+                .aspectRatio(1f)
                 .clip(MaterialTheme.shapes.small)
                 .combinedClickable(onClick = { onClick(ordinal) }, onLongClick = { onClick(ordinal) })
                 .padding(2.dp)
                 .background(border, MaterialTheme.shapes.small),
-            ) { MediaThumbnail(member.key, loader, Modifier.fillMaxWidth().height(TileHeight)) }
+            ) { MediaThumbnail(member.key, loader, Modifier.fillMaxSize()) }
+          }
+          repeat(3 - rowMembers.size) { Box(Modifier.weight(1f).aspectRatio(1f)) }
         }
-    }
 }
 
 @Composable

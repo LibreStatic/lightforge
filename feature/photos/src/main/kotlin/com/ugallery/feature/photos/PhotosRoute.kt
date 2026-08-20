@@ -59,6 +59,7 @@ fun PhotosRoute(
     modifier: Modifier = Modifier,
     benchmarkMlRunning: Boolean = false,
 ) {
+    val densityDescription = stringResource(R.string.change_grid_density)
     var densityIndex by rememberSaveable { mutableIntStateOf(0) }
     var anchorIndex by rememberSaveable { mutableIntStateOf(0) }
     val gridState = rememberLazyGridState()
@@ -90,18 +91,18 @@ fun PhotosRoute(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Xl),
+                .padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Md),
             verticalAlignment = Alignment.Bottom,
             horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(stringResource(R.string.library_local), style = MaterialTheme.typography.labelSmall, color = GalleryColors.Muted)
-                Text(stringResource(R.string.photos_title), style = MaterialTheme.typography.headlineLarge)
+                Text(stringResource(R.string.photos_title), style = MaterialTheme.typography.headlineSmall)
             }
             Button(
                 onClick = { changeDensity(1).also { if (densityIndex == densityColumns.lastIndex) changeDensity(-densityColumns.lastIndex) } },
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                modifier = Modifier.semantics { contentDescription = "Change grid density" },
+                modifier = Modifier.semantics { contentDescription = densityDescription },
             ) {
                 Text("${densityColumns[densityIndex]}×")
             }
