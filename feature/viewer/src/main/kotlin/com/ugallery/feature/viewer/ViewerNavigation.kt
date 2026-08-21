@@ -1,6 +1,7 @@
 package com.ugallery.feature.viewer
 
 import com.ugallery.core.model.MediaKey
+import com.ugallery.core.model.TimelineMedia
 import com.ugallery.core.selection.MediaQuery
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -11,6 +12,16 @@ data class ViewerPosition(
     val sourceQuery: MediaQuery,
     val current: MediaKey,
 )
+
+data class ViewerUiState(
+    val items: List<TimelineMedia> = emptyList(),
+    val currentIndex: Int = -1,
+    val hasPrevious: Boolean = false,
+    val hasNext: Boolean = false,
+    val isLoading: Boolean = false,
+) {
+    val current: TimelineMedia? get() = items.getOrNull(currentIndex)
+}
 
 enum class NeighborDirection { Previous, Next }
 

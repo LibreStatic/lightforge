@@ -25,6 +25,7 @@ import com.ugallery.core.data.InitialMediaScanner
 import com.ugallery.core.data.MediaStoreChangeMonitor
 import com.ugallery.core.data.RoomMediaIndexStore
 import com.ugallery.core.data.RoomSelectionTargetSource
+import com.ugallery.core.data.RoomViewerMediaSource
 import com.ugallery.core.data.GallerySearchIndexRepository
 import com.ugallery.core.database.GalleryDatabase
 import com.ugallery.core.database.GalleryDatabaseFactory
@@ -84,6 +85,7 @@ import com.ugallery.feature.collections.PersonMemberCardUi
 import com.ugallery.feature.permissions.PermissionCoordinator
 import com.ugallery.feature.viewer.PhotoLoadState
 import com.ugallery.feature.viewer.PhotoViewerPipeline
+import com.ugallery.feature.viewer.ViewerUiState
 import com.ugallery.feature.photoeditor.PhotoEditorContentState
 import com.ugallery.feature.videoeditor.VideoEditorContentState
 import com.ugallery.feature.collage.CollageConfig
@@ -154,6 +156,7 @@ private data class GalleryRuntime(
     val trash: GalleryTrashRepository,
     val metadata: MediaMetadataRepository,
     val selectionTargets: RoomSelectionTargetSource,
+    val viewerMedia: RoomViewerMediaSource,
     val searchIndex: GallerySearchIndexRepository,
     val moments: MomentRepository,
     var monitor: MediaStoreChangeMonitor? = null,
@@ -250,6 +253,10 @@ class GalleryViewModel @Inject constructor(
         }.cachedIn(viewModelScope)
     private val mutableCurrentMedia = MutableStateFlow<TimelineMedia?>(null)
     val currentMedia = mutableCurrentMedia.asStateFlow()
+    private val mutableViewerState = MutableStateFlow(ViewerUiState())
+    val viewerState = mutableViewerState.asStateFlow()
+    private var viewerQuery = MediaQuery()
+    private var viewerWindowJob: Job? = null
     private val mutableSelectedAlbum = MutableStateFlow<AlbumSummary?>(null)
     val selectedAlbum = mutableSelectedAlbum.asStateFlow()
     private val mutableSelection = MutableStateFlow<SelectionSpec>(SelectionSpec.explicit())
@@ -367,6 +374,7 @@ class GalleryViewModel @Inject constructor(
                     hit.key, hit.kind, row.generationModified, row.timelineSortMillis, row.width, row.height,
                     row.durationMillis, row.dateExpiresSeconds?.times(1_000), row.isFavorite, row.isTrashed,
                 ),
+                MediaQuery(scope = MediaQuery.Scope.Search(mutableSearch.value.query.trim().lowercase())),
             )
         }
     }
@@ -848,8 +856,30 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
-    fun openMedia(media: TimelineMedia) {
+    fun openMedia(media: TimelineMedia, sourceQuery: MediaQuery = MediaQuery()) {
+        viewerQuery = sourceQuery
+        selectViewerMedia(media, forceWindowReload = true)
+    }
+
+    fun openAlbumMedia(
+        media: TimelineMedia,
+        album: AlbumSummary,
+        filter: AlbumMediaFilter,
+        sort: AlbumSort,
+    ) = openMedia(media, albumQuery(album.key, filter, sort))
+
+    fun selectViewerMedia(media: TimelineMedia, forceWindowReload: Boolean = false) {
         mutableCurrentMedia.value = media
+        val previousViewer = mutableViewerState.value
+        val existingIndex = previousViewer.items.indexOfFirst { it.key == media.key }
+        val nearPreviousEdge = existingIndex in 0 until ViewerWindowRefreshThreshold && previousViewer.hasPrevious
+        val nearNextEdge = existingIndex >= previousViewer.items.size - ViewerWindowRefreshThreshold && previousViewer.hasNext
+        val reloadWindow = forceWindowReload || existingIndex < 0 || nearPreviousEdge || nearNextEdge
+        mutableViewerState.value = if (existingIndex >= 0) {
+            previousViewer.copy(currentIndex = existingIndex, isLoading = reloadWindow)
+        } else {
+            ViewerUiState(listOf(media), 0, isLoading = true)
+        }
         mutableSelectedMoment.value = null
         mutableCheapDetails.value = null
         mutableExifDetails.value = null
@@ -862,6 +892,56 @@ class GalleryViewModel @Inject constructor(
                 PhotoViewerPipeline(active.decoder).load(media.uri(), 1_440, 3_120)
                     .collect { mutablePhotoState.value = it }
             }
+        }
+        if (!reloadWindow) return
+        viewerWindowJob?.cancel()
+        viewerWindowJob = viewModelScope.launch {
+            val active = runtime.value ?: return@launch
+            val items: List<TimelineMedia>
+            val hasPrevious: Boolean
+            val hasNext: Boolean
+            if (viewerQuery.scope is MediaQuery.Scope.Search) {
+                var hits = mutableSearch.value.hits
+                var anchorIndex = hits.indexOfFirst { it.key == media.key }
+                if (anchorIndex >= hits.size - ViewerWindowRefreshThreshold && !mutableSearch.value.terminal) {
+                    val cursor = searchCursor
+                    if (cursor != null) runCatching { cursor.nextPage() }.onSuccess { page ->
+                        hits = hits + page.hits
+                        mutableSearch.value = mutableSearch.value.copy(
+                            hits = hits,
+                            terminal = page.isTerminal,
+                            loading = false,
+                        )
+                        anchorIndex = hits.indexOfFirst { it.key == media.key }
+                    }
+                }
+                val from = (anchorIndex - ViewerWindowRadius).coerceAtLeast(0)
+                val to = (anchorIndex + ViewerWindowRadius + 1).coerceAtMost(hits.size)
+                items = if (anchorIndex < 0) listOf(media) else hits.subList(from, to).mapNotNull { hit ->
+                    active.database.libraryDao().media(hit.key.volumeName, hit.key.mediaStoreId)?.let { row ->
+                        TimelineMedia(
+                            hit.key, hit.kind, row.generationModified, row.timelineSortMillis,
+                            row.width, row.height, row.durationMillis,
+                            row.dateExpiresSeconds?.times(1_000), row.isFavorite, row.isTrashed,
+                        )
+                    }
+                }
+                hasPrevious = anchorIndex > ViewerWindowRadius
+                hasNext = anchorIndex >= 0 && (to < hits.size || !mutableSearch.value.terminal)
+            } else {
+                val window = active.viewerMedia.window(viewerQuery, media, ViewerWindowRadius)
+                items = window.items
+                hasPrevious = window.hasPrevious
+                hasNext = window.hasNext
+            }
+            val currentIndex = items.indexOfFirst { it.key == media.key }.let { if (it < 0) 0 else it }
+            mutableViewerState.value = ViewerUiState(
+                items = items.ifEmpty { listOf(media) },
+                currentIndex = currentIndex,
+                hasPrevious = hasPrevious,
+                hasNext = hasNext,
+                isLoading = false,
+            )
         }
     }
 
@@ -1356,6 +1436,7 @@ class GalleryViewModel @Inject constructor(
             trash = GalleryTrashRepository(database),
             metadata = MediaMetadataRepository(context.contentResolver, database),
             selectionTargets = RoomSelectionTargetSource(database),
+            viewerMedia = RoomViewerMediaSource(database),
             searchIndex = GallerySearchIndexRepository(context, database),
             moments = MomentRepository(database),
         )
@@ -1477,5 +1558,7 @@ class GalleryViewModel @Inject constructor(
     private companion object {
         const val ActionStateKey = "media_action_state"
         const val BulkStateKey = "bulk_action_state"
+        const val ViewerWindowRadius = 80
+        const val ViewerWindowRefreshThreshold = 12
     }
 }

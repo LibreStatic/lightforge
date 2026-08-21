@@ -142,6 +142,7 @@ internal fun ProductionGalleryApp(
     val engineState by viewModel.engineState.collectAsState()
     val thumbnails by viewModel.thumbnailLoader.collectAsState()
     val currentMedia by viewModel.currentMedia.collectAsState()
+    val viewerState by viewModel.viewerState.collectAsState()
     val selectedAlbum by viewModel.selectedAlbum.collectAsState()
     val selection by viewModel.selection.collectAsState()
     val selectionCount by viewModel.selectionCount.collectAsState()
@@ -411,7 +412,7 @@ internal fun ProductionGalleryApp(
                             onSortChange = { sort = it; viewModel.selectAlbum(album, filter, sort) },
                             onMediaClick = { media ->
                                 if (selectionCount > 0) viewModel.toggleSelection(media)
-                                else { viewModel.openMedia(media); route = SurfaceRoute.Viewer }
+                                else { viewModel.openAlbumMedia(media, album, filter, sort); route = SurfaceRoute.Viewer }
                             },
                             onMediaLongClick = viewModel::toggleSelection,
                             showHeader = false,
@@ -421,7 +422,9 @@ internal fun ProductionGalleryApp(
                 SurfaceRoute.Viewer -> currentMedia?.let { media ->
                     ViewerRoute(
                         media,
+                        viewerState.items,
                         photoState,
+                        thumbnails,
                         viewModel,
                         showDetails,
                         adaptiveInfo,
@@ -967,7 +970,9 @@ private fun ExternalViewer(
 @Composable
 private fun ViewerRoute(
     media: TimelineMedia,
+    mediaItems: List<TimelineMedia>,
     photoState: com.ugallery.feature.viewer.PhotoLoadState?,
+    thumbnailLoader: com.ugallery.core.thumbnail.ThumbnailLoader?,
     viewModel: GalleryViewModel,
     showDetails: Boolean,
     adaptiveInfo: GalleryAdaptiveLayoutInfo,
@@ -994,10 +999,12 @@ private fun ViewerRoute(
     DisposableEffect(videoController) { onDispose { videoController?.close() } }
     val viewer: @Composable () -> Unit = {
         ViewerContent(
-            media,
-            photoState,
-            videoController,
-            media.isFavorite,
+            media = media,
+            mediaItems = mediaItems,
+            photoState = photoState,
+            videoController = videoController,
+            thumbnailLoader = thumbnailLoader,
+            isFavorite = media.isFavorite,
             onBack = onBack,
             onToggleFavorite = { viewModel.beginSystemAction(media, MediaAction.Favorite(!media.isFavorite)) },
             onShare = {
@@ -1007,6 +1014,7 @@ private fun ViewerRoute(
             onEdit = onEdit,
             onShareSanitized = onShareSanitized,
             onTrash = { viewModel.beginSystemAction(media, MediaAction.Trash(true)) },
+            onSelectMedia = viewModel::selectViewerMedia,
             modifier = Modifier.fillMaxSize(),
         )
         // Motion photo badge - detection requires file access, shown when available
