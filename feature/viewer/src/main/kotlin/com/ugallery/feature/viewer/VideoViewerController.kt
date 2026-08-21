@@ -19,6 +19,7 @@ sealed interface VideoViewerState {
         val uri: Uri,
         val poster: Bitmap?,
         val isPlaying: Boolean,
+        val isMuted: Boolean,
         val durationMillis: Long,
     ) : VideoViewerState
     data class Failure(val uri: Uri, val unsupported: Boolean, val errorCode: Int) : VideoViewerState
@@ -41,6 +42,7 @@ internal interface VideoEngine {
     fun stopAndClear()
     fun release()
     fun attachSurface(surfaceView: SurfaceView?)
+    fun setVolume(volume: Float)
 }
 
 /** Owns exactly one player/decoder chain for the entire viewer surface. */
@@ -51,6 +53,7 @@ class VideoViewerController internal constructor(private val engine: VideoEngine
     val state: StateFlow<VideoViewerState> = mutableState
     private var activeUri: Uri? = null
     private var activePoster: Bitmap? = null
+    private var muted = false
     private var released = false
 
     init {
@@ -66,18 +69,34 @@ class VideoViewerController internal constructor(private val engine: VideoEngine
     }
 
     @MainThread
-    fun select(uri: Uri, poster: Bitmap? = null) {
+    fun select(
+        uri: Uri,
+        poster: Bitmap? = null,
+        autoplay: Boolean = false,
+        startMuted: Boolean = false,
+    ) {
         check(!released)
         engine.stopAndClear()
         activeUri = uri
         activePoster = poster
+        muted = startMuted
         mutableState.value = VideoViewerState.Loading(uri, poster)
+        engine.setVolume(if (muted) 0f else 1f)
         engine.setMedia(uri)
         engine.prepare()
+        if (autoplay) engine.play()
     }
 
     @MainThread fun play() { check(!released); engine.play() }
     @MainThread fun pause() { if (!released) engine.pause() }
+    @MainThread
+    fun unmute() {
+        if (released || !muted) return
+        muted = false
+        engine.setVolume(1f)
+        val ready = mutableState.value as? VideoViewerState.Ready ?: return
+        mutableState.value = ready.copy(isMuted = false)
+    }
     @MainThread fun seekTo(positionMillis: Long) { check(!released); engine.seekTo(positionMillis.coerceAtLeast(0)) }
     @MainThread fun onBackground() = pause()
     @MainThread fun attachSurface(surfaceView: SurfaceView?) { check(!released); engine.attachSurface(surfaceView) }
@@ -97,7 +116,7 @@ class VideoViewerController internal constructor(private val engine: VideoEngine
     private fun updateReady(durationMillis: Long, isPlaying: Boolean) {
         val uri = activeUri ?: return
         mutableState.value = VideoViewerState.Ready(
-            uri, activePoster, isPlaying, durationMillis.coerceAtLeast(0),
+            uri, activePoster, isPlaying, muted, durationMillis.coerceAtLeast(0),
         )
     }
 }
@@ -135,6 +154,7 @@ private class Media3VideoEngine(context: Context) : VideoEngine {
         player.clearVideoSurface()
         if (surfaceView != null) player.setVideoSurfaceView(surfaceView)
     }
+    override fun setVolume(volume: Float) { player.volume = volume.coerceIn(0f, 1f) }
 
     private companion object {
         val UnsupportedErrorCodes = setOf(

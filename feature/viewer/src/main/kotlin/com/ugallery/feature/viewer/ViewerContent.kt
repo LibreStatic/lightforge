@@ -93,6 +93,7 @@ fun ViewerContent(
     onEdit: () -> Unit,
     onTrash: () -> Unit,
     onSelectMedia: (TimelineMedia) -> Unit,
+    onContentTap: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var chromeVisible by rememberSaveable { mutableStateOf(true) }
@@ -122,7 +123,12 @@ fun ViewerContent(
         Box(
             Modifier
                 .fillMaxSize()
-                .pointerInput(Unit) { detectTapGestures(onTap = { chromeVisible = !chromeVisible }) },
+                .pointerInput(onContentTap) {
+                    detectTapGestures(onTap = {
+                        chromeVisible = !chromeVisible
+                        onContentTap()
+                    })
+                },
         ) {
             HorizontalPager(
                 state = pagerState,
@@ -405,12 +411,22 @@ private fun VideoSurface(controller: VideoViewerController?) {
         }
         when (val current = state) {
             is VideoViewerState.Ready -> FilledIconButton(
-                onClick = { if (current.isPlaying) controller.pause() else controller.play() },
+                onClick = {
+                    when {
+                        current.isMuted -> controller.unmute()
+                        current.isPlaying -> controller.pause()
+                        else -> controller.play()
+                    }
+                },
             ) {
                 Icon(
                     imageVector = if (current.isPlaying) GalleryIcons.Pause else GalleryIcons.Play,
                     contentDescription = stringResource(
-                        if (current.isPlaying) R.string.viewer_pause else R.string.viewer_play,
+                        when {
+                            current.isMuted -> R.string.viewer_unmute
+                            current.isPlaying -> R.string.viewer_pause
+                            else -> R.string.viewer_play
+                        },
                     ),
                 )
             }

@@ -43,19 +43,44 @@ class VideoViewerControllerTest {
         assertFalse(controller.state.value is VideoViewerState.Ready)
     }
 
+    @Test
+    fun `autoplay starts muted and explicit user intent unmutes`() {
+        val engine = FakeVideoEngine()
+        val controller = VideoViewerController(engine)
+
+        controller.select(
+            Uri.parse("content://media/video"),
+            autoplay = true,
+            startMuted = true,
+        )
+
+        assertEquals(1, engine.playCalls)
+        assertEquals(0f, engine.volumes.single(), 0f)
+        engine.listener?.onReady(5_000, true)
+        assertTrue((controller.state.value as VideoViewerState.Ready).isMuted)
+
+        controller.unmute()
+
+        assertEquals(1f, engine.volumes.last(), 0f)
+        assertFalse((controller.state.value as VideoViewerState.Ready).isMuted)
+    }
+
     private class FakeVideoEngine : VideoEngine {
         override var listener: VideoEngine.Listener? = null
         val media = mutableListOf<Uri>()
         var clearCalls = 0
+        var playCalls = 0
         var pauseCalls = 0
         var releaseCalls = 0
+        val volumes = mutableListOf<Float>()
         override fun setMedia(uri: Uri) { media += uri }
         override fun prepare() = Unit
-        override fun play() = Unit
+        override fun play() { playCalls++ }
         override fun pause() { pauseCalls++ }
         override fun seekTo(positionMillis: Long) = Unit
         override fun stopAndClear() { clearCalls++ }
         override fun release() { releaseCalls++ }
         override fun attachSurface(surfaceView: android.view.SurfaceView?) = Unit
+        override fun setVolume(volume: Float) { volumes += volume }
     }
 }

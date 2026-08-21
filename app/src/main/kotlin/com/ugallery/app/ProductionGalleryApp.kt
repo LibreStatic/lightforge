@@ -994,9 +994,14 @@ private fun ViewerRoute(
         } else null
     }
     val videoController = if (media.kind == MediaKind.Video) remember(media.key) {
-        VideoViewerController(context).also { it.select(viewModel.mediaUri(media)) }
+        VideoViewerController(context).also {
+            it.select(viewModel.mediaUri(media), autoplay = true, startMuted = true)
+        }
     } else null
     DisposableEffect(videoController) { onDispose { videoController?.close() } }
+    LaunchedEffect(videoController) {
+        viewModel.hardwareVolumeKeys.collect { videoController?.unmute() }
+    }
     val viewer: @Composable () -> Unit = {
         ViewerContent(
             media = media,
@@ -1015,6 +1020,7 @@ private fun ViewerRoute(
             onShareSanitized = onShareSanitized,
             onTrash = { viewModel.beginSystemAction(media, MediaAction.Trash(true)) },
             onSelectMedia = viewModel::selectViewerMedia,
+            onContentTap = { videoController?.unmute() },
             modifier = Modifier.fillMaxSize(),
         )
         // Motion photo badge - detection requires file access, shown when available

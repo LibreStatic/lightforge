@@ -3,6 +3,7 @@ package com.ugallery.app
 import android.os.Bundle
 import android.os.Build
 import android.content.Intent
+import android.view.KeyEvent
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -66,6 +67,16 @@ class MainActivity : FragmentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         if (usesProductionRuntime) galleryViewModel.openExternal(intent)
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (
+            event.action == KeyEvent.ACTION_DOWN &&
+            (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP || event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)
+        ) {
+            galleryViewModel.onHardwareVolumeKey()
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     private companion object {

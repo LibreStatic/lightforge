@@ -276,6 +276,8 @@ class GalleryViewModel @Inject constructor(
     val systemAction = mutableSystemAction.asStateFlow()
     private val mutableActionLaunches = MutableSharedFlow<MediaActionLaunch>(extraBufferCapacity = 1)
     val actionLaunches = mutableActionLaunches.asSharedFlow()
+    private val mutableHardwareVolumeKeys = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val hardwareVolumeKeys = mutableHardwareVolumeKeys.asSharedFlow()
     private var currentSystemCoordinator: MediaStoreActionCoordinator? = null
     private var photoJob: Job? = null
     private var photoEditorJob: Job? = null
@@ -298,6 +300,10 @@ class GalleryViewModel @Inject constructor(
     private val mutableSelectedMoment = MutableStateFlow<MomentEntity?>(null)
     val selectedMoment = mutableSelectedMoment.asStateFlow()
     private val refreshMutex = Mutex()
+
+    fun onHardwareVolumeKey() {
+        mutableHardwareVolumeKeys.tryEmit(Unit)
+    }
 
     init {
         if (mlScheduler.hasConsent(MlTaskType.FaceDetection)) monitorFaceProgress()
