@@ -43,8 +43,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MomentRunCandidateEntity::class,
         EditRecipeEntity::class,
         EditOperationEntity::class,
+        VideoEditRecipeEntity::class,
+        CustomLutEntity::class,
     ],
-    version = 13,
+    version = 14,
     exportSchema = true,
 )
 abstract class GalleryDatabase : RoomDatabase() {
@@ -52,6 +54,7 @@ abstract class GalleryDatabase : RoomDatabase() {
     abstract fun momentDao(): MomentDao
     abstract fun personDao(): PersonDao
     abstract fun editRecipeDao(): EditRecipeDao
+    abstract fun colorEditDao(): ColorEditDao
 }
 
 object GalleryDatabaseFactory {
@@ -257,6 +260,28 @@ object GalleryDatabaseFactory {
         }
     }
 
+    val Migration13To14 = object : Migration(13, 14) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """CREATE TABLE IF NOT EXISTS `video_edit_recipes` (
+                    `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL,
+                    `sourceGenerationModified` INTEGER NOT NULL, `encodedRecipe` TEXT NOT NULL,
+                    `updatedAtMillis` INTEGER NOT NULL,
+                    PRIMARY KEY(`volumeName`,`mediaStoreId`,`sourceGenerationModified`),
+                    FOREIGN KEY(`volumeName`,`mediaStoreId`) REFERENCES `media_items`(`volumeName`,`mediaStoreId`)
+                    ON UPDATE NO ACTION ON DELETE CASCADE)""",
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_video_edit_recipe_updated` ON `video_edit_recipes` (`updatedAtMillis`)")
+            db.execSQL(
+                """CREATE TABLE IF NOT EXISTS `custom_luts` (
+                    `lutId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `displayName` TEXT NOT NULL,
+                    `fileName` TEXT NOT NULL, `cubeSize` INTEGER NOT NULL, `sha256` TEXT NOT NULL,
+                    `importedAtMillis` INTEGER NOT NULL)""",
+            )
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_custom_luts_displayName` ON `custom_luts` (`displayName`)")
+        }
+    }
+
     private fun build(context: Context, name: String): GalleryDatabase = Room.databaseBuilder(
         context.applicationContext,
         GalleryDatabase::class.java,
@@ -264,6 +289,6 @@ object GalleryDatabaseFactory {
     ).addMigrations(
         Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7,
         Migration7To8, Migration8To9, Migration9To10, Migration10To11, Migration11To12,
-        Migration12To13,
+        Migration12To13, Migration13To14,
     ).build()
 }

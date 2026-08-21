@@ -32,6 +32,7 @@ include(
     ":core:ml",
     ":core:selection",
     ":core:editing-image",
+    ":core:raw",
     ":core:editing-video",
     ":core:security",
     ":core:designsystem",

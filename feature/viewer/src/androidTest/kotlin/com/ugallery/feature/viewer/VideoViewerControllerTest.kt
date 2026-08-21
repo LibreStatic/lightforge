@@ -1,6 +1,7 @@
 package com.ugallery.feature.viewer
 
 import android.net.Uri
+import androidx.media3.common.Effect
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -82,5 +83,6 @@ class VideoViewerControllerTest {
         override fun release() { releaseCalls++ }
         override fun attachSurface(surfaceView: android.view.SurfaceView?) = Unit
         override fun setVolume(volume: Float) { volumes += volume }
+        override fun setVideoEffects(effects: List<Effect>) = Unit
     }
 }

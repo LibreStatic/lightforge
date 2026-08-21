@@ -1,1 +1,19 @@
-<resources><string name="photo_editor_title">Modifica foto</string><string name="photo_editor_cancel">Annulla</string><string name="photo_editor_save_copy">Salva copia</string><string name="photo_editor_preview_description">Anteprima modifica</string><string name="photo_editor_preview_unavailable">Anteprima non disponibile</string><string name="photo_editor_filters">Filtri</string><string name="photo_editor_filter_original">Originale</string><string name="photo_editor_filter_natural">Naturale</string><string name="photo_editor_filter_vivid">Vivido</string><string name="photo_editor_filter_mono">Mono</string><string name="photo_editor_crop">Ritaglia</string><string name="photo_editor_rotate">Ruota</string><string name="photo_editor_flip">Capovolgi</string><string name="photo_editor_undo">Annulla</string><string name="photo_editor_redo">Ripristina</string><string name="photo_editor_copy_policy">La modifica non è distruttiva. Salva copia crea un nuovo elemento in MediaStore e conserva l’originale.</string></resources>
+<resources><string name="photo_editor_title">Modifica foto</string><string name="photo_editor_cancel">Annulla</string><string name="photo_editor_save_copy">Salva copia</string><string name="photo_editor_preview_description">Anteprima modifica</string><string name="photo_editor_preview_unavailable">Anteprima non disponibile</string><string name="photo_editor_filters">Filtri</string><string name="photo_editor_filter_original">Originale</string><string name="photo_editor_filter_natural">Naturale</string><string name="photo_editor_filter_vivid">Vivido</string><string name="photo_editor_filter_mono">Mono</string><string name="photo_editor_crop">Ritaglia</string><string name="photo_editor_rotate">Ruota</string><string name="photo_editor_flip">Capovolgi</string><string name="photo_editor_undo">Annulla</string><string name="photo_editor_redo">Ripristina</string><string name="photo_editor_copy_policy">La modifica non è distruttiva. Salva copia crea un nuovo elemento in MediaStore e conserva l’originale.</string>
+    <string name="photo_editor_raw_title">RAW fotocamera</string>
+    <string name="photo_editor_raw_tab">RAW</string>
+    <string name="photo_editor_export_tab">Esporta</string>
+    <string name="photo_editor_raw_metadata">%1$s · %2$d × %3$d · sensore a %4$d bit</string>
+    <string name="photo_editor_exposure">Esposizione (EV)</string>
+    <string name="photo_editor_temperature">Temperatura (K)</string>
+    <string name="photo_editor_tint">Tinta</string>
+    <string name="photo_editor_highlights">Luci</string>
+    <string name="photo_editor_shadows">Ombre</string>
+    <string name="photo_editor_contrast">Contrasto</string>
+    <string name="photo_editor_saturation">Saturazione</string>
+    <string name="photo_editor_noise_reduction">Riduzione rumore</string>
+    <string name="photo_editor_output_format">Formato di uscita</string>
+    <string name="photo_editor_output_jpeg">JPEG · sRGB · 8 bit</string>
+    <string name="photo_editor_output_tiff_srgb">TIFF · sRGB · 16 bit</string>
+    <string name="photo_editor_copy_saved">Copia salvata</string>
+    <string name="photo_editor_reset_raw">Reimposta sviluppo RAW</string>
+</resources>

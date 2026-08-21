@@ -85,6 +85,7 @@ dependencies {
     implementation(project(":feature:settings"))
     implementation(project(":core:selection"))
     implementation(project(":core:editing-image"))
+    implementation(project(":core:raw"))
     implementation(project(":core:editing-video"))
     implementation(project(":core:security"))
     implementation(project(":feature:photoeditor"))

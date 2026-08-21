@@ -4,6 +4,7 @@ package com.ugallery.core.editing.video
 
 import android.content.Context
 import android.media.MediaMetadataRetriever
+import android.media.MediaCodecInfo
 import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
@@ -17,6 +18,9 @@ import androidx.media3.transformer.Composition
 import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.Transformer
+import androidx.media3.transformer.DefaultEncoderFactory
+import androidx.media3.transformer.VideoEncoderSettings
+import androidx.media3.transformer.TransformationRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -33,6 +37,7 @@ data class VideoExportRequest(
     val recipe: VideoEditRecipe,
     val videoMimeType: String = MimeTypes.VIDEO_H264,
     val audioMimeType: String = MimeTypes.AUDIO_AAC,
+    val customLut: CubeLut? = null,
 )
 
 /** Media3 Transformer wrapper with trim, speed and PCM volume processing. */
@@ -75,7 +80,7 @@ class Media3VideoExporter(private val context: Context) {
         val edited = editedBuilder.setEffects(
                 androidx.media3.transformer.Effects(
                     listOf(VolumeAudioProcessor(request.recipe.originalAudioVolume)),
-                    emptyList(),
+                    VideoColorGradeEffects.create(request.recipe.colorGrade, request.customLut),
                 ),
             )
             .build()
@@ -110,20 +115,51 @@ class Media3VideoExporter(private val context: Context) {
         }
         return suspendCancellableCoroutine { continuation ->
             lateinit var transformer: Transformer
-            transformer = Transformer.Builder(context.applicationContext)
-                .setVideoMimeType(request.videoMimeType)
+            var fallbackWarning: String? = null
+            val transformerBuilder = Transformer.Builder(context.applicationContext)
+                .setVideoMimeType(
+                    if (request.recipe.outputQuality == VideoOutputQuality.HevcMain10) {
+                        MimeTypes.VIDEO_H265
+                    } else request.videoMimeType,
+                )
                 .setAudioMimeType(request.audioMimeType)
+            if (request.recipe.outputQuality == VideoOutputQuality.HevcMain10) {
+                transformerBuilder.setEncoderFactory(
+                    DefaultEncoderFactory.Builder(context.applicationContext)
+                        .setRequestedVideoEncoderSettings(
+                            VideoEncoderSettings.Builder()
+                                .setEncodingProfileLevel(
+                                    MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10,
+                                    MediaCodecInfo.CodecProfileLevel.HEVCMainTierLevel5,
+                                )
+                                .build(),
+                        )
+                        .setEnableFallback(true)
+                        .build(),
+                )
+            }
+            transformer = transformerBuilder
                 .addListener(object : Transformer.Listener {
                     override fun onCompleted(composition: androidx.media3.transformer.Composition, exportResult: ExportResult) {
                         if (continuation.isActive) continuation.resume(
                             VideoExportResult(
                                 request.output,
                                 durationMillis = outputDurationMillis,
-                                videoMimeType = request.videoMimeType,
+                                videoMimeType = if (request.recipe.outputQuality == VideoOutputQuality.HevcMain10) {
+                                    MimeTypes.VIDEO_H265
+                                } else request.videoMimeType,
                                 audioMimeType = request.audioMimeType,
-                                fallbackWarning = null,
+                                fallbackWarning = fallbackWarning,
                             ),
                         )
+                    }
+
+                    override fun onFallbackApplied(
+                        composition: Composition,
+                        originalTransformationRequest: TransformationRequest,
+                        fallbackTransformationRequest: TransformationRequest,
+                    ) {
+                        fallbackWarning = "Encoder fallback: $fallbackTransformationRequest"
                     }
 
                     override fun onError(

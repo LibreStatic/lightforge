@@ -29,6 +29,7 @@ dependencies {
     implementation(project(":core:selection"))
     implementation(project(":core:thumbnail"))
     implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.effect)
     implementation(libs.kotlinx.coroutines.core)
     implementation(platform(libs.compose.bom))
     implementation("androidx.compose.ui:ui")

@@ -1,1 +1,19 @@
-<resources><string name="photo_editor_title">Foto bearbeiten</string><string name="photo_editor_cancel">Abbrechen</string><string name="photo_editor_save_copy">Kopie speichern</string><string name="photo_editor_preview_description">Vorschau der Bearbeitung</string><string name="photo_editor_preview_unavailable">Vorschau nicht verfügbar</string><string name="photo_editor_filters">Filter</string><string name="photo_editor_filter_original">Original</string><string name="photo_editor_filter_natural">Natürlich</string><string name="photo_editor_filter_vivid">Lebendig</string><string name="photo_editor_filter_mono">Mono</string><string name="photo_editor_crop">Zuschneiden</string><string name="photo_editor_rotate">Drehen</string><string name="photo_editor_flip">Spiegeln</string><string name="photo_editor_undo">Rückgängig</string><string name="photo_editor_redo">Wiederholen</string><string name="photo_editor_copy_policy">Die Bearbeitung ist nicht destruktiv. Eine Kopie wird in MediaStore gespeichert; das Original bleibt unverändert.</string></resources>
+<resources><string name="photo_editor_title">Foto bearbeiten</string><string name="photo_editor_cancel">Abbrechen</string><string name="photo_editor_save_copy">Kopie speichern</string><string name="photo_editor_preview_description">Vorschau der Bearbeitung</string><string name="photo_editor_preview_unavailable">Vorschau nicht verfügbar</string><string name="photo_editor_filters">Filter</string><string name="photo_editor_filter_original">Original</string><string name="photo_editor_filter_natural">Natürlich</string><string name="photo_editor_filter_vivid">Lebendig</string><string name="photo_editor_filter_mono">Mono</string><string name="photo_editor_crop">Zuschneiden</string><string name="photo_editor_rotate">Drehen</string><string name="photo_editor_flip">Spiegeln</string><string name="photo_editor_undo">Rückgängig</string><string name="photo_editor_redo">Wiederholen</string><string name="photo_editor_copy_policy">Die Bearbeitung ist nicht destruktiv. Eine Kopie wird in MediaStore gespeichert; das Original bleibt unverändert.</string>
+    <string name="photo_editor_raw_title">Kamera-RAW</string>
+    <string name="photo_editor_raw_tab">RAW</string>
+    <string name="photo_editor_export_tab">Export</string>
+    <string name="photo_editor_raw_metadata">%1$s · %2$d × %3$d · %4$d-Bit-Sensor</string>
+    <string name="photo_editor_exposure">Belichtung (EV)</string>
+    <string name="photo_editor_temperature">Temperatur (K)</string>
+    <string name="photo_editor_tint">Farbton</string>
+    <string name="photo_editor_highlights">Lichter</string>
+    <string name="photo_editor_shadows">Schatten</string>
+    <string name="photo_editor_contrast">Kontrast</string>
+    <string name="photo_editor_saturation">Sättigung</string>
+    <string name="photo_editor_noise_reduction">Rauschreduzierung</string>
+    <string name="photo_editor_output_format">Ausgabeformat</string>
+    <string name="photo_editor_output_jpeg">JPEG · sRGB · 8 Bit</string>
+    <string name="photo_editor_output_tiff_srgb">TIFF · sRGB · 16 Bit</string>
+    <string name="photo_editor_copy_saved">Kopie gespeichert</string>
+    <string name="photo_editor_reset_raw">RAW-Entwicklung zurücksetzen</string>
+</resources>

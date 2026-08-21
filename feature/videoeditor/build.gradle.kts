@@ -27,6 +27,8 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:navigation"))
     implementation(project(":feature:viewer"))
+    implementation(project(":core:editing-video"))
+    implementation(libs.androidx.media3.common)
     implementation(platform(libs.compose.bom))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")

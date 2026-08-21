@@ -67,11 +67,24 @@ import com.ugallery.core.model.TimelineMedia
 import com.ugallery.core.model.EditHistory
 import com.ugallery.core.model.EditOperation
 import com.ugallery.core.model.EditRecipe
+import com.ugallery.core.model.RawDevelopmentSettings
+import com.ugallery.core.model.RawOutputFormat
 import com.ugallery.core.editing.image.PhotoExportOutcome
 import com.ugallery.core.editing.image.PhotoImageRenderer
 import com.ugallery.core.editing.video.Media3VideoExporter
 import com.ugallery.core.editing.video.VideoEditRecipe
 import com.ugallery.core.editing.video.VideoExportRequest
+import com.ugallery.core.editing.video.CubeLut
+import com.ugallery.core.editing.video.CustomLutOption
+import com.ugallery.core.editing.video.LogProfileDetector
+import com.ugallery.core.editing.video.VideoColorGrade
+import com.ugallery.core.editing.video.VideoEditRecipeCodec
+import com.ugallery.core.editing.video.VideoOutputQuality
+import com.ugallery.core.editing.video.VideoOutputCapabilities
+import com.ugallery.core.database.VideoEditRecipeEntity
+import com.ugallery.core.raw.RawDeveloper
+import com.ugallery.core.raw.RawExportOutcome
+import com.ugallery.core.raw.isRawMimeOrName
 import com.ugallery.core.selection.SelectionReducer
 import com.ugallery.core.selection.SelectionSpec
 import com.ugallery.core.selection.MediaQuery
@@ -282,6 +295,7 @@ class GalleryViewModel @Inject constructor(
     private var photoJob: Job? = null
     private var photoEditorJob: Job? = null
     private var videoEditorJob: Job? = null
+    private var videoRecipeJob: Job? = null
     private var bulkCursor: BulkCursor? = savedStateHandle[BulkStateKey]
     private val mutableExternalMedia = MutableStateFlow<ExternalMedia?>(null)
     val externalMedia = mutableExternalMedia.asStateFlow()
@@ -962,13 +976,61 @@ class GalleryViewModel @Inject constructor(
                     EditRecipe.forSource(media.key, media.generationModified).recipeId,
                 )
             } ?: EditRecipe.forSource(media.key, media.generationModified)
+            val storedMedia = withContext(Dispatchers.IO) {
+                active.database.libraryDao().media(media.key.volumeName, media.key.mediaStoreId)
+            }
+            val isRaw = isRawMimeOrName(storedMedia?.mimeType, storedMedia?.displayName)
+            val rawSettings = initial.operations.filterIsInstance<EditOperation.RawDevelop>()
+                .lastOrNull()?.settings ?: RawDevelopmentSettings()
+            val rawMetadata = if (isRaw) runCatching {
+                RawDeveloper(
+                    getApplication<Application>().contentResolver,
+                    java.io.File(getApplication<Application>().cacheDir, "raw-scratch"),
+                ).inspect(mediaUri(media))
+            }.getOrNull() else null
             mutablePhotoEditor.value = PhotoEditorSession(
                 media = media,
                 history = EditHistory.initial(initial),
-                content = PhotoEditorContentState(isRendering = true, selectedFilter = selectedFilter(initial)),
+                content = PhotoEditorContentState(
+                    isRendering = true,
+                    selectedFilter = selectedFilter(initial),
+                    isRaw = isRaw,
+                    rawMetadata = rawMetadata,
+                    rawSettings = rawSettings,
+                ),
             )
             renderPhotoEditorPreview(active, media, initial)
         }
+    }
+
+    fun setRawDevelopment(settings: RawDevelopmentSettings) {
+        val session = mutablePhotoEditor.value ?: return
+        if (!session.content.isRaw) return
+        val updated = session.history.applyRawDevelopment(settings)
+        mutablePhotoEditor.value = session.copy(
+            history = updated,
+            content = session.content.copy(
+                rawSettings = settings,
+                isRendering = true,
+                canUndo = true,
+                canRedo = false,
+                statusMessage = null,
+            ),
+        )
+        photoEditorJob?.cancel()
+        photoEditorJob = viewModelScope.launch {
+            delay(60)
+            val active = runtime.value ?: return@launch
+            withContext(Dispatchers.IO) {
+                active.database.editRecipeDao().replace(updated.present, System.currentTimeMillis())
+            }
+            renderPhotoEditorPreview(active, session.media, updated.present)
+        }
+    }
+
+    fun setRawOutputFormat(format: RawOutputFormat) {
+        val session = mutablePhotoEditor.value ?: return
+        mutablePhotoEditor.value = session.copy(content = session.content.copy(rawOutputFormat = format))
     }
 
     fun applyPhotoEdit(operation: EditOperation) {
@@ -1028,48 +1090,31 @@ class GalleryViewModel @Inject constructor(
         photoEditorJob?.cancel()
         photoEditorJob = viewModelScope.launch {
             val active = runtime.value ?: return@launch
-            val mime = withContext(Dispatchers.IO) {
+            val storedMime = withContext(Dispatchers.IO) {
                 active.database.libraryDao().media(session.media.key.volumeName, session.media.key.mediaStoreId)?.mimeType
             }
-            val outputMime = imageExportMime(mime)
-            val extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(outputMime) ?: "jpg"
+            val outputMime = if (session.content.isRaw) {
+                if (session.content.rawOutputFormat == RawOutputFormat.JpegSrgb) "image/jpeg" else "image/tiff"
+            } else imageExportMime(storedMime)
+            val extension = if (outputMime == "image/tiff") "tif" else
+                MimeTypeMap.getSingleton().getExtensionFromMimeType(outputMime) ?: "jpg"
             val temp = java.io.File(getApplication<Application>().cacheDir, "photo-edit-${System.nanoTime()}.$extension")
             try {
-                when (val result = PhotoImageRenderer(getApplication<Application>().contentResolver).export(
+                if (session.content.isRaw) {
+                    when (val result = RawDeveloper(
+                        getApplication<Application>().contentResolver,
+                        java.io.File(getApplication<Application>().cacheDir, "raw-scratch"),
+                    ).export(mediaUri(session.media), session.content.rawSettings, session.content.rawOutputFormat, temp)) {
+                        is RawExportOutcome.Completed -> publishPhotoResult(result.file, result.mimeType, extension, result.warnings)
+                        is RawExportOutcome.Failure -> updatePhotoExportFailure(result.reason)
+                    }
+                } else when (val result = PhotoImageRenderer(getApplication<Application>().contentResolver).export(
                     mediaUri(session.media), session.history.present, temp,
                 )) {
-                    is PhotoExportOutcome.Completed -> {
-                        val publishedMime = result.mimeType ?: outputMime
-                        val publishedExtension = MimeTypeMap.getSingleton()
-                            .getExtensionFromMimeType(publishedMime) ?: extension
-                        val published = PendingMediaWriter(getApplication<Application>().contentResolver).publishFile(
-                            result.file,
-                            MediaWriteSpec(
-                                MediaStore.VOLUME_EXTERNAL_PRIMARY,
-                                MediaKind.Image,
-                                "UGallery-edited-${System.currentTimeMillis()}.$publishedExtension",
-                                publishedMime,
-                                "Pictures/UGallery",
-                            ),
-                        )
-                        mutablePhotoEditor.value = mutablePhotoEditor.value?.copy(
-                            content = mutablePhotoEditor.value!!.content.copy(
-                                isExporting = false,
-                                statusMessage = buildString {
-                                    append("Copy saved")
-                                    if (result.warnings.isNotEmpty()) append(" — ").append(result.warnings.joinToString("; "))
-                                },
-                            ),
-                        )
-                        refreshLibrary()
-                        @Suppress("UNUSED_VARIABLE") val ignored = published
-                    }
-                    is PhotoExportOutcome.Failure -> mutablePhotoEditor.value = mutablePhotoEditor.value?.copy(
-                        content = mutablePhotoEditor.value!!.content.copy(
-                            isExporting = false,
-                            statusMessage = result.reason,
-                        ),
+                    is PhotoExportOutcome.Completed -> publishPhotoResult(
+                        result.file, result.mimeType ?: outputMime, extension, result.warnings,
                     )
+                    is PhotoExportOutcome.Failure -> updatePhotoExportFailure(result.reason)
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -1086,9 +1131,46 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
+    private suspend fun publishPhotoResult(file: java.io.File, mimeType: String, fallbackExtension: String, warnings: List<String>) {
+        val publishedExtension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: fallbackExtension
+        PendingMediaWriter(getApplication<Application>().contentResolver).publishFile(
+            file,
+            MediaWriteSpec(
+                MediaStore.VOLUME_EXTERNAL_PRIMARY, MediaKind.Image,
+                "UGallery-edited-${System.currentTimeMillis()}.$publishedExtension",
+                mimeType, "Pictures/UGallery",
+            ),
+        )
+        mutablePhotoEditor.value = mutablePhotoEditor.value?.copy(
+            content = mutablePhotoEditor.value!!.content.copy(
+                isExporting = false,
+                statusMessage = buildString {
+                    append(getApplication<Application>().getString(
+                        com.ugallery.feature.photoeditor.R.string.photo_editor_copy_saved,
+                    ))
+                    if (warnings.isNotEmpty()) append(" — ").append(warnings.joinToString("; "))
+                },
+            ),
+        )
+        refreshLibrary()
+    }
+
+    private fun updatePhotoExportFailure(reason: String) {
+        mutablePhotoEditor.value = mutablePhotoEditor.value?.copy(
+            content = mutablePhotoEditor.value!!.content.copy(isExporting = false, statusMessage = reason),
+        )
+    }
+
     fun closePhotoEditor() {
+        val session = mutablePhotoEditor.value
         photoEditorJob?.cancel()
-        mutablePhotoEditor.value?.content?.preview?.recycle()
+        if (session != null) viewModelScope.launch {
+            val active = runtime.value ?: return@launch
+            withContext(Dispatchers.IO) {
+                active.database.editRecipeDao().replace(session.history.present, System.currentTimeMillis())
+            }
+        }
+        session?.content?.preview?.recycle()
         mutablePhotoEditor.value = null
     }
 
@@ -1097,8 +1179,14 @@ class GalleryViewModel @Inject constructor(
         media: TimelineMedia,
         recipe: EditRecipe,
     ) {
+        val currentBeforeRender = mutablePhotoEditor.value
         val preview = try {
-            PhotoImageRenderer(getApplication<Application>().contentResolver)
+            if (currentBeforeRender?.content?.isRaw == true) {
+                RawDeveloper(
+                    getApplication<Application>().contentResolver,
+                    java.io.File(getApplication<Application>().cacheDir, "raw-scratch"),
+                ).renderPreview(mediaUri(media), currentBeforeRender.content.rawSettings, 1_600)
+            } else PhotoImageRenderer(getApplication<Application>().contentResolver)
                 .renderPreview(mediaUri(media), recipe, 1_600)
         } catch (failure: Throwable) {
             val current = mutablePhotoEditor.value
@@ -1121,14 +1209,53 @@ class GalleryViewModel @Inject constructor(
     fun openVideoEditor(media: TimelineMedia) {
         if (media.kind != MediaKind.Video) return
         mutableCurrentMedia.value = media
-        mutableVideoEditor.value = VideoEditorSession(
-            media = media,
-            recipe = VideoEditRecipe(),
-            content = VideoEditorContentState(
-                durationMillis = media.durationMillis,
-                trimEndMillis = media.durationMillis,
-            ),
-        )
+        videoEditorJob?.cancel()
+        videoEditorJob = viewModelScope.launch {
+            val active = runtime.value ?: return@launch
+            val stored = withContext(Dispatchers.IO) {
+                active.database.colorEditDao().videoRecipe(
+                    media.key.volumeName, media.key.mediaStoreId, media.generationModified,
+                )
+            }?.let { runCatching { VideoEditRecipeCodec.decode(it.encodedRecipe) }.getOrNull() }
+            val detection = LogProfileDetector(getApplication<Application>()).detect(mediaUri(media))
+            val detectedRecipe = stored ?: VideoEditRecipe(
+                colorGrade = VideoColorGrade(
+                    inputProfile = detection.profile,
+                    profileWasAutoDetected = detection.confidence >= 0.8f,
+                ),
+            )
+            val supportsMain10 = VideoOutputCapabilities.supportsHevcMain10()
+            val recipe = if (detectedRecipe.outputQuality == VideoOutputQuality.HevcMain10 && !supportsMain10) {
+                detectedRecipe.copy(outputQuality = VideoOutputQuality.H264Compatible)
+            } else detectedRecipe
+            val lutRepository = lutRepository(active)
+            val customLut = recipe.colorGrade.lut.customId?.let { lutRepository.load(it) }
+            mutableVideoEditor.value = VideoEditorSession(
+                media = media,
+                recipe = recipe,
+                content = VideoEditorContentState(
+                    durationMillis = media.durationMillis,
+                    trimStartMillis = recipe.startMillis,
+                    trimEndMillis = recipe.endMillis ?: media.durationMillis,
+                    speed = recipe.speed,
+                    originalAudioVolume = recipe.originalAudioVolume,
+                    selectedMusicName = recipe.musicUri?.lastPathSegment,
+                    colorGrade = recipe.colorGrade,
+                    customLuts = lutRepository.summaries(),
+                    activeCustomLut = customLut,
+                    outputQuality = recipe.outputQuality,
+                    isHevcMain10Available = supportsMain10,
+                    logDetectionMessage = if (detection.confidence >= 0.8f) {
+                        getApplication<Application>().getString(
+                            com.ugallery.feature.videoeditor.R.string.video_editor_detected_profile,
+                            detection.profile.displayName,
+                        )
+                    } else getApplication<Application>().getString(
+                        com.ugallery.feature.videoeditor.R.string.video_editor_profile_unknown,
+                    ),
+                ),
+            )
+        }
     }
 
     fun setVideoTrim(startMillis: Long, endMillis: Long) {
@@ -1141,18 +1268,21 @@ class GalleryViewModel @Inject constructor(
             recipe = recipe,
             content = session.content.copy(trimStartMillis = start, trimEndMillis = end),
         )
+        persistVideoRecipe(recipe)
     }
 
     fun setVideoSpeed(speed: Float) {
         val session = mutableVideoEditor.value ?: return
         val recipe = session.recipe.copy(speed = speed)
         mutableVideoEditor.value = session.copy(recipe = recipe, content = session.content.copy(speed = speed))
+        persistVideoRecipe(recipe)
     }
 
     fun setVideoOriginalVolume(volume: Float) {
         val session = mutableVideoEditor.value ?: return
         val recipe = session.recipe.copy(originalAudioVolume = volume)
         mutableVideoEditor.value = session.copy(recipe = recipe, content = session.content.copy(originalAudioVolume = volume))
+        persistVideoRecipe(recipe)
     }
 
     fun setVideoMusic(uri: Uri, displayName: String) {
@@ -1162,6 +1292,7 @@ class GalleryViewModel @Inject constructor(
             recipe = recipe,
             content = session.content.copy(selectedMusicName = displayName),
         )
+        persistVideoRecipe(recipe)
     }
 
     fun removeVideoMusic() {
@@ -1170,7 +1301,92 @@ class GalleryViewModel @Inject constructor(
             recipe = session.recipe.copy(musicUri = null),
             content = session.content.copy(selectedMusicName = null),
         )
+        persistVideoRecipe(session.recipe.copy(musicUri = null))
     }
+
+    fun setVideoColorGrade(grade: VideoColorGrade) {
+        val session = mutableVideoEditor.value ?: return
+        val recipe = session.recipe.copy(colorGrade = grade)
+        mutableVideoEditor.value = session.copy(
+            recipe = recipe,
+            content = session.content.copy(colorGrade = grade, activeCustomLut = null, statusMessage = null),
+        )
+        persistVideoRecipe(recipe)
+        val customId = grade.lut.customId ?: return
+        viewModelScope.launch {
+            val active = runtime.value ?: return@launch
+            val lut = lutRepository(active).load(customId)
+            val current = mutableVideoEditor.value
+            if (current?.recipe?.colorGrade?.lut?.customId == customId) {
+                mutableVideoEditor.value = current.copy(content = current.content.copy(activeCustomLut = lut))
+            }
+        }
+    }
+
+    fun setVideoOutputQuality(quality: VideoOutputQuality) {
+        val session = mutableVideoEditor.value ?: return
+        if (quality == VideoOutputQuality.HevcMain10 && !session.content.isHevcMain10Available) return
+        val recipe = session.recipe.copy(outputQuality = quality)
+        mutableVideoEditor.value = session.copy(
+            recipe = recipe,
+            content = session.content.copy(outputQuality = quality),
+        )
+        persistVideoRecipe(recipe)
+    }
+
+    fun importVideoLut(uri: Uri, displayName: String) {
+        viewModelScope.launch {
+            val active = runtime.value ?: return@launch
+            try {
+                val repository = lutRepository(active)
+                val id = repository.import(uri, displayName)
+                val summaries = repository.summaries()
+                mutableVideoEditor.value = mutableVideoEditor.value?.let { session ->
+                    session.copy(content = session.content.copy(
+                        customLuts = summaries,
+                        statusMessage = getApplication<Application>().getString(
+                            com.ugallery.feature.videoeditor.R.string.video_editor_lut_imported,
+                        ),
+                    ))
+                }
+                val session = mutableVideoEditor.value ?: return@launch
+                setVideoColorGrade(session.recipe.colorGrade.copy(lut = com.ugallery.core.editing.video.LutReference(customId = id)))
+            } catch (failure: Throwable) {
+                mutableVideoEditor.value = mutableVideoEditor.value?.let { session ->
+                    session.copy(content = session.content.copy(statusMessage = failure.message ?:
+                        getApplication<Application>().getString(
+                            com.ugallery.feature.videoeditor.R.string.video_editor_lut_import_failed,
+                        )))
+                }
+            }
+        }
+    }
+
+    private fun persistVideoRecipe(recipe: VideoEditRecipe) {
+        val session = mutableVideoEditor.value ?: return
+        videoRecipeJob?.cancel()
+        videoRecipeJob = viewModelScope.launch {
+            delay(100)
+            val active = runtime.value ?: return@launch
+            withContext(Dispatchers.IO) {
+                active.database.colorEditDao().saveVideoRecipe(
+                    VideoEditRecipeEntity(
+                        session.media.key.volumeName,
+                        session.media.key.mediaStoreId,
+                        session.media.generationModified,
+                        VideoEditRecipeCodec.encode(recipe),
+                        System.currentTimeMillis(),
+                    ),
+                )
+            }
+        }
+    }
+
+    private fun lutRepository(active: GalleryRuntime) = LutRepository(
+        getApplication<Application>().contentResolver,
+        active.database.colorEditDao(),
+        java.io.File(getApplication<Application>().filesDir, "luts"),
+    )
 
     fun seekVideo(positionMillis: Long) {
         val session = mutableVideoEditor.value ?: return
@@ -1186,7 +1402,10 @@ class GalleryViewModel @Inject constructor(
             val temp = java.io.File(getApplication<Application>().cacheDir, "video-edit-${System.nanoTime()}.mp4")
             try {
                 val result = Media3VideoExporter(getApplication<Application>()).export(
-                    VideoExportRequest(mediaUri(session.media), temp, session.recipe),
+                    VideoExportRequest(
+                        mediaUri(session.media), temp, session.recipe,
+                        customLut = session.content.activeCustomLut,
+                    ),
                 )
                 PendingMediaWriter(getApplication<Application>().contentResolver).publishFile(
                     result.output,
@@ -1201,7 +1420,11 @@ class GalleryViewModel @Inject constructor(
                 mutableVideoEditor.value = mutableVideoEditor.value?.copy(
                     content = mutableVideoEditor.value!!.content.copy(
                         isExporting = false,
-                        statusMessage = result.fallbackWarning ?: "Copy saved",
+                        statusMessage = getApplication<Application>().getString(
+                            if (result.fallbackWarning == null) {
+                                com.ugallery.feature.videoeditor.R.string.video_editor_copy_saved
+                            } else com.ugallery.feature.videoeditor.R.string.video_editor_encoder_fallback
+                        ),
                     ),
                 )
                 refreshLibrary()
@@ -1211,7 +1434,9 @@ class GalleryViewModel @Inject constructor(
                 mutableVideoEditor.value = mutableVideoEditor.value?.copy(
                     content = mutableVideoEditor.value!!.content.copy(
                         isExporting = false,
-                        statusMessage = failure.message ?: "Could not save copy",
+                        statusMessage = failure.message ?: getApplication<Application>().getString(
+                            com.ugallery.feature.videoeditor.R.string.video_editor_save_failed,
+                        ),
                     ),
                 )
             } finally {
@@ -1221,7 +1446,23 @@ class GalleryViewModel @Inject constructor(
     }
 
     fun closeVideoEditor() {
+        val session = mutableVideoEditor.value
         videoEditorJob?.cancel()
+        videoRecipeJob?.cancel()
+        if (session != null) viewModelScope.launch {
+            val active = runtime.value ?: return@launch
+            withContext(Dispatchers.IO) {
+                active.database.colorEditDao().saveVideoRecipe(
+                    VideoEditRecipeEntity(
+                        session.media.key.volumeName,
+                        session.media.key.mediaStoreId,
+                        session.media.generationModified,
+                        VideoEditRecipeCodec.encode(session.recipe),
+                        System.currentTimeMillis(),
+                    ),
+                )
+            }
+        }
         mutableVideoEditor.value = null
     }
 

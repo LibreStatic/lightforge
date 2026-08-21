@@ -6,6 +6,7 @@ import android.os.Build
 import android.widget.Toast
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.BackHandler
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -222,6 +223,22 @@ internal fun ProductionGalleryApp(
     val subjectClipper = remember { SubjectClipper() }
     val objectEraser = remember { ObjectEraser() }
 
+    BackHandler(enabled = route != SurfaceRoute.Root || showDetails) {
+        when {
+            showDetails -> showDetails = false
+            route == SurfaceRoute.PhotoEditor -> {
+                viewModel.closePhotoEditor()
+                route = SurfaceRoute.Viewer
+            }
+            route == SurfaceRoute.VideoEditor -> {
+                viewModel.closeVideoEditor()
+                route = SurfaceRoute.Viewer
+            }
+            route == SurfaceRoute.Viewer -> route = SurfaceRoute.Root
+            else -> route = SurfaceRoute.Root
+        }
+    }
+
     val musicPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             runCatching {
@@ -231,6 +248,14 @@ internal fun ProductionGalleryApp(
                 )
             }
             viewModel.setVideoMusic(uri, uri.lastPathSegment?.substringAfterLast('/') ?: "Local track")
+        }
+    }
+    val lutPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            viewModel.importVideoLut(uri, uri.lastPathSegment?.substringAfterLast('/') ?: "Custom LUT")
         }
     }
     val voiceSearchLauncher = rememberLauncherForActivityResult(
@@ -452,11 +477,15 @@ internal fun ProductionGalleryApp(
                         onApply = viewModel::applyPhotoEdit,
                         onUndo = viewModel::undoPhotoEdit,
                         onRedo = viewModel::redoPhotoEdit,
+                        onRawSettingsChange = viewModel::setRawDevelopment,
+                        onRawOutputFormatChange = viewModel::setRawOutputFormat,
                     )
                 }
                 SurfaceRoute.VideoEditor -> videoEditor?.let { session ->
                     val controller = remember(session.media.key) {
-                        VideoViewerController(context).also { it.select(viewModel.mediaUri(session.media)) }
+                        VideoViewerController(context).also {
+                            it.select(viewModel.mediaUri(session.media), autoplay = true)
+                        }
                     }
                     DisposableEffect(controller) { onDispose { controller.close() } }
                     VideoEditorContent(
@@ -470,6 +499,9 @@ internal fun ProductionGalleryApp(
                         onRemoveMusic = viewModel::removeVideoMusic,
                         onSeek = { position -> viewModel.seekVideo(position); controller.seekTo(position) },
                         onTrimChange = viewModel::setVideoTrim,
+                        onColorGradeChange = viewModel::setVideoColorGrade,
+                        onOutputQualityChange = viewModel::setVideoOutputQuality,
+                        onImportLut = { lutPicker.launch(arrayOf("text/plain", "application/octet-stream")) },
                     )
                 }
                 SurfaceRoute.Moment -> selectedMoment?.let { moment ->

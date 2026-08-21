@@ -1,1 +1,19 @@
-<resources><string name="photo_editor_title">Modifier la photo</string><string name="photo_editor_cancel">Annuler</string><string name="photo_editor_save_copy">Enregistrer une copie</string><string name="photo_editor_preview_description">Aperçu de la retouche</string><string name="photo_editor_preview_unavailable">Aperçu indisponible</string><string name="photo_editor_filters">Filtres</string><string name="photo_editor_filter_original">Original</string><string name="photo_editor_filter_natural">Naturel</string><string name="photo_editor_filter_vivid">Vif</string><string name="photo_editor_filter_mono">Mono</string><string name="photo_editor_crop">Recadrer</string><string name="photo_editor_rotate">Pivoter</string><string name="photo_editor_flip">Retourner</string><string name="photo_editor_undo">Annuler l’action</string><string name="photo_editor_redo">Rétablir</string><string name="photo_editor_copy_policy">La retouche est non destructive. Une copie est enregistrée dans MediaStore et l’original reste inchangé.</string></resources>
+<resources><string name="photo_editor_title">Modifier la photo</string><string name="photo_editor_cancel">Annuler</string><string name="photo_editor_save_copy">Enregistrer une copie</string><string name="photo_editor_preview_description">Aperçu de la retouche</string><string name="photo_editor_preview_unavailable">Aperçu indisponible</string><string name="photo_editor_filters">Filtres</string><string name="photo_editor_filter_original">Original</string><string name="photo_editor_filter_natural">Naturel</string><string name="photo_editor_filter_vivid">Vif</string><string name="photo_editor_filter_mono">Mono</string><string name="photo_editor_crop">Recadrer</string><string name="photo_editor_rotate">Pivoter</string><string name="photo_editor_flip">Retourner</string><string name="photo_editor_undo">Annuler l’action</string><string name="photo_editor_redo">Rétablir</string><string name="photo_editor_copy_policy">La retouche est non destructive. Une copie est enregistrée dans MediaStore et l’original reste inchangé.</string>
+    <string name="photo_editor_raw_title">RAW de l’appareil</string>
+    <string name="photo_editor_raw_tab">RAW</string>
+    <string name="photo_editor_export_tab">Exporter</string>
+    <string name="photo_editor_raw_metadata">%1$s · %2$d × %3$d · capteur %4$d bits</string>
+    <string name="photo_editor_exposure">Exposition (EV)</string>
+    <string name="photo_editor_temperature">Température (K)</string>
+    <string name="photo_editor_tint">Teinte</string>
+    <string name="photo_editor_highlights">Hautes lumières</string>
+    <string name="photo_editor_shadows">Ombres</string>
+    <string name="photo_editor_contrast">Contraste</string>
+    <string name="photo_editor_saturation">Saturation</string>
+    <string name="photo_editor_noise_reduction">Réduction du bruit</string>
+    <string name="photo_editor_output_format">Format de sortie</string>
+    <string name="photo_editor_output_jpeg">JPEG · sRGB · 8 bits</string>
+    <string name="photo_editor_output_tiff_srgb">TIFF · sRGB · 16 bits</string>
+    <string name="photo_editor_copy_saved">Copie enregistrée</string>
+    <string name="photo_editor_reset_raw">Réinitialiser le développement RAW</string>
+</resources>

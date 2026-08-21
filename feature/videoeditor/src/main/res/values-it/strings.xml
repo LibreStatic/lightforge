@@ -1,3 +1,60 @@
 <resources><string name="video_editor_title">Modifica video</string><string name="video_editor_cancel">Annulla</string><string name="video_editor_save_copy">Salva copia</string><string name="video_editor_preview_description">Anteprima modifica video</string><string name="video_editor_preview_unavailable">Anteprima non disponibile</string><string name="video_editor_speed">Velocità</string><string name="video_editor_audio">Audio</string><string name="video_editor_music">Musica</string><string name="video_editor_speed_slow">0,5× Lenta</string><string name="video_editor_speed_normal">1× Normale</string><string name="video_editor_speed_fast">2× Veloce</string><string name="video_editor_original_audio">Audio originale</string><string name="video_editor_choose_music">Scegli traccia locale</string><string name="video_editor_remove_music">Rimuovi musica</string>    <string name="video_editor_trim_description">Taglia da %1$s a %2$s</string>
     <string name="video_editor_audio_description">Volume audio originale</string>
+
+    <string name="video_editor_color">Colore</string>
+    <string name="video_editor_export">Esporta</string>
+    <string name="video_editor_camera">Fotocamera</string>
+    <string name="video_editor_primaries">Primari</string>
+    <string name="video_editor_log_wheels">Ruote LOG</string>
+    <string name="video_editor_color_bands">Bande colore</string>
+    <string name="video_editor_luts">LUT</string>
+    <string name="video_editor_input_profile">Gamma e gamut di ingresso</string>
+    <string name="video_editor_exposure">Esposizione (EV)</string>
+    <string name="video_editor_temperature">Temperatura</string>
+    <string name="video_editor_tint">Tinta</string>
+    <string name="video_editor_contrast">Contrasto</string>
+    <string name="video_editor_pivot">Perno</string>
+    <string name="video_editor_saturation">Saturazione</string>
+    <string name="video_editor_shadows">Ombre</string>
+    <string name="video_editor_midtones">Mezzitoni</string>
+    <string name="video_editor_highlights">Luci</string>
+    <string name="video_editor_level">Livello</string>
+    <string name="video_editor_hue">Spostamento tonalità</string>
+    <string name="video_editor_luminance">Luminanza</string>
+    <string name="video_editor_lut_intensity">Intensità LUT</string>
+    <string name="video_editor_import_lut">Importa LUT .cube</string>
+    <string name="video_editor_output_quality">Qualità di uscita</string>
+    <string name="video_editor_hevc_10bit">HEVC Main10 · 10 bit</string>
+    <string name="video_editor_h264">H.264 · compatibile 8 bit</string>
+
+    <string name="video_editor_band_red">Rosso</string>
+    <string name="video_editor_band_orange">Arancione</string>
+    <string name="video_editor_band_yellow">Giallo</string>
+    <string name="video_editor_band_green">Verde</string>
+    <string name="video_editor_band_cyan">Ciano</string>
+    <string name="video_editor_band_blue">Blu</string>
+    <string name="video_editor_band_purple">Viola</string>
+    <string name="video_editor_band_magenta">Magenta</string>
+    <string name="video_editor_look_none">Nessun look creativo</string>
+    <string name="video_editor_look_clean">Rec.709 pulito</string>
+    <string name="video_editor_look_warm">Pellicola calda</string>
+    <string name="video_editor_look_cool">Pellicola fredda</string>
+    <string name="video_editor_look_bleach">Bleach bypass</string>
+    <string name="video_editor_look_teal_orange">Teal e arancione</string>
+    <string name="video_editor_look_monochrome">Monocromatico</string>
+
+    <string name="video_editor_detected_profile">Rilevato %1$s</string>
+    <string name="video_editor_profile_unknown">Il profilo LOG non è dichiarato; scegli manualmente il profilo fotocamera</string>
+    <string name="video_editor_lut_imported">LUT importata</string>
+    <string name="video_editor_lut_import_failed">Impossibile importare la LUT</string>
+
+    <string name="video_editor_hevc_unavailable">Questo dispositivo non dispone di un codificatore HEVC Main10. Usa H.264 compatibile.</string>
+    <string name="video_editor_copy_saved">Copia salvata</string>
+    <string name="video_editor_encoder_fallback">Copia salvata con un’alternativa compatibile con il codificatore</string>
+    <string name="video_editor_save_failed">Impossibile salvare la copia</string>
+    <string name="video_editor_bypass_grade">Escludi correzione</string>
+    <string name="video_editor_reset_grade">Reimposta correzione</string>
+    <string name="video_editor_play">Riproduci anteprima</string>
+    <string name="video_editor_pause">Metti in pausa l’anteprima</string>
+    <string name="video_editor_preview_failed">Impossibile riprodurre l’anteprima video</string>
 </resources>

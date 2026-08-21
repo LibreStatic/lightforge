@@ -15,4 +15,21 @@
     <string name="photo_editor_undo">Undo</string>
     <string name="photo_editor_redo">Redo</string>
     <string name="photo_editor_copy_policy">Edits are non-destructive. Save copy creates a new local MediaStore item; the original stays unchanged.</string>
+    <string name="photo_editor_raw_title">Camera RAW</string>
+    <string name="photo_editor_raw_tab">RAW</string>
+    <string name="photo_editor_export_tab">Export</string>
+    <string name="photo_editor_raw_metadata">%1$s · %2$d × %3$d · %4$d-bit sensor</string>
+    <string name="photo_editor_exposure">Exposure (EV)</string>
+    <string name="photo_editor_temperature">Temperature (K)</string>
+    <string name="photo_editor_tint">Tint</string>
+    <string name="photo_editor_highlights">Highlights</string>
+    <string name="photo_editor_shadows">Shadows</string>
+    <string name="photo_editor_contrast">Contrast</string>
+    <string name="photo_editor_saturation">Saturation</string>
+    <string name="photo_editor_noise_reduction">Noise reduction</string>
+    <string name="photo_editor_output_format">Output format</string>
+    <string name="photo_editor_output_jpeg">JPEG · sRGB · 8-bit</string>
+    <string name="photo_editor_output_tiff_srgb">TIFF · sRGB · 16-bit</string>
+    <string name="photo_editor_copy_saved">Copy saved</string>
+    <string name="photo_editor_reset_raw">Reset RAW development</string>
 </resources>

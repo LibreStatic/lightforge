@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -24,9 +25,16 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Tab
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -35,8 +43,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.viewinterop.AndroidView
 import com.ugallery.core.model.EditOperation
+import com.ugallery.core.model.RawDevelopmentSettings
+import com.ugallery.core.model.RawMetadata
+import com.ugallery.core.model.RawOutputFormat
 import com.ugallery.core.designsystem.GalleryIcons
 
 data class PhotoEditorContentState(
@@ -47,6 +59,10 @@ data class PhotoEditorContentState(
     val canUndo: Boolean = false,
     val canRedo: Boolean = false,
     val selectedFilter: String = "none",
+    val isRaw: Boolean = false,
+    val rawMetadata: RawMetadata? = null,
+    val rawSettings: RawDevelopmentSettings = RawDevelopmentSettings(),
+    val rawOutputFormat: RawOutputFormat = RawOutputFormat.Tiff16Srgb,
 )
 
 @Composable
@@ -57,18 +73,26 @@ fun PhotoEditorContent(
     onApply: (EditOperation) -> Unit,
     onUndo: () -> Unit,
     onRedo: () -> Unit,
+    onRawSettingsChange: (RawDevelopmentSettings) -> Unit = {},
+    onRawOutputFormatChange: (RawOutputFormat) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Scaffold(modifier = modifier, topBar = {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
+            Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 8.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
                 Icon(GalleryIcons.Back, contentDescription = stringResource(R.string.photo_editor_cancel))
             }
-            Text(stringResource(R.string.photo_editor_title), style = MaterialTheme.typography.titleLarge)
+            Text(
+                stringResource(R.string.photo_editor_title),
+                style = MaterialTheme.typography.titleLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
             TextButton(onClick = onSaveCopy, enabled = !state.isExporting) {
                 Text(stringResource(R.string.photo_editor_save_copy))
             }
@@ -81,12 +105,12 @@ fun PhotoEditorContent(
             if (expanded) {
                 Row(Modifier.fillMaxSize()) {
                     PreviewStage(state, Modifier.weight(1f).fillMaxSize())
-                    PhotoTools(state, onApply, onUndo, onRedo, Modifier.weight(0.42f).padding(16.dp))
+                    PhotoTools(state, onApply, onUndo, onRedo, onRawSettingsChange, onRawOutputFormatChange, Modifier.weight(0.42f).padding(16.dp))
                 }
             } else {
                 Column(Modifier.fillMaxSize()) {
                     PreviewStage(state, Modifier.weight(1f).fillMaxWidth())
-                    PhotoTools(state, onApply, onUndo, onRedo, Modifier.fillMaxWidth())
+                    PhotoTools(state, onApply, onUndo, onRedo, onRawSettingsChange, onRawOutputFormatChange, Modifier.fillMaxWidth())
                 }
             }
         }
@@ -128,14 +152,17 @@ private fun PhotoTools(
     onApply: (EditOperation) -> Unit,
     onUndo: () -> Unit,
     onRedo: () -> Unit,
+    onRawSettingsChange: (RawDevelopmentSettings) -> Unit,
+    onRawOutputFormatChange: (RawOutputFormat) -> Unit,
     modifier: Modifier,
 ) {
+    var selectedTab by remember(state.isRaw) { mutableIntStateOf(if (state.isRaw) 0 else 1) }
     Column(
         modifier.verticalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(stringResource(R.string.photo_editor_filters), style = MaterialTheme.typography.titleMedium)
+            Text(if (state.isRaw) stringResource(R.string.photo_editor_raw_title) else stringResource(R.string.photo_editor_filters), style = MaterialTheme.typography.titleMedium)
             Row {
                 IconButton(onClick = onUndo, enabled = state.canUndo) {
                     Icon(GalleryIcons.Undo, contentDescription = stringResource(R.string.photo_editor_undo))
@@ -144,6 +171,24 @@ private fun PhotoTools(
                     Icon(GalleryIcons.Redo, contentDescription = stringResource(R.string.photo_editor_redo))
                 }
             }
+        }
+        if (state.isRaw) {
+            PrimaryTabRow(selectedTabIndex = selectedTab) {
+                listOf(R.string.photo_editor_raw_tab, R.string.photo_editor_export_tab)
+                    .forEachIndexed { index, label ->
+                        Tab(selected = selectedTab == index, onClick = { selectedTab = index }, text = { Text(stringResource(label)) })
+                    }
+            }
+            when (selectedTab) {
+                0 -> RawControls(state.rawSettings, state.rawMetadata, onRawSettingsChange)
+                1 -> RawExportControls(state.rawOutputFormat, onRawOutputFormatChange)
+            }
+            Text(
+                stringResource(R.string.photo_editor_copy_policy),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            return@Column
         }
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -181,6 +226,70 @@ private fun PhotoTools(
             stringResource(R.string.photo_editor_copy_policy),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun RawControls(
+    settings: RawDevelopmentSettings,
+    metadata: RawMetadata?,
+    onChange: (RawDevelopmentSettings) -> Unit,
+) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+        TextButton(onClick = { onChange(RawDevelopmentSettings()) }) {
+            Text(stringResource(R.string.photo_editor_reset_raw))
+        }
+    }
+    metadata?.let {
+        Text(
+            stringResource(
+                R.string.photo_editor_raw_metadata,
+                listOf(it.make, it.model).filter(String::isNotBlank).joinToString(" "),
+                it.width, it.height, it.bitsPerSample,
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+    RawSlider(stringResource(R.string.photo_editor_exposure), settings.exposureEv, -5f..5f) {
+        onChange(settings.copy(exposureEv = it))
+    }
+    RawSlider(stringResource(R.string.photo_editor_temperature), settings.temperatureKelvin.toFloat(), 2_000f..14_000f) {
+        onChange(settings.copy(temperatureKelvin = it.toInt()))
+    }
+    RawSlider(stringResource(R.string.photo_editor_tint), settings.tint, -150f..150f) { onChange(settings.copy(tint = it)) }
+    RawSlider(stringResource(R.string.photo_editor_highlights), settings.highlights, -1f..1f) { onChange(settings.copy(highlights = it)) }
+    RawSlider(stringResource(R.string.photo_editor_shadows), settings.shadows, -1f..1f) { onChange(settings.copy(shadows = it)) }
+    RawSlider(stringResource(R.string.photo_editor_contrast), settings.contrast, -1f..1f) { onChange(settings.copy(contrast = it)) }
+    RawSlider(stringResource(R.string.photo_editor_saturation), settings.saturation, -1f..1f) { onChange(settings.copy(saturation = it)) }
+    RawSlider(stringResource(R.string.photo_editor_noise_reduction), settings.luminanceNoiseReduction, 0f..1f) {
+        onChange(settings.copy(luminanceNoiseReduction = it))
+    }
+}
+
+@Composable
+private fun RawSlider(label: String, value: Float, range: ClosedFloatingPointRange<Float>, onChange: (Float) -> Unit) {
+    Column {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, style = MaterialTheme.typography.labelLarge)
+            Text(if (range.endInclusive > 100f) value.toInt().toString() else "%.2f".format(value), style = MaterialTheme.typography.labelMedium)
+        }
+        Slider(value = value, onValueChange = onChange, valueRange = range, modifier = Modifier.fillMaxWidth())
+    }
+}
+
+@Composable
+private fun RawExportControls(selected: RawOutputFormat, onSelected: (RawOutputFormat) -> Unit) {
+    Text(stringResource(R.string.photo_editor_output_format), style = MaterialTheme.typography.titleSmall)
+    RawOutputFormat.entries.forEach { format ->
+        FilterChip(
+            selected = selected == format,
+            onClick = { onSelected(format) },
+            label = { Text(stringResource(when (format) {
+                RawOutputFormat.JpegSrgb -> R.string.photo_editor_output_jpeg
+                RawOutputFormat.Tiff16Srgb -> R.string.photo_editor_output_tiff_srgb
+            })) },
         )
     }
 }

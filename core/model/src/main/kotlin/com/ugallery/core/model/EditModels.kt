@@ -36,6 +36,8 @@ sealed interface EditOperation : java.io.Serializable {
     data class Filter(val name: String) : EditOperation {
         init { require(name in setOf("none", "natural", "vivid", "mono")) }
     }
+
+    data class RawDevelop(val settings: RawDevelopmentSettings) : EditOperation
 }
 
 data class EditRecipe(
@@ -88,6 +90,19 @@ data class EditHistory(
         future = emptyList(),
     )
 
+    fun applyRawDevelopment(settings: RawDevelopmentSettings): EditHistory {
+        val operation = EditOperation.RawDevelop(settings)
+        val updated = present.copy(
+            operations = present.operations.filterNot { it is EditOperation.RawDevelop } + operation,
+            revision = present.revision + 1,
+        )
+        return copy(
+            past = (past + present).takeLast(maxEntries),
+            present = updated,
+            future = emptyList(),
+        )
+    }
+
     fun undo(): EditHistory = if (past.isEmpty()) this else copy(
         past = past.dropLast(1),
         present = past.last(),
@@ -120,6 +135,18 @@ object EditOperationCodec {
         is EditOperation.Flip -> "flip,${if (operation.horizontal) "h" else "v"}"
         is EditOperation.Tone -> "tone,${operation.brightness},${operation.contrast},${operation.saturation}"
         is EditOperation.Filter -> "filter,${operation.name}"
+        is EditOperation.RawDevelop -> buildString {
+            val value = operation.settings
+            append("raw,1,")
+            append(listOf(
+                value.exposureEv, value.temperatureKelvin, value.tint, value.highlights,
+                value.shadows, value.whites, value.blacks, value.contrast, value.saturation,
+                value.vibrance, value.highlightRecovery, value.luminanceNoiseReduction,
+                value.chromaNoiseReduction, value.sharpening,
+                if (value.chromaticAberrationCorrection) 1 else 0,
+                if (value.lensCorrection) 1 else 0,
+            ).joinToString(","))
+        }
     }
 
     fun decode(encoded: String): EditOperation {
@@ -130,6 +157,26 @@ object EditOperationCodec {
             "flip" -> EditOperation.Flip(parts[1] == "h")
             "tone" -> EditOperation.Tone(parts[1].toFloat(), parts[2].toFloat(), parts[3].toFloat())
             "filter" -> EditOperation.Filter(parts[1])
+            "raw" -> EditOperation.RawDevelop(
+                RawDevelopmentSettings(
+                    exposureEv = parts[2].toFloat(),
+                    temperatureKelvin = parts[3].toInt(),
+                    tint = parts[4].toFloat(),
+                    highlights = parts[5].toFloat(),
+                    shadows = parts[6].toFloat(),
+                    whites = parts[7].toFloat(),
+                    blacks = parts[8].toFloat(),
+                    contrast = parts[9].toFloat(),
+                    saturation = parts[10].toFloat(),
+                    vibrance = parts[11].toFloat(),
+                    highlightRecovery = parts[12].toFloat(),
+                    luminanceNoiseReduction = parts[13].toFloat(),
+                    chromaNoiseReduction = parts[14].toFloat(),
+                    sharpening = parts[15].toFloat(),
+                    chromaticAberrationCorrection = parts[16] == "1",
+                    lensCorrection = parts[17] == "1",
+                ),
+            )
             else -> error("Unknown edit operation: $encoded")
         }
     }

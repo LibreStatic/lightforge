@@ -169,7 +169,7 @@ private class TiledTransformPlan(
                     concat(flip)
                 }
 
-                is EditOperation.Tone, is EditOperation.Filter -> Unit
+                is EditOperation.Tone, is EditOperation.Filter, is EditOperation.RawDevelop -> Unit
             }
         }
     }
@@ -217,6 +217,7 @@ private class TiledTransformPlan(
             val matrix = when (operation) {
                 is EditOperation.Tone -> toneMatrix(operation)
                 is EditOperation.Filter -> filterMatrix(operation.name)
+                is EditOperation.RawDevelop -> ColorMatrix()
                 else -> ColorMatrix()
             }
             val next = Bitmap.createBitmap(current.width, current.height, Bitmap.Config.ARGB_8888)

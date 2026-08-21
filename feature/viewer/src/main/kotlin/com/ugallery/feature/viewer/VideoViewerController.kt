@@ -6,6 +6,7 @@ import android.net.Uri
 import android.view.SurfaceView
 import androidx.annotation.MainThread
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Effect
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -43,6 +44,8 @@ internal interface VideoEngine {
     fun release()
     fun attachSurface(surfaceView: SurfaceView?)
     fun setVolume(volume: Float)
+    fun setVideoEffects(effects: List<Effect>)
+    fun currentPositionMillis(): Long
 }
 
 /** Owns exactly one player/decoder chain for the entire viewer surface. */
@@ -55,12 +58,20 @@ class VideoViewerController internal constructor(private val engine: VideoEngine
     private var activePoster: Bitmap? = null
     private var muted = false
     private var released = false
+    private var playbackReady = false
+    private var playbackIsPlaying = false
 
     init {
         engine.listener = object : VideoEngine.Listener {
-            override fun onReady(durationMillis: Long, isPlaying: Boolean) = updateReady(durationMillis, isPlaying)
-            override fun onPlayingChanged(isPlaying: Boolean, durationMillis: Long) =
+            override fun onReady(durationMillis: Long, isPlaying: Boolean) {
+                playbackReady = true
+                playbackIsPlaying = isPlaying
                 updateReady(durationMillis, isPlaying)
+            }
+            override fun onPlayingChanged(isPlaying: Boolean, durationMillis: Long) {
+                playbackIsPlaying = isPlaying
+                updateReady(durationMillis, isPlaying)
+            }
             override fun onFailure(errorCode: Int, unsupported: Boolean) {
                 val uri = activeUri ?: return
                 mutableState.value = VideoViewerState.Failure(uri, unsupported, errorCode)
@@ -80,6 +91,8 @@ class VideoViewerController internal constructor(private val engine: VideoEngine
         activeUri = uri
         activePoster = poster
         muted = startMuted
+        playbackReady = false
+        playbackIsPlaying = false
         mutableState.value = VideoViewerState.Loading(uri, poster)
         engine.setVolume(if (muted) 0f else 1f)
         engine.setMedia(uri)
@@ -100,6 +113,14 @@ class VideoViewerController internal constructor(private val engine: VideoEngine
     @MainThread fun seekTo(positionMillis: Long) { check(!released); engine.seekTo(positionMillis.coerceAtLeast(0)) }
     @MainThread fun onBackground() = pause()
     @MainThread fun attachSurface(surfaceView: SurfaceView?) { check(!released); engine.attachSurface(surfaceView) }
+    @MainThread
+    fun setVideoEffects(effects: List<Effect>) {
+        check(!released)
+        engine.setVideoEffects(effects)
+        if (playbackReady && !playbackIsPlaying) {
+            engine.seekTo(engine.currentPositionMillis())
+        }
+    }
 
     @MainThread
     override fun close() {
@@ -107,6 +128,8 @@ class VideoViewerController internal constructor(private val engine: VideoEngine
         released = true
         activeUri = null
         activePoster = null
+        playbackReady = false
+        playbackIsPlaying = false
         engine.listener = null
         engine.stopAndClear()
         engine.release()
@@ -155,6 +178,8 @@ private class Media3VideoEngine(context: Context) : VideoEngine {
         if (surfaceView != null) player.setVideoSurfaceView(surfaceView)
     }
     override fun setVolume(volume: Float) { player.volume = volume.coerceIn(0f, 1f) }
+    override fun setVideoEffects(effects: List<Effect>) = player.setVideoEffects(effects)
+    override fun currentPositionMillis(): Long = player.currentPosition.coerceAtLeast(0)
 
     private companion object {
         val UnsupportedErrorCodes = setOf(

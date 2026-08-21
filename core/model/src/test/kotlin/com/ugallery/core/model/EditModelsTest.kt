@@ -35,8 +35,31 @@ class EditModelsTest {
             EditOperation.Flip(horizontal = false),
             EditOperation.Tone(0.1f, 1.2f, 0.8f),
             EditOperation.Filter("mono"),
+            EditOperation.RawDevelop(
+                RawDevelopmentSettings(
+                    exposureEv = 1.25f,
+                    temperatureKelvin = 5_200,
+                    tint = -4f,
+                    highlights = -0.4f,
+                    shadows = 0.3f,
+                    contrast = 0.15f,
+                ),
+            ),
         )
         operations.forEach { assertEquals(it, EditOperationCodec.decode(EditOperationCodec.encode(it))) }
+    }
+
+    @Test
+    fun rawDevelopmentReplacesTheSingleRawOperationAndRemainsUndoable() {
+        val first = RawDevelopmentSettings(exposureEv = 1f)
+        val second = RawDevelopmentSettings(exposureEv = 2f)
+        val history = EditHistory.initial(EditRecipe.forSource(source, 7))
+            .applyRawDevelopment(first)
+            .applyRawDevelopment(second)
+
+        assertEquals(1, history.present.operations.filterIsInstance<EditOperation.RawDevelop>().size)
+        assertEquals(second, history.present.operations.filterIsInstance<EditOperation.RawDevelop>().single().settings)
+        assertEquals(first, history.undo().present.operations.filterIsInstance<EditOperation.RawDevelop>().single().settings)
     }
 
     @Test

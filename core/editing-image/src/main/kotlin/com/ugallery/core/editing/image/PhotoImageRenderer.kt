@@ -207,6 +207,7 @@ class PhotoImageRenderer(
                 is EditOperation.Flip -> transform(current, Matrix().apply { postScale(if (operation.horizontal) -1f else 1f, if (operation.horizontal) 1f else -1f) })
                 is EditOperation.Tone -> color(current, toneMatrix(operation))
                 is EditOperation.Filter -> color(current, filterMatrix(operation.name))
+                is EditOperation.RawDevelop -> current
             }
             if (next !== current && !current.isRecycled) current.recycle()
             current = next

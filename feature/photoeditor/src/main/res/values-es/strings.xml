@@ -1,3 +1,21 @@
 <resources>
     <string name="photo_editor_title">Editar foto</string><string name="photo_editor_cancel">Cancelar</string><string name="photo_editor_save_copy">Guardar copia</string><string name="photo_editor_preview_description">Vista previa de edición</string><string name="photo_editor_preview_unavailable">Vista previa no disponible</string><string name="photo_editor_filters">Filtros</string><string name="photo_editor_filter_original">Original</string><string name="photo_editor_filter_natural">Natural</string><string name="photo_editor_filter_vivid">Vivo</string><string name="photo_editor_filter_mono">Mono</string><string name="photo_editor_crop">Recortar</string><string name="photo_editor_rotate">Rotar</string><string name="photo_editor_flip">Voltear</string><string name="photo_editor_undo">Deshacer</string><string name="photo_editor_redo">Rehacer</string><string name="photo_editor_copy_policy">La edición no es destructiva. Guardar copia crea un elemento nuevo en MediaStore y conserva el original.</string>
+
+    <string name="photo_editor_raw_title">RAW de cámara</string>
+    <string name="photo_editor_raw_tab">RAW</string>
+    <string name="photo_editor_export_tab">Exportar</string>
+    <string name="photo_editor_raw_metadata">%1$s · %2$d × %3$d · sensor de %4$d bits</string>
+    <string name="photo_editor_exposure">Exposición (EV)</string>
+    <string name="photo_editor_temperature">Temperatura (K)</string>
+    <string name="photo_editor_tint">Matiz</string>
+    <string name="photo_editor_highlights">Luces</string>
+    <string name="photo_editor_shadows">Sombras</string>
+    <string name="photo_editor_contrast">Contraste</string>
+    <string name="photo_editor_saturation">Saturación</string>
+    <string name="photo_editor_noise_reduction">Reducción de ruido</string>
+    <string name="photo_editor_output_format">Formato de salida</string>
+    <string name="photo_editor_output_jpeg">JPEG · sRGB · 8 bits</string>
+    <string name="photo_editor_output_tiff_srgb">TIFF · sRGB · 16 bits</string>
+    <string name="photo_editor_copy_saved">Copia guardada</string>
+    <string name="photo_editor_reset_raw">Restablecer revelado RAW</string>
 </resources>

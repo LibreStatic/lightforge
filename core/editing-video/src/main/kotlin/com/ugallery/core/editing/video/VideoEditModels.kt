@@ -9,6 +9,8 @@ data class VideoEditRecipe(
     val originalAudioVolume: Float = 1f,
     val musicUri: Uri? = null,
     val musicVolume: Float = 0.6f,
+    val colorGrade: VideoColorGrade = VideoColorGrade(),
+    val outputQuality: VideoOutputQuality = VideoOutputQuality.H264Compatible,
 ) {
     init {
         require(startMillis >= 0)
@@ -21,6 +23,7 @@ data class VideoEditRecipe(
     val hasChanges: Boolean
         get() = startMillis > 0 || endMillis != null || speed != 1f ||
             originalAudioVolume != 1f || musicUri != null
+            || colorGrade.hasChanges
 }
 
 data class VideoExportResult(
