@@ -93,6 +93,8 @@ import com.ugallery.core.designsystem.galleryAdaptiveLayoutInfo
 import com.ugallery.core.model.MediaKind
 import com.ugallery.core.model.TimelineMedia
 import com.ugallery.core.selection.SelectionSpec
+import com.ugallery.core.search.SearchConcept
+import com.ugallery.core.search.SearchVocabulary
 import com.ugallery.feature.album.AlbumContent
 import com.ugallery.feature.collections.CollectionsContent
 import com.ugallery.feature.collections.MomentContent
@@ -478,6 +480,15 @@ internal fun ProductionGalleryApp(
                             error = search.error,
                             detectedContentEnabled = detectedContentEnabled,
                             thumbnailLoader = thumbnails,
+                            petCollection = when (SearchVocabulary.resolve(search.query.trim())) {
+                                SearchConcept.Dog -> "dog" to petSummary.dogCount
+                                SearchConcept.Cat -> "cat" to petSummary.catCount
+                                else -> null
+                            },
+                            onOpenPetCollection = { label ->
+                                viewModel.search(label)
+                                rootTab = RootTab.Collections
+                            },
                             onQueryChange = viewModel::setSearchQuery,
                             onSearch = { viewModel.search() },
                             onVoiceSearch = {

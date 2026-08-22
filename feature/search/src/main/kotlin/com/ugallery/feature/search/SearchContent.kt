@@ -63,6 +63,8 @@ fun SearchContent(
     partialIndex: Boolean,
     error: Boolean,
     detectedContentEnabled: Boolean,
+    petCollection: Pair<String, Long>? = null,
+    onOpenPetCollection: ((String) -> Unit)? = null,
     thumbnailLoader: ThumbnailLoader?,
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
@@ -126,7 +128,23 @@ fun SearchContent(
             error -> Text(stringResource(R.string.search_error), color = MaterialTheme.colorScheme.error)
             loading && hits.isEmpty() -> CircularProgressIndicator()
             !terminal && hits.isEmpty() -> Unit
-            hits.isEmpty() -> Text(stringResource(R.string.search_empty))
+            hits.isEmpty() -> {
+                val collection = petCollection
+                if (collection != null && collection.second > 0 && onOpenPetCollection != null) {
+                    Card(modifier = Modifier.fillMaxWidth().clickable { onOpenPetCollection(collection.first) }) {
+                        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(stringResource(R.string.search_empty_collection_title), style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                stringResource(R.string.search_empty_collection_body),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                } else {
+                    Text(stringResource(R.string.search_empty))
+                }
+            }
             else -> LazyVerticalGrid(
                 columns = GridCells.Adaptive(128.dp),
                 modifier = Modifier.weight(1f),

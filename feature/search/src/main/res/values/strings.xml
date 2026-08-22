@@ -10,4 +10,6 @@
     <string name="search_places">Places</string><string name="search_coast">Coast</string><string name="search_mountain">Mountain</string><string name="search_city">City</string><string name="search_rain">Rain</string>
     <string name="search_content_types">Content types</string><string name="search_screenshots">Screenshots</string><string name="search_video">Video</string><string name="search_camera">Camera</string>
     <string name="search_topics">Topics</string><string name="search_landscapes">Landscapes</string><string name="search_food">Food</string>
-<string name="search_voice">Voice search</string><string name="search_voice_unavailable">Voice search is unavailable on this device.</string></resources>
+<string name="search_voice">Voice search</string><string name="search_voice_unavailable">Voice search is unavailable on this device.</string>    <string name="search_empty_collection_title">No matching photos</string>
+    <string name="search_empty_collection_body">But there is a matching collection. Open it?</string>
+</resources>
