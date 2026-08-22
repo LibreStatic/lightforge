@@ -90,4 +90,33 @@ class SearchLocalizationDeviceTest {
         compose.onNodeWithText(dogs).performClick()
         compose.runOnIdle { assertEquals(dogs, submitted) }
     }
+
+    @Test
+    fun editedButUnsubmittedQueryDoesNotShowAnEmptyResultMessage() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        compose.setContent {
+            MaterialTheme {
+                SearchContent(
+                    query = "montañas",
+                    hits = emptyList(),
+                    loading = false,
+                    terminal = false,
+                    partialIndex = false,
+                    error = false,
+                    detectedContentEnabled = false,
+                    thumbnailLoader = null,
+                    onQueryChange = {},
+                    onSearch = {},
+                    onPresetSearch = {},
+                    onLoadMore = {},
+                    onHit = {},
+                    onEnableDetectedContent = {},
+                    onPauseDetectedContent = {},
+                    onDeleteDetectedContent = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText(context.getString(R.string.search_empty)).assertDoesNotExist()
+    }
 }

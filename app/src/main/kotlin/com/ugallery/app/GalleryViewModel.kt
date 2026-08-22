@@ -149,6 +149,11 @@ data class GallerySearchUiState(
     val error: Boolean = false,
 )
 
+internal fun GallerySearchUiState.withEditedQuery(value: String): GallerySearchUiState {
+    if (value == query) return this
+    return GallerySearchUiState(query = value, terminal = value.isBlank())
+}
+
 data class PhotoEditorSession(
     val media: TimelineMedia,
     val history: EditHistory,
@@ -235,6 +240,8 @@ class GalleryViewModel @Inject constructor(
     val benchmarkMlRunning = mutableBenchmarkMlRunning.asStateFlow()
     private var benchmarkMlJob: Job? = null
     private var searchCursor: MediaSearchCursor? = null
+    private var searchJob: Job? = null
+    private var searchGeneration = 0L
     val engineState = mutableEngineState.stateIn(
         viewModelScope,
         SharingStarted.Eagerly,
@@ -356,29 +363,55 @@ class GalleryViewModel @Inject constructor(
         revalidateExternalGrant()
     }
 
-    fun setSearchQuery(value: String) { mutableSearch.value = mutableSearch.value.copy(query = value) }
+    fun setSearchQuery(value: String) {
+        if (value == mutableSearch.value.query) return
+        cancelSearchExecution()
+        mutableSearch.value = mutableSearch.value.withEditedQuery(value)
+    }
 
     fun search(value: String = mutableSearch.value.query) {
         val raw = value.trim()
         if (raw.isEmpty()) return
+        val generation = cancelSearchExecution()
         mutableSearch.value = GallerySearchUiState(query = raw, loading = true, terminal = false)
-        searchCursor?.close()
-        searchCursor = null
-        viewModelScope.launch {
+        searchJob = viewModelScope.launch {
             try {
                 faceSearchHits(raw)?.let { hits ->
-                    mutableSearch.value = GallerySearchUiState(raw, hits, false, true, false)
+                    if (isCurrentSearch(generation, raw)) {
+                        mutableSearch.value = GallerySearchUiState(raw, hits, false, true, false)
+                    }
                     return@launch
                 }
                 val cursor = AppSearchMediaSearchRepository(getApplication()).search(raw, 100)
+                if (!isCurrentSearch(generation, raw)) {
+                    cursor.close()
+                    return@launch
+                }
                 searchCursor = cursor
                 val page = cursor.nextPage()
-                mutableSearch.value = GallerySearchUiState(raw, page.hits, false, page.isTerminal, false)
+                if (isCurrentSearch(generation, raw)) {
+                    mutableSearch.value = GallerySearchUiState(raw, page.hits, false, page.isTerminal, false)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (_: Throwable) {
-                mutableSearch.value = GallerySearchUiState(raw, error = true)
+                if (isCurrentSearch(generation, raw)) {
+                    mutableSearch.value = GallerySearchUiState(raw, error = true)
+                }
             }
         }
     }
+
+    private fun cancelSearchExecution(): Long {
+        searchJob?.cancel()
+        searchJob = null
+        searchCursor?.close()
+        searchCursor = null
+        return ++searchGeneration
+    }
+
+    private fun isCurrentSearch(generation: Long, raw: String): Boolean =
+        searchGeneration == generation && mutableSearch.value.query.trim() == raw
 
     private suspend fun faceSearchHits(raw: String): List<MediaSearchHit>? {
         val concept = when (SearchVocabulary.resolve(raw)) {
@@ -421,15 +454,24 @@ class GalleryViewModel @Inject constructor(
     fun loadMoreSearch() {
         val cursor = searchCursor ?: return
         if (mutableSearch.value.loading || mutableSearch.value.terminal) return
+        val generation = searchGeneration
+        val raw = mutableSearch.value.query.trim()
         mutableSearch.value = mutableSearch.value.copy(loading = true)
-        viewModelScope.launch {
+        searchJob = viewModelScope.launch {
             runCatching { cursor.nextPage() }.onSuccess { page ->
-                mutableSearch.value = mutableSearch.value.copy(
-                    hits = mutableSearch.value.hits + page.hits,
-                    loading = false,
-                    terminal = page.isTerminal,
-                )
-            }.onFailure { mutableSearch.value = mutableSearch.value.copy(loading = false, error = true) }
+                if (isCurrentSearch(generation, raw) && searchCursor === cursor) {
+                    mutableSearch.value = mutableSearch.value.copy(
+                        hits = mutableSearch.value.hits + page.hits,
+                        loading = false,
+                        terminal = page.isTerminal,
+                    )
+                }
+            }.onFailure {
+                if (it is CancellationException) throw it
+                if (isCurrentSearch(generation, raw)) {
+                    mutableSearch.value = mutableSearch.value.copy(loading = false, error = true)
+                }
+            }
         }
     }
 

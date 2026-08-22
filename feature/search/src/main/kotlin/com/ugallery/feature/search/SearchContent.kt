@@ -125,6 +125,7 @@ fun SearchContent(
         if (query.isNotBlank() || hits.isNotEmpty()) when {
             error -> Text(stringResource(R.string.search_error), color = MaterialTheme.colorScheme.error)
             loading && hits.isEmpty() -> CircularProgressIndicator()
+            !terminal && hits.isEmpty() -> Unit
             hits.isEmpty() -> Text(stringResource(R.string.search_empty))
             else -> LazyVerticalGrid(
                 columns = GridCells.Adaptive(128.dp),
