@@ -7,6 +7,9 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.ugallery.core.designsystem.UGalleryTheme
@@ -69,6 +72,44 @@ class ViewerGesturesDeviceTest {
         compose.onRoot().performTouchInput { swipeLeft() }
         compose.waitUntil { selected != null }
         assertEquals(2L, selected?.key?.mediaStoreId)
+    }
+
+    @Test fun replacingTheViewerWindowAfterSwipeDoesNotSelectAnUnrelatedItem() {
+        val originalWindow = listOf(media(1), media(2), media(3))
+        val shiftedWindow = listOf(media(2), media(3), media(4))
+        val selections = mutableListOf<Long>()
+        var current by mutableStateOf(originalWindow[1])
+        var window by mutableStateOf(originalWindow)
+        compose.setContent {
+            UGalleryTheme {
+                ViewerContent(
+                    media = current,
+                    mediaItems = window,
+                    photoState = PhotoLoadState.Error(PhotoFailure.CorruptOrUnsupported),
+                    videoController = null,
+                    thumbnailLoader = thumbnails,
+                    isFavorite = false,
+                    onBack = {},
+                    onToggleFavorite = {},
+                    onShare = {},
+                    onShareSanitized = {},
+                    onDetails = {},
+                    onEdit = {},
+                    onTrash = {},
+                    onSelectMedia = {
+                        selections += it.key.mediaStoreId
+                        current = it
+                        if (it.key.mediaStoreId == 3L) window = shiftedWindow
+                    },
+                )
+            }
+        }
+
+        compose.onRoot().performTouchInput { swipeLeft() }
+        compose.waitUntil { current.key.mediaStoreId == 3L }
+        compose.waitForIdle()
+
+        assertEquals(listOf(3L), selections)
     }
 
     private fun media(id: Long) = TimelineMedia(

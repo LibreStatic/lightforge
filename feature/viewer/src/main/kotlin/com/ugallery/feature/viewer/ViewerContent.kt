@@ -44,6 +44,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -102,16 +103,21 @@ fun ViewerContent(
     val displayedItems = mediaItems.ifEmpty { listOf(media) }
     val selectedIndex = displayedItems.indexOfFirst { it.key == media.key }.coerceAtLeast(0)
     val pagerState = rememberPagerState(initialPage = selectedIndex) { displayedItems.size }
+    val latestDisplayedItems by rememberUpdatedState(displayedItems)
+    val latestMediaKey by rememberUpdatedState(media.key)
+    val latestOnSelectMedia by rememberUpdatedState(onSelectMedia)
     LaunchedEffect(media.key, selectedIndex) {
         if (pagerState.currentPage != selectedIndex) pagerState.scrollToPage(selectedIndex)
     }
-    LaunchedEffect(pagerState, displayedItems, media.key) {
+    LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.settledPage to pagerState.isScrollInProgress }
             .filter { !it.second }
             .map { it.first }
             .distinctUntilChanged()
             .collect { page ->
-                displayedItems.getOrNull(page)?.takeIf { it.key != media.key }?.let(onSelectMedia)
+                latestDisplayedItems.getOrNull(page)
+                    ?.takeIf { it.key != latestMediaKey }
+                    ?.let(latestOnSelectMedia)
             }
     }
     val dateLabel = remember(media.timelineSortMillis) {
