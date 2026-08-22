@@ -38,6 +38,25 @@ class SearchQueryParserTest {
         assertEquals(LocalDate.of(2024, 1, 6).start(), parsed.toMillisExclusive)
     }
 
+    @Test fun `pet discovery plurals match canonical labels`() {
+        assertEquals(listOf("dog"), parser.parse("dogs").normalizedTerms)
+        assertEquals(listOf("cat"), parser.parse("cats").normalizedTerms)
+        assertEquals(listOf("dog"), parser.parse("perros").normalizedTerms)
+        assertEquals(listOf("dog"), parser.parse("cães").normalizedTerms)
+        assertEquals(listOf("cat"), parser.parse("Katzen").normalizedTerms)
+    }
+
+    @Test fun `localized phrases and discovery terms match canonical index labels`() {
+        assertEquals(listOf("screenshot"), parser.parse("Capturas de pantalla").normalizedTerms)
+        assertEquals(listOf("camera"), parser.parse("Appareil photo").normalizedTerms)
+        assertEquals(listOf("landscape"), parser.parse("Landschaften").normalizedTerms)
+        assertEquals(listOf("dog", "beach"), parser.parse("perros playas").normalizedTerms)
+        assertEquals(MediaKind.Image, parser.parse("Fotos").kind)
+        assertEquals(MediaKind.Video, parser.parse("tipo:Vidéos").kind)
+        assertEquals(listOf("me"), parser.parse("Yo").normalizedTerms)
+        assertEquals(listOf("person"), parser.parse("Gesichter").normalizedTerms)
+    }
+
     @Test fun `normalization is locale independent and stable for indexing`() {
         assertEquals("camara nino sao-paulo", SearchTextNormalizer.normalize("Cámara NIÑO São-Paulo"))
         assertEquals(

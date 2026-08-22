@@ -56,7 +56,9 @@ import com.ugallery.core.ml.MlControlState
 import com.ugallery.core.search.AppSearchMediaSearchRepository
 import com.ugallery.core.search.MediaSearchCursor
 import com.ugallery.core.search.MediaSearchHit
+import com.ugallery.core.search.SearchConcept
 import com.ugallery.core.search.SearchRankingDebug
+import com.ugallery.core.search.SearchVocabulary
 import com.ugallery.core.model.AlbumKey
 import com.ugallery.core.model.AlbumSummary
 import com.ugallery.core.model.MediaKey
@@ -379,13 +381,13 @@ class GalleryViewModel @Inject constructor(
     }
 
     private suspend fun faceSearchHits(raw: String): List<MediaSearchHit>? {
-        val mode = when (raw.lowercase(java.util.Locale.ROOT)) {
-            "me", "yo", "moi", "eu", "io", "ich" -> "me"
-            "people", "personas", "personnes", "pessoas", "persone", "personen" -> "people"
+        val concept = when (SearchVocabulary.resolve(raw)) {
+            SearchConcept.Me -> SearchConcept.Me
+            SearchConcept.People -> SearchConcept.People
             else -> return null
         }
         val repository = runtime.value?.database?.let(::PeopleRepository) ?: return emptyList()
-        val rows = if (mode == "me") {
+        val rows = if (concept == SearchConcept.Me) {
             repository.meMatches().map { it.media to it.match.similarity.toDouble() }
         } else {
             repository.people().first().flatMap { person ->
@@ -406,7 +408,12 @@ class GalleryViewModel @Inject constructor(
                     timelineSortMillis = media.timelineSortMillis,
                     generationModified = media.generationModified,
                     favorite = media.isFavorite,
-                    debug = SearchRankingDebug(raw, "face-$mode", similarity, listOf("faceEmbedding")),
+                    debug = SearchRankingDebug(
+                        raw,
+                        "face-${concept.name.lowercase(java.util.Locale.ROOT)}",
+                        similarity,
+                        listOf("faceEmbedding"),
+                    ),
                 )
             }
     }

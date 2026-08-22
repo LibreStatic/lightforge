@@ -101,9 +101,18 @@ fun SearchContent(
             modifier = Modifier.fillMaxWidth(),
         )
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            item { AssistChip(onClick = { onPresetSearch("fotos") }, label = { Text(stringResource(R.string.search_photos)) }) }
-            item { AssistChip(onClick = { onPresetSearch("vídeos") }, label = { Text(stringResource(R.string.search_videos)) }) }
-            item { AssistChip(onClick = { onPresetSearch("documentos") }, label = { Text(stringResource(R.string.search_documents)) }) }
+            item {
+                val label = stringResource(R.string.search_photos)
+                AssistChip(onClick = { onPresetSearch(label) }, label = { Text(label) })
+            }
+            item {
+                val label = stringResource(R.string.search_videos)
+                AssistChip(onClick = { onPresetSearch(label) }, label = { Text(label) })
+            }
+            item {
+                val label = stringResource(R.string.search_documents)
+                AssistChip(onClick = { onPresetSearch(label) }, label = { Text(label) })
+            }
             item { AssistChip(onClick = { showDetectedContent = true }, label = { Text(stringResource(R.string.search_local_analysis)) }) }
         }
         if (partialIndex) {
@@ -159,13 +168,14 @@ private fun SearchDiscovery(onPresetSearch: (String) -> Unit, modifier: Modifier
         item { Text(stringResource(R.string.search_people_pets), style = MaterialTheme.typography.titleMedium) }
         item { LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             val people = listOf(
-                Triple(R.string.search_me, GalleryIcons.User, "me"),
-                Triple(R.string.search_people, GalleryIcons.User, "people"),
-                Triple(R.string.search_cats, GalleryIcons.Pet, "cats"),
-                Triple(R.string.search_dogs, GalleryIcons.Pet, "dogs"),
+                R.string.search_me to GalleryIcons.User,
+                R.string.search_people to GalleryIcons.User,
+                R.string.search_cats to GalleryIcons.Pet,
+                R.string.search_dogs to GalleryIcons.Pet,
             )
-            items(people) { (label, icon, query) ->
-                Card(onClick = { onPresetSearch(query) }) {
+            items(people) { (labelResource, icon) ->
+                val label = stringResource(labelResource)
+                Card(onClick = { onPresetSearch(label) }) {
                     Column(
                         Modifier.padding(10.dp),
                         horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
@@ -174,27 +184,30 @@ private fun SearchDiscovery(onPresetSearch: (String) -> Unit, modifier: Modifier
                             Modifier.size(52.dp).background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
                             contentAlignment = androidx.compose.ui.Alignment.Center,
                         ) { Icon(icon, contentDescription = null) }
-                        Text(stringResource(label), style = MaterialTheme.typography.labelMedium)
+                        Text(label, style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }
         } }
         item { Text(stringResource(R.string.search_places), style = MaterialTheme.typography.titleMedium) }
         item { LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(listOf(R.string.search_coast to "coast", R.string.search_mountain to "mountain", R.string.search_city to "city", R.string.search_rain to "rain")) { (label, query) ->
-                AssistChip(onClick = { onPresetSearch(query) }, label = { Text(stringResource(label)) }, leadingIcon = { Icon(GalleryIcons.Image, contentDescription = null) })
+            items(listOf(R.string.search_coast, R.string.search_mountain, R.string.search_city, R.string.search_rain)) { labelResource ->
+                val label = stringResource(labelResource)
+                AssistChip(onClick = { onPresetSearch(label) }, label = { Text(label) }, leadingIcon = { Icon(GalleryIcons.Image, contentDescription = null) })
             }
         } }
         item { Text(stringResource(R.string.search_content_types), style = MaterialTheme.typography.titleMedium) }
         item { LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(listOf(R.string.search_documents to "documents", R.string.search_screenshots to "screenshots", R.string.search_video to "videos", R.string.search_camera to "camera")) { (label, query) ->
-                AssistChip(onClick = { onPresetSearch(query) }, label = { Text(stringResource(label)) }, leadingIcon = { Icon(GalleryIcons.Collections, contentDescription = null) })
+            items(listOf(R.string.search_documents, R.string.search_screenshots, R.string.search_video, R.string.search_camera)) { labelResource ->
+                val label = stringResource(labelResource)
+                AssistChip(onClick = { onPresetSearch(label) }, label = { Text(label) }, leadingIcon = { Icon(GalleryIcons.Collections, contentDescription = null) })
             }
         } }
         item { Text(stringResource(R.string.search_topics), style = MaterialTheme.typography.titleMedium) }
         item { LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(listOf(R.string.search_landscapes to "landscapes", R.string.search_food to "food")) { (label, query) ->
-                AssistChip(onClick = { onPresetSearch(query) }, label = { Text(stringResource(label)) })
+            items(listOf(R.string.search_landscapes, R.string.search_food)) { labelResource ->
+                val label = stringResource(labelResource)
+                AssistChip(onClick = { onPresetSearch(label) }, label = { Text(label) })
             }
         } }
         item { Box(Modifier.size(1.dp)) }

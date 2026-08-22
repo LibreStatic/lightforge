@@ -45,6 +45,9 @@ class SearchQueryParser(
     private val zoneId: ZoneId = ZoneId.systemDefault(),
 ) {
     fun parse(raw: String): ParsedSearchQuery {
+        SearchVocabulary.resolve(raw)?.let { concept ->
+            return concept.asExactQuery(raw)
+        }
         var kind: MediaKind? = null
         var favoriteOnly = false
         var from: Long? = null
@@ -59,7 +62,7 @@ class SearchQueryParser(
             val rawValue = if (separator > 0) rawToken.substring(separator + 1) else ""
             val value = SearchTextNormalizer.normalize(rawValue)
             when (key) {
-                "tipo", "type" -> kind = parseKind(value) ?: kind
+                "tipo", "type", "typ" -> kind = parseKind(value) ?: kind
                 "persona", "person" -> rawValue.lowercase(Locale.ROOT).validOpaqueId()?.let(people::add)
                 "fecha", "date" -> parseDateRange(value)?.let { (start, end) -> from = start; to = end }
                 "desde", "from" -> parseDateStart(value)?.let { from = it }
@@ -67,11 +70,14 @@ class SearchQueryParser(
                     to = java.time.Instant.ofEpochMilli(it).atZone(zoneId).toLocalDate()
                         .plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
                 }
-                else -> when (token) {
-                    "foto", "fotos", "imagen", "imagenes", "photo", "photos" -> kind = MediaKind.Image
-                    "video", "videos" -> kind = MediaKind.Video
-                    "favorito", "favoritos", "favorite", "favorites" -> favoriteOnly = true
-                    else -> terms += CanonicalSynonyms[token] ?: token
+                else -> when (val concept = SearchVocabulary.resolve(rawToken)) {
+                    SearchConcept.Image -> kind = MediaKind.Image
+                    SearchConcept.Video -> kind = MediaKind.Video
+                    null -> when (token) {
+                        "favorito", "favoritos", "favorite", "favorites" -> favoriteOnly = true
+                        else -> terms += token
+                    }
+                    else -> terms += concept.canonicalTerm ?: token
                 }
             }
         }
@@ -86,11 +92,21 @@ class SearchQueryParser(
         )
     }
 
-    private fun parseKind(value: String) = when (value) {
-        "foto", "fotos", "imagen", "imagenes", "image", "photo" -> MediaKind.Image
-        "video", "videos" -> MediaKind.Video
+    private fun parseKind(value: String) = when (SearchVocabulary.resolve(value)) {
+        SearchConcept.Image -> MediaKind.Image
+        SearchConcept.Video -> MediaKind.Video
         else -> null
     }
+
+    private fun SearchConcept.asExactQuery(raw: String) = ParsedSearchQuery(
+        original = raw,
+        normalizedTerms = canonicalTerm?.let(::listOf).orEmpty(),
+        kind = when (this) {
+            SearchConcept.Image -> MediaKind.Image
+            SearchConcept.Video -> MediaKind.Video
+            else -> null
+        },
+    )
 
     private fun parseDateRange(value: String): Pair<Long, Long>? = try {
         when (value.length) {
@@ -118,12 +134,5 @@ class SearchQueryParser(
     private companion object {
         val Whitespace = Regex("\\s+")
         val OpaqueId = Regex("[a-z0-9_-]{1,100}")
-        val CanonicalSynonyms = mapOf(
-            "playa" to "beach", "playas" to "beach",
-            "perro" to "dog", "perros" to "dog",
-            "gato" to "cat", "gatos" to "cat",
-            "comida" to "food", "documento" to "document",
-            "captura" to "screenshot", "pantallazo" to "screenshot",
-        )
     }
 }
