@@ -21,7 +21,27 @@ interface LibraryDao {
             "(SELECT COUNT(DISTINCT l.volumeName || ':' || l.mediaStoreId) FROM media_labels l " +
             "JOIN media_items m ON m.volumeName=l.volumeName AND m.mediaStoreId=l.mediaStoreId " +
             "WHERE l.canonicalLabel='cat' AND m.isAccessible=1 AND m.isTrashed=0 AND NOT EXISTS " +
-            "(SELECT 1 FROM label_suppressions s WHERE s.canonicalLabel='cat')) AS catCount",
+            "(SELECT 1 FROM label_suppressions s WHERE s.canonicalLabel='cat')) AS catCount, " +
+            "(SELECT l.volumeName FROM media_labels l " +
+            "JOIN media_items m ON m.volumeName=l.volumeName AND m.mediaStoreId=l.mediaStoreId " +
+            "WHERE l.canonicalLabel='dog' AND m.isAccessible=1 AND m.isTrashed=0 AND NOT EXISTS " +
+            "(SELECT 1 FROM label_suppressions s WHERE s.canonicalLabel='dog') " +
+            "ORDER BY m.timelineSortMillis DESC LIMIT 1) AS dogCoverVolumeName, " +
+            "(SELECT l.mediaStoreId FROM media_labels l " +
+            "JOIN media_items m ON m.volumeName=l.volumeName AND m.mediaStoreId=l.mediaStoreId " +
+            "WHERE l.canonicalLabel='dog' AND m.isAccessible=1 AND m.isTrashed=0 AND NOT EXISTS " +
+            "(SELECT 1 FROM label_suppressions s WHERE s.canonicalLabel='dog') " +
+            "ORDER BY m.timelineSortMillis DESC LIMIT 1) AS dogCoverMediaStoreId, " +
+            "(SELECT l.volumeName FROM media_labels l " +
+            "JOIN media_items m ON m.volumeName=l.volumeName AND m.mediaStoreId=l.mediaStoreId " +
+            "WHERE l.canonicalLabel='cat' AND m.isAccessible=1 AND m.isTrashed=0 AND NOT EXISTS " +
+            "(SELECT 1 FROM label_suppressions s WHERE s.canonicalLabel='cat') " +
+            "ORDER BY m.timelineSortMillis DESC LIMIT 1) AS catCoverVolumeName, " +
+            "(SELECT l.mediaStoreId FROM media_labels l " +
+            "JOIN media_items m ON m.volumeName=l.volumeName AND m.mediaStoreId=l.mediaStoreId " +
+            "WHERE l.canonicalLabel='cat' AND m.isAccessible=1 AND m.isTrashed=0 AND NOT EXISTS " +
+            "(SELECT 1 FROM label_suppressions s WHERE s.canonicalLabel='cat') " +
+            "ORDER BY m.timelineSortMillis DESC LIMIT 1) AS catCoverMediaStoreId",
     )
     fun petCollectionSummaryFlow(): Flow<PetCollectionSummaryRow>
 

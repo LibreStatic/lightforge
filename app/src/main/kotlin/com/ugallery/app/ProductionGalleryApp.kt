@@ -447,10 +447,13 @@ internal fun ProductionGalleryApp(
                         onLocalAnalysisClick = { route = SurfaceRoute.Settings },
                         peopleEnabled = true,
                         peopleCount = people.size.toLong(),
+                        peopleCover = people.firstNotNullOfOrNull { it.coverKey },
                         onPeopleClick = { route = SurfaceRoute.People },
                         petCollectionsEnabled = petCollectionsEnabled,
                         dogCount = petSummary.dogCount,
                         catCount = petSummary.catCount,
+                        dogCover = petSummary.dogCover,
+                        catCover = petSummary.catCover,
                         onPetCollectionClick = { label ->
                             viewModel.setSearchQuery(label)
                             viewModel.search(label)

@@ -64,4 +64,8 @@ data class SearchRebuildRow(
 data class PetCollectionSummaryRow(
     val dogCount: Long,
     val catCount: Long,
+    val dogCoverVolumeName: String?,
+    val dogCoverMediaStoreId: Long?,
+    val catCoverVolumeName: String?,
+    val catCoverMediaStoreId: Long?,
 )

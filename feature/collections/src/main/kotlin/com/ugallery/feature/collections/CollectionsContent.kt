@@ -29,6 +29,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
@@ -67,6 +70,7 @@ private data class CollectionCardSpec(
     val onClick: () -> Unit,
     val icon: ImageVector? = null,
     val cover: MediaKey? = null,
+    val circular: Boolean = false,
 )
 
 @Composable
@@ -82,10 +86,13 @@ fun CollectionsContent(
     onLocalAnalysisClick: () -> Unit,
     peopleEnabled: Boolean,
     peopleCount: Long,
+    peopleCover: MediaKey? = null,
     onPeopleClick: () -> Unit,
     petCollectionsEnabled: Boolean,
     dogCount: Long,
     catCount: Long,
+    dogCover: MediaKey? = null,
+    catCover: MediaKey? = null,
     onPetCollectionClick: (String) -> Unit,
     thumbnailLoader: ThumbnailLoader? = null,
     privateAlbumLabel: String? = null,
@@ -104,6 +111,8 @@ fun CollectionsContent(
             title = stringResource(R.string.collections_dogs),
             body = stringResource(R.string.collections_item_count, dogCount),
             icon = GalleryIcons.Pet,
+            cover = dogCover,
+            circular = true,
             onClick = { onPetCollectionClick("dog") },
         ),
         CollectionCardSpec(
@@ -111,6 +120,8 @@ fun CollectionsContent(
             title = stringResource(R.string.collections_cats),
             body = stringResource(R.string.collections_item_count, catCount),
             icon = GalleryIcons.Pet,
+            cover = catCover,
+            circular = true,
             onClick = { onPetCollectionClick("cat") },
         ),
     ) else emptyList()
@@ -129,6 +140,8 @@ fun CollectionsContent(
             title = stringResource(R.string.collections_people),
             body = stringResource(R.string.collections_item_count, peopleCount),
             icon = GalleryIcons.User,
+            cover = peopleCover,
+            circular = true,
             onClick = onPeopleClick,
         ))
         add(CollectionCardSpec(
@@ -164,6 +177,13 @@ fun CollectionsContent(
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                item(key = "actions-header") {
+                    Text(
+                        stringResource(R.string.collections_section_actions),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(vertical = 4.dp),
+                    )
+                }
                 item(key = "local-analysis") {
                     CollectionCard(
                         title = stringResource(R.string.collections_local_analysis),
@@ -200,16 +220,20 @@ fun CollectionsContent(
                         wide = true,
                     )
                 }
-                collectionCardRows(petCards, columns, thumbnailLoader)
-                if (momentSummaries.isNotEmpty()) {
-                    item(key = "moments-header") {
-                        Text(
-                            stringResource(R.string.collections_moments),
-                            style = MaterialTheme.typography.titleMedium,
-                            modifier = Modifier.padding(vertical = 4.dp),
-                        )
-                    }
-                    collectionCardRows(momentCards, columns, thumbnailLoader)
+                item(key = "auto-header") {
+                    Text(
+                        stringResource(R.string.collections_section_auto),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(vertical = 4.dp),
+                    )
+                }
+                collectionCardRows(petCards + momentCards, columns, thumbnailLoader)
+                item(key = "library-header") {
+                    Text(
+                        stringResource(R.string.collections_section_library),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(vertical = 4.dp),
+                    )
                 }
                 collectionCardRows(libraryCards, columns, thumbnailLoader)
                 if (albums.isEmpty() && physicalAlbums.loadState.refresh !is LoadState.Loading &&
@@ -248,6 +272,7 @@ private fun LazyListScope.collectionCardRows(
                         onClick = card.onClick,
                         icon = card.icon,
                         cover = card.cover,
+                        circular = card.circular,
                         thumbnailLoader = thumbnailLoader,
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                     )
@@ -267,6 +292,7 @@ private fun CollectionCard(
     onClick: () -> Unit,
     icon: ImageVector? = null,
     cover: MediaKey? = null,
+    circular: Boolean = false,
     thumbnailLoader: ThumbnailLoader? = null,
     wide: Boolean = false,
     modifier: Modifier = Modifier,
@@ -284,7 +310,17 @@ private fun CollectionCard(
             contentDescription = "$title. $body"
         },
     ) {
-        if (bitmap != null) {
+        if (bitmap != null && circular) {
+            Image(
+                bitmap = requireNotNull(bitmap).asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .padding(top = 16.dp)
+                    .size(56.dp)
+                    .clip(CircleShape),
+            )
+        } else if (bitmap != null) {
             Image(
                 bitmap = requireNotNull(bitmap).asImageBitmap(),
                 contentDescription = null,
