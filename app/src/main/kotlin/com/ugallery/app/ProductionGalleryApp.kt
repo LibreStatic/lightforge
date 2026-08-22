@@ -34,6 +34,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
@@ -829,6 +830,7 @@ internal fun ProductionGalleryApp(
                 SelectionActions(
                     count = selectionCount,
                     canShare = selection is SelectionSpec.Explicit && selectionCount <= 500,
+                    showShareLimitNote = selectionCount > 500,
                     onSelectAll = {
                         if (activeRoute == SurfaceRoute.Album && selectedAlbum != null) {
                             viewModel.selectAllAlbum(requireNotNull(selectedAlbum), filter, sort)
@@ -862,6 +864,16 @@ internal fun ProductionGalleryApp(
             ) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
             topBar = {
                 when (route) {
+                    SurfaceRoute.Root -> if (engineState == LibraryEngineState.Indexing) {
+                        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                            Text(
+                                stringResource(R.string.library_index_banner),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 4.dp))
+                        }
+                    }
                     SurfaceRoute.Album -> GalleryTopAppBar(
                         title = selectedAlbum?.name ?: stringResource(com.ugallery.feature.album.R.string.album_untitled),
                         onBack = { route = SurfaceRoute.Root },
@@ -992,6 +1004,7 @@ private fun AnimatedSurfaceBody(
 private fun SelectionActions(
     count: Long,
     canShare: Boolean,
+    showShareLimitNote: Boolean = false,
     onSelectAll: () -> Unit,
     onFavorite: () -> Unit,
     onTrash: () -> Unit,
@@ -1057,6 +1070,14 @@ private fun SelectionActions(
                 icon = GalleryIcons.Trash,
                 label = stringResource(R.string.selection_trash),
                 modifier = Modifier.weight(1f),
+            )
+        }
+        if (showShareLimitNote) {
+            Text(
+                stringResource(R.string.selection_share_limit),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 8.dp),
             )
         }
       }
