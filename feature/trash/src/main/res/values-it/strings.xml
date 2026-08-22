@@ -1,1 +1,4 @@
-<resources><string name="trash_title">Cestino</string><string name="trash_empty">Svuota cestino</string><string name="trash_empty_state">Il cestino è vuoto</string><string name="trash_restore">Ripristina</string><string name="trash_delete_permanently">Elimina definitivamente</string><string name="trash_expires_on">Eliminazione automatica il %1$s</string><string name="trash_expiry_unknown">Data di eliminazione non disponibile</string></resources>
+<resources><string name="trash_title">Cestino</string><string name="trash_empty">Svuota cestino</string><string name="trash_empty_state">Il cestino è vuoto</string><string name="trash_restore">Ripristina</string><string name="trash_delete_permanently">Elimina definitivamente</string><string name="trash_expires_on">Eliminazione automatica il %1$s</string><string name="trash_expiry_unknown">Data di eliminazione non disponibile</string>    <string name="trash_empty_title">Il cestino è vuoto</string>
+    <string name="trash_empty_description">Illustrazione degli elementi eliminati</string>
+    <string name="trash_unnamed_item">Elemento senza titolo</string>
+</resources>

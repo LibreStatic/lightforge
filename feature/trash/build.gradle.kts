@@ -26,6 +26,7 @@ dependencies {
     implementation(project(":core:domain"))
     implementation(project(":core:designsystem"))
     implementation(project(":core:navigation"))
+    implementation(project(":core:thumbnail"))
     implementation(libs.androidx.core.ktx)
     implementation(platform(libs.compose.bom))
     implementation("androidx.compose.ui:ui")

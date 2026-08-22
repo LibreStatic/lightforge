@@ -1,1 +1,4 @@
-<resources><string name="trash_title">Papierkorb</string><string name="trash_empty">Papierkorb leeren</string><string name="trash_empty_state">Der Papierkorb ist leer</string><string name="trash_restore">Wiederherstellen</string><string name="trash_delete_permanently">Endgültig löschen</string><string name="trash_expires_on">Automatische Löschung am %1$s</string><string name="trash_expiry_unknown">Löschdatum nicht verfügbar</string></resources>
+<resources><string name="trash_title">Papierkorb</string><string name="trash_empty">Papierkorb leeren</string><string name="trash_empty_state">Der Papierkorb ist leer</string><string name="trash_restore">Wiederherstellen</string><string name="trash_delete_permanently">Endgültig löschen</string><string name="trash_expires_on">Automatische Löschung am %1$s</string><string name="trash_expiry_unknown">Löschdatum nicht verfügbar</string>    <string name="trash_empty_title">Der Papierkorb ist leer</string>
+    <string name="trash_empty_description">Abbildung gelöschter Elemente</string>
+    <string name="trash_unnamed_item">Unbenanntes Element</string>
+</resources>

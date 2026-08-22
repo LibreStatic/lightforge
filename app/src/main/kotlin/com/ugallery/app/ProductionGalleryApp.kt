@@ -42,12 +42,14 @@ import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -59,6 +61,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalDensity
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.viewinterop.AndroidView
@@ -68,10 +71,14 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.window.layout.FoldingFeature
 import androidx.window.layout.WindowInfoTracker
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.ugallery.core.database.AlbumMediaFilter
 import com.ugallery.core.database.AlbumSort
 import com.ugallery.core.mediastore.MediaAction
 import com.ugallery.core.mediastore.MediaActionPhase
+import com.ugallery.core.mediastore.MediaActionTarget
+import com.ugallery.core.mediastore.ScopedMediaOperations
 import com.ugallery.core.designsystem.GalleryIcons
 import com.ugallery.core.designsystem.GalleryActionButton
 import com.ugallery.core.designsystem.GalleryAnimatedContent
@@ -139,6 +146,10 @@ internal fun ProductionGalleryApp(
     val privateUnlockSubtitle = stringResource(com.ugallery.feature.privatealbum.R.string.private_unlock_body)
     val privateBiometricFailed = stringResource(com.ugallery.feature.privatealbum.R.string.private_biometric_failed)
     val privateExportFailed = stringResource(com.ugallery.feature.privatealbum.R.string.private_export_failed)
+    val appLockTitle = stringResource(R.string.app_lock_title)
+    val appLockBody = stringResource(R.string.app_lock_body)
+    val destructiveAuthTitle = stringResource(R.string.destructive_auth_title)
+    val destructiveAuthBody = stringResource(R.string.destructive_auth_body)
     val access by viewModel.access.collectAsState()
     val engineState by viewModel.engineState.collectAsState()
     val thumbnails by viewModel.thumbnailLoader.collectAsState()
@@ -157,6 +168,9 @@ internal fun ProductionGalleryApp(
     val faceAnalysis by viewModel.faceAnalysis.collectAsState()
     val peopleAnalysis by viewModel.peopleAnalysis.collectAsState()
     val petCollectionsEnabled by viewModel.petCollectionsEnabled.collectAsState()
+    val petAnalysis by viewModel.petAnalysis.collectAsState()
+    val gallerySettings by viewModel.gallerySettings.collectAsState()
+    val galleryFolderOptions by viewModel.galleryFolderOptions.collectAsState()
     val petSummary by viewModel.petSummary.collectAsState()
     val selectedMoment by viewModel.selectedMoment.collectAsState()
     val momentSummaries by viewModel.momentSummaries.collectAsState()
@@ -176,6 +190,68 @@ internal fun ProductionGalleryApp(
     val albumItems = viewModel.albumMedia.collectAsLazyPagingItems()
     val trashItems = viewModel.trash.collectAsLazyPagingItems()
     val activity = context as? Activity
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var appUnlocked by rememberSaveable { mutableStateOf(!gallerySettings.security.appLockEnabled) }
+    var lockPromptActive by remember { mutableStateOf(false) }
+    var backgroundedAt by rememberSaveable { mutableStateOf(0L) }
+    fun requestAppUnlock() {
+        val fragmentActivity = context as? FragmentActivity ?: return
+        if (lockPromptActive || !BiometricGate.canAuthenticate(context)) return
+        lockPromptActive = true
+        BiometricGate.authenticate(
+            activity = fragmentActivity,
+            title = appLockTitle,
+            subtitle = appLockBody,
+            onSuccess = { lockPromptActive = false; appUnlocked = true },
+            onError = { lockPromptActive = false },
+            onFail = { lockPromptActive = false },
+        )
+    }
+    fun runDestructive(block: () -> Unit) {
+        if (!gallerySettings.security.destructiveActionLockEnabled) {
+            block()
+            return
+        }
+        val fragmentActivity = context as? FragmentActivity ?: return
+        BiometricGate.authenticate(
+            activity = fragmentActivity,
+            title = destructiveAuthTitle,
+            subtitle = destructiveAuthBody,
+            onSuccess = block,
+            onError = {},
+            onFail = {},
+        )
+    }
+    LaunchedEffect(gallerySettings.security.appLockEnabled) {
+        if (!gallerySettings.security.appLockEnabled) appUnlocked = true
+        else if (!appUnlocked) requestAppUnlock()
+    }
+    DisposableEffect(lifecycleOwner, gallerySettings.security.relockTimeoutMinutes) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_STOP -> backgroundedAt = android.os.SystemClock.elapsedRealtime()
+                Lifecycle.Event.ON_START -> if (gallerySettings.security.appLockEnabled && backgroundedAt > 0L) {
+                    val timeout = gallerySettings.security.relockTimeoutMinutes * 60_000L
+                    if (timeout == 0L || android.os.SystemClock.elapsedRealtime() - backgroundedAt >= timeout) {
+                        appUnlocked = false
+                    }
+                }
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    if (gallerySettings.security.appLockEnabled && !appUnlocked) {
+        Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+            Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                Text(stringResource(R.string.app_lock_title), style = MaterialTheme.typography.headlineSmall)
+                Text(stringResource(R.string.app_lock_body), Modifier.padding(16.dp))
+                Button(onClick = ::requestAppUnlock) { Text(stringResource(R.string.app_lock_unlock)) }
+            }
+        }
+        return
+    }
     val foldInfo by if (activity != null) {
         remember(activity, density) {
             WindowInfoTracker.getOrCreate(context).windowLayoutInfo(activity).map { info ->
@@ -222,6 +298,12 @@ internal fun ProductionGalleryApp(
     val semanticEngine = remember { SemanticSearchEngine() }
     val subjectClipper = remember { SubjectClipper() }
     val objectEraser = remember { ObjectEraser() }
+    val exportSettingsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri -> uri?.let(viewModel::exportGallerySettings) }
+    val importSettingsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent(),
+    ) { uri -> uri?.let(viewModel::importGallerySettings) }
 
     BackHandler(enabled = route != SurfaceRoute.Root || showDetails) {
         when {
@@ -342,9 +424,11 @@ internal fun ProductionGalleryApp(
                         onOpenSettings = { route = SurfaceRoute.Settings },
                         onMediaClick = { media ->
                             if (selectionCount > 0) viewModel.toggleSelection(media)
-                            else { viewModel.openMedia(media); route = SurfaceRoute.Viewer }
+                            else { viewModel.openTimelineMedia(media); route = SurfaceRoute.Viewer }
                         },
                         onMediaLongClick = viewModel::toggleSelection,
+                        preferredColumns = gallerySettings.thumbnails.gridColumns,
+                        cropThumbnails = gallerySettings.thumbnails.cropToFill,
                     )
                     RootTab.Collections -> CollectionsContent(
                         physicalAlbums,
@@ -484,7 +568,11 @@ internal fun ProductionGalleryApp(
                 }
                 SurfaceRoute.VideoEditor -> videoEditor?.let { session ->
                     val controller = remember(session.media.key) {
-                        VideoViewerController(context).also {
+                        VideoViewerController(
+                            context,
+                            enableVideoEffects = true,
+                            initialLooping = true,
+                        ).also {
                             it.select(viewModel.mediaUri(session.media), autoplay = true)
                         }
                     }
@@ -503,6 +591,12 @@ internal fun ProductionGalleryApp(
                         onColorGradeChange = viewModel::setVideoColorGrade,
                         onOutputQualityChange = viewModel::setVideoOutputQuality,
                         onImportLut = { lutPicker.launch(arrayOf("text/plain", "application/octet-stream")) },
+                        onMarkSlowMotionIn = viewModel::markVideoSlowMotionIn,
+                        onMarkSlowMotionOut = viewModel::markVideoSlowMotionOut,
+                        onSelectSlowMotionSegment = viewModel::selectVideoSlowMotionSegment,
+                        onUpdateSlowMotionSegment = viewModel::updateVideoSlowMotionSegment,
+                        onDeleteSlowMotionSegment = viewModel::deleteVideoSlowMotionSegment,
+                        onCancelExport = viewModel::cancelVideoExport,
                     )
                 }
                 SurfaceRoute.Moment -> selectedMoment?.let { moment ->
@@ -558,10 +652,11 @@ internal fun ProductionGalleryApp(
                     onResetMe = viewModel::resetMe,
                 )
                 SurfaceRoute.Trash -> TrashContent(
+                    thumbnailLoader = thumbnails,
                     visibleItems = trashItems.itemSnapshotList.items,
                     totalCount = trashCount,
                     onRestore = { media -> viewModel.openMedia(media); viewModel.beginSystemAction(media, MediaAction.Trash(false)) },
-                    onDeletePermanently = { media -> viewModel.openMedia(media); viewModel.beginSystemAction(media, MediaAction.Delete) },
+                    onDeletePermanently = { media -> runDestructive { viewModel.openMedia(media); viewModel.beginSystemAction(media, MediaAction.Delete) } },
                     onEmptyTrash = { showEmptyTrashConfirmation = true },
                     showHeader = false,
                 )
@@ -585,6 +680,22 @@ internal fun ProductionGalleryApp(
                     onAnalyzeAll = viewModel::analyzeAllFaces,
                     onDelete = viewModel::deleteFaceDetectionData,
                     petCollectionsEnabled = petCollectionsEnabled,
+                    petAnalysisState = FaceAnalysisUiState(
+                        consentGranted = petAnalysis.consentGranted,
+                        paused = petAnalysis.paused,
+                        completedItems = petAnalysis.completedItems,
+                        status = when {
+                            petAnalysis.requested -> AnalysisStatus.Running
+                            else -> petAnalysis.status?.let {
+                                when (it) {
+                                    com.ugallery.core.ml.MlCheckpoint.Status.Ready -> AnalysisStatus.Ready
+                                    com.ugallery.core.ml.MlCheckpoint.Status.Running -> AnalysisStatus.Running
+                                    com.ugallery.core.ml.MlCheckpoint.Status.Paused -> AnalysisStatus.Paused
+                                    com.ugallery.core.ml.MlCheckpoint.Status.Complete -> AnalysisStatus.Complete
+                                }
+                            }
+                        },
+                    ),
                     onPetCollectionsEnabledChange = {
                         if (it) viewModel.enablePetCollections() else viewModel.disablePetCollections()
                     },
@@ -594,6 +705,12 @@ internal fun ProductionGalleryApp(
                         viewModel.restorePetType(com.ugallery.core.ml.PetType.Dog)
                         viewModel.restorePetType(com.ugallery.core.ml.PetType.Cat)
                     },
+                    settings = gallerySettings,
+                    folderOptions = galleryFolderOptions,
+                    onSettingsChange = viewModel::updateGallerySettings,
+                    onExportSettings = { exportSettingsLauncher.launch("ugallery-backup.json") },
+                    onImportSettings = { importSettingsLauncher.launch("application/json") },
+                    onResetSettings = viewModel::resetGallerySettings,
                     showHeader = false,
                 )
                 SurfaceRoute.PrivateAlbum -> PrivateAlbumContent(
@@ -704,8 +821,8 @@ internal fun ProductionGalleryApp(
                         } else viewModel.selectAllTimeline()
                     },
                     onFavorite = { viewModel.beginSelectionSystemAction(MediaAction.Favorite(true)) },
-                    onTrash = { viewModel.beginSelectionSystemAction(MediaAction.Trash(true)) },
-                    onDelete = { viewModel.beginSelectionSystemAction(MediaAction.Delete) },
+                    onTrash = { runDestructive { viewModel.beginSelectionSystemAction(MediaAction.Trash(true)) } },
+                    onDelete = { runDestructive { viewModel.beginSelectionSystemAction(MediaAction.Delete) } },
                     onAddToAlbum = { showAddToAlbum = true },
                     onShare = {
                         viewModel.selectionShareIntent()?.let {
@@ -741,7 +858,13 @@ internal fun ProductionGalleryApp(
                         onBack = { route = SurfaceRoute.Root },
                         navigationContentDescription = stringResource(R.string.nav_back),
                         actions = {
-                            if (trashCount > 0) TextButton(onClick = { showEmptyTrashConfirmation = true }) {
+                            if (trashCount > 0) TextButton(onClick = {
+                                if (gallerySettings.operations.skipAppDeleteConfirmation) {
+                                    runDestructive(viewModel::emptyTrash)
+                                } else {
+                                    showEmptyTrashConfirmation = true
+                                }
+                            }) {
                                 Text(stringResource(com.ugallery.feature.trash.R.string.trash_empty))
                             }
                         },
@@ -820,7 +943,7 @@ internal fun ProductionGalleryApp(
             confirmButton = {
                 TextButton(onClick = {
                     showEmptyTrashConfirmation = false
-                    viewModel.emptyTrash()
+                    runDestructive(viewModel::emptyTrash)
                 }) { Text(stringResource(R.string.trash_empty_confirm)) }
             },
             dismissButton = {
@@ -1029,9 +1152,76 @@ private fun ViewerRoute(
     gazetteer: OfflineGazetteer? = null,
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val cheap by viewModel.cheapDetails.collectAsState()
     val exif by viewModel.exifDetails.collectAsState()
     val detectedText by viewModel.detectedText.collectAsState()
+    val quickSlowMotionSave by viewModel.quickSlowMotionSave.collectAsState()
+    val gallerySettings by viewModel.gallerySettings.collectAsState()
+    val destructiveAuthTitle = stringResource(R.string.destructive_auth_title)
+    val destructiveAuthBody = stringResource(R.string.destructive_auth_body)
+    val chooserTitle = stringResource(R.string.viewer_choose_app)
+    val copyComplete = stringResource(R.string.viewer_copy_complete)
+    val moveCopyComplete = stringResource(R.string.viewer_move_copy_complete)
+    val actionUnavailable = stringResource(R.string.viewer_action_unavailable)
+    var renameDialogVisible by rememberSaveable(media.key) { mutableStateOf(false) }
+    var renameValue by rememberSaveable(media.key) { mutableStateOf(media.displayName.orEmpty()) }
+    var treeMoveRequested by remember { mutableStateOf(false) }
+    val treeLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { treeUri ->
+        if (treeUri != null) coroutineScope.launch {
+            viewModel.copyMediaToTree(media, treeUri, treeMoveRequested)
+                .onSuccess {
+                    Toast.makeText(context, if (treeMoveRequested) moveCopyComplete else copyComplete, Toast.LENGTH_SHORT).show()
+                }
+                .onFailure { Toast.makeText(context, it.message ?: actionUnavailable, Toast.LENGTH_LONG).show() }
+        }
+    }
+    val target = remember(media.key, media.kind) { MediaActionTarget(media.key, media.kind) }
+    val wildcardMime = if (media.kind == MediaKind.Video) "video/*" else "image/*"
+    fun launchExternal(intent: Intent) {
+        runCatching { context.startActivity(Intent.createChooser(intent, chooserTitle)) }
+            .onFailure { Toast.makeText(context, actionUnavailable, Toast.LENGTH_SHORT).show() }
+    }
+    fun showDateRepairPicker() {
+        val calendar = java.util.Calendar.getInstance().apply { timeInMillis = media.timelineSortMillis }
+        android.app.DatePickerDialog(
+            context,
+            { _, year, month, day ->
+                calendar.set(java.util.Calendar.YEAR, year)
+                calendar.set(java.util.Calendar.MONTH, month)
+                calendar.set(java.util.Calendar.DAY_OF_MONTH, day)
+                viewModel.requestDateRepair(media, calendar.timeInMillis)
+            },
+            calendar.get(java.util.Calendar.YEAR),
+            calendar.get(java.util.Calendar.MONTH),
+            calendar.get(java.util.Calendar.DAY_OF_MONTH),
+        ).show()
+    }
+    fun runViewerDestructive(block: () -> Unit) {
+        if (!gallerySettings.security.destructiveActionLockEnabled) {
+            block()
+            return
+        }
+        val fragmentActivity = context as? FragmentActivity ?: return
+        BiometricGate.authenticate(
+            activity = fragmentActivity,
+            title = destructiveAuthTitle,
+            subtitle = destructiveAuthBody,
+            onSuccess = block,
+            onError = {},
+            onFail = {},
+        )
+    }
+    DisposableEffect(context, gallerySettings.playback.maximumBrightness) {
+        val window = (context as? Activity)?.window
+        val previous = window?.attributes?.screenBrightness
+        if (gallerySettings.playback.maximumBrightness) {
+            window?.attributes = window?.attributes?.apply { screenBrightness = 1f }
+        }
+        onDispose {
+            if (previous != null) window.attributes = window.attributes.apply { screenBrightness = previous }
+        }
+    }
     val placeName = remember(exif) {
         val location = (exif as? com.ugallery.core.model.ExifLoadResult.Ready)?.details?.location
         if (location != null && gazetteer != null) {
@@ -1039,11 +1229,51 @@ private fun ViewerRoute(
         } else null
     }
     val videoController = if (media.kind == MediaKind.Video) remember(media.key) {
-        VideoViewerController(context).also {
-            it.select(viewModel.mediaUri(media), autoplay = true, startMuted = true)
+        VideoViewerController(context, initialLooping = gallerySettings.playback.loopVideos).also {
+            it.select(
+                viewModel.mediaUri(media),
+                autoplay = gallerySettings.playback.autoplayVideos,
+                startMuted = gallerySettings.playback.startVideosMuted,
+            )
         }
     } else null
-    DisposableEffect(videoController) { onDispose { videoController?.close() } }
+    LaunchedEffect(videoController, gallerySettings.playback.loopVideos) {
+        videoController?.setLooping(gallerySettings.playback.loopVideos)
+    }
+    var restoredVideoPosition by remember(media.key) { mutableStateOf(false) }
+    LaunchedEffect(videoController, media.key, gallerySettings.playback.rememberVideoPosition) {
+        val controller = videoController ?: return@LaunchedEffect
+        if (gallerySettings.playback.rememberVideoPosition) {
+            viewModel.restoredVideoPosition(media).takeIf { it > 0L }?.let(controller::seekTo)
+        }
+        restoredVideoPosition = true
+    }
+    LaunchedEffect(videoController, media.key, restoredVideoPosition) {
+        val controller = videoController ?: return@LaunchedEffect
+        if (!restoredVideoPosition) return@LaunchedEffect
+        while (true) {
+            delay(5_000L)
+            viewModel.saveVideoPosition(media, controller.currentPositionMillis())
+        }
+    }
+    val slowMotionSession = if (media.kind == MediaKind.Video) remember(media.key) {
+        com.ugallery.feature.viewer.HoldSlowMotionSession(context, viewModel.mediaUri(media))
+    } else null
+    LaunchedEffect(slowMotionSession, videoController) {
+        val session = slowMotionSession ?: return@LaunchedEffect
+        val controller = videoController ?: return@LaunchedEffect
+        while (true) {
+            session.prepare(controller.currentPositionMillis())
+            delay(1_000L)
+        }
+    }
+    DisposableEffect(videoController, slowMotionSession) {
+        onDispose {
+            slowMotionSession?.close()
+            videoController?.let { viewModel.saveVideoPosition(media, it.currentPositionMillis()) }
+            videoController?.close()
+        }
+    }
     LaunchedEffect(videoController) {
         viewModel.hardwareVolumeKeys.collect { videoController?.unmute() }
     }
@@ -1058,14 +1288,44 @@ private fun ViewerRoute(
             onBack = onBack,
             onToggleFavorite = { viewModel.beginSystemAction(media, MediaAction.Favorite(!media.isFavorite)) },
             onShare = {
-                context.startActivity(Intent.createChooser(viewModel.originalShareIntent(media), null))
+                if (gallerySettings.operations.shareWithoutLocationByDefault) {
+                    onShareSanitized()
+                } else {
+                    context.startActivity(Intent.createChooser(viewModel.originalShareIntent(media), null))
+                }
             },
             onDetails = onShowDetails,
             onEdit = onEdit,
+            onRename = {
+                renameValue = media.displayName.orEmpty()
+                renameDialogVisible = true
+            },
+            onCopy = {
+                treeMoveRequested = false
+                treeLauncher.launch(null)
+            },
+            onMove = {
+                treeMoveRequested = true
+                treeLauncher.launch(null)
+            },
+            onOpenWith = { launchExternal(ScopedMediaOperations.viewIntent(target, wildcardMime)) },
+            onSetAs = { launchExternal(ScopedMediaOperations.setAsIntent(target, wildcardMime)) },
+            onPrint = {
+                runCatching { ScopedMediaOperations.printImage(context, target, media.displayName ?: "UGallery") }
+                    .onFailure { Toast.makeText(context, it.message ?: actionUnavailable, Toast.LENGTH_SHORT).show() }
+            },
+            onRepairDate = ::showDateRepairPicker,
             onShareSanitized = onShareSanitized,
-            onTrash = { viewModel.beginSystemAction(media, MediaAction.Trash(true)) },
+            onTrash = { runViewerDestructive { viewModel.beginSystemAction(media, MediaAction.Trash(true)) } },
             onSelectMedia = viewModel::selectViewerMedia,
             onContentTap = { videoController?.unmute() },
+            slowMotionSession = slowMotionSession,
+            onSaveSlowMotionClip = { clip ->
+                viewModel.saveQuickSlowMotionClip(media, clip.startMillis, clip.endMillis)
+            },
+            slowMotionSaveProgress = quickSlowMotionSave.progress,
+            slowMotionSaveCompletionGeneration = quickSlowMotionSave.completionGeneration,
+            gestureSettings = gallerySettings.gestures,
             modifier = Modifier.fillMaxSize(),
         )
         // Motion photo badge - detection requires file access, shown when available
@@ -1127,6 +1387,31 @@ private fun ViewerRoute(
             }
         }
     }
+    if (renameDialogVisible) AlertDialog(
+        onDismissRequest = { renameDialogVisible = false },
+        title = { Text(stringResource(R.string.viewer_rename)) },
+        text = {
+            OutlinedTextField(
+                value = renameValue,
+                onValueChange = { renameValue = it },
+                singleLine = true,
+                label = { Text(stringResource(R.string.viewer_file_name)) },
+            )
+        },
+        confirmButton = {
+            TextButton(
+                enabled = runCatching { ScopedMediaOperations.validateDisplayName(renameValue) }.isSuccess,
+                onClick = {
+                    runCatching { viewModel.requestRename(media, renameValue) }
+                        .onSuccess { renameDialogVisible = false }
+                        .onFailure { Toast.makeText(context, it.message ?: actionUnavailable, Toast.LENGTH_SHORT).show() }
+                },
+            ) { Text(stringResource(R.string.viewer_rename)) }
+        },
+        dismissButton = {
+            TextButton(onClick = { renameDialogVisible = false }) { Text(stringResource(android.R.string.cancel)) }
+        },
+    )
 }
 
 @Composable private fun RootNavigationBar(selected: RootTab, onSelect: (RootTab) -> Unit) {

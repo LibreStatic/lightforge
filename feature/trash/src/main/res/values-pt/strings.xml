@@ -1,1 +1,4 @@
-<resources><string name="trash_title">Lixeira</string><string name="trash_empty">Esvaziar lixeira</string><string name="trash_empty_state">A lixeira está vazia</string><string name="trash_restore">Restaurar</string><string name="trash_delete_permanently">Excluir permanentemente</string><string name="trash_expires_on">Exclusão automática em %1$s</string><string name="trash_expiry_unknown">Data de exclusão indisponível</string></resources>
+<resources><string name="trash_title">Lixeira</string><string name="trash_empty">Esvaziar lixeira</string><string name="trash_empty_state">A lixeira está vazia</string><string name="trash_restore">Restaurar</string><string name="trash_delete_permanently">Excluir permanentemente</string><string name="trash_expires_on">Exclusão automática em %1$s</string><string name="trash_expiry_unknown">Data de exclusão indisponível</string>    <string name="trash_empty_title">A lixeira está vazia</string>
+    <string name="trash_empty_description">Ilustração de itens excluídos</string>
+    <string name="trash_unnamed_item">Item sem título</string>
+</resources>
