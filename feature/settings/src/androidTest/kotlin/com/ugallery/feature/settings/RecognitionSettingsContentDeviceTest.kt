@@ -13,6 +13,7 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.ugallery.core.designsystem.UGalleryTheme
@@ -47,6 +48,11 @@ class RecognitionSettingsContentDeviceTest {
                     onAnalyzeAll = {},
                     onDelete = { deleteCount++ },
                     petCollectionsEnabled = pets,
+                    petAnalysisState = FaceAnalysisUiState(
+                        consentGranted = true,
+                        status = AnalysisStatus.Running,
+                        completedItems = 7,
+                    ),
                     onPetCollectionsEnabledChange = { pets = it },
                     onHideDogResults = {},
                     onHideCatResults = {},
@@ -56,17 +62,42 @@ class RecognitionSettingsContentDeviceTest {
             }
         }
 
-        compose.onNode(hasText(context.getString(R.string.face_analysis_no_identity))).assertIsDisplayed()
-        compose.onNode(hasText(context.getString(R.string.face_analysis_enable))).performClick()
-        compose.onNode(hasText(context.getString(R.string.face_analysis_progress, 12))).assertIsDisplayed()
-        compose.onNode(hasText(context.getString(R.string.face_analysis_delete))).performClick()
+        // Nested IA: analysis controls live on the "Local analysis" sub-page.
+        compose.onNode(hasText(context.getString(R.string.settings_page_ai)))
+            .performClick()
+        compose.waitForIdle()
+        compose.onNode(hasText(context.getString(R.string.face_analysis_no_identity)))
+            .performScrollTo()
+            .assertIsDisplayed()
+        compose.onNode(hasText(context.getString(R.string.face_analysis_enable)))
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performClick()
+        compose.waitForIdle()
+        compose.onNode(hasText(context.getString(R.string.face_analysis_progress, 12)))
+            .performScrollTo()
+            .assertIsDisplayed()
+        compose.onNode(hasText(context.getString(R.string.face_analysis_delete)))
+            .performScrollTo()
+            .performClick()
         compose.onNode(hasText(context.getString(R.string.face_analysis_delete_body))).assertIsDisplayed()
         compose.onNode(hasText(context.getString(R.string.face_analysis_delete_confirm))).performClick()
         assertEquals(1, deleteCount)
 
-        compose.onNode(hasContentDescription(context.getString(R.string.pet_collections_enable))).assertIsDisplayed()
+        compose.onNode(hasContentDescription(context.getString(R.string.pet_collections_enable)))
+            .performScrollTo()
+            .assertIsDisplayed()
         compose.onNode(hasTestTag("pet_collections_switch")).performClick()
-        compose.onNode(hasText(context.getString(R.string.pet_hide_dog))).assertIsDisplayed()
-        compose.onNode(hasText(context.getString(R.string.pet_hide_cat))).assertIsDisplayed()
+        compose.waitForIdle()
+        compose.onNode(hasText(context.getString(R.string.pet_analysis_running, 7)))
+            .performScrollTo()
+            .assertIsDisplayed()
+        compose.onNode(hasTestTag("pet_analysis_progress_indicator")).assertIsDisplayed()
+        compose.onNode(hasText(context.getString(R.string.pet_hide_dog)))
+            .performScrollTo()
+            .assertIsDisplayed()
+        compose.onNode(hasText(context.getString(R.string.pet_hide_cat)))
+            .performScrollTo()
+            .assertIsDisplayed()
     }
 }
