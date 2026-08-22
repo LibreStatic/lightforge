@@ -10,6 +10,9 @@ data class MlControlState(
     val paused: Boolean,
     val completedItems: Long,
     val status: MlCheckpoint.Status?,
+    val requested: Boolean = false,
+    val runMode: MlRunMode? = null,
+    val activeTask: MlTaskType? = null,
 )
 
 class MlScheduler(context: Context) {
@@ -22,6 +25,7 @@ class MlScheduler(context: Context) {
         if (!enabled) {
             workManager.cancelUniqueWork(MlChunkWorker.uniqueName(task))
             state.setPaused(task, true)
+            state.setRequestedMode(task, null)
         }
     }
 
@@ -31,7 +35,9 @@ class MlScheduler(context: Context) {
 
     fun enqueue(task: MlTaskType, mode: MlRunMode = MlRunMode.Recent): Boolean {
         if (!state.isConsentEnabled(task)) return false
+        if (state.requestedMode(task) != null) return true
         state.setPaused(task, false)
+        state.setRequestedMode(task, mode)
         workManager.enqueueUniqueWork(
             MlChunkWorker.uniqueName(task),
             ExistingWorkPolicy.KEEP,
@@ -42,7 +48,12 @@ class MlScheduler(context: Context) {
 
     fun pause(task: MlTaskType) {
         state.setPaused(task, true)
+        state.setRequestedMode(task, null)
         workManager.cancelUniqueWork(MlChunkWorker.uniqueName(task))
+    }
+
+    fun unpause(task: MlTaskType) {
+        state.setPaused(task, false)
     }
 
     fun resume(task: MlTaskType, mode: MlRunMode = MlRunMode.Recent): Boolean = enqueue(task, mode)
@@ -50,6 +61,7 @@ class MlScheduler(context: Context) {
     suspend fun restart(task: MlTaskType, mode: MlRunMode): Boolean {
         if (!state.isConsentEnabled(task)) return false
         workManager.cancelUniqueWork(MlChunkWorker.uniqueName(task)).await()
+        state.setRequestedMode(task, null)
         return enqueue(task, mode)
     }
 
@@ -71,6 +83,9 @@ class MlScheduler(context: Context) {
             paused = state.isPaused(task),
             completedItems = checkpoint?.completedItems ?: 0,
             status = checkpoint?.status,
+            requested = state.requestedMode(task) != null,
+            runMode = state.requestedMode(task),
+            activeTask = task,
         )
     }
 }

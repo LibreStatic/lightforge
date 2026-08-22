@@ -1,5 +1,6 @@
 package com.ugallery.core.ml
 
+import android.util.Log
 import kotlinx.coroutines.CancellationException
 
 sealed interface MlRunnerResult {
@@ -21,7 +22,10 @@ class MlChunkRunner(
         )) {
             MlExecutionDecision.ConsentRequired,
             MlExecutionDecision.Paused,
-            -> return MlRunnerResult.Stopped
+            -> {
+                state.setRequestedMode(engine.task, null)
+                return MlRunnerResult.Stopped
+            }
             MlExecutionDecision.ThermalBackoff -> return MlRunnerResult.Retry("thermal")
             MlExecutionDecision.PermissionLost -> {
                 engine.purgeDerivedData()
@@ -45,8 +49,12 @@ class MlChunkRunner(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Throwable) {
+            Log.e("UGalleryMl", "${engine.task.name} batch failed", failure)
             state.write(current.copy(status = MlCheckpoint.Status.Ready))
-            return MlRunnerResult.Retry(failure.javaClass.simpleName.take(100))
+            val root = generateSequence(failure) { it.cause }.last()
+            return MlRunnerResult.Retry(
+                "${root.javaClass.simpleName}: ${root.message.orEmpty()}".take(100),
+            )
         }
         return when (outcome) {
             is MlChunkOutcome.More -> {
@@ -67,6 +75,7 @@ class MlChunkRunner(
                     status = MlCheckpoint.Status.Complete,
                 )
                 state.write(updated)
+                state.setRequestedMode(engine.task, null)
                 MlRunnerResult.Finished(updated)
             }
             MlChunkOutcome.PermissionLost -> {

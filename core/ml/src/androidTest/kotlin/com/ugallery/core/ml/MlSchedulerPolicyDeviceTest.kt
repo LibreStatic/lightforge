@@ -32,7 +32,7 @@ class MlSchedulerPolicyDeviceTest {
 
     @After fun tearDown() = MlRuntimeRegistry.clear()
 
-    @Test fun workPoliciesNeverRequireNetworkAndFullScanAddsChargingAndIdle() {
+    @Test fun userStartedWorkPoliciesRunWithoutChargingOrIdle() {
         val recent = MlWorkPolicy.forMode(MlRunMode.Recent)
         val full = MlWorkPolicy.forMode(MlRunMode.FullLibrary)
 
@@ -40,11 +40,20 @@ class MlSchedulerPolicyDeviceTest {
         assertEquals(100, full.chunkSize)
         assertFalse(recent.constraints.requiresCharging())
         assertFalse(recent.constraints.requiresDeviceIdle())
-        assertTrue(full.constraints.requiresCharging())
-        assertTrue(full.constraints.requiresDeviceIdle())
+        assertFalse(full.constraints.requiresCharging())
+        assertFalse(full.constraints.requiresDeviceIdle())
         assertTrue(full.constraints.requiresBatteryNotLow())
         assertTrue(full.constraints.requiresStorageNotLow())
         assertEquals(androidx.work.NetworkType.NOT_REQUIRED, full.constraints.requiredNetworkType)
+    }
+
+    @Test fun recentAndFullLibraryRequestsCanStartWhileAppIsOpen() {
+        val recent = MlChunkWorker.request(MlTaskType.FaceDetection, MlRunMode.Recent)
+        val full = MlChunkWorker.request(MlTaskType.FaceDetection, MlRunMode.FullLibrary)
+
+        assertFalse(recent.workSpec.constraints.requiresDeviceIdle())
+        assertFalse(full.workSpec.constraints.requiresDeviceIdle())
+        assertFalse(full.workSpec.constraints.requiresCharging())
     }
 
     @Test fun moderateThermalStatusBacksOffBeforeOpeningMedia() = runBlocking {
@@ -128,6 +137,31 @@ class MlSchedulerPolicyDeviceTest {
         assertFalse(deleted.paused)
         assertNull(deleted.status)
         assertEquals(1, engine.purgeCalls)
+    }
+
+    @Test fun unpauseClearsPausedStateWithoutEnqueueingAnotherStage() {
+        val scheduler = MlScheduler(context)
+        scheduler.grantConsent(MlTaskType.FaceDetection)
+        scheduler.pause(MlTaskType.FaceDetection)
+        assertTrue(scheduler.controlState(MlTaskType.FaceDetection).paused)
+
+        scheduler.unpause(MlTaskType.FaceDetection)
+
+        assertFalse(scheduler.controlState(MlTaskType.FaceDetection).paused)
+    }
+
+    @Test fun schedulerExposesQueuedModeUntilWorkFinishes() = runBlocking {
+        val engine = FakeEngine(task = MlTaskType.FaceDetection)
+        val scheduler = MlScheduler(context)
+        scheduler.grantConsent(engine.task)
+
+        assertTrue(scheduler.enqueue(engine.task, MlRunMode.FullLibrary))
+        val queued = scheduler.controlState(engine.task)
+        assertTrue(queued.requested)
+        assertEquals(MlRunMode.FullLibrary, queued.runMode)
+
+        assertTrue(runner().run(engine, MlWorkPolicy.forMode(MlRunMode.FullLibrary)) is MlRunnerResult.Finished)
+        assertFalse(scheduler.controlState(engine.task).requested)
     }
 
     private fun runner() = MlChunkRunner(

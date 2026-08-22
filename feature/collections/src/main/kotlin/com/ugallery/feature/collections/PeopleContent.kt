@@ -80,12 +80,16 @@ data class PeopleUiState(
     val consentGranted: Boolean = false,
     val paused: Boolean = false,
     val running: Boolean = false,
+    val waiting: Boolean = false,
+    val analysisStage: PeopleAnalysisStage = PeopleAnalysisStage.Idle,
     val completedItems: Long = 0,
     val people: List<PersonCardUi> = emptyList(),
     val selectedPerson: PersonCardUi? = null,
     val selectedMembers: List<PersonMemberCardUi> = emptyList(),
     val me: LocalMeUiState? = null,
 )
+
+enum class PeopleAnalysisStage { Idle, FaceDetection, FaceEmbeddings, PersonClustering, Complete, Paused }
 
 @Composable
 fun PeopleContent(
@@ -109,7 +113,7 @@ fun PeopleContent(
         GridItemSpan(maxLineSpan)
     }
     LazyVerticalGrid(
-        columns = GridCells.Adaptive(160.dp),
+        columns = GridCells.Adaptive(140.dp),
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -134,13 +138,17 @@ fun PeopleContent(
                 Text(stringResource(R.string.people_enable))
             } }
         } else {
-            if (state.running) item(span = fullSpan) { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+            if (state.running || state.waiting) item(span = fullSpan) { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+            item(span = fullSpan) { Text(peopleStatusText(state), style = MaterialTheme.typography.titleMedium) }
             item(span = fullSpan) { Text(stringResource(R.string.people_progress, state.completedItems)) }
             item(span = fullSpan) { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = if (state.paused) onResume else onPause) {
                     Text(stringResource(if (state.paused) R.string.people_resume else R.string.people_pause))
                 }
-                OutlinedButton(onClick = onAnalyzeAll) { Text(stringResource(R.string.people_analyze_all)) }
+                OutlinedButton(
+                    onClick = onAnalyzeAll,
+                    enabled = !state.running && !state.waiting,
+                ) { Text(stringResource(R.string.people_analyze_all)) }
             } }
             item(span = fullSpan) { TextButton(onClick = { confirmDelete = true }) {
                 Text(stringResource(R.string.people_delete_all), color = MaterialTheme.colorScheme.error)
@@ -150,7 +158,13 @@ fun PeopleContent(
         val selected = state.selectedPerson
         if (selected == null) {
             if (state.people.isEmpty()) item(span = fullSpan) {
-                Text(stringResource(R.string.people_empty), modifier = Modifier.testTag("people_empty"))
+                Text(
+                    stringResource(
+                        if (state.analysisStage == PeopleAnalysisStage.Complete) R.string.people_empty_complete
+                        else R.string.people_empty,
+                    ),
+                    modifier = Modifier.testTag("people_empty"),
+                )
             } else items(state.people, key = { it.clusterId }) { person ->
                 PersonCard(person, thumbnailLoader) { onPersonClick(person.clusterId) }
             }
@@ -211,7 +225,7 @@ private fun PeopleGrid(people: List<PersonCardUi>, loader: ThumbnailLoader?, onP
 @Composable
 private fun PersonCard(person: PersonCardUi, loader: ThumbnailLoader?, onClick: () -> Unit) {
     val title = person.displayName ?: stringResource(R.string.people_default_name)
-    Card(Modifier.fillMaxWidth().clickable(onClick = onClick).semantics {
+    Card(Modifier.fillMaxWidth().testTag("person_${person.clusterId}").clickable(onClick = onClick).semantics {
         contentDescription = "$title. ${person.memberCount}"
     }) {
         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -220,6 +234,19 @@ private fun PersonCard(person: PersonCardUi, loader: ThumbnailLoader?, onClick: 
             Text(stringResource(R.string.people_face_count, person.memberCount))
         }
     }
+}
+
+@Composable
+private fun peopleStatusText(state: PeopleUiState): String = when {
+    state.paused || state.analysisStage == PeopleAnalysisStage.Paused -> stringResource(R.string.people_status_paused)
+    state.analysisStage == PeopleAnalysisStage.Complete -> stringResource(R.string.people_status_complete)
+    state.waiting && state.analysisStage == PeopleAnalysisStage.FaceDetection -> stringResource(R.string.people_status_preparing_faces)
+    state.waiting && state.analysisStage == PeopleAnalysisStage.FaceEmbeddings -> stringResource(R.string.people_status_preparing_embeddings)
+    state.waiting && state.analysisStage == PeopleAnalysisStage.PersonClustering -> stringResource(R.string.people_status_preparing_groups)
+    state.analysisStage == PeopleAnalysisStage.FaceDetection -> stringResource(R.string.people_status_detecting_faces)
+    state.analysisStage == PeopleAnalysisStage.FaceEmbeddings -> stringResource(R.string.people_status_building_embeddings)
+    state.analysisStage == PeopleAnalysisStage.PersonClustering -> stringResource(R.string.people_status_grouping_people)
+    else -> stringResource(R.string.people_status_ready)
 }
 
 @Composable

@@ -234,6 +234,7 @@ internal fun ProductionGalleryApp(
                 viewModel.closeVideoEditor()
                 route = SurfaceRoute.Viewer
             }
+            route == SurfaceRoute.People && selectedPerson != null -> viewModel.closePerson()
             route == SurfaceRoute.Viewer -> route = SurfaceRoute.Root
             else -> route = SurfaceRoute.Root
         }
@@ -525,6 +526,15 @@ internal fun ProductionGalleryApp(
                         consentGranted = peopleAnalysis.consentGranted || people.isNotEmpty(),
                         paused = peopleAnalysis.paused,
                         running = peopleAnalysis.status == com.ugallery.core.ml.MlCheckpoint.Status.Running,
+                        waiting = peopleAnalysis.requested && peopleAnalysis.status != com.ugallery.core.ml.MlCheckpoint.Status.Running,
+                        analysisStage = when {
+                            peopleAnalysis.paused -> com.ugallery.feature.collections.PeopleAnalysisStage.Paused
+                            peopleAnalysis.status == com.ugallery.core.ml.MlCheckpoint.Status.Complete -> com.ugallery.feature.collections.PeopleAnalysisStage.Complete
+                            peopleAnalysis.activeTask == com.ugallery.core.ml.MlTaskType.FaceDetection -> com.ugallery.feature.collections.PeopleAnalysisStage.FaceDetection
+                            peopleAnalysis.activeTask == com.ugallery.core.ml.MlTaskType.FaceEmbeddings -> com.ugallery.feature.collections.PeopleAnalysisStage.FaceEmbeddings
+                            peopleAnalysis.activeTask == com.ugallery.core.ml.MlTaskType.PersonClustering -> com.ugallery.feature.collections.PeopleAnalysisStage.PersonClustering
+                            else -> com.ugallery.feature.collections.PeopleAnalysisStage.Idle
+                        },
                         completedItems = peopleAnalysis.completedItems,
                         people = people,
                         selectedPerson = selectedPerson,
@@ -532,7 +542,10 @@ internal fun ProductionGalleryApp(
                         me = me,
                     ),
                     thumbnailLoader = thumbnails,
-                    onBack = { route = SurfaceRoute.Root },
+                    onBack = {
+                        if (selectedPerson != null) viewModel.closePerson()
+                        else route = SurfaceRoute.Root
+                    },
                     onEnable = viewModel::enablePeopleRecognition,
                     onPause = viewModel::pausePeopleRecognition,
                     onResume = viewModel::resumePeopleRecognition,

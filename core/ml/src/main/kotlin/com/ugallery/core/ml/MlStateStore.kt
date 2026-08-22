@@ -39,7 +39,7 @@ class MlStateStore(context: Context) {
     fun clear(task: MlTaskType) {
         val prefix = task.name
         preferences.edit().also { editor ->
-            listOf("version", "volume", "id", "completed", "status").forEach {
+            listOf("version", "volume", "id", "completed", "status", "requestedMode").forEach {
                 editor.remove("$prefix.$it")
             }
         }.commit()
@@ -56,5 +56,16 @@ class MlStateStore(context: Context) {
         checkpoint(task)?.let {
             write(it.copy(status = if (paused) MlCheckpoint.Status.Paused else MlCheckpoint.Status.Ready))
         }
+    }
+
+    fun requestedMode(task: MlTaskType): MlRunMode? = preferences
+        .getString("${task.name}.requestedMode", null)
+        ?.let { runCatching { MlRunMode.valueOf(it) }.getOrNull() }
+
+    fun setRequestedMode(task: MlTaskType, mode: MlRunMode?) {
+        preferences.edit().also { editor ->
+            if (mode == null) editor.remove("${task.name}.requestedMode")
+            else editor.putString("${task.name}.requestedMode", mode.name)
+        }.commit()
     }
 }

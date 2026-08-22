@@ -55,12 +55,16 @@ class MlChunkWorker(
         internal fun uniqueName(task: MlTaskType) = "ugallery-ml-${task.name}"
         internal fun request(task: MlTaskType, mode: MlRunMode): OneTimeWorkRequest {
             val policy = MlWorkPolicy.forMode(mode)
-            return OneTimeWorkRequestBuilder<MlChunkWorker>()
+            val request = OneTimeWorkRequestBuilder<MlChunkWorker>()
                 .setInputData(input(task, mode))
                 .setConstraints(policy.constraints)
-                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, Duration.ofSeconds(30))
                 .addTag(uniqueName(task))
-                .build()
+            // Android's JobScheduler rejects backoff criteria for idle-mode jobs.
+            // Keep this guard if a future background-only mode adds that constraint.
+            if (!policy.constraints.requiresDeviceIdle()) {
+                request.setBackoffCriteria(BackoffPolicy.EXPONENTIAL, Duration.ofSeconds(30))
+            }
+            return request.build()
         }
 
         internal fun input(task: MlTaskType, mode: MlRunMode): Data =

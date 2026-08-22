@@ -201,6 +201,27 @@ class DetectedContentEngineDeviceTest {
         assertEquals(0, database.libraryDao().detectedFaceCount())
     }
 
+    @Test fun imageSmallerThanMlKitMinimumDoesNotStarveFaceDetectionQueue() = runBlocking {
+        val tiny = imageFixture(
+            "tiny-face-${UUID.randomUUID()}.png",
+            "TINY",
+            Bitmap.createBitmap(353, 25, Bitmap.Config.ARGB_8888),
+        )
+        database.libraryDao().upsertMedia(listOf(media(tiny, bucket = "Camera", sort = 55)))
+        val engine = FaceDetectionMlEngine(
+            context.contentResolver,
+            database,
+            { true },
+            inference = FaceDetectionInference { error("inference must not run below ML Kit's minimum size") },
+        )
+
+        engine.use {
+            assertEquals(MlChunkOutcome.Complete(1), it.process(null, 50))
+            assertEquals(MlChunkOutcome.Complete(0), it.process(null, 50))
+        }
+        assertEquals(0, database.libraryDao().detectedFaceCount())
+    }
+
     @Test fun inferenceFailureDoesNotCommitAnEmptyResult() = runBlocking {
         val fixture = imageFixture("retry-${UUID.randomUUID()}.png", "RETRY")
         database.libraryDao().upsertMedia(listOf(media(fixture, bucket = "Camera", sort = 30)))
@@ -218,7 +239,7 @@ class DetectedContentEngineDeviceTest {
         assertTrue(database.libraryDao().labels(key.volumeName, key.mediaStoreId).isEmpty())
     }
 
-    private fun imageFixture(name: String, text: String): Uri {
+    private fun imageFixture(name: String, text: String, bitmap: Bitmap = textBitmap(text)): Uri {
         val resolver = context.contentResolver
         val uri = requireNotNull(
             resolver.insert(
@@ -231,7 +252,8 @@ class DetectedContentEngineDeviceTest {
                 },
             ),
         )
-        resolver.openOutputStream(uri)!!.use { textBitmap(text).compress(Bitmap.CompressFormat.PNG, 100, it) }
+        resolver.openOutputStream(uri)!!.use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        bitmap.recycle()
         resolver.update(uri, ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }, null, null)
         fixtures += uri
         return uri

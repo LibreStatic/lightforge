@@ -18,8 +18,11 @@ data class MlWorkPolicy(
                 .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
                 .setRequiresBatteryNotLow(true)
                 .setRequiresStorageNotLow(true)
-                .setRequiresCharging(mode == MlRunMode.FullLibrary)
-                .setRequiresDeviceIdle(mode == MlRunMode.FullLibrary)
+                // Full-library analysis is explicitly started by the user. Requiring both
+                // charging and device-idle made the action appear broken while the app was
+                // open. Battery, storage and thermal guards still protect the device.
+                .setRequiresCharging(false)
+                .setRequiresDeviceIdle(false)
                 .build(),
         )
     }

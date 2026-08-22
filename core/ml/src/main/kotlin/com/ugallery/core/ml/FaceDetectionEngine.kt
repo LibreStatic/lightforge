@@ -3,6 +3,7 @@ package com.ugallery.core.ml
 import android.content.ContentResolver
 import android.content.ContentUris
 import android.graphics.Bitmap
+import android.graphics.Bitmap.Config
 import android.graphics.Rect
 import android.os.CancellationSignal
 import android.provider.MediaStore
@@ -167,16 +168,34 @@ class FaceDetectionMlEngine(
                 )
                 continue
             }
-            val bitmapWidth = bitmap.width
-            val bitmapHeight = bitmap.height
+            val inferenceBitmap = if (bitmap.config == Config.HARDWARE) {
+                bitmap.copy(Config.ARGB_8888, false)
+            } else {
+                bitmap
+            }
+            val bitmapWidth = inferenceBitmap.width
+            val bitmapHeight = inferenceBitmap.height
+            if (bitmapWidth < MinimumInputPixels || bitmapHeight < MinimumInputPixels) {
+                if (inferenceBitmap !== bitmap) inferenceBitmap.recycle()
+                bitmap.recycle()
+                dao.replaceFaceDetection(
+                    FaceDetectionRunEntity(
+                        candidate.volumeName, candidate.mediaStoreId, candidate.generationModified,
+                        modelVersion, 0, nowMillis(),
+                    ),
+                    emptyList(),
+                )
+                continue
+            }
             val accepted = try {
-                inference.infer(bitmap)
+                inference.infer(inferenceBitmap)
                     .sortedWith(compareBy<RawDetectedFace> { it.boundingBox.top }.thenBy { it.boundingBox.left })
                     .mapNotNull { face ->
-                        val quality = FaceQualityFilter.evaluate(face, bitmap.width, bitmap.height)
+                        val quality = FaceQualityFilter.evaluate(face, inferenceBitmap.width, inferenceBitmap.height)
                         if (!quality.accepted) null else face to quality
                     }
             } finally {
+                if (inferenceBitmap !== bitmap) inferenceBitmap.recycle()
                 bitmap.recycle()
             }
             val run = FaceDetectionRunEntity(
@@ -202,6 +221,7 @@ class FaceDetectionMlEngine(
     companion object {
         const val ModelVersion = "mlkit-face-detection-16.1.7-quality-v1"
         const val DetectionThumbnail = 1_024
+        const val MinimumInputPixels = 32
     }
 }
 
