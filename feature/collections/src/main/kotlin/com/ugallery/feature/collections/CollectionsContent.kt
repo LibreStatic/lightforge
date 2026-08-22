@@ -7,15 +7,17 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +39,8 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import com.ugallery.core.database.MomentEntity
 import com.ugallery.core.database.MomentSummaryRow
 import com.ugallery.core.designsystem.GalleryStateContent
@@ -47,6 +51,23 @@ import com.ugallery.core.model.AlbumSummary
 import com.ugallery.core.model.MediaKey
 import com.ugallery.core.thumbnail.ThumbnailLoader
 import com.ugallery.core.thumbnail.ThumbnailRequest
+
+internal fun collectionGridColumns(availableWidth: Dp): Int = when {
+    availableWidth < 292.dp -> 1
+    availableWidth < 840.dp -> 2
+    else -> 4
+}
+
+private val CollectionCoverHeight = 88.dp
+
+private data class CollectionCardSpec(
+    val key: String,
+    val title: String,
+    val body: String,
+    val onClick: () -> Unit,
+    val icon: ImageVector? = null,
+    val cover: MediaKey? = null,
+)
 
 @Composable
 fun CollectionsContent(
@@ -77,6 +98,60 @@ fun CollectionsContent(
         repeat(virtualAlbums.itemCount) { virtualAlbums[it]?.let(::add) }
         repeat(physicalAlbums.itemCount) { physicalAlbums[it]?.let(::add) }
     }
+    val petCards = if (petCollectionsEnabled) listOf(
+        CollectionCardSpec(
+            key = "dogs",
+            title = stringResource(R.string.collections_dogs),
+            body = stringResource(R.string.collections_item_count, dogCount),
+            icon = GalleryIcons.Pet,
+            onClick = { onPetCollectionClick("dog") },
+        ),
+        CollectionCardSpec(
+            key = "cats",
+            title = stringResource(R.string.collections_cats),
+            body = stringResource(R.string.collections_item_count, catCount),
+            icon = GalleryIcons.Pet,
+            onClick = { onPetCollectionClick("cat") },
+        ),
+    ) else emptyList()
+    val momentCards = momentSummaries.map { summary ->
+        CollectionCardSpec(
+            key = "moment:${summary.moment.momentId}",
+            title = summary.moment.title ?: stringResource(R.string.moment_untitled),
+            body = stringResource(R.string.collections_item_count, summary.memberCount),
+            icon = GalleryIcons.Image,
+            onClick = { onMomentClick(summary.moment) },
+        )
+    }
+    val libraryCards = buildList {
+        if (peopleEnabled) add(CollectionCardSpec(
+            key = "people",
+            title = stringResource(R.string.collections_people),
+            body = stringResource(R.string.collections_item_count, peopleCount),
+            icon = GalleryIcons.User,
+            onClick = onPeopleClick,
+        ))
+        add(CollectionCardSpec(
+            key = "trash",
+            title = stringResource(R.string.collections_trash),
+            body = stringResource(R.string.collections_item_count, trashCount),
+            icon = GalleryIcons.Trash,
+            onClick = onTrashClick,
+        ))
+        albums.forEach { album ->
+            add(CollectionCardSpec(
+                key = "album:${album.key}",
+                title = album.name ?: stringResource(R.string.collections_untitled),
+                body = if (album.availability == AlbumAvailability.VolumeUnavailable) {
+                    stringResource(R.string.collections_volume_unavailable)
+                } else {
+                    stringResource(R.string.collections_item_count, album.itemCount)
+                },
+                cover = album.cover,
+                onClick = { onAlbumClick(album) },
+            ))
+        }
+    }
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
       Column(Modifier.fillMaxSize().widthIn(max = 1_200.dp).padding(horizontal = GallerySpacing.Lg), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
@@ -85,115 +160,62 @@ fun CollectionsContent(
             modifier = Modifier.padding(top = GallerySpacing.Xl, bottom = GallerySpacing.Sm).semantics { heading() },
         )
         BoxWithConstraints(Modifier.fillMaxSize()) {
-            val columns = when { maxWidth < 600.dp -> 1; maxWidth < 840.dp -> 2; else -> 4 }
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(columns),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            val columns = collectionGridColumns(maxWidth)
+            LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                item {
+                item(key = "local-analysis") {
                     CollectionCard(
                         title = stringResource(R.string.collections_local_analysis),
                         body = stringResource(R.string.collections_local_analysis_body),
                         icon = GalleryIcons.Analyze,
                         onClick = onLocalAnalysisClick,
+                        wide = true,
                     )
                 }
-                if (privateAlbumLabel != null && onPrivateAlbumClick != null) item {
+                if (privateAlbumLabel != null && onPrivateAlbumClick != null) item(key = "private-album") {
                     CollectionCard(
                         title = privateAlbumLabel,
                         body = stringResource(R.string.collections_private_album_body),
                         icon = GalleryIcons.Lock,
                         onClick = onPrivateAlbumClick,
+                        wide = true,
                     )
                 }
-                if (collageLabel != null && onCollageClick != null) item {
+                if (collageLabel != null && onCollageClick != null) item(key = "collage") {
                     CollectionCard(
                         title = collageLabel,
                         body = stringResource(R.string.collections_collage_body),
                         icon = GalleryIcons.Collections,
                         onClick = onCollageClick,
+                        wide = true,
                     )
                 }
-                if (peopleEnabled) {
-                    item {
-                        CollectionCard(
-                            title = stringResource(R.string.collections_people),
-                            body = stringResource(R.string.collections_item_count, peopleCount),
-                            icon = GalleryIcons.User,
-                            onClick = onPeopleClick,
-                        )
-                    }
+                item(key = "create-album") {
+                    CollectionCard(
+                        title = stringResource(R.string.collections_create_album),
+                        body = stringResource(R.string.collections_virtual_album_body),
+                        icon = GalleryIcons.Plus,
+                        onClick = onCreateAlbum,
+                        wide = true,
+                    )
                 }
-                if (petCollectionsEnabled) {
-                    item {
-                        CollectionCard(
-                            title = stringResource(R.string.collections_dogs),
-                            body = stringResource(R.string.collections_item_count, dogCount),
-                            icon = GalleryIcons.Pet,
-                            onClick = { onPetCollectionClick("dog") },
-                        )
-                    }
-                    item {
-                        CollectionCard(
-                            title = stringResource(R.string.collections_cats),
-                            body = stringResource(R.string.collections_item_count, catCount),
-                            icon = GalleryIcons.Pet,
-                            onClick = { onPetCollectionClick("cat") },
-                        )
-                    }
-                }
+                collectionCardRows(petCards, columns, thumbnailLoader)
                 if (momentSummaries.isNotEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }) {
+                    item(key = "moments-header") {
                         Text(
                             stringResource(R.string.collections_moments),
                             style = MaterialTheme.typography.titleMedium,
                             modifier = Modifier.padding(vertical = 4.dp),
                         )
                     }
-                    items(momentSummaries.count(), key = { "moment_${it.hashCode()}" }) { index ->
-                        val summary = momentSummaries[index]
-                        CollectionCard(
-                            title = summary.moment.title ?: stringResource(R.string.moment_untitled),
-                            body = stringResource(R.string.collections_item_count, summary.memberCount),
-                            icon = GalleryIcons.Image,
-                            onClick = { onMomentClick(summary.moment) },
-                        )
-                    }
+                    collectionCardRows(momentCards, columns, thumbnailLoader)
                 }
-                item {
-                    CollectionCard(
-                        title = stringResource(R.string.collections_create_album),
-                        body = stringResource(R.string.collections_virtual_album_body),
-                        icon = GalleryIcons.Plus,
-                        onClick = onCreateAlbum,
-                    )
-                }
-                item {
-                    CollectionCard(
-                        title = stringResource(R.string.collections_trash),
-                        body = stringResource(R.string.collections_item_count, trashCount),
-                        icon = GalleryIcons.Trash,
-                        onClick = onTrashClick,
-                    )
-                }
-                items(albums, key = { it.key.toString() }) { album ->
-                    CollectionCard(
-                        title = album.name ?: stringResource(R.string.collections_untitled),
-                        body = if (album.availability == AlbumAvailability.VolumeUnavailable) {
-                            stringResource(R.string.collections_volume_unavailable)
-                        } else {
-                            stringResource(R.string.collections_item_count, album.itemCount)
-                        },
-                        cover = album.cover,
-                        thumbnailLoader = thumbnailLoader,
-                        onClick = { onAlbumClick(album) },
-                    )
-                }
+                collectionCardRows(libraryCards, columns, thumbnailLoader)
                 if (albums.isEmpty() && physicalAlbums.loadState.refresh !is LoadState.Loading &&
                     virtualAlbums.loadState.refresh !is LoadState.Loading
                 ) {
-                    item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+                    item(key = "empty-albums") {
                         GalleryStateContent(
                             stringResource(R.string.collections_empty),
                             stringResource(R.string.collections_empty_body),
@@ -208,6 +230,36 @@ fun CollectionsContent(
     }
 }
 
+private fun LazyListScope.collectionCardRows(
+    cards: List<CollectionCardSpec>,
+    columns: Int,
+    thumbnailLoader: ThumbnailLoader?,
+) {
+    cards.chunked(columns).forEach { rowCards ->
+        item(key = rowCards.joinToString("|") { it.key }) {
+            Row(
+                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                rowCards.forEach { card ->
+                    CollectionCard(
+                        title = card.title,
+                        body = card.body,
+                        onClick = card.onClick,
+                        icon = card.icon,
+                        cover = card.cover,
+                        thumbnailLoader = thumbnailLoader,
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                    )
+                }
+                repeat(columns - rowCards.size) {
+                    Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun CollectionCard(
     title: String,
@@ -216,6 +268,8 @@ private fun CollectionCard(
     icon: ImageVector? = null,
     cover: MediaKey? = null,
     thumbnailLoader: ThumbnailLoader? = null,
+    wide: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
     val bitmap by produceState<android.graphics.Bitmap?>(null, cover, thumbnailLoader) {
         value = if (cover == null || thumbnailLoader == null) null else runCatching {
@@ -223,7 +277,10 @@ private fun CollectionCard(
         }.getOrNull()
     }
     Card(
-        Modifier.fillMaxWidth().clickable(onClick = onClick).semantics {
+        modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .semantics {
             contentDescription = "$title. $body"
         },
     ) {
@@ -232,22 +289,54 @@ private fun CollectionCard(
                 bitmap = requireNotNull(bitmap).asImageBitmap(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth().height(120.dp),
+                modifier = Modifier.fillMaxWidth().height(CollectionCoverHeight),
             )
         }
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            if (bitmap == null && icon != null) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier
-                        .background(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.shapes.medium)
-                        .padding(10.dp),
-                )
+        if (wide) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                if (icon != null) CollectionCardIcon(icon)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    CollectionCardText(title, body, bodyMaxLines = 3)
+                }
             }
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (bitmap == null && icon != null) CollectionCardIcon(icon)
+                CollectionCardText(title, body, bodyMaxLines = if (bitmap == null) 4 else 2)
+            }
         }
     }
+}
+
+@Composable
+private fun CollectionCardIcon(icon: ImageVector) {
+    Icon(
+        imageVector = icon,
+        contentDescription = null,
+        tint = MaterialTheme.colorScheme.primary,
+        modifier = Modifier
+            .background(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.shapes.medium)
+            .padding(10.dp),
+    )
+}
+
+@Composable
+private fun CollectionCardText(title: String, body: String, bodyMaxLines: Int) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+    )
+    Text(
+        text = body,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        maxLines = bodyMaxLines,
+        overflow = TextOverflow.Ellipsis,
+    )
 }
