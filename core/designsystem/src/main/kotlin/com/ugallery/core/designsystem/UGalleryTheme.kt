@@ -146,14 +146,28 @@ private val LightScheme = lightColorScheme(
     error = GalleryColors.Danger,
 )
 
+/**
+ * Dark palette mirroring [GalleryColors] semantics so both schemes derive
+ * from named tokens instead of inline literals.
+ */
+object GalleryColorsDark {
+    val Background = Color(0xFF111318)
+    val Surface = Color(0xFF1A1C20)
+    val SurfaceTonal = Color(0xFF2B3038)
+    val Foreground = Color(0xFFE3E3E3)
+    val Border = Color(0xFF8E918F)
+    val Accent = Color(0xFFA8C7FA)
+    val Danger = Color(0xFFFFB4AB)
+}
+
 private val DarkScheme = darkColorScheme(
-    primary = Color(0xFFA8C7FA),
-    background = Color(0xFF111318),
-    surface = Color(0xFF1A1C20),
-    onSurface = Color(0xFFE3E3E3),
-    surfaceVariant = Color(0xFF2B3038),
-    outline = Color(0xFF8E918F),
-    error = Color(0xFFFFB4AB),
+    primary = GalleryColorsDark.Accent,
+    background = GalleryColorsDark.Background,
+    surface = GalleryColorsDark.Surface,
+    onSurface = GalleryColorsDark.Foreground,
+    surfaceVariant = GalleryColorsDark.SurfaceTonal,
+    outline = GalleryColorsDark.Border,
+    error = GalleryColorsDark.Danger,
 )
 
 private val GalleryTypography = androidx.compose.material3.Typography(
