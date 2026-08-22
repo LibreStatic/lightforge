@@ -28,6 +28,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -179,15 +180,17 @@ fun ViewerContent(
                             onClick = { menuExpanded = false; onDetails() },
                             leadingIcon = { Icon(GalleryIcons.Info, contentDescription = null) },
                         )
+                        HorizontalDivider()
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.viewer_share_private)) },
                             onClick = { menuExpanded = false; onShareSanitized() },
                             leadingIcon = { Icon(GalleryIcons.Lock, contentDescription = null) },
                         )
+                        HorizontalDivider()
                         DropdownMenuItem(
-                            text = { Text(stringResource(R.string.viewer_trash)) },
+                            text = { Text(stringResource(R.string.viewer_trash), color = MaterialTheme.colorScheme.error) },
                             onClick = { menuExpanded = false; onTrash() },
-                            leadingIcon = { Icon(GalleryIcons.Trash, contentDescription = null) },
+                            leadingIcon = { Icon(GalleryIcons.Trash, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
                         )
                     }
                 }
