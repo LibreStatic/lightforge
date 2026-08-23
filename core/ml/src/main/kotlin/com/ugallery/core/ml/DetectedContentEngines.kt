@@ -97,13 +97,14 @@ class ImageLabelMlEngine(
                 .filter { it.confidence >= MinConfidence }
                 .groupBy(DetectedLabel::canonical)
                 .mapNotNull { (_, values) -> values.maxByOrNull(DetectedLabel::confidence) }
-                .filterNot { it.canonical in suppressed }
                 .map { label ->
                     MediaLabelEntity(
                         candidate.volumeName, candidate.mediaStoreId, label.canonical,
                         label.raw, label.confidence, modelVersion,
                     )
                 }
+                .keepStrongestPetLabel()
+                .filterNot { it.canonicalLabel in suppressed }
             searchIndex.put(listOf(candidate.searchDocument(labels, dao.ocr(candidate.volumeName, candidate.mediaStoreId))))
             dao.replaceLabelResult(
                 MediaLabelRunEntity(
@@ -135,12 +136,23 @@ class ImageLabelMlEngine(
     private data class DetectedLabel(val canonical: String, val raw: String, val confidence: Float)
 
     companion object {
-        const val ModelVersion = "mlkit-image-labeling-17.0.9-default"
+        const val ModelVersion = "mlkit-image-labeling-17.0.9-default-pet-exclusive"
         const val SearchModelVersion = 17_009L
         const val MinConfidence = 0.60f
         const val LabelThumbnail = 640
         const val MinimumInputPixels = 32
     }
+}
+
+/** Dog and cat are mutually exclusive automatic collections for a single media item. */
+internal fun List<MediaLabelEntity>.keepStrongestPetLabel(): List<MediaLabelEntity> {
+    val petLabels = filter { it.canonicalLabel == "dog" || it.canonicalLabel == "cat" }
+    if (petLabels.size < 2) return this
+    val winner = petLabels.maxWithOrNull(
+        compareBy<MediaLabelEntity> { it.confidence }
+            .thenBy { if (it.canonicalLabel == "dog") 1 else 0 },
+    ) ?: return this
+    return filter { it.canonicalLabel != "dog" && it.canonicalLabel != "cat" || it === winner }
 }
 
 class OcrMlEngine(

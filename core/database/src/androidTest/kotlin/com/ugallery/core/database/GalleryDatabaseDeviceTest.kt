@@ -148,7 +148,7 @@ class GalleryDatabaseDeviceTest {
         helper.createDatabase(name, 1).close()
         helper.runMigrationsAndValidate(
             name,
-            12,
+            16,
             true,
             GalleryDatabaseFactory.Migration1To2,
             GalleryDatabaseFactory.Migration2To3,
@@ -161,7 +161,48 @@ class GalleryDatabaseDeviceTest {
             GalleryDatabaseFactory.Migration9To10,
             GalleryDatabaseFactory.Migration10To11,
             GalleryDatabaseFactory.Migration11To12,
+            GalleryDatabaseFactory.Migration12To13,
+            GalleryDatabaseFactory.Migration13To14,
+            GalleryDatabaseFactory.Migration14To15,
+            GalleryDatabaseFactory.Migration15To16,
         ).close()
+    }
+
+    @Test
+    fun petLabelsBecomeMutuallyExclusiveWhenMigratingFromVersion15() {
+        val name = "migration-v15-pets.db"
+        val helper = MigrationTestHelper(
+            InstrumentationRegistry.getInstrumentation(),
+            GalleryDatabase::class.java,
+        )
+        helper.createDatabase(name, 15).apply {
+            execSQL(
+                "INSERT INTO media_labels VALUES " +
+                    "('external_primary',1,'dog','Dog',0.95,'old')," +
+                    "('external_primary',1,'cat','Cat',0.80,'old')," +
+                    "('external_primary',2,'dog','Dog',0.70,'old')," +
+                    "('external_primary',2,'cat','Cat',0.90,'old')," +
+                    "('external_primary',3,'dog','Dog',0.85,'old')," +
+                    "('external_primary',3,'cat','Cat',0.85,'old')",
+            )
+            close()
+        }
+
+        helper.runMigrationsAndValidate(
+            name,
+            16,
+            true,
+            GalleryDatabaseFactory.Migration15To16,
+        ).use { database ->
+            database.query(
+                "SELECT mediaStoreId, canonicalLabel FROM media_labels ORDER BY mediaStoreId",
+            ).use { cursor ->
+                val labels = buildList {
+                    while (cursor.moveToNext()) add(cursor.getLong(0) to cursor.getString(1))
+                }
+                assertEquals(listOf(1L to "dog", 2L to "cat", 3L to "dog"), labels)
+            }
+        }
     }
 
     @Test

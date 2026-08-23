@@ -6,6 +6,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -14,6 +15,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.ugallery.core.designsystem.UGalleryTheme
 import com.ugallery.core.model.AlbumSummary
 import kotlinx.coroutines.flow.flowOf
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -28,6 +30,7 @@ class CollectionsContentDeviceTest {
     fun compactCoverScreenUsesTwoCollectionColumns() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val privateAlbum = "Private album"
+        var openedPetQuery: String? = null
 
         compose.setContent {
             val physicalAlbums = flowOf(PagingData.empty<AlbumSummary>()).collectAsLazyPagingItems()
@@ -49,7 +52,7 @@ class CollectionsContentDeviceTest {
                     petCollectionsEnabled = true,
                     dogCount = 19,
                     catCount = 15,
-                    onPetCollectionClick = {},
+                    onPetCollectionClick = { openedPetQuery = it },
                     privateAlbumLabel = privateAlbum,
                     onPrivateAlbumClick = {},
                     modifier = Modifier.width(360.dp).height(1_200.dp),
@@ -86,6 +89,13 @@ class CollectionsContentDeviceTest {
         assertTrue(
             "Short automatic collections should not retain the former fixed height",
             dogs.bottom.value - dogs.top.value < 216f,
+        )
+
+        compose.onNode(hasText(context.getString(R.string.collections_dogs))).performClick()
+        assertEquals(
+            "Automatic collections should open Search with their localized visible title",
+            context.getString(R.string.collections_dogs),
+            openedPetQuery,
         )
     }
 }

@@ -21,7 +21,7 @@ class LocalSearchSession(private val context: Context) {
 
 object MediaSearchSchema {
     const val Type = "MediaDocument"
-    const val Version = 2L
+    const val Version = 3L
 
     object Property {
         const val MediaKey = "mediaKey"

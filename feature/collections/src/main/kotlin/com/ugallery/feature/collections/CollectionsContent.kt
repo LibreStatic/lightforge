@@ -101,6 +101,8 @@ fun CollectionsContent(
     onCollageClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
+    val dogsTitle = stringResource(R.string.collections_dogs)
+    val catsTitle = stringResource(R.string.collections_cats)
     val albums = buildList {
         repeat(virtualAlbums.itemCount) { virtualAlbums[it]?.let(::add) }
         repeat(physicalAlbums.itemCount) { physicalAlbums[it]?.let(::add) }
@@ -108,21 +110,21 @@ fun CollectionsContent(
     val petCards = if (petCollectionsEnabled) listOf(
         CollectionCardSpec(
             key = "dogs",
-            title = stringResource(R.string.collections_dogs),
+            title = dogsTitle,
             body = stringResource(R.string.collections_item_count, dogCount),
             icon = GalleryIcons.Pet,
             cover = dogCover,
             circular = true,
-            onClick = { onPetCollectionClick("dog") },
+            onClick = { onPetCollectionClick(dogsTitle) },
         ),
         CollectionCardSpec(
             key = "cats",
-            title = stringResource(R.string.collections_cats),
+            title = catsTitle,
             body = stringResource(R.string.collections_item_count, catCount),
             icon = GalleryIcons.Pet,
             cover = catCover,
             circular = true,
-            onClick = { onPetCollectionClick("cat") },
+            onClick = { onPetCollectionClick(catsTitle) },
         ),
     ) else emptyList()
     val momentCards = momentSummaries.map { summary ->
@@ -316,7 +318,7 @@ private fun CollectionCard(
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .padding(top = 16.dp)
+                    .padding(start = 16.dp, top = 16.dp)
                     .size(56.dp)
                     .clip(CircleShape),
             )

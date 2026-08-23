@@ -47,7 +47,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         CustomLutEntity::class,
         VideoPlaybackPositionEntity::class,
     ],
-    version = 15,
+    version = 16,
     exportSchema = true,
 )
 abstract class GalleryDatabase : RoomDatabase() {
@@ -297,6 +297,24 @@ object GalleryDatabaseFactory {
         }
     }
 
+    val Migration15To16 = object : Migration(15, 16) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """DELETE FROM media_labels
+                    WHERE canonicalLabel IN ('dog','cat') AND EXISTS (
+                        SELECT 1 FROM media_labels AS competing
+                        WHERE competing.volumeName=media_labels.volumeName
+                        AND competing.mediaStoreId=media_labels.mediaStoreId
+                        AND competing.canonicalLabel=CASE media_labels.canonicalLabel
+                            WHEN 'dog' THEN 'cat' ELSE 'dog' END
+                        AND (competing.confidence>media_labels.confidence OR
+                            (competing.confidence=media_labels.confidence AND
+                                media_labels.canonicalLabel='cat'))
+                    )""".trimIndent(),
+            )
+        }
+    }
+
     private fun build(context: Context, name: String): GalleryDatabase = Room.databaseBuilder(
         context.applicationContext,
         GalleryDatabase::class.java,
@@ -305,5 +323,6 @@ object GalleryDatabaseFactory {
         Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7,
         Migration7To8, Migration8To9, Migration9To10, Migration10To11, Migration11To12,
         Migration12To13, Migration13To14, Migration14To15,
+        Migration15To16,
     ).build()
 }
