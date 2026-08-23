@@ -34,3 +34,10 @@ dependencies {
     implementation(libs.androidx.paging.compose)
     testImplementation(libs.junit4)
 }
+
+dependencies {
+    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation(libs.androidx.test.ext)
+    androidTestImplementation(libs.androidx.test.runner)
+}
