@@ -58,6 +58,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.map
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -863,10 +864,13 @@ internal fun ProductionGalleryApp(
         }
         Scaffold(
             contentWindowInsets = if (
+                route == SurfaceRoute.Viewer ||
                 route == SurfaceRoute.PhotoEditor ||
                 route == SurfaceRoute.VideoEditor ||
                 route == SurfaceRoute.PrivateAlbum
             ) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
+            containerColor = if (route == SurfaceRoute.Viewer) Color.Black
+            else MaterialTheme.colorScheme.background,
             topBar = {
                 when (route) {
                     SurfaceRoute.Root -> if (engineState == LibraryEngineState.Indexing) {

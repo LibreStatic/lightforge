@@ -61,6 +61,13 @@ class ViewerGesturesDeviceTest {
                     onShareSanitized = {},
                     onDetails = {},
                     onEdit = {},
+                    onRename = {},
+                    onCopy = {},
+                    onMove = {},
+                    onOpenWith = {},
+                    onSetAs = {},
+                    onPrint = {},
+                    onRepairDate = {},
                     onTrash = {},
                     onSelectMedia = { selected = it },
                 )
@@ -71,8 +78,12 @@ class ViewerGesturesDeviceTest {
         compose.onNode(hasContentDescription(firstPosition)).assertExists()
 
         compose.onRoot().performTouchInput { click(center) }
+        compose.mainClock.advanceTimeBy(300)
+        compose.waitForIdle()
         compose.onNode(hasContentDescription(firstPosition)).assertDoesNotExist()
         compose.onRoot().performTouchInput { click(center) }
+        compose.mainClock.advanceTimeBy(300)
+        compose.waitForIdle()
 
         compose.onRoot().performTouchInput { swipeLeft() }
         compose.waitUntil { selected != null }
@@ -100,6 +111,13 @@ class ViewerGesturesDeviceTest {
                     onShareSanitized = {},
                     onDetails = {},
                     onEdit = {},
+                    onRename = {},
+                    onCopy = {},
+                    onMove = {},
+                    onOpenWith = {},
+                    onSetAs = {},
+                    onPrint = {},
+                    onRepairDate = {},
                     onTrash = {},
                     onSelectMedia = {
                         selections += it.key.mediaStoreId
@@ -117,7 +135,7 @@ class ViewerGesturesDeviceTest {
         assertEquals(listOf(3L), selections)
     }
 
-    @Test fun landscapeVideoKeepsItsRatioAndSelectedThumbnailOpensScrubber() {
+    @Test fun landscapeVideoKeepsItsRatioAndPlaybackChromeAutoHidesUntilPaused() {
         val item = TimelineMedia(
             key = MediaKey("external_primary", 7),
             kind = MediaKind.Video,
@@ -131,7 +149,8 @@ class ViewerGesturesDeviceTest {
         val controller = VideoViewerController(engine)
         controller.select(Uri.parse("content://media/external/video/media/7"))
         engine.listener?.onVideoAspectRatioChanged(16f / 9f)
-        engine.listener?.onReady(10_000, false)
+        engine.listener?.onReady(10_000, true)
+        compose.mainClock.autoAdvance = false
         compose.setContent {
             UGalleryTheme {
                 ViewerContent(
@@ -147,6 +166,13 @@ class ViewerGesturesDeviceTest {
                     onShareSanitized = {},
                     onDetails = {},
                     onEdit = {},
+                    onRename = {},
+                    onCopy = {},
+                    onMove = {},
+                    onOpenWith = {},
+                    onSetAs = {},
+                    onPrint = {},
+                    onRepairDate = {},
                     onTrash = {},
                     onSelectMedia = {},
                 )
@@ -158,18 +184,26 @@ class ViewerGesturesDeviceTest {
         ).fetchSemanticsNode().boundsInRoot
         assertEquals(16f / 9f, videoBounds.width / videoBounds.height, 0.03f)
 
-        compose.onNode(
-            hasContentDescription(context.getString(R.string.viewer_enable_loop)),
-        ).performClick()
-        assertTrue(engine.repeatEnabled.last())
+        val pause = context.getString(R.string.viewer_pause)
+        val play = context.getString(R.string.viewer_play)
+        compose.onNode(hasContentDescription(pause)).assertExists()
 
-        val thumbnail = context.getString(R.string.viewer_thumbnail_position, 1, 1)
-        compose.onNode(hasContentDescription(thumbnail)).performTouchInput { click(center) }
-        val timeline = context.getString(R.string.viewer_video_timeline_position, "0:00", "0:10")
-        compose.onNode(hasContentDescription(timeline)).performTouchInput { click(center) }
+        compose.mainClock.advanceTimeBy(3_200)
+        compose.waitForIdle()
+        compose.onNode(hasContentDescription(pause)).assertDoesNotExist()
+
+        compose.onRoot().performTouchInput {
+            click(androidx.compose.ui.geometry.Offset(center.x, center.y * 0.65f))
+        }
+        // Single-tap dispatch waits for the double-tap timeout before revealing chrome.
+        compose.mainClock.advanceTimeBy(600)
+        compose.waitForIdle()
+        compose.onNode(hasContentDescription(pause)).performClick()
+        compose.mainClock.advanceTimeBy(3_200)
+        compose.waitForIdle()
 
         assertTrue(engine.pauseCalls > 0)
-        assertTrue(engine.lastSeek in 4_500L..5_500L)
+        compose.onNode(hasContentDescription(play)).assertExists()
         controller.close()
     }
 
@@ -190,8 +224,11 @@ class ViewerGesturesDeviceTest {
         val repeatEnabled = mutableListOf<Boolean>()
         override fun setMedia(uri: Uri) = Unit
         override fun prepare() = Unit
-        override fun play() = Unit
-        override fun pause() { pauseCalls++ }
+        override fun play() { listener?.onPlayingChanged(true, 10_000) }
+        override fun pause() {
+            pauseCalls++
+            listener?.onPlayingChanged(false, 10_000)
+        }
         override fun seekTo(positionMillis: Long) { lastSeek = positionMillis }
         override fun stopAndClear() = Unit
         override fun release() = Unit

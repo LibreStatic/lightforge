@@ -87,9 +87,29 @@ import kotlinx.coroutines.launch
 import kotlin.math.min
 import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import android.media.AudioManager
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.ui.graphics.Brush
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import kotlinx.coroutines.delay
 
 @Composable
 fun ViewerContent(
@@ -122,18 +142,65 @@ fun ViewerContent(
     gestureSettings: GestureSettings = GestureSettings(),
     modifier: Modifier = Modifier,
 ) {
-    var chromeVisible by rememberSaveable { mutableStateOf(true) }
+    var chromeVisible by rememberSaveable(media.key) { mutableStateOf(true) }
     var menuExpanded by remember { mutableStateOf(false) }
     var contentZoomed by remember(media.key) { mutableStateOf(false) }
     var slowHoldConsumed by remember(media.key) { mutableStateOf(false) }
     val slowMotionState by slowMotionSession?.state?.collectAsStateWithLifecycle()
         ?: remember { mutableStateOf<HoldSlowMotionState>(HoldSlowMotionState.Idle) }
     var zoomTapGeneration by remember(media.key) { mutableIntStateOf(0) }
+    var chromeInteractionGeneration by remember(media.key) { mutableIntStateOf(0) }
     var zoomTapPosition by remember(media.key) { mutableStateOf(Offset.Zero) }
     var gestureFeedback by remember(media.key) { mutableStateOf<String?>(null) }
     val context = LocalContext.current
-    val activity = context as? Activity
+    val view = LocalView.current
+    val activity = context.findActivity()
     val audioManager = remember(context) { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+    val videoState = videoController?.state?.collectAsStateWithLifecycle()?.value
+    val videoIsPlaying = (videoState as? VideoViewerState.Ready)?.isPlaying == true
+    val systemBarsController = remember(activity, view) {
+        activity?.window?.let { WindowCompat.getInsetsController(it, view) }
+    }
+    DisposableEffect(systemBarsController) {
+        val controller = systemBarsController
+        if (controller == null) return@DisposableEffect onDispose { }
+        val previousBehavior = controller.systemBarsBehavior
+        val previousLightStatusBars = controller.isAppearanceLightStatusBars
+        val previousLightNavigationBars = controller.isAppearanceLightNavigationBars
+        controller.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        controller.isAppearanceLightStatusBars = false
+        controller.isAppearanceLightNavigationBars = false
+        onDispose {
+            controller.show(WindowInsetsCompat.Type.systemBars())
+            controller.systemBarsBehavior = previousBehavior
+            controller.isAppearanceLightStatusBars = previousLightStatusBars
+            controller.isAppearanceLightNavigationBars = previousLightNavigationBars
+        }
+    }
+    LaunchedEffect(systemBarsController, chromeVisible) {
+        systemBarsController?.let { controller ->
+            if (chromeVisible) controller.show(WindowInsetsCompat.Type.systemBars())
+            else controller.hide(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+    LaunchedEffect(
+        media.key,
+        media.kind,
+        videoIsPlaying,
+        chromeVisible,
+        menuExpanded,
+        chromeInteractionGeneration,
+    ) {
+        if (media.kind != MediaKind.Video) return@LaunchedEffect
+        if (!videoIsPlaying) {
+            chromeVisible = true
+            return@LaunchedEffect
+        }
+        if (chromeVisible && !menuExpanded) {
+            delay(VIDEO_CHROME_TIMEOUT_MILLIS)
+            chromeVisible = false
+        }
+    }
     val displayedItems = mediaItems.ifEmpty { listOf(media) }
     val selectedIndex = displayedItems.indexOfFirst { it.key == media.key }.coerceAtLeast(0)
     val pagerState = rememberPagerState(initialPage = selectedIndex) { displayedItems.size }
@@ -261,6 +328,7 @@ fun ViewerContent(
                     if (media.kind == MediaKind.Video) {
                         VideoSurface(
                             controller = videoController,
+                            state = videoState,
                             aspectRatio = if (media.width > 0 && media.height > 0) {
                                 media.width.toFloat() / media.height.toFloat()
                             } else null,
@@ -282,6 +350,16 @@ fun ViewerContent(
                     MediaThumbnail(pageMedia, thumbnailLoader, Modifier.fillMaxSize())
                 }
             }
+        }
+        ViewerChromeScrim(visible = chromeVisible)
+        if (media.kind == MediaKind.Video && videoController != null) {
+            VideoPlaybackControl(
+                controller = videoController,
+                state = videoState,
+                visible = chromeVisible,
+                onInteraction = { chromeInteractionGeneration++ },
+                modifier = Modifier.align(Alignment.Center),
+            )
         }
         gestureFeedback?.let { feedback ->
             Text(
@@ -349,7 +427,7 @@ fun ViewerContent(
         ) {
             Row(
                 Modifier.fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.55f))
+                    .windowInsetsPadding(viewerTopInsets())
                     .padding(horizontal = 8.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -420,7 +498,7 @@ fun ViewerContent(
         ) {
             Column(
                 Modifier.fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.75f))
+                    .windowInsetsPadding(viewerBottomInsets())
             ) {
                 ViewerFilmstrip(displayedItems, selectedIndex, thumbnailLoader, onSelectMedia)
                 Row(
@@ -684,6 +762,7 @@ private suspend fun PointerInputScope.detectViewerTransformGestures(
 @Composable
 private fun VideoSurface(
     controller: VideoViewerController?,
+    state: VideoViewerState?,
     aspectRatio: Float?,
     settings: GestureSettings,
     zoomTapPosition: Offset,
@@ -694,7 +773,6 @@ private fun VideoSurface(
         CircularProgressIndicator(Modifier.padding(24.dp))
         return
     }
-    val state by controller.state.collectAsStateWithLifecycle()
     val description = stringResource(R.string.viewer_video_description)
     val scope = rememberCoroutineScope()
     var videoContainerSize by remember(controller) { mutableStateOf(IntSize.Zero) }
@@ -763,27 +841,8 @@ private fun VideoSurface(
                     .semantics { contentDescription = description },
             )
         }
-        when (val current = state) {
-            is VideoViewerState.Ready -> FilledIconButton(
-                onClick = {
-                    when {
-                        current.isMuted -> controller.unmute()
-                        current.isPlaying -> controller.pause()
-                        else -> controller.play()
-                    }
-                },
-            ) {
-                Icon(
-                    imageVector = if (current.isPlaying) GalleryIcons.Pause else GalleryIcons.Play,
-                    contentDescription = stringResource(
-                        when {
-                            current.isMuted -> R.string.viewer_unmute
-                            current.isPlaying -> R.string.viewer_pause
-                            else -> R.string.viewer_play
-                        },
-                    ),
-                )
-            }
+        when (state) {
+            is VideoViewerState.Ready -> Unit
             is VideoViewerState.Failure -> Text(
                 stringResource(R.string.viewer_unsupported),
                 Modifier.padding(24.dp),
@@ -792,7 +851,98 @@ private fun VideoSurface(
             VideoViewerState.Idle,
             is VideoViewerState.Loading -> CircularProgressIndicator()
             VideoViewerState.Released -> Unit
+            null -> CircularProgressIndicator()
         }
     }
     DisposableEffect(controller) { onDispose { controller.attachSurface(null) } }
 }
+
+@Composable
+private fun VideoPlaybackControl(
+    controller: VideoViewerController,
+    state: VideoViewerState?,
+    visible: Boolean,
+    onInteraction: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val current = state as? VideoViewerState.Ready ?: return
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(tween(CHROME_FADE_MILLIS)),
+        exit = fadeOut(tween(CHROME_FADE_MILLIS)),
+        modifier = modifier,
+    ) {
+        FilledIconButton(
+            onClick = {
+                onInteraction()
+                when {
+                    current.isMuted -> controller.unmute()
+                    current.isPlaying -> controller.pause()
+                    else -> controller.play()
+                }
+            },
+            modifier = Modifier.size(56.dp),
+            colors = androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(
+                containerColor = Color.Black.copy(alpha = 0.55f),
+                contentColor = Color.White,
+            ),
+        ) {
+            Icon(
+                imageVector = if (current.isPlaying) GalleryIcons.Pause else GalleryIcons.Play,
+                contentDescription = stringResource(
+                    when {
+                        current.isMuted -> R.string.viewer_unmute
+                        current.isPlaying -> R.string.viewer_pause
+                        else -> R.string.viewer_play
+                    },
+                ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ViewerChromeScrim(visible: Boolean) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(tween(CHROME_FADE_MILLIS)),
+        exit = fadeOut(tween(CHROME_FADE_MILLIS)),
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.18f))) {
+            Box(
+                Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(
+                        colorStops = arrayOf(
+                            0f to Color.Black.copy(alpha = 0.65f),
+                            0.28f to Color.Transparent,
+                            0.62f to Color.Transparent,
+                            1f to Color.Black.copy(alpha = 0.72f),
+                        ),
+                    ),
+                ),
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun viewerTopInsets() = WindowInsets.statusBarsIgnoringVisibility
+    .union(WindowInsets.displayCutout)
+    .only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun viewerBottomInsets() = WindowInsets.navigationBarsIgnoringVisibility
+    .union(WindowInsets.displayCutout)
+    .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
+private const val VIDEO_CHROME_TIMEOUT_MILLIS = 3_000L
+private const val CHROME_FADE_MILLIS = 150
