@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -146,7 +147,11 @@ fun ViewerContent(
                 val pageMedia = displayedItems[page]
                 if (pageMedia.key == media.key) {
                     if (media.kind == MediaKind.Video) {
-                        VideoSurface(videoController)
+                        VideoSurface(
+                            videoController,
+                            aspectRatio = media.width.takeIf { it > 0 }
+                                ?.let { width -> media.height.takeIf { it > 0 }?.let { height -> width.toFloat() / height } },
+                        )
                     } else {
                         PhotoSurface(photoState, onZoomedChange = { photoZoomed = it })
                     }
@@ -404,7 +409,10 @@ private suspend fun PointerInputScope.detectViewerTransformGestures(
 }
 
 @Composable
-private fun VideoSurface(controller: VideoViewerController?) {
+private fun VideoSurface(
+    controller: VideoViewerController?,
+    aspectRatio: Float?,
+) {
     if (controller == null) {
         CircularProgressIndicator(Modifier.padding(24.dp))
         return
@@ -415,7 +423,8 @@ private fun VideoSurface(controller: VideoViewerController?) {
         if (state !is VideoViewerState.Failure) {
             AndroidView(
                 factory = { context -> android.view.SurfaceView(context).also(controller::attachSurface) },
-                modifier = Modifier.fillMaxSize().semantics { contentDescription = description },
+                modifier = (aspectRatio?.let { Modifier.aspectRatio(it) } ?: Modifier.fillMaxSize())
+                    .semantics { contentDescription = description },
             )
         }
         when (val current = state) {
