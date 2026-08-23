@@ -67,5 +67,22 @@
     <string name="video_editor_reset_grade">Reset grade</string>
     <string name="video_editor_play">Play preview</string>
     <string name="video_editor_pause">Pause preview</string>
+    <string name="video_editor_enable_loop">Enable continuous preview</string>
+    <string name="video_editor_disable_loop">Disable continuous preview</string>
+    <string name="video_editor_resize_panels">Resize preview and editing panels</string>
     <string name="video_editor_preview_failed">Video preview could not be played</string>
+    <string name="video_editor_base_speed">Base speed</string>
+    <string name="video_editor_mark_in">Mark in</string>
+    <string name="video_editor_mark_out">Mark out</string>
+    <string name="video_editor_marked_in_at">In marked at %1$s</string>
+    <string name="video_editor_slow_segments">Slow-motion segments</string>
+    <string name="video_editor_segment_speed">Segment speed</string>
+    <string name="video_editor_segment_audio">Segment audio</string>
+    <string name="video_editor_audio_preserve_pitch">Preserve pitch</string>
+    <string name="video_editor_audio_muted">Muted</string>
+    <string name="video_editor_audio_varispeed">Slow pitch</string>
+    <string name="video_editor_delete_segment">Delete segment</string>
+    <string name="video_editor_cancel_export">Cancel export</string>
+    <string name="video_editor_slow_overlap">Slow-motion segments cannot overlap</string>
+    <string name="video_editor_slow_invalid_range">Mark out must be after mark in</string>
 </resources>

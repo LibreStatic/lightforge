@@ -12,6 +12,38 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface LibraryDao {
+    @RawQuery(observedEntities = [MediaItemEntity::class])
+    fun rawTimelinePagingSource(query: SupportSQLiteQuery): androidx.paging.PagingSource<Int, MediaItemEntity>
+
+    @Query(
+        "SELECT * FROM media_items WHERE isAccessible=1 AND isTrashed=0 AND isFavorite=1 " +
+            "ORDER BY volumeName, mediaStoreId",
+    )
+    suspend fun favoriteMediaForBackup(): List<MediaItemEntity>
+
+    @Query(
+        "SELECT * FROM media_items WHERE isAccessible=1 AND isTrashed=0 " +
+            "AND displayName IS :displayName AND mimeType IS :mimeType AND sizeBytes=:sizeBytes LIMIT 3",
+    )
+    suspend fun mediaByBackupFingerprint(
+        displayName: String?,
+        mimeType: String?,
+        sizeBytes: Long,
+    ): List<MediaItemEntity>
+
+    @Upsert
+    suspend fun upsertVideoPlaybackPosition(position: VideoPlaybackPositionEntity)
+
+    @Query(
+        "SELECT * FROM video_playback_positions WHERE volumeName=:volumeName AND mediaStoreId=:mediaStoreId",
+    )
+    suspend fun videoPlaybackPosition(volumeName: String, mediaStoreId: Long): VideoPlaybackPositionEntity?
+
+    @Query(
+        "DELETE FROM video_playback_positions WHERE volumeName=:volumeName AND mediaStoreId=:mediaStoreId",
+    )
+    suspend fun deleteVideoPlaybackPosition(volumeName: String, mediaStoreId: Long): Int
+
     @Query(
         "SELECT " +
             "(SELECT COUNT(DISTINCT l.volumeName || ':' || l.mediaStoreId) FROM media_labels l " +
@@ -607,6 +639,23 @@ interface LibraryDao {
         """,
     )
     fun physicalAlbums(): androidx.paging.PagingSource<Int, PhysicalAlbumRow>
+
+    @Query(
+        """
+        SELECT m.volumeName, m.bucketId, MAX(m.bucketDisplayName) AS displayName,
+            COUNT(*) AS itemCount, MAX(m.timelineSortMillis) AS latestSortMillis,
+            (SELECT cover.mediaStoreId FROM media_items AS cover
+             WHERE cover.volumeName=m.volumeName AND cover.bucketId=m.bucketId AND cover.isTrashed=0
+             ORDER BY cover.isAccessible DESC, cover.timelineSortMillis DESC, cover.mediaStoreId DESC LIMIT 1)
+                AS coverMediaStoreId,
+            MAX(m.isAccessible) AS isAvailable
+        FROM media_items AS m
+        WHERE m.bucketId IS NOT NULL AND m.isTrashed=0
+        GROUP BY m.volumeName, m.bucketId
+        ORDER BY latestSortMillis DESC, m.bucketId DESC, m.volumeName DESC
+        """,
+    )
+    fun physicalAlbumOptions(): Flow<List<PhysicalAlbumRow>>
 
     @Insert
     suspend fun insertVirtualAlbum(album: VirtualAlbumEntity): Long

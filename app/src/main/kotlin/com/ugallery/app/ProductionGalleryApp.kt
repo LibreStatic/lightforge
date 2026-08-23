@@ -432,6 +432,11 @@ internal fun ProductionGalleryApp(
                         onMediaLongClick = viewModel::toggleSelection,
                         preferredColumns = gallerySettings.thumbnails.gridColumns,
                         cropThumbnails = gallerySettings.thumbnails.cropToFill,
+                        onDensityChange = { columns ->
+                            viewModel.updateGallerySettings { current ->
+                                current.copy(thumbnails = current.thumbnails.copy(gridColumns = columns))
+                            }
+                        },
                     )
                     RootTab.Collections -> CollectionsContent(
                         physicalAlbums,

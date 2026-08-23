@@ -43,4 +43,14 @@ class MediaStoreChangeMonitorTest {
         assertNull(mediaKeyFromObserverUriString("content://media/external/file/42"))
         assertNull(mediaKeyFromObserverUriString("content://other/external_primary/file/42"))
     }
+
+    @Test
+    fun collectionNotificationsRequireFullReconciliation() {
+        val row = "content://media/external_primary/images/media/42"
+        val collection = "content://media/external/images/media"
+
+        assertEquals(false, mediaStoreChangeBatchStrings(setOf(row)).requiresFullVolumeReconciliation)
+        assertEquals(true, mediaStoreChangeBatchStrings(setOf(collection)).requiresFullVolumeReconciliation)
+        assertEquals(true, mediaStoreChangeBatchStrings(setOf(row, collection)).requiresFullVolumeReconciliation)
+    }
 }

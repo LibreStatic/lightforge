@@ -19,6 +19,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
+import java.io.FileNotFoundException
 
 class MediaMetadataRepository(
     private val resolver: ContentResolver,
@@ -47,7 +48,15 @@ class MediaMetadataRepository(
         if (media.mediaType != MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE) {
             return@withContext ExifLoadResult.NotAnImage
         }
-        if (!hasValidContainerSignature(media.uri(), media.mimeType)) {
+        val hasValidContainer = try {
+            hasValidContainerSignature(media.uri(), media.mimeType)
+        } catch (_: FileNotFoundException) {
+            dao.deleteMedia(key.volumeName, key.mediaStoreId)
+            return@withContext ExifLoadResult.MediaUnavailable
+        } catch (_: IOException) {
+            false
+        }
+        if (!hasValidContainer) {
             return@withContext ExifLoadResult.CorruptOrUnsupported
         }
         val cached = dao.exif(key.volumeName, key.mediaStoreId)

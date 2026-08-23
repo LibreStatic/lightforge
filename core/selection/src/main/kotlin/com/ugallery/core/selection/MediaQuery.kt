@@ -11,6 +11,11 @@ data class MediaQuery(
     val fromTimelineMillisInclusive: Long? = null,
     val toTimelineMillisExclusive: Long? = null,
     val sort: Sort = Sort.NewestFirst,
+    val sortField: SortField = SortField.DateTaken,
+    val grouping: Grouping = Grouping.Day,
+    val folderMode: FolderMode = FolderMode.AllExceptExcluded,
+    val includedFolders: Set<PhysicalFolder> = emptySet(),
+    val excludedFolders: Set<PhysicalFolder> = emptySet(),
 ) : Serializable {
     init {
         require(
@@ -20,7 +25,14 @@ data class MediaQuery(
         ) { "The query time range must not be empty or inverted" }
     }
 
-    enum class KindFilter { Images, Videos, ImagesAndVideos }
+    enum class KindFilter { Images, Videos, Animated, Raw, ImagesAndVideos }
+
+    enum class SortField { DateTaken, DateModified, Name, Size }
+    enum class Grouping { Day, Month, Year, None }
+    enum class FolderMode { AllExceptExcluded, OnlyIncluded }
+    data class PhysicalFolder(val volumeName: String, val bucketId: Long) : Serializable {
+        init { require(volumeName.isNotBlank()) }
+    }
 
     /** The scope is data, never SQL, so restored state cannot inject a query. */
     sealed interface Scope : Serializable {

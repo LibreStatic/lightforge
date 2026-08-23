@@ -8,9 +8,38 @@ import org.junit.Test
 class TimelineDensityStateTest {
     @Test
     fun adaptiveColumnsCoverCompactMediumAndExpanded() {
-        assertEquals(listOf(3, 4, 5, 7), adaptiveDensityColumns(599).toList())
-        assertEquals(listOf(5, 6, 7, 9), adaptiveDensityColumns(600).toList())
-        assertEquals(listOf(7, 9, 11, 13), adaptiveDensityColumns(840).toList())
+        assertEquals(listOf(2, 3, 4, 5, 7), adaptiveDensityColumns(599).toList())
+        assertEquals(listOf(3, 5, 6, 7, 9), adaptiveDensityColumns(600).toList())
+        assertEquals(listOf(5, 7, 9, 11, 13), adaptiveDensityColumns(840).toList())
+    }
+
+    @Test
+    fun compactScaleReachesTwoColumnsLikeGooglePhotos() {
+        val state = TimelineDensityState(0, 0, 0)
+        assertEquals(2, state.columns(widthDp = 360))
+    }
+
+    @Test
+    fun seedFromPreferredColumnsSnapsOnceToClosestOption() {
+        val state = TimelineDensityState(0, 0, 0)
+        // Persisted gridColumns=4 snaps exactly to the 4-column option.
+        state.seedFromPreferredColumns(columns = 4, widthDp = 360)
+        assertEquals(4, state.columns(360))
+
+        // A second seed is ignored: later preference updates never override
+        // user pinch/button changes made during the session.
+        state.seedFromPreferredColumns(columns = 2, widthDp = 360)
+        assertEquals(4, state.columns(360))
+    }
+
+    @Test
+    fun changeDensityCanReachTwoColumnFloorAndStopThere() {
+        val state = TimelineDensityState(0, 0, 0)
+        assertFalse(state.changeDensity(delta = -1, anchorIndex = 0))
+        assertEquals(2, state.columns(360))
+        repeat(4) { assertTrue(state.changeDensity(delta = 1, anchorIndex = 0)) }
+        assertFalse(state.changeDensity(delta = 1, anchorIndex = 99))
+        assertEquals(7, state.columns(360))
     }
 
     @Test
@@ -19,14 +48,14 @@ class TimelineDensityStateTest {
         assertTrue(state.changeDensity(1, anchorIndex = 42, anchorOffset = 17))
         assertEquals(42, state.anchorIndex)
         assertEquals(17, state.anchorOffset)
-        repeat(2) { assertTrue(state.changeDensity(1, 42)) }
+        repeat(3) { assertTrue(state.changeDensity(1, 42)) }
         assertFalse(state.changeDensity(1, 99))
-        assertEquals(3, state.densityIndex)
+        assertEquals(4, state.densityIndex)
     }
 
     @Test
     fun cycleDensityWrapsAfterLargestGridAndPreservesAnchor() {
-        val state = TimelineDensityState(3, 0, 0)
+        val state = TimelineDensityState(4, 0, 0)
         assertTrue(state.cycleDensity(anchorIndex = 24, anchorOffset = 9))
         assertEquals(0, state.densityIndex)
         assertEquals(24, state.anchorIndex)

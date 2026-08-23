@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
@@ -38,6 +39,7 @@ import com.ugallery.core.designsystem.GalleryGridMetrics
 import com.ugallery.core.designsystem.GalleryMotion
 import com.ugallery.core.designsystem.GallerySpacing
 import com.ugallery.core.designsystem.rememberGalleryReducedMotion
+import com.ugallery.core.model.TimelineGrouping
 import com.ugallery.core.model.TimelineEntry
 import com.ugallery.core.model.TimelineMedia
 import com.ugallery.core.thumbnail.ThumbnailLoader
@@ -55,10 +57,22 @@ fun AdaptivePagedPhotosTimeline(
     densityState: TimelineDensityState = rememberTimelineDensityState(),
     onMediaClick: (TimelineMedia) -> Unit = {},
     onMediaLongClick: (TimelineMedia) -> Unit = {},
+    preferredColumns: Int? = null,
+    cropThumbnails: Boolean = true,
+    onDensityChange: ((Int) -> Unit)? = null,
 ) {
     BoxWithConstraints(modifier) {
         val widthDp = maxWidth.value.toInt()
+        // Seed once from the persisted preference BEFORE deriving columns so the
+        // first frame already shows the stored density; afterwards the density
+        // state owns the value and gestures/buttons change it freely.
+        densityState.seedFromPreferredColumns(preferredColumns, widthDp)
         val columns = densityState.columns(widthDp)
+        if (onDensityChange != null) {
+            LaunchedEffect(columns) {
+                if (columns in 2..13) onDensityChange(columns)
+            }
+        }
         val leadingIndex = state.firstVisibleItemIndex
         densityState.prepareColumnChange(
             columns = columns,
@@ -82,6 +96,7 @@ fun AdaptivePagedPhotosTimeline(
             densityState = densityState,
             onMediaClick = onMediaClick,
             onMediaLongClick = onMediaLongClick,
+            cropThumbnails = cropThumbnails,
         )
     }
 }
@@ -97,6 +112,7 @@ fun PagedPhotosTimeline(
     densityState: TimelineDensityState? = null,
     onMediaClick: (TimelineMedia) -> Unit = {},
     onMediaLongClick: (TimelineMedia) -> Unit = {},
+    cropThumbnails: Boolean = true,
 ) {
     require(columns > 0 && thumbnailSizePx > 0)
     val reducedMotion = rememberGalleryReducedMotion()
@@ -122,7 +138,7 @@ fun PagedPhotosTimeline(
             contentType = { index -> entries.peek(index)?.javaClass?.simpleName ?: "unloaded" },
         ) { index ->
             when (val entry = entries[index]) {
-                is TimelineEntry.DayHeader -> TimelineDayHeader(entry.epochDay)
+                is TimelineEntry.DayHeader -> TimelineDayHeader(entry.epochDay, entry.granularity)
                 is TimelineEntry.Media -> TimelineThumbnail(
                     entry = entry,
                     loader = thumbnailLoader,
@@ -141,6 +157,7 @@ fun PagedPhotosTimeline(
                     ),
                     onClick = { onMediaClick(entry.value) },
                     onLongClick = { onMediaLongClick(entry.value) },
+                    cropToFill = cropThumbnails,
                 )
                 null -> Box(
                     Modifier
@@ -167,11 +184,14 @@ fun PagedPhotosTimeline(
 }
 
 @Composable
-private fun TimelineDayHeader(epochDay: Long) {
+private fun TimelineDayHeader(epochDay: Long, granularity: TimelineGrouping) {
     val locale = LocalConfiguration.current.locales[0]
-    val text = LocalDate.ofEpochDay(epochDay).format(
-        DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale),
-    )
+    val date = LocalDate.ofEpochDay(epochDay)
+    val text = when (granularity) {
+        TimelineGrouping.Day -> date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale))
+        TimelineGrouping.Month -> date.format(DateTimeFormatter.ofPattern("LLLL yyyy", locale))
+        TimelineGrouping.Year -> date.year.toString()
+    }
     Text(
         text = text,
         style = MaterialTheme.typography.titleMedium,
@@ -192,6 +212,7 @@ private fun TimelineThumbnail(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    cropToFill: Boolean = true,
 ) {
     val contentDescription = stringResource(
         if (entry.value.kind == com.ugallery.core.model.MediaKind.Video) {
@@ -224,7 +245,7 @@ private fun TimelineThumbnail(
         Image(
             bitmap = loaded.asImageBitmap(),
             contentDescription = null,
-            contentScale = ContentScale.Crop,
+            contentScale = if (cropToFill) ContentScale.Crop else ContentScale.Fit,
             modifier = cellModifier,
         )
     }

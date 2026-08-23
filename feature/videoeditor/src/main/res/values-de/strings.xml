@@ -56,5 +56,22 @@
     <string name="video_editor_reset_grade">Grading zurücksetzen</string>
     <string name="video_editor_play">Vorschau abspielen</string>
     <string name="video_editor_pause">Vorschau pausieren</string>
+    <string name="video_editor_enable_loop">Endlosvorschau aktivieren</string>
+    <string name="video_editor_disable_loop">Endlosvorschau deaktivieren</string>
+    <string name="video_editor_resize_panels">Vorschau- und Bearbeitungsbereich skalieren</string>
     <string name="video_editor_preview_failed">Videovorschau konnte nicht abgespielt werden</string>
+    <string name="video_editor_base_speed">Grundgeschwindigkeit</string>
+    <string name="video_editor_mark_in">Start markieren</string>
+    <string name="video_editor_mark_out">Ende markieren</string>
+    <string name="video_editor_marked_in_at">Start bei %1$s markiert</string>
+    <string name="video_editor_slow_segments">Zeitlupensegmente</string>
+    <string name="video_editor_segment_speed">Segmentgeschwindigkeit</string>
+    <string name="video_editor_segment_audio">Segmentaudio</string>
+    <string name="video_editor_audio_preserve_pitch">Tonhöhe beibehalten</string>
+    <string name="video_editor_audio_muted">Stumm</string>
+    <string name="video_editor_audio_varispeed">Verlangsamte Tonhöhe</string>
+    <string name="video_editor_delete_segment">Segment löschen</string>
+    <string name="video_editor_cancel_export">Export abbrechen</string>
+    <string name="video_editor_slow_overlap">Zeitlupensegmente dürfen sich nicht überlappen</string>
+    <string name="video_editor_slow_invalid_range">Das Ende muss nach dem Start liegen</string>
 </resources>

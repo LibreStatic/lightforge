@@ -1,3 +1,5 @@
+@file:androidx.annotation.OptIn(markerClass = [androidx.media3.common.util.UnstableApi::class])
+
 package com.ugallery.feature.viewer
 
 import android.content.Context
@@ -9,6 +11,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Effect
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.ExoPlayer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +24,9 @@ sealed interface VideoViewerState {
         val poster: Bitmap?,
         val isPlaying: Boolean,
         val isMuted: Boolean,
+        val isLooping: Boolean,
         val durationMillis: Long,
+        val aspectRatio: Float? = null,
     ) : VideoViewerState
     data class Failure(val uri: Uri, val unsupported: Boolean, val errorCode: Int) : VideoViewerState
     data object Released : VideoViewerState
@@ -31,6 +36,7 @@ internal interface VideoEngine {
     interface Listener {
         fun onReady(durationMillis: Long, isPlaying: Boolean)
         fun onPlayingChanged(isPlaying: Boolean, durationMillis: Long)
+        fun onVideoAspectRatioChanged(aspectRatio: Float)
         fun onFailure(errorCode: Int, unsupported: Boolean)
     }
 
@@ -44,33 +50,54 @@ internal interface VideoEngine {
     fun release()
     fun attachSurface(surfaceView: SurfaceView?)
     fun setVolume(volume: Float)
+    fun setRepeatEnabled(enabled: Boolean)
     fun setVideoEffects(effects: List<Effect>)
     fun currentPositionMillis(): Long
 }
 
 /** Owns exactly one player/decoder chain for the entire viewer surface. */
-class VideoViewerController internal constructor(private val engine: VideoEngine) : AutoCloseable {
-    constructor(context: Context) : this(Media3VideoEngine(context.applicationContext))
+class VideoViewerController internal constructor(
+    private val engine: VideoEngine,
+    initialLooping: Boolean = false,
+) : AutoCloseable {
+    constructor(
+        context: Context,
+        enableVideoEffects: Boolean = false,
+        initialLooping: Boolean = false,
+    ) : this(
+        Media3VideoEngine(context.applicationContext, enableVideoEffects),
+        initialLooping,
+    )
 
     private val mutableState = MutableStateFlow<VideoViewerState>(VideoViewerState.Idle)
     val state: StateFlow<VideoViewerState> = mutableState
     private var activeUri: Uri? = null
     private var activePoster: Bitmap? = null
     private var muted = false
+    private var looping = initialLooping
     private var released = false
     private var playbackReady = false
     private var playbackIsPlaying = false
+    private var playbackDurationMillis = 0L
+    private var playbackAspectRatio: Float? = null
 
     init {
+        engine.setRepeatEnabled(looping)
         engine.listener = object : VideoEngine.Listener {
             override fun onReady(durationMillis: Long, isPlaying: Boolean) {
                 playbackReady = true
                 playbackIsPlaying = isPlaying
+                playbackDurationMillis = durationMillis.coerceAtLeast(0)
                 updateReady(durationMillis, isPlaying)
             }
             override fun onPlayingChanged(isPlaying: Boolean, durationMillis: Long) {
                 playbackIsPlaying = isPlaying
+                playbackDurationMillis = durationMillis.coerceAtLeast(0)
                 updateReady(durationMillis, isPlaying)
+            }
+            override fun onVideoAspectRatioChanged(aspectRatio: Float) {
+                playbackAspectRatio = aspectRatio.takeIf { it.isFinite() && it > 0f }
+                if (playbackReady) updateReady(playbackDurationMillis, playbackIsPlaying)
             }
             override fun onFailure(errorCode: Int, unsupported: Boolean) {
                 val uri = activeUri ?: return
@@ -93,6 +120,8 @@ class VideoViewerController internal constructor(private val engine: VideoEngine
         muted = startMuted
         playbackReady = false
         playbackIsPlaying = false
+        playbackDurationMillis = 0
+        playbackAspectRatio = null
         mutableState.value = VideoViewerState.Loading(uri, poster)
         engine.setVolume(if (muted) 0f else 1f)
         engine.setMedia(uri)
@@ -103,6 +132,16 @@ class VideoViewerController internal constructor(private val engine: VideoEngine
     @MainThread fun play() { check(!released); engine.play() }
     @MainThread fun pause() { if (!released) engine.pause() }
     @MainThread
+    fun setLooping(enabled: Boolean) {
+        check(!released)
+        if (looping == enabled) return
+        looping = enabled
+        engine.setRepeatEnabled(enabled)
+        val ready = mutableState.value as? VideoViewerState.Ready ?: return
+        mutableState.value = ready.copy(isLooping = enabled)
+    }
+    @MainThread fun currentPositionMillis(): Long = if (released) 0 else engine.currentPositionMillis()
+    @MainThread
     fun unmute() {
         if (released || !muted) return
         muted = false
@@ -111,15 +150,39 @@ class VideoViewerController internal constructor(private val engine: VideoEngine
         mutableState.value = ready.copy(isMuted = false)
     }
     @MainThread fun seekTo(positionMillis: Long) { check(!released); engine.seekTo(positionMillis.coerceAtLeast(0)) }
+    @MainThread
+    fun seekBy(deltaMillis: Long) {
+        check(!released)
+        val maximum = playbackDurationMillis.takeIf { it > 0 } ?: Long.MAX_VALUE
+        engine.seekTo((engine.currentPositionMillis() + deltaMillis).coerceIn(0L, maximum))
+    }
     @MainThread fun onBackground() = pause()
-    @MainThread fun attachSurface(surfaceView: SurfaceView?) { check(!released); engine.attachSurface(surfaceView) }
+    @MainThread
+    fun attachSurface(surfaceView: SurfaceView?) {
+        if (released) {
+            check(surfaceView == null)
+            return
+        }
+        engine.attachSurface(surfaceView)
+    }
     @MainThread
     fun setVideoEffects(effects: List<Effect>) {
         check(!released)
         engine.setVideoEffects(effects)
-        if (playbackReady && !playbackIsPlaying) {
-            engine.seekTo(engine.currentPositionMillis())
+        refreshVideoFrame()
+    }
+    @MainThread
+    fun refreshVideoFrame() {
+        if (released || !playbackReady || playbackIsPlaying) return
+        val current = engine.currentPositionMillis()
+        val duration = playbackDurationMillis
+        val refreshPosition = when {
+            duration <= 1 -> current
+            current >= duration - 1 -> 0
+            current <= 0 -> 1
+            else -> current - 1
         }
+        engine.seekTo(refreshPosition)
     }
 
     @MainThread
@@ -130,6 +193,8 @@ class VideoViewerController internal constructor(private val engine: VideoEngine
         activePoster = null
         playbackReady = false
         playbackIsPlaying = false
+        playbackDurationMillis = 0
+        playbackAspectRatio = null
         engine.listener = null
         engine.stopAndClear()
         engine.release()
@@ -139,16 +204,26 @@ class VideoViewerController internal constructor(private val engine: VideoEngine
     private fun updateReady(durationMillis: Long, isPlaying: Boolean) {
         val uri = activeUri ?: return
         mutableState.value = VideoViewerState.Ready(
-            uri, activePoster, isPlaying, muted, durationMillis.coerceAtLeast(0),
+            uri,
+            activePoster,
+            isPlaying,
+            muted,
+            looping,
+            durationMillis.coerceAtLeast(0),
+            playbackAspectRatio,
         )
     }
 }
 
-private class Media3VideoEngine(context: Context) : VideoEngine {
+private class Media3VideoEngine(context: Context, enableVideoEffects: Boolean) : VideoEngine {
     private val player = ExoPlayer.Builder(context).build()
     override var listener: VideoEngine.Listener? = null
 
     init {
+        // Media3 only creates its GL video graph when effects are registered before the
+        // renderer is enabled. Register an empty chain up front so later editor changes
+        // can be applied live without recreating playback.
+        if (enableVideoEffects) player.setVideoEffects(emptyList())
         player.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_READY) {
@@ -160,6 +235,15 @@ private class Media3VideoEngine(context: Context) : VideoEngine {
                 listener?.onPlayingChanged(isPlaying, player.duration.coerceAtLeast(0))
             }
 
+            override fun onVideoSizeChanged(videoSize: VideoSize) {
+                val width = videoSize.width.toFloat() * videoSize.pixelWidthHeightRatio
+                val height = videoSize.height.toFloat()
+                val aspectRatio = width / height
+                if (aspectRatio.isFinite() && aspectRatio > 0f) {
+                    listener?.onVideoAspectRatioChanged(aspectRatio)
+                }
+            }
+
             override fun onPlayerError(error: PlaybackException) {
                 listener?.onFailure(error.errorCode, error.errorCode in UnsupportedErrorCodes)
             }
@@ -168,7 +252,10 @@ private class Media3VideoEngine(context: Context) : VideoEngine {
 
     override fun setMedia(uri: Uri) = player.setMediaItem(MediaItem.fromUri(uri))
     override fun prepare() = player.prepare()
-    override fun play() = player.play()
+    override fun play() {
+        if (player.playbackState == Player.STATE_ENDED) player.seekToDefaultPosition()
+        player.play()
+    }
     override fun pause() = player.pause()
     override fun seekTo(positionMillis: Long) = player.seekTo(positionMillis)
     override fun stopAndClear() { player.stop(); player.clearMediaItems() }
@@ -178,6 +265,9 @@ private class Media3VideoEngine(context: Context) : VideoEngine {
         if (surfaceView != null) player.setVideoSurfaceView(surfaceView)
     }
     override fun setVolume(volume: Float) { player.volume = volume.coerceIn(0f, 1f) }
+    override fun setRepeatEnabled(enabled: Boolean) {
+        player.repeatMode = if (enabled) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+    }
     override fun setVideoEffects(effects: List<Effect>) = player.setVideoEffects(effects)
     override fun currentPositionMillis(): Long = player.currentPosition.coerceAtLeast(0)
 

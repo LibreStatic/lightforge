@@ -31,6 +31,15 @@ class VideoEditRecipeCodecTest {
             musicVolume = 0.4f,
             colorGrade = grade,
             outputQuality = VideoOutputQuality.HevcMain10,
+            slowMotionSegments = listOf(
+                SlowMotionSegment(
+                    id = "slow-1",
+                    startMillis = 1_000,
+                    endMillis = 2_500,
+                    speed = 0.125f,
+                    audioMode = SlowMotionAudioMode.Muted,
+                ),
+            ),
         )
 
         assertEquals(recipe, VideoEditRecipeCodec.decode(VideoEditRecipeCodec.encode(recipe)))
@@ -39,5 +48,12 @@ class VideoEditRecipeCodecTest {
     @Test(expected = IllegalArgumentException::class)
     fun rejectsUnknownRecipeVersion() {
         VideoEditRecipeCodec.decode("version=99")
+    }
+
+    @Test
+    fun readsVersionOneRecipesWithoutSlowSegments() {
+        val decoded = VideoEditRecipeCodec.decode("version=1\nspeed=0.5\n")
+        assertEquals(0.5f, decoded.speed)
+        assertEquals(emptyList<SlowMotionSegment>(), decoded.slowMotionSegments)
     }
 }

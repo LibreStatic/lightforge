@@ -5,6 +5,9 @@ import com.ugallery.core.database.GalleryDatabase
 import com.ugallery.core.database.MediaItemEntity
 import com.ugallery.core.model.TimelineMedia
 import com.ugallery.core.selection.MediaQuery
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 data class ViewerMediaWindow(
     val items: List<TimelineMedia>,
@@ -71,7 +74,25 @@ class RoomViewerMediaSource(database: GalleryDatabase) {
         when (query.kindFilter) {
             MediaQuery.KindFilter.Images -> { where += "m.mediaType=?"; args += 1 }
             MediaQuery.KindFilter.Videos -> { where += "m.mediaType=?"; args += 3 }
+            MediaQuery.KindFilter.Animated -> where +=
+                "m.mediaType=1 AND LOWER(COALESCE(m.mimeType,'')) IN ('image/gif','image/webp')"
+            MediaQuery.KindFilter.Raw -> where += rawImagePredicate("m")
             MediaQuery.KindFilter.ImagesAndVideos -> Unit
+        }
+        val folders = when (query.folderMode) {
+            MediaQuery.FolderMode.AllExceptExcluded -> query.excludedFolders
+            MediaQuery.FolderMode.OnlyIncluded -> query.includedFolders
+        }
+        if (query.folderMode == MediaQuery.FolderMode.OnlyIncluded && folders.isEmpty()) {
+            where += "0"
+        } else if (folders.isNotEmpty()) {
+            val clauses = folders.map { folder ->
+                args += folder.volumeName; args += folder.bucketId
+                "(m.volumeName=? AND m.bucketId=?)"
+            }
+            where += if (query.folderMode == MediaQuery.FolderMode.AllExceptExcluded) {
+                "NOT (${clauses.joinToString(" OR ")})"
+            } else "(${clauses.joinToString(" OR ")})"
         }
         query.fromTimelineMillisInclusive?.let { where += "m.timelineSortMillis>=?"; args += it }
         query.toTimelineMillisExclusive?.let { where += "m.timelineSortMillis<?"; args += it }
@@ -80,29 +101,81 @@ class RoomViewerMediaSource(database: GalleryDatabase) {
         val beforeInSource = side == PageSide.Previous
         val useGreaterThan = ascendingSource == beforeInSource
         val comparison = if (useGreaterThan) ">" else "<"
-        where += "(" +
-            "m.timelineSortMillis $comparison ? OR " +
-            "(m.timelineSortMillis=? AND m.mediaStoreId $comparison ?) OR " +
-            "(m.timelineSortMillis=? AND m.mediaStoreId=? AND m.volumeName $comparison ?)" +
-            ")"
-        args += anchor.timelineSortMillis
-        args += anchor.timelineSortMillis
-        args += anchor.key.mediaStoreId
-        args += anchor.timelineSortMillis
-        args += anchor.key.mediaStoreId
-        args += anchor.key.volumeName
+        val sortExpression = when (query.sortField) {
+            MediaQuery.SortField.DateTaken -> "m.timelineSortMillis"
+            MediaQuery.SortField.DateModified -> "m.dateModifiedSeconds"
+            MediaQuery.SortField.Name -> "LOWER(COALESCE(m.displayName,''))"
+            MediaQuery.SortField.Size -> "m.sizeBytes"
+        }
+        val sortAnchor: Any = when (query.sortField) {
+            MediaQuery.SortField.DateTaken -> anchor.timelineSortMillis
+            MediaQuery.SortField.DateModified -> anchor.dateModifiedSeconds
+            MediaQuery.SortField.Name -> anchor.displayName.orEmpty().lowercase()
+            MediaQuery.SortField.Size -> anchor.sizeBytes
+        }
+        val components = buildList<Pair<String, Any>> {
+            groupComponent(query.grouping, anchor)?.let(::add)
+            add(sortExpression to sortAnchor)
+            add("m.mediaStoreId" to anchor.key.mediaStoreId)
+            add("m.volumeName" to anchor.key.volumeName)
+        }
+        where += components.indices.joinToString(prefix = "(", postfix = ")", separator = " OR ") { index ->
+            buildString {
+                append('(')
+                for (prefix in 0 until index) {
+                    if (prefix > 0) append(" AND ")
+                    append(components[prefix].first).append("=?")
+                    args += components[prefix].second
+                }
+                if (index > 0) append(" AND ")
+                append(components[index].first).append(' ').append(comparison).append(" ?)")
+                args += components[index].second
+            }
+        }
 
         // Previous rows are queried nearest-first and reversed when the window is assembled.
         val queryAscending = if (beforeInSource) !ascendingSource else ascendingSource
         val direction = if (queryAscending) "ASC" else "DESC"
         args += limit
+        val order = components.joinToString { "${it.first} $direction" }
         return SimpleSQLiteQuery(
             "SELECT m.* FROM $from WHERE ${where.joinToString(" AND ")} " +
-                "ORDER BY m.timelineSortMillis $direction, m.mediaStoreId $direction, " +
-                "m.volumeName $direction LIMIT ?",
+                "ORDER BY $order LIMIT ?",
             args.toTypedArray(),
         )
     }
+
+    private fun groupComponent(
+        grouping: MediaQuery.Grouping,
+        anchor: TimelineMedia,
+    ): Pair<String, Any>? {
+        if (grouping == MediaQuery.Grouping.None) return null
+        val pattern = when (grouping) {
+            MediaQuery.Grouping.Day -> "yyyy-MM-dd"
+            MediaQuery.Grouping.Month -> "yyyy-MM"
+            MediaQuery.Grouping.Year -> "yyyy"
+            MediaQuery.Grouping.None -> error("Handled above")
+        }
+        val sqlPattern = when (grouping) {
+            MediaQuery.Grouping.Day -> "%Y-%m-%d"
+            MediaQuery.Grouping.Month -> "%Y-%m"
+            MediaQuery.Grouping.Year -> "%Y"
+            MediaQuery.Grouping.None -> error("Handled above")
+        }
+        val key = Instant.ofEpochMilli(anchor.timelineSortMillis).atZone(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofPattern(pattern))
+        return "strftime('$sqlPattern', m.timelineSortMillis/1000, 'unixepoch', 'localtime')" to key
+    }
+
+    private fun rawImagePredicate(alias: String) =
+        "$alias.mediaType=1 AND (LOWER(COALESCE($alias.mimeType,'')) IN (" +
+            "'image/x-adobe-dng','image/x-canon-cr2','image/x-canon-cr3','image/x-nikon-nef'," +
+            "'image/x-sony-arw','image/x-fuji-raf','image/x-panasonic-rw2','image/x-olympus-orf') " +
+            "OR LOWER(COALESCE($alias.displayName,'')) GLOB '*.[dD][nN][gG]' " +
+            "OR LOWER(COALESCE($alias.displayName,'')) GLOB '*.[cC][rR][23]' " +
+            "OR LOWER(COALESCE($alias.displayName,'')) GLOB '*.[nN][eE][fF]' " +
+            "OR LOWER(COALESCE($alias.displayName,'')) GLOB '*.[aA][rR][wW]' " +
+            "OR LOWER(COALESCE($alias.displayName,'')) GLOB '*.[rR][aA][fF]')"
 
     private enum class PageSide { Previous, Next }
 

@@ -94,6 +94,22 @@ class MediaMetadataRepositoryDeviceTest {
         )
     }
 
+    @Test
+    fun deletedMediaIsRemovedFromTheLocalIndexInsteadOfCrashingDetails() = runBlocking {
+        val uri = publish("deleted-metadata.jpg", "gone".encodeToByteArray())
+        val key = MediaKey(MediaStore.VOLUME_EXTERNAL_PRIMARY, ContentUris.parseId(uri))
+        database.libraryDao().upsertMedia(listOf(entity(key, generation = 1)))
+        context.contentResolver.delete(uri, null, null)
+        published.remove(uri)
+
+        assertEquals(
+            ExifLoadResult.MediaUnavailable,
+            MediaMetadataRepository(context.contentResolver, database)
+                .exifDetails(key, allowUnredactedLocation = false),
+        )
+        assertNull(database.libraryDao().media(key.volumeName, key.mediaStoreId))
+    }
+
     private fun publishExifJpeg(): android.net.Uri {
         val file = File(context.cacheDir, "metadata-source.jpg")
         Bitmap.createBitmap(16, 8, Bitmap.Config.ARGB_8888).also { bitmap ->

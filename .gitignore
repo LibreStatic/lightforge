@@ -9,3 +9,6 @@ benchmark-results/
 testdata/open-images-miap-face-corpus/images/
 core/ml/src/androidTest/assets/images/
 core/ml/src/androidTest/assets/private_identity/
+
+# Native build artifacts
+.cxx/

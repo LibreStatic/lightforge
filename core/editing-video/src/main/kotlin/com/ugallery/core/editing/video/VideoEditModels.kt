@@ -1,6 +1,25 @@
 package com.ugallery.core.editing.video
 
 import android.net.Uri
+import java.util.UUID
+
+enum class SlowMotionAudioMode { PreservePitch, Muted, Varispeed }
+
+data class SlowMotionSegment(
+    val id: String = UUID.randomUUID().toString(),
+    val startMillis: Long,
+    val endMillis: Long,
+    val speed: Float = 0.25f,
+    val audioMode: SlowMotionAudioMode = SlowMotionAudioMode.PreservePitch,
+) {
+    init {
+        require(startMillis >= 0)
+        require(endMillis > startMillis)
+        require(speed == 0.5f || speed == 0.25f || speed == 0.125f)
+    }
+
+    val interpolationFactor: Int get() = (1f / speed).toInt()
+}
 
 data class VideoEditRecipe(
     val startMillis: Long = 0,
@@ -11,6 +30,7 @@ data class VideoEditRecipe(
     val musicVolume: Float = 0.6f,
     val colorGrade: VideoColorGrade = VideoColorGrade(),
     val outputQuality: VideoOutputQuality = VideoOutputQuality.H264Compatible,
+    val slowMotionSegments: List<SlowMotionSegment> = emptyList(),
 ) {
     init {
         require(startMillis >= 0)
@@ -18,12 +38,18 @@ data class VideoEditRecipe(
         require(speed in 0.25f..4f)
         require(originalAudioVolume in 0f..1f)
         require(musicVolume in 0f..1f)
+        require(slowMotionSegments == slowMotionSegments.sortedBy(SlowMotionSegment::startMillis))
+        require(slowMotionSegments.zipWithNext().none { (left, right) -> left.endMillis > right.startMillis })
+        require(slowMotionSegments.all { segment ->
+            segment.startMillis >= startMillis && (endMillis == null || segment.endMillis <= endMillis)
+        })
     }
 
     val hasChanges: Boolean
         get() = startMillis > 0 || endMillis != null || speed != 1f ||
             originalAudioVolume != 1f || musicUri != null
             || colorGrade.hasChanges
+            || slowMotionSegments.isNotEmpty()
 }
 
 data class VideoExportResult(

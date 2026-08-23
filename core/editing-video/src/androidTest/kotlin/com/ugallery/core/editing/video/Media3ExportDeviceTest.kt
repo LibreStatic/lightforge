@@ -39,6 +39,36 @@ import kotlinx.coroutines.runBlocking
 @RunWith(AndroidJUnit4::class)
 class Media3ExportDeviceTest {
     @Test
+    fun aiSlowMotionSegmentProducesExtendedVideo() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val input = copyAssetToCache(context, "m0_h264.mp4")
+        val output = File(context.cacheDir, "ai-slow-${System.nanoTime()}.mp4")
+        try {
+            val result = Media3VideoExporter(context).export(
+                VideoExportRequest(
+                    input = Uri.fromFile(input),
+                    output = output,
+                    recipe = VideoEditRecipe(
+                        startMillis = 0,
+                        endMillis = 1_000,
+                        slowMotionSegments = listOf(
+                            SlowMotionSegment(startMillis = 250, endMillis = 500, speed = 0.25f),
+                        ),
+                    ),
+                ),
+            )
+
+            assertTrue(output.isFile && output.length() > 0)
+            assertTrue("unexpected recipe duration", result.durationMillis in 1_700..1_800)
+            assertTrue("unexpected encoded duration", mediaDurationMs(output) in 1_500..2_100)
+            println("UGALLERY_RIFE_EXPORT size=${output.length()} durationMs=${mediaDurationMs(output)}")
+        } finally {
+            input.delete()
+            output.delete()
+        }
+    }
+
+    @Test
     fun h264AndHevcInputsProduceValidatedPublishedCopies() {
         listOf("m0_h264.mp4", "m0_hevc.mp4").forEach { assetName ->
             val instrumentation = InstrumentationRegistry.getInstrumentation()

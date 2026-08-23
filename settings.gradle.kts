@@ -34,6 +34,8 @@ include(
     ":core:editing-image",
     ":core:raw",
     ":core:editing-video",
+    ":core:frame-interpolation",
+    ":core:preferences",
     ":core:security",
     ":core:designsystem",
     ":core:navigation",

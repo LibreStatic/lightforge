@@ -17,11 +17,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventPass
 import kotlinx.coroutines.flow.collectLatest
+import kotlin.math.abs
 
 internal fun adaptiveDensityColumns(widthDp: Int): IntArray = when {
-    widthDp < 600 -> intArrayOf(3, 4, 5, 7)
-    widthDp < 840 -> intArrayOf(5, 6, 7, 9)
-    else -> intArrayOf(7, 9, 11, 13)
+    widthDp < 600 -> intArrayOf(2, 3, 4, 5, 7)
+    widthDp < 840 -> intArrayOf(3, 5, 6, 7, 9)
+    else -> intArrayOf(5, 7, 9, 11, 13)
 }
 
 @Stable
@@ -33,6 +34,7 @@ class TimelineDensityState internal constructor(
     private var anchorRestorePending = false
     private var anchorStableKey: String? = null
     private var lastColumns = -1
+    private var seededFromPreferredColumns = false
     var densityIndex by mutableIntStateOf(densityIndex)
         private set
     var anchorIndex by mutableIntStateOf(anchorIndex)
@@ -45,13 +47,35 @@ class TimelineDensityState internal constructor(
         return options[densityIndex.coerceIn(options.indices)]
     }
 
+    /**
+     * Seeds the density level once from a persisted absolute column count,
+     * snapping to the closest option of the active width bucket. Later calls
+     * are ignored so user pinch/button changes always win over the stored
+     * preference for the rest of the session.
+     */
+    fun seedFromPreferredColumns(columns: Int?, widthDp: Int) {
+        if (seededFromPreferredColumns || columns == null) return
+        seededFromPreferredColumns = true
+        val options = adaptiveDensityColumns(widthDp)
+        var bestIndex = 0
+        var bestDistance = Int.MAX_VALUE
+        options.forEachIndexed { index, candidate ->
+            val distance = abs(candidate - columns)
+            if (distance < bestDistance) {
+                bestDistance = distance
+                bestIndex = index
+            }
+        }
+        densityIndex = bestIndex
+    }
+
     /** Cycles through density options while preserving the current media anchor. */
     fun cycleDensity(anchorIndex: Int, anchorOffset: Int = 0, anchorStableKey: String? = null): Boolean {
         this.anchorIndex = anchorIndex.coerceAtLeast(0)
         this.anchorOffset = anchorOffset.coerceAtLeast(0)
         this.anchorStableKey = anchorStableKey
         anchorRestorePending = true
-        densityIndex = (densityIndex + 1) % 4
+        densityIndex = (densityIndex + 1) % 5
         return true
     }
 
@@ -61,7 +85,7 @@ class TimelineDensityState internal constructor(
         anchorOffset: Int = 0,
         anchorStableKey: String? = null,
     ): Boolean {
-        val next = (densityIndex + delta).coerceIn(0, 3)
+        val next = (densityIndex + delta).coerceIn(0, 4)
         if (next == densityIndex) return false
         this.anchorIndex = anchorIndex.coerceAtLeast(0)
         this.anchorOffset = anchorOffset.coerceAtLeast(0)

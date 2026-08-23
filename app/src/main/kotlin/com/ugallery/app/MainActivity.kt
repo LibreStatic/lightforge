@@ -69,14 +69,11 @@ class MainActivity : FragmentActivity() {
         if (usesProductionRuntime) galleryViewModel.openExternal(intent)
     }
 
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (
-            event.action == KeyEvent.ACTION_DOWN &&
-            (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP || event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN)
-        ) {
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
             galleryViewModel.onHardwareVolumeKey()
         }
-        return super.dispatchKeyEvent(event)
+        return super.onKeyDown(keyCode, event)
     }
 
     private companion object {

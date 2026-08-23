@@ -41,6 +41,9 @@ fun LibraryPhotosRoute(
     onOpenSettings: () -> Unit = {},
     onMediaClick: (TimelineMedia) -> Unit = {},
     onMediaLongClick: (TimelineMedia) -> Unit = {},
+    preferredColumns: Int? = null,
+    cropThumbnails: Boolean = true,
+    onDensityChange: ((Int) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val densityState = rememberTimelineDensityState()
@@ -135,6 +138,9 @@ fun LibraryPhotosRoute(
                     onMediaLongClick = onMediaLongClick,
                     modifier = Modifier.fillMaxSize(),
                     densityState = densityState,
+                    preferredColumns = preferredColumns,
+                    cropThumbnails = cropThumbnails,
+                    onDensityChange = onDensityChange,
                 )
             }
         }

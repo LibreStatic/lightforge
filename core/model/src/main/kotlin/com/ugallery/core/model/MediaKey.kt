@@ -21,13 +21,19 @@ data class TimelineMedia(
     val dateExpiresMillis: Long? = null,
     val isFavorite: Boolean = false,
     val isTrashed: Boolean = false,
+    val displayName: String? = null,
+    val sizeBytes: Long = 0L,
+    val dateModifiedSeconds: Long = 0L,
 )
 
 sealed interface TimelineEntry {
     val stableKey: String
 
-    data class DayHeader(val epochDay: Long) : TimelineEntry {
-        override val stableKey: String = "day:$epochDay"
+    data class DayHeader(
+        val epochDay: Long,
+        val granularity: TimelineGrouping = TimelineGrouping.Day,
+    ) : TimelineEntry {
+        override val stableKey: String = "date:${granularity.name}:$epochDay"
     }
 
     data class Media(val value: TimelineMedia) : TimelineEntry {
@@ -35,6 +41,8 @@ sealed interface TimelineEntry {
             "media:${value.key.volumeName}:${value.key.mediaStoreId}"
     }
 }
+
+enum class TimelineGrouping { Day, Month, Year }
 
 enum class GrantLevel { None, Selected, Full }
 

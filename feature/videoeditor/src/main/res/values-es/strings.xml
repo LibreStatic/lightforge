@@ -56,5 +56,22 @@
     <string name="video_editor_reset_grade">Restablecer corrección</string>
     <string name="video_editor_play">Reproducir vista previa</string>
     <string name="video_editor_pause">Pausar vista previa</string>
+    <string name="video_editor_enable_loop">Activar vista previa continua</string>
+    <string name="video_editor_disable_loop">Desactivar vista previa continua</string>
+    <string name="video_editor_resize_panels">Redimensionar los paneles de vista previa y edición</string>
     <string name="video_editor_preview_failed">No se pudo reproducir la vista previa del video</string>
+    <string name="video_editor_base_speed">Velocidad base</string>
+    <string name="video_editor_mark_in">Marcar entrada</string>
+    <string name="video_editor_mark_out">Marcar salida</string>
+    <string name="video_editor_marked_in_at">Entrada marcada en %1$s</string>
+    <string name="video_editor_slow_segments">Tramos en cámara lenta</string>
+    <string name="video_editor_segment_speed">Velocidad del tramo</string>
+    <string name="video_editor_segment_audio">Audio del tramo</string>
+    <string name="video_editor_audio_preserve_pitch">Conservar tono</string>
+    <string name="video_editor_audio_muted">Silenciado</string>
+    <string name="video_editor_audio_varispeed">Tono ralentizado</string>
+    <string name="video_editor_delete_segment">Eliminar tramo</string>
+    <string name="video_editor_cancel_export">Cancelar exportación</string>
+    <string name="video_editor_slow_overlap">Los tramos en cámara lenta no pueden superponerse</string>
+    <string name="video_editor_slow_invalid_range">La salida debe estar después de la entrada</string>
 </resources>

@@ -13,6 +13,8 @@ data class MediaStoreChangeBatch(
     val rowHints: Set<MediaKey>,
     /** Always true: row hints accelerate visibility, generations still advance the durable checkpoint. */
     val requiresVolumeGenerationSync: Boolean,
+    /** Collection-only notifications cannot identify deleted rows, so they require reconciliation. */
+    val requiresFullVolumeReconciliation: Boolean,
 )
 
 internal class ChangeBurstCoalescer<T>(
@@ -56,13 +58,7 @@ class MediaStoreChangeMonitor(
     onBatch: suspend (MediaStoreChangeBatch) -> Unit,
 ) : AutoCloseable {
     private val coalescer = ChangeBurstCoalescer<Uri?>(scope, quietWindowMillis) { uris ->
-        val parsed = uris.mapNotNull(::mediaKeyFromObserverUri).toSet()
-        onBatch(
-            MediaStoreChangeBatch(
-                rowHints = parsed,
-                requiresVolumeGenerationSync = true,
-            ),
-        )
+        onBatch(mediaStoreChangeBatch(uris))
     }
     private val observer = object : ContentObserver(null) {
         override fun onChange(selfChange: Boolean, uri: Uri?) = coalescer.submit(uri)
@@ -85,6 +81,21 @@ class MediaStoreChangeMonitor(
         registered = false
         coalescer.cancel()
     }
+}
+
+internal fun mediaStoreChangeBatch(uris: Set<Uri?>): MediaStoreChangeBatch {
+    return mediaStoreChangeBatchStrings(uris.map { it?.toString() }.toSet())
+}
+
+internal fun mediaStoreChangeBatchStrings(uris: Set<String?>): MediaStoreChangeBatch {
+    val parsed = uris.mapNotNull(::mediaKeyFromObserverUriString).toSet()
+    return MediaStoreChangeBatch(
+        rowHints = parsed,
+        requiresVolumeGenerationSync = true,
+        requiresFullVolumeReconciliation = uris.isEmpty() || uris.any {
+            mediaKeyFromObserverUriString(it) == null
+        },
+    )
 }
 
 internal fun mediaKeyFromObserverUri(uri: Uri?): MediaKey? {

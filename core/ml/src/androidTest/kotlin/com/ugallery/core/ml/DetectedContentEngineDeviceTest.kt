@@ -239,6 +239,53 @@ class DetectedContentEngineDeviceTest {
         assertTrue(database.libraryDao().labels(key.volumeName, key.mediaStoreId).isEmpty())
     }
 
+    @Test fun missingMediaDoesNotBlockTheRemainingLabelQueue() = runBlocking {
+        val missing = imageFixture("missing-${UUID.randomUUID()}.png", "MISSING")
+        val present = imageFixture("present-${UUID.randomUUID()}.png", "DOG")
+        val missingEntity = media(missing, bucket = "Camera", sort = 40)
+        val presentEntity = media(present, bucket = "Camera", sort = 30)
+        database.libraryDao().upsertMedia(listOf(missingEntity, presentEntity))
+        context.contentResolver.delete(missing, null, null)
+        fixtures.remove(missing)
+        val engine = ImageLabelMlEngine(
+            context.contentResolver,
+            database,
+            AppSearchMediaIndex(context, "missing-${UUID.randomUUID()}"),
+            { true },
+            inference = ImageLabelInference { listOf(RawImageLabel("Dog", .95f)) },
+        )
+
+        engine.use { assertEquals(MlChunkOutcome.Complete(2), it.process(null, 50)) }
+        assertEquals(null, database.libraryDao().media(missingEntity.volumeName, missingEntity.mediaStoreId))
+        assertEquals(
+            listOf("dog"),
+            database.libraryDao().labels(presentEntity.volumeName, presentEntity.mediaStoreId)
+                .map { it.canonicalLabel },
+        )
+    }
+
+    @Test fun tinyMediaIsRecordedWithoutInvokingImageLabelInference() = runBlocking {
+        val fixture = imageFixture(
+            "tiny-label-${UUID.randomUUID()}.png",
+            "TINY",
+            Bitmap.createBitmap(64, 16, Bitmap.Config.ARGB_8888),
+        )
+        val item = media(fixture, bucket = "Camera", sort = 50)
+        database.libraryDao().upsertMedia(listOf(item))
+        var invoked = false
+        val engine = ImageLabelMlEngine(
+            context.contentResolver,
+            database,
+            AppSearchMediaIndex(context, "tiny-${UUID.randomUUID()}"),
+            { true },
+            inference = ImageLabelInference { invoked = true; emptyList() },
+        )
+
+        engine.use { assertEquals(MlChunkOutcome.Complete(1), it.process(null, 50)) }
+        assertEquals(false, invoked)
+        assertEquals(emptyList<String>(), database.libraryDao().labels(item.volumeName, item.mediaStoreId).map { it.canonicalLabel })
+    }
+
     private fun imageFixture(name: String, text: String, bitmap: Bitmap = textBitmap(text)): Uri {
         val resolver = context.contentResolver
         val uri = requireNotNull(

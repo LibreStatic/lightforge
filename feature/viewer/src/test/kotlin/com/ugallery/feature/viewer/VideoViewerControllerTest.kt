@@ -16,7 +16,19 @@ class VideoViewerControllerTest {
 
         controller.setVideoEffects(emptyList())
 
-        assertEquals(1_234L, engine.lastSeek)
+        assertEquals(1_233L, engine.lastSeek)
+    }
+
+    @Test
+    fun refreshingEffectsAtEndReturnsToFirstFrame() {
+        val engine = FakeVideoEngine()
+        val controller = VideoViewerController(engine)
+        engine.position = 10_000L
+        engine.listener?.onReady(10_000L, false)
+
+        controller.setVideoEffects(emptyList())
+
+        assertEquals(0L, engine.lastSeek)
     }
 
     @Test
@@ -29,12 +41,63 @@ class VideoViewerControllerTest {
 
         assertEquals(null, engine.lastSeek)
     }
+
+    @Test
+    fun refreshingUpdatedEffectDoesNotCreateAnotherEffectBoundary() {
+        val engine = FakeVideoEngine()
+        val controller = VideoViewerController(engine)
+        engine.position = 1_234L
+        engine.listener?.onReady(10_000L, false)
+
+        controller.refreshVideoFrame()
+
+        assertEquals(0, engine.effectCalls)
+        assertEquals(1_233L, engine.lastSeek)
+    }
+
+    @Test
+    fun loopingCanStartEnabledAndBeChangedWithoutRecreatingPlayback() {
+        val engine = FakeVideoEngine()
+        val controller = VideoViewerController(engine, initialLooping = true)
+
+        assertEquals(listOf(true), engine.repeatEnabled)
+
+        controller.setLooping(false)
+
+        assertEquals(listOf(true, false), engine.repeatEnabled)
+    }
+
+    @Test
+    fun loopingIsDisabledByDefaultForViewerControllers() {
+        val engine = FakeVideoEngine()
+
+        VideoViewerController(engine)
+
+        assertEquals(listOf(false), engine.repeatEnabled)
+    }
+
+    @Test
+    fun relativeSeekIsClampedToPlaybackBounds() {
+        val engine = FakeVideoEngine()
+        val controller = VideoViewerController(engine)
+        engine.listener?.onReady(10_000L, true)
+        engine.position = 9_500L
+
+        controller.seekBy(2_000L)
+        assertEquals(10_000L, engine.lastSeek)
+
+        engine.position = 500L
+        controller.seekBy(-2_000L)
+        assertEquals(0L, engine.lastSeek)
+    }
 }
 
 private class FakeVideoEngine : VideoEngine {
     override var listener: VideoEngine.Listener? = null
     var position = 0L
     var lastSeek: Long? = null
+    val repeatEnabled = mutableListOf<Boolean>()
+    var effectCalls = 0
     override fun setMedia(uri: Uri) = Unit
     override fun prepare() = Unit
     override fun play() = Unit
@@ -44,6 +107,7 @@ private class FakeVideoEngine : VideoEngine {
     override fun release() = Unit
     override fun attachSurface(surfaceView: SurfaceView?) = Unit
     override fun setVolume(volume: Float) = Unit
-    override fun setVideoEffects(effects: List<Effect>) = Unit
+    override fun setRepeatEnabled(enabled: Boolean) { repeatEnabled += enabled }
+    override fun setVideoEffects(effects: List<Effect>) { effectCalls++ }
     override fun currentPositionMillis(): Long = position
 }

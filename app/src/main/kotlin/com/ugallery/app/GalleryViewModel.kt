@@ -43,6 +43,7 @@ import com.ugallery.core.mediastore.PendingMediaWriter
 import com.ugallery.core.mediastore.MediaWriteSpec
 import com.ugallery.core.mediastore.PublishedCopy
 import com.ugallery.core.mediastore.LocalShareSanitizer
+import com.ugallery.core.mediastore.ScopedMediaOperations
 import com.ugallery.core.ml.DetectedContentRepository
 import com.ugallery.core.ml.MlScheduler
 import com.ugallery.core.ml.MlTaskType
@@ -72,6 +73,12 @@ import com.ugallery.core.model.EditOperation
 import com.ugallery.core.model.EditRecipe
 import com.ugallery.core.model.RawDevelopmentSettings
 import com.ugallery.core.model.RawOutputFormat
+import com.ugallery.core.preferences.GallerySettings
+import com.ugallery.core.preferences.GallerySettingsRepository
+import com.ugallery.core.preferences.VideoResumePolicy
+import com.ugallery.core.preferences.FavoriteBackupRecord
+import com.ugallery.core.preferences.GalleryBackupCodec
+import com.ugallery.core.preferences.GalleryFolderToken
 import com.ugallery.core.editing.image.PhotoExportOutcome
 import com.ugallery.core.editing.image.PhotoImageRenderer
 import com.ugallery.core.editing.video.Media3VideoExporter
@@ -84,7 +91,11 @@ import com.ugallery.core.editing.video.VideoColorGrade
 import com.ugallery.core.editing.video.VideoEditRecipeCodec
 import com.ugallery.core.editing.video.VideoOutputQuality
 import com.ugallery.core.editing.video.VideoOutputCapabilities
+import com.ugallery.core.editing.video.SlowMotionSegment
 import com.ugallery.core.database.VideoEditRecipeEntity
+import com.ugallery.core.database.VideoPlaybackPositionEntity
+import com.ugallery.core.database.MediaItemEntity
+import com.ugallery.core.database.PhysicalAlbumRow
 import com.ugallery.core.raw.RawDeveloper
 import com.ugallery.core.raw.RawExportOutcome
 import com.ugallery.core.raw.isRawMimeOrName
@@ -98,6 +109,7 @@ import com.ugallery.feature.collections.MomentMemberUi
 import com.ugallery.feature.collections.PeopleUiState
 import com.ugallery.feature.collections.PersonCardUi
 import com.ugallery.feature.collections.PersonMemberCardUi
+import com.ugallery.feature.settings.GalleryFolderOption
 import com.ugallery.feature.permissions.PermissionCoordinator
 import com.ugallery.feature.viewer.PhotoLoadState
 import com.ugallery.feature.viewer.PhotoViewerPipeline
@@ -138,6 +150,7 @@ import android.net.Uri
 import android.provider.MediaStore
 import android.webkit.MimeTypeMap
 import javax.inject.Inject
+import org.json.JSONObject
 
 enum class LibraryEngineState { Starting, Indexing, Ready, PermissionRequired, Error }
 
@@ -164,6 +177,11 @@ data class VideoEditorSession(
     val media: TimelineMedia,
     val recipe: VideoEditRecipe,
     val content: VideoEditorContentState,
+)
+
+data class QuickSlowMotionSaveState(
+    val progress: Float? = null,
+    val completionGeneration: Long = 0,
 )
 
 private data class GalleryRuntime(
@@ -198,6 +216,59 @@ class GalleryViewModel @Inject constructor(
     private val mutableSearchIndexReady = MutableStateFlow(false)
     val searchIndexReady = mutableSearchIndexReady.asStateFlow()
     private val mlScheduler = MlScheduler(application)
+    private val gallerySettingsRepository = GallerySettingsRepository(application)
+    val gallerySettings = gallerySettingsRepository.settings.stateIn(
+        viewModelScope,
+        SharingStarted.Eagerly,
+        GallerySettings(),
+    )
+
+    suspend fun restoredVideoPosition(media: TimelineMedia): Long = withContext(Dispatchers.IO) {
+        if (!gallerySettings.value.playback.rememberVideoPosition || media.kind != MediaKind.Video) {
+            return@withContext 0L
+        }
+        val dao = runtime.value?.database?.libraryDao() ?: return@withContext 0L
+        val saved = dao.videoPlaybackPosition(media.key.volumeName, media.key.mediaStoreId)
+            ?: return@withContext 0L
+        val restored = VideoResumePolicy.restoredPosition(
+            enabled = true,
+            positionMillis = saved.positionMillis,
+            savedDurationMillis = saved.durationMillis,
+            currentDurationMillis = media.durationMillis,
+        )
+        if (restored == null) {
+            dao.deleteVideoPlaybackPosition(media.key.volumeName, media.key.mediaStoreId)
+            0L
+        } else {
+            restored
+        }
+    }
+
+    fun saveVideoPosition(media: TimelineMedia, positionMillis: Long) {
+        if (media.kind != MediaKind.Video) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val dao = runtime.value?.database?.libraryDao() ?: return@launch
+            val duration = media.durationMillis.coerceAtLeast(0L)
+            val resumable = VideoResumePolicy.shouldPersist(
+                enabled = gallerySettings.value.playback.rememberVideoPosition,
+                positionMillis = positionMillis,
+                durationMillis = duration,
+            )
+            if (resumable) {
+                dao.upsertVideoPlaybackPosition(
+                    VideoPlaybackPositionEntity(
+                        volumeName = media.key.volumeName,
+                        mediaStoreId = media.key.mediaStoreId,
+                        positionMillis = positionMillis,
+                        durationMillis = duration,
+                        updatedAtMillis = System.currentTimeMillis(),
+                    ),
+                )
+            } else {
+                dao.deleteVideoPlaybackPosition(media.key.volumeName, media.key.mediaStoreId)
+            }
+        }
+    }
     private val petSettings = PetCollectionSettings(application)
     private val mutableDetectedContentEnabled = MutableStateFlow(
         mlScheduler.hasConsent(MlTaskType.ImageLabels) || mlScheduler.hasConsent(MlTaskType.Ocr),
@@ -209,7 +280,10 @@ class GalleryViewModel @Inject constructor(
     val peopleAnalysis = mutablePeopleAnalysis.asStateFlow()
     private val mutablePetCollectionsEnabled = MutableStateFlow(petSettings.isEnabled())
     val petCollectionsEnabled = mutablePetCollectionsEnabled.asStateFlow()
-    val petSummary = runtime.filterNotNull()
+    private val mutablePetAnalysis = MutableStateFlow(mlScheduler.controlState(MlTaskType.ImageLabels))
+    val petAnalysis = mutablePetAnalysis.asStateFlow()
+    private val petRefreshGeneration = MutableStateFlow(0L)
+    val petSummary = combine(runtime.filterNotNull(), petRefreshGeneration) { current, _ -> current }
         .flatMapLatest { PetCollectionRepository(it.database).summary() }
         .stateIn(viewModelScope, SharingStarted.Eagerly, PetCollectionSummary())
     private val peopleRefreshGeneration = MutableStateFlow(0L)
@@ -236,6 +310,7 @@ class GalleryViewModel @Inject constructor(
     val me = mutableMe.asStateFlow()
     private var faceProgressJob: Job? = null
     private var peopleProgressJob: Job? = null
+    private var petProgressJob: Job? = null
     private val mutableBenchmarkMlRunning = MutableStateFlow(false)
     val benchmarkMlRunning = mutableBenchmarkMlRunning.asStateFlow()
     private var benchmarkMlJob: Job? = null
@@ -248,8 +323,11 @@ class GalleryViewModel @Inject constructor(
         LibraryEngineState.Starting,
     )
     val access = permissions.access
-    val timeline: Flow<PagingData<TimelineEntry>> = runtime.filterNotNull()
-        .flatMapLatest { it.timeline.timeline(ZoneId.systemDefault()) }
+    val timeline: Flow<PagingData<TimelineEntry>> = gallerySettings
+        .map { it.library }
+        .flatMapLatest { library ->
+            runtime.filterNotNull().flatMapLatest { it.timeline.timeline(ZoneId.systemDefault(), library) }
+        }
         .cachedIn(viewModelScope)
     val thumbnailLoader = runtime.map { it?.thumbnails }.stateIn(
         viewModelScope,
@@ -259,6 +337,17 @@ class GalleryViewModel @Inject constructor(
     val physicalAlbums: Flow<PagingData<AlbumSummary>> = runtime.filterNotNull()
         .flatMapLatest { it.albums.physicalAlbums() }
         .cachedIn(viewModelScope)
+    val galleryFolderOptions = runtime.filterNotNull()
+        .flatMapLatest { it.database.libraryDao().physicalAlbumOptions() }
+        .map { rows ->
+            rows.filter(PhysicalAlbumRow::isAvailable).map { row ->
+                GalleryFolderOption(
+                    token = GalleryFolderToken.encode(row.volumeName, row.bucketId),
+                    label = "${row.displayName ?: row.bucketId} · ${row.volumeName} (${row.itemCount})",
+                )
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val virtualAlbums: Flow<PagingData<AlbumSummary>> = runtime.filterNotNull()
         .flatMapLatest { it.albums.virtualAlbums() }
         .cachedIn(viewModelScope)
@@ -304,11 +393,14 @@ class GalleryViewModel @Inject constructor(
     private val mutableHardwareVolumeKeys = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val hardwareVolumeKeys = mutableHardwareVolumeKeys.asSharedFlow()
     private var currentSystemCoordinator: MediaStoreActionCoordinator? = null
+    private var pendingWriteMutation: PendingWriteMutation? = savedStateHandle[WriteMutationStateKey]
     private var photoJob: Job? = null
     private var photoEditorJob: Job? = null
     private var videoEditorJob: Job? = null
     private var videoRecipeJob: Job? = null
+    private var slowMotionSaveJob: Job? = null
     private var bulkCursor: BulkCursor? = savedStateHandle[BulkStateKey]
+    private var favoriteImportCursor: FavoriteImportCursor? = savedStateHandle[FavoriteImportStateKey]
     private val mutableExternalMedia = MutableStateFlow<ExternalMedia?>(null)
     val externalMedia = mutableExternalMedia.asStateFlow()
     private val mutableExternalPhotoState = MutableStateFlow<PhotoLoadState?>(null)
@@ -319,6 +411,8 @@ class GalleryViewModel @Inject constructor(
     val photoEditor = mutablePhotoEditor.asStateFlow()
     private val mutableVideoEditor = MutableStateFlow<VideoEditorSession?>(null)
     val videoEditor = mutableVideoEditor.asStateFlow()
+    private val mutableQuickSlowMotionSave = MutableStateFlow(QuickSlowMotionSaveState())
+    val quickSlowMotionSave = mutableQuickSlowMotionSave.asStateFlow()
     private val mutableSanitizedShare = MutableSharedFlow<Intent>(extraBufferCapacity = 1)
     val sanitizedShare = mutableSanitizedShare.asSharedFlow()
     private val mutableShareError = MutableSharedFlow<String>(extraBufferCapacity = 1)
@@ -331,9 +425,52 @@ class GalleryViewModel @Inject constructor(
         mutableHardwareVolumeKeys.tryEmit(Unit)
     }
 
+    fun updateGallerySettings(transform: (GallerySettings) -> GallerySettings) {
+        viewModelScope.launch { gallerySettingsRepository.update(transform) }
+    }
+
+    fun resetGallerySettings() {
+        viewModelScope.launch { gallerySettingsRepository.reset() }
+    }
+
+    fun exportGallerySettings(uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val favorites = runtime.value?.database?.libraryDao()?.favoriteMediaForBackup().orEmpty()
+                .map { it.toFavoriteBackupRecord() }
+            val backup = GalleryBackupCodec.encode(gallerySettingsRepository.exportJson(), favorites)
+            getApplication<Application>().contentResolver.openOutputStream(uri)?.bufferedWriter()?.use {
+                it.write(backup.toString(2))
+            }
+        }
+    }
+
+    fun importGallerySettings(uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val root = getApplication<Application>().contentResolver.openInputStream(uri)?.bufferedReader()?.use {
+                JSONObject(it.readText())
+            } ?: return@launch
+            val payload = GalleryBackupCodec.decode(root)
+            gallerySettingsRepository.importJson(payload.settings)
+            val dao = runtime.value?.database?.libraryDao() ?: return@launch
+            val targets = payload.favorites.mapNotNull { record ->
+                val exact = dao.media(record.volumeName, record.mediaStoreId)
+                    ?.takeIf { it.matchesBackupRecord(record, requireIdentityConfidence = true) }
+                val resolved = exact ?: dao.mediaByBackupFingerprint(
+                    record.displayName,
+                    record.mimeType,
+                    record.sizeBytes,
+                ).filter { it.matchesBackupRecord(record, requireIdentityConfidence = false) }
+                    .singleOrNull()
+                resolved?.takeUnless(MediaItemEntity::isFavorite)?.toActionTarget()
+            }.distinctBy(MediaActionTarget::key)
+            if (targets.isNotEmpty()) withContext(Dispatchers.Main) { beginFavoriteImport(targets) }
+        }
+    }
+
     init {
         if (mlScheduler.hasConsent(MlTaskType.FaceDetection)) monitorFaceProgress()
         if (mlScheduler.hasConsent(MlTaskType.PersonClustering)) monitorPeopleProgress()
+        if (mlScheduler.hasConsent(MlTaskType.ImageLabels)) monitorPetProgress()
         viewModelScope.launch {
             val created = try {
                 withContext(Dispatchers.IO) { createRuntime(application) }
@@ -349,7 +486,10 @@ class GalleryViewModel @Inject constructor(
                     created.synchronizer.applyRowHint(it)
                     created.searchIndex.indexKey(it)
                 }
-                refreshLibrary(batch.rowHints.size)
+                refreshLibrary(
+                    indexedHintCount = batch.rowHints.size,
+                    forceFullReconciliation = batch.requiresFullVolumeReconciliation,
+                )
             }.also { it.start() }
             refreshLibrary()
         }
@@ -650,7 +790,14 @@ class GalleryViewModel @Inject constructor(
         petSettings.setEnabled(true)
         mutablePetCollectionsEnabled.value = true
         mlScheduler.grantConsent(MlTaskType.ImageLabels)
-        mlScheduler.enqueue(MlTaskType.ImageLabels, MlRunMode.Recent)
+        mlScheduler.unpause(MlTaskType.ImageLabels)
+        // Enabling a library collection is an explicit request to classify the whole
+        // library. A recent-only pass silently misses older pet photos.
+        viewModelScope.launch {
+            mlScheduler.restart(MlTaskType.ImageLabels, MlRunMode.FullLibrary)
+            mutablePetAnalysis.value = mlScheduler.controlState(MlTaskType.ImageLabels)
+            monitorPetProgress()
+        }
         mutableDetectedContentEnabled.value = true
     }
 
@@ -670,6 +817,26 @@ class GalleryViewModel @Inject constructor(
             runtime.value?.let { DetectedContentRepository(it.database).unsuppressLabel(type.canonicalLabel) }
             if (mlScheduler.hasConsent(MlTaskType.ImageLabels)) {
                 mlScheduler.enqueue(MlTaskType.ImageLabels, MlRunMode.Recent)
+            }
+        }
+    }
+
+    private fun monitorPetProgress() {
+        petProgressJob?.cancel()
+        petProgressJob = viewModelScope.launch {
+            while (isActive) {
+                val current = mlScheduler.controlState(MlTaskType.ImageLabels)
+                mutablePetAnalysis.value = current
+                if (!current.requested &&
+                    current.status == com.ugallery.core.ml.MlCheckpoint.Status.Complete
+                ) {
+                    // The summary joins label and media tables. Re-subscribe after the final
+                    // chunk so every device observes the complete counts immediately.
+                    petRefreshGeneration.value++
+                    break
+                }
+                if (!current.consentGranted || current.paused) break
+                delay(500)
             }
         }
     }
@@ -874,7 +1041,7 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
-    fun selectAllTimeline() = selectAll(MediaQuery())
+    fun selectAllTimeline() = selectAll(currentLibraryQuery())
 
     private fun selectAll(query: MediaQuery) {
         mutableSelection.value = SelectionSpec.queryAll(query)
@@ -992,6 +1159,8 @@ class GalleryViewModel @Inject constructor(
         viewerQuery = sourceQuery
         selectViewerMedia(media, forceWindowReload = true)
     }
+
+    fun openTimelineMedia(media: TimelineMedia) = openMedia(media, currentLibraryQuery())
 
     fun openAlbumMedia(
         media: TimelineMedia,
@@ -1330,12 +1499,31 @@ class GalleryViewModel @Inject constructor(
                 )
             }?.let { runCatching { VideoEditRecipeCodec.decode(it.encodedRecipe) }.getOrNull() }
             val detection = LogProfileDetector(getApplication<Application>()).detect(mediaUri(media))
-            val detectedRecipe = stored ?: VideoEditRecipe(
+            val loadedRecipe = stored ?: VideoEditRecipe(
                 colorGrade = VideoColorGrade(
                     inputProfile = detection.profile,
                     profileWasAutoDetected = detection.confidence >= 0.8f,
                 ),
             )
+            // Version-one recipes represented slow motion as a global speed. Convert that
+            // legacy shape into the new editable full-range segment when the duration is known.
+            val legacySegmentEnd = loadedRecipe.endMillis ?: media.durationMillis
+            val detectedRecipe = if (
+                loadedRecipe.speed in setOf(0.5f, 0.25f, 0.125f) &&
+                loadedRecipe.slowMotionSegments.isEmpty() &&
+                legacySegmentEnd > loadedRecipe.startMillis
+            ) {
+                loadedRecipe.copy(
+                    speed = 1f,
+                    slowMotionSegments = listOf(
+                        SlowMotionSegment(
+                            startMillis = loadedRecipe.startMillis,
+                            endMillis = legacySegmentEnd,
+                            speed = loadedRecipe.speed,
+                        ),
+                    ),
+                )
+            } else loadedRecipe
             val supportsMain10 = VideoOutputCapabilities.supportsHevcMain10()
             val recipe = if (detectedRecipe.outputQuality == VideoOutputQuality.HevcMain10 && !supportsMain10) {
                 detectedRecipe.copy(outputQuality = VideoOutputQuality.H264Compatible)
@@ -1357,6 +1545,7 @@ class GalleryViewModel @Inject constructor(
                     activeCustomLut = customLut,
                     outputQuality = recipe.outputQuality,
                     isHevcMain10Available = supportsMain10,
+                    slowMotionSegments = recipe.slowMotionSegments,
                     logDetectionMessage = if (detection.confidence >= 0.8f) {
                         getApplication<Application>().getString(
                             com.ugallery.feature.videoeditor.R.string.video_editor_detected_profile,
@@ -1375,10 +1564,28 @@ class GalleryViewModel @Inject constructor(
         val duration = session.content.durationMillis.coerceAtLeast(1)
         val start = startMillis.coerceIn(0, duration - 1)
         val end = endMillis.coerceIn(start + 1, duration)
-        val recipe = session.recipe.copy(startMillis = start, endMillis = end)
+        val adjustedSegments = session.recipe.slowMotionSegments.mapNotNull { segment ->
+            val adjustedStart = segment.startMillis.coerceAtLeast(start)
+            val adjustedEnd = segment.endMillis.coerceAtMost(end)
+            if (adjustedEnd <= adjustedStart) null else segment.copy(
+                startMillis = adjustedStart,
+                endMillis = adjustedEnd,
+            )
+        }
+        val recipe = session.recipe.copy(
+            startMillis = start,
+            endMillis = end,
+            slowMotionSegments = adjustedSegments,
+        )
         mutableVideoEditor.value = session.copy(
             recipe = recipe,
-            content = session.content.copy(trimStartMillis = start, trimEndMillis = end),
+            content = session.content.copy(
+                trimStartMillis = start,
+                trimEndMillis = end,
+                slowMotionSegments = adjustedSegments,
+                selectedSlowMotionSegmentId = session.content.selectedSlowMotionSegmentId
+                    ?.takeIf { id -> adjustedSegments.any { it.id == id } },
+            ),
         )
         persistVideoRecipe(recipe)
     }
@@ -1388,6 +1595,155 @@ class GalleryViewModel @Inject constructor(
         val recipe = session.recipe.copy(speed = speed)
         mutableVideoEditor.value = session.copy(recipe = recipe, content = session.content.copy(speed = speed))
         persistVideoRecipe(recipe)
+    }
+
+    fun markVideoSlowMotionIn(positionMillis: Long) {
+        val session = mutableVideoEditor.value ?: return
+        val position = positionMillis.coerceIn(
+            session.content.trimStartMillis,
+            session.content.trimEndMillis,
+        )
+        mutableVideoEditor.value = session.copy(
+            content = session.content.copy(slowMotionMarkInMillis = position, statusMessage = null),
+        )
+    }
+
+    fun markVideoSlowMotionOut(positionMillis: Long) {
+        val session = mutableVideoEditor.value ?: return
+        val start = session.content.slowMotionMarkInMillis ?: return
+        val end = positionMillis.coerceAtMost(session.content.trimEndMillis)
+        if (end <= start) {
+            mutableVideoEditor.value = session.copy(content = session.content.copy(
+                statusMessage = getApplication<Application>().getString(
+                    com.ugallery.feature.videoeditor.R.string.video_editor_slow_invalid_range,
+                ),
+            ))
+            return
+        }
+        val candidate = SlowMotionSegment(startMillis = start, endMillis = end)
+        if (session.recipe.slowMotionSegments.any { it.startMillis < end && start < it.endMillis }) {
+            mutableVideoEditor.value = session.copy(content = session.content.copy(
+                statusMessage = getApplication<Application>().getString(
+                    com.ugallery.feature.videoeditor.R.string.video_editor_slow_overlap,
+                ),
+            ))
+            return
+        }
+        val segments = (session.recipe.slowMotionSegments + candidate).sortedBy(SlowMotionSegment::startMillis)
+        val recipe = session.recipe.copy(slowMotionSegments = segments)
+        mutableVideoEditor.value = session.copy(
+            recipe = recipe,
+            content = session.content.copy(
+                slowMotionSegments = segments,
+                selectedSlowMotionSegmentId = candidate.id,
+                slowMotionMarkInMillis = null,
+                statusMessage = null,
+            ),
+        )
+        persistVideoRecipe(recipe)
+    }
+
+    fun selectVideoSlowMotionSegment(id: String) {
+        val session = mutableVideoEditor.value ?: return
+        if (session.recipe.slowMotionSegments.none { it.id == id }) return
+        mutableVideoEditor.value = session.copy(
+            content = session.content.copy(selectedSlowMotionSegmentId = id),
+        )
+    }
+
+    fun updateVideoSlowMotionSegment(segment: SlowMotionSegment) {
+        val session = mutableVideoEditor.value ?: return
+        val replacement = session.recipe.slowMotionSegments.map {
+            if (it.id == segment.id) segment else it
+        }.sortedBy(SlowMotionSegment::startMillis)
+        if (replacement == session.recipe.slowMotionSegments ||
+            replacement.zipWithNext().any { (left, right) -> left.endMillis > right.startMillis }
+        ) return
+        val recipe = session.recipe.copy(slowMotionSegments = replacement)
+        mutableVideoEditor.value = session.copy(
+            recipe = recipe,
+            content = session.content.copy(slowMotionSegments = replacement, statusMessage = null),
+        )
+        persistVideoRecipe(recipe)
+    }
+
+    fun deleteVideoSlowMotionSegment(id: String) {
+        val session = mutableVideoEditor.value ?: return
+        val segments = session.recipe.slowMotionSegments.filterNot { it.id == id }
+        val recipe = session.recipe.copy(slowMotionSegments = segments)
+        mutableVideoEditor.value = session.copy(
+            recipe = recipe,
+            content = session.content.copy(
+                slowMotionSegments = segments,
+                selectedSlowMotionSegmentId = null,
+                statusMessage = null,
+            ),
+        )
+        persistVideoRecipe(recipe)
+    }
+
+    fun cancelVideoExport() {
+        videoEditorJob?.cancel()
+        mutableVideoEditor.value = mutableVideoEditor.value?.let { session ->
+            session.copy(content = session.content.copy(isExporting = false, exportProgress = null))
+        }
+    }
+
+    fun saveQuickSlowMotionClip(media: TimelineMedia, startMillis: Long, endMillis: Long) {
+        val safeStart = startMillis.coerceIn(0L, (media.durationMillis - 1L).coerceAtLeast(0L))
+        val safeEnd = endMillis.coerceAtMost(media.durationMillis)
+        if (media.kind != MediaKind.Video || safeEnd <= safeStart || slowMotionSaveJob?.isActive == true) return
+        slowMotionSaveJob = viewModelScope.launch {
+            val temp = java.io.File(getApplication<Application>().cacheDir, "instant-slow-${System.nanoTime()}.mp4")
+            mutableQuickSlowMotionSave.value = mutableQuickSlowMotionSave.value.copy(progress = 0f)
+            try {
+                val segment = SlowMotionSegment(
+                    startMillis = safeStart,
+                    endMillis = safeEnd,
+                    speed = 0.25f,
+                )
+                Media3VideoExporter(getApplication<Application>()).export(
+                    VideoExportRequest(
+                        input = mediaUri(media),
+                        output = temp,
+                        recipe = VideoEditRecipe(
+                            startMillis = safeStart,
+                            endMillis = safeEnd,
+                            slowMotionSegments = listOf(segment),
+                        ),
+                        onProgress = { progress ->
+                            mutableQuickSlowMotionSave.value = mutableQuickSlowMotionSave.value.copy(progress = progress)
+                        },
+                    ),
+                )
+                PendingMediaWriter(getApplication<Application>().contentResolver).publishFile(
+                    temp,
+                    MediaWriteSpec(
+                        MediaStore.VOLUME_EXTERNAL_PRIMARY,
+                        MediaKind.Video,
+                        "UGallery-slow-motion-${System.currentTimeMillis()}.mp4",
+                        "video/mp4",
+                        "Movies/UGallery",
+                    ),
+                )
+                mutableQuickSlowMotionSave.value = QuickSlowMotionSaveState(
+                    completionGeneration = mutableQuickSlowMotionSave.value.completionGeneration + 1,
+                )
+                refreshLibrary()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Throwable) {
+                android.util.Log.e("UGallerySlowMotion", "Quick slow-motion export failed", failure)
+                mutableQuickSlowMotionSave.value = mutableQuickSlowMotionSave.value.copy(progress = null)
+                mutableShareError.emit(
+                    getApplication<Application>().getString(
+                        com.ugallery.feature.viewer.R.string.viewer_slow_motion_save_failed,
+                    ),
+                )
+            } finally {
+                temp.delete()
+            }
+        }
     }
 
     fun setVideoOriginalVolume(volume: Float) {
@@ -1508,7 +1864,11 @@ class GalleryViewModel @Inject constructor(
     fun saveVideoEditorCopy() {
         val session = mutableVideoEditor.value ?: return
         if (session.content.isExporting) return
-        mutableVideoEditor.value = session.copy(content = session.content.copy(isExporting = true, statusMessage = null))
+        mutableVideoEditor.value = session.copy(content = session.content.copy(
+            isExporting = true,
+            exportProgress = if (session.recipe.slowMotionSegments.isEmpty()) null else 0f,
+            statusMessage = null,
+        ))
         videoEditorJob?.cancel()
         videoEditorJob = viewModelScope.launch {
             val temp = java.io.File(getApplication<Application>().cacheDir, "video-edit-${System.nanoTime()}.mp4")
@@ -1517,6 +1877,11 @@ class GalleryViewModel @Inject constructor(
                     VideoExportRequest(
                         mediaUri(session.media), temp, session.recipe,
                         customLut = session.content.activeCustomLut,
+                        onProgress = { progress ->
+                            mutableVideoEditor.value = mutableVideoEditor.value?.let { current ->
+                                current.copy(content = current.content.copy(exportProgress = progress))
+                            }
+                        },
                     ),
                 )
                 PendingMediaWriter(getApplication<Application>().contentResolver).publishFile(
@@ -1532,6 +1897,7 @@ class GalleryViewModel @Inject constructor(
                 mutableVideoEditor.value = mutableVideoEditor.value?.copy(
                     content = mutableVideoEditor.value!!.content.copy(
                         isExporting = false,
+                        exportProgress = null,
                         statusMessage = getApplication<Application>().getString(
                             if (result.fallbackWarning == null) {
                                 com.ugallery.feature.videoeditor.R.string.video_editor_copy_saved
@@ -1543,9 +1909,11 @@ class GalleryViewModel @Inject constructor(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Throwable) {
+                android.util.Log.e("UGalleryVideoEditor", "Video copy export failed", failure)
                 mutableVideoEditor.value = mutableVideoEditor.value?.copy(
                     content = mutableVideoEditor.value!!.content.copy(
                         isExporting = false,
+                        exportProgress = null,
                         statusMessage = failure.message ?: getApplication<Application>().getString(
                             com.ugallery.feature.videoeditor.R.string.video_editor_save_failed,
                         ),
@@ -1630,6 +1998,41 @@ class GalleryViewModel @Inject constructor(
         beginTargetsAction(listOf(MediaActionTarget(media.key, media.kind)), action)
     }
 
+    fun requestRename(media: TimelineMedia, displayName: String) {
+        val safeName = ScopedMediaOperations.validateDisplayName(displayName)
+        pendingWriteMutation = PendingWriteMutation.Rename(media.key, media.kind, safeName)
+        savedStateHandle[WriteMutationStateKey] = pendingWriteMutation
+        beginSystemAction(media, MediaAction.Write)
+    }
+
+    fun requestDateRepair(media: TimelineMedia, dateTakenMillis: Long) {
+        require(dateTakenMillis > 0L)
+        pendingWriteMutation = PendingWriteMutation.DateTaken(media.key, media.kind, dateTakenMillis)
+        savedStateHandle[WriteMutationStateKey] = pendingWriteMutation
+        beginSystemAction(media, MediaAction.Write)
+    }
+
+    suspend fun copyMediaToTree(media: TimelineMedia, treeUri: Uri, move: Boolean): Result<Uri> = try {
+        val resolver = getApplication<Application>().contentResolver
+        val target = MediaActionTarget(media.key, media.kind)
+        val destination = ScopedMediaOperations.copyToTree(
+            resolver = resolver,
+            target = target,
+            treeUri = treeUri,
+            displayName = media.displayName ?: "UGallery-${media.key.mediaStoreId}.${if (media.kind == MediaKind.Video) "mp4" else "jpg"}",
+            mimeType = mediaMime(media.kind),
+            lastModifiedMillis = media.dateModifiedSeconds.takeIf {
+                gallerySettings.value.operations.keepLastModifiedWhenPossible
+            }?.times(1_000L),
+        )
+        if (move) beginSystemAction(media, MediaAction.Delete)
+        Result.success(destination)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (failure: Throwable) {
+        Result.failure(failure)
+    }
+
     fun openMoment(momentId: String) {
         val repo = runtime.value?.moments ?: return
         viewModelScope.launch {
@@ -1683,7 +2086,12 @@ class GalleryViewModel @Inject constructor(
                     .getOrNull()?.let(mutableActionLaunches::tryEmit)
             }
             com.ugallery.core.mediastore.MediaActionPhase.ReadyForChunk -> {
-                if (bulkCursor != null) viewModelScope.launch { stageNextBulkChunk() }
+                viewModelScope.launch {
+                    when {
+                        bulkCursor != null -> stageNextBulkChunk()
+                        favoriteImportCursor != null -> stageNextFavoriteImportChunk()
+                    }
+                }
             }
             else -> Unit
         }
@@ -1696,23 +2104,59 @@ class GalleryViewModel @Inject constructor(
     }
 
     fun onSystemActionResult(requestId: Long, approved: Boolean) {
-        val media = mutableCurrentMedia.value
         viewModelScope.launch {
+            val approvedTargets = (currentSystemCoordinator?.snapshot?.value?.phase as?
+                com.ugallery.core.mediastore.MediaActionPhase.AwaitingSystem)?.targets.orEmpty()
+            val approvedAction = currentSystemCoordinator?.snapshot?.value?.progress?.action
             val snapshot = currentSystemCoordinator?.onSystemResult(requestId, approved)
-            if (approved && media != null) runtime.value?.synchronizer?.applyRowHint(media.key)
+            if (approved && approvedAction == MediaAction.Write) {
+                applyPendingWriteMutation(approvedTargets.singleOrNull())
+            }
+            if (approved) approvedTargets.forEach { runtime.value?.synchronizer?.applyRowHint(it.key) }
             if (snapshot?.phase == com.ugallery.core.mediastore.MediaActionPhase.ReadyForChunk) {
-                stageNextBulkChunk()
+                when {
+                    bulkCursor != null -> stageNextBulkChunk()
+                    favoriteImportCursor != null -> stageNextFavoriteImportChunk()
+                }
             } else if (snapshot?.phase == com.ugallery.core.mediastore.MediaActionPhase.Complete) {
                 clearSelection()
                 bulkCursor = null
                 savedStateHandle[BulkStateKey] = null
+                favoriteImportCursor = null
+                savedStateHandle[FavoriteImportStateKey] = null
             }
         }
     }
 
+    private suspend fun applyPendingWriteMutation(authorizedTarget: MediaActionTarget?) {
+        val mutation = pendingWriteMutation ?: return
+        pendingWriteMutation = null
+        savedStateHandle[WriteMutationStateKey] = null
+        if (authorizedTarget == null || authorizedTarget.key != mutation.key || authorizedTarget.kind != mutation.kind) {
+            mutableShareError.emit("The approved item did not match the pending media change")
+            return
+        }
+        runCatching {
+            withContext(Dispatchers.IO) {
+                val resolver = getApplication<Application>().contentResolver
+                when (mutation) {
+                    is PendingWriteMutation.Rename -> ScopedMediaOperations.rename(resolver, authorizedTarget, mutation.displayName)
+                    is PendingWriteMutation.DateTaken -> ScopedMediaOperations.repairDateTaken(
+                        resolver,
+                        authorizedTarget,
+                        mutation.dateTakenMillis,
+                    )
+                }
+            }
+        }.onFailure { mutableShareError.emit(it.message ?: "The media change could not be applied") }
+    }
+
     fun mediaUri(media: TimelineMedia): Uri = media.uri()
 
-    private suspend fun refreshLibrary(indexedHintCount: Int = 0): Unit = refreshMutex.withLock {
+    private suspend fun refreshLibrary(
+        indexedHintCount: Int = 0,
+        forceFullReconciliation: Boolean = false,
+    ): Unit = refreshMutex.withLock {
         val active = runtime.value ?: return@withLock
         if (access.value.images == com.ugallery.core.model.GrantLevel.None &&
             access.value.videos == com.ugallery.core.model.GrantLevel.None
@@ -1726,6 +2170,11 @@ class GalleryViewModel @Inject constructor(
             var changedItems = 0L
             val completed = withContext(Dispatchers.IO) {
                 for (volume in active.generations.snapshot()) {
+                    if (forceFullReconciliation) {
+                        active.scanner.scan(volume)
+                        requiresSearchRebuild = true
+                        continue
+                    }
                     when (val result = active.synchronizer.sync(volume)) {
                         IncrementalSyncResult.NeedsInitialScan,
                         IncrementalSyncResult.NeedsFullVolumeReconciliation,
@@ -1841,6 +2290,39 @@ class GalleryViewModel @Inject constructor(
         sort = if (sort == AlbumSort.NewestFirst) MediaQuery.Sort.NewestFirst else MediaQuery.Sort.OldestFirst,
     )
 
+    private fun currentLibraryQuery(): MediaQuery {
+        val library = gallerySettings.value.library
+        fun decode(tokens: Set<String>) = tokens.mapNotNull(GalleryFolderToken::decode)
+            .mapTo(linkedSetOf()) { MediaQuery.PhysicalFolder(it.first, it.second) }
+        return MediaQuery(
+            kindFilter = when (library.filter) {
+                com.ugallery.core.preferences.LibraryFilter.All -> MediaQuery.KindFilter.ImagesAndVideos
+                com.ugallery.core.preferences.LibraryFilter.Images -> MediaQuery.KindFilter.Images
+                com.ugallery.core.preferences.LibraryFilter.Videos -> MediaQuery.KindFilter.Videos
+                com.ugallery.core.preferences.LibraryFilter.Animated -> MediaQuery.KindFilter.Animated
+                com.ugallery.core.preferences.LibraryFilter.Raw -> MediaQuery.KindFilter.Raw
+            },
+            sort = if (library.ascending) MediaQuery.Sort.OldestFirst else MediaQuery.Sort.NewestFirst,
+            sortField = when (library.sort) {
+                com.ugallery.core.preferences.LibrarySort.DateTaken -> MediaQuery.SortField.DateTaken
+                com.ugallery.core.preferences.LibrarySort.DateModified -> MediaQuery.SortField.DateModified
+                com.ugallery.core.preferences.LibrarySort.Name -> MediaQuery.SortField.Name
+                com.ugallery.core.preferences.LibrarySort.Size -> MediaQuery.SortField.Size
+            },
+            grouping = when (library.grouping) {
+                com.ugallery.core.preferences.LibraryGrouping.Day -> MediaQuery.Grouping.Day
+                com.ugallery.core.preferences.LibraryGrouping.Month -> MediaQuery.Grouping.Month
+                com.ugallery.core.preferences.LibraryGrouping.Year -> MediaQuery.Grouping.Year
+                com.ugallery.core.preferences.LibraryGrouping.None -> MediaQuery.Grouping.None
+            },
+            folderMode = if (library.folderSelectionMode == com.ugallery.core.preferences.FolderSelectionMode.OnlyIncluded) {
+                MediaQuery.FolderMode.OnlyIncluded
+            } else MediaQuery.FolderMode.AllExceptExcluded,
+            includedFolders = decode(library.includedFolders),
+            excludedFolders = decode(library.excludedFolders),
+        )
+    }
+
     private fun beginQueryAction(selection: SelectionSpec.QueryAll, action: MediaAction) {
         viewModelScope.launch {
             val source = runtime.value?.selectionTargets ?: return@launch
@@ -1851,6 +2333,33 @@ class GalleryViewModel @Inject constructor(
             bulkCursor = BulkCursor(selection, action, null).also { savedStateHandle[BulkStateKey] = it }
             stageNextBulkChunk()
         }
+    }
+
+    private suspend fun beginFavoriteImport(targets: List<MediaActionTarget>) {
+        if (targets.isEmpty()) return
+        val action = MediaAction.Favorite(true)
+        currentSystemCoordinator = coordinator(MediaActionReducer.start(action, targets.size.toLong()))
+        favoriteImportCursor = FavoriteImportCursor(ArrayList(targets)).also {
+            savedStateHandle[FavoriteImportStateKey] = it
+        }
+        stageNextFavoriteImportChunk()
+    }
+
+    private suspend fun stageNextFavoriteImportChunk() {
+        val cursor = favoriteImportCursor ?: return
+        val chunk = cursor.remaining.take(MediaActionReducer.MaxChunkSize)
+        if (chunk.isEmpty()) {
+            val coordinator = currentSystemCoordinator ?: return
+            val finished = MediaActionReducer.failUnresolvedRemainder(coordinator.snapshot.value)
+            currentSystemCoordinator = coordinator(finished)
+            favoriteImportCursor = null
+            savedStateHandle[FavoriteImportStateKey] = null
+            return
+        }
+        favoriteImportCursor = FavoriteImportCursor(ArrayList(cursor.remaining.drop(chunk.size))).also {
+            savedStateHandle[FavoriteImportStateKey] = it
+        }
+        currentSystemCoordinator?.stageChunk(chunk)?.let { mutableActionLaunches.emit(it) }
     }
 
     private suspend fun stageNextBulkChunk() {
@@ -1898,6 +2407,39 @@ class GalleryViewModel @Inject constructor(
         getApplication<Application>().contentResolver.openFileDescriptor(uri, "r")?.use { true } ?: false
     }.getOrDefault(false)
 
+    private fun MediaItemEntity.toFavoriteBackupRecord() = FavoriteBackupRecord(
+        volumeName = volumeName,
+        mediaStoreId = mediaStoreId,
+        mediaKind = if (mediaType == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO) "video" else "image",
+        displayName = displayName,
+        mimeType = mimeType,
+        sizeBytes = sizeBytes,
+        dateTakenMillis = dateTakenMillis,
+        dateModifiedSeconds = dateModifiedSeconds,
+        relativePath = relativePath,
+    )
+
+    private fun MediaItemEntity.matchesBackupRecord(
+        record: FavoriteBackupRecord,
+        requireIdentityConfidence: Boolean,
+    ): Boolean {
+        val kind = if (mediaType == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO) "video" else "image"
+        if (kind != record.mediaKind) return false
+        if (!requireIdentityConfidence) return true
+        val matchingSignals = listOf(
+            sizeBytes == record.sizeBytes,
+            displayName == record.displayName,
+            mimeType == record.mimeType,
+            relativePath == record.relativePath,
+        ).count { it }
+        return matchingSignals >= 2
+    }
+
+    private fun MediaItemEntity.toActionTarget() = MediaActionTarget(
+        key = MediaKey(volumeName, mediaStoreId),
+        kind = if (mediaType == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO) MediaKind.Video else MediaKind.Image,
+    )
+
     private data class AlbumRequest(val key: AlbumKey, val filter: AlbumMediaFilter, val sort: AlbumSort)
 
     private data class BulkCursor(
@@ -1905,6 +2447,27 @@ class GalleryViewModel @Inject constructor(
         val action: MediaAction,
         val afterExclusive: com.ugallery.core.model.MediaKey?,
     ) : java.io.Serializable
+
+    private data class FavoriteImportCursor(
+        val remaining: ArrayList<MediaActionTarget>,
+    ) : java.io.Serializable
+
+    private sealed interface PendingWriteMutation : java.io.Serializable {
+        val key: MediaKey
+        val kind: MediaKind
+
+        data class Rename(
+            override val key: MediaKey,
+            override val kind: MediaKind,
+            val displayName: String,
+        ) : PendingWriteMutation
+
+        data class DateTaken(
+            override val key: MediaKey,
+            override val kind: MediaKind,
+            val dateTakenMillis: Long,
+        ) : PendingWriteMutation
+    }
 
     data class ExternalMedia(
         val uri: Uri,
@@ -1917,6 +2480,8 @@ class GalleryViewModel @Inject constructor(
     private companion object {
         const val ActionStateKey = "media_action_state"
         const val BulkStateKey = "bulk_action_state"
+        const val FavoriteImportStateKey = "favorite_import_state"
+        const val WriteMutationStateKey = "pending_write_mutation"
         const val ViewerWindowRadius = 80
         const val ViewerWindowRefreshThreshold = 12
     }

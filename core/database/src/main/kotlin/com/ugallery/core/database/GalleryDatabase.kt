@@ -45,8 +45,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         EditOperationEntity::class,
         VideoEditRecipeEntity::class,
         CustomLutEntity::class,
+        VideoPlaybackPositionEntity::class,
     ],
-    version = 14,
+    version = 15,
     exportSchema = true,
 )
 abstract class GalleryDatabase : RoomDatabase() {
@@ -282,6 +283,20 @@ object GalleryDatabaseFactory {
         }
     }
 
+    val Migration14To15 = object : Migration(14, 15) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """CREATE TABLE IF NOT EXISTS `video_playback_positions` (
+                    `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL,
+                    `positionMillis` INTEGER NOT NULL, `durationMillis` INTEGER NOT NULL,
+                    `updatedAtMillis` INTEGER NOT NULL,
+                    PRIMARY KEY(`volumeName`,`mediaStoreId`),
+                    FOREIGN KEY(`volumeName`,`mediaStoreId`) REFERENCES `media_items`(`volumeName`,`mediaStoreId`)
+                    ON UPDATE NO ACTION ON DELETE CASCADE)""",
+            )
+        }
+    }
+
     private fun build(context: Context, name: String): GalleryDatabase = Room.databaseBuilder(
         context.applicationContext,
         GalleryDatabase::class.java,
@@ -289,6 +304,6 @@ object GalleryDatabaseFactory {
     ).addMigrations(
         Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7,
         Migration7To8, Migration8To9, Migration9To10, Migration10To11, Migration11To12,
-        Migration12To13, Migration13To14,
+        Migration12To13, Migration13To14, Migration14To15,
     ).build()
 }

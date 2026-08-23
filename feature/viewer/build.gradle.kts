@@ -22,12 +22,14 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:preferences"))
     implementation(project(":core:model"))
     implementation(project(":core:domain"))
     implementation(project(":core:designsystem"))
     implementation(project(":core:navigation"))
     implementation(project(":core:selection"))
     implementation(project(":core:thumbnail"))
+    implementation(project(":core:frame-interpolation"))
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.effect)
     implementation(libs.kotlinx.coroutines.core)
@@ -41,4 +43,5 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation(libs.androidx.test.ext)
     androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.espresso)
 }

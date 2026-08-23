@@ -56,5 +56,22 @@
     <string name="video_editor_reset_grade">Reimposta correzione</string>
     <string name="video_editor_play">Riproduci anteprima</string>
     <string name="video_editor_pause">Metti in pausa l’anteprima</string>
+    <string name="video_editor_enable_loop">Attiva anteprima continua</string>
+    <string name="video_editor_disable_loop">Disattiva anteprima continua</string>
+    <string name="video_editor_resize_panels">Ridimensiona i pannelli di anteprima e modifica</string>
     <string name="video_editor_preview_failed">Impossibile riprodurre l’anteprima video</string>
+    <string name="video_editor_base_speed">Velocità di base</string>
+    <string name="video_editor_mark_in">Segna inizio</string>
+    <string name="video_editor_mark_out">Segna fine</string>
+    <string name="video_editor_marked_in_at">Inizio segnato a %1$s</string>
+    <string name="video_editor_slow_segments">Segmenti al rallentatore</string>
+    <string name="video_editor_segment_speed">Velocità segmento</string>
+    <string name="video_editor_segment_audio">Audio segmento</string>
+    <string name="video_editor_audio_preserve_pitch">Mantieni tonalità</string>
+    <string name="video_editor_audio_muted">Disattivato</string>
+    <string name="video_editor_audio_varispeed">Tonalità rallentata</string>
+    <string name="video_editor_delete_segment">Elimina segmento</string>
+    <string name="video_editor_cancel_export">Annulla esportazione</string>
+    <string name="video_editor_slow_overlap">I segmenti al rallentatore non possono sovrapporsi</string>
+    <string name="video_editor_slow_invalid_range">La fine deve essere dopo l’inizio</string>
 </resources>

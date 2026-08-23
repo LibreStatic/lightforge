@@ -7,10 +7,13 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 
 object BiometricGate {
+    private const val Authenticators =
+        BiometricManager.Authenticators.BIOMETRIC_STRONG or
+            BiometricManager.Authenticators.DEVICE_CREDENTIAL
 
     fun canAuthenticate(context: Context): Boolean {
         val manager = BiometricManager.from(context)
-        return manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) ==
+        return manager.canAuthenticate(Authenticators) ==
             BiometricManager.BIOMETRIC_SUCCESS
     }
 
@@ -38,8 +41,7 @@ object BiometricGate {
         val info = BiometricPrompt.PromptInfo.Builder()
             .setTitle(title)
             .setSubtitle(subtitle)
-            .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
-            .setNegativeButtonText(activity.getString(R.string.private_cancel))
+            .setAllowedAuthenticators(Authenticators)
             .build()
         prompt.authenticate(info)
     }

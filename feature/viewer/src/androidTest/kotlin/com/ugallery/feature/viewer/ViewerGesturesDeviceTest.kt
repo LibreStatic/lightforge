@@ -1,10 +1,14 @@
 package com.ugallery.feature.viewer
 
 import android.graphics.Bitmap
+import android.net.Uri
+import android.view.SurfaceView
+import androidx.media3.common.Effect
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.runtime.getValue
@@ -20,6 +24,7 @@ import com.ugallery.core.thumbnail.ThumbnailLoader
 import com.ugallery.core.thumbnail.ThumbnailSource
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -112,6 +117,62 @@ class ViewerGesturesDeviceTest {
         assertEquals(listOf(3L), selections)
     }
 
+    @Test fun landscapeVideoKeepsItsRatioAndSelectedThumbnailOpensScrubber() {
+        val item = TimelineMedia(
+            key = MediaKey("external_primary", 7),
+            kind = MediaKind.Video,
+            generationModified = 1,
+            timelineSortMillis = 7,
+            width = 1_920,
+            height = 1_080,
+            durationMillis = 10_000,
+        )
+        val engine = FakeVideoEngine()
+        val controller = VideoViewerController(engine)
+        controller.select(Uri.parse("content://media/external/video/media/7"))
+        engine.listener?.onVideoAspectRatioChanged(16f / 9f)
+        engine.listener?.onReady(10_000, false)
+        compose.setContent {
+            UGalleryTheme {
+                ViewerContent(
+                    media = item,
+                    mediaItems = listOf(item),
+                    photoState = null,
+                    videoController = controller,
+                    thumbnailLoader = thumbnails,
+                    isFavorite = false,
+                    onBack = {},
+                    onToggleFavorite = {},
+                    onShare = {},
+                    onShareSanitized = {},
+                    onDetails = {},
+                    onEdit = {},
+                    onTrash = {},
+                    onSelectMedia = {},
+                )
+            }
+        }
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val videoBounds = compose.onNode(
+            hasContentDescription(context.getString(R.string.viewer_video_description)),
+        ).fetchSemanticsNode().boundsInRoot
+        assertEquals(16f / 9f, videoBounds.width / videoBounds.height, 0.03f)
+
+        compose.onNode(
+            hasContentDescription(context.getString(R.string.viewer_enable_loop)),
+        ).performClick()
+        assertTrue(engine.repeatEnabled.last())
+
+        val thumbnail = context.getString(R.string.viewer_thumbnail_position, 1, 1)
+        compose.onNode(hasContentDescription(thumbnail)).performTouchInput { click(center) }
+        val timeline = context.getString(R.string.viewer_video_timeline_position, "0:00", "0:10")
+        compose.onNode(hasContentDescription(timeline)).performTouchInput { click(center) }
+
+        assertTrue(engine.pauseCalls > 0)
+        assertTrue(engine.lastSeek in 4_500L..5_500L)
+        controller.close()
+    }
+
     private fun media(id: Long) = TimelineMedia(
         key = MediaKey("external_primary", id),
         kind = MediaKind.Image,
@@ -121,4 +182,23 @@ class ViewerGesturesDeviceTest {
         height = 100,
         durationMillis = 0,
     )
+
+    private class FakeVideoEngine : VideoEngine {
+        override var listener: VideoEngine.Listener? = null
+        var pauseCalls = 0
+        var lastSeek = 0L
+        val repeatEnabled = mutableListOf<Boolean>()
+        override fun setMedia(uri: Uri) = Unit
+        override fun prepare() = Unit
+        override fun play() = Unit
+        override fun pause() { pauseCalls++ }
+        override fun seekTo(positionMillis: Long) { lastSeek = positionMillis }
+        override fun stopAndClear() = Unit
+        override fun release() = Unit
+        override fun attachSurface(surfaceView: SurfaceView?) = Unit
+        override fun setVolume(volume: Float) = Unit
+        override fun setRepeatEnabled(enabled: Boolean) { repeatEnabled += enabled }
+        override fun setVideoEffects(effects: List<Effect>) = Unit
+        override fun currentPositionMillis(): Long = lastSeek
+    }
 }

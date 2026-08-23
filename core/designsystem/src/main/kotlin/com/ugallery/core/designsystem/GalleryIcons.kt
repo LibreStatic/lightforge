@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Speed
@@ -82,6 +83,7 @@ val GalleryIconWarning: ImageVector get() = Icons.Filled.Warning
 val GalleryIconImage: ImageVector get() = Icons.Filled.Image
 val GalleryIconPlay: ImageVector get() = Icons.Filled.PlayArrow
 val GalleryIconPause: ImageVector get() = Icons.Filled.Pause
+val GalleryIconRepeat: ImageVector get() = Icons.Filled.Repeat
 val GalleryIconUndo: ImageVector get() = Icons.AutoMirrored.Filled.Undo
 val GalleryIconRedo: ImageVector get() = Icons.AutoMirrored.Filled.Redo  // placeholder
 val GalleryIconDownload: ImageVector get() = Icons.Filled.Download
@@ -147,6 +149,7 @@ object GalleryIcons {
     val Image get() = GalleryIconImage
     val Play get() = GalleryIconPlay
     val Pause get() = GalleryIconPause
+    val Repeat get() = GalleryIconRepeat
     val Undo get() = GalleryIconUndo
     val Redo get() = GalleryIconRedo
     val Download get() = GalleryIconDownload

@@ -27,6 +27,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.Closeable
+import java.io.FileNotFoundException
 import java.util.Locale
 
 data class RawImageLabel(val text: String, val confidence: Float)
@@ -83,6 +84,12 @@ class ImageLabelMlEngine(
             if (!permission()) return@withContext MlChunkOutcome.PermissionLost
             val detected = try {
                 detect(candidate)
+            } catch (_: FileNotFoundException) {
+                // MediaStore can notify only its collection URI for deletions. If the
+                // corresponding row is still cached locally, drop it instead of retrying
+                // the entire ML chunk forever on an item that no longer exists.
+                dao.deleteMedia(candidate.volumeName, candidate.mediaStoreId)
+                continue
             } catch (_: SecurityException) {
                 return@withContext MlChunkOutcome.PermissionLost
             }
@@ -119,6 +126,7 @@ class ImageLabelMlEngine(
 
     private suspend fun detect(candidate: MediaItemEntity): List<DetectedLabel> {
         val bitmap = resolver.loadThumbnail(candidate.uri(), Size(LabelThumbnail, LabelThumbnail), CancellationSignal())
+        if (bitmap.width < MinimumInputPixels || bitmap.height < MinimumInputPixels) return emptyList()
         return inference.infer(bitmap).map { label ->
             DetectedLabel(LabelCanonicalizer.canonical(label.text), label.text, label.confidence)
         }
@@ -131,6 +139,7 @@ class ImageLabelMlEngine(
         const val SearchModelVersion = 17_009L
         const val MinConfidence = 0.60f
         const val LabelThumbnail = 640
+        const val MinimumInputPixels = 32
     }
 }
 
@@ -156,6 +165,9 @@ class OcrMlEngine(
             if (!permission()) return@withContext MlChunkOutcome.PermissionLost
             val detected = try {
                 recognize(candidate)
+            } catch (_: FileNotFoundException) {
+                dao.deleteMedia(candidate.volumeName, candidate.mediaStoreId)
+                continue
             } catch (_: SecurityException) {
                 return@withContext MlChunkOutcome.PermissionLost
             }
@@ -178,6 +190,9 @@ class OcrMlEngine(
 
     private suspend fun recognize(candidate: MediaItemEntity): OcrDetected {
         val bitmap = resolver.loadThumbnail(candidate.uri(), Size(OcrThumbnail, OcrThumbnail), CancellationSignal())
+        if (bitmap.width < MinimumInputPixels || bitmap.height < MinimumInputPixels) {
+            return OcrDetected("", "[]")
+        }
         val text = inference.infer(bitmap)
         return OcrDetected(text.text, text.blocksJson)
     }
@@ -188,6 +203,7 @@ class OcrMlEngine(
         const val ModelVersion = "mlkit-text-recognition-16.0.1-latin"
         const val SearchModelVersion = 16_001L
         const val OcrThumbnail = 2_048
+        const val MinimumInputPixels = 32
     }
 }
 

@@ -56,5 +56,22 @@
     <string name="video_editor_reset_grade">Réinitialiser l’étalonnage</string>
     <string name="video_editor_play">Lire l’aperçu</string>
     <string name="video_editor_pause">Mettre l’aperçu en pause</string>
+    <string name="video_editor_enable_loop">Activer l’aperçu en continu</string>
+    <string name="video_editor_disable_loop">Désactiver l’aperçu en continu</string>
+    <string name="video_editor_resize_panels">Redimensionner les panneaux d’aperçu et de montage</string>
     <string name="video_editor_preview_failed">Impossible de lire l’aperçu vidéo</string>
+    <string name="video_editor_base_speed">Vitesse de base</string>
+    <string name="video_editor_mark_in">Marquer l’entrée</string>
+    <string name="video_editor_mark_out">Marquer la sortie</string>
+    <string name="video_editor_marked_in_at">Entrée marquée à %1$s</string>
+    <string name="video_editor_slow_segments">Segments au ralenti</string>
+    <string name="video_editor_segment_speed">Vitesse du segment</string>
+    <string name="video_editor_segment_audio">Audio du segment</string>
+    <string name="video_editor_audio_preserve_pitch">Conserver la hauteur</string>
+    <string name="video_editor_audio_muted">Muet</string>
+    <string name="video_editor_audio_varispeed">Hauteur ralentie</string>
+    <string name="video_editor_delete_segment">Supprimer le segment</string>
+    <string name="video_editor_cancel_export">Annuler l’exportation</string>
+    <string name="video_editor_slow_overlap">Les segments au ralenti ne peuvent pas se chevaucher</string>
+    <string name="video_editor_slow_invalid_range">La sortie doit être après l’entrée</string>
 </resources>

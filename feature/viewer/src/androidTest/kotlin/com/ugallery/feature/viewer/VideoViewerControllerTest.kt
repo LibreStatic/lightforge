@@ -32,8 +32,14 @@ class VideoViewerControllerTest {
         val controller = VideoViewerController(engine)
         val uri = Uri.parse("content://media/video")
         controller.select(uri)
+        engine.listener?.onVideoAspectRatioChanged(16f / 9f)
         engine.listener?.onReady(5_000, true)
         assertTrue((controller.state.value as VideoViewerState.Ready).isPlaying)
+        assertEquals(
+            16f / 9f,
+            (controller.state.value as VideoViewerState.Ready).aspectRatio!!,
+            0.001f,
+        )
 
         controller.onBackground()
         assertEquals(1, engine.pauseCalls)
@@ -66,6 +72,22 @@ class VideoViewerControllerTest {
         assertFalse((controller.state.value as VideoViewerState.Ready).isMuted)
     }
 
+    @Test
+    fun `looping state is enabled before short video playback and remains toggleable`() {
+        val engine = FakeVideoEngine()
+        val controller = VideoViewerController(engine, initialLooping = true)
+        controller.select(Uri.parse("content://media/short-video"), autoplay = true)
+        engine.listener?.onReady(800, true)
+
+        assertEquals(listOf(true), engine.repeatEnabled)
+        assertTrue((controller.state.value as VideoViewerState.Ready).isLooping)
+
+        controller.setLooping(false)
+
+        assertEquals(listOf(true, false), engine.repeatEnabled)
+        assertFalse((controller.state.value as VideoViewerState.Ready).isLooping)
+    }
+
     private class FakeVideoEngine : VideoEngine {
         override var listener: VideoEngine.Listener? = null
         val media = mutableListOf<Uri>()
@@ -74,6 +96,7 @@ class VideoViewerControllerTest {
         var pauseCalls = 0
         var releaseCalls = 0
         val volumes = mutableListOf<Float>()
+        val repeatEnabled = mutableListOf<Boolean>()
         override fun setMedia(uri: Uri) { media += uri }
         override fun prepare() = Unit
         override fun play() { playCalls++ }
@@ -83,6 +106,8 @@ class VideoViewerControllerTest {
         override fun release() { releaseCalls++ }
         override fun attachSurface(surfaceView: android.view.SurfaceView?) = Unit
         override fun setVolume(volume: Float) { volumes += volume }
+        override fun setRepeatEnabled(enabled: Boolean) { repeatEnabled += enabled }
         override fun setVideoEffects(effects: List<Effect>) = Unit
+        override fun currentPositionMillis(): Long = 0L
     }
 }

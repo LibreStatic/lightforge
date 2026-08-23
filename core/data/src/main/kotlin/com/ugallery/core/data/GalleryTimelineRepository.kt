@@ -11,14 +11,20 @@ import com.ugallery.core.database.TimelinePagingSource
 import com.ugallery.core.model.MediaKey
 import com.ugallery.core.model.MediaKind
 import com.ugallery.core.model.TimelineEntry
+import com.ugallery.core.model.TimelineGrouping
 import com.ugallery.core.model.TimelineMedia
+import com.ugallery.core.preferences.LibraryGrouping
+import com.ugallery.core.preferences.LibrarySettings
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.time.Instant
 import java.time.ZoneId
 
 class GalleryTimelineRepository(private val database: GalleryDatabase) {
-    fun timeline(zoneId: ZoneId): Flow<PagingData<TimelineEntry>> = Pager(
+    fun timeline(
+        zoneId: ZoneId,
+        settings: LibrarySettings = LibrarySettings(),
+    ): Flow<PagingData<TimelineEntry>> = Pager(
         config = PagingConfig(
             pageSize = 120,
             initialLoadSize = 180,
@@ -26,20 +32,38 @@ class GalleryTimelineRepository(private val database: GalleryDatabase) {
             enablePlaceholders = false,
             maxSize = 720,
         ),
-        pagingSourceFactory = { TimelinePagingSource(database) },
+        pagingSourceFactory = {
+            if (settings == LibrarySettings()) TimelinePagingSource(database)
+            else database.libraryDao().rawTimelinePagingSource(GalleryTimelineQuery.build(settings))
+        },
     ).flow.map { data ->
-        data.map { TimelineEntry.Media(it.toTimelineMedia()) as TimelineEntry }
-            .insertSeparators { before: TimelineEntry?, after: TimelineEntry? ->
+        val media = data.map { TimelineEntry.Media(it.toTimelineMedia()) as TimelineEntry }
+        if (settings.grouping == LibraryGrouping.None) media else media.insertSeparators {
+                before: TimelineEntry?, after: TimelineEntry?,
+            ->
                 val afterMedia = (after as? TimelineEntry.Media)?.value ?: return@insertSeparators null
-                val beforeDay = (before as? TimelineEntry.Media)?.value?.epochDay(zoneId)
-                val afterDay = afterMedia.epochDay(zoneId)
-                if (beforeDay != afterDay) TimelineEntry.DayHeader(afterDay) else null
+                val beforeGroup = (before as? TimelineEntry.Media)?.value?.dateGroup(zoneId, settings.grouping)
+                val afterGroup = afterMedia.dateGroup(zoneId, settings.grouping)
+                if (beforeGroup != afterGroup) TimelineEntry.DayHeader(afterGroup.first, afterGroup.second) else null
             }
     }
 }
 
 internal fun TimelineMedia.epochDay(zoneId: ZoneId): Long =
     Instant.ofEpochMilli(timelineSortMillis).atZone(zoneId).toLocalDate().toEpochDay()
+
+private fun TimelineMedia.dateGroup(
+    zoneId: ZoneId,
+    grouping: LibraryGrouping,
+): Pair<Long, TimelineGrouping> {
+    val date = Instant.ofEpochMilli(timelineSortMillis).atZone(zoneId).toLocalDate()
+    return when (grouping) {
+        LibraryGrouping.Day -> date.toEpochDay() to TimelineGrouping.Day
+        LibraryGrouping.Month -> date.withDayOfMonth(1).toEpochDay() to TimelineGrouping.Month
+        LibraryGrouping.Year -> date.withDayOfYear(1).toEpochDay() to TimelineGrouping.Year
+        LibraryGrouping.None -> error("No date group requested")
+    }
+}
 
 internal fun MediaItemEntity.toTimelineMedia() = TimelineMedia(
     key = MediaKey(volumeName, mediaStoreId),
@@ -52,4 +76,7 @@ internal fun MediaItemEntity.toTimelineMedia() = TimelineMedia(
     dateExpiresMillis = dateExpiresSeconds?.times(1_000),
     isFavorite = isFavorite,
     isTrashed = isTrashed,
+    displayName = displayName,
+    sizeBytes = sizeBytes,
+    dateModifiedSeconds = dateModifiedSeconds,
 )

@@ -10,9 +10,13 @@ import kotlin.math.pow
 object VideoColorGradeEffects {
     const val DefaultCubeSize = 33
 
-    fun create(grade: VideoColorGrade, customLut: CubeLut? = null): List<Effect> {
+    fun create(
+        grade: VideoColorGrade,
+        customLut: CubeLut? = null,
+        cubeSize: Int = DefaultCubeSize,
+    ): List<Effect> {
         if (grade.bypass || (!grade.hasChanges && customLut == null)) return emptyList()
-        return listOf(SingleColorLut.createFromCube(buildCube(grade, customLut)))
+        return listOf(SingleColorLut.createFromCube(buildCube(grade, customLut, cubeSize)))
     }
 
     fun buildCube(
@@ -35,6 +39,33 @@ object VideoColorGradeEffects {
                         (graded[0] * 255f).toInt().coerceIn(0, 255),
                         (graded[1] * 255f).toInt().coerceIn(0, 255),
                         (graded[2] * 255f).toInt().coerceIn(0, 255),
+                    )
+                }
+            }
+        }
+    }
+
+    fun buildPreviewCube(
+        grade: VideoColorGrade,
+        customLut: CubeLut? = null,
+        size: Int,
+    ): Array<Array<IntArray>> =
+        if (grade.bypass || (!grade.hasChanges && customLut == null)) {
+            buildIdentityCube(size)
+        } else {
+            buildCube(grade, customLut, size)
+        }
+
+    private fun buildIdentityCube(size: Int): Array<Array<IntArray>> {
+        require(size in 2..65)
+        val denominator = (size - 1).toFloat()
+        return Array(size) { red ->
+            Array(size) { green ->
+                IntArray(size) { blue ->
+                    Color.rgb(
+                        (red / denominator * 255f).toInt().coerceIn(0, 255),
+                        (green / denominator * 255f).toInt().coerceIn(0, 255),
+                        (blue / denominator * 255f).toInt().coerceIn(0, 255),
                     )
                 }
             }

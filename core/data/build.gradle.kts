@@ -24,6 +24,7 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:database"))
     implementation(project(":core:mediastore"))
+    implementation(project(":core:preferences"))
     implementation(project(":core:selection"))
     implementation(project(":core:search"))
     implementation(libs.androidx.room.runtime)
