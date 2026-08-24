@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -35,6 +36,8 @@ import androidx.paging.compose.LazyPagingItems
 import com.ugallery.core.database.AlbumMediaFilter
 import com.ugallery.core.database.AlbumSort
 import com.ugallery.core.designsystem.GalleryStateContent
+import com.ugallery.core.designsystem.VideoDurationBadge
+import com.ugallery.core.designsystem.videoDurationDescription
 import com.ugallery.core.model.AlbumAvailability
 import com.ugallery.core.model.AlbumSummary
 import com.ugallery.core.model.MediaKind
@@ -141,18 +144,34 @@ private fun AlbumCell(
     val bitmap by produceState(loader.cached(request), request) {
         if (value == null) value = runCatching { loader.load(request) }.getOrNull()
     }
-    val description = stringResource(
-        if (media.kind == MediaKind.Video) R.string.album_video else R.string.album_photo,
-    )
+    val isVideo = media.kind == MediaKind.Video
+    val description = if (isVideo) {
+        videoDurationDescription(media.durationMillis)
+    } else {
+        stringResource(R.string.album_photo)
+    }
     val modifier = Modifier.fillMaxWidth().aspectRatio(1f)
         .combinedClickable(onClick = onClick, onLongClick = onLongClick)
         .semantics {
             contentDescription = description
             this.selected = selected
         }
-    bitmap?.let {
-        Image(it.asImageBitmap(), null, modifier, contentScale = ContentScale.Crop)
-    } ?: Box(modifier)
+    Box(modifier) {
+        bitmap?.let {
+            Image(
+                it.asImageBitmap(),
+                null,
+                Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        }
+        if (isVideo) {
+            VideoDurationBadge(
+                durationMillis = media.durationMillis,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
+            )
+        }
+    }
 }
 
 private fun AlbumMediaFilter.label() = when (this) {

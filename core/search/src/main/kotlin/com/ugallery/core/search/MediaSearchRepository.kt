@@ -27,6 +27,7 @@ data class MediaSearchHit(
     val generationModified: Long,
     val favorite: Boolean,
     val debug: SearchRankingDebug,
+    val durationMillis: Long = 0,
 )
 
 data class MediaSearchPage(
@@ -76,6 +77,7 @@ class MediaSearchCursor internal constructor(
                 rankingSignal,
                 matchInfos.map { it.propertyPath }.distinct(),
             ),
+            durationMillis = document.getPropertyLong(MediaSearchSchema.Property.DurationMillis),
         )
     }
 }

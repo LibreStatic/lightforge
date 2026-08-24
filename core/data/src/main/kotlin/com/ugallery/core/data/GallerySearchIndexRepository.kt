@@ -42,6 +42,7 @@ class RoomSearchDocumentSource(database: GalleryDatabase) : SearchDocumentSource
         canonicalLabels = canonicalLabelsCsv?.split(',').orEmpty(),
         labelModelVersion = labelModelVersion.versionCode(),
         ocrModelVersion = ocrModelVersion.versionCode(),
+        durationMillis = media.durationMillis,
     )
 
     private fun String?.versionCode(): Long {

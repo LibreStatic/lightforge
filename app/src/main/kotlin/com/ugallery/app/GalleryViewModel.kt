@@ -587,6 +587,7 @@ class GalleryViewModel @Inject constructor(
                         similarity,
                         listOf("faceEmbedding"),
                     ),
+                    durationMillis = media.durationMillis,
                 )
             }
     }

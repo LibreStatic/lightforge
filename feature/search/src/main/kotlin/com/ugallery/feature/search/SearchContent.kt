@@ -51,6 +51,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.Alignment
 import com.ugallery.core.search.MediaSearchHit
 import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.VideoDurationBadge
+import com.ugallery.core.designsystem.videoDurationDescription
+import com.ugallery.core.model.MediaKind
 import com.ugallery.core.thumbnail.ThumbnailLoader
 import com.ugallery.core.thumbnail.ThumbnailRequest
 
@@ -239,11 +242,34 @@ private fun SearchResultCard(hit: MediaSearchHit, loader: ThumbnailLoader?, onCl
     val bitmap by produceState(loader?.cached(request), request, loader) {
         if (value == null && loader != null) value = runCatching { loader.load(request) }.getOrNull()
     }
-    val description = hit.displayName ?: stringResource(R.string.search_result)
+    val isVideo = hit.kind == MediaKind.Video
+    val mediaTypeDescription = if (isVideo) videoDurationDescription(hit.durationMillis) else null
+    val fallbackDescription = stringResource(R.string.search_result)
+    val description = listOfNotNull(hit.displayName ?: fallbackDescription, mediaTypeDescription)
+        .joinToString(", ")
     Card(Modifier.clickable(onClick = onClick).semantics { contentDescription = description }) {
         val loaded = bitmap
-        if (loaded == null) Box(Modifier.fillMaxWidth().aspectRatio(1f).background(MaterialTheme.colorScheme.surfaceVariant))
-        else Image(loaded.asImageBitmap(), null, Modifier.fillMaxWidth().aspectRatio(1f), contentScale = ContentScale.Crop)
-        Text(description, Modifier.padding(8.dp), maxLines = 2)
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+        ) {
+            if (loaded != null) {
+                Image(
+                    loaded.asImageBitmap(),
+                    null,
+                    Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            }
+            if (isVideo) {
+                VideoDurationBadge(
+                    durationMillis = hit.durationMillis,
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
+                )
+            }
+        }
+        Text(hit.displayName ?: fallbackDescription, Modifier.padding(8.dp), maxLines = 2)
     }
 }

@@ -29,6 +29,7 @@ data class MediaSearchDocument(
     val personIds: List<String> = emptyList(),
     val labelModelVersion: Long = 0,
     val ocrModelVersion: Long = 0,
+    val durationMillis: Long = 0,
 )
 
 interface MediaSearchIndex : Closeable {
@@ -142,6 +143,7 @@ internal fun MediaSearchDocument.genericDocument(): GenericDocument =
         .setPropertyStringsIfPresent(MediaSearchSchema.Property.PersonIds, personIds)
         .setPropertyLong(MediaSearchSchema.Property.TimelineSortMillis, timelineSortMillis)
         .setPropertyLong(MediaSearchSchema.Property.GenerationModified, generationModified)
+        .setPropertyLong(MediaSearchSchema.Property.DurationMillis, durationMillis.coerceAtLeast(0L))
         .setPropertyBoolean(MediaSearchSchema.Property.Favorite, favorite)
         .setPropertyString(MediaSearchSchema.Property.FavoriteToken, if (favorite) "favorite" else "normal")
         .setPropertyLong(MediaSearchSchema.Property.SchemaVersion, MediaSearchSchema.Version)

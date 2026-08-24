@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -23,6 +24,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -38,10 +40,13 @@ import com.ugallery.core.designsystem.GalleryColors
 import com.ugallery.core.designsystem.GalleryGridMetrics
 import com.ugallery.core.designsystem.GalleryMotion
 import com.ugallery.core.designsystem.GallerySpacing
+import com.ugallery.core.designsystem.VideoDurationBadge
+import com.ugallery.core.designsystem.videoDurationDescription
 import com.ugallery.core.designsystem.rememberGalleryReducedMotion
 import com.ugallery.core.model.TimelineGrouping
 import com.ugallery.core.model.TimelineEntry
 import com.ugallery.core.model.TimelineMedia
+import com.ugallery.core.model.MediaKind
 import com.ugallery.core.thumbnail.ThumbnailLoader
 import com.ugallery.core.thumbnail.ThumbnailRequest
 import java.time.LocalDate
@@ -214,13 +219,12 @@ private fun TimelineThumbnail(
     onLongClick: () -> Unit,
     cropToFill: Boolean = true,
 ) {
-    val contentDescription = stringResource(
-        if (entry.value.kind == com.ugallery.core.model.MediaKind.Video) {
-            R.string.video_thumbnail_description
-        } else {
-            R.string.photo_thumbnail_description
-        },
-    )
+    val isVideo = entry.value.kind == MediaKind.Video
+    val contentDescription = if (isVideo) {
+        videoDurationDescription(entry.value.durationMillis)
+    } else {
+        stringResource(R.string.photo_thumbnail_description)
+    }
     val request = ThumbnailRequest(
         mediaKey = entry.value.key,
         generationModified = entry.value.generationModified,
@@ -237,16 +241,26 @@ private fun TimelineThumbnail(
         .testTag("media_${entry.value.key.volumeName}_${entry.value.key.mediaStoreId}")
         .semantics { this.contentDescription = contentDescription }
         .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-    if (loaded == null) {
-        Box(
-            cellModifier.background(GalleryColors.Muted.copy(alpha = 0.16f)),
-        )
-    } else {
-        Image(
-            bitmap = loaded.asImageBitmap(),
-            contentDescription = null,
-            contentScale = if (cropToFill) ContentScale.Crop else ContentScale.Fit,
-            modifier = cellModifier,
-        )
+    Box(cellModifier) {
+        if (loaded == null) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(GalleryColors.Muted.copy(alpha = 0.16f)),
+            )
+        } else {
+            Image(
+                bitmap = loaded.asImageBitmap(),
+                contentDescription = null,
+                contentScale = if (cropToFill) ContentScale.Crop else ContentScale.Fit,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        if (isVideo) {
+            VideoDurationBadge(
+                durationMillis = entry.value.durationMillis,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
+            )
+        }
     }
 }

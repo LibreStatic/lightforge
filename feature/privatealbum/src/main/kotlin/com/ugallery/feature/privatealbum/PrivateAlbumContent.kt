@@ -3,12 +3,16 @@ package com.ugallery.feature.privatealbum
 import android.app.Activity
 import android.view.WindowManager
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.safeDrawing
 import com.ugallery.core.security.PrivateAlbumCrypto
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -37,9 +41,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
 import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.VideoDurationBadge
+import com.ugallery.core.designsystem.videoDurationDescription
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -134,8 +142,16 @@ fun PrivateAlbumContent(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 items(mediaList, key = { it.id }) { item ->
+                    val isVideo = item.mediaKind == "video"
+                    val typeDescription = if (isVideo) {
+                        videoDurationDescription(item.durationMillis)
+                    } else {
+                        stringResource(R.string.private_photo)
+                    }
                     Card(
-                        modifier = Modifier.padding(2.dp),
+                        modifier = Modifier.padding(2.dp).semantics {
+                            contentDescription = "${item.originalDisplayName}, $typeDescription"
+                        },
                         onClick = {
                             onExport(
                                 item.id,
@@ -144,6 +160,25 @@ fun PrivateAlbumContent(
                             )
                         },
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(1.35f)
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                        ) {
+                            Icon(
+                                imageVector = if (isVideo) GalleryIcons.Video else GalleryIcons.Image,
+                                contentDescription = null,
+                                modifier = Modifier.align(Alignment.Center).size(36.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            if (isVideo) {
+                                VideoDurationBadge(
+                                    durationMillis = item.durationMillis,
+                                    modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
+                                )
+                            }
+                        }
                         Column(
                             modifier = Modifier.padding(8.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -155,7 +190,7 @@ fun PrivateAlbumContent(
                                 overflow = TextOverflow.Ellipsis,
                             )
                             Text(
-                                stringResource(if (item.mediaKind == "video") R.string.private_video else R.string.private_photo),
+                                stringResource(if (isVideo) R.string.private_video else R.string.private_photo),
                                 style = MaterialTheme.typography.labelSmall,
                             )
                         }

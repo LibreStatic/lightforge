@@ -133,6 +133,30 @@ class MediaSearchIndexDeviceTest {
         }
     }
 
+    @Test fun videoDurationRoundTripsFromDocumentToSearchHit() = runBlocking {
+        val database = uniqueDatabase()
+        AppSearchMediaIndex(context, database).use { index ->
+            index.ensureSchema(forceOverride = true)
+            index.put(
+                listOf(
+                    document(
+                        "external_primary",
+                        20,
+                        ocr = "Concierto nocturno",
+                        kind = MediaKind.Video,
+                        durationMillis = 64_000L,
+                    ),
+                ),
+            )
+        }
+
+        AppSearchMediaSearchRepository(context, database).search("concierto").use { cursor ->
+            val hit = cursor.nextPage().hits.single()
+            assertEquals(MediaKind.Video, hit.kind)
+            assertEquals(64_000L, hit.durationMillis)
+        }
+    }
+
     private fun queryIds(database: String, query: String, pageSize: Int = 100): List<String> {
         val owner = LocalSearchSession(context)
         return owner.open(database).get(30, TimeUnit.SECONDS).use { session ->
@@ -164,11 +188,15 @@ class MediaSearchIndexDeviceTest {
         timeline: Long = id,
         favorite: Boolean = false,
         people: List<String> = emptyList(),
+        kind: MediaKind = MediaKind.Image,
+        durationMillis: Long = 0L,
     ) = MediaSearchDocument(
-        key = MediaKey(volume, id), kind = MediaKind.Image, mimeType = "image/jpeg",
+        key = MediaKey(volume, id), kind = kind,
+        mimeType = if (kind == MediaKind.Video) "video/mp4" else "image/jpeg",
         displayName = "$id.jpg", bucketName = "Camera", timelineSortMillis = timeline,
         generationModified = 1, favorite = favorite, ocrText = ocr,
         canonicalLabels = labels, personIds = people, ocrModelVersion = 1, labelModelVersion = 1,
+        durationMillis = durationMillis,
     )
 
     private fun uniqueDatabase() = "m3-${UUID.randomUUID()}"

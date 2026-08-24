@@ -262,6 +262,7 @@ private suspend fun MediaItemEntity.searchDocument(
     canonicalLabels = labels.map(MediaLabelEntity::canonicalLabel),
     labelModelVersion = if (labels.isEmpty()) 0 else ImageLabelMlEngine.SearchModelVersion,
     ocrModelVersion = if (ocr == null) 0 else OcrMlEngine.SearchModelVersion,
+    durationMillis = durationMillis,
 )
 
 private fun MediaItemEntity.key() = MediaKey(volumeName, mediaStoreId)
