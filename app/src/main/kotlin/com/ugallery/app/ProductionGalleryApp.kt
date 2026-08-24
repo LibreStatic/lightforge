@@ -3,6 +3,7 @@ package com.ugallery.app
 import android.app.Activity
 import android.content.Intent
 import android.os.Build
+import android.view.WindowManager
 import android.widget.Toast
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -50,6 +51,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -70,6 +72,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import android.graphics.drawable.AnimatedImageDrawable
 import android.widget.ImageView
 import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.LoadState
 import androidx.window.layout.FoldingFeature
 import androidx.window.layout.WindowInfoTracker
 import androidx.fragment.app.FragmentActivity
@@ -91,9 +94,13 @@ import com.ugallery.core.designsystem.GalleryFoldInfo
 import com.ugallery.core.designsystem.GalleryFoldOrientation
 import com.ugallery.core.designsystem.GalleryMotionEdge
 import com.ugallery.core.designsystem.GalleryTopAppBar
+import com.ugallery.core.designsystem.GalleryStateContent
 import com.ugallery.core.designsystem.galleryAdaptiveLayoutInfo
 import com.ugallery.core.model.MediaKind
+import com.ugallery.core.model.GrantLevel
 import com.ugallery.core.model.TimelineMedia
+import com.ugallery.core.model.MediaKey
+import com.ugallery.core.ml.LocalAnalysisOnboardingDecision
 import com.ugallery.core.selection.SelectionSpec
 import com.ugallery.core.search.SearchConcept
 import com.ugallery.core.search.SearchVocabulary
@@ -106,6 +113,7 @@ import com.ugallery.feature.collections.formatMomentDateRange
 import com.ugallery.feature.details.DetailsContent
 import com.ugallery.feature.permissions.PermissionCoordinator
 import com.ugallery.feature.photos.LibraryPhotosRoute
+import com.ugallery.feature.photos.AdaptivePagedPhotosTimeline
 import com.ugallery.feature.trash.TrashContent
 import com.ugallery.feature.viewer.VideoViewerController
 import com.ugallery.feature.viewer.ViewerContent
@@ -130,7 +138,9 @@ import com.ugallery.feature.objecteraser.ObjectEraser
 import com.ugallery.feature.semanticsearch.SemanticSearchEngine
 
 private enum class RootTab { Photos, Collections, Search }
-private enum class SurfaceRoute { Root, Album, Viewer, PhotoEditor, VideoEditor, Trash, Settings, Moment, People, PrivateAlbum, Collage }
+private enum class SurfaceRoute { Root, Album, Viewer, PhotoEditor, VideoEditor, Trash, Settings, Moment, People, PrivateAlbum, PrivateAlbumPicker, Collage }
+private data class PrivateImportProgress(val completed: Int, val total: Int)
+private data class PrivateImportOutcome(val successful: List<TimelineMedia>, val total: Int)
 private data class ScreenMotionKey(
     val route: SurfaceRoute,
     val rootTab: RootTab,
@@ -169,10 +179,10 @@ internal fun ProductionGalleryApp(
     val search by viewModel.search.collectAsState()
     val searchIndexReady by viewModel.searchIndexReady.collectAsState()
     val detectedContentEnabled by viewModel.detectedContentEnabled.collectAsState()
-    val faceAnalysis by viewModel.faceAnalysis.collectAsState()
     val peopleAnalysis by viewModel.peopleAnalysis.collectAsState()
     val petCollectionsEnabled by viewModel.petCollectionsEnabled.collectAsState()
     val petAnalysis by viewModel.petAnalysis.collectAsState()
+    val localAnalysisOnboarding by viewModel.localAnalysisOnboarding.collectAsState()
     val gallerySettings by viewModel.gallerySettings.collectAsState()
     val galleryFolderOptions by viewModel.galleryFolderOptions.collectAsState()
     val petSummary by viewModel.petSummary.collectAsState()
@@ -298,6 +308,42 @@ internal fun ProductionGalleryApp(
             PrivateAlbumDatabase.open(context.applicationContext),
         )
     }
+    var privateAlbumUnlocked by rememberSaveable { mutableStateOf(false) }
+    val privateImportSelection = remember { mutableStateMapOf<MediaKey, TimelineMedia>() }
+    var privateImportProgress by remember { mutableStateOf<PrivateImportProgress?>(null) }
+    var privateImportOutcome by remember { mutableStateOf<PrivateImportOutcome?>(null) }
+
+    fun leavePrivateAlbum() {
+        privateImportSelection.clear()
+        privateAlbumUnlocked = false
+        route = SurfaceRoute.Root
+    }
+
+    fun startPrivateImport() {
+        val batch = privateImportSelection.values.toList()
+        if (batch.isEmpty() || privateImportProgress != null) return
+        privateImportProgress = PrivateImportProgress(0, batch.size)
+        appScope.launch {
+            val successful = mutableListOf<TimelineMedia>()
+            val masterKey = com.ugallery.core.security.PrivateAlbumCrypto.getOrCreateMasterKey()
+            batch.forEachIndexed { index, media ->
+                privateImportProgress = PrivateImportProgress(index + 1, batch.size)
+                if (privateAlbumRepo.importFromMedia(media, masterKey).success) successful += media
+            }
+            privateImportSelection.clear()
+            privateImportProgress = null
+            privateImportOutcome = PrivateImportOutcome(successful, batch.size)
+            route = SurfaceRoute.PrivateAlbum
+        }
+    }
+
+    val privateFlowVisible = route == SurfaceRoute.PrivateAlbum || route == SurfaceRoute.PrivateAlbumPicker
+    DisposableEffect(privateFlowVisible) {
+        if (!privateFlowVisible) return@DisposableEffect onDispose { }
+        val window = (context as? Activity)?.window
+        window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
+    }
     val gazetteer = remember { OfflineGazetteer(BundledGazetteer.load()) }
     val semanticEngine = remember { SemanticSearchEngine() }
     val subjectClipper = remember { SubjectClipper() }
@@ -321,6 +367,11 @@ internal fun ProductionGalleryApp(
                 route = SurfaceRoute.Viewer
             }
             route == SurfaceRoute.People && selectedPerson != null -> viewModel.closePerson()
+            route == SurfaceRoute.PrivateAlbumPicker -> {
+                privateImportSelection.clear()
+                route = SurfaceRoute.PrivateAlbum
+            }
+            route == SurfaceRoute.PrivateAlbum -> leavePrivateAlbum()
             route == SurfaceRoute.Viewer -> route = SurfaceRoute.Root
             else -> route = SurfaceRoute.Root
         }
@@ -683,10 +734,10 @@ internal fun ProductionGalleryApp(
                 )
                 SurfaceRoute.Settings -> RecognitionSettingsContent(
                     state = FaceAnalysisUiState(
-                        consentGranted = faceAnalysis.consentGranted,
-                        paused = faceAnalysis.paused,
-                        completedItems = faceAnalysis.completedItems,
-                        status = faceAnalysis.status?.let {
+                        consentGranted = peopleAnalysis.consentGranted,
+                        paused = peopleAnalysis.paused,
+                        completedItems = peopleAnalysis.completedItems,
+                        status = peopleAnalysis.status?.let {
                             when (it) {
                                 com.ugallery.core.ml.MlCheckpoint.Status.Ready -> AnalysisStatus.Ready
                                 com.ugallery.core.ml.MlCheckpoint.Status.Running -> AnalysisStatus.Running
@@ -695,11 +746,11 @@ internal fun ProductionGalleryApp(
                             }
                         },
                     ),
-                    onEnable = viewModel::enableFaceDetection,
-                    onPause = viewModel::pauseFaceDetection,
-                    onResume = viewModel::resumeFaceDetection,
-                    onAnalyzeAll = viewModel::analyzeAllFaces,
-                    onDelete = viewModel::deleteFaceDetectionData,
+                    onEnable = { viewModel.setPeopleAnalysisEnabled(true) },
+                    onPause = viewModel::pausePeopleRecognition,
+                    onResume = viewModel::resumePeopleRecognition,
+                    onAnalyzeAll = viewModel::analyzeAllPeople,
+                    onDelete = viewModel::deleteAllLocalAnalysisData,
                     petCollectionsEnabled = petCollectionsEnabled,
                     petAnalysisState = FaceAnalysisUiState(
                         consentGranted = petAnalysis.consentGranted,
@@ -732,11 +783,17 @@ internal fun ProductionGalleryApp(
                     onExportSettings = { exportSettingsLauncher.launch("ugallery-backup.json") },
                     onImportSettings = { importSettingsLauncher.launch("application/json") },
                     onResetSettings = viewModel::resetGallerySettings,
+                    onBack = { route = SurfaceRoute.Root },
+                    peopleAnalysisEnabled = peopleAnalysis.consentGranted,
+                    contentAnalysisEnabled = detectedContentEnabled,
+                    onAllAnalysisEnabledChange = viewModel::setAllLocalAnalysisEnabled,
+                    onPeopleAnalysisEnabledChange = viewModel::setPeopleAnalysisEnabled,
+                    onContentAnalysisEnabledChange = viewModel::setContentAnalysisEnabled,
                     showHeader = false,
                 )
                 SurfaceRoute.PrivateAlbum -> PrivateAlbumContent(
                     repository = privateAlbumRepo,
-                    onBack = { route = SurfaceRoute.Root },
+                    onBack = ::leavePrivateAlbum,
                     onUnlockRequest = { onSuccess, onError ->
                         val fragmentActivity = context as? FragmentActivity
                         if (fragmentActivity == null || !BiometricGate.canAuthenticate(context)) {
@@ -767,7 +824,69 @@ internal fun ProductionGalleryApp(
                                 }
                         }
                     },
+                    isUnlocked = privateAlbumUnlocked,
+                    onUnlocked = { privateAlbumUnlocked = true },
+                    onAddRequest = {
+                        privateImportSelection.clear()
+                        route = SurfaceRoute.PrivateAlbumPicker
+                    },
                 )
+                SurfaceRoute.PrivateAlbumPicker -> Column(Modifier.fillMaxSize()) {
+                    Text(
+                        stringResource(
+                            com.ugallery.feature.privatealbum.R.string.private_picker_count,
+                            privateImportSelection.size,
+                        ),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    )
+                    when {
+                        thumbnails == null || timeline.loadState.refresh is LoadState.Loading -> {
+                            LinearProgressIndicator(Modifier.fillMaxWidth())
+                            GalleryStateContent(
+                                title = stringResource(com.ugallery.feature.photos.R.string.library_loading_title),
+                                body = stringResource(com.ugallery.feature.photos.R.string.library_loading_body),
+                                illustrationDescription = stringResource(com.ugallery.feature.photos.R.string.library_loading_title),
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+                        timeline.itemCount == 0 -> GalleryStateContent(
+                            title = stringResource(com.ugallery.feature.photos.R.string.empty_library_title),
+                            body = stringResource(com.ugallery.feature.photos.R.string.empty_library_body),
+                            illustrationDescription = stringResource(com.ugallery.feature.photos.R.string.empty_library_title),
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                        else -> AdaptivePagedPhotosTimeline(
+                            entries = timeline,
+                            thumbnailLoader = requireNotNull(thumbnails),
+                            modifier = Modifier.fillMaxSize(),
+                            preferredColumns = gallerySettings.thumbnails.gridColumns,
+                            cropThumbnails = gallerySettings.thumbnails.cropToFill,
+                            onMediaClick = { media ->
+                                if (privateImportSelection.containsKey(media.key)) {
+                                    privateImportSelection.remove(media.key)
+                                } else if (privateImportSelection.size < 500) {
+                                    privateImportSelection[media.key] = media
+                                } else {
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(com.ugallery.feature.privatealbum.R.string.private_picker_limit),
+                                        Toast.LENGTH_LONG,
+                                    ).show()
+                                }
+                            },
+                            onMediaLongClick = { media ->
+                                if (privateImportSelection.containsKey(media.key)) {
+                                    privateImportSelection.remove(media.key)
+                                } else if (privateImportSelection.size < 500) {
+                                    privateImportSelection[media.key] = media
+                                }
+                            },
+                            isMediaSelected = { privateImportSelection.containsKey(it.key) },
+                        )
+                    }
+                }
                 SurfaceRoute.Collage -> {
                     val template = collageTemplates.getOrElse(selectedCollageTemplateIndex) { collageTemplates[0] }
                     Column(Modifier.fillMaxSize().padding(16.dp)) {
@@ -867,7 +986,8 @@ internal fun ProductionGalleryApp(
                 route == SurfaceRoute.Viewer ||
                 route == SurfaceRoute.PhotoEditor ||
                 route == SurfaceRoute.VideoEditor ||
-                route == SurfaceRoute.PrivateAlbum
+                route == SurfaceRoute.PrivateAlbum ||
+                route == SurfaceRoute.PrivateAlbumPicker
             ) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
             containerColor = if (route == SurfaceRoute.Viewer) Color.Black
             else MaterialTheme.colorScheme.background,
@@ -904,10 +1024,22 @@ internal fun ProductionGalleryApp(
                             }
                         },
                     )
-                    SurfaceRoute.Settings -> GalleryTopAppBar(
-                        title = stringResource(com.ugallery.feature.settings.R.string.face_analysis_title),
-                        onBack = { route = SurfaceRoute.Root },
+                    SurfaceRoute.Settings -> Unit
+                    SurfaceRoute.PrivateAlbumPicker -> GalleryTopAppBar(
+                        title = stringResource(com.ugallery.feature.privatealbum.R.string.private_picker_title),
+                        onBack = {
+                            privateImportSelection.clear()
+                            route = SurfaceRoute.PrivateAlbum
+                        },
                         navigationContentDescription = stringResource(R.string.nav_back),
+                        actions = {
+                            TextButton(
+                                onClick = ::startPrivateImport,
+                                enabled = privateImportSelection.isNotEmpty() && privateImportProgress == null,
+                            ) {
+                                Text(stringResource(com.ugallery.feature.privatealbum.R.string.private_picker_add))
+                            }
+                        },
                     )
                     SurfaceRoute.Collage -> GalleryTopAppBar(
                         title = stringResource(R.string.m6_collage),
@@ -984,6 +1116,102 @@ internal fun ProductionGalleryApp(
             dismissButton = {
                 TextButton(onClick = { showEmptyTrashConfirmation = false }) {
                     Text(stringResource(R.string.album_cancel))
+                }
+            },
+        )
+    }
+    privateImportProgress?.let { progress ->
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text(stringResource(com.ugallery.feature.privatealbum.R.string.private_picker_title)) },
+            text = {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                ) {
+                    CircularProgressIndicator(Modifier.size(28.dp))
+                    Text(
+                        stringResource(
+                            com.ugallery.feature.privatealbum.R.string.private_importing,
+                            progress.completed,
+                            progress.total,
+                        ),
+                    )
+                }
+            },
+            confirmButton = {},
+        )
+    }
+    privateImportOutcome?.let { outcome ->
+        val importedCount = outcome.successful.size
+        AlertDialog(
+            onDismissRequest = { privateImportOutcome = null },
+            title = {
+                Text(
+                    stringResource(
+                        if (importedCount > 0) com.ugallery.feature.privatealbum.R.string.private_import_result_title
+                        else com.ugallery.feature.privatealbum.R.string.private_error,
+                    ),
+                )
+            },
+            text = {
+                Text(
+                    if (importedCount > 0) {
+                        stringResource(
+                            com.ugallery.feature.privatealbum.R.string.private_import_result,
+                            importedCount,
+                            outcome.total,
+                        )
+                    } else {
+                        stringResource(com.ugallery.feature.privatealbum.R.string.private_import_result_failed)
+                    },
+                )
+            },
+            confirmButton = {
+                if (importedCount > 0) {
+                    TextButton(onClick = {
+                        val imported = outcome.successful
+                        privateImportOutcome = null
+                        runDestructive { viewModel.beginSystemAction(imported, MediaAction.Delete) }
+                    }) {
+                        Text(stringResource(com.ugallery.feature.privatealbum.R.string.private_delete_originals))
+                    }
+                } else {
+                    TextButton(onClick = { privateImportOutcome = null }) {
+                        Text(stringResource(com.ugallery.feature.privatealbum.R.string.private_ok))
+                    }
+                }
+            },
+            dismissButton = if (importedCount > 0) {
+                {
+                    TextButton(onClick = { privateImportOutcome = null }) {
+                        Text(stringResource(com.ugallery.feature.privatealbum.R.string.private_keep_originals))
+                    }
+                }
+            } else null,
+        )
+    }
+    if (
+        localAnalysisOnboarding == LocalAnalysisOnboardingDecision.Pending &&
+        access.images != GrantLevel.None &&
+        external == null
+    ) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = {
+                Text(stringResource(com.ugallery.feature.settings.R.string.local_analysis_opt_out_title))
+            },
+            text = {
+                Text(stringResource(com.ugallery.feature.settings.R.string.local_analysis_opt_out_body))
+            },
+            confirmButton = {
+                Button(onClick = viewModel::acceptLocalAnalysisDefaults) {
+                    Text(stringResource(com.ugallery.feature.settings.R.string.local_analysis_opt_out_accept))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::declineLocalAnalysisDefaults) {
+                    Text(stringResource(com.ugallery.feature.settings.R.string.local_analysis_opt_out_decline))
                 }
             },
         )
@@ -1370,6 +1598,7 @@ private fun ViewerRoute(
             slowMotionSaveProgress = quickSlowMotionSave.progress,
             slowMotionSaveCompletionGeneration = quickSlowMotionSave.completionGeneration,
             gestureSettings = gallerySettings.gestures,
+            videoScrubbingMode = gallerySettings.playback.videoScrubbingMode,
             modifier = Modifier.fillMaxSize(),
         )
         // Motion photo badge - detection requires file access, shown when available

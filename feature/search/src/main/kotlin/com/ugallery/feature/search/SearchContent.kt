@@ -4,7 +4,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,30 +11,41 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -43,12 +53,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import com.ugallery.core.search.MediaSearchHit
 import com.ugallery.core.designsystem.GalleryIcons
 import com.ugallery.core.designsystem.VideoDurationBadge
@@ -56,6 +63,12 @@ import com.ugallery.core.designsystem.videoDurationDescription
 import com.ugallery.core.model.MediaKind
 import com.ugallery.core.thumbnail.ThumbnailLoader
 import com.ugallery.core.thumbnail.ThumbnailRequest
+import kotlinx.coroutines.flow.first
+
+private const val PAGINATION_PREFETCH_DISTANCE = 3
+internal const val SEARCH_RESULTS_GRID_TEST_TAG = "search_results_grid"
+internal const val SEARCH_LOADING_ROW_TEST_TAG = "search_loading_row"
+internal const val SEARCH_LOADING_INDICATOR_TEST_TAG = "search_loading_indicator"
 
 @Composable
 fun SearchContent(
@@ -129,7 +142,7 @@ fun SearchContent(
         }
         if (query.isNotBlank() || hits.isNotEmpty()) when {
             error -> Text(stringResource(R.string.search_error), color = MaterialTheme.colorScheme.error)
-            loading && hits.isEmpty() -> CircularProgressIndicator()
+            loading && !terminal && hits.isEmpty() -> SearchLoadingIndicatorRow()
             !terminal && hits.isEmpty() -> Unit
             hits.isEmpty() -> {
                 val collection = petCollection
@@ -148,19 +161,15 @@ fun SearchContent(
                     Text(stringResource(R.string.search_empty))
                 }
             }
-            else -> LazyVerticalGrid(
-                columns = GridCells.Adaptive(128.dp),
+            else -> SearchResultsGrid(
+                hits = hits,
+                loading = loading,
+                terminal = terminal,
+                thumbnailLoader = thumbnailLoader,
+                onLoadMore = onLoadMore,
+                onHit = onHit,
                 modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                items(hits, key = { "${it.key.volumeName}:${it.key.mediaStoreId}" }) { hit ->
-                    SearchResultCard(hit, thumbnailLoader) { onHit(hit) }
-                }
-                if (!terminal && hits.isNotEmpty()) item {
-                    Button(onClick = onLoadMore, enabled = !loading) { Text(stringResource(R.string.search_more)) }
-                }
-            }
+            )
         }
       }
     }
@@ -182,6 +191,73 @@ fun SearchContent(
             }
         },
     )
+}
+
+@Composable
+private fun SearchResultsGrid(
+    hits: List<MediaSearchHit>,
+    loading: Boolean,
+    terminal: Boolean,
+    thumbnailLoader: ThumbnailLoader?,
+    onLoadMore: () -> Unit,
+    onHit: (MediaSearchHit) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val gridState = rememberLazyGridState()
+    RequestNextPageOnApproachingEnd(
+        gridState = gridState,
+        resultCount = hits.size,
+        loading = loading,
+        terminal = terminal,
+        onLoadMore = onLoadMore,
+    )
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(128.dp),
+        state = gridState,
+        modifier = modifier.testTag(SEARCH_RESULTS_GRID_TEST_TAG),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        items(hits, key = { "${it.key.volumeName}:${it.key.mediaStoreId}" }) { hit ->
+            SearchResultCard(hit, thumbnailLoader) { onHit(hit) }
+        }
+        if (loading && !terminal) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                SearchLoadingIndicatorRow(Modifier.padding(vertical = 12.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun RequestNextPageOnApproachingEnd(
+    gridState: LazyGridState,
+    resultCount: Int,
+    loading: Boolean,
+    terminal: Boolean,
+    onLoadMore: () -> Unit,
+) {
+    val currentOnLoadMore by rememberUpdatedState(onLoadMore)
+    LaunchedEffect(gridState, resultCount, loading, terminal) {
+        if (resultCount == 0 || loading || terminal) return@LaunchedEffect
+        val loadMoreIndex = (resultCount - PAGINATION_PREFETCH_DISTANCE).coerceAtLeast(0)
+        snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1 }
+            .first { lastVisibleIndex -> lastVisibleIndex >= loadMoreIndex }
+        currentOnLoadMore()
+    }
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun SearchLoadingIndicatorRow(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag(SEARCH_LOADING_ROW_TEST_TAG),
+        contentAlignment = Alignment.Center,
+    ) {
+        LoadingIndicator(Modifier.testTag(SEARCH_LOADING_INDICATOR_TEST_TAG))
+    }
 }
 
 @Composable

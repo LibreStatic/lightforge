@@ -7,7 +7,10 @@ import android.provider.MediaStore
 import com.ugallery.core.security.PrivateAlbumCrypto
 import com.ugallery.core.mediastore.MediaWriteSpec
 import com.ugallery.core.mediastore.PendingMediaWriter
+import com.ugallery.core.mediastore.MediaActionTarget
+import com.ugallery.core.mediastore.mediaUri
 import com.ugallery.core.model.MediaKind
+import com.ugallery.core.model.TimelineMedia
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -71,17 +74,19 @@ class PrivateAlbumRepository(
         durationMillis: Long = 0,
         masterKey: SecretKey,
     ): ImportResult = withContext(ioDispatcher) {
+        var containerFile: File? = null
+        var committed = false
         try {
             val resolver = context.contentResolver
             val dataKey = PrivateAlbumCrypto.generateDataKey()
             val encryptedDataKey = PrivateAlbumCrypto.encryptDataKey(dataKey, masterKey)
 
-            val containerFile = File(containerDir, "private_${System.currentTimeMillis()}_${displayName.hashCode()}.ugpc")
+            containerFile = File(containerDir, "private_${System.nanoTime()}_${displayName.hashCode()}.ugpc")
             val input = resolver.openInputStream(sourceUri)
                 ?: return@withContext ImportResult(false, error = "Cannot open source URI")
 
             input.use { inputStream ->
-                FileOutputStream(containerFile).use { output ->
+                FileOutputStream(requireNotNull(containerFile)).use { output ->
                     val metadata = PrivateAlbumCrypto.encryptStream(
                         input = inputStream,
                         output = output,
@@ -93,8 +98,8 @@ class PrivateAlbumRepository(
                         originalMediaKey = sourceUri.toString(),
                         originalMimeType = mimeType,
                         originalDisplayName = displayName,
-                        containerPath = containerFile.absolutePath,
-                        containerSizeBytes = containerFile.length(),
+                        containerPath = requireNotNull(containerFile).absolutePath,
+                        containerSizeBytes = requireNotNull(containerFile).length(),
                         encryptedDataKey = encryptedDataKey.encryptedKey,
                         dataKeyIv = encryptedDataKey.iv,
                         chunkSize = metadata.chunkSize,
@@ -108,12 +113,35 @@ class PrivateAlbumRepository(
                         durationMillis = durationMillis,
                     )
                     val id = database.privateMediaDao().insert(entity)
+                    committed = true
                     ImportResult(success = true, mediaId = id)
                 }
             }
         } catch (e: Exception) {
             ImportResult(false, error = e.message ?: "Unknown error")
+        } finally {
+            if (!committed) containerFile?.delete()
         }
+    }
+
+    suspend fun importFromMedia(
+        media: TimelineMedia,
+        masterKey: SecretKey,
+    ): ImportResult {
+        val target = MediaActionTarget(media.key, media.kind)
+        val uri = target.mediaUri()
+        val fallbackMime = if (media.kind == MediaKind.Video) "video/*" else "image/*"
+        return importFromUri(
+            sourceUri = uri,
+            displayName = media.displayName
+                ?: "UGallery-${media.key.mediaStoreId}.${if (media.kind == MediaKind.Video) "mp4" else "jpg"}",
+            mimeType = context.contentResolver.getType(uri) ?: fallbackMime,
+            mediaKind = if (media.kind == MediaKind.Video) "video" else "image",
+            width = media.width,
+            height = media.height,
+            durationMillis = media.durationMillis,
+            masterKey = masterKey,
+        )
     }
 
     suspend fun exportToMediaStore(

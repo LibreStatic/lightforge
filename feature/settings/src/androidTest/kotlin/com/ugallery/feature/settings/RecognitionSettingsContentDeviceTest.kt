@@ -17,6 +17,8 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.ugallery.core.designsystem.UGalleryTheme
+import com.ugallery.core.preferences.GallerySettings
+import com.ugallery.core.preferences.VideoScrubbingMode
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -26,6 +28,41 @@ import org.junit.runner.RunWith
 class RecognitionSettingsContentDeviceTest {
     @get:Rule
     val compose = createComposeRule()
+
+    @Test
+    fun playbackLetsUsersChooseTheVideoScrubbingMode() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        var settings by mutableStateOf(GallerySettings())
+
+        compose.setContent {
+            UGalleryTheme(darkTheme = false) {
+                RecognitionSettingsContent(
+                    state = FaceAnalysisUiState(),
+                    onEnable = {},
+                    onPause = {},
+                    onResume = {},
+                    onAnalyzeAll = {},
+                    onDelete = {},
+                    petCollectionsEnabled = false,
+                    onPetCollectionsEnabledChange = {},
+                    onHideDogResults = {},
+                    onHideCatResults = {},
+                    onRestorePetResults = {},
+                    settings = settings,
+                    onSettingsChange = { transform -> settings = transform(settings) },
+                )
+            }
+        }
+
+        compose.onNode(hasText(context.getString(R.string.settings_playback))).performClick()
+        compose.onNode(hasTestTag("video_scrubbing_mode_row")).assertIsDisplayed().performClick()
+        compose.onNode(hasTestTag("video_scrubbing_mode_dialog")).assertExists()
+        compose.onNode(hasTestTag("video_scrubbing_mode_Filmstrip")).performClick()
+        compose.waitForIdle()
+
+        assertEquals(VideoScrubbingMode.Filmstrip, settings.playback.videoScrubbingMode)
+        compose.onNode(hasText(context.getString(R.string.settings_video_scrubbing_filmstrip))).assertIsDisplayed()
+    }
 
     @Test
     fun consentPrivacyDeleteAndPetControlsRemainLocalizedAndExplicit() {
@@ -61,6 +98,12 @@ class RecognitionSettingsContentDeviceTest {
                 )
             }
         }
+
+        compose.onNode(hasText(context.getString(R.string.settings_title))).assertIsDisplayed()
+        compose.onNode(hasText(context.getString(R.string.settings_group_viewing))).assertIsDisplayed()
+        compose.onNode(hasText(context.getString(R.string.settings_group_management)))
+            .performScrollTo()
+            .assertIsDisplayed()
 
         // Nested IA: analysis controls live on the "Local analysis" sub-page.
         compose.onNode(hasText(context.getString(R.string.settings_page_ai)))

@@ -45,6 +45,8 @@ import com.ugallery.core.mediastore.PublishedCopy
 import com.ugallery.core.mediastore.LocalShareSanitizer
 import com.ugallery.core.mediastore.ScopedMediaOperations
 import com.ugallery.core.ml.DetectedContentRepository
+import com.ugallery.core.ml.LocalAnalysisOnboardingDecision
+import com.ugallery.core.ml.LocalAnalysisOnboardingStore
 import com.ugallery.core.ml.MlScheduler
 import com.ugallery.core.ml.MlTaskType
 import com.ugallery.core.ml.PetCollectionRepository
@@ -216,6 +218,14 @@ class GalleryViewModel @Inject constructor(
     private val mutableSearchIndexReady = MutableStateFlow(false)
     val searchIndexReady = mutableSearchIndexReady.asStateFlow()
     private val mlScheduler = MlScheduler(application)
+    private val localAnalysisOnboardingStore = LocalAnalysisOnboardingStore(application)
+    private val peopleAnalysisTasks = listOf(
+        MlTaskType.FaceDetection,
+        MlTaskType.FaceEmbeddings,
+        MlTaskType.PersonClustering,
+    )
+    private val contentAnalysisTasks = listOf(MlTaskType.ImageLabels, MlTaskType.Ocr)
+    private val localAnalysisTasks = peopleAnalysisTasks + contentAnalysisTasks
     private val gallerySettingsRepository = GallerySettingsRepository(application)
     val gallerySettings = gallerySettingsRepository.settings.stateIn(
         viewModelScope,
@@ -270,8 +280,10 @@ class GalleryViewModel @Inject constructor(
         }
     }
     private val petSettings = PetCollectionSettings(application)
+    private val mutableLocalAnalysisOnboarding = MutableStateFlow(localAnalysisOnboardingStore.decision())
+    val localAnalysisOnboarding = mutableLocalAnalysisOnboarding.asStateFlow()
     private val mutableDetectedContentEnabled = MutableStateFlow(
-        mlScheduler.hasConsent(MlTaskType.ImageLabels) || mlScheduler.hasConsent(MlTaskType.Ocr),
+        contentAnalysisTasks.all(mlScheduler::hasConsent),
     )
     val detectedContentEnabled = mutableDetectedContentEnabled.asStateFlow()
     private val mutableFaceAnalysis = MutableStateFlow(mlScheduler.controlState(MlTaskType.FaceDetection))
@@ -629,6 +641,106 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
+    fun acceptLocalAnalysisDefaults() {
+        localAnalysisOnboardingStore.setDecision(LocalAnalysisOnboardingDecision.Accepted)
+        mutableLocalAnalysisOnboarding.value = LocalAnalysisOnboardingDecision.Accepted
+        enableAllLocalAnalysis(fullLibrary = true)
+    }
+
+    fun declineLocalAnalysisDefaults() {
+        localAnalysisOnboardingStore.setDecision(LocalAnalysisOnboardingDecision.Declined)
+        mutableLocalAnalysisOnboarding.value = LocalAnalysisOnboardingDecision.Declined
+        viewModelScope.launch {
+            disableAllLocalAnalysis()
+            localAnalysisTasks.reversed().forEach { mlScheduler.deleteDerivedData(it) }
+            refreshLocalAnalysisControls()
+        }
+    }
+
+    fun setAllLocalAnalysisEnabled(enabled: Boolean) {
+        if (enabled) enableAllLocalAnalysis(fullLibrary = true)
+        else viewModelScope.launch { disableAllLocalAnalysis() }
+    }
+
+    fun setPeopleAnalysisEnabled(enabled: Boolean) {
+        if (enabled) {
+            peopleAnalysisTasks.forEach {
+                mlScheduler.grantConsent(it)
+                mlScheduler.unpause(it)
+            }
+            nextPeopleTask()?.let { mlScheduler.enqueue(it, MlRunMode.Recent) }
+            monitorFaceProgress()
+            monitorPeopleProgress()
+        } else {
+            peopleAnalysisTasks.forEach { mlScheduler.setConsent(it, false) }
+            faceProgressJob?.cancel()
+            peopleProgressJob?.cancel()
+            mutableFaceAnalysis.value = mlScheduler.controlState(MlTaskType.FaceDetection)
+            mutablePeopleAnalysis.value = peopleControlState()
+        }
+    }
+
+    fun setContentAnalysisEnabled(enabled: Boolean) {
+        if (enabled) {
+            contentAnalysisTasks.forEach {
+                mlScheduler.grantConsent(it)
+                mlScheduler.unpause(it)
+                mlScheduler.enqueue(it, MlRunMode.Recent)
+            }
+            mutableDetectedContentEnabled.value = true
+            monitorPetProgress()
+        } else {
+            contentAnalysisTasks.forEach { mlScheduler.setConsent(it, false) }
+            petProgressJob?.cancel()
+            mutableDetectedContentEnabled.value = false
+            mutablePetAnalysis.value = mlScheduler.controlState(MlTaskType.ImageLabels)
+        }
+    }
+
+    fun deleteAllLocalAnalysisData() {
+        viewModelScope.launch {
+            disableAllLocalAnalysis()
+            localAnalysisTasks.reversed().forEach { mlScheduler.deleteDerivedData(it) }
+            refreshLocalAnalysisControls()
+        }
+    }
+
+    private fun enableAllLocalAnalysis(fullLibrary: Boolean) {
+        petSettings.setEnabled(true)
+        mutablePetCollectionsEnabled.value = true
+        localAnalysisTasks.forEach {
+            mlScheduler.grantConsent(it)
+            mlScheduler.unpause(it)
+        }
+        mutableDetectedContentEnabled.value = true
+        viewModelScope.launch {
+            val mode = if (fullLibrary) MlRunMode.FullLibrary else MlRunMode.Recent
+            mlScheduler.restart(MlTaskType.FaceDetection, mode)
+            contentAnalysisTasks.forEach { mlScheduler.restart(it, mode) }
+            refreshLocalAnalysisControls()
+            monitorFaceProgress()
+            monitorPeopleProgress()
+            monitorPetProgress()
+        }
+    }
+
+    private suspend fun disableAllLocalAnalysis() {
+        localAnalysisTasks.forEach { mlScheduler.setConsent(it, false) }
+        petSettings.setEnabled(false)
+        mutablePetCollectionsEnabled.value = false
+        faceProgressJob?.cancel()
+        peopleProgressJob?.cancel()
+        petProgressJob?.cancel()
+        refreshLocalAnalysisControls()
+    }
+
+    private fun refreshLocalAnalysisControls() {
+        mutableDetectedContentEnabled.value = contentAnalysisTasks.all(mlScheduler::hasConsent)
+        mutableFaceAnalysis.value = mlScheduler.controlState(MlTaskType.FaceDetection)
+        mutablePeopleAnalysis.value = peopleControlState()
+        mutablePetAnalysis.value = mlScheduler.controlState(MlTaskType.ImageLabels)
+    }
+
     fun enableDetectedContent() {
         listOf(MlTaskType.ImageLabels, MlTaskType.Ocr).forEach {
             mlScheduler.grantConsent(it); mlScheduler.enqueue(it, MlRunMode.Recent)
@@ -871,7 +983,7 @@ class GalleryViewModel @Inject constructor(
             ?: states.firstOrNull { it.requested }
             ?: states.firstOrNull { it.status != com.ugallery.core.ml.MlCheckpoint.Status.Complete }
         return MlControlState(
-            consentGranted = states.any { it.consentGranted },
+            consentGranted = states.all { it.consentGranted },
             paused = states.any { it.paused },
             completedItems = states.sumOf { it.completedItems },
             status = status,
@@ -1997,6 +2109,14 @@ class GalleryViewModel @Inject constructor(
 
     fun beginSystemAction(media: TimelineMedia, action: MediaAction) {
         beginTargetsAction(listOf(MediaActionTarget(media.key, media.kind)), action)
+    }
+
+    fun beginSystemAction(media: List<TimelineMedia>, action: MediaAction) {
+        val targets = media
+            .distinctBy(TimelineMedia::key)
+            .map { MediaActionTarget(it.key, it.kind) }
+        require(targets.size <= MediaActionReducer.MaxChunkSize)
+        beginTargetsAction(targets, action)
     }
 
     fun requestRename(media: TimelineMedia, displayName: String) {

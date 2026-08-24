@@ -1,4 +1,8 @@
 <resources>
+    <string name="settings_title">Settings</string>
+    <string name="settings_group_viewing">Library and viewing</string>
+    <string name="settings_group_management">Privacy and management</string>
+    <string name="settings_group_intelligence">Smart features</string>
     <string name="settings_library">Library</string>
     <string name="settings_library_sort">Sort by</string>
     <string name="settings_sort_date_taken">Date taken</string>
@@ -22,6 +26,9 @@
     <string name="settings_folder_include_mode">Only selected folders</string>
     <string name="settings_folders">Folders</string>
     <string name="settings_playback">Video playback</string>
+    <string name="settings_video_scrubbing_mode">Video scrubbing</string>
+    <string name="settings_video_scrubbing_legacy">Legacy seek bar</string>
+    <string name="settings_video_scrubbing_filmstrip">Filmstrip</string>
     <string name="settings_autoplay_videos">Autoplay videos</string>
     <string name="settings_start_muted">Start videos muted</string>
     <string name="settings_loop_videos">Loop videos</string>
@@ -68,10 +75,10 @@
     <string name="face_analysis_pause">Pause</string>
     <string name="face_analysis_resume">Analyze now</string>
     <string name="face_analysis_all">Analyze full library</string>
-    <string name="face_analysis_all_requirements">Full-library analysis waits for charging, idle mode, sufficient battery and storage.</string>
-    <string name="face_analysis_delete">Delete face-analysis data</string>
-    <string name="face_analysis_delete_title">Delete local face data?</string>
-    <string name="face_analysis_delete_body">Detection geometry, progress and consent will be removed. Your photos are never changed.</string>
+    <string name="face_analysis_all_requirements">Full-library analysis waits for sufficient battery and storage and pauses if the device gets warm.</string>
+    <string name="face_analysis_delete">Delete all local-analysis data</string>
+    <string name="face_analysis_delete_title">Delete all local-analysis data?</string>
+    <string name="face_analysis_delete_body">Faces, people, labels, recognized text, progress and consent will be removed. Your photos are never changed.</string>
     <string name="face_analysis_delete_confirm">Delete data</string>
     <string name="face_analysis_cancel">Cancel</string>
     <string name="pet_collections_title">Pets</string>
@@ -85,6 +92,18 @@
     <string name="pet_hide_cat">Hide cat results</string>
     <string name="pet_restore">Restore pet labels</string>
     <string name="settings_page_ai">Local analysis</string>
+    <string name="local_analysis_privacy">UGallery can analyze your accessible photos entirely on this device. Nothing is uploaded, and you can stop analysis or delete its results at any time.</string>
+    <string name="local_analysis_master">Use local analysis</string>
+    <string name="local_analysis_master_summary">Controls people and faces, photo content and text, and pet collections.</string>
+    <string name="local_analysis_features">Analysis features</string>
+    <string name="local_analysis_people">People and faces</string>
+    <string name="local_analysis_people_summary">Detects faces and groups photos of the same person locally.</string>
+    <string name="local_analysis_content">Photo content and text</string>
+    <string name="local_analysis_content_summary">Creates searchable labels and recognizes text. Pet collections share these labels.</string>
+    <string name="local_analysis_opt_out_title">Local analysis is ready</string>
+    <string name="local_analysis_opt_out_body">UGallery can organize people, pets, photo content and text entirely on this device. Analysis starts after you continue, uses only photos you allowed, and can be disabled or deleted in Settings.</string>
+    <string name="local_analysis_opt_out_accept">Understood</string>
+    <string name="local_analysis_opt_out_decline">Disable</string>
     <string name="settings_back">Back</string>
     <string name="settings_summary_columns">%1$d columns</string>
     <string name="settings_summary_enabled">%1$d of %2$d on</string>

@@ -1,7 +1,6 @@
 package com.ugallery.feature.photos
 
 import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.background
@@ -11,6 +10,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
@@ -18,6 +18,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -34,11 +36,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.testTagsAsResourceId
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.CircleShape
 import androidx.paging.compose.LazyPagingItems
 import com.ugallery.core.designsystem.GalleryColors
 import com.ugallery.core.designsystem.GalleryGridMetrics
-import com.ugallery.core.designsystem.GalleryMotion
+import com.ugallery.core.designsystem.GalleryIcons
 import com.ugallery.core.designsystem.GallerySpacing
 import com.ugallery.core.designsystem.VideoDurationBadge
 import com.ugallery.core.designsystem.videoDurationDescription
@@ -65,6 +69,7 @@ fun AdaptivePagedPhotosTimeline(
     preferredColumns: Int? = null,
     cropThumbnails: Boolean = true,
     onDensityChange: ((Int) -> Unit)? = null,
+    isMediaSelected: (TimelineMedia) -> Boolean = { false },
 ) {
     BoxWithConstraints(modifier) {
         val widthDp = maxWidth.value.toInt()
@@ -102,6 +107,7 @@ fun AdaptivePagedPhotosTimeline(
             onMediaClick = onMediaClick,
             onMediaLongClick = onMediaLongClick,
             cropThumbnails = cropThumbnails,
+            isMediaSelected = isMediaSelected,
         )
     }
 }
@@ -118,6 +124,7 @@ fun PagedPhotosTimeline(
     onMediaClick: (TimelineMedia) -> Unit = {},
     onMediaLongClick: (TimelineMedia) -> Unit = {},
     cropThumbnails: Boolean = true,
+    isMediaSelected: (TimelineMedia) -> Boolean = { false },
 ) {
     require(columns > 0 && thumbnailSizePx > 0)
     val reducedMotion = rememberGalleryReducedMotion()
@@ -153,16 +160,14 @@ fun PagedPhotosTimeline(
                         placementSpec = if (reducedMotion) {
                             snap()
                         } else {
-                            tween(
-                                GalleryMotion.BaseMillis,
-                                easing = GalleryMotion.StandardEasing,
-                            )
+                            MaterialTheme.motionScheme.defaultSpatialSpec()
                         },
                         fadeOutSpec = snap(),
                     ),
                     onClick = { onMediaClick(entry.value) },
                     onLongClick = { onMediaLongClick(entry.value) },
                     cropToFill = cropThumbnails,
+                    selected = isMediaSelected(entry.value),
                 )
                 null -> Box(
                     Modifier
@@ -218,6 +223,7 @@ private fun TimelineThumbnail(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     cropToFill: Boolean = true,
+    selected: Boolean = false,
 ) {
     val isVideo = entry.value.kind == MediaKind.Video
     val contentDescription = if (isVideo) {
@@ -239,7 +245,10 @@ private fun TimelineThumbnail(
         .fillMaxWidth()
         .aspectRatio(1f)
         .testTag("media_${entry.value.key.volumeName}_${entry.value.key.mediaStoreId}")
-        .semantics { this.contentDescription = contentDescription }
+        .semantics {
+            this.contentDescription = contentDescription
+            this.selected = selected
+        }
         .combinedClickable(onClick = onClick, onLongClick = onLongClick)
     Box(cellModifier) {
         if (loaded == null) {
@@ -261,6 +270,25 @@ private fun TimelineThumbnail(
                 durationMillis = entry.value.durationMillis,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
             )
+        }
+        if (selected) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.26f)),
+            )
+            Surface(
+                modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(28.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+            ) {
+                Icon(
+                    imageVector = GalleryIcons.Check,
+                    contentDescription = null,
+                    modifier = Modifier.padding(5.dp),
+                )
+            }
         }
     }
 }

@@ -10,7 +10,7 @@ data class GallerySettings(
     val security: SecuritySettings = SecuritySettings(),
 ) {
     companion object {
-        const val CurrentSchemaVersion = 2
+        const val CurrentSchemaVersion = 3
     }
 }
 
@@ -45,7 +45,10 @@ data class PlaybackSettings(
     val loopVideos: Boolean = false,
     val rememberVideoPosition: Boolean = true,
     val maximumBrightness: Boolean = false,
+    val videoScrubbingMode: VideoScrubbingMode = VideoScrubbingMode.LegacySeekBar,
 )
+
+enum class VideoScrubbingMode { LegacySeekBar, Filmstrip }
 
 data class GestureSettings(
     val doubleTapZoom: Boolean = true,

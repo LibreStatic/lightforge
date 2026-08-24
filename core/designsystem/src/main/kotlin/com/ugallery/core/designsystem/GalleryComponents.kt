@@ -17,7 +17,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -110,33 +109,24 @@ fun <S> GalleryAnimatedContent(
     content: @Composable androidx.compose.animation.AnimatedContentScope.(S) -> Unit,
 ) {
     val shouldReduceMotion = reducedMotion ?: rememberGalleryReducedMotion()
+    val motionScheme = MaterialTheme.motionScheme
     AnimatedContent(
         targetState = targetState,
         modifier = modifier,
         contentKey = contentKey,
         transitionSpec = {
             if (shouldReduceMotion) {
-                fadeIn(tween(GalleryMotion.FastMillis)) togetherWith
-                    fadeOut(tween(GalleryMotion.FastMillis))
+                EnterTransition.None togetherWith ExitTransition.None
             } else {
                 (
                     fadeIn(
-                        animationSpec = tween(
-                            GalleryMotion.BaseMillis,
-                            easing = GalleryMotion.StandardEasing,
-                        ),
+                        animationSpec = motionScheme.defaultEffectsSpec(),
                     ) + scaleIn(
                         initialScale = 0.985f,
-                        animationSpec = tween(
-                            GalleryMotion.BaseMillis,
-                            easing = GalleryMotion.StandardEasing,
-                        ),
+                        animationSpec = motionScheme.defaultSpatialSpec(),
                     )
                 ) togetherWith fadeOut(
-                    animationSpec = tween(
-                        GalleryMotion.FastMillis,
-                        easing = GalleryMotion.StandardEasing,
-                    ),
+                    animationSpec = motionScheme.fastEffectsSpec(),
                 )
             }.using(SizeTransform(clip = false))
         },
@@ -153,6 +143,7 @@ fun GalleryAnimatedVisibility(
     content: @Composable androidx.compose.animation.AnimatedVisibilityScope.() -> Unit,
 ) {
     val shouldReduceMotion = reducedMotion ?: rememberGalleryReducedMotion()
+    val motionScheme = MaterialTheme.motionScheme
     val enter: EnterTransition
     val exit: ExitTransition
     if (shouldReduceMotion) {
@@ -160,50 +151,44 @@ fun GalleryAnimatedVisibility(
         exit = ExitTransition.None
     } else {
         val fadeEnter = fadeIn(
-            animationSpec = tween(
-                GalleryMotion.FastMillis,
-                easing = GalleryMotion.StandardEasing,
-            ),
+            animationSpec = motionScheme.defaultEffectsSpec(),
         )
         val fadeExit = fadeOut(
-            animationSpec = tween(
-                GalleryMotion.FastMillis,
-                easing = GalleryMotion.StandardEasing,
-            ),
+            animationSpec = motionScheme.fastEffectsSpec(),
         )
         enter = when (edge) {
             GalleryMotionEdge.Top -> fadeEnter + slideInVertically(
-                animationSpec = tween(GalleryMotion.BaseMillis, easing = GalleryMotion.StandardEasing),
+                animationSpec = motionScheme.defaultSpatialSpec(),
                 initialOffsetY = { -it },
             )
             GalleryMotionEdge.Bottom -> fadeEnter + slideInVertically(
-                animationSpec = tween(GalleryMotion.BaseMillis, easing = GalleryMotion.StandardEasing),
+                animationSpec = motionScheme.defaultSpatialSpec(),
                 initialOffsetY = { it },
             )
             GalleryMotionEdge.Start -> fadeEnter + slideInHorizontally(
-                animationSpec = tween(GalleryMotion.BaseMillis, easing = GalleryMotion.StandardEasing),
+                animationSpec = motionScheme.defaultSpatialSpec(),
                 initialOffsetX = { -it },
             )
             GalleryMotionEdge.End -> fadeEnter + slideInHorizontally(
-                animationSpec = tween(GalleryMotion.BaseMillis, easing = GalleryMotion.StandardEasing),
+                animationSpec = motionScheme.defaultSpatialSpec(),
                 initialOffsetX = { it },
             )
         }
         exit = when (edge) {
             GalleryMotionEdge.Top -> fadeExit + slideOutVertically(
-                animationSpec = tween(GalleryMotion.FastMillis, easing = GalleryMotion.StandardEasing),
+                animationSpec = motionScheme.fastSpatialSpec(),
                 targetOffsetY = { -it },
             )
             GalleryMotionEdge.Bottom -> fadeExit + slideOutVertically(
-                animationSpec = tween(GalleryMotion.FastMillis, easing = GalleryMotion.StandardEasing),
+                animationSpec = motionScheme.fastSpatialSpec(),
                 targetOffsetY = { it },
             )
             GalleryMotionEdge.Start -> fadeExit + slideOutHorizontally(
-                animationSpec = tween(GalleryMotion.FastMillis, easing = GalleryMotion.StandardEasing),
+                animationSpec = motionScheme.fastSpatialSpec(),
                 targetOffsetX = { -it },
             )
             GalleryMotionEdge.End -> fadeExit + slideOutHorizontally(
-                animationSpec = tween(GalleryMotion.FastMillis, easing = GalleryMotion.StandardEasing),
+                animationSpec = motionScheme.fastSpatialSpec(),
                 targetOffsetX = { it },
             )
         }
@@ -335,6 +320,7 @@ fun GalleryStateContent(
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     },
+    action: (@Composable () -> Unit)? = null,
 ) {
     Box(modifier = modifier.padding(GallerySpacing.Xxl), contentAlignment = Alignment.Center) {
         Column(
@@ -363,6 +349,10 @@ fun GalleryStateContent(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )
+            action?.let {
+                Spacer(Modifier.height(GallerySpacing.Xl))
+                it()
+            }
         }
     }
 }

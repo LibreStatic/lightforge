@@ -2,6 +2,7 @@ package com.ugallery.feature.settings
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
@@ -9,6 +10,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -20,7 +25,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Switch
@@ -31,6 +38,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.contentDescription
@@ -42,6 +52,8 @@ import com.ugallery.core.preferences.FolderSelectionMode
 import com.ugallery.core.preferences.LibraryFilter
 import com.ugallery.core.preferences.LibraryGrouping
 import com.ugallery.core.preferences.LibrarySort
+import com.ugallery.core.preferences.VideoScrubbingMode
+import com.ugallery.core.designsystem.GalleryIcons
 
 data class GalleryFolderOption(val token: String, val label: String)
 
@@ -77,24 +89,32 @@ fun RecognitionSettingsContent(
     onExportSettings: () -> Unit = {},
     onImportSettings: () -> Unit = {},
     onResetSettings: () -> Unit = {},
+    onBack: () -> Unit = {},
+    peopleAnalysisEnabled: Boolean = state.consentGranted,
+    contentAnalysisEnabled: Boolean = petAnalysisState.consentGranted,
+    onAllAnalysisEnabledChange: (Boolean) -> Unit = {},
+    onPeopleAnalysisEnabledChange: (Boolean) -> Unit = {},
+    onContentAnalysisEnabledChange: (Boolean) -> Unit = {},
     showHeader: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     var page by rememberSaveable { mutableStateOf(SettingsPage.Root) }
 
-    BackHandler(enabled = page != SettingsPage.Root) { page = SettingsPage.Root }
+    BackHandler { if (page == SettingsPage.Root) onBack() else page = SettingsPage.Root }
 
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(
             Modifier.fillMaxSize().widthIn(max = 720.dp),
         ) {
             when (page) {
-                SettingsPage.Root -> SettingsCategoryList(
-                    settings = settings,
-                    aiConsentGranted = state.consentGranted || petCollectionsEnabled,
-                    onOpen = { page = it },
-                )
+                SettingsPage.Root -> SettingsRootPage(onBack) {
+                    SettingsCategoryList(
+                        settings = settings,
+                        aiConsentGranted = peopleAnalysisEnabled || contentAnalysisEnabled || petCollectionsEnabled,
+                        onOpen = { page = it },
+                    )
+                }
                 SettingsPage.Library -> SettingsSubPage(title = stringResource(R.string.settings_library), onBack = { page = SettingsPage.Root }) {
                     LibrarySection(settings, folderOptions, onSettingsChange)
                 }
@@ -131,6 +151,11 @@ fun RecognitionSettingsContent(
                         onHideDogResults = onHideDogResults,
                         onHideCatResults = onHideCatResults,
                         onRestorePetResults = onRestorePetResults,
+                        peopleAnalysisEnabled = peopleAnalysisEnabled,
+                        contentAnalysisEnabled = contentAnalysisEnabled,
+                        onAllAnalysisEnabledChange = onAllAnalysisEnabledChange,
+                        onPeopleAnalysisEnabledChange = onPeopleAnalysisEnabledChange,
+                        onContentAnalysisEnabledChange = onContentAnalysisEnabledChange,
                         showHeader = showHeader,
                     )
                 }
@@ -150,6 +175,14 @@ fun RecognitionSettingsContent(
             TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.face_analysis_cancel)) }
         },
     )
+}
+
+@Composable
+private fun SettingsRootPage(onBack: () -> Unit, content: @Composable () -> Unit) {
+    Column(Modifier.fillMaxSize()) {
+        SettingsHeader(stringResource(R.string.settings_title), onBack)
+        content()
+    }
 }
 
 @Composable
@@ -208,30 +241,59 @@ private fun SettingsCategoryList(
 
     Column(
         Modifier.fillMaxSize().widthIn(max = 720.dp).verticalScroll(rememberScrollState()).padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        SettingsCategoryRow(stringResource(R.string.settings_library), "$sortLabel · $filterLabel") { onOpen(SettingsPage.Library) }
-        SettingsCategoryRow(stringResource(R.string.settings_playback), enabledPattern.format(playbackCount, 5)) { onOpen(SettingsPage.Playback) }
-        SettingsCategoryRow(stringResource(R.string.settings_gestures), enabledPattern.format(gestureCount, 8)) { onOpen(SettingsPage.Gestures) }
-        SettingsCategoryRow(stringResource(R.string.settings_thumbnails), "$columnsSummary · " + enabledPattern.format(thumbnailCount, 5)) { onOpen(SettingsPage.Thumbnails) }
-        SettingsCategoryRow(stringResource(R.string.settings_operations), enabledPattern.format(operationsCount, 3)) { onOpen(SettingsPage.Operations) }
-        SettingsCategoryRow(stringResource(R.string.settings_security), if (securityOn) onLabel else offLabel) { onOpen(SettingsPage.Security) }
-        SettingsCategoryRow(stringResource(R.string.settings_backup), null) { onOpen(SettingsPage.Backup) }
-        SettingsCategoryRow(stringResource(R.string.settings_page_ai), if (aiConsentGranted) onLabel else offLabel) { onOpen(SettingsPage.AiAnalysis) }
+        SettingsCategoryGroup(stringResource(R.string.settings_group_viewing)) {
+            SettingsCategoryRow(GalleryIcons.Collections, stringResource(R.string.settings_library), "$sortLabel · $filterLabel") { onOpen(SettingsPage.Library) }
+            SettingsCategoryRow(GalleryIcons.Play, stringResource(R.string.settings_playback), enabledPattern.format(playbackCount, 5)) { onOpen(SettingsPage.Playback) }
+            SettingsCategoryRow(GalleryIcons.Tune, stringResource(R.string.settings_gestures), enabledPattern.format(gestureCount, 8)) { onOpen(SettingsPage.Gestures) }
+            SettingsCategoryRow(GalleryIcons.Image, stringResource(R.string.settings_thumbnails), "$columnsSummary · " + enabledPattern.format(thumbnailCount, 5)) { onOpen(SettingsPage.Thumbnails) }
+        }
+        SettingsCategoryGroup(stringResource(R.string.settings_group_management)) {
+            SettingsCategoryRow(GalleryIcons.Settings, stringResource(R.string.settings_operations), enabledPattern.format(operationsCount, 3)) { onOpen(SettingsPage.Operations) }
+            SettingsCategoryRow(GalleryIcons.Lock, stringResource(R.string.settings_security), if (securityOn) onLabel else offLabel) { onOpen(SettingsPage.Security) }
+            SettingsCategoryRow(GalleryIcons.Download, stringResource(R.string.settings_backup), null) { onOpen(SettingsPage.Backup) }
+        }
+        SettingsCategoryGroup(stringResource(R.string.settings_group_intelligence)) {
+            SettingsCategoryRow(GalleryIcons.Analyze, stringResource(R.string.settings_page_ai), if (aiConsentGranted) onLabel else offLabel) { onOpen(SettingsPage.AiAnalysis) }
+        }
     }
 }
 
 private fun enabledCount(vararg flags: Boolean) = flags.count { it }
 
 @Composable
-private fun SettingsCategoryRow(title: String, summary: String?, onClick: () -> Unit) {
+private fun SettingsCategoryGroup(title: String, content: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            title,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(horizontal = 12.dp),
+        )
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = RoundedCornerShape(24.dp),
+        ) { Column { content() } }
+    }
+}
+
+@Composable
+private fun SettingsCategoryRow(icon: ImageVector, title: String, summary: String?, onClick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 4.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+            .heightIn(min = 72.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Box(
+            Modifier.size(40.dp).background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
+        }
+        Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleMedium)
             if (summary != null) {
@@ -253,22 +315,27 @@ private fun SettingsSubPage(
     content: @Composable () -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            val backLabel = stringResource(R.string.settings_back)
-            IconButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = backLabel }) {
-                Icon(com.ugallery.core.designsystem.GalleryIconBack, contentDescription = null)
-            }
-            Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() })
-        }
+        SettingsHeader(title, onBack)
         Column(
             Modifier.fillMaxSize().widthIn(max = 720.dp).verticalScroll(rememberScrollState()).padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             content()
         }
+    }
+}
+
+@Composable
+private fun SettingsHeader(title: String, onBack: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        val backLabel = stringResource(R.string.settings_back)
+        IconButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = backLabel }) {
+            Icon(com.ugallery.core.designsystem.GalleryIconBack, contentDescription = null)
+        }
+        Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() })
     }
 }
 
@@ -369,6 +436,18 @@ private fun PlaybackSection(
     settings: GallerySettings,
     onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit,
 ) {
+    var scrubbingModeDialogVisible by rememberSaveable { mutableStateOf(false) }
+    SettingsValueRow(
+        label = stringResource(R.string.settings_video_scrubbing_mode),
+        value = stringResource(
+            when (settings.playback.videoScrubbingMode) {
+                VideoScrubbingMode.LegacySeekBar -> R.string.settings_video_scrubbing_legacy
+                VideoScrubbingMode.Filmstrip -> R.string.settings_video_scrubbing_filmstrip
+            },
+        ),
+        modifier = Modifier.testTag("video_scrubbing_mode_row"),
+        onClick = { scrubbingModeDialogVisible = true },
+    )
     SettingsSwitchRow(stringResource(R.string.settings_autoplay_videos), settings.playback.autoplayVideos) {
         onSettingsChange { current -> current.copy(playback = current.playback.copy(autoplayVideos = it)) }
     }
@@ -384,6 +463,47 @@ private fun PlaybackSection(
     SettingsSwitchRow(stringResource(R.string.settings_max_brightness), settings.playback.maximumBrightness) {
         onSettingsChange { current -> current.copy(playback = current.playback.copy(maximumBrightness = it)) }
     }
+    if (scrubbingModeDialogVisible) AlertDialog(
+        modifier = Modifier.testTag("video_scrubbing_mode_dialog"),
+        onDismissRequest = { scrubbingModeDialogVisible = false },
+        title = { Text(stringResource(R.string.settings_video_scrubbing_mode)) },
+        text = {
+            Column {
+                VideoScrubbingMode.entries.forEach { mode ->
+                    val label = stringResource(
+                        when (mode) {
+                            VideoScrubbingMode.LegacySeekBar -> R.string.settings_video_scrubbing_legacy
+                            VideoScrubbingMode.Filmstrip -> R.string.settings_video_scrubbing_filmstrip
+                        },
+                    )
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .clickable {
+                                onSettingsChange { current ->
+                                    current.copy(playback = current.playback.copy(videoScrubbingMode = mode))
+                                }
+                                scrubbingModeDialogVisible = false
+                            }
+                            .testTag("video_scrubbing_mode_${mode.name}"),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = settings.playback.videoScrubbingMode == mode,
+                            onClick = null,
+                        )
+                        Text(label, modifier = Modifier.padding(start = 12.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = { scrubbingModeDialogVisible = false }) {
+                Text(stringResource(android.R.string.cancel))
+            }
+        },
+    )
 }
 
 @Composable
@@ -516,17 +636,62 @@ private fun AiAnalysisSection(
     onHideDogResults: () -> Unit,
     onHideCatResults: () -> Unit,
     onRestorePetResults: () -> Unit,
+    peopleAnalysisEnabled: Boolean,
+    contentAnalysisEnabled: Boolean,
+    onAllAnalysisEnabledChange: (Boolean) -> Unit,
+    onPeopleAnalysisEnabledChange: (Boolean) -> Unit,
+    onContentAnalysisEnabledChange: (Boolean) -> Unit,
     showHeader: Boolean,
 ) {
     val petCollectionsLabel = stringResource(R.string.pet_collections_enable)
+    val allEnabled = peopleAnalysisEnabled && contentAnalysisEnabled && petCollectionsEnabled
     if (showHeader) Text(
         stringResource(R.string.face_analysis_title),
         style = MaterialTheme.typography.headlineSmall,
         modifier = Modifier.semantics { heading() },
     )
-    Text(stringResource(R.string.face_analysis_privacy), style = MaterialTheme.typography.bodyLarge)
+    Text(stringResource(R.string.local_analysis_privacy), style = MaterialTheme.typography.bodyLarge)
+    Surface(
+        color = MaterialTheme.colorScheme.primaryContainer,
+        shape = RoundedCornerShape(20.dp),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            SettingsSwitchRow(
+                stringResource(R.string.local_analysis_master),
+                allEnabled,
+                onCheckedChange = onAllAnalysisEnabledChange,
+            )
+            Text(
+                stringResource(R.string.local_analysis_master_summary),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+        }
+    }
+    Text(stringResource(R.string.local_analysis_features), style = MaterialTheme.typography.titleLarge)
+    SettingsSwitchRow(
+        stringResource(R.string.local_analysis_people),
+        peopleAnalysisEnabled,
+        onCheckedChange = onPeopleAnalysisEnabledChange,
+    )
+    Text(stringResource(R.string.local_analysis_people_summary), style = MaterialTheme.typography.bodySmall)
+    SettingsSwitchRow(
+        stringResource(R.string.local_analysis_content),
+        contentAnalysisEnabled,
+        onCheckedChange = onContentAnalysisEnabledChange,
+    )
+    Text(stringResource(R.string.local_analysis_content_summary), style = MaterialTheme.typography.bodySmall)
+    SettingsSwitchRow(
+        petCollectionsLabel,
+        petCollectionsEnabled,
+        modifier = Modifier.testTag("pet_collections_switch"),
+        onCheckedChange = onPetCollectionsEnabledChange,
+    )
+    Text(stringResource(R.string.pet_collections_no_identity), style = MaterialTheme.typography.bodySmall)
+
+    Text(stringResource(R.string.face_analysis_title), style = MaterialTheme.typography.titleLarge)
     Text(stringResource(R.string.face_analysis_no_identity), color = MaterialTheme.colorScheme.primary)
-    if (!state.consentGranted) {
+    if (!peopleAnalysisEnabled) {
         Button(onClick = onEnable) { Text(stringResource(R.string.face_analysis_enable)) }
     } else {
         if (state.status == AnalysisStatus.Running) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -543,17 +708,6 @@ private fun AiAnalysisSection(
         }
     }
     Text(stringResource(R.string.pet_collections_title), style = MaterialTheme.typography.titleLarge)
-    Text(stringResource(R.string.pet_collections_no_identity))
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(petCollectionsLabel, modifier = Modifier.weight(1f))
-        Switch(
-            checked = petCollectionsEnabled,
-            onCheckedChange = onPetCollectionsEnabledChange,
-            modifier = Modifier.testTag("pet_collections_switch").semantics {
-                contentDescription = petCollectionsLabel
-            },
-        )
-    }
     if (petCollectionsEnabled) {
         if (petAnalysisState.status == AnalysisStatus.Running ||
             petAnalysisState.status == AnalysisStatus.Ready
@@ -584,17 +738,39 @@ private fun AiAnalysisSection(
 }
 
 @Composable
-private fun SettingsSwitchRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+private fun SettingsSwitchRow(
+    label: String,
+    checked: Boolean,
+    modifier: Modifier = Modifier,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier.fillMaxWidth().heightIn(min = 48.dp).clickable { onCheckedChange(!checked) },
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Text(label, modifier = Modifier.weight(1f).padding(end = 12.dp))
-        Switch(checked = checked, onCheckedChange = onCheckedChange, modifier = Modifier.semantics { contentDescription = label })
+        Switch(checked = checked, onCheckedChange = null, modifier = Modifier.semantics { contentDescription = label })
     }
 }
 
 @Composable
-private fun SettingsValueRow(label: String, value: String, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+private fun SettingsValueRow(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(onClick = onClick),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Text(label, modifier = Modifier.weight(1f))
-        TextButton(onClick = onClick) { Text(value) }
+        Text(
+            value,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+        )
     }
 }

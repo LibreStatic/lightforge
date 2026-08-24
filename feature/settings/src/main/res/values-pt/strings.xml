@@ -22,6 +22,9 @@
     <string name="settings_folder_include_mode">Somente pastas selecionadas</string>
     <string name="settings_folders">Pastas</string>
     <string name="settings_playback">Reprodução de vídeo</string>
+    <string name="settings_video_scrubbing_mode">Navegação no vídeo</string>
+    <string name="settings_video_scrubbing_legacy">Barra de busca clássica</string>
+    <string name="settings_video_scrubbing_filmstrip">Tira de quadros</string>
     <string name="settings_autoplay_videos">Reproduzir vídeos automaticamente</string>
     <string name="settings_start_muted">Iniciar vídeos sem som</string>
     <string name="settings_loop_videos">Repetir vídeos</string>
@@ -68,10 +71,10 @@
     <string name="face_analysis_pause">Pausar</string>
     <string name="face_analysis_resume">Analisar agora</string>
     <string name="face_analysis_all">Analisar biblioteca completa</string>
-    <string name="face_analysis_all_requirements">A análise completa aguarda carregamento, inatividade e bateria e armazenamento suficientes.</string>
-    <string name="face_analysis_delete">Apagar dados de análise facial</string>
-    <string name="face_analysis_delete_title">Apagar dados faciais locais?</string>
-    <string name="face_analysis_delete_body">A geometria detectada, o progresso e o consentimento serão removidos. Suas fotos nunca são alteradas.</string>
+    <string name="face_analysis_all_requirements">A análise completa aguarda bateria e armazenamento suficientes e pausa se o dispositivo aquecer.</string>
+    <string name="face_analysis_delete">Excluir todos os dados de análise local</string>
+    <string name="face_analysis_delete_title">Excluir todos os dados de análise local?</string>
+    <string name="face_analysis_delete_body">Rostos, pessoas, etiquetas, texto reconhecido, progresso e consentimento serão removidos. Suas fotos nunca são alteradas.</string>
     <string name="face_analysis_delete_confirm">Apagar dados</string>
     <string name="face_analysis_cancel">Cancelar</string>
     <string name="pet_collections_title">Animais</string>
@@ -91,4 +94,21 @@
     <string name="settings_summary_on">Sim</string>
     <string name="settings_summary_off">Não</string>
     <string name="settings_zoom_value">%1$d×</string>
+
+    <string name="settings_title">Configurações</string>
+    <string name="settings_group_viewing">Biblioteca e visualização</string>
+    <string name="settings_group_management">Privacidade e gerenciamento</string>
+    <string name="settings_group_intelligence">Recursos inteligentes</string>
+    <string name="local_analysis_privacy">O UGallery pode analisar suas fotos acessíveis inteiramente neste dispositivo. Nada é enviado e você pode interromper a análise ou excluir os resultados a qualquer momento.</string>
+    <string name="local_analysis_master">Usar análise local</string>
+    <string name="local_analysis_master_summary">Controla pessoas e rostos, conteúdo e texto das fotos e coleções de animais.</string>
+    <string name="local_analysis_features">Recursos de análise</string>
+    <string name="local_analysis_people">Pessoas e rostos</string>
+    <string name="local_analysis_people_summary">Detecta rostos e agrupa localmente fotos da mesma pessoa.</string>
+    <string name="local_analysis_content">Conteúdo e texto das fotos</string>
+    <string name="local_analysis_content_summary">Cria etiquetas pesquisáveis e reconhece texto. As coleções de animais compartilham essas etiquetas.</string>
+    <string name="local_analysis_opt_out_title">A análise local está pronta</string>
+    <string name="local_analysis_opt_out_body">O UGallery pode organizar pessoas, animais, conteúdo e texto das fotos inteiramente neste dispositivo. A análise começa quando você continuar, usa apenas as fotos autorizadas e pode ser desativada ou excluída nas Configurações.</string>
+    <string name="local_analysis_opt_out_accept">Entendi</string>
+    <string name="local_analysis_opt_out_decline">Desativar</string>
 </resources>

@@ -2,20 +2,17 @@ package com.ugallery.core.designsystem
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Shapes
+import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.expressiveLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -68,7 +65,6 @@ object GalleryRadii {
 object GalleryMotion {
     const val FastMillis = 150
     const val BaseMillis = 250
-    val StandardEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
 }
 
 enum class GalleryWindowClass { Compact, Medium, Expanded }
@@ -133,106 +129,11 @@ fun galleryAdaptiveLayoutInfo(
     )
 }
 
-private val LightScheme = lightColorScheme(
-    primary = GalleryColors.Accent,
-    onPrimary = GalleryColors.Surface,
-    background = GalleryColors.Background,
-    onBackground = GalleryColors.Foreground,
-    surface = GalleryColors.Surface,
-    onSurface = GalleryColors.Foreground,
-    surfaceVariant = GalleryColors.SurfaceTonal,
-    onSurfaceVariant = GalleryColors.ForegroundSecondary,
-    outline = GalleryColors.Border,
-    error = GalleryColors.Danger,
-)
-
-/**
- * Dark palette mirroring [GalleryColors] semantics so both schemes derive
- * from named tokens instead of inline literals.
- */
-object GalleryColorsDark {
-    val Background = Color(0xFF111318)
-    val Surface = Color(0xFF1A1C20)
-    val SurfaceTonal = Color(0xFF2B3038)
-    val Foreground = Color(0xFFE3E3E3)
-    val Border = Color(0xFF8E918F)
-    val Accent = Color(0xFFA8C7FA)
-    val Danger = Color(0xFFFFB4AB)
-}
-
-private val DarkScheme = darkColorScheme(
-    primary = GalleryColorsDark.Accent,
-    background = GalleryColorsDark.Background,
-    surface = GalleryColorsDark.Surface,
-    onSurface = GalleryColorsDark.Foreground,
-    surfaceVariant = GalleryColorsDark.SurfaceTonal,
-    outline = GalleryColorsDark.Border,
-    error = GalleryColorsDark.Danger,
-)
-
-private val GalleryTypography = androidx.compose.material3.Typography(
-    displayLarge = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Medium,
-        fontSize = 64.sp,
-        lineHeight = 72.sp,
-    ),
-    displayMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Medium,
-        fontSize = 48.sp,
-        lineHeight = 56.sp,
-    ),
-    headlineLarge = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Medium,
-        fontSize = 32.sp,
-        lineHeight = 36.sp,
-    ),
-    headlineSmall = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Medium,
-        fontSize = 24.sp,
-        lineHeight = 30.sp,
-    ),
-    titleMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Medium,
-        fontSize = 16.sp,
-        lineHeight = 20.sp,
-    ),
-    titleLarge = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontWeight = FontWeight.Medium,
-        fontSize = 18.sp,
-        lineHeight = 24.sp,
-    ),
-    bodyMedium = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontSize = 14.sp,
-        lineHeight = 21.sp,
-    ),
-    labelSmall = TextStyle(
-        fontFamily = FontFamily.SansSerif,
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
-    ),
-)
-
-
 /** Monospace style for metadata, durations, and timeline values. */
 val GalleryMonoTypography: TextStyle = TextStyle(
     fontFamily = FontFamily.Monospace,
     fontSize = 12.sp,
     lineHeight = 16.sp,
-)
-
-private val GalleryShapes = Shapes(
-    extraSmall = RoundedCornerShape(GalleryRadii.Small),
-    small = RoundedCornerShape(GalleryRadii.Medium),
-    medium = RoundedCornerShape(GalleryRadii.Medium),
-    large = RoundedCornerShape(GalleryRadii.Large),
-    extraLarge = RoundedCornerShape(GalleryRadii.Large),
 )
 
 @Composable
@@ -249,13 +150,12 @@ fun UGalleryTheme(
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             dynamicLightColorScheme(context)
         }
-        darkTheme -> DarkScheme
-        else -> LightScheme
+        darkTheme -> darkColorScheme()
+        else -> expressiveLightColorScheme()
     }
-    MaterialTheme(
+    MaterialExpressiveTheme(
         colorScheme = colors,
-        typography = GalleryTypography,
-        shapes = GalleryShapes,
+        motionScheme = MotionScheme.expressive(),
         content = content,
     )
 }

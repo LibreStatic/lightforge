@@ -85,6 +85,9 @@ class GallerySettingsRepository(context: Context) {
             loopVideos = p[Keys.Loop] ?: false,
             rememberVideoPosition = p[Keys.RememberPosition] ?: true,
             maximumBrightness = p[Keys.MaximumBrightness] ?: false,
+            videoScrubbingMode = p[Keys.VideoScrubbingMode]
+                ?.enumOrDefault(VideoScrubbingMode.LegacySeekBar)
+                ?: VideoScrubbingMode.LegacySeekBar,
         ),
         gestures = GestureSettings(
             doubleTapZoom = p[Keys.DoubleTapZoom] ?: true,
@@ -133,6 +136,7 @@ class GallerySettingsRepository(context: Context) {
         p[Keys.Loop] = s.playback.loopVideos
         p[Keys.RememberPosition] = s.playback.rememberVideoPosition
         p[Keys.MaximumBrightness] = s.playback.maximumBrightness
+        p[Keys.VideoScrubbingMode] = s.playback.videoScrubbingMode.name
         p[Keys.DoubleTapZoom] = s.gestures.doubleTapZoom
         p[Keys.PinchZoom] = s.gestures.pinchZoom
         p[Keys.SwipeDown] = s.gestures.swipeDownToClose
@@ -172,6 +176,7 @@ class GallerySettingsRepository(context: Context) {
             put("autoplayVideos", playback.autoplayVideos); put("startVideosMuted", playback.startVideosMuted)
             put("loopVideos", playback.loopVideos); put("rememberVideoPosition", playback.rememberVideoPosition)
             put("maximumBrightness", playback.maximumBrightness)
+            put("videoScrubbingMode", playback.videoScrubbingMode.name)
         })
         put("gestures", JSONObject().apply {
             put("doubleTapZoom", gestures.doubleTapZoom); put("pinchZoom", gestures.pinchZoom)
@@ -218,7 +223,15 @@ class GallerySettingsRepository(context: Context) {
                 includedFolders = l.stringSet("includedFolders"),
                 excludedFolders = l.stringSet("excludedFolders"),
             ),
-            playback = PlaybackSettings(p.bool("autoplayVideos", true), p.bool("startVideosMuted", true), p.bool("loopVideos", false), p.bool("rememberVideoPosition", true), p.bool("maximumBrightness", false)),
+            playback = PlaybackSettings(
+                autoplayVideos = p.bool("autoplayVideos", true),
+                startVideosMuted = p.bool("startVideosMuted", true),
+                loopVideos = p.bool("loopVideos", false),
+                rememberVideoPosition = p.bool("rememberVideoPosition", true),
+                maximumBrightness = p.bool("maximumBrightness", false),
+                videoScrubbingMode = p.optString("videoScrubbingMode")
+                    .enumOrDefault(VideoScrubbingMode.LegacySeekBar),
+            ),
             gestures = GestureSettings(g.bool("doubleTapZoom", true), g.bool("pinchZoom", true), g.bool("swipeDownToClose", true), g.bool("photoBrightness", true), g.bool("videoBrightness", true), g.bool("videoVolume", true), g.bool("videoSeek", true), g.bool("rotatePhotos", false), g.optDouble("photoMaxZoom", 8.0).toFloat(), g.optDouble("videoMaxZoom", 4.0).toFloat(), g.optInt("videoSkipSeconds", 10), g.bool("onboardingShown", false)),
             thumbnails = ThumbnailSettings(t.bool("cropToFill", true), t.bool("animateMedia", true), t.bool("showVideoDuration", true), t.bool("showFileType", false), t.bool("markFavorites", true), t.optInt("gridColumns", 3)),
             operations = OperationSettings(o.bool("shareWithoutLocationByDefault", false), o.bool("keepLastModifiedWhenPossible", true), o.bool("skipAppDeleteConfirmation", false)),
@@ -239,6 +252,7 @@ class GallerySettingsRepository(context: Context) {
         val Loop = booleanPreferencesKey("playback.loop")
         val RememberPosition = booleanPreferencesKey("playback.remember_position")
         val MaximumBrightness = booleanPreferencesKey("playback.maximum_brightness")
+        val VideoScrubbingMode = stringPreferencesKey("playback.video_scrubbing_mode")
         val DoubleTapZoom = booleanPreferencesKey("gestures.double_tap_zoom")
         val PinchZoom = booleanPreferencesKey("gestures.pinch_zoom")
         val SwipeDown = booleanPreferencesKey("gestures.swipe_down")

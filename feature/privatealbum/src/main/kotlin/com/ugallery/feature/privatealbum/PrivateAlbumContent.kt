@@ -1,7 +1,5 @@
 package com.ugallery.feature.privatealbum
 
-import android.app.Activity
-import android.view.WindowManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -29,7 +27,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -39,7 +36,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -47,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
 import com.ugallery.core.designsystem.GalleryIcons
 import com.ugallery.core.designsystem.VideoDurationBadge
+import com.ugallery.core.designsystem.GalleryStateContent
 import com.ugallery.core.designsystem.videoDurationDescription
 import kotlinx.coroutines.launch
 
@@ -57,26 +54,17 @@ fun PrivateAlbumContent(
     onBack: () -> Unit,
     onUnlockRequest: (onSuccess: () -> Unit, onError: (String) -> Unit) -> Unit,
     onExport: (mediaId: Long, onSuccess: () -> Unit, onError: (String) -> Unit) -> Unit,
+    isUnlocked: Boolean,
+    onUnlocked: () -> Unit,
+    onAddRequest: () -> Unit,
 ) {
-    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val exportedMessage = stringResource(R.string.private_exported)
     val genericErrorMessage = stringResource(R.string.private_error)
     val mediaList by repository.allMedia.collectAsState(initial = emptyList())
-    var isUnlocked by remember { mutableStateOf(false) }
     var showError by remember { mutableStateOf<String?>(null) }
     var showSetupWarning by remember { mutableStateOf(false) }
     var setupComplete by remember { mutableStateOf(false) }
-
-    // FLAG_SECURE: prevent screenshots while private album is visible
-    DisposableEffect(Unit) {
-        val activity = context as? Activity
-        val window = activity?.window
-        window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        onDispose {
-            window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        }
-    }
 
     LaunchedEffect(Unit) {
         val setup = repository.isSetup()
@@ -114,7 +102,7 @@ fun PrivateAlbumContent(
                     Button(
                         onClick = {
                             onUnlockRequest(
-                                { isUnlocked = true },
+                                onUnlocked,
                                 { showError = it },
                             )
                         },
@@ -124,15 +112,10 @@ fun PrivateAlbumContent(
                 }
             }
         } else if (mediaList.isEmpty()) {
-            Box(
+            PrivateAlbumEmptyState(
+                onAddRequest = onAddRequest,
                 modifier = Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    stringResource(R.string.private_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
+            )
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(140.dp),
@@ -233,4 +216,42 @@ fun PrivateAlbumContent(
             },
         )
     }
+}
+
+@Composable
+internal fun PrivateAlbumEmptyState(
+    onAddRequest: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    GalleryStateContent(
+        title = stringResource(R.string.private_empty_title),
+        body = stringResource(R.string.private_empty_body),
+        illustrationDescription = stringResource(R.string.private_empty_illustration),
+        modifier = modifier,
+        illustration = {
+            Icon(
+                GalleryIcons.Lock,
+                contentDescription = null,
+                modifier = Modifier.size(36.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        },
+        action = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Button(onClick = onAddRequest) {
+                    Icon(GalleryIcons.Plus, contentDescription = null)
+                    Text(
+                        stringResource(R.string.private_choose_media),
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+                Text(
+                    stringResource(R.string.private_originals_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            }
+        },
+    )
 }

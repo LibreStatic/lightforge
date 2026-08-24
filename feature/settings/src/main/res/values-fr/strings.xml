@@ -22,6 +22,9 @@
     <string name="settings_folder_include_mode">Dossiers sélectionnés uniquement</string>
     <string name="settings_folders">Dossiers</string>
     <string name="settings_playback">Lecture vidéo</string>
+    <string name="settings_video_scrubbing_mode">Navigation dans la vidéo</string>
+    <string name="settings_video_scrubbing_legacy">Barre de défilement classique</string>
+    <string name="settings_video_scrubbing_filmstrip">Pellicule</string>
     <string name="settings_autoplay_videos">Lire les vidéos automatiquement</string>
     <string name="settings_start_muted">Démarrer les vidéos en sourdine</string>
     <string name="settings_loop_videos">Lire les vidéos en boucle</string>
@@ -68,10 +71,10 @@
     <string name="face_analysis_pause">Suspendre</string>
     <string name="face_analysis_resume">Analyser maintenant</string>
     <string name="face_analysis_all">Analyser toute la photothèque</string>
-    <string name="face_analysis_all_requirements">L’analyse complète attend la charge, l’inactivité et suffisamment de batterie et de stockage.</string>
-    <string name="face_analysis_delete">Supprimer les données faciales</string>
-    <string name="face_analysis_delete_title">Supprimer les données faciales locales ?</string>
-    <string name="face_analysis_delete_body">La géométrie détectée, la progression et le consentement seront supprimés. Vos photos ne sont jamais modifiées.</string>
+    <string name="face_analysis_all_requirements">L’analyse complète attend une batterie et un stockage suffisants et se met en pause si l’appareil chauffe.</string>
+    <string name="face_analysis_delete">Supprimer toutes les données d’analyse locale</string>
+    <string name="face_analysis_delete_title">Supprimer toutes les données d’analyse locale ?</string>
+    <string name="face_analysis_delete_body">Les visages, personnes, libellés, textes reconnus, la progression et le consentement seront supprimés. Vos photos ne sont jamais modifiées.</string>
     <string name="face_analysis_delete_confirm">Supprimer</string>
     <string name="face_analysis_cancel">Annuler</string>
     <string name="pet_collections_title">Animaux</string>
@@ -91,4 +94,21 @@
     <string name="settings_summary_on">Oui</string>
     <string name="settings_summary_off">Non</string>
     <string name="settings_zoom_value">%1$d×</string>
+
+    <string name="settings_title">Paramètres</string>
+    <string name="settings_group_viewing">Bibliothèque et affichage</string>
+    <string name="settings_group_management">Confidentialité et gestion</string>
+    <string name="settings_group_intelligence">Fonctions intelligentes</string>
+    <string name="local_analysis_privacy">UGallery peut analyser vos photos accessibles entièrement sur cet appareil. Rien n’est envoyé et vous pouvez arrêter l’analyse ou supprimer ses résultats à tout moment.</string>
+    <string name="local_analysis_master">Utiliser l’analyse locale</string>
+    <string name="local_analysis_master_summary">Contrôle les personnes et visages, le contenu et le texte des photos, ainsi que les collections d’animaux.</string>
+    <string name="local_analysis_features">Fonctions d’analyse</string>
+    <string name="local_analysis_people">Personnes et visages</string>
+    <string name="local_analysis_people_summary">Détecte les visages et regroupe localement les photos d’une même personne.</string>
+    <string name="local_analysis_content">Contenu et texte des photos</string>
+    <string name="local_analysis_content_summary">Crée des libellés recherchables et reconnaît le texte. Les collections d’animaux partagent ces libellés.</string>
+    <string name="local_analysis_opt_out_title">L’analyse locale est prête</string>
+    <string name="local_analysis_opt_out_body">UGallery peut organiser les personnes, les animaux, le contenu et le texte des photos entièrement sur cet appareil. L’analyse démarre lorsque vous continuez, utilise uniquement les photos autorisées et peut être désactivée ou supprimée dans Paramètres.</string>
+    <string name="local_analysis_opt_out_accept">Compris</string>
+    <string name="local_analysis_opt_out_decline">Désactiver</string>
 </resources>

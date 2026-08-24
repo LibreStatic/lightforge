@@ -66,8 +66,10 @@ object PrivateAlbumCrypto {
 
     fun encryptDataKey(dataKey: SecretKey, masterKey: SecretKey): EncryptedDataKey {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        val iv = ByteArray(GCM_NONCE_SIZE).also { SecureRandom().nextBytes(it) }
-        cipher.init(Cipher.ENCRYPT_MODE, masterKey, GCMParameterSpec(GCM_TAG_BITS, iv))
+        // Android Keystore AES-GCM keys require the provider to generate encryption nonces.
+        // Supplying our own IV fails with CALLER_NONCE_PROHIBITED for the persisted master key.
+        cipher.init(Cipher.ENCRYPT_MODE, masterKey)
+        val iv = cipher.iv
         val encrypted = cipher.doFinal(dataKey.encoded)
         return EncryptedDataKey(encrypted, iv)
     }

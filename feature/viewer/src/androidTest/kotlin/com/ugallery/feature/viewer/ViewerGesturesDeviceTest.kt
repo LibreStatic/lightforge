@@ -1,10 +1,12 @@
 package com.ugallery.feature.viewer
 
 import android.graphics.Bitmap
+import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.view.SurfaceView
 import androidx.media3.common.Effect
 import androidx.compose.ui.test.click
+import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -12,6 +14,7 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.test.swipe
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -23,8 +26,11 @@ import com.ugallery.core.model.MediaKind
 import com.ugallery.core.model.TimelineMedia
 import com.ugallery.core.thumbnail.ThumbnailLoader
 import com.ugallery.core.thumbnail.ThumbnailSource
+import com.ugallery.core.preferences.VideoScrubbingMode
+import java.io.File
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -137,6 +143,58 @@ class ViewerGesturesDeviceTest {
         assertEquals(listOf(3L), selections)
     }
 
+    @Test fun secondDoubleTapResetsPhotoZoomAndUnlocksPaging() {
+        val items = listOf(media(1), media(2))
+        var selected: TimelineMedia? = null
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val bitmap = Bitmap.createBitmap(400, 400, Bitmap.Config.ARGB_8888)
+        val photo = PhotoLoadState.Ready(
+            drawable = BitmapDrawable(context.resources, bitmap),
+            isAnimated = false,
+            supportsDeepZoom = false,
+            deepZoomUnavailableReason = null,
+        )
+        compose.setContent {
+            UGalleryTheme {
+                ViewerContent(
+                    media = items.first(),
+                    mediaItems = items,
+                    photoState = photo,
+                    videoController = null,
+                    thumbnailLoader = thumbnails,
+                    isFavorite = false,
+                    onBack = {},
+                    onToggleFavorite = {},
+                    onShare = {},
+                    onShareSanitized = {},
+                    onDetails = {},
+                    onEdit = {},
+                    onRename = {},
+                    onCopy = {},
+                    onMove = {},
+                    onOpenWith = {},
+                    onSetAs = {},
+                    onPrint = {},
+                    onRepairDate = {},
+                    onTrash = {},
+                    onSelectMedia = { selected = it },
+                )
+            }
+        }
+
+        compose.onRoot().performTouchInput { doubleClick(center) }
+        compose.waitForIdle()
+        compose.onRoot().performTouchInput { swipeLeft() }
+        compose.waitForIdle()
+        assertNull(selected)
+
+        compose.onRoot().performTouchInput { doubleClick(center) }
+        compose.waitForIdle()
+        compose.onRoot().performTouchInput { swipeLeft() }
+        compose.waitUntil { selected != null }
+        assertEquals(2L, selected?.key?.mediaStoreId)
+    }
+
     @Test fun landscapeVideoKeepsItsRatioAndPlaybackChromeAutoHidesUntilPaused() {
         val item = TimelineMedia(
             key = MediaKey("external_primary", 7),
@@ -212,6 +270,155 @@ class ViewerGesturesDeviceTest {
         controller.close()
     }
 
+    @Test fun legacySeekBarPausesSeeksAndResumesPlayback() {
+        val item = video(8)
+        val engine = FakeVideoEngine()
+        val controller = VideoViewerController(engine)
+        controller.select(Uri.parse("content://media/external/video/media/8"))
+        engine.listener?.onReady(10_000L, true)
+        compose.setContent {
+            UGalleryTheme {
+                ViewerContent(
+                    media = item,
+                    mediaItems = listOf(item),
+                    photoState = null,
+                    videoController = controller,
+                    thumbnailLoader = thumbnails,
+                    isFavorite = false,
+                    onBack = {},
+                    onToggleFavorite = {},
+                    onShare = {},
+                    onShareSanitized = {},
+                    onDetails = {},
+                    onEdit = {},
+                    onRename = {},
+                    onCopy = {},
+                    onMove = {},
+                    onOpenWith = {},
+                    onSetAs = {},
+                    onPrint = {},
+                    onRepairDate = {},
+                    onTrash = {},
+                    onSelectMedia = {},
+                )
+            }
+        }
+
+        compose.onNode(hasTestTag(VIDEO_LEGACY_SEEK_BAR_TEST_TAG)).performTouchInput {
+            swipe(
+                start = androidx.compose.ui.geometry.Offset(width * 0.2f, height * 0.7f),
+                end = androidx.compose.ui.geometry.Offset(width * 0.8f, height * 0.7f),
+                durationMillis = 400,
+            )
+        }
+        compose.waitForIdle()
+
+        assertTrue(engine.pauseCalls > 0)
+        assertTrue(engine.playCalls > 0)
+        assertTrue(engine.lastSeek > 5_000L)
+        controller.close()
+    }
+
+    @Test fun filmstripScrubsAndCanCollapseAndReopen() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val videoFile = File(context.cacheDir, "viewer-filmstrip-h264.mp4")
+        context.assets.open("h264.mp4").use { input -> videoFile.outputStream().use(input::copyTo) }
+        val item = video(9)
+        val engine = FakeVideoEngine()
+        val controller = VideoViewerController(engine)
+        controller.select(Uri.fromFile(videoFile))
+        engine.listener?.onReady(10_000L, true)
+        compose.setContent {
+            UGalleryTheme {
+                ViewerContent(
+                    media = item,
+                    mediaItems = listOf(item),
+                    photoState = null,
+                    videoController = controller,
+                    thumbnailLoader = thumbnails,
+                    isFavorite = false,
+                    onBack = {},
+                    onToggleFavorite = {},
+                    onShare = {},
+                    onShareSanitized = {},
+                    onDetails = {},
+                    onEdit = {},
+                    onRename = {},
+                    onCopy = {},
+                    onMove = {},
+                    onOpenWith = {},
+                    onSetAs = {},
+                    onPrint = {},
+                    onRepairDate = {},
+                    onTrash = {},
+                    onSelectMedia = {},
+                    videoScrubbingMode = VideoScrubbingMode.Filmstrip,
+                )
+            }
+        }
+
+        compose.onNode(hasTestTag(VIDEO_FRAME_SCRUBBER_TEST_TAG)).performTouchInput {
+            swipe(
+                start = androidx.compose.ui.geometry.Offset(width * 0.15f, height * 0.7f),
+                end = androidx.compose.ui.geometry.Offset(width * 0.75f, height * 0.7f),
+                durationMillis = 400,
+            )
+        }
+        compose.waitForIdle()
+        assertTrue(engine.lastSeek > 5_000L)
+
+        compose.onNode(hasContentDescription(context.getString(R.string.viewer_close_video_timeline))).performClick()
+        compose.onNode(hasTestTag(VIDEO_FRAME_SCRUBBER_TEST_TAG)).assertDoesNotExist()
+        compose.onNode(hasContentDescription(context.getString(R.string.viewer_thumbnail_position, 1, 1))).performClick()
+        compose.onNode(hasTestTag(VIDEO_FRAME_SCRUBBER_TEST_TAG)).assertExists()
+
+        controller.close()
+        videoFile.delete()
+    }
+
+    @Test fun unavailableFilmstripFallsBackToLegacySeekBar() {
+        val item = video(10)
+        val engine = FakeVideoEngine()
+        val controller = VideoViewerController(engine)
+        controller.select(Uri.parse("content://missing/video/10"))
+        engine.listener?.onReady(10_000L, false)
+        compose.setContent {
+            UGalleryTheme {
+                ViewerContent(
+                    media = item,
+                    mediaItems = listOf(item),
+                    photoState = null,
+                    videoController = controller,
+                    thumbnailLoader = thumbnails,
+                    isFavorite = false,
+                    onBack = {},
+                    onToggleFavorite = {},
+                    onShare = {},
+                    onShareSanitized = {},
+                    onDetails = {},
+                    onEdit = {},
+                    onRename = {},
+                    onCopy = {},
+                    onMove = {},
+                    onOpenWith = {},
+                    onSetAs = {},
+                    onPrint = {},
+                    onRepairDate = {},
+                    onTrash = {},
+                    onSelectMedia = {},
+                    videoScrubbingMode = VideoScrubbingMode.Filmstrip,
+                )
+            }
+        }
+
+        compose.waitUntil(5_000) {
+            compose.onAllNodes(hasTestTag(VIDEO_LEGACY_SEEK_BAR_TEST_TAG))
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNode(hasTestTag(VIDEO_LEGACY_SEEK_BAR_TEST_TAG)).assertExists()
+        controller.close()
+    }
+
     private fun media(id: Long) = TimelineMedia(
         key = MediaKey("external_primary", id),
         kind = MediaKind.Image,
@@ -222,14 +429,25 @@ class ViewerGesturesDeviceTest {
         durationMillis = 0,
     )
 
+    private fun video(id: Long) = TimelineMedia(
+        key = MediaKey("external_primary", id),
+        kind = MediaKind.Video,
+        generationModified = 1,
+        timelineSortMillis = id,
+        width = 1_920,
+        height = 1_080,
+        durationMillis = 10_000,
+    )
+
     private class FakeVideoEngine : VideoEngine {
         override var listener: VideoEngine.Listener? = null
         var pauseCalls = 0
+        var playCalls = 0
         var lastSeek = 0L
         val repeatEnabled = mutableListOf<Boolean>()
         override fun setMedia(uri: Uri) = Unit
         override fun prepare() = Unit
-        override fun play() { listener?.onPlayingChanged(true, 10_000) }
+        override fun play() { playCalls++; listener?.onPlayingChanged(true, 10_000) }
         override fun pause() {
             pauseCalls++
             listener?.onPlayingChanged(false, 10_000)

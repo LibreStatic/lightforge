@@ -17,4 +17,19 @@
     <string name="private_biometric_unavailable">Strong biometric authentication is unavailable on this device.</string>
     <string name="private_biometric_failed">Biometric authentication was not recognized.</string>
     <string name="private_export_failed">The item could not be exported.</string>
+    <string name="private_empty_title">Keep private moments here</string>
+    <string name="private_empty_body">Choose photos and videos to store encrypted copies protected by biometrics.</string>
+    <string name="private_empty_illustration">Empty private album</string>
+    <string name="private_choose_media">Choose photos and videos</string>
+    <string name="private_originals_note">After they’re added, you’ll choose whether to keep the originals.</string>
+    <string name="private_picker_title">Add to private album</string>
+    <string name="private_picker_add">Add</string>
+    <string name="private_picker_count">%1$d selected</string>
+    <string name="private_picker_limit">You can add up to 500 items at a time.</string>
+    <string name="private_importing">Encrypting %1$d of %2$d…</string>
+    <string name="private_import_result_title">Private copies added</string>
+    <string name="private_import_result">%1$d of %2$d items were added. What should happen to the %1$d successfully copied originals?</string>
+    <string name="private_import_result_failed">No items could be added. Your originals were not changed.</string>
+    <string name="private_keep_originals">Keep originals</string>
+    <string name="private_delete_originals">Delete originals</string>
 </resources>

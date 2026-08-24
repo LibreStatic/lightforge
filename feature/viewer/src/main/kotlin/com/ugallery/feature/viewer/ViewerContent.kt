@@ -1,7 +1,9 @@
 package com.ugallery.feature.viewer
 
 import android.graphics.drawable.AnimatedImageDrawable
+import android.net.Uri
 import android.widget.ImageView
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -10,6 +12,7 @@ import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Arrangement
@@ -18,10 +21,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -36,6 +41,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -46,6 +53,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -76,10 +84,12 @@ import com.ugallery.core.designsystem.GalleryIcons
 import com.ugallery.core.designsystem.GalleryMotionEdge
 import java.text.DateFormat
 import java.util.Date
+import java.util.Locale
 import com.ugallery.core.model.TimelineMedia
 import com.ugallery.core.thumbnail.ThumbnailLoader
 import com.ugallery.core.thumbnail.ThumbnailRequest
 import com.ugallery.core.preferences.GestureSettings
+import com.ugallery.core.preferences.VideoScrubbingMode
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
@@ -141,6 +151,7 @@ fun ViewerContent(
     slowMotionSaveProgress: Float? = null,
     slowMotionSaveCompletionGeneration: Long = 0,
     gestureSettings: GestureSettings = GestureSettings(),
+    videoScrubbingMode: VideoScrubbingMode = VideoScrubbingMode.LegacySeekBar,
     modifier: Modifier = Modifier,
 ) {
     var chromeVisible by rememberSaveable(media.key) { mutableStateOf(true) }
@@ -159,6 +170,102 @@ fun ViewerContent(
     val audioManager = remember(context) { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val videoState = videoController?.state?.collectAsStateWithLifecycle()?.value
     val videoIsPlaying = (videoState as? VideoViewerState.Ready)?.isPlaying == true
+    val videoDurationMillis = (videoState as? VideoViewerState.Ready)?.durationMillis ?: 0L
+    var videoPositionMillis by remember(media.key) { mutableLongStateOf(0L) }
+    var videoScrubPositionMillis by remember(media.key) { mutableLongStateOf(0L) }
+    var videoScrubbing by remember(media.key) { mutableStateOf(false) }
+    var resumeAfterVideoScrub by remember(media.key) { mutableStateOf(false) }
+    var filmstripExpanded by rememberSaveable(media.key, videoScrubbingMode) {
+        mutableStateOf(videoScrubbingMode == VideoScrubbingMode.Filmstrip)
+    }
+    var filmstripUnavailable by remember(media.key, media.generationModified) { mutableStateOf(false) }
+    val filmstripFrameRequest = (videoState as? VideoViewerState.Ready)?.takeIf {
+        videoScrubbingMode == VideoScrubbingMode.Filmstrip && it.durationMillis > 0L
+    }
+    val videoFramesState by produceState<VideoFramesState>(
+        initialValue = VideoFramesState.Loading,
+        filmstripFrameRequest?.uri,
+        filmstripFrameRequest?.durationMillis,
+        media.generationModified,
+    ) {
+        val request = filmstripFrameRequest
+        if (request == null) {
+            value = VideoFramesState.Loading
+            return@produceState
+        }
+        value = try {
+            val frames = VideoFrameExtractor.extract(context, request.uri, request.durationMillis)
+            if (frames.isEmpty()) VideoFramesState.Unavailable else VideoFramesState.Ready(frames)
+        } catch (failure: Throwable) {
+            if (failure is kotlinx.coroutines.CancellationException) throw failure
+            VideoFramesState.Unavailable
+        }
+    }
+    LaunchedEffect(videoFramesState) {
+        if (videoFramesState == VideoFramesState.Unavailable) filmstripUnavailable = true
+    }
+    val cachedVideoFrames = (videoFramesState as? VideoFramesState.Ready)?.frames
+    DisposableEffect(cachedVideoFrames) {
+        onDispose {
+            cachedVideoFrames.orEmpty().forEach { frame -> if (!frame.isRecycled) frame.recycle() }
+        }
+    }
+    LaunchedEffect(videoController, media.key, videoDurationMillis, videoScrubbing) {
+        val controller = videoController ?: return@LaunchedEffect
+        if (videoDurationMillis <= 0L) return@LaunchedEffect
+        while (true) {
+            if (!videoScrubbing) {
+                videoPositionMillis = controller.currentPositionMillis().coerceIn(0L, videoDurationMillis)
+            }
+            delay(VIDEO_POSITION_UPDATE_MILLIS)
+        }
+    }
+    fun beginVideoScrub() {
+        if (videoScrubbing) return
+        resumeAfterVideoScrub = videoIsPlaying
+        if (videoIsPlaying) videoController?.pause()
+        videoScrubPositionMillis = videoPositionMillis
+        videoScrubbing = true
+        chromeInteractionGeneration++
+    }
+    fun seekVideoFromScrubber(positionMillis: Long) {
+        if (!videoScrubbing) beginVideoScrub()
+        val position = positionMillis.coerceIn(0L, videoDurationMillis.coerceAtLeast(0L))
+        videoScrubPositionMillis = position
+        videoPositionMillis = position
+        videoController?.seekTo(position)
+    }
+    fun finishVideoScrub() {
+        if (!videoScrubbing) return
+        videoScrubbing = false
+        if (resumeAfterVideoScrub) videoController?.play()
+        resumeAfterVideoScrub = false
+        chromeInteractionGeneration++
+    }
+    val displayedVideoPositionMillis = if (videoScrubbing) {
+        videoScrubPositionMillis
+    } else {
+        videoPositionMillis
+    }
+    val expandedVideoFilmstrip = (videoState as? VideoViewerState.Ready)
+        ?.takeIf {
+            videoScrubbingMode == VideoScrubbingMode.Filmstrip &&
+                filmstripExpanded &&
+                !filmstripUnavailable &&
+                it.durationMillis > 0L
+        }
+        ?.let { ready ->
+            VideoFilmstripConfig(
+                uri = ready.uri,
+                durationMillis = ready.durationMillis,
+                positionMillis = displayedVideoPositionMillis,
+                framesState = videoFramesState,
+                onScrubStart = ::beginVideoScrub,
+                onScrub = ::seekVideoFromScrubber,
+                onScrubFinished = ::finishVideoScrub,
+                onClose = { filmstripExpanded = false },
+            )
+        }
     val systemBarsController = remember(activity, view) {
         activity?.window?.let { WindowCompat.getInsetsController(it, view) }
     }
@@ -503,7 +610,32 @@ fun ViewerContent(
                 Modifier.fillMaxWidth()
                     .windowInsetsPadding(viewerBottomInsets())
             ) {
-                ViewerFilmstrip(displayedItems, selectedIndex, thumbnailLoader, onSelectMedia)
+                if (
+                    media.kind == MediaKind.Video &&
+                    videoDurationMillis > 0L &&
+                    (videoScrubbingMode == VideoScrubbingMode.LegacySeekBar || filmstripUnavailable)
+                ) {
+                    LegacyVideoSeekBar(
+                        positionMillis = displayedVideoPositionMillis,
+                        durationMillis = videoDurationMillis,
+                        onScrub = ::seekVideoFromScrubber,
+                        onScrubFinished = ::finishVideoScrub,
+                    )
+                }
+                ViewerFilmstrip(
+                    items = displayedItems,
+                    selectedIndex = selectedIndex,
+                    thumbnailLoader = thumbnailLoader,
+                    onSelectMedia = onSelectMedia,
+                    expandedVideo = expandedVideoFilmstrip,
+                    onSelectedVideoTap = if (
+                        media.kind == MediaKind.Video &&
+                        videoScrubbingMode == VideoScrubbingMode.Filmstrip &&
+                        !filmstripUnavailable
+                    ) {
+                        { filmstripExpanded = true }
+                    } else null,
+                )
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
@@ -536,14 +668,61 @@ private fun ViewerAction(onClick: () -> Unit, icon: androidx.compose.ui.graphics
     }
 }
 
+private data class VideoFilmstripConfig(
+    val uri: Uri,
+    val durationMillis: Long,
+    val positionMillis: Long,
+    val framesState: VideoFramesState,
+    val onScrubStart: () -> Unit,
+    val onScrub: (Long) -> Unit,
+    val onScrubFinished: () -> Unit,
+    val onClose: () -> Unit,
+)
+
+@Composable
+private fun LegacyVideoSeekBar(
+    positionMillis: Long,
+    durationMillis: Long,
+    onScrub: (Long) -> Unit,
+    onScrubFinished: () -> Unit,
+) {
+    if (durationMillis <= 0L) return
+    val position = positionMillis.coerceIn(0L, durationMillis)
+    Column(
+        Modifier.fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .testTag(VIDEO_LEGACY_SEEK_BAR_TEST_TAG),
+    ) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(formatVideoTime(position), color = Color.White, style = MaterialTheme.typography.labelSmall)
+            Text(formatVideoTime(durationMillis), color = Color.White, style = MaterialTheme.typography.labelSmall)
+        }
+        Slider(
+            value = position.toFloat() / durationMillis.toFloat(),
+            onValueChange = { fraction -> onScrub((durationMillis.toFloat() * fraction).toLong()) },
+            onValueChangeFinished = onScrubFinished,
+            valueRange = 0f..1f,
+            colors = SliderDefaults.colors(
+                thumbColor = Color.White,
+                activeTrackColor = Color.White,
+                inactiveTrackColor = Color.White.copy(alpha = 0.35f),
+            ),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
+        )
+    }
+}
+
 @Composable
 private fun ViewerFilmstrip(
     items: List<TimelineMedia>,
     selectedIndex: Int,
     thumbnailLoader: ThumbnailLoader?,
     onSelectMedia: (TimelineMedia) -> Unit,
+    expandedVideo: VideoFilmstripConfig? = null,
+    onSelectedVideoTap: (() -> Unit)? = null,
 ) {
-    if (items.size <= 1 || thumbnailLoader == null) return
+    if (items.size <= 1 && expandedVideo == null && onSelectedVideoTap == null) return
+    if (thumbnailLoader == null && expandedVideo == null) return
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = (selectedIndex - 2).coerceAtLeast(0))
     LaunchedEffect(selectedIndex) {
         listState.animateScrollToItem((selectedIndex - 2).coerceAtLeast(0))
@@ -557,28 +736,131 @@ private fun ViewerFilmstrip(
         itemsIndexed(items, key = { _, item -> item.key }) { index, item ->
             val selected = index == selectedIndex
             val position = stringResource(R.string.viewer_thumbnail_position, index + 1, items.size)
-            Box(
-                Modifier
-                    .size(if (selected) 66.dp else 58.dp)
-                    .border(
-                        width = if (selected) 3.dp else 1.dp,
-                        color = if (selected) Color.White else Color.White.copy(alpha = 0.35f),
-                        shape = RoundedCornerShape(8.dp),
-                    )
-                    .background(Color.DarkGray, RoundedCornerShape(8.dp))
-                    .pointerInput(item.key) { detectTapGestures { onSelectMedia(item) } }
-                    .semantics { contentDescription = position },
-            ) {
-                MediaThumbnail(item, thumbnailLoader, Modifier.fillMaxSize())
-                if (item.kind == MediaKind.Video) {
-                    Icon(
-                        GalleryIcons.Play,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.align(Alignment.Center).size(20.dp),
-                    )
+            if (selected && expandedVideo != null) {
+                VideoFrameScrubber(
+                    config = expandedVideo,
+                    modifier = Modifier.width(280.dp).heightIn(min = 66.dp),
+                )
+            } else {
+                Box(
+                    Modifier
+                        .size(if (selected) 66.dp else 58.dp)
+                        .border(
+                            width = if (selected) 3.dp else 1.dp,
+                            color = if (selected) Color.White else Color.White.copy(alpha = 0.35f),
+                            shape = RoundedCornerShape(8.dp),
+                        )
+                        .background(Color.DarkGray, RoundedCornerShape(8.dp))
+                        .pointerInput(item.key, selected, onSelectedVideoTap) {
+                            detectTapGestures {
+                                if (selected && item.kind == MediaKind.Video && onSelectedVideoTap != null) {
+                                    onSelectedVideoTap()
+                                } else {
+                                    onSelectMedia(item)
+                                }
+                            }
+                        }
+                        .semantics { contentDescription = position },
+                ) {
+                    MediaThumbnail(item, thumbnailLoader, Modifier.fillMaxSize())
+                    if (item.kind == MediaKind.Video) {
+                        Icon(
+                            GalleryIcons.Play,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.align(Alignment.Center).size(20.dp),
+                        )
+                    }
                 }
             }
+        }
+    }
+}
+
+private sealed interface VideoFramesState {
+    data object Loading : VideoFramesState
+    data class Ready(val frames: List<android.graphics.Bitmap>) : VideoFramesState
+    data object Unavailable : VideoFramesState
+}
+
+@Composable
+private fun VideoFrameScrubber(
+    config: VideoFilmstripConfig,
+    modifier: Modifier = Modifier,
+) {
+    val latestConfig by rememberUpdatedState(config)
+    val timelineDescription = stringResource(
+        R.string.viewer_video_timeline_position,
+        formatVideoTime(config.positionMillis),
+        formatVideoTime(config.durationMillis),
+    )
+    val closeDescription = stringResource(R.string.viewer_close_video_timeline)
+    Box(
+        modifier
+            .border(3.dp, Color.White, RoundedCornerShape(8.dp))
+            .background(Color.DarkGray, RoundedCornerShape(8.dp))
+            .pointerInput(config.uri, config.durationMillis) {
+                fun seekAt(horizontalPosition: Float) {
+                    val fraction = (horizontalPosition / size.width.coerceAtLeast(1)).coerceIn(0f, 1f)
+                    latestConfig.onScrub((latestConfig.durationMillis.toFloat() * fraction).toLong())
+                }
+                detectDragGestures(
+                    onDragStart = { start ->
+                        latestConfig.onScrubStart()
+                        seekAt(start.x)
+                    },
+                    onDragEnd = { latestConfig.onScrubFinished() },
+                    onDragCancel = { latestConfig.onScrubFinished() },
+                ) { change, _ ->
+                    seekAt(change.position.x)
+                    change.consume()
+                }
+            }
+            .semantics { contentDescription = timelineDescription }
+            .testTag(VIDEO_FRAME_SCRUBBER_TEST_TAG),
+    ) {
+        Row(Modifier.fillMaxSize()) {
+            when (val frames = config.framesState) {
+                VideoFramesState.Loading -> repeat(10) { index ->
+                    Box(
+                        Modifier.weight(1f).fillMaxHeight().background(
+                            if (index % 2 == 0) Color.DarkGray else Color.Gray,
+                        ),
+                    )
+                }
+                is VideoFramesState.Ready -> frames.frames.forEach { frame ->
+                    Image(
+                        bitmap = frame.asImageBitmap(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                    )
+                }
+                VideoFramesState.Unavailable -> Unit
+            }
+        }
+        val fraction = if (config.durationMillis <= 0L) 0f else {
+            config.positionMillis.toFloat() / config.durationMillis.toFloat()
+        }.coerceIn(0f, 1f)
+        Canvas(Modifier.fillMaxSize()) {
+            val x = size.width * fraction
+            drawLine(Color.White, Offset(x, 0f), Offset(x, size.height), strokeWidth = 4.dp.toPx())
+        }
+        Text(
+            "${formatVideoTime(config.positionMillis)} / ${formatVideoTime(config.durationMillis)}",
+            color = Color.White,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.align(Alignment.TopCenter)
+                .background(Color.Black.copy(alpha = 0.65f), RoundedCornerShape(10.dp))
+                .padding(horizontal = 8.dp, vertical = 2.dp),
+        )
+        IconButton(
+            onClick = config.onClose,
+            modifier = Modifier.align(Alignment.TopEnd).size(32.dp)
+                .background(Color.Black.copy(alpha = 0.65f), RoundedCornerShape(16.dp))
+                .semantics { contentDescription = closeDescription },
+        ) {
+            Icon(GalleryIcons.Close, contentDescription = null, tint = Color.White)
         }
     }
 }
@@ -723,12 +1005,27 @@ private suspend fun PointerInputScope.detectViewerTransformGestures(
     awaitEachGesture {
         var transforming = false
         var started = false
+        var pendingSinglePointerPan = Offset.Zero
         var trackedPointerId: PointerId? = null
         val velocityTracker = VelocityTracker()
         do {
             val event = awaitPointerEvent()
             val pressedPointers = event.changes.count { it.pressed }
-            if ((allowPinch && pressedPointers >= 2) || isZoomed()) transforming = true
+            val rawZoom = event.calculateZoom()
+            val pan = event.calculatePan()
+            var gesturePan = pan
+            if (!transforming) {
+                when {
+                    allowPinch && pressedPointers >= 2 -> transforming = true
+                    isZoomed() && pressedPointers == 1 -> {
+                        pendingSinglePointerPan += pan
+                        if (pendingSinglePointerPan.getDistance() > viewConfiguration.touchSlop) {
+                            transforming = true
+                            gesturePan = pendingSinglePointerPan
+                        }
+                    }
+                }
+            }
             if (transforming) {
                 if (!started) {
                     started = true
@@ -745,12 +1042,10 @@ private suspend fun PointerInputScope.detectViewerTransformGestures(
                     ?.let { change ->
                         velocityTracker.addPosition(change.uptimeMillis, change.position)
                     }
-                val rawZoom = event.calculateZoom()
-                val pan = event.calculatePan()
-                if (rawZoom != 1f || pan != Offset.Zero) {
+                if (rawZoom != 1f || gesturePan != Offset.Zero) {
                     // Honor the pinch-zoom setting even while already zoomed: without it a
                     // two-finger gesture contributes pan only, never scale.
-                    onGesture(event.calculateCentroid(), pan, if (allowPinch) rawZoom else 1f)
+                    onGesture(event.calculateCentroid(), gesturePan, if (allowPinch) rawZoom else 1f)
                 }
                 event.changes.forEach { it.consume() }
             }
@@ -947,6 +1242,21 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
     else -> null
 }
 
+private fun formatVideoTime(positionMillis: Long): String {
+    val totalSeconds = (positionMillis.coerceAtLeast(0L) / 1_000L)
+    val hours = totalSeconds / 3_600L
+    val minutes = (totalSeconds % 3_600L) / 60L
+    val seconds = totalSeconds % 60L
+    return if (hours > 0L) {
+        String.format(Locale.getDefault(), "%d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format(Locale.getDefault(), "%d:%02d", minutes, seconds)
+    }
+}
+
 private const val VIDEO_CHROME_TIMEOUT_MILLIS = 3_000L
+private const val VIDEO_POSITION_UPDATE_MILLIS = 200L
 private const val CHROME_FADE_MILLIS = 150
 internal const val VIEWER_CHROME_SCRIM_TEST_TAG = "viewer_chrome_scrim"
+internal const val VIDEO_LEGACY_SEEK_BAR_TEST_TAG = "video_legacy_seek_bar"
+internal const val VIDEO_FRAME_SCRUBBER_TEST_TAG = "video_frame_scrubber"
