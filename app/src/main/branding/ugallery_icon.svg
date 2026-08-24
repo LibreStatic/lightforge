@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Deep, soft shadow for the multi-layered petal effect -->
+    <filter id="petal-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#001D4A" flood-opacity="0.14" />
+    </filter>
+
+    <!-- Ambient shadow for the adaptive icon base squircle -->
+    <filter id="base-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="24" flood-color="#202124" flood-opacity="0.08" />
+    </filter>
+
+    <!-- Clip path used to seal the infinite loop (draws the last card over the first) -->
+    <clipPath id="loop-seal">
+      <rect x="0" y="0" width="256" height="256" />
+    </clipPath>
+
+    <!-- 
+      Outer Petal Geometry
+      A capsule perfectly proportioned to touch the mathematical center (256, 256) 
+      at the exact apex of its bottom curve.
+    -->
+    <rect id="outer-petal" x="176" y="48" width="160" height="208" rx="80" />
+    
+    <!-- 
+      Inner Petal Geometry
+      A half-scale capsule that creates a dense, faceted "shutter blade" core.
+    -->
+    <rect id="inner-petal" x="216" y="152" width="80" height="104" rx="40" />
+  </defs>
+
+  <!-- Adaptive Icon Base Squircle 
+       Color: #E8F0FE (Light Surface Tonal) -->
+  <rect x="24" y="24" width="464" height="464" rx="128" fill="#E8F0FE" filter="url(#base-shadow)" />
+
+  <!-- ==========================================
+       OUTER PINWHEEL (The primary gallery stack) 
+       ========================================== -->
+  <g>
+    <!-- Base Layering -->
+    <use href="#outer-petal" fill="#1A73E8" transform="rotate(0, 256, 256)" filter="url(#petal-shadow)" />
+    <use href="#outer-petal" fill="#A8C7FA" transform="rotate(90, 256, 256)" filter="url(#petal-shadow)" />
+    <use href="#outer-petal" fill="#1557B0" transform="rotate(180, 256, 256)" filter="url(#petal-shadow)" />
+    <use href="#outer-petal" fill="#FFFFFF" transform="rotate(270, 256, 256)" filter="url(#petal-shadow)" />
+  </g>
+  
+  <!-- Outer Loop Seal: Redraws the top-left quadrant of the first petal to overlap the final petal -->
+  <g clip-path="url(#loop-seal)">
+    <use href="#outer-petal" fill="#1A73E8" transform="rotate(0, 256, 256)" filter="url(#petal-shadow)" />
+  </g>
+
+
+  <!-- ==========================================
+       INNER PINWHEEL (The faceted modern core) 
+       ========================================== -->
+  <g>
+    <!-- Colors are shifted by one position to create a beautiful woven contrast -->
+    <use href="#inner-petal" fill="#A8C7FA" transform="rotate(0, 256, 256)" filter="url(#petal-shadow)" />
+    <use href="#inner-petal" fill="#1557B0" transform="rotate(90, 256, 256)" filter="url(#petal-shadow)" />
+    <use href="#inner-petal" fill="#FFFFFF" transform="rotate(180, 256, 256)" filter="url(#petal-shadow)" />
+    <use href="#inner-petal" fill="#1A73E8" transform="rotate(270, 256, 256)" filter="url(#petal-shadow)" />
+  </g>
+
+  <!-- Inner Loop Seal -->
+  <g clip-path="url(#loop-seal)">
+    <use href="#inner-petal" fill="#A8C7FA" transform="rotate(0, 256, 256)" filter="url(#petal-shadow)" />
+  </g>
+
+</svg>
