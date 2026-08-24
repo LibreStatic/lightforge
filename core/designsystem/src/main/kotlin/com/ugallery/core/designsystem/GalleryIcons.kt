@@ -4,41 +4,40 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Redo
-import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.PhotoCamera
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Collections
-import androidx.compose.material.icons.filled.Crop
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.GridOn
-import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Pets
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Repeat
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.Videocam
-import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.Redo
+import androidx.compose.material.icons.automirrored.rounded.Undo
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Collections
+import androidx.compose.material.icons.rounded.Crop
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.GridOn
+import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.MusicNote
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Pets
+import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Repeat
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.Videocam
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -53,43 +52,42 @@ import androidx.compose.ui.unit.dp
  * Filled variants which are bundled with material-icons-extended.
  */
 
-val GalleryIconBack: ImageVector get() = Icons.AutoMirrored.Filled.ArrowBack
-val GalleryIconMore: ImageVector get() = Icons.Filled.MoreVert
-val GalleryIconGrid: ImageVector get() = Icons.Filled.GridOn
-val GalleryIconCollections: ImageVector get() = Icons.Filled.Collections
-val GalleryIconSearch: ImageVector get() = Icons.Filled.Search
-val GalleryIconPlus: ImageVector get() = Icons.Filled.Add
-val GalleryIconHeart: ImageVector get() = Icons.Filled.Favorite
-val GalleryIconVideo: ImageVector get() = Icons.Filled.Videocam
-val GalleryIconTrash: ImageVector get() = Icons.Filled.Delete
-val GalleryIconCamera: ImageVector get() = Icons.Filled.PhotoCamera  // placeholder, use Camera below
-val GalleryIconMic: ImageVector get() = Icons.Filled.Mic
-val GalleryIconClose: ImageVector get() = Icons.Filled.Close
-val GalleryIconCheck: ImageVector get() = Icons.Filled.Check
-val GalleryIconShare: ImageVector get() = Icons.Filled.Share
-val GalleryIconAlbum: ImageVector get() = Icons.Filled.Collections  // closest to album
-val GalleryIconEdit: ImageVector get() = Icons.Filled.Edit
-val GalleryIconAnalyze: ImageVector get() = Icons.Filled.Crop  // closest to analyze/scan
-val GalleryIconInfo: ImageVector get() = Icons.Filled.Info
-val GalleryIconCrop: ImageVector get() = Icons.Filled.Crop
-val GalleryIconTune: ImageVector get() = Icons.Filled.Tune
-val GalleryIconPalette: ImageVector get() = Icons.Filled.Palette
-val GalleryIconFolder: ImageVector get() = Icons.Filled.Folder  // placeholder, use Folder below
-val GalleryIconLock: ImageVector get() = Icons.Filled.Lock
-val GalleryIconUser: ImageVector get() = Icons.Filled.Person
-val GalleryIconSettings: ImageVector get() = Icons.Filled.Settings
-val GalleryIconPet: ImageVector get() = Icons.Filled.Pets
-val GalleryIconWarning: ImageVector get() = Icons.Filled.Warning
-val GalleryIconImage: ImageVector get() = Icons.Filled.Image
-val GalleryIconPlay: ImageVector get() = Icons.Filled.PlayArrow
-val GalleryIconPause: ImageVector get() = Icons.Filled.Pause
-val GalleryIconRepeat: ImageVector get() = Icons.Filled.Repeat
-val GalleryIconUndo: ImageVector get() = Icons.AutoMirrored.Filled.Undo
-val GalleryIconRedo: ImageVector get() = Icons.AutoMirrored.Filled.Redo  // placeholder
-val GalleryIconDownload: ImageVector get() = Icons.Filled.Download
-val GalleryIconSpeed: ImageVector get() = Icons.Filled.Speed
-val GalleryIconVolume: ImageVector get() = Icons.Filled.VolumeUp
-val GalleryIconMusic: ImageVector get() = Icons.Filled.MusicNote
+val GalleryIconBack: ImageVector get() = Icons.AutoMirrored.Rounded.ArrowBack
+val GalleryIconMore: ImageVector get() = Icons.Rounded.MoreVert
+val GalleryIconGrid: ImageVector get() = Icons.Rounded.GridOn
+val GalleryIconCollections: ImageVector get() = Icons.Rounded.Collections
+val GalleryIconSearch: ImageVector get() = Icons.Rounded.Search
+val GalleryIconPlus: ImageVector get() = Icons.Rounded.Add
+val GalleryIconHeart: ImageVector get() = Icons.Rounded.Favorite
+val GalleryIconVideo: ImageVector get() = Icons.Rounded.Videocam
+val GalleryIconTrash: ImageVector get() = Icons.Rounded.Delete
+val GalleryIconCamera: ImageVector get() = Icons.Rounded.PhotoCamera
+val GalleryIconMic: ImageVector get() = Icons.Rounded.Mic
+val GalleryIconClose: ImageVector get() = Icons.Rounded.Close
+val GalleryIconCheck: ImageVector get() = Icons.Rounded.Check
+val GalleryIconShare: ImageVector get() = Icons.Rounded.Share
+val GalleryIconAlbum: ImageVector get() = Icons.Rounded.Collections
+val GalleryIconEdit: ImageVector get() = Icons.Rounded.Edit
+val GalleryIconAnalyze: ImageVector get() = Icons.Rounded.Crop
+val GalleryIconInfo: ImageVector get() = Icons.Rounded.Info
+val GalleryIconCrop: ImageVector get() = Icons.Rounded.Crop
+val GalleryIconTune: ImageVector get() = Icons.Rounded.Tune
+val GalleryIconPalette: ImageVector get() = Icons.Rounded.Palette
+val GalleryIconLock: ImageVector get() = Icons.Rounded.Lock
+val GalleryIconUser: ImageVector get() = Icons.Rounded.Person
+val GalleryIconSettings: ImageVector get() = Icons.Rounded.Settings
+val GalleryIconPet: ImageVector get() = Icons.Rounded.Pets
+val GalleryIconWarning: ImageVector get() = Icons.Rounded.Warning
+val GalleryIconImage: ImageVector get() = Icons.Rounded.Image
+val GalleryIconPlay: ImageVector get() = Icons.Rounded.PlayArrow
+val GalleryIconPause: ImageVector get() = Icons.Rounded.Pause
+val GalleryIconRepeat: ImageVector get() = Icons.Rounded.Repeat
+val GalleryIconUndo: ImageVector get() = Icons.AutoMirrored.Rounded.Undo
+val GalleryIconRedo: ImageVector get() = Icons.AutoMirrored.Rounded.Redo
+val GalleryIconDownload: ImageVector get() = Icons.Rounded.Download
+val GalleryIconSpeed: ImageVector get() = Icons.Rounded.Speed
+val GalleryIconVolume: ImageVector get() = Icons.AutoMirrored.Rounded.VolumeUp
+val GalleryIconMusic: ImageVector get() = Icons.Rounded.MusicNote
 
 /**
  * Standard gallery icon composable with Material 3 defaults:
@@ -111,7 +109,7 @@ fun GalleryIcon(
     Icon(
         imageVector = imageVector,
         contentDescription = contentDescription,
-        modifier = modifier.size(22.dp),
+        modifier = modifier.size(24.dp),
         tint = tint,
     )
 }

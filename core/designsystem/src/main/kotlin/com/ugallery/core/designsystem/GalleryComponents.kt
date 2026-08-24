@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,10 +32,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LinearWavyProgressIndicator
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -223,7 +229,7 @@ fun GalleryTopAppBar(
         modifier = modifier,
         navigationIcon = {
             if (onBack != null) {
-                IconButton(onClick = onBack) {
+                GalleryExpressiveIconButton(onClick = onBack) {
                     Icon(
                         GalleryIcons.Back,
                         contentDescription = navigationContentDescription ?: title,
@@ -290,6 +296,7 @@ fun GalleryActionButton(
 ) {
     TextButton(
         onClick = onClick,
+        shapes = ButtonDefaults.shapes(),
         enabled = enabled,
         modifier = modifier.height(72.dp),
     ) {
@@ -304,6 +311,62 @@ fun GalleryActionButton(
             )
         }
     }
+}
+
+/** High-emphasis Material 3 Expressive action with a pressed shape morph. */
+@Composable
+fun GalleryExpressiveButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable RowScope.() -> Unit,
+) {
+    Button(
+        onClick = onClick,
+        shapes = ButtonDefaults.shapes(),
+        modifier = modifier,
+        enabled = enabled,
+        content = content,
+    )
+}
+
+/** Material 3 Expressive icon action whose container morphs while pressed. */
+@Composable
+fun GalleryExpressiveIconButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable () -> Unit,
+) {
+    IconButton(
+        onClick = onClick,
+        shapes = IconButtonDefaults.shapes(),
+        modifier = modifier,
+        enabled = enabled,
+        content = content,
+    )
+}
+
+/** Official Material You shape-morphing indicator for indeterminate work. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun GalleryLoadingIndicator(modifier: Modifier = Modifier) {
+    LoadingIndicator(modifier = modifier)
+}
+
+/** Expressive wavy progress for long-running determinate work. */
+@Composable
+fun GalleryProgressIndicator(
+    progress: () -> Float,
+    modifier: Modifier = Modifier,
+) {
+    LinearWavyProgressIndicator(progress = progress, modifier = modifier.fillMaxWidth())
+}
+
+/** Expressive wavy progress for long-running work without a known completion fraction. */
+@Composable
+fun GalleryIndeterminateProgressIndicator(modifier: Modifier = Modifier) {
+    LinearWavyProgressIndicator(modifier = modifier.fillMaxWidth())
 }
 
 @Composable
@@ -331,8 +394,8 @@ fun GalleryStateContent(
             Box(
                 modifier = Modifier
                     .size(72.dp)
-                    .clip(RoundedCornerShape(GalleryRadii.Large))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clip(MaterialTheme.shapes.extraExtraLarge)
+                    .background(MaterialTheme.colorScheme.secondaryContainer)
                     .semantics { contentDescription = illustrationDescription },
                 contentAlignment = Alignment.Center,
             ) { illustration() }

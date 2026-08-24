@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,18 +23,14 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SearchBar
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -54,10 +51,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.ugallery.core.search.MediaSearchHit
 import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.GalleryLoadingIndicator
 import com.ugallery.core.designsystem.VideoDurationBadge
 import com.ugallery.core.designsystem.videoDurationDescription
 import com.ugallery.core.model.MediaKind
@@ -70,6 +67,7 @@ internal const val SEARCH_RESULTS_GRID_TEST_TAG = "search_results_grid"
 internal const val SEARCH_LOADING_ROW_TEST_TAG = "search_loading_row"
 internal const val SEARCH_LOADING_INDICATOR_TEST_TAG = "search_loading_indicator"
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchContent(
     query: String,
@@ -98,14 +96,16 @@ fun SearchContent(
       Column(Modifier.fillMaxSize().widthIn(max = 1_200.dp).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
             stringResource(R.string.search_title),
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(top = 12.dp).semantics { heading() },
         )
-        OutlinedTextField(
-            value = query,
-            onValueChange = onQueryChange,
-            label = { Text(stringResource(R.string.search_hint)) },
-            singleLine = true,
+        SearchBar(
+            query = query,
+            onQueryChange = onQueryChange,
+            onSearch = { if (it.isNotBlank()) onSearch() },
+            active = false,
+            onActiveChange = {},
+            placeholder = { Text(stringResource(R.string.search_hint)) },
             leadingIcon = { Icon(GalleryIcons.Search, contentDescription = null) },
             trailingIcon = {
                 onVoiceSearch?.let { voiceSearch ->
@@ -114,9 +114,9 @@ fun SearchContent(
                     }
                 }
             },
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { if (query.isNotBlank()) onSearch() }),
             modifier = Modifier.fillMaxWidth(),
+            windowInsets = WindowInsets(0, 0, 0, 0),
+            content = {},
         )
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             item {
@@ -247,7 +247,6 @@ private fun RequestNextPageOnApproachingEnd(
     }
 }
 
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SearchLoadingIndicatorRow(modifier: Modifier = Modifier) {
     Box(
@@ -256,7 +255,7 @@ private fun SearchLoadingIndicatorRow(modifier: Modifier = Modifier) {
             .testTag(SEARCH_LOADING_ROW_TEST_TAG),
         contentAlignment = Alignment.Center,
     ) {
-        LoadingIndicator(Modifier.testTag(SEARCH_LOADING_INDICATOR_TEST_TAG))
+        GalleryLoadingIndicator(Modifier.testTag(SEARCH_LOADING_INDICATOR_TEST_TAG))
     }
 }
 
@@ -279,7 +278,7 @@ private fun SearchDiscovery(onPresetSearch: (String) -> Unit, modifier: Modifier
                         horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
                     ) {
                         Box(
-                            Modifier.size(52.dp).background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
+                            Modifier.size(52.dp).background(MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.shapes.extraLarge),
                             contentAlignment = androidx.compose.ui.Alignment.Center,
                         ) { Icon(icon, contentDescription = null) }
                         Text(label, style = MaterialTheme.typography.labelMedium)

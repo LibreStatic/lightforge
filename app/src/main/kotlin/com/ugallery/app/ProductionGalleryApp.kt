@@ -32,13 +32,15 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.ShortNavigationBar
+import androidx.compose.material3.ShortNavigationBarItem
+import androidx.compose.material3.WideNavigationRail
+import androidx.compose.material3.WideNavigationRailItem
+import androidx.compose.material3.WideNavigationRailValue
+import androidx.compose.material3.rememberWideNavigationRailState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Surface
@@ -1688,8 +1690,8 @@ private fun ViewerRoute(
 }
 
 @Composable private fun RootNavigationBar(selected: RootTab, onSelect: (RootTab) -> Unit) {
-    NavigationBar { RootTab.entries.forEach { tab ->
-        NavigationBarItem(
+    ShortNavigationBar { RootTab.entries.forEach { tab ->
+        ShortNavigationBarItem(
             selected = selected == tab,
             onClick = { onSelect(tab) },
             icon = {
@@ -1708,8 +1710,9 @@ private fun ViewerRoute(
 }
 
 @Composable private fun RootNavigationRail(selected: RootTab, onSelect: (RootTab) -> Unit) {
-    NavigationRail { RootTab.entries.forEach { tab ->
-        NavigationRailItem(
+    val railState = rememberWideNavigationRailState(WideNavigationRailValue.Expanded)
+    WideNavigationRail(state = railState) { RootTab.entries.forEach { tab ->
+        WideNavigationRailItem(
             selected = selected == tab,
             onClick = { onSelect(tab) },
             icon = {
@@ -1723,6 +1726,7 @@ private fun ViewerRoute(
                 )
             },
             label = { Text(stringResource(tab.label())) },
+            railExpanded = true,
         )
     } }
 }
