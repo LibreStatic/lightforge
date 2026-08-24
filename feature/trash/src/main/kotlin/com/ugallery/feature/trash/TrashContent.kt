@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -167,7 +168,7 @@ private fun TrashCard(
                 Text(
                     text = details.joinToString(" \u00B7 "),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -177,11 +178,12 @@ private fun TrashCard(
                 Spacer(Modifier.height(4.dp))
                 HorizontalDivider(modifier = Modifier.width(56.dp))
                 Spacer(Modifier.height(4.dp))
-                OutlinedButton(onClick = onDeletePermanently, border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)) {
-                    Text(
-                        text = stringResource(R.string.trash_delete_permanently),
-                        color = MaterialTheme.colorScheme.error,
-                    )
+                OutlinedButton(
+                    onClick = onDeletePermanently,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) {
+                    Text(stringResource(R.string.trash_delete_permanently))
                 }
             }
         }

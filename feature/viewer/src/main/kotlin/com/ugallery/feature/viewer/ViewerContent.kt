@@ -87,6 +87,7 @@ import com.ugallery.core.designsystem.GalleryExpressiveIconButton
 import com.ugallery.core.designsystem.GalleryExpressiveButton
 import com.ugallery.core.designsystem.GalleryLoadingIndicator
 import com.ugallery.core.designsystem.GalleryMotionEdge
+import com.ugallery.core.designsystem.GalleryOverlayTokens
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
@@ -485,20 +486,20 @@ fun ViewerContent(
         gestureFeedback?.let { feedback ->
             Text(
                 feedback,
-                color = Color.White,
+                color = GalleryOverlayTokens.Content,
                 modifier = Modifier.align(Alignment.Center)
-                    .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(18.dp))
+                    .background(GalleryOverlayTokens.FeedbackSurface, RoundedCornerShape(18.dp))
                     .padding(horizontal = 16.dp, vertical = 10.dp),
             )
         }
         when (val slow = slowMotionState) {
             HoldSlowMotionState.Buffering -> Box(
-                Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.35f)),
+                Modifier.fillMaxSize().background(GalleryOverlayTokens.SoftVeil),
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    GalleryLoadingIndicator(color = Color.White)
-                    Text(stringResource(R.string.viewer_slow_motion_buffering), color = Color.White)
+                    GalleryLoadingIndicator(color = GalleryOverlayTokens.Content)
+                    Text(stringResource(R.string.viewer_slow_motion_buffering), color = GalleryOverlayTokens.Content)
                 }
             }
             is HoldSlowMotionState.Playing -> {
@@ -510,11 +511,11 @@ fun ViewerContent(
                 )
                 Text(
                     "0.25×",
-                    color = Color.White,
+                    color = GalleryOverlayTokens.Content,
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.align(Alignment.TopEnd)
                         .padding(top = 72.dp, end = 16.dp)
-                        .background(Color.Black.copy(alpha = 0.65f), RoundedCornerShape(16.dp))
+                        .background(GalleryOverlayTokens.TimelineSurface, RoundedCornerShape(16.dp))
                         .padding(horizontal = 12.dp, vertical = 6.dp),
                 )
             }
@@ -526,13 +527,13 @@ fun ViewerContent(
                 if (slowMotionSaveProgress != null) {
                     GalleryLoadingIndicator(
                         modifier = Modifier.size(20.dp),
-                        color = Color.White,
+                        color = GalleryOverlayTokens.Content,
                     )
                 } else Text(stringResource(R.string.viewer_save_slow_motion_clip))
             }
             is HoldSlowMotionState.Failure -> Text(
                 slow.message,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onErrorContainer,
                 modifier = Modifier.align(Alignment.TopCenter)
                     .padding(top = 72.dp)
                     .background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(12.dp))
@@ -552,12 +553,12 @@ fun ViewerContent(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 GalleryExpressiveIconButton(onClick = onBack) {
-                    Icon(GalleryIcons.Back, contentDescription = stringResource(R.string.viewer_back), tint = Color.White)
+                    Icon(GalleryIcons.Back, contentDescription = stringResource(R.string.viewer_back), tint = GalleryOverlayTokens.Content)
                 }
-                Text(dateLabel, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, color = Color.White, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                Text(dateLabel, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, color = GalleryOverlayTokens.Content, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 Box {
                     GalleryExpressiveIconButton(onClick = { menuExpanded = true }) {
-                        Icon(GalleryIcons.More, contentDescription = stringResource(R.string.viewer_more), tint = Color.White)
+                        Icon(GalleryIcons.More, contentDescription = stringResource(R.string.viewer_more), tint = GalleryOverlayTokens.Content)
                     }
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                         DropdownMenuItem(
@@ -618,6 +619,7 @@ fun ViewerContent(
         ) {
             Column(
                 Modifier.fillMaxWidth()
+                    .background(GalleryOverlayTokens.ControlSurface)
                     .windowInsetsPadding(viewerBottomInsets())
             ) {
                 if (
@@ -665,11 +667,11 @@ fun ViewerContent(
 private fun ViewerAction(onClick: () -> Unit, icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, modifier: Modifier = Modifier) {
     androidx.compose.material3.TextButton(onClick = onClick, modifier = modifier.heightIn(min = 72.dp)) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(icon, contentDescription = null, tint = Color.White)
+            Icon(icon, contentDescription = null, tint = GalleryOverlayTokens.Content)
             Text(
                 label,
                 style = MaterialTheme.typography.labelSmall,
-                color = Color.White,
+                color = GalleryOverlayTokens.Content,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -704,8 +706,8 @@ private fun LegacyVideoSeekBar(
             .testTag(VIDEO_LEGACY_SEEK_BAR_TEST_TAG),
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(formatVideoTime(position), color = Color.White, style = MaterialTheme.typography.bodySmall)
-            Text(formatVideoTime(durationMillis), color = Color.White, style = MaterialTheme.typography.bodySmall)
+            Text(formatVideoTime(position), color = GalleryOverlayTokens.Content, style = MaterialTheme.typography.bodySmall)
+            Text(formatVideoTime(durationMillis), color = GalleryOverlayTokens.Content, style = MaterialTheme.typography.bodySmall)
         }
         Slider(
             value = position.toFloat() / durationMillis.toFloat(),
@@ -713,9 +715,9 @@ private fun LegacyVideoSeekBar(
             onValueChangeFinished = onScrubFinished,
             valueRange = 0f..1f,
             colors = SliderDefaults.colors(
-                thumbColor = Color.White,
-                activeTrackColor = Color.White,
-                inactiveTrackColor = Color.White.copy(alpha = 0.35f),
+                thumbColor = GalleryOverlayTokens.Content,
+                activeTrackColor = GalleryOverlayTokens.Content,
+                inactiveTrackColor = GalleryOverlayTokens.Content.copy(alpha = 0.35f),
             ),
             modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
         )
@@ -755,12 +757,23 @@ private fun ViewerFilmstrip(
                 Box(
                     Modifier
                         .size(if (selected) 66.dp else 58.dp)
+                        .then(
+                            if (selected) {
+                                Modifier
+                            } else {
+                                Modifier.border(
+                                    width = 3.dp,
+                                    color = GalleryOverlayTokens.FilmstripHalo,
+                                    shape = RoundedCornerShape(8.dp),
+                                )
+                            },
+                        )
                         .border(
                             width = if (selected) 3.dp else 1.dp,
-                            color = if (selected) Color.White else Color.White.copy(alpha = 0.6f),
+                            color = if (selected) GalleryOverlayTokens.Content else GalleryOverlayTokens.Content.copy(alpha = 0.85f),
                             shape = RoundedCornerShape(8.dp),
                         )
-                        .background(Color.DarkGray, RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
                         .pointerInput(item.key, selected, onSelectedVideoTap) {
                             detectTapGestures {
                                 if (selected && item.kind == MediaKind.Video && onSelectedVideoTap != null) {
@@ -784,12 +797,19 @@ private fun ViewerFilmstrip(
                 ) {
                     MediaThumbnail(item, thumbnailLoader, Modifier.fillMaxSize())
                     if (item.kind == MediaKind.Video) {
-                        Icon(
-                            GalleryIcons.Play,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.align(Alignment.Center).size(20.dp),
-                        )
+                        Box(
+                            Modifier.align(Alignment.Center)
+                                .size(34.dp)
+                                .background(GalleryOverlayTokens.ControlSurface, RoundedCornerShape(17.dp)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                GalleryIcons.Play,
+                                contentDescription = null,
+                                tint = GalleryOverlayTokens.Content,
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
                     }
                 }
             }
@@ -817,8 +837,9 @@ private fun VideoFrameScrubber(
     val closeDescription = stringResource(R.string.viewer_close_video_timeline)
     Box(
         modifier
-            .border(3.dp, Color.White, RoundedCornerShape(8.dp))
-            .background(Color.DarkGray, RoundedCornerShape(8.dp))
+            .border(5.dp, GalleryOverlayTokens.FilmstripHalo, RoundedCornerShape(8.dp))
+            .border(3.dp, GalleryOverlayTokens.Content, RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
             .pointerInput(config.uri, config.durationMillis) {
                 fun seekAt(horizontalPosition: Float) {
                     val fraction = (horizontalPosition / size.width.coerceAtLeast(1)).coerceIn(0f, 1f)
@@ -850,16 +871,15 @@ private fun VideoFrameScrubber(
             }
             .testTag(VIDEO_FRAME_SCRUBBER_TEST_TAG),
     ) {
-        Row(Modifier.fillMaxSize()) {
-            when (val frames = config.framesState) {
-                VideoFramesState.Loading -> repeat(10) { index ->
-                    Box(
-                        Modifier.weight(1f).fillMaxHeight().background(
-                            if (index % 2 == 0) Color(0xFF1C1B1F) else Color(0xFFBDBDBD),
-                        ),
-                    )
-                }
-                is VideoFramesState.Ready -> frames.frames.forEach { frame ->
+        when (val frames = config.framesState) {
+            VideoFramesState.Loading -> Box(
+                Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center,
+            ) {
+                GalleryLoadingIndicator(color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            is VideoFramesState.Ready -> Row(Modifier.fillMaxSize()) {
+                frames.frames.forEach { frame ->
                     Image(
                         bitmap = frame.asImageBitmap(),
                         contentDescription = null,
@@ -867,8 +887,8 @@ private fun VideoFrameScrubber(
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                     )
                 }
-                VideoFramesState.Unavailable -> Unit
             }
+            VideoFramesState.Unavailable -> Unit
         }
         val fraction = if (config.durationMillis <= 0L) 0f else {
             config.positionMillis.toFloat() / config.durationMillis.toFloat()
@@ -876,25 +896,25 @@ private fun VideoFrameScrubber(
         Canvas(Modifier.fillMaxSize()) {
             val x = size.width * fraction
             val haloWidth = 7.dp.toPx()
-            drawLine(Color.Black.copy(alpha = 0.55f), Offset(x, 0f), Offset(x, size.height), strokeWidth = haloWidth)
-            drawLine(Color.White, Offset(x, 0f), Offset(x, size.height), strokeWidth = 4.dp.toPx())
+            drawLine(GalleryOverlayTokens.FilmstripHalo, Offset(x, 0f), Offset(x, size.height), strokeWidth = haloWidth)
+            drawLine(GalleryOverlayTokens.Content, Offset(x, 0f), Offset(x, size.height), strokeWidth = 4.dp.toPx())
         }
         Text(
             "${formatVideoTime(config.positionMillis)} / ${formatVideoTime(config.durationMillis)}",
-            color = Color.White,
+            color = GalleryOverlayTokens.Content,
             style = MaterialTheme.typography.labelSmall,
             modifier = Modifier.align(Alignment.TopCenter)
-                .background(Color.Black.copy(alpha = 0.65f), RoundedCornerShape(10.dp))
+                .background(GalleryOverlayTokens.TimelineSurface, RoundedCornerShape(10.dp))
                 .padding(horizontal = 8.dp, vertical = 2.dp),
         )
         GalleryExpressiveIconButton(
             onClick = config.onClose,
             modifier = Modifier.align(Alignment.TopEnd).size(32.dp)
-                .background(Color.Black.copy(alpha = 0.80f), RoundedCornerShape(16.dp))
-                .border(1.dp, Color.White.copy(alpha = 0.40f), RoundedCornerShape(16.dp))
+                .background(GalleryOverlayTokens.StrongSurface, RoundedCornerShape(16.dp))
+                .border(1.dp, GalleryOverlayTokens.Border, RoundedCornerShape(16.dp))
                 .semantics { contentDescription = closeDescription },
         ) {
-            Icon(GalleryIcons.Close, contentDescription = null, tint = Color.White)
+            Icon(GalleryIcons.Close, contentDescription = null, tint = GalleryOverlayTokens.Content)
         }
     }
 }
@@ -920,7 +940,7 @@ private fun MediaThumbnail(
     }
     val current = bitmap
     if (current == null) {
-        Box(modifier.background(Color.DarkGray))
+        Box(modifier.background(MaterialTheme.colorScheme.surfaceVariant))
     } else {
         Image(
             bitmap = current.asImageBitmap(),
@@ -1224,8 +1244,8 @@ private fun VideoPlaybackControl(
                 shapes = androidx.compose.material3.IconButtonDefaults.shapes(),
                 modifier = Modifier.size(48.dp),
                 colors = androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(
-                    containerColor = Color.Black.copy(alpha = 0.72f),
-                    contentColor = Color.White,
+                    containerColor = GalleryOverlayTokens.ControlSurface,
+                    contentColor = GalleryOverlayTokens.Content,
                 ),
             ) {
                 Icon(
@@ -1244,8 +1264,8 @@ private fun VideoPlaybackControl(
                 shapes = androidx.compose.material3.IconButtonDefaults.shapes(),
                 modifier = Modifier.size(56.dp),
                 colors = androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(
-                    containerColor = Color.Black.copy(alpha = 0.72f),
-                    contentColor = Color.White,
+                    containerColor = GalleryOverlayTokens.ControlSurface,
+                    contentColor = GalleryOverlayTokens.Content,
                 ),
             ) {
                 Icon(
@@ -1267,15 +1287,15 @@ private fun ViewerChromeScrim(visible: Boolean) {
         exit = fadeOut(tween(CHROME_FADE_MILLIS)),
         modifier = Modifier.fillMaxSize().testTag(VIEWER_CHROME_SCRIM_TEST_TAG),
     ) {
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.30f))) {
+        Box(Modifier.fillMaxSize().background(GalleryOverlayTokens.ScrimBase)) {
             Box(
                 Modifier.fillMaxSize().background(
                     Brush.verticalGradient(
                         colorStops = arrayOf(
-                            0f to Color.Black.copy(alpha = 0.65f),
-                            0.20f to Color.Black.copy(alpha = 0.18f),
-                            0.80f to Color.Black.copy(alpha = 0.18f),
-                            1f to Color.Black.copy(alpha = 0.72f),
+                            0f to GalleryOverlayTokens.ScrimTop,
+                            0.20f to GalleryOverlayTokens.ScrimMiddle,
+                            0.80f to GalleryOverlayTokens.ScrimMiddle,
+                            1f to GalleryOverlayTokens.ScrimBottom,
                         ),
                     ),
                 ),

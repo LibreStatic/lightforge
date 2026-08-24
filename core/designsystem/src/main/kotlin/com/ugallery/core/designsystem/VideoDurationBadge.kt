@@ -13,7 +13,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontFamily
@@ -32,7 +31,7 @@ fun VideoDurationBadge(
         modifier = modifier
             .clearAndSetSemantics { }
             .clip(CircleShape)
-            .background(Color.Black.copy(alpha = 0.78f))
+            .background(GalleryOverlayTokens.DurationSurface)
             .padding(horizontal = 5.dp, vertical = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -41,11 +40,11 @@ fun VideoDurationBadge(
             imageVector = GalleryIcons.Play,
             contentDescription = null,
             modifier = Modifier.size(12.dp),
-            tint = Color.White,
+            tint = GalleryOverlayTokens.Content,
         )
         Text(
             text = formatVideoDuration(durationMillis),
-            color = Color.White,
+            color = GalleryOverlayTokens.Content,
             maxLines = 1,
             overflow = TextOverflow.Clip,
             style = MaterialTheme.typography.labelSmall.copy(

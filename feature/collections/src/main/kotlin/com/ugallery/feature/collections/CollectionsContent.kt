@@ -357,7 +357,7 @@ private fun CollectionCardIcon(icon: ImageVector) {
         contentDescription = null,
         tint = MaterialTheme.colorScheme.primary,
         modifier = Modifier
-            .background(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.shapes.medium)
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.shapes.medium)
             .padding(10.dp),
     )
 }
