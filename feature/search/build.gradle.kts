@@ -31,7 +31,7 @@ dependencies {
     implementation(platform(libs.compose.bom))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
-    implementation("androidx.compose.material3:material3")
+    implementation(libs.androidx.compose.material3)
     implementation("androidx.compose.ui:ui-tooling-preview")
     testImplementation(libs.junit4)
     androidTestImplementation(platform(libs.compose.bom))
