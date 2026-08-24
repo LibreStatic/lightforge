@@ -109,6 +109,6 @@
     <string name="local_analysis_content_summary">Crée des libellés recherchables et reconnaît le texte. Les collections d’animaux partagent ces libellés.</string>
     <string name="local_analysis_opt_out_title">L’analyse locale est prête</string>
     <string name="local_analysis_opt_out_body">UGallery peut organiser les personnes, les animaux, le contenu et le texte des photos entièrement sur cet appareil. L’analyse démarre lorsque vous continuez, utilise uniquement les photos autorisées et peut être désactivée ou supprimée dans Paramètres.</string>
-    <string name="local_analysis_opt_out_accept">Compris</string>
-    <string name="local_analysis_opt_out_decline">Désactiver</string>
+    <string name="local_analysis_opt_out_accept">Activer l\'analyse locale</string>
+    <string name="local_analysis_opt_out_decline">Pas maintenant</string>
 </resources>

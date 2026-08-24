@@ -38,8 +38,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -81,6 +79,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ugallery.core.model.MediaKind
 import com.ugallery.core.designsystem.GalleryAnimatedVisibility
 import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.GalleryExpressiveIconButton
+import com.ugallery.core.designsystem.GalleryExpressiveButton
+import com.ugallery.core.designsystem.GalleryLoadingIndicator
 import com.ugallery.core.designsystem.GalleryMotionEdge
 import java.text.DateFormat
 import java.util.Date
@@ -151,6 +152,7 @@ fun ViewerContent(
     slowMotionSaveProgress: Float? = null,
     slowMotionSaveCompletionGeneration: Long = 0,
     gestureSettings: GestureSettings = GestureSettings(),
+    onMuteToggle: (Boolean) -> Unit = {},
     videoScrubbingMode: VideoScrubbingMode = VideoScrubbingMode.LegacySeekBar,
     modifier: Modifier = Modifier,
 ) {
@@ -174,7 +176,6 @@ fun ViewerContent(
     var videoPositionMillis by remember(media.key) { mutableLongStateOf(0L) }
     var videoScrubPositionMillis by remember(media.key) { mutableLongStateOf(0L) }
     var videoScrubbing by remember(media.key) { mutableStateOf(false) }
-    var resumeAfterVideoScrub by remember(media.key) { mutableStateOf(false) }
     var filmstripExpanded by rememberSaveable(media.key, videoScrubbingMode) {
         mutableStateOf(videoScrubbingMode == VideoScrubbingMode.Filmstrip)
     }
@@ -220,10 +221,12 @@ fun ViewerContent(
             delay(VIDEO_POSITION_UPDATE_MILLIS)
         }
     }
+    DisposableEffect(videoController, media.key) {
+        onDispose { videoController?.endScrubbing() }
+    }
     fun beginVideoScrub() {
         if (videoScrubbing) return
-        resumeAfterVideoScrub = videoIsPlaying
-        if (videoIsPlaying) videoController?.pause()
+        videoController?.beginScrubbing()
         videoScrubPositionMillis = videoPositionMillis
         videoScrubbing = true
         chromeInteractionGeneration++
@@ -236,10 +239,13 @@ fun ViewerContent(
         videoController?.seekTo(position)
     }
     fun finishVideoScrub() {
-        if (!videoScrubbing) return
+        if (!videoScrubbing) {
+            videoController?.endScrubbing()
+            return
+        }
+        videoController?.seekTo(videoScrubPositionMillis)
+        videoController?.endScrubbing()
         videoScrubbing = false
-        if (resumeAfterVideoScrub) videoController?.play()
-        resumeAfterVideoScrub = false
         chromeInteractionGeneration++
     }
     val displayedVideoPositionMillis = if (videoScrubbing) {
@@ -469,6 +475,7 @@ fun ViewerContent(
                 visible = chromeVisible,
                 onInteraction = { chromeInteractionGeneration++ },
                 modifier = Modifier.align(Alignment.Center),
+                onMuteToggle = onMuteToggle,
             )
         }
         gestureFeedback?.let { feedback ->
@@ -486,7 +493,7 @@ fun ViewerContent(
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = Color.White)
+                    GalleryLoadingIndicator(color = Color.White)
                     Text(stringResource(R.string.viewer_slow_motion_buffering), color = Color.White)
                 }
             }
@@ -507,14 +514,13 @@ fun ViewerContent(
                         .padding(horizontal = 12.dp, vertical = 6.dp),
                 )
             }
-            is HoldSlowMotionState.ReadyToSave -> androidx.compose.material3.Button(
+            is HoldSlowMotionState.ReadyToSave -> GalleryExpressiveButton(
                 onClick = { onSaveSlowMotionClip(slow.clip) },
                 enabled = slowMotionSaveProgress == null,
                 modifier = Modifier.align(Alignment.TopStart).padding(top = 72.dp, start = 12.dp),
             ) {
                 if (slowMotionSaveProgress != null) {
-                    CircularProgressIndicator(
-                        progress = { slowMotionSaveProgress.coerceIn(0f, 1f) },
+                    GalleryLoadingIndicator(
                         modifier = Modifier.size(20.dp),
                         color = Color.White,
                     )
@@ -541,12 +547,12 @@ fun ViewerContent(
                     .padding(horizontal = 8.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onBack) {
+                GalleryExpressiveIconButton(onClick = onBack) {
                     Icon(GalleryIcons.Back, contentDescription = stringResource(R.string.viewer_back), tint = Color.White)
                 }
                 Text(dateLabel, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, color = Color.White, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 Box {
-                    IconButton(onClick = { menuExpanded = true }) {
+                    GalleryExpressiveIconButton(onClick = { menuExpanded = true }) {
                         Icon(GalleryIcons.More, contentDescription = stringResource(R.string.viewer_more), tint = Color.White)
                     }
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
@@ -694,8 +700,8 @@ private fun LegacyVideoSeekBar(
             .testTag(VIDEO_LEGACY_SEEK_BAR_TEST_TAG),
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(formatVideoTime(position), color = Color.White, style = MaterialTheme.typography.labelSmall)
-            Text(formatVideoTime(durationMillis), color = Color.White, style = MaterialTheme.typography.labelSmall)
+            Text(formatVideoTime(position), color = Color.White, style = MaterialTheme.typography.bodySmall)
+            Text(formatVideoTime(durationMillis), color = Color.White, style = MaterialTheme.typography.bodySmall)
         }
         Slider(
             value = position.toFloat() / durationMillis.toFloat(),
@@ -747,7 +753,7 @@ private fun ViewerFilmstrip(
                         .size(if (selected) 66.dp else 58.dp)
                         .border(
                             width = if (selected) 3.dp else 1.dp,
-                            color = if (selected) Color.White else Color.White.copy(alpha = 0.35f),
+                            color = if (selected) Color.White else Color.White.copy(alpha = 0.6f),
                             shape = RoundedCornerShape(8.dp),
                         )
                         .background(Color.DarkGray, RoundedCornerShape(8.dp))
@@ -824,7 +830,7 @@ private fun VideoFrameScrubber(
                 VideoFramesState.Loading -> repeat(10) { index ->
                     Box(
                         Modifier.weight(1f).fillMaxHeight().background(
-                            if (index % 2 == 0) Color.DarkGray else Color.Gray,
+                            if (index % 2 == 0) Color(0xFF1C1B1F) else Color(0xFFBDBDBD),
                         ),
                     )
                 }
@@ -844,6 +850,8 @@ private fun VideoFrameScrubber(
         }.coerceIn(0f, 1f)
         Canvas(Modifier.fillMaxSize()) {
             val x = size.width * fraction
+            val haloWidth = 7.dp.toPx()
+            drawLine(Color.Black.copy(alpha = 0.55f), Offset(x, 0f), Offset(x, size.height), strokeWidth = haloWidth)
             drawLine(Color.White, Offset(x, 0f), Offset(x, size.height), strokeWidth = 4.dp.toPx())
         }
         Text(
@@ -854,10 +862,11 @@ private fun VideoFrameScrubber(
                 .background(Color.Black.copy(alpha = 0.65f), RoundedCornerShape(10.dp))
                 .padding(horizontal = 8.dp, vertical = 2.dp),
         )
-        IconButton(
+        GalleryExpressiveIconButton(
             onClick = config.onClose,
             modifier = Modifier.align(Alignment.TopEnd).size(32.dp)
-                .background(Color.Black.copy(alpha = 0.65f), RoundedCornerShape(16.dp))
+                .background(Color.Black.copy(alpha = 0.80f), RoundedCornerShape(16.dp))
+                .border(1.dp, Color.White.copy(alpha = 0.40f), RoundedCornerShape(16.dp))
                 .semantics { contentDescription = closeDescription },
         ) {
             Icon(GalleryIcons.Close, contentDescription = null, tint = Color.White)
@@ -991,7 +1000,7 @@ private fun PhotoSurface(
             Modifier.padding(24.dp),
             color = MaterialTheme.colorScheme.error,
         )
-        else -> CircularProgressIndicator(Modifier.padding(24.dp))
+        else -> GalleryLoadingIndicator(Modifier.padding(24.dp))
     }
 }
 
@@ -1068,7 +1077,7 @@ private fun VideoSurface(
     onZoomedChange: (Boolean) -> Unit,
 ) {
     if (controller == null) {
-        CircularProgressIndicator(Modifier.padding(24.dp))
+        GalleryLoadingIndicator(Modifier.padding(24.dp))
         return
     }
     val description = stringResource(R.string.viewer_video_description)
@@ -1147,9 +1156,9 @@ private fun VideoSurface(
                 color = MaterialTheme.colorScheme.error,
             )
             VideoViewerState.Idle,
-            is VideoViewerState.Loading -> CircularProgressIndicator()
+            is VideoViewerState.Loading -> GalleryLoadingIndicator()
             VideoViewerState.Released -> Unit
-            null -> CircularProgressIndicator()
+            null -> GalleryLoadingIndicator()
         }
     }
     DisposableEffect(controller) { onDispose { controller.attachSurface(null) } }
@@ -1161,6 +1170,7 @@ private fun VideoPlaybackControl(
     state: VideoViewerState?,
     visible: Boolean,
     onInteraction: () -> Unit,
+    onMuteToggle: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val current = state as? VideoViewerState.Ready ?: return
@@ -1170,31 +1180,56 @@ private fun VideoPlaybackControl(
         exit = fadeOut(tween(CHROME_FADE_MILLIS)),
         modifier = modifier,
     ) {
-        FilledIconButton(
-            onClick = {
-                onInteraction()
-                when {
-                    current.isMuted -> controller.unmute()
-                    current.isPlaying -> controller.pause()
-                    else -> controller.play()
-                }
-            },
-            modifier = Modifier.size(56.dp),
-            colors = androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(
-                containerColor = Color.Black.copy(alpha = 0.55f),
-                contentColor = Color.White,
-            ),
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                imageVector = if (current.isPlaying) GalleryIcons.Pause else GalleryIcons.Play,
-                contentDescription = stringResource(
-                    when {
-                        current.isMuted -> R.string.viewer_unmute
-                        current.isPlaying -> R.string.viewer_pause
-                        else -> R.string.viewer_play
-                    },
+            // Dedicated mute/unmute button
+            FilledIconButton(
+                onClick = {
+                    onInteraction()
+                    if (current.isMuted) {
+                        controller.unmute()
+                        onMuteToggle(false)
+                    } else {
+                        controller.mute()
+                        onMuteToggle(true)
+                    }
+                },
+                shapes = androidx.compose.material3.IconButtonDefaults.shapes(),
+                modifier = Modifier.size(48.dp),
+                colors = androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(
+                    containerColor = Color.Black.copy(alpha = 0.72f),
+                    contentColor = Color.White,
                 ),
-            )
+            ) {
+                Icon(
+                    imageVector = if (current.isMuted) GalleryIcons.VolumeOff else GalleryIcons.Volume,
+                    contentDescription = stringResource(
+                        if (current.isMuted) R.string.viewer_unmute else R.string.viewer_mute,
+                    ),
+                )
+            }
+            // Play/pause button (no longer handles unmute)
+            FilledIconButton(
+                onClick = {
+                    onInteraction()
+                    if (current.isPlaying) controller.pause() else controller.play()
+                },
+                shapes = androidx.compose.material3.IconButtonDefaults.shapes(),
+                modifier = Modifier.size(56.dp),
+                colors = androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(
+                    containerColor = Color.Black.copy(alpha = 0.72f),
+                    contentColor = Color.White,
+                ),
+            ) {
+                Icon(
+                    imageVector = if (current.isPlaying) GalleryIcons.Pause else GalleryIcons.Play,
+                    contentDescription = stringResource(
+                        if (current.isPlaying) R.string.viewer_pause else R.string.viewer_play,
+                    ),
+                )
+            }
         }
     }
 }
@@ -1207,14 +1242,14 @@ private fun ViewerChromeScrim(visible: Boolean) {
         exit = fadeOut(tween(CHROME_FADE_MILLIS)),
         modifier = Modifier.fillMaxSize().testTag(VIEWER_CHROME_SCRIM_TEST_TAG),
     ) {
-        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.18f))) {
+        Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.30f))) {
             Box(
                 Modifier.fillMaxSize().background(
                     Brush.verticalGradient(
                         colorStops = arrayOf(
                             0f to Color.Black.copy(alpha = 0.65f),
-                            0.28f to Color.Transparent,
-                            0.62f to Color.Transparent,
+                            0.20f to Color.Black.copy(alpha = 0.18f),
+                            0.80f to Color.Black.copy(alpha = 0.18f),
                             1f to Color.Black.copy(alpha = 0.72f),
                         ),
                     ),

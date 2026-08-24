@@ -1,6 +1,6 @@
 <resources>
     <string name="photos_title">Fotos</string><string name="library_local">Solo en este dispositivo</string>
-    <string name="empty_library_title">Todavía no hay fotos</string><string name="empty_library_body">Las fotos guardadas en este dispositivo aparecerán aquí cuando se conceda acceso.</string>
+    <string name="empty_library_title">Todavía no hay fotos</string><string name="empty_library_body">Las fotos y videos guardados en este dispositivo aparecerán aquí.</string>
     <string name="limited_access_label">Acceso limitado</string>
     <string name="limited_access_body">Solo se ven las fotos y los videos seleccionados.</string>
     <string name="manage_access_action">Administrar</string>

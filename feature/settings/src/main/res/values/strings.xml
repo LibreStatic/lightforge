@@ -102,8 +102,8 @@
     <string name="local_analysis_content_summary">Creates searchable labels and recognizes text. Pet collections share these labels.</string>
     <string name="local_analysis_opt_out_title">Local analysis is ready</string>
     <string name="local_analysis_opt_out_body">UGallery can organize people, pets, photo content and text entirely on this device. Analysis starts after you continue, uses only photos you allowed, and can be disabled or deleted in Settings.</string>
-    <string name="local_analysis_opt_out_accept">Understood</string>
-    <string name="local_analysis_opt_out_decline">Disable</string>
+    <string name="local_analysis_opt_out_accept">Enable local analysis</string>
+    <string name="local_analysis_opt_out_decline">Not now</string>
     <string name="settings_back">Back</string>
     <string name="settings_summary_columns">%1$d columns</string>
     <string name="settings_summary_enabled">%1$d of %2$d on</string>

@@ -7,10 +7,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -23,22 +23,26 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
+import androidx.compose.material3.ExpandedFullScreenSearchBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBar
+import androidx.compose.material3.SearchBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberSearchBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -54,6 +58,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.ugallery.core.search.MediaSearchHit
 import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.GalleryExpressiveIconButton
 import com.ugallery.core.designsystem.GalleryLoadingIndicator
 import com.ugallery.core.designsystem.VideoDurationBadge
 import com.ugallery.core.designsystem.videoDurationDescription
@@ -61,6 +66,8 @@ import com.ugallery.core.model.MediaKind
 import com.ugallery.core.thumbnail.ThumbnailLoader
 import com.ugallery.core.thumbnail.ThumbnailRequest
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
 private const val PAGINATION_PREFETCH_DISTANCE = 3
 internal const val SEARCH_RESULTS_GRID_TEST_TAG = "search_results_grid"
@@ -92,6 +99,41 @@ fun SearchContent(
     modifier: Modifier = Modifier,
 ) {
     var showDetectedContent by rememberSaveable { mutableStateOf(false) }
+    val textFieldState = rememberTextFieldState(query)
+    val searchBarState = rememberSearchBarState()
+    val coroutineScope = rememberCoroutineScope()
+    val currentQuery by rememberUpdatedState(query)
+    LaunchedEffect(query) {
+        if (textFieldState.text.toString() != query) {
+            textFieldState.edit { replace(0, length, query) }
+        }
+    }
+    LaunchedEffect(textFieldState) {
+        snapshotFlow { textFieldState.text.toString() }.collectLatest { text ->
+            if (text != currentQuery) onQueryChange(text)
+        }
+    }
+    val inputField: @Composable () -> Unit = {
+        SearchBarDefaults.InputField(
+            textFieldState = textFieldState,
+            searchBarState = searchBarState,
+            onSearch = {
+                if (it.isNotBlank()) {
+                    onSearch()
+                    coroutineScope.launch { searchBarState.animateToCollapsed() }
+                }
+            },
+            placeholder = { Text(stringResource(R.string.search_hint)) },
+            leadingIcon = { Icon(GalleryIcons.Search, contentDescription = null) },
+            trailingIcon = {
+                onVoiceSearch?.let { voiceSearch ->
+                    GalleryExpressiveIconButton(onClick = voiceSearch) {
+                        Icon(GalleryIcons.Mic, contentDescription = stringResource(R.string.search_voice))
+                    }
+                }
+            },
+        )
+    }
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
       Column(Modifier.fillMaxSize().widthIn(max = 1_200.dp).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(
@@ -100,25 +142,23 @@ fun SearchContent(
             modifier = Modifier.padding(top = 12.dp).semantics { heading() },
         )
         SearchBar(
-            query = query,
-            onQueryChange = onQueryChange,
-            onSearch = { if (it.isNotBlank()) onSearch() },
-            active = false,
-            onActiveChange = {},
-            placeholder = { Text(stringResource(R.string.search_hint)) },
-            leadingIcon = { Icon(GalleryIcons.Search, contentDescription = null) },
-            trailingIcon = {
-                onVoiceSearch?.let { voiceSearch ->
-                    IconButton(onClick = voiceSearch) {
-                        Icon(GalleryIcons.Mic, contentDescription = stringResource(R.string.search_voice))
-                    }
-                }
-            },
+            state = searchBarState,
+            inputField = inputField,
             modifier = Modifier.fillMaxWidth(),
-            windowInsets = WindowInsets(0, 0, 0, 0),
-            content = {},
         )
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        ExpandedFullScreenSearchBar(
+            state = searchBarState,
+            inputField = inputField,
+        ) {
+            SearchDiscovery(
+                onPresetSearch = { label ->
+                    onPresetSearch(label)
+                    coroutineScope.launch { searchBarState.animateToCollapsed() }
+                },
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+            )
+        }
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 16.dp)) {
             item {
                 val label = stringResource(R.string.search_photos)
                 AssistChip(onClick = { onPresetSearch(label) }, label = { Text(label) })
@@ -263,7 +303,7 @@ private fun SearchLoadingIndicatorRow(modifier: Modifier = Modifier) {
 private fun SearchDiscovery(onPresetSearch: (String) -> Unit, modifier: Modifier = Modifier) {
     LazyColumn(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item { Text(stringResource(R.string.search_people_pets), style = MaterialTheme.typography.titleMedium) }
-        item { LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        item { LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(end = 16.dp)) {
             val people = listOf(
                 R.string.search_me to GalleryIcons.User,
                 R.string.search_people to GalleryIcons.User,
@@ -287,21 +327,21 @@ private fun SearchDiscovery(onPresetSearch: (String) -> Unit, modifier: Modifier
             }
         } }
         item { Text(stringResource(R.string.search_places), style = MaterialTheme.typography.titleMedium) }
-        item { LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        item { LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 16.dp)) {
             items(listOf(R.string.search_coast, R.string.search_mountain, R.string.search_city, R.string.search_rain)) { labelResource ->
                 val label = stringResource(labelResource)
                 AssistChip(onClick = { onPresetSearch(label) }, label = { Text(label) }, leadingIcon = { Icon(GalleryIcons.Image, contentDescription = null) })
             }
         } }
         item { Text(stringResource(R.string.search_content_types), style = MaterialTheme.typography.titleMedium) }
-        item { LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        item { LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 16.dp)) {
             items(listOf(R.string.search_documents, R.string.search_screenshots, R.string.search_video, R.string.search_camera)) { labelResource ->
                 val label = stringResource(labelResource)
                 AssistChip(onClick = { onPresetSearch(label) }, label = { Text(label) }, leadingIcon = { Icon(GalleryIcons.Collections, contentDescription = null) })
             }
         } }
         item { Text(stringResource(R.string.search_topics), style = MaterialTheme.typography.titleMedium) }
-        item { LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        item { LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 16.dp)) {
             items(listOf(R.string.search_landscapes, R.string.search_food)) { labelResource ->
                 val label = stringResource(labelResource)
                 AssistChip(onClick = { onPresetSearch(label) }, label = { Text(label) })

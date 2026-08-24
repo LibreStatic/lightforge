@@ -2,7 +2,7 @@
     <string name="photos_title">Photos</string>
     <string name="library_local">Only on this device</string>
     <string name="empty_library_title">No photos yet</string>
-    <string name="empty_library_body">Photos saved on this device will appear here after access is granted.</string>
+    <string name="empty_library_body">Photos and videos saved on this device will appear here.</string>
     <string name="limited_access_label">Limited access</string>
     <string name="limited_access_body">Only selected photos and videos are visible.</string>
     <string name="manage_access_action">Manage</string>

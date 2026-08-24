@@ -8,6 +8,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Redo
 import androidx.compose.material.icons.automirrored.rounded.Undo
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.material.icons.rounded.VolumeOff
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
@@ -87,6 +88,7 @@ val GalleryIconRedo: ImageVector get() = Icons.AutoMirrored.Rounded.Redo
 val GalleryIconDownload: ImageVector get() = Icons.Rounded.Download
 val GalleryIconSpeed: ImageVector get() = Icons.Rounded.Speed
 val GalleryIconVolume: ImageVector get() = Icons.AutoMirrored.Rounded.VolumeUp
+val GalleryIconVolumeOff: ImageVector get() = Icons.Rounded.VolumeOff
 val GalleryIconMusic: ImageVector get() = Icons.Rounded.MusicNote
 
 /**
@@ -153,5 +155,6 @@ object GalleryIcons {
     val Download get() = GalleryIconDownload
     val Speed get() = GalleryIconSpeed
     val Volume get() = GalleryIconVolume
+    val VolumeOff get() = GalleryIconVolumeOff
     val Music get() = GalleryIconMusic
 }

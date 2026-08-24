@@ -19,11 +19,11 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -39,6 +39,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ugallery.core.designsystem.GalleryStateContent
+import com.ugallery.core.designsystem.GalleryExpressiveButton
 import com.ugallery.core.model.TimelineMedia
 import com.ugallery.core.thumbnail.ThumbnailLoader
 import com.ugallery.core.thumbnail.ThumbnailRequest
@@ -67,7 +68,7 @@ fun TrashContent(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(stringResource(R.string.trash_title), style = MaterialTheme.typography.headlineSmall)
                     if (totalCount > 0) {
-                        Button(onClick = onEmptyTrash) { Text(stringResource(R.string.trash_empty)) }
+                        GalleryExpressiveButton(onClick = onEmptyTrash) { Text(stringResource(R.string.trash_empty)) }
                     }
                 }
             }
@@ -176,7 +177,7 @@ private fun TrashCard(
                 Spacer(Modifier.height(4.dp))
                 HorizontalDivider(modifier = Modifier.width(56.dp))
                 Spacer(Modifier.height(4.dp))
-                OutlinedButton(onClick = onDeletePermanently) {
+                OutlinedButton(onClick = onDeletePermanently, border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)) {
                     Text(
                         text = stringResource(R.string.trash_delete_permanently),
                         color = MaterialTheme.colorScheme.error,
@@ -186,4 +187,3 @@ private fun TrashCard(
         }
     }
 }
-

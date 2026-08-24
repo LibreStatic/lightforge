@@ -355,7 +355,7 @@ class GalleryViewModel @Inject constructor(
             rows.filter(PhysicalAlbumRow::isAvailable).map { row ->
                 GalleryFolderOption(
                     token = GalleryFolderToken.encode(row.volumeName, row.bucketId),
-                    label = "${row.displayName ?: row.bucketId} · ${row.volumeName} (${row.itemCount})",
+                    label = "${row.displayName ?: row.bucketId} (${row.itemCount})",
                 )
             }
         }

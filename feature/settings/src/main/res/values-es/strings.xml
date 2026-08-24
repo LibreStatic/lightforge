@@ -109,6 +109,6 @@
     <string name="local_analysis_content_summary">Crea etiquetas para buscar y reconoce texto. Las colecciones de mascotas comparten estas etiquetas.</string>
     <string name="local_analysis_opt_out_title">El análisis local está listo</string>
     <string name="local_analysis_opt_out_body">UGallery puede organizar personas, mascotas, contenido y texto de fotos completamente en este dispositivo. El análisis comienza cuando continúes, usa solo las fotos que autorizaste y se puede desactivar o borrar desde Ajustes.</string>
-    <string name="local_analysis_opt_out_accept">Entendido</string>
-    <string name="local_analysis_opt_out_decline">Desactivar</string>
+    <string name="local_analysis_opt_out_accept">Activar análisis local</string>
+    <string name="local_analysis_opt_out_decline">Ahora no</string>
 </resources>

@@ -109,6 +109,6 @@
     <string name="local_analysis_content_summary">Erstellt durchsuchbare Labels und erkennt Text. Tiersammlungen verwenden dieselben Labels.</string>
     <string name="local_analysis_opt_out_title">Lokale Analyse ist bereit</string>
     <string name="local_analysis_opt_out_body">UGallery kann Personen, Tiere, Fotoinhalte und Text vollständig auf diesem Gerät organisieren. Die Analyse startet nach deiner Bestätigung, verwendet nur freigegebene Fotos und kann in den Einstellungen deaktiviert oder gelöscht werden.</string>
-    <string name="local_analysis_opt_out_accept">Verstanden</string>
-    <string name="local_analysis_opt_out_decline">Deaktivieren</string>
+    <string name="local_analysis_opt_out_accept">Lokale Analyse aktivieren</string>
+    <string name="local_analysis_opt_out_decline">Nicht jetzt</string>
 </resources>

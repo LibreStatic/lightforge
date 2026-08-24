@@ -45,6 +45,7 @@ internal interface VideoEngine {
     fun prepare()
     fun play()
     fun pause()
+    fun setScrubbingModeEnabled(enabled: Boolean)
     fun seekTo(positionMillis: Long)
     fun stopAndClear()
     fun release()
@@ -80,6 +81,7 @@ class VideoViewerController internal constructor(
     private var playbackIsPlaying = false
     private var playbackDurationMillis = 0L
     private var playbackAspectRatio: Float? = null
+    private var scrubbing = false
 
     init {
         engine.setRepeatEnabled(looping)
@@ -114,6 +116,7 @@ class VideoViewerController internal constructor(
         startMuted: Boolean = false,
     ) {
         check(!released)
+        endScrubbing()
         engine.stopAndClear()
         activeUri = uri
         activePoster = poster
@@ -132,6 +135,19 @@ class VideoViewerController internal constructor(
     @MainThread fun play() { check(!released); engine.play() }
     @MainThread fun pause() { if (!released) engine.pause() }
     @MainThread
+    fun beginScrubbing() {
+        check(!released)
+        if (scrubbing) return
+        scrubbing = true
+        engine.setScrubbingModeEnabled(true)
+    }
+    @MainThread
+    fun endScrubbing() {
+        if (released || !scrubbing) return
+        scrubbing = false
+        engine.setScrubbingModeEnabled(false)
+    }
+    @MainThread
     fun setLooping(enabled: Boolean) {
         check(!released)
         if (looping == enabled) return
@@ -141,6 +157,14 @@ class VideoViewerController internal constructor(
         mutableState.value = ready.copy(isLooping = enabled)
     }
     @MainThread fun currentPositionMillis(): Long = if (released) 0 else engine.currentPositionMillis()
+    @MainThread
+    fun mute() {
+        if (released || muted) return
+        muted = true
+        engine.setVolume(0f)
+        val ready = mutableState.value as? VideoViewerState.Ready ?: return
+        mutableState.value = ready.copy(isMuted = true)
+    }
     @MainThread
     fun unmute() {
         if (released || !muted) return
@@ -156,7 +180,11 @@ class VideoViewerController internal constructor(
         val maximum = playbackDurationMillis.takeIf { it > 0 } ?: Long.MAX_VALUE
         engine.seekTo((engine.currentPositionMillis() + deltaMillis).coerceIn(0L, maximum))
     }
-    @MainThread fun onBackground() = pause()
+    @MainThread
+    fun onBackground() {
+        endScrubbing()
+        pause()
+    }
     @MainThread
     fun attachSurface(surfaceView: SurfaceView?) {
         if (released) {
@@ -188,6 +216,7 @@ class VideoViewerController internal constructor(
     @MainThread
     override fun close() {
         if (released) return
+        endScrubbing()
         released = true
         activeUri = null
         activePoster = null
@@ -257,6 +286,7 @@ private class Media3VideoEngine(context: Context, enableVideoEffects: Boolean) :
         player.play()
     }
     override fun pause() = player.pause()
+    override fun setScrubbingModeEnabled(enabled: Boolean) = player.setScrubbingModeEnabled(enabled)
     override fun seekTo(positionMillis: Long) = player.seekTo(positionMillis)
     override fun stopAndClear() { player.stop(); player.clearMediaItems() }
     override fun release() = player.release()

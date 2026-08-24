@@ -1,6 +1,6 @@
 <resources>
     <string name="photos_title">Photos</string><string name="library_local">Uniquement sur cet appareil</string>
-    <string name="empty_library_title">Aucune photo</string><string name="empty_library_body">Les photos enregistrées sur cet appareil apparaîtront ici après autorisation.</string>
+    <string name="empty_library_title">Aucune photo</string><string name="empty_library_body">Les photos et vidéos enregistrées sur cet appareil apparaîtront ici.</string>
     <string name="limited_access_label">Accès limité</string>
     <string name="limited_access_body">Seuls les contenus sélectionnés sont visibles.</string>
     <string name="manage_access_action">Gérer</string>

@@ -18,19 +18,21 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Surface
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,6 +56,9 @@ import com.ugallery.core.preferences.LibraryGrouping
 import com.ugallery.core.preferences.LibrarySort
 import com.ugallery.core.preferences.VideoScrubbingMode
 import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.GalleryTopAppBar
+import com.ugallery.core.designsystem.GalleryExpressiveButton
+import com.ugallery.core.designsystem.GalleryIndeterminateProgressIndicator
 
 data class GalleryFolderOption(val token: String, val label: String)
 
@@ -244,18 +249,18 @@ private fun SettingsCategoryList(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         SettingsCategoryGroup(stringResource(R.string.settings_group_viewing)) {
-            SettingsCategoryRow(GalleryIcons.Collections, stringResource(R.string.settings_library), "$sortLabel · $filterLabel") { onOpen(SettingsPage.Library) }
-            SettingsCategoryRow(GalleryIcons.Play, stringResource(R.string.settings_playback), enabledPattern.format(playbackCount, 5)) { onOpen(SettingsPage.Playback) }
-            SettingsCategoryRow(GalleryIcons.Tune, stringResource(R.string.settings_gestures), enabledPattern.format(gestureCount, 8)) { onOpen(SettingsPage.Gestures) }
-            SettingsCategoryRow(GalleryIcons.Image, stringResource(R.string.settings_thumbnails), "$columnsSummary · " + enabledPattern.format(thumbnailCount, 5)) { onOpen(SettingsPage.Thumbnails) }
+            SettingsCategoryRow(GalleryIcons.Collections, stringResource(R.string.settings_library), "$sortLabel · $filterLabel", 0, 4) { onOpen(SettingsPage.Library) }
+            SettingsCategoryRow(GalleryIcons.Play, stringResource(R.string.settings_playback), enabledPattern.format(playbackCount, 5), 1, 4) { onOpen(SettingsPage.Playback) }
+            SettingsCategoryRow(GalleryIcons.Tune, stringResource(R.string.settings_gestures), enabledPattern.format(gestureCount, 8), 2, 4) { onOpen(SettingsPage.Gestures) }
+            SettingsCategoryRow(GalleryIcons.Image, stringResource(R.string.settings_thumbnails), "$columnsSummary · " + enabledPattern.format(thumbnailCount, 5), 3, 4) { onOpen(SettingsPage.Thumbnails) }
         }
         SettingsCategoryGroup(stringResource(R.string.settings_group_management)) {
-            SettingsCategoryRow(GalleryIcons.Settings, stringResource(R.string.settings_operations), enabledPattern.format(operationsCount, 3)) { onOpen(SettingsPage.Operations) }
-            SettingsCategoryRow(GalleryIcons.Lock, stringResource(R.string.settings_security), if (securityOn) onLabel else offLabel) { onOpen(SettingsPage.Security) }
-            SettingsCategoryRow(GalleryIcons.Download, stringResource(R.string.settings_backup), null) { onOpen(SettingsPage.Backup) }
+            SettingsCategoryRow(GalleryIcons.Settings, stringResource(R.string.settings_operations), enabledPattern.format(operationsCount, 3), 0, 3) { onOpen(SettingsPage.Operations) }
+            SettingsCategoryRow(GalleryIcons.Lock, stringResource(R.string.settings_security), if (securityOn) onLabel else offLabel, 1, 3) { onOpen(SettingsPage.Security) }
+            SettingsCategoryRow(GalleryIcons.Download, stringResource(R.string.settings_backup), null, 2, 3) { onOpen(SettingsPage.Backup) }
         }
         SettingsCategoryGroup(stringResource(R.string.settings_group_intelligence)) {
-            SettingsCategoryRow(GalleryIcons.Analyze, stringResource(R.string.settings_page_ai), if (aiConsentGranted) onLabel else offLabel) { onOpen(SettingsPage.AiAnalysis) }
+            SettingsCategoryRow(GalleryIcons.Analyze, stringResource(R.string.settings_page_ai), if (aiConsentGranted) onLabel else offLabel, 0, 1) { onOpen(SettingsPage.AiAnalysis) }
         }
     }
 }
@@ -264,48 +269,47 @@ private fun enabledCount(vararg flags: Boolean) = flags.count { it }
 
 @Composable
 private fun SettingsCategoryGroup(title: String, content: @Composable () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             title,
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.padding(horizontal = 12.dp),
         )
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            shape = RoundedCornerShape(24.dp),
-        ) { Column { content() } }
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) { content() }
     }
 }
 
 @Composable
-private fun SettingsCategoryRow(icon: ImageVector, title: String, summary: String?, onClick: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth()
-            .clickable(onClick = onClick)
-            .heightIn(min = 72.dp)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            Modifier.size(40.dp).background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
-        }
-        Spacer(Modifier.width(16.dp))
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            if (summary != null) {
-                Text(summary, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun SettingsCategoryRow(
+    icon: ImageVector,
+    title: String,
+    summary: String?,
+    index: Int,
+    count: Int,
+    onClick: () -> Unit,
+) {
+    SegmentedListItem(
+        onClick = onClick,
+        shapes = ListItemDefaults.segmentedShapes(index, count),
+        modifier = Modifier.fillMaxWidth(),
+        leadingContent = {
+            Box(
+                Modifier.size(48.dp).background(MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.shapes.extraLarge),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
             }
-        }
-        Icon(
-            Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+        },
+        supportingContent = summary?.let { value -> { Text(value) } },
+        trailingContent = {
+            Icon(
+                Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        },
+    ) { Text(title) }
 }
 
 @Composable
@@ -327,16 +331,11 @@ private fun SettingsSubPage(
 
 @Composable
 private fun SettingsHeader(title: String, onBack: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        val backLabel = stringResource(R.string.settings_back)
-        IconButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = backLabel }) {
-            Icon(com.ugallery.core.designsystem.GalleryIconBack, contentDescription = null)
-        }
-        Text(title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() })
-    }
+    GalleryTopAppBar(
+        title = title,
+        onBack = onBack,
+        navigationContentDescription = stringResource(R.string.settings_back),
+    )
 }
 
 @Composable
@@ -692,12 +691,12 @@ private fun AiAnalysisSection(
     Text(stringResource(R.string.face_analysis_title), style = MaterialTheme.typography.titleLarge)
     Text(stringResource(R.string.face_analysis_no_identity), color = MaterialTheme.colorScheme.primary)
     if (!peopleAnalysisEnabled) {
-        Button(onClick = onEnable) { Text(stringResource(R.string.face_analysis_enable)) }
+        GalleryExpressiveButton(onClick = onEnable) { Text(stringResource(R.string.face_analysis_enable)) }
     } else {
-        if (state.status == AnalysisStatus.Running) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if (state.status == AnalysisStatus.Running) GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
         Text(stringResource(R.string.face_analysis_progress, state.completedItems))
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = if (state.paused) onResume else onPause) {
+            GalleryExpressiveButton(onClick = if (state.paused) onResume else onPause) {
                 Text(stringResource(if (state.paused) R.string.face_analysis_resume else R.string.face_analysis_pause))
             }
             OutlinedButton(onClick = onAnalyzeAll) { Text(stringResource(R.string.face_analysis_all)) }
@@ -712,7 +711,7 @@ private fun AiAnalysisSection(
         if (petAnalysisState.status == AnalysisStatus.Running ||
             petAnalysisState.status == AnalysisStatus.Ready
         ) {
-            LinearProgressIndicator(
+            GalleryIndeterminateProgressIndicator(
                 Modifier.fillMaxWidth().testTag("pet_analysis_progress_indicator"),
             )
         }
@@ -744,14 +743,26 @@ private fun SettingsSwitchRow(
     modifier: Modifier = Modifier,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    Row(
-        modifier.fillMaxWidth().heightIn(min = 48.dp).clickable { onCheckedChange(!checked) },
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, modifier = Modifier.weight(1f).padding(end = 12.dp))
-        Switch(checked = checked, onCheckedChange = null, modifier = Modifier.semantics { contentDescription = label })
-    }
+    ListItem(
+        colors = ListItemDefaults.colors(
+            containerColor = if (checked) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        modifier = modifier.fillMaxWidth(),
+        trailingContent = {
+            Switch(
+                checked = checked,
+                onCheckedChange = null,
+                modifier = Modifier.semantics { contentDescription = label },
+                colors = SwitchDefaults.colors(
+                    uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    uncheckedBorderColor = MaterialTheme.colorScheme.outline,
+                    uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                ),
+            )
+        },
+    ) { Text(label) }
 }
 
 @Composable
@@ -761,16 +772,8 @@ private fun SettingsValueRow(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    Row(
-        modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(onClick = onClick),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label, modifier = Modifier.weight(1f))
-        Text(
-            value,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-        )
-    }
+    ListItem(
+        onClick = onClick,
+        trailingContent = { Text(value, color = MaterialTheme.colorScheme.primary) },
+    ) { Text(label) }
 }

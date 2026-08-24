@@ -109,6 +109,6 @@
     <string name="local_analysis_content_summary">Crea etichette ricercabili e riconosce il testo. Le raccolte di animali condividono queste etichette.</string>
     <string name="local_analysis_opt_out_title">L’analisi locale è pronta</string>
     <string name="local_analysis_opt_out_body">UGallery può organizzare persone, animali, contenuto e testo delle foto interamente su questo dispositivo. L’analisi inizia quando continui, usa solo le foto autorizzate e può essere disattivata o eliminata nelle Impostazioni.</string>
-    <string name="local_analysis_opt_out_accept">Ho capito</string>
-    <string name="local_analysis_opt_out_decline">Disattiva</string>
+    <string name="local_analysis_opt_out_accept">Attiva analisi locale</string>
+    <string name="local_analysis_opt_out_decline">Non ora</string>
 </resources>
