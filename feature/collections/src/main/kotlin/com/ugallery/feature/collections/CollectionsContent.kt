@@ -179,6 +179,34 @@ fun CollectionsContent(
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                item(key = "library-header") {
+                    Text(
+                        stringResource(R.string.collections_section_library),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(vertical = 4.dp),
+                    )
+                }
+                collectionCardRows(libraryCards, columns, thumbnailLoader)
+                if (albums.isEmpty() && physicalAlbums.loadState.refresh !is LoadState.Loading &&
+                    virtualAlbums.loadState.refresh !is LoadState.Loading
+                ) {
+                    item(key = "empty-albums") {
+                        GalleryStateContent(
+                            stringResource(R.string.collections_empty),
+                            stringResource(R.string.collections_empty_body),
+                            stringResource(R.string.collections_empty),
+                            Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+                item(key = "auto-header") {
+                    Text(
+                        stringResource(R.string.collections_section_auto),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(vertical = 4.dp),
+                    )
+                }
+                collectionCardRows(petCards + momentCards, columns, thumbnailLoader)
                 item(key = "actions-header") {
                     Text(
                         stringResource(R.string.collections_section_actions),
@@ -186,12 +214,12 @@ fun CollectionsContent(
                         modifier = Modifier.padding(vertical = 4.dp),
                     )
                 }
-                item(key = "local-analysis") {
+                item(key = "create-album") {
                     CollectionCard(
-                        title = stringResource(R.string.collections_local_analysis),
-                        body = stringResource(R.string.collections_local_analysis_body),
-                        icon = GalleryIcons.Analyze,
-                        onClick = onLocalAnalysisClick,
+                        title = stringResource(R.string.collections_create_album),
+                        body = stringResource(R.string.collections_virtual_album_body),
+                        icon = GalleryIcons.Plus,
+                        onClick = onCreateAlbum,
                         wide = true,
                     )
                 }
@@ -213,42 +241,14 @@ fun CollectionsContent(
                         wide = true,
                     )
                 }
-                item(key = "create-album") {
+                item(key = "local-analysis") {
                     CollectionCard(
-                        title = stringResource(R.string.collections_create_album),
-                        body = stringResource(R.string.collections_virtual_album_body),
-                        icon = GalleryIcons.Plus,
-                        onClick = onCreateAlbum,
+                        title = stringResource(R.string.collections_local_analysis),
+                        body = stringResource(R.string.collections_local_analysis_body),
+                        icon = GalleryIcons.Analyze,
+                        onClick = onLocalAnalysisClick,
                         wide = true,
                     )
-                }
-                item(key = "auto-header") {
-                    Text(
-                        stringResource(R.string.collections_section_auto),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(vertical = 4.dp),
-                    )
-                }
-                collectionCardRows(petCards + momentCards, columns, thumbnailLoader)
-                item(key = "library-header") {
-                    Text(
-                        stringResource(R.string.collections_section_library),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(vertical = 4.dp),
-                    )
-                }
-                collectionCardRows(libraryCards, columns, thumbnailLoader)
-                if (albums.isEmpty() && physicalAlbums.loadState.refresh !is LoadState.Loading &&
-                    virtualAlbums.loadState.refresh !is LoadState.Loading
-                ) {
-                    item(key = "empty-albums") {
-                        GalleryStateContent(
-                            stringResource(R.string.collections_empty),
-                            stringResource(R.string.collections_empty_body),
-                            stringResource(R.string.collections_empty),
-                            Modifier.fillMaxWidth(),
-                        )
-                    }
                 }
             }
         }

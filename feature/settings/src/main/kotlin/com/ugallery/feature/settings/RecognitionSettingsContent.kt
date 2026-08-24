@@ -344,49 +344,54 @@ private fun LibrarySection(
     folderOptions: List<GalleryFolderOption>,
     onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit,
 ) {
+    var sortDialogVisible by rememberSaveable { mutableStateOf(false) }
+    var filterDialogVisible by rememberSaveable { mutableStateOf(false) }
+    var groupDialogVisible by rememberSaveable { mutableStateOf(false) }
+    var folderModeDialogVisible by rememberSaveable { mutableStateOf(false) }
+
+    fun LibrarySort.labelRes(): Int = when (this) {
+        LibrarySort.DateTaken -> R.string.settings_sort_date_taken
+        LibrarySort.DateModified -> R.string.settings_sort_date_modified
+        LibrarySort.Name -> R.string.settings_sort_name
+        LibrarySort.Size -> R.string.settings_sort_size
+    }
+
+    fun LibraryFilter.labelRes(): Int = when (this) {
+        LibraryFilter.All -> R.string.settings_filter_all
+        LibraryFilter.Images -> R.string.settings_filter_images
+        LibraryFilter.Videos -> R.string.settings_filter_videos
+        LibraryFilter.Animated -> R.string.settings_filter_animated
+        LibraryFilter.Raw -> R.string.settings_filter_raw
+    }
+
+    fun LibraryGrouping.labelRes(): Int = when (this) {
+        LibraryGrouping.Day -> R.string.settings_group_day
+        LibraryGrouping.Month -> R.string.settings_group_month
+        LibraryGrouping.Year -> R.string.settings_group_year
+        LibraryGrouping.None -> R.string.settings_group_none
+    }
+
     SettingsValueRow(
         stringResource(R.string.settings_library_sort),
-        stringResource(when (settings.library.sort) {
-            LibrarySort.DateTaken -> R.string.settings_sort_date_taken
-            LibrarySort.DateModified -> R.string.settings_sort_date_modified
-            LibrarySort.Name -> R.string.settings_sort_name
-            LibrarySort.Size -> R.string.settings_sort_size
-        }),
-    ) {
-        val values = LibrarySort.entries
-        val next = values[(values.indexOf(settings.library.sort) + 1) % values.size]
-        onSettingsChange { current -> current.copy(library = current.library.copy(sort = next)) }
-    }
+        stringResource(settings.library.sort.labelRes()),
+        modifier = Modifier.testTag("library_sort_row"),
+        onClick = { sortDialogVisible = true },
+    )
     SettingsSwitchRow(stringResource(R.string.settings_sort_ascending), settings.library.ascending) {
         onSettingsChange { current -> current.copy(library = current.library.copy(ascending = it)) }
     }
     SettingsValueRow(
         stringResource(R.string.settings_library_filter),
-        stringResource(when (settings.library.filter) {
-            LibraryFilter.All -> R.string.settings_filter_all
-            LibraryFilter.Images -> R.string.settings_filter_images
-            LibraryFilter.Videos -> R.string.settings_filter_videos
-            LibraryFilter.Animated -> R.string.settings_filter_animated
-            LibraryFilter.Raw -> R.string.settings_filter_raw
-        }),
-    ) {
-        val values = LibraryFilter.entries
-        val next = values[(values.indexOf(settings.library.filter) + 1) % values.size]
-        onSettingsChange { current -> current.copy(library = current.library.copy(filter = next)) }
-    }
+        stringResource(settings.library.filter.labelRes()),
+        modifier = Modifier.testTag("library_filter_row"),
+        onClick = { filterDialogVisible = true },
+    )
     SettingsValueRow(
         stringResource(R.string.settings_library_group),
-        stringResource(when (settings.library.grouping) {
-            LibraryGrouping.Day -> R.string.settings_group_day
-            LibraryGrouping.Month -> R.string.settings_group_month
-            LibraryGrouping.Year -> R.string.settings_group_year
-            LibraryGrouping.None -> R.string.settings_group_none
-        }),
-    ) {
-        val values = LibraryGrouping.entries
-        val next = values[(values.indexOf(settings.library.grouping) + 1) % values.size]
-        onSettingsChange { current -> current.copy(library = current.library.copy(grouping = next)) }
-    }
+        stringResource(settings.library.grouping.labelRes()),
+        modifier = Modifier.testTag("library_group_row"),
+        onClick = { groupDialogVisible = true },
+    )
     SettingsValueRow(
         stringResource(R.string.settings_folder_mode),
         stringResource(
@@ -394,12 +399,9 @@ private fun LibrarySection(
                 R.string.settings_folder_exclude_mode
             } else R.string.settings_folder_include_mode,
         ),
-    ) {
-        val next = if (settings.library.folderSelectionMode == FolderSelectionMode.AllExceptExcluded) {
-            FolderSelectionMode.OnlyIncluded
-        } else FolderSelectionMode.AllExceptExcluded
-        onSettingsChange { current -> current.copy(library = current.library.copy(folderSelectionMode = next)) }
-    }
+        modifier = Modifier.testTag("folder_mode_row"),
+        onClick = { folderModeDialogVisible = true },
+    )
     if (folderOptions.isNotEmpty()) {
         Text(stringResource(R.string.settings_folders), style = MaterialTheme.typography.titleMedium)
         folderOptions.forEach { folder ->
@@ -428,7 +430,108 @@ private fun LibrarySection(
             }
         }
     }
+    if (sortDialogVisible) {
+        SettingsSingleChoiceDialog(
+            title = stringResource(R.string.settings_library_sort),
+            options = LibrarySort.entries.map { it.labelRes() },
+            selectedOption = LibrarySort.entries.indexOf(settings.library.sort),
+            optionTestTags = LibrarySort.entries.map { "library_sort_" + it.name },
+            onDismiss = { sortDialogVisible = false },
+        ) { index ->
+            onSettingsChange { current ->
+                current.copy(library = current.library.copy(sort = LibrarySort.entries[index]))
+            }
+            sortDialogVisible = false
+        }
+    }
+    if (filterDialogVisible) {
+        SettingsSingleChoiceDialog(
+            title = stringResource(R.string.settings_library_filter),
+            options = LibraryFilter.entries.map { it.labelRes() },
+            selectedOption = LibraryFilter.entries.indexOf(settings.library.filter),
+            optionTestTags = LibraryFilter.entries.map { "library_filter_" + it.name },
+            onDismiss = { filterDialogVisible = false },
+        ) { index ->
+            onSettingsChange { current ->
+                current.copy(library = current.library.copy(filter = LibraryFilter.entries[index]))
+            }
+            filterDialogVisible = false
+        }
+    }
+    if (groupDialogVisible) {
+        SettingsSingleChoiceDialog(
+            title = stringResource(R.string.settings_library_group),
+            options = LibraryGrouping.entries.map { it.labelRes() },
+            selectedOption = LibraryGrouping.entries.indexOf(settings.library.grouping),
+            optionTestTags = LibraryGrouping.entries.map { "library_group_" + it.name },
+            onDismiss = { groupDialogVisible = false },
+        ) { index ->
+            onSettingsChange { current ->
+                current.copy(library = current.library.copy(grouping = LibraryGrouping.entries[index]))
+            }
+            groupDialogVisible = false
+        }
+    }
+    if (folderModeDialogVisible) {
+        SettingsSingleChoiceDialog(
+            title = stringResource(R.string.settings_folder_mode),
+            options = listOf(R.string.settings_folder_exclude_mode, R.string.settings_folder_include_mode),
+            selectedOption = if (settings.library.folderSelectionMode == FolderSelectionMode.AllExceptExcluded) 0 else 1,
+            optionTestTags = listOf("folder_mode_exclude", "folder_mode_include"),
+            onDismiss = { folderModeDialogVisible = false },
+        ) { index ->
+            onSettingsChange { current ->
+                current.copy(
+                    library = current.library.copy(
+                        folderSelectionMode = if (index == 0) {
+                            FolderSelectionMode.AllExceptExcluded
+                        } else FolderSelectionMode.OnlyIncluded,
+                    ),
+                )
+            }
+            folderModeDialogVisible = false
+        }
+    }
 }
+
+@Composable
+private fun SettingsSingleChoiceDialog(
+    title: String,
+    options: List<Int>,
+    selectedOption: Int,
+    optionTestTags: List<String>,
+    onDismiss: () -> Unit,
+    onOptionSelected: (Int) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column {
+                options.forEachIndexed { index, labelRes ->
+                    val label = stringResource(labelRes)
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .clickable { onOptionSelected(index) }
+                            .testTag(optionTestTags.getOrElse(index) { "option_" + index }),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = index == selectedOption, onClick = null)
+                        Text(label, modifier = Modifier.padding(start = 12.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(android.R.string.cancel))
+            }
+        },
+    )
+}
+
 
 @Composable
 private fun PlaybackSection(

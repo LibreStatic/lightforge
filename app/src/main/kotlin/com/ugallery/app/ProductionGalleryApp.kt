@@ -527,21 +527,14 @@ internal fun ProductionGalleryApp(
                         collageLabel = stringResource(R.string.m6_collage),
                         onCollageClick = { route = SurfaceRoute.Collage },
                     )
-                    RootTab.Search -> Column(Modifier.fillMaxSize()) {
-                        if (!semanticEngine.isSemanticAvailable()) {
-                            Text(
-                                stringResource(R.string.m6_semantic_unavailable),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                            )
-                        }
-                        SearchContent(
+                    RootTab.Search -> SearchContent(
                             query = search.query,
                             hits = search.hits,
                             loading = search.loading,
                             terminal = search.terminal,
                             partialIndex = !searchIndexReady,
+                            semanticUnavailable = !semanticEngine.isSemanticAvailable(),
+                            onRetry = { viewModel.search() },
                             error = search.error,
                             detectedContentEnabled = detectedContentEnabled,
                             thumbnailLoader = thumbnails,
@@ -582,7 +575,6 @@ internal fun ProductionGalleryApp(
                             onPauseDetectedContent = viewModel::pauseDetectedContent,
                             onDeleteDetectedContent = viewModel::deleteDetectedContent,
                         )
-                    }
                 }
                 SurfaceRoute.Album -> selectedAlbum?.let { album ->
                     thumbnails?.let { loader ->

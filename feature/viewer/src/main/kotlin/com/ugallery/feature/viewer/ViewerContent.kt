@@ -69,6 +69,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntSize
@@ -766,7 +770,17 @@ private fun ViewerFilmstrip(
                                 }
                             }
                         }
-                        .semantics { contentDescription = position },
+                        .semantics {
+                            contentDescription = position
+                            onClick(label = position) {
+                                if (selected && item.kind == MediaKind.Video && onSelectedVideoTap != null) {
+                                    onSelectedVideoTap()
+                                } else {
+                                    onSelectMedia(item)
+                                }
+                                true
+                            }
+                        },
                 ) {
                     MediaThumbnail(item, thumbnailLoader, Modifier.fillMaxSize())
                     if (item.kind == MediaKind.Video) {
@@ -822,7 +836,18 @@ private fun VideoFrameScrubber(
                     change.consume()
                 }
             }
-            .semantics { contentDescription = timelineDescription }
+            .semantics {
+                contentDescription = timelineDescription
+                progressBarRangeInfo = ProgressBarRangeInfo(
+                    current = config.positionMillis.toFloat(),
+                    range = 0f..config.durationMillis.toFloat(),
+                )
+                setProgress { target ->
+                    val clamped = target.coerceIn(0f, config.durationMillis.toFloat())
+                    latestConfig.onScrub(clamped.toLong())
+                    true
+                }
+            }
             .testTag(VIDEO_FRAME_SCRUBBER_TEST_TAG),
     ) {
         Row(Modifier.fillMaxSize()) {

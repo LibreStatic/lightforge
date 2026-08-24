@@ -33,6 +33,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSearchBarState
@@ -82,6 +83,8 @@ fun SearchContent(
     loading: Boolean,
     terminal: Boolean,
     partialIndex: Boolean,
+    semanticUnavailable: Boolean = false,
+    onRetry: () -> Unit = {},
     error: Boolean,
     detectedContentEnabled: Boolean,
     petCollection: Pair<String, Long>? = null,
@@ -158,6 +161,31 @@ fun SearchContent(
                 modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
             )
         }
+        if (semanticUnavailable) {
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                ) {
+                    Icon(
+                        GalleryIcons.Warning,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                    Text(
+                        stringResource(R.string.search_semantic_unavailable),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        }
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 16.dp)) {
             item {
                 val label = stringResource(R.string.search_photos)
@@ -181,7 +209,13 @@ fun SearchContent(
             SearchDiscovery(onPresetSearch = onPresetSearch, modifier = Modifier.weight(1f))
         }
         if (query.isNotBlank() || hits.isNotEmpty()) when {
-            error -> Text(stringResource(R.string.search_error), color = MaterialTheme.colorScheme.error)
+            error -> Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(stringResource(R.string.search_error), color = MaterialTheme.colorScheme.error, modifier = Modifier.weight(1f))
+                TextButton(onClick = onRetry) { Text(stringResource(R.string.search_retry)) }
+            }
             loading && !terminal && hits.isEmpty() -> SearchLoadingIndicatorRow()
             !terminal && hits.isEmpty() -> Unit
             hits.isEmpty() -> {
