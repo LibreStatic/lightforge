@@ -42,6 +42,19 @@ class RoomViewerMediaSourceDeviceTest {
         assertTrue(window.hasNext)
     }
 
+    @Test fun oldestTimelineWindowKeepsSourceOrderAndNearestNeighbors() = runBlocking {
+        database.libraryDao().upsertMedia((1L..7L).map(::media))
+        val window = source.window(
+            MediaQuery(sort = MediaQuery.Sort.OldestFirst),
+            timeline(4),
+            radius = 2,
+        )
+
+        assertEquals(listOf(2L, 3L, 4L, 5L, 6L), window.items.map { it.key.mediaStoreId })
+        assertTrue(window.hasPrevious)
+        assertTrue(window.hasNext)
+    }
+
     @Test fun oldestAlbumWindowAppliesScopeAndKindFilter() = runBlocking {
         database.libraryDao().upsertMedia(
             listOf(

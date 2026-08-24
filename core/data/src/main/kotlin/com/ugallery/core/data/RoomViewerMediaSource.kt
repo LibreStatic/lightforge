@@ -99,7 +99,10 @@ class RoomViewerMediaSource(database: GalleryDatabase) {
 
         val ascendingSource = query.sort == MediaQuery.Sort.OldestFirst
         val beforeInSource = side == PageSide.Previous
-        val useGreaterThan = ascendingSource == beforeInSource
+        // In ascending order, rows before/after the anchor have smaller/larger keys.
+        // Descending order reverses those comparisons while keeping the assembled
+        // viewer window in exactly the same order as the source gallery.
+        val useGreaterThan = ascendingSource != beforeInSource
         val comparison = if (useGreaterThan) ">" else "<"
         val sortExpression = when (query.sortField) {
             MediaQuery.SortField.DateTaken -> "m.timelineSortMillis"
