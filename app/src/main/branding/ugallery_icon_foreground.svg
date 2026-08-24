@@ -24,11 +24,8 @@
         </clipPath>
     </defs>
 
-    <!-- Adaptive icon base (rounded square background) -->
-    <rect width="512" height="512" rx="128" fill="url(#bg-grad)" />
-
     <!-- Main pinwheel/flower group -->
-    <g transform="translate(256, 256) scale(0.78)" filter="url(#shadow)">
+    <g transform="translate(256, 256) scale(0.52)" filter="url(#shadow)">
 
         <!-- Top petal (red) -->
         <g transform="rotate(0)">
