@@ -23,9 +23,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -54,6 +52,9 @@ import com.ugallery.core.model.MediaKey
 import com.ugallery.core.thumbnail.ThumbnailLoader
 import com.ugallery.core.thumbnail.ThumbnailRequest
 import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.GalleryIndeterminateProgressIndicator
+import com.ugallery.core.designsystem.GalleryExpressiveButton
+import com.ugallery.core.designsystem.GalleryTopAppBar
 
 private const val PeopleThumbSize = 256
 
@@ -120,29 +121,24 @@ fun PeopleContent(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item(span = fullSpan) {
-          Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-            IconButton(onClick = onBack) {
-                Icon(GalleryIcons.Back, contentDescription = stringResource(R.string.people_back))
-            }
-            Text(
-                stringResource(R.string.people_title),
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.semantics { heading() },
+            GalleryTopAppBar(
+                title = stringResource(R.string.people_title),
+                onBack = onBack,
+                navigationContentDescription = stringResource(R.string.people_back),
             )
-          }
         }
         item(span = fullSpan) { Text(stringResource(R.string.people_noncommercial_notice), style = MaterialTheme.typography.bodyMedium) }
         item(span = fullSpan) { Text(stringResource(R.string.people_privacy), color = MaterialTheme.colorScheme.primary) }
         if (!state.consentGranted) {
-            item(span = fullSpan) { Button(onClick = onEnable, modifier = Modifier.testTag("people_enable")) {
+            item(span = fullSpan) { GalleryExpressiveButton(onClick = onEnable, modifier = Modifier.testTag("people_enable")) {
                 Text(stringResource(R.string.people_enable))
             } }
         } else {
-            if (state.running || state.waiting) item(span = fullSpan) { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+            if (state.running || state.waiting) item(span = fullSpan) { GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth()) }
             item(span = fullSpan) { Text(peopleStatusText(state), style = MaterialTheme.typography.titleMedium) }
             item(span = fullSpan) { Text(stringResource(R.string.people_progress, state.completedItems)) }
             item(span = fullSpan) { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = if (state.paused) onResume else onPause) {
+                GalleryExpressiveButton(onClick = if (state.paused) onResume else onPause) {
                     Text(stringResource(if (state.paused) R.string.people_resume else R.string.people_pause))
                 }
                 OutlinedButton(
@@ -196,7 +192,7 @@ private fun MeSection(me: LocalMeUiState?, thumbnailLoader: ThumbnailLoader?, on
                 Text(stringResource(R.string.me_empty))
             } else {
                 Text(stringResource(R.string.me_summary, me.referenceCount, me.matchCount))
-                if (!me.ready) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (!me.ready) GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
                 if (me.matches.isNotEmpty()) ThumbnailStrip(me.matches.take(6), thumbnailLoader)
                 TextButton(onClick = onResetMe) { Text(stringResource(R.string.me_reset)) }
             }
@@ -263,7 +259,7 @@ private fun PersonDetail(
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(person.displayName ?: stringResource(R.string.people_default_name), style = MaterialTheme.typography.titleLarge)
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { onSetAsMe(person.clusterId) }) { Text(stringResource(R.string.me_set_from_person)) }
+            GalleryExpressiveButton(onClick = { onSetAsMe(person.clusterId) }) { Text(stringResource(R.string.me_set_from_person)) }
             OutlinedButton(onClick = { renaming = true }) { Text(stringResource(R.string.people_rename)) }
             TextButton(onClick = { onHide(person.clusterId) }) { Text(stringResource(R.string.people_hide)) }
         }
@@ -273,7 +269,7 @@ private fun PersonDetail(
                 onValueChange = { name = it },
                 label = { Text(stringResource(R.string.people_name_label)) },
             )
-            Button(onClick = { onRename(person.clusterId, name); renaming = false }) {
+            GalleryExpressiveButton(onClick = { onRename(person.clusterId, name); renaming = false }) {
                 Text(stringResource(R.string.people_save_name))
             }
         }

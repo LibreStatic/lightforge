@@ -34,6 +34,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonGroup
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
@@ -61,6 +63,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -347,11 +350,42 @@ fun GalleryExpressiveIconButton(
     )
 }
 
+/** Responsive single-choice group with Expressive press growth and automatic overflow. */
+@Composable
+fun GalleryExpressiveChoiceGroup(
+    labels: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    icons: List<ImageVector?> = emptyList(),
+) {
+    ButtonGroup(
+        overflowIndicator = { state -> ButtonGroupDefaults.OverflowIndicator(state) },
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        labels.forEachIndexed { index, label ->
+            val icon = icons.getOrNull(index)
+            toggleableItem(
+                checked = selectedIndex == index,
+                label = label,
+                onCheckedChange = { onSelect(index) },
+                icon = icon?.let { imageVector ->
+                    { Icon(imageVector, contentDescription = null) }
+                },
+                weight = 1f,
+            )
+        }
+    }
+}
+
 /** Official Material You shape-morphing indicator for indeterminate work. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun GalleryLoadingIndicator(modifier: Modifier = Modifier) {
-    LoadingIndicator(modifier = modifier)
+fun GalleryLoadingIndicator(
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.primary,
+) {
+    LoadingIndicator(modifier = modifier, color = color)
 }
 
 /** Expressive wavy progress for long-running determinate work. */

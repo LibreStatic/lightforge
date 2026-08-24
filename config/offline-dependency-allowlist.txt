@@ -43,3 +43,4 @@ com.google.mlkit:vision-interfaces
 com.google.mlkit:vision-internal-vkp
 com.squareup.okhttp3:okhttp
 com.squareup.okio:okio
+com.squareup.okio:okio-jvm

@@ -13,21 +13,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Tab
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -43,13 +38,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.viewinterop.AndroidView
 import com.ugallery.core.model.EditOperation
 import com.ugallery.core.model.RawDevelopmentSettings
 import com.ugallery.core.model.RawMetadata
 import com.ugallery.core.model.RawOutputFormat
 import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.GalleryExpressiveChoiceGroup
+import com.ugallery.core.designsystem.GalleryExpressiveIconButton
+import com.ugallery.core.designsystem.GalleryLoadingIndicator
+import com.ugallery.core.designsystem.GalleryTopAppBar
 
 data class PhotoEditorContentState(
     val preview: Bitmap? = null,
@@ -78,25 +76,16 @@ fun PhotoEditorContent(
     modifier: Modifier = Modifier,
 ) {
     Scaffold(modifier = modifier, topBar = {
-        Row(
-            Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 8.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(GalleryIcons.Back, contentDescription = stringResource(R.string.photo_editor_cancel))
-            }
-            Text(
-                stringResource(R.string.photo_editor_title),
-                style = MaterialTheme.typography.titleLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(onClick = onSaveCopy, enabled = !state.isExporting) {
-                Text(stringResource(R.string.photo_editor_save_copy))
-            }
-        }
+        GalleryTopAppBar(
+            title = stringResource(R.string.photo_editor_title),
+            onBack = onBack,
+            navigationContentDescription = stringResource(R.string.photo_editor_cancel),
+            actions = {
+                TextButton(onClick = onSaveCopy, enabled = !state.isExporting) {
+                    Text(stringResource(R.string.photo_editor_save_copy))
+                }
+            },
+        )
     }) { padding ->
         BoxWithConstraints(
             Modifier.fillMaxSize().padding(padding).background(MaterialTheme.colorScheme.background),
@@ -131,7 +120,7 @@ private fun PreviewStage(state: PhotoEditorContentState, modifier: Modifier) {
                 modifier = Modifier.fillMaxSize().semantics { contentDescription = description },
             )
         } else if (state.isRendering) {
-            CircularProgressIndicator()
+            GalleryLoadingIndicator()
         } else {
             Text(stringResource(R.string.photo_editor_preview_unavailable), color = Color.White)
         }
@@ -164,21 +153,23 @@ private fun PhotoTools(
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(if (state.isRaw) stringResource(R.string.photo_editor_raw_title) else stringResource(R.string.photo_editor_filters), style = MaterialTheme.typography.titleMedium)
             Row {
-                IconButton(onClick = onUndo, enabled = state.canUndo) {
+                GalleryExpressiveIconButton(onClick = onUndo, enabled = state.canUndo) {
                     Icon(GalleryIcons.Undo, contentDescription = stringResource(R.string.photo_editor_undo))
                 }
-                IconButton(onClick = onRedo, enabled = state.canRedo) {
+                GalleryExpressiveIconButton(onClick = onRedo, enabled = state.canRedo) {
                     Icon(GalleryIcons.Redo, contentDescription = stringResource(R.string.photo_editor_redo))
                 }
             }
         }
         if (state.isRaw) {
-            PrimaryTabRow(selectedTabIndex = selectedTab) {
-                listOf(R.string.photo_editor_raw_tab, R.string.photo_editor_export_tab)
-                    .forEachIndexed { index, label ->
-                        Tab(selected = selectedTab == index, onClick = { selectedTab = index }, text = { Text(stringResource(label)) })
-                    }
-            }
+            GalleryExpressiveChoiceGroup(
+                labels = listOf(
+                    stringResource(R.string.photo_editor_raw_tab),
+                    stringResource(R.string.photo_editor_export_tab),
+                ),
+                selectedIndex = selectedTab,
+                onSelect = { selectedTab = it },
+            )
             when (selectedTab) {
                 0 -> RawControls(state.rawSettings, state.rawMetadata, onRawSettingsChange)
                 1 -> RawExportControls(state.rawOutputFormat, onRawOutputFormatChange)

@@ -19,23 +19,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.RangeSlider
-import androidx.compose.material3.Tab
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -63,10 +58,14 @@ import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.text.style.TextOverflow
 import com.ugallery.feature.viewer.VideoViewerController
 import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.GalleryExpressiveChoiceGroup
+import com.ugallery.core.designsystem.GalleryExpressiveButton
+import com.ugallery.core.designsystem.GalleryLoadingIndicator
+import com.ugallery.core.designsystem.GalleryProgressIndicator
 import com.ugallery.core.designsystem.GalleryMonoTypography
+import com.ugallery.core.designsystem.GalleryTopAppBar
 import com.ugallery.feature.viewer.VideoViewerState
 import com.ugallery.core.editing.video.BuiltInLook
 import com.ugallery.core.editing.video.CubeLut
@@ -192,25 +191,16 @@ fun VideoEditorContent(
         }
     }
     Scaffold(modifier = modifier, topBar = {
-        Row(
-            Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 8.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(GalleryIcons.Back, contentDescription = stringResource(R.string.video_editor_cancel))
-            }
-            Text(
-                stringResource(R.string.video_editor_title),
-                style = MaterialTheme.typography.titleLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(onClick = onSaveCopy, enabled = !state.isExporting) {
-                Text(stringResource(R.string.video_editor_save_copy))
-            }
-        }
+        GalleryTopAppBar(
+            title = stringResource(R.string.video_editor_title),
+            onBack = onBack,
+            navigationContentDescription = stringResource(R.string.video_editor_cancel),
+            actions = {
+                TextButton(onClick = onSaveCopy, enabled = !state.isExporting) {
+                    Text(stringResource(R.string.video_editor_save_copy))
+                }
+            },
+        )
     }) { padding ->
         BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
             val previewWeight = if (maxWidth >= 600.dp) 1.7f else 1.25f
@@ -420,6 +410,7 @@ private fun VideoPreview(controller: VideoViewerController?, modifier: Modifier)
             ) {
                 FilledIconButton(
                     onClick = { if (current.isPlaying) controller.pause() else controller.play() },
+                    shapes = IconButtonDefaults.shapes(),
                 ) {
                     Icon(
                         if (current.isPlaying) GalleryIcons.Pause else GalleryIcons.Play,
@@ -431,6 +422,7 @@ private fun VideoPreview(controller: VideoViewerController?, modifier: Modifier)
                 FilledIconToggleButton(
                     checked = current.isLooping,
                     onCheckedChange = controller::setLooping,
+                    shapes = IconButtonDefaults.toggleableShapes(),
                 ) {
                     Icon(
                         GalleryIcons.Repeat,
@@ -448,7 +440,7 @@ private fun VideoPreview(controller: VideoViewerController?, modifier: Modifier)
                 stringResource(R.string.video_editor_preview_failed),
                 color = MaterialTheme.colorScheme.error,
             )
-            VideoViewerState.Idle, is VideoViewerState.Loading -> CircularProgressIndicator()
+            VideoViewerState.Idle, is VideoViewerState.Loading -> GalleryLoadingIndicator()
             VideoViewerState.Released -> Unit
         }
         DisposableEffect(controller) { onDispose { controller.attachSurface(null) } }
@@ -520,22 +512,25 @@ private fun VideoControls(
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
     Column(modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-        PrimaryTabRow(selectedTabIndex = selectedTab) {
-            listOf(
-                R.string.video_editor_speed to GalleryIcons.Speed,
-                R.string.video_editor_audio to GalleryIcons.Volume,
-                R.string.video_editor_music to GalleryIcons.Music,
-                R.string.video_editor_color to GalleryIcons.Palette,
-                R.string.video_editor_export to GalleryIcons.Edit,
-            ).forEachIndexed { index, (label, icon) ->
-                Tab(
-                    selected = selectedTab == index,
-                    onClick = { selectedTab = index },
-                    icon = { Icon(icon, contentDescription = null) },
-                    text = { Text(stringResource(label)) },
-                )
-            }
-        }
+        GalleryExpressiveChoiceGroup(
+            labels = listOf(
+                stringResource(R.string.video_editor_speed),
+                stringResource(R.string.video_editor_audio),
+                stringResource(R.string.video_editor_music),
+                stringResource(R.string.video_editor_color),
+                stringResource(R.string.video_editor_export),
+            ),
+            selectedIndex = selectedTab,
+            onSelect = { selectedTab = it },
+            icons = listOf(
+                GalleryIcons.Speed,
+                GalleryIcons.Volume,
+                GalleryIcons.Music,
+                GalleryIcons.Palette,
+                GalleryIcons.Edit,
+            ),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+        )
         when (selectedTab) {
             0 -> SlowMotionControls(
                 state = state,
@@ -579,7 +574,7 @@ private fun VideoControls(
         }
         if (state.isExporting && state.exportProgress != null) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                androidx.compose.material3.LinearProgressIndicator(
+                GalleryProgressIndicator(
                     progress = { state.exportProgress.coerceIn(0f, 1f) },
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -612,10 +607,10 @@ private fun SlowMotionControls(
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { onMarkIn(currentMillis) }) {
+            GalleryExpressiveButton(onClick = { onMarkIn(currentMillis) }) {
                 Text(stringResource(R.string.video_editor_mark_in))
             }
-            Button(
+            GalleryExpressiveButton(
                 onClick = { onMarkOut(currentMillis) },
                 enabled = state.slowMotionMarkInMillis != null,
             ) { Text(stringResource(R.string.video_editor_mark_out)) }

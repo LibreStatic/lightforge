@@ -40,7 +40,6 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.CircleShape
 import androidx.paging.compose.LazyPagingItems
-import com.ugallery.core.designsystem.GalleryColors
 import com.ugallery.core.designsystem.GalleryGridMetrics
 import com.ugallery.core.designsystem.GalleryIcons
 import com.ugallery.core.designsystem.GallerySpacing
@@ -255,7 +254,7 @@ private fun TimelineThumbnail(
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(GalleryColors.Muted.copy(alpha = 0.16f)),
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)),
             )
         } else {
             Image(

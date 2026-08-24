@@ -49,6 +49,7 @@ import com.ugallery.core.model.MediaKey
 import com.ugallery.core.thumbnail.ThumbnailLoader
 import com.ugallery.core.thumbnail.ThumbnailRequest
 import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.GalleryTopAppBar
 import java.text.DateFormat
 import java.util.Date
 
@@ -87,17 +88,14 @@ fun MomentContent(
         Modifier.fillMaxSize().widthIn(max = 720.dp),
         verticalArrangement = Arrangement.spacedBy(TileSpacing),
       ) {
-        item { Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) {
-                Icon(GalleryIcons.Back, contentDescription = stringResource(R.string.moment_cancel))
-            }
-            Text(
-                moment.title ?: stringResource(R.string.moment_untitled),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.weight(1f).semantics { heading() },
+        item {
+            GalleryTopAppBar(
+                title = moment.title ?: stringResource(R.string.moment_untitled),
+                onBack = onBack,
+                navigationContentDescription = stringResource(R.string.moment_cancel),
+                actions = { TextButton(onClick = { renaming = true }) { Text(stringResource(R.string.moment_edit)) } },
             )
-            TextButton(onClick = { renaming = true }) { Text(stringResource(R.string.moment_edit)) }
-        } }
+        }
         item { HorizontalScrollRow(dateLabel, stateLabel) }
         if (renaming) {
             item { RenameDialog(editTitle, { editTitle = it }, { onRename(editTitle); renaming = false }) { renaming = false } }

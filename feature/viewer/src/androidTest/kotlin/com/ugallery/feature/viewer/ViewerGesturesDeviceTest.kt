@@ -313,8 +313,11 @@ class ViewerGesturesDeviceTest {
         }
         compose.waitForIdle()
 
-        assertTrue(engine.pauseCalls > 0)
-        assertTrue(engine.playCalls > 0)
+        assertEquals(listOf(true, false), engine.scrubbingModeChanges)
+        assertEquals(0, engine.pauseCalls)
+        assertEquals(0, engine.playCalls)
+        assertTrue(engine.seekPositions.size > 1)
+        assertTrue(engine.events.indexOf("scrubbing:true") < engine.events.indexOf("seek"))
         assertTrue(engine.lastSeek > 5_000L)
         controller.close()
     }
@@ -365,6 +368,9 @@ class ViewerGesturesDeviceTest {
             )
         }
         compose.waitForIdle()
+        assertEquals(listOf(true, false), engine.scrubbingModeChanges)
+        assertTrue(engine.seekPositions.size > 1)
+        assertTrue(engine.events.indexOf("scrubbing:true") < engine.events.indexOf("seek"))
         assertTrue(engine.lastSeek > 5_000L)
 
         compose.onNode(hasContentDescription(context.getString(R.string.viewer_close_video_timeline))).performClick()
@@ -445,6 +451,9 @@ class ViewerGesturesDeviceTest {
         var playCalls = 0
         var lastSeek = 0L
         val repeatEnabled = mutableListOf<Boolean>()
+        val scrubbingModeChanges = mutableListOf<Boolean>()
+        val seekPositions = mutableListOf<Long>()
+        val events = mutableListOf<String>()
         override fun setMedia(uri: Uri) = Unit
         override fun prepare() = Unit
         override fun play() { playCalls++; listener?.onPlayingChanged(true, 10_000) }
@@ -452,7 +461,15 @@ class ViewerGesturesDeviceTest {
             pauseCalls++
             listener?.onPlayingChanged(false, 10_000)
         }
-        override fun seekTo(positionMillis: Long) { lastSeek = positionMillis }
+        override fun setScrubbingModeEnabled(enabled: Boolean) {
+            scrubbingModeChanges += enabled
+            events += "scrubbing:$enabled"
+        }
+        override fun seekTo(positionMillis: Long) {
+            lastSeek = positionMillis
+            seekPositions += positionMillis
+            events += "seek"
+        }
         override fun stopAndClear() = Unit
         override fun release() = Unit
         override fun attachSurface(surfaceView: SurfaceView?) = Unit

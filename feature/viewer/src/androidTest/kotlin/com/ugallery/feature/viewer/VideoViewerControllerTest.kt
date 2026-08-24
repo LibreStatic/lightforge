@@ -13,10 +13,12 @@ class VideoViewerControllerTest {
         val engine = FakeVideoEngine()
         val controller = VideoViewerController(engine)
 
+        controller.beginScrubbing()
         controller.select(Uri.parse("content://media/1"))
         controller.select(Uri.parse("content://media/2"))
         controller.select(Uri.parse("content://media/3"))
 
+        assertEquals(listOf(true, false), engine.scrubbingModeChanges)
         assertEquals(3, engine.media.size)
         assertEquals(3, engine.clearCalls)
         assertEquals("content://media/3", engine.media.last().toString())
@@ -97,10 +99,12 @@ class VideoViewerControllerTest {
         var releaseCalls = 0
         val volumes = mutableListOf<Float>()
         val repeatEnabled = mutableListOf<Boolean>()
+        val scrubbingModeChanges = mutableListOf<Boolean>()
         override fun setMedia(uri: Uri) { media += uri }
         override fun prepare() = Unit
         override fun play() { playCalls++ }
         override fun pause() { pauseCalls++ }
+        override fun setScrubbingModeEnabled(enabled: Boolean) { scrubbingModeChanges += enabled }
         override fun seekTo(positionMillis: Long) = Unit
         override fun stopAndClear() { clearCalls++ }
         override fun release() { releaseCalls++ }

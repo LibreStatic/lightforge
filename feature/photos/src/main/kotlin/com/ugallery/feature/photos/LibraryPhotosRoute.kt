@@ -6,10 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +20,9 @@ import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import com.ugallery.core.designsystem.GallerySpacing
 import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.GalleryExpressiveButton
+import com.ugallery.core.designsystem.GalleryExpressiveIconButton
+import com.ugallery.core.designsystem.GalleryIndeterminateProgressIndicator
 import com.ugallery.core.designsystem.GalleryStateContent
 import com.ugallery.core.model.LibraryAccess
 import com.ugallery.core.model.TimelineEntry
@@ -76,7 +76,7 @@ fun LibraryPhotosRoute(
                     )
                 }
             }
-            IconButton(onClick = {
+            GalleryExpressiveIconButton(onClick = {
                 densityState.cycleDensity(
                     anchorIndex = densityState.anchorIndex,
                     anchorOffset = densityState.anchorOffset,
@@ -87,7 +87,7 @@ fun LibraryPhotosRoute(
                     contentDescription = stringResource(R.string.change_grid_density),
                 )
             }
-            IconButton(onClick = onOpenSettings) {
+            GalleryExpressiveIconButton(onClick = onOpenSettings) {
                 Icon(
                     GalleryIcons.Settings,
                     contentDescription = stringResource(R.string.open_settings),
@@ -104,7 +104,7 @@ fun LibraryPhotosRoute(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(stringResource(R.string.limited_access_body), Modifier.weight(1f))
-                Button(onClick = onRequestAccess) { Text(stringResource(R.string.manage_access_action)) }
+                GalleryExpressiveButton(onClick = onRequestAccess) { Text(stringResource(R.string.manage_access_action)) }
             }
         }
 
@@ -120,7 +120,7 @@ fun LibraryPhotosRoute(
             thumbnailLoader == null ||
                 engineState == LibraryUiState.Starting ||
                 entries.loadState.refresh is LoadState.Loading && entries.itemCount == 0 -> {
-                LinearProgressIndicator(Modifier.fillMaxWidth())
+                GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
                 GalleryStateContent(
                     title = stringResource(R.string.library_loading_title),
                     body = stringResource(R.string.library_loading_body),
@@ -130,7 +130,7 @@ fun LibraryPhotosRoute(
             }
             entries.itemCount == 0 && engineState == LibraryUiState.Ready -> EmptyLibrary(Modifier.fillMaxSize())
             else -> {
-                if (engineState == LibraryUiState.Indexing) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (engineState == LibraryUiState.Indexing) GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
                 AdaptivePagedPhotosTimeline(
                     entries = entries,
                     thumbnailLoader = thumbnailLoader,
@@ -156,7 +156,7 @@ private fun PermissionRequired(onRequestAccess: () -> Unit) {
             illustrationDescription = stringResource(R.string.permission_title),
             modifier = Modifier.weight(1f),
         )
-        Button(
+        GalleryExpressiveButton(
             onClick = onRequestAccess,
             modifier = Modifier.padding(GallerySpacing.Xl),
         ) { Text(stringResource(R.string.grant_access_action)) }

@@ -56,8 +56,12 @@ class GalleryMotionTest {
         }
 
         compose.runOnIdle { surface = "Viewer" }
-        compose.mainClock.advanceTimeBy(GalleryMotion.BaseMillis.toLong())
+        compose.mainClock.advanceTimeBy(TEST_TRANSITION_SETTLE_MILLIS)
         compose.waitForIdle()
         compose.onNode(hasText("Viewer")).assertIsDisplayed()
+    }
+
+    private companion object {
+        const val TEST_TRANSITION_SETTLE_MILLIS = 2_000L
     }
 }

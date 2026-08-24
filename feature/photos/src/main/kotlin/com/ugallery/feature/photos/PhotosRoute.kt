@@ -21,9 +21,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,9 +43,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
-import com.ugallery.core.designsystem.GalleryColors
 import com.ugallery.core.designsystem.GalleryGridMetrics
-import com.ugallery.core.designsystem.GalleryRadii
 import com.ugallery.core.designsystem.GallerySpacing
 import com.ugallery.core.designsystem.GalleryStateContent
 
@@ -96,12 +93,12 @@ fun PhotosRoute(
             horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(stringResource(R.string.library_local), style = MaterialTheme.typography.labelSmall, color = GalleryColors.Muted)
-                Text(stringResource(R.string.photos_title), style = MaterialTheme.typography.headlineSmall)
+                Text(stringResource(R.string.library_local), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.photos_title), style = MaterialTheme.typography.headlineMedium)
             }
-            Button(
+            FilledTonalButton(
                 onClick = { changeDensity(1).also { if (densityIndex == densityColumns.lastIndex) changeDensity(-densityColumns.lastIndex) } },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                shapes = ButtonDefaults.shapes(),
                 modifier = Modifier.semantics { contentDescription = densityDescription },
             ) {
                 Text("${densityColumns[densityIndex]}×")
@@ -176,7 +173,7 @@ private fun BenchmarkMediaCell(index: Int) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(GalleryRadii.Small))
+            .clip(MaterialTheme.shapes.extraSmall)
             .background(palette[index % palette.size])
             .aspectRatio(1f)
             .testTag("media_$index"),

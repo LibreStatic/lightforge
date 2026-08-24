@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import com.ugallery.core.model.CheapMediaDetails
 import com.ugallery.core.model.ExifLoadResult
 import com.ugallery.core.model.LocationAccessState
+import com.ugallery.core.designsystem.GalleryLoadingIndicator
+import com.ugallery.core.designsystem.GalleryExpressiveButton
 import java.util.Date
 
 @Composable
@@ -58,7 +58,7 @@ fun DetailsContent(
             val detectedTextLabel = stringResource(R.string.details_detected_text)
             Text(detectedTextLabel, style = MaterialTheme.typography.titleMedium)
             Text(text, style = MaterialTheme.typography.bodyMedium)
-            Button(
+            GalleryExpressiveButton(
                 onClick = {
                     context.getSystemService(ClipboardManager::class.java)
                         .setPrimaryClip(ClipData.newPlainText(detectedTextLabel, text))
@@ -67,8 +67,8 @@ fun DetailsContent(
         }
 
         when {
-            isExifLoading -> CircularProgressIndicator()
-            exif == null -> Button(onClick = onLoadExif) { Text(stringResource(R.string.details_load_metadata)) }
+            isExifLoading -> GalleryLoadingIndicator()
+            exif == null -> GalleryExpressiveButton(onClick = onLoadExif) { Text(stringResource(R.string.details_load_metadata)) }
             exif is ExifLoadResult.Ready -> {
                 val value = exif.details
                 value.make?.let { DetailRow(stringResource(R.string.details_camera_make), it) }

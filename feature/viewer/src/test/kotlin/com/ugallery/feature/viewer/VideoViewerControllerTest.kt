@@ -90,6 +90,21 @@ class VideoViewerControllerTest {
         controller.seekBy(-2_000L)
         assertEquals(0L, engine.lastSeek)
     }
+
+    @Test
+    fun scrubbingModeIsIdempotentAndCleanedUpAcrossTheControllerLifecycle() {
+        val engine = FakeVideoEngine()
+        val controller = VideoViewerController(engine)
+
+        controller.beginScrubbing()
+        controller.beginScrubbing()
+        controller.endScrubbing()
+        controller.endScrubbing()
+        controller.beginScrubbing()
+        controller.close()
+
+        assertEquals(listOf(true, false, true, false), engine.scrubbingModeChanges)
+    }
 }
 
 private class FakeVideoEngine : VideoEngine {
@@ -97,11 +112,13 @@ private class FakeVideoEngine : VideoEngine {
     var position = 0L
     var lastSeek: Long? = null
     val repeatEnabled = mutableListOf<Boolean>()
+    val scrubbingModeChanges = mutableListOf<Boolean>()
     var effectCalls = 0
     override fun setMedia(uri: Uri) = Unit
     override fun prepare() = Unit
     override fun play() = Unit
     override fun pause() = Unit
+    override fun setScrubbingModeEnabled(enabled: Boolean) { scrubbingModeChanges += enabled }
     override fun seekTo(positionMillis: Long) { lastSeek = positionMillis }
     override fun stopAndClear() = Unit
     override fun release() = Unit

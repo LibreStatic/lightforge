@@ -27,14 +27,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.ShortNavigationBar
 import androidx.compose.material3.ShortNavigationBarItem
 import androidx.compose.material3.WideNavigationRail
@@ -87,7 +85,10 @@ import com.ugallery.core.mediastore.MediaActionPhase
 import com.ugallery.core.mediastore.MediaActionTarget
 import com.ugallery.core.mediastore.ScopedMediaOperations
 import com.ugallery.core.designsystem.GalleryIcons
-import com.ugallery.core.designsystem.GalleryActionButton
+import com.ugallery.core.designsystem.GalleryExpressiveIconButton
+import com.ugallery.core.designsystem.GalleryExpressiveButton
+import com.ugallery.core.designsystem.GalleryIndeterminateProgressIndicator
+import com.ugallery.core.designsystem.GalleryLoadingIndicator
 import com.ugallery.core.designsystem.GalleryAnimatedContent
 import com.ugallery.core.designsystem.GalleryAnimatedVisibility
 import com.ugallery.core.designsystem.GalleryNavigationType
@@ -210,6 +211,7 @@ internal fun ProductionGalleryApp(
     var appUnlocked by rememberSaveable { mutableStateOf(!gallerySettings.security.appLockEnabled) }
     var lockPromptActive by remember { mutableStateOf(false) }
     var backgroundedAt by rememberSaveable { mutableStateOf(0L) }
+    var sessionVideoMuted by remember { mutableStateOf<Boolean?>(null) }
     fun requestAppUnlock() {
         val fragmentActivity = context as? FragmentActivity ?: return
         if (lockPromptActive || !BiometricGate.canAuthenticate(context)) return
@@ -245,7 +247,7 @@ internal fun ProductionGalleryApp(
     DisposableEffect(lifecycleOwner, gallerySettings.security.relockTimeoutMinutes) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_STOP -> backgroundedAt = android.os.SystemClock.elapsedRealtime()
+                Lifecycle.Event.ON_STOP -> { backgroundedAt = android.os.SystemClock.elapsedRealtime(); sessionVideoMuted = null }
                 Lifecycle.Event.ON_START -> if (gallerySettings.security.appLockEnabled && backgroundedAt > 0L) {
                     val timeout = gallerySettings.security.relockTimeoutMinutes * 60_000L
                     if (timeout == 0L || android.os.SystemClock.elapsedRealtime() - backgroundedAt >= timeout) {
@@ -263,7 +265,7 @@ internal fun ProductionGalleryApp(
             Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
                 Text(stringResource(R.string.app_lock_title), style = MaterialTheme.typography.headlineSmall)
                 Text(stringResource(R.string.app_lock_body), Modifier.padding(16.dp))
-                Button(onClick = ::requestAppUnlock) { Text(stringResource(R.string.app_lock_unlock)) }
+                GalleryExpressiveButton(onClick = ::requestAppUnlock) { Text(stringResource(R.string.app_lock_unlock)) }
             }
         }
         return
@@ -626,6 +628,8 @@ internal fun ProductionGalleryApp(
                         },
                         onShareSanitized = { viewModel.sanitizedShare(media) },
                         gazetteer = gazetteer,
+                        sessionVideoMuted = sessionVideoMuted,
+                        onSessionVideoMutedChange = { sessionVideoMuted = it },
                     )
                 }
                 SurfaceRoute.PhotoEditor -> photoEditor?.let { session ->
@@ -833,7 +837,11 @@ internal fun ProductionGalleryApp(
                         route = SurfaceRoute.PrivateAlbumPicker
                     },
                 )
-                SurfaceRoute.PrivateAlbumPicker -> Column(Modifier.fillMaxSize()) {
+                SurfaceRoute.PrivateAlbumPicker -> {
+                    val pickerLimitMessage = stringResource(
+                        com.ugallery.feature.privatealbum.R.string.private_picker_limit,
+                    )
+                    Column(Modifier.fillMaxSize()) {
                     Text(
                         stringResource(
                             com.ugallery.feature.privatealbum.R.string.private_picker_count,
@@ -845,7 +853,7 @@ internal fun ProductionGalleryApp(
                     )
                     when {
                         thumbnails == null || timeline.loadState.refresh is LoadState.Loading -> {
-                            LinearProgressIndicator(Modifier.fillMaxWidth())
+                            GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
                             GalleryStateContent(
                                 title = stringResource(com.ugallery.feature.photos.R.string.library_loading_title),
                                 body = stringResource(com.ugallery.feature.photos.R.string.library_loading_body),
@@ -873,7 +881,7 @@ internal fun ProductionGalleryApp(
                                 } else {
                                     Toast.makeText(
                                         context,
-                                        context.getString(com.ugallery.feature.privatealbum.R.string.private_picker_limit),
+                                        pickerLimitMessage,
                                         Toast.LENGTH_LONG,
                                     ).show()
                                 }
@@ -887,6 +895,7 @@ internal fun ProductionGalleryApp(
                             },
                             isMediaSelected = { privateImportSelection.containsKey(it.key) },
                         )
+                    }
                     }
                 }
                 SurfaceRoute.Collage -> {
@@ -919,7 +928,7 @@ internal fun ProductionGalleryApp(
                                 modifier = Modifier.padding(top = 8.dp),
                             )
                         }
-                        Button(
+                        GalleryExpressiveButton(
                             onClick = {
                                 collageRendering = true
                                 collageStatus = null
@@ -939,9 +948,7 @@ internal fun ProductionGalleryApp(
                             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                         ) {
                             if (collageRendering) {
-                                androidx.compose.material3.CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                )
+                                GalleryLoadingIndicator(modifier = Modifier.size(24.dp))
                             }
                             else Text(stringResource(R.string.m6_collage_render))
                         }
@@ -977,7 +984,7 @@ internal fun ProductionGalleryApp(
             }
             actionState?.let { state ->
                 if (state.phase is MediaActionPhase.Cancelled) {
-                    Button(onClick = viewModel::retrySystemAction) {
+                    GalleryExpressiveButton(onClick = viewModel::retrySystemAction) {
                         Text(stringResource(R.string.action_retry))
                     }
                 }
@@ -1002,7 +1009,7 @@ internal fun ProductionGalleryApp(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            LinearProgressIndicator(Modifier.fillMaxWidth().padding(top = 4.dp))
+                            GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth().padding(top = 4.dp))
                         }
                     }
                     SurfaceRoute.Album -> GalleryTopAppBar(
@@ -1131,7 +1138,7 @@ internal fun ProductionGalleryApp(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
                 ) {
-                    CircularProgressIndicator(Modifier.size(28.dp))
+                    GalleryLoadingIndicator(Modifier.size(28.dp))
                     Text(
                         stringResource(
                             com.ugallery.feature.privatealbum.R.string.private_importing,
@@ -1207,7 +1214,7 @@ internal fun ProductionGalleryApp(
                 Text(stringResource(com.ugallery.feature.settings.R.string.local_analysis_opt_out_body))
             },
             confirmButton = {
-                Button(onClick = viewModel::acceptLocalAnalysisDefaults) {
+                GalleryExpressiveButton(onClick = viewModel::acceptLocalAnalysisDefaults) {
                     Text(stringResource(com.ugallery.feature.settings.R.string.local_analysis_opt_out_accept))
                 }
             },
@@ -1253,16 +1260,22 @@ private fun SelectionActions(
     onClear: () -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
-    Surface(color = MaterialTheme.colorScheme.surfaceContainer, tonalElevation = 2.dp) {
-      Column(Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+    ) {
+        HorizontalFloatingToolbar(
+            expanded = true,
+            leadingContent = {
             Text(
                 stringResource(R.string.selection_count, count),
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f).padding(start = 8.dp),
+                modifier = Modifier.padding(horizontal = 12.dp),
             )
+            },
+            trailingContent = {
             Box {
-                IconButton(onClick = { menuExpanded = true }) {
+                GalleryExpressiveIconButton(onClick = { menuExpanded = true }) {
                     Icon(GalleryIcons.More, contentDescription = stringResource(com.ugallery.feature.viewer.R.string.viewer_more))
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
@@ -1283,33 +1296,20 @@ private fun SelectionActions(
                     )
                 }
             }
-        }
-        Row(Modifier.fillMaxWidth()) {
-            GalleryActionButton(
-                onClick = onAddToAlbum,
-                icon = GalleryIcons.Album,
-                label = stringResource(R.string.selection_add_album),
-                modifier = Modifier.weight(1f),
-            )
-            GalleryActionButton(
-                onClick = onShare,
-                icon = GalleryIcons.Share,
-                label = stringResource(R.string.selection_share),
-                enabled = canShare,
-                modifier = Modifier.weight(1f),
-            )
-            GalleryActionButton(
-                onClick = onFavorite,
-                icon = GalleryIcons.Heart,
-                label = stringResource(R.string.selection_favorite),
-                modifier = Modifier.weight(1f),
-            )
-            GalleryActionButton(
-                onClick = onTrash,
-                icon = GalleryIcons.Trash,
-                label = stringResource(R.string.selection_trash),
-                modifier = Modifier.weight(1f),
-            )
+            },
+        ) {
+            GalleryExpressiveIconButton(onClick = onAddToAlbum) {
+                Icon(GalleryIcons.Album, contentDescription = stringResource(R.string.selection_add_album))
+            }
+            GalleryExpressiveIconButton(onClick = onShare, enabled = canShare) {
+                Icon(GalleryIcons.Share, contentDescription = stringResource(R.string.selection_share))
+            }
+            GalleryExpressiveIconButton(onClick = onFavorite) {
+                Icon(GalleryIcons.Heart, contentDescription = stringResource(R.string.selection_favorite))
+            }
+            GalleryExpressiveIconButton(onClick = onTrash) {
+                Icon(GalleryIcons.Trash, contentDescription = stringResource(R.string.selection_trash))
+            }
         }
         if (showShareLimitNote) {
             Text(
@@ -1319,7 +1319,6 @@ private fun SelectionActions(
                 modifier = Modifier.padding(start = 8.dp),
             )
         }
-      }
     }
 }
 
@@ -1358,7 +1357,7 @@ private fun ExternalViewer(
     if (!media.available) {
         Column(Modifier.fillMaxSize().padding(24.dp)) {
             Text(stringResource(R.string.external_grant_expired), color = MaterialTheme.colorScheme.error)
-            Button(onClick = onClose) { Text(stringResource(R.string.details_close)) }
+            GalleryExpressiveButton(onClick = onClose) { Text(stringResource(R.string.details_close)) }
         }
         return
     }
@@ -1383,7 +1382,7 @@ private fun ExternalViewer(
                     stringResource(R.string.external_unavailable),
                     Modifier.padding(24.dp),
                 )
-                else -> androidx.compose.material3.CircularProgressIndicator(Modifier.padding(24.dp))
+                else -> GalleryLoadingIndicator(Modifier.padding(24.dp))
             }
         }
         LazyRow(
@@ -1391,14 +1390,14 @@ private fun ExternalViewer(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            item { Button(onClick = onClose) { Text(stringResource(R.string.details_close)) } }
+            item { GalleryExpressiveButton(onClick = onClose) { Text(stringResource(R.string.details_close)) } }
             if (video != null) {
                 val playing = (videoState?.value as? com.ugallery.feature.viewer.VideoViewerState.Ready)?.isPlaying == true
-                item { Button(onClick = { if (playing) video.pause() else video.play() }) {
+                item { GalleryExpressiveButton(onClick = { if (playing) video.pause() else video.play() }) {
                     Text(stringResource(if (playing) R.string.external_pause else R.string.external_play))
                 } }
             }
-            if (media.editMode) item { Button(onClick = onSaveCopy) { Text(stringResource(R.string.external_save_copy)) } }
+            if (media.editMode) item { GalleryExpressiveButton(onClick = onSaveCopy) { Text(stringResource(R.string.external_save_copy)) } }
         }
     }
     DisposableEffect(photo) {
@@ -1424,6 +1423,8 @@ private fun ViewerRoute(
     onEdit: () -> Unit,
     onShareSanitized: () -> Unit,
     gazetteer: OfflineGazetteer? = null,
+    sessionVideoMuted: Boolean? = null,
+    onSessionVideoMutedChange: (Boolean?) -> Unit = {},
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -1507,7 +1508,7 @@ private fun ViewerRoute(
             it.select(
                 viewModel.mediaUri(media),
                 autoplay = gallerySettings.playback.autoplayVideos,
-                startMuted = gallerySettings.playback.startVideosMuted,
+                startMuted = sessionVideoMuted ?: gallerySettings.playback.startVideosMuted,
             )
         }
     } else null
@@ -1549,7 +1550,7 @@ private fun ViewerRoute(
         }
     }
     LaunchedEffect(videoController) {
-        viewModel.hardwareVolumeKeys.collect { videoController?.unmute() }
+        viewModel.hardwareVolumeKeys.collect { videoController?.unmute(); onSessionVideoMutedChange(false) }
     }
     val viewer: @Composable () -> Unit = {
         ViewerContent(
@@ -1592,7 +1593,7 @@ private fun ViewerRoute(
             onShareSanitized = onShareSanitized,
             onTrash = { runViewerDestructive { viewModel.beginSystemAction(media, MediaAction.Trash(true)) } },
             onSelectMedia = viewModel::selectViewerMedia,
-            onContentTap = { videoController?.unmute() },
+            onContentTap = { videoController?.unmute(); onSessionVideoMutedChange(false) },
             slowMotionSession = slowMotionSession,
             onSaveSlowMotionClip = { clip ->
                 viewModel.saveQuickSlowMotionClip(media, clip.startMillis, clip.endMillis)
@@ -1600,6 +1601,7 @@ private fun ViewerRoute(
             slowMotionSaveProgress = quickSlowMotionSave.progress,
             slowMotionSaveCompletionGeneration = quickSlowMotionSave.completionGeneration,
             gestureSettings = gallerySettings.gestures,
+            onMuteToggle = { muted -> onSessionVideoMutedChange(muted) },
             videoScrubbingMode = gallerySettings.playback.videoScrubbingMode,
             modifier = Modifier.fillMaxSize(),
         )

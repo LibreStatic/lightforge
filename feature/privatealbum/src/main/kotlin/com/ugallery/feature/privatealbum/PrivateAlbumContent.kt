@@ -15,17 +15,13 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -42,6 +38,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.style.TextOverflow
 import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.GalleryExpressiveButton
+import com.ugallery.core.designsystem.GalleryTopAppBar
 import com.ugallery.core.designsystem.VideoDurationBadge
 import com.ugallery.core.designsystem.GalleryStateContent
 import com.ugallery.core.designsystem.videoDurationDescription
@@ -75,18 +73,11 @@ fun PrivateAlbumContent(
     Scaffold(
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets.safeDrawing,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        if (isUnlocked) stringResource(R.string.private_title_count, mediaList.size)
-                        else stringResource(R.string.private_locked),
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(GalleryIcons.Back, contentDescription = stringResource(R.string.private_back))
-                    }
-                },
+            GalleryTopAppBar(
+                title = if (isUnlocked) stringResource(R.string.private_title_count, mediaList.size)
+                    else stringResource(R.string.private_locked),
+                onBack = onBack,
+                navigationContentDescription = stringResource(R.string.private_back),
             )
         },
     ) { padding ->
@@ -99,7 +90,7 @@ fun PrivateAlbumContent(
                     Icon(GalleryIcons.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                     Text(stringResource(R.string.private_locked), style = MaterialTheme.typography.titleMedium)
                     Text(stringResource(R.string.private_unlock_body), style = MaterialTheme.typography.bodyMedium)
-                    Button(
+                    GalleryExpressiveButton(
                         onClick = {
                             onUnlockRequest(
                                 onUnlocked,
@@ -191,7 +182,7 @@ fun PrivateAlbumContent(
                 Text(stringResource(R.string.private_setup_body))
             },
             confirmButton = {
-                Button(onClick = {
+                GalleryExpressiveButton(onClick = {
                     showSetupWarning = false
                     scope.launch {
                         runCatching { repository.setup(PrivateAlbumCrypto.getOrCreateMasterKey()) }
@@ -238,7 +229,7 @@ internal fun PrivateAlbumEmptyState(
         },
         action = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Button(onClick = onAddRequest) {
+                GalleryExpressiveButton(onClick = onAddRequest) {
                     Icon(GalleryIcons.Plus, contentDescription = null)
                     Text(
                         stringResource(R.string.private_choose_media),

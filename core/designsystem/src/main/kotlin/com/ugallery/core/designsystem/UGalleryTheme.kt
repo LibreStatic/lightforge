@@ -10,27 +10,11 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.expressiveLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
-object GalleryColors {
-    val Background = Color(0xFFF8FAFD)
-    val Surface = Color(0xFFFFFFFF)
-    val SurfaceTonal = Color(0xFFE8F0FE)
-    val Foreground = Color(0xFF202124)
-    val ForegroundSecondary = Color(0xFF3C4043)
-    val Muted = Color(0xFF5F6368)
-    val Border = Color(0xFFDADCE0)
-    val BorderSoft = Color(0xFFEDF0F2)
-    val Accent = Color(0xFF1A73E8)
-    val Success = Color(0xFF188038)
-    val Warning = Color(0xFFF9AB00)
-    val Danger = Color(0xFFD93025)
-}
 
 object GallerySpacing {
     val Xs = 4.dp
@@ -53,18 +37,6 @@ object GalleryGridMetrics {
     val CompactCell = 112.dp
     val MediumCell = 92.dp
     val ExpandedCell = 88.dp
-}
-
-object GalleryRadii {
-    val Small = 4.dp
-    val Medium = 12.dp
-    val Large = 24.dp
-    val Pill = 9999.dp
-}
-
-object GalleryMotion {
-    const val FastMillis = 150
-    const val BaseMillis = 250
 }
 
 enum class GalleryWindowClass { Compact, Medium, Expanded }
