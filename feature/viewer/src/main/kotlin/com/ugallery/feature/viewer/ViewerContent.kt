@@ -96,6 +96,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -351,7 +352,9 @@ fun ViewerContent(
                 }
             }
         }
-        ViewerChromeScrim(visible = chromeVisible)
+        if (media.kind == MediaKind.Video) {
+            ViewerChromeScrim(visible = chromeVisible)
+        }
         if (media.kind == MediaKind.Video && videoController != null) {
             VideoPlaybackControl(
                 controller = videoController,
@@ -907,7 +910,7 @@ private fun ViewerChromeScrim(visible: Boolean) {
         visible = visible,
         enter = fadeIn(tween(CHROME_FADE_MILLIS)),
         exit = fadeOut(tween(CHROME_FADE_MILLIS)),
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().testTag(VIEWER_CHROME_SCRIM_TEST_TAG),
     ) {
         Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.18f))) {
             Box(
@@ -946,3 +949,4 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
 
 private const val VIDEO_CHROME_TIMEOUT_MILLIS = 3_000L
 private const val CHROME_FADE_MILLIS = 150
+internal const val VIEWER_CHROME_SCRIM_TEST_TAG = "viewer_chrome_scrim"

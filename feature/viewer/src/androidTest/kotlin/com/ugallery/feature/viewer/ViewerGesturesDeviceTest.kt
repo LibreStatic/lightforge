@@ -6,6 +6,7 @@ import android.view.SurfaceView
 import androidx.media3.common.Effect
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -75,6 +76,7 @@ class ViewerGesturesDeviceTest {
         }
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val firstPosition = context.getString(R.string.viewer_thumbnail_position, 1, 3)
+        compose.onNode(hasTestTag(VIEWER_CHROME_SCRIM_TEST_TAG)).assertDoesNotExist()
         compose.onNode(hasContentDescription(firstPosition)).assertExists()
 
         compose.onRoot().performTouchInput { click(center) }
@@ -186,10 +188,12 @@ class ViewerGesturesDeviceTest {
 
         val pause = context.getString(R.string.viewer_pause)
         val play = context.getString(R.string.viewer_play)
+        compose.onNode(hasTestTag(VIEWER_CHROME_SCRIM_TEST_TAG)).assertExists()
         compose.onNode(hasContentDescription(pause)).assertExists()
 
         compose.mainClock.advanceTimeBy(3_200)
         compose.waitForIdle()
+        compose.onNode(hasTestTag(VIEWER_CHROME_SCRIM_TEST_TAG)).assertDoesNotExist()
         compose.onNode(hasContentDescription(pause)).assertDoesNotExist()
 
         compose.onRoot().performTouchInput {
@@ -203,6 +207,7 @@ class ViewerGesturesDeviceTest {
         compose.waitForIdle()
 
         assertTrue(engine.pauseCalls > 0)
+        compose.onNode(hasTestTag(VIEWER_CHROME_SCRIM_TEST_TAG)).assertExists()
         compose.onNode(hasContentDescription(play)).assertExists()
         controller.close()
     }
