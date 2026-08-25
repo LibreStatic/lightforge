@@ -56,6 +56,7 @@ import com.ugallery.core.preferences.LibraryGrouping
 import com.ugallery.core.preferences.LibrarySort
 import com.ugallery.core.preferences.VideoScrubbingMode
 import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.GallerySpacing
 import com.ugallery.core.designsystem.GalleryTopAppBar
 import com.ugallery.core.designsystem.GalleryExpressiveButton
 import com.ugallery.core.designsystem.GalleryIndeterminateProgressIndicator
@@ -245,8 +246,8 @@ private fun SettingsCategoryList(
     val offLabel = stringResource(R.string.settings_summary_off)
 
     Column(
-        Modifier.fillMaxSize().widthIn(max = 720.dp).verticalScroll(rememberScrollState()).padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
+        Modifier.fillMaxSize().widthIn(max = 720.dp).verticalScroll(rememberScrollState()).padding(GallerySpacing.Xl),
+        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xl),
     ) {
         SettingsCategoryGroup(stringResource(R.string.settings_group_viewing)) {
             SettingsCategoryRow(GalleryIcons.Collections, stringResource(R.string.settings_library), "$sortLabel · $filterLabel", 0, 4) { onOpen(SettingsPage.Library) }
@@ -269,14 +270,14 @@ private fun enabledCount(vararg flags: Boolean) = flags.count { it }
 
 @Composable
 private fun SettingsCategoryGroup(title: String, content: @Composable () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
         Text(
             title,
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(horizontal = 12.dp),
+            modifier = Modifier.padding(horizontal = GallerySpacing.Md),
         )
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) { content() }
+        Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) { content() }
     }
 }
 
@@ -321,8 +322,8 @@ private fun SettingsSubPage(
     Column(Modifier.fillMaxSize()) {
         SettingsHeader(title, onBack)
         Column(
-            Modifier.fillMaxSize().widthIn(max = 720.dp).verticalScroll(rememberScrollState()).padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            Modifier.fillMaxSize().widthIn(max = 720.dp).verticalScroll(rememberScrollState()).padding(GallerySpacing.Xl),
+            verticalArrangement = Arrangement.spacedBy(GallerySpacing.Lg),
         ) {
             content()
         }
@@ -716,7 +717,7 @@ private fun BackupSection(
     onImportSettings: () -> Unit,
     onResetSettings: () -> Unit,
 ) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
         OutlinedButton(onClick = onExportSettings, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.settings_export)) }
         OutlinedButton(onClick = onImportSettings, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.settings_import)) }
     }
@@ -757,7 +758,7 @@ private fun AiAnalysisSection(
         color = MaterialTheme.colorScheme.primaryContainer,
         shape = RoundedCornerShape(20.dp),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.padding(GallerySpacing.Lg), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Md)) {
             SettingsSwitchRow(
                 stringResource(R.string.local_analysis_master),
                 allEnabled,

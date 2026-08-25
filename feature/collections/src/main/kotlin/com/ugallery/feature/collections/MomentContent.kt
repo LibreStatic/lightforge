@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.MaterialTheme
@@ -49,6 +50,7 @@ import com.ugallery.core.model.MediaKey
 import com.ugallery.core.thumbnail.ThumbnailLoader
 import com.ugallery.core.thumbnail.ThumbnailRequest
 import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.GallerySpacing
 import com.ugallery.core.designsystem.GalleryTopAppBar
 import java.text.DateFormat
 import java.util.Date
@@ -84,18 +86,18 @@ fun MomentContent(
     var editTitle by remember { mutableStateOf(moment.title ?: "") }
 
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-      LazyColumn(
-        Modifier.fillMaxSize().widthIn(max = 720.dp),
-        verticalArrangement = Arrangement.spacedBy(TileSpacing),
-      ) {
-        item {
-            GalleryTopAppBar(
-                title = moment.title ?: stringResource(R.string.moment_untitled),
-                onBack = onBack,
-                navigationContentDescription = stringResource(R.string.moment_cancel),
-                actions = { TextButton(onClick = { renaming = true }) { Text(stringResource(R.string.moment_edit)) } },
-            )
-        }
+      Column(Modifier.fillMaxSize().widthIn(max = 720.dp)) {
+        GalleryTopAppBar(
+            title = moment.title ?: stringResource(R.string.moment_untitled),
+            onBack = onBack,
+            navigationContentDescription = stringResource(R.string.moment_cancel),
+            actions = { TextButton(onClick = { renaming = true }) { Text(stringResource(R.string.moment_edit)) } },
+        )
+        LazyColumn(
+            Modifier.fillMaxWidth().weight(1f),
+            contentPadding = PaddingValues(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(TileSpacing),
+        ) {
         item { HorizontalScrollRow(dateLabel, stateLabel) }
         if (renaming) {
             item { RenameDialog(editTitle, { editTitle = it }, { onRename(editTitle); renaming = false }) { renaming = false } }
@@ -127,13 +129,14 @@ fun MomentContent(
             }
         }
         item { BottomActions(onDelete, onSave) }
+        }
       }
     }
 }
 
 @Composable
 private fun HorizontalScrollRow(dateLabel: String, stateLabel: String) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
         Text(dateLabel, style = MaterialTheme.typography.bodyLarge)
         Text(stateLabel, style = MaterialTheme.typography.bodyMedium)
     }
@@ -141,7 +144,7 @@ private fun HorizontalScrollRow(dateLabel: String, stateLabel: String) {
 
 @Composable
 private fun RenameDialog(value: String, onValueChange: (String) -> Unit, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
         TextField(value, onValueChange, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.moment_edit_title)) })
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.moment_cancel)) }
@@ -154,13 +157,13 @@ private fun RenameDialog(value: String, onValueChange: (String) -> Unit, onConfi
 private fun StorySlide(key: MediaKey, loader: ThumbnailLoader?, current: Int, total: Int) {
     Column(Modifier.fillMaxWidth().aspectRatio(4f / 3f), horizontalAlignment = Alignment.CenterHorizontally) {
         MediaThumbnail(key, loader, Modifier.fillMaxWidth().weight(1f))
-        Text(stringResource(R.string.moment_story_position, current, total), Modifier.padding(top = 8.dp))
+        Text(stringResource(R.string.moment_story_position, current, total), Modifier.padding(top = GallerySpacing.Sm))
     }
 }
 
 @Composable
 private fun StoryProgress(current: Int, total: Int) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg), horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
         repeat(total) { index ->
             Box(Modifier.height(4.dp).weight(1f).background(
                 if (index < current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = .35f),
@@ -172,7 +175,7 @@ private fun StoryProgress(current: Int, total: Int) {
 @Composable
 private fun StoryNav(index: Int, size: Int, onMove: (Int) -> Unit, onAdvance: () -> Unit) {
     val atEnd = index >= size - 1
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg), horizontalArrangement = Arrangement.SpaceEvenly) {
         TextButton(onClick = { onMove(-1) }, enabled = index > 0, modifier = Modifier.weight(1f)) {
             Text(stringResource(R.string.moment_move_previous), maxLines = 2)
         }
@@ -188,7 +191,7 @@ private fun StoryNav(index: Int, size: Int, onMove: (Int) -> Unit, onAdvance: ()
 @Composable
 @OptIn(ExperimentalFoundationApi::class)
 private fun ReorderRow(rowMembers: List<MomentMemberUi>, currentIndex: Int, loader: ThumbnailLoader?, onClick: (Int) -> Unit) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(TileSpacing)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg), horizontalArrangement = Arrangement.spacedBy(TileSpacing)) {
           rowMembers.forEach { member ->
             val ordinal = member.member.ordinal
             val isCurrent = ordinal == currentIndex
@@ -197,7 +200,7 @@ private fun ReorderRow(rowMembers: List<MomentMemberUi>, currentIndex: Int, load
                 .aspectRatio(1f)
                 .clip(MaterialTheme.shapes.small)
                 .combinedClickable(onClick = { onClick(ordinal) }, onLongClick = { onClick(ordinal) })
-                .padding(2.dp)
+                .padding(GallerySpacing.Xs)
                 .background(border, MaterialTheme.shapes.small),
             ) { MediaThumbnail(member.key, loader, Modifier.fillMaxSize()) }
           }
@@ -207,7 +210,7 @@ private fun ReorderRow(rowMembers: List<MomentMemberUi>, currentIndex: Int, load
 
 @Composable
 private fun BottomActions(onDelete: () -> Unit, onSave: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(8.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+    Row(Modifier.fillMaxWidth().padding(GallerySpacing.Lg), horizontalArrangement = Arrangement.SpaceEvenly) {
         TextButton(onClick = onDelete) { Text(stringResource(R.string.moment_delete)) }
         TextButton(onClick = onSave) { Text(stringResource(R.string.moment_save)) }
     }

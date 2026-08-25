@@ -13,6 +13,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
@@ -55,6 +57,9 @@ import androidx.compose.runtime.mutableStateMapOf
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.SaveableStateHolder
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
@@ -103,6 +108,8 @@ import com.ugallery.core.model.MediaKind
 import com.ugallery.core.model.GrantLevel
 import com.ugallery.core.model.TimelineMedia
 import com.ugallery.core.model.MediaKey
+import com.ugallery.core.model.AlbumKey
+import com.ugallery.core.model.AlbumSummary
 import com.ugallery.core.ml.LocalAnalysisOnboardingDecision
 import com.ugallery.core.selection.SelectionSpec
 import com.ugallery.core.search.SearchConcept
@@ -140,14 +147,70 @@ import com.ugallery.feature.subjectclip.SubjectClipper
 import com.ugallery.feature.objecteraser.ObjectEraser
 import com.ugallery.feature.semanticsearch.SemanticSearchEngine
 
-private enum class RootTab { Photos, Collections, Search }
-private enum class SurfaceRoute { Root, Album, Viewer, PhotoEditor, VideoEditor, Trash, Settings, Moment, People, PrivateAlbum, PrivateAlbumPicker, Collage }
+internal enum class RootTab { Photos, Collections, Search }
+internal enum class SurfaceRoute { Root, Album, Viewer, PhotoEditor, VideoEditor, Trash, Settings, Moment, People, PrivateAlbum, PrivateAlbumPicker, Collage }
 private data class PrivateImportProgress(val completed: Int, val total: Int)
 private data class PrivateImportOutcome(val successful: List<TimelineMedia>, val total: Int)
-private data class ScreenMotionKey(
+internal data class ScreenMotionKey(
     val route: SurfaceRoute,
     val rootTab: RootTab,
+    val saveableStateKey: String? = null,
 )
+
+private sealed interface ViewerReturnDestination {
+    data class Root(val tab: RootTab) : ViewerReturnDestination
+    data class Album(val key: AlbumKey) : ViewerReturnDestination
+}
+
+private val ViewerReturnDestinationSaver = listSaver<ViewerReturnDestination?, String>(
+    save = { destination ->
+        when (destination) {
+            null -> emptyList()
+            is ViewerReturnDestination.Root -> listOf("root", destination.tab.name)
+            is ViewerReturnDestination.Album -> when (val key = destination.key) {
+                is AlbumKey.Physical -> listOf("physical", key.volumeName, key.bucketId.toString())
+                is AlbumKey.Virtual -> listOf("virtual", key.albumId.toString())
+            }
+        }
+    },
+    restore = { saved ->
+        when (saved.firstOrNull()) {
+            "root" -> saved.getOrNull(1)?.let { tabName ->
+                runCatching { ViewerReturnDestination.Root(RootTab.valueOf(tabName)) }.getOrNull()
+            }
+            "physical" -> saved.getOrNull(1)?.let { volumeName ->
+                saved.getOrNull(2)?.toLongOrNull()?.let { bucketId ->
+                    ViewerReturnDestination.Album(AlbumKey.Physical(volumeName, bucketId))
+                }
+            }
+            "virtual" -> saved.getOrNull(1)?.toLongOrNull()?.let { albumId ->
+                ViewerReturnDestination.Album(AlbumKey.Virtual(albumId))
+            }
+            else -> null
+        }
+    },
+)
+
+private fun rootStateKey(tab: RootTab) = when (tab) {
+    RootTab.Photos -> "root:photos"
+    RootTab.Search -> "root:search"
+    RootTab.Collections -> "root:collections"
+}
+
+private fun albumStateKey(key: AlbumKey) = when (key) {
+    is AlbumKey.Physical -> "album:physical:${key.volumeName}:${key.bucketId}"
+    is AlbumKey.Virtual -> "album:virtual:${key.albumId}"
+}
+
+private fun surfaceStateKey(
+    route: SurfaceRoute,
+    rootTab: RootTab,
+    selectedAlbum: AlbumSummary?,
+): String? = when (route) {
+    SurfaceRoute.Root -> rootStateKey(rootTab)
+    SurfaceRoute.Album -> selectedAlbum?.key?.let(::albumStateKey)
+    else -> null
+}
 
 @Composable
 internal fun ProductionGalleryApp(
@@ -294,6 +357,10 @@ internal fun ProductionGalleryApp(
     }
     var rootTab by rememberSaveable { mutableStateOf(RootTab.Photos) }
     var route by rememberSaveable { mutableStateOf(SurfaceRoute.Root) }
+    val surfaceStateHolder = rememberSaveableStateHolder()
+    var viewerReturnDestination by rememberSaveable(stateSaver = ViewerReturnDestinationSaver) {
+        mutableStateOf<ViewerReturnDestination?>(null)
+    }
     var filter by rememberSaveable { mutableStateOf(AlbumMediaFilter.All) }
     var sort by rememberSaveable { mutableStateOf(AlbumSort.NewestFirst) }
     var showDetails by rememberSaveable { mutableStateOf(false) }
@@ -359,7 +426,26 @@ internal fun ProductionGalleryApp(
         ActivityResultContracts.GetContent(),
     ) { uri -> uri?.let(viewModel::importGallerySettings) }
 
-    BackHandler(enabled = route != SurfaceRoute.Root || showDetails) {
+    fun openViewer(destination: ViewerReturnDestination, openMedia: () -> Unit) {
+        viewerReturnDestination = destination
+        openMedia()
+        route = SurfaceRoute.Viewer
+    }
+
+    fun restoreViewerReturnDestination() {
+        val destination = viewerReturnDestination
+        viewerReturnDestination = null
+        when (destination) {
+            is ViewerReturnDestination.Root -> {
+                rootTab = destination.tab
+                route = SurfaceRoute.Root
+            }
+            is ViewerReturnDestination.Album -> route = SurfaceRoute.Album
+            null -> route = SurfaceRoute.Root
+        }
+    }
+
+    fun handleBack() {
         when {
             showDetails -> showDetails = false
             route == SurfaceRoute.PhotoEditor -> {
@@ -376,10 +462,12 @@ internal fun ProductionGalleryApp(
                 route = SurfaceRoute.PrivateAlbum
             }
             route == SurfaceRoute.PrivateAlbum -> leavePrivateAlbum()
-            route == SurfaceRoute.Viewer -> route = SurfaceRoute.Root
+            route == SurfaceRoute.Viewer -> restoreViewerReturnDestination()
             else -> route = SurfaceRoute.Root
         }
     }
+
+    BackHandler(enabled = route != SurfaceRoute.Root || showDetails, onBack = ::handleBack)
 
     val musicPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -471,9 +559,9 @@ internal fun ProductionGalleryApp(
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val adaptiveInfo = galleryAdaptiveLayoutInfo(maxWidth, foldInfo)
-        val content: @Composable (SurfaceRoute, RootTab) -> Unit = { activeRoute, activeRootTab ->
-            when (activeRoute) {
-                SurfaceRoute.Root -> when (activeRootTab) {
+        val content: @Composable (ScreenMotionKey) -> Unit = { activeKey ->
+            when (activeKey.route) {
+                SurfaceRoute.Root -> when (activeKey.rootTab) {
                     RootTab.Photos -> LibraryPhotosRoute(
                         access = access,
                         engineState = engineState.toUiState(),
@@ -483,7 +571,9 @@ internal fun ProductionGalleryApp(
                         onOpenSettings = { route = SurfaceRoute.Settings },
                         onMediaClick = { media ->
                             if (selectionCount > 0) viewModel.toggleSelection(media)
-                            else { viewModel.openTimelineMedia(media); route = SurfaceRoute.Viewer }
+                            else openViewer(ViewerReturnDestination.Root(RootTab.Photos)) {
+                                viewModel.openTimelineMedia(media)
+                            }
                         },
                         onMediaLongClick = viewModel::toggleSelection,
                         preferredColumns = gallerySettings.thumbnails.gridColumns,
@@ -570,7 +660,11 @@ internal fun ProductionGalleryApp(
                             },
                             onPresetSearch = viewModel::search,
                             onLoadMore = viewModel::loadMoreSearch,
-                            onHit = { hit -> viewModel.openSearchHit(hit); route = SurfaceRoute.Viewer },
+                            onHit = { hit ->
+                                openViewer(ViewerReturnDestination.Root(RootTab.Search)) {
+                                    viewModel.openSearchHit(hit)
+                                }
+                            },
                             onEnableDetectedContent = viewModel::enableDetectedContent,
                             onPauseDetectedContent = viewModel::pauseDetectedContent,
                             onDeleteDetectedContent = viewModel::deleteDetectedContent,
@@ -590,7 +684,9 @@ internal fun ProductionGalleryApp(
                             onSortChange = { sort = it; viewModel.selectAlbum(album, filter, sort) },
                             onMediaClick = { media ->
                                 if (selectionCount > 0) viewModel.toggleSelection(media)
-                                else { viewModel.openAlbumMedia(media, album, filter, sort); route = SurfaceRoute.Viewer }
+                                else openViewer(ViewerReturnDestination.Album(album.key)) {
+                                    viewModel.openAlbumMedia(media, album, filter, sort)
+                                }
                             },
                             onMediaLongClick = viewModel::toggleSelection,
                             showHeader = false,
@@ -608,7 +704,7 @@ internal fun ProductionGalleryApp(
                         adaptiveInfo,
                         onShowDetails = { showDetails = true; viewModel.loadDetails() },
                         onHideDetails = { showDetails = false },
-                        onBack = { route = SurfaceRoute.Root },
+                        onBack = ::handleBack,
                         onEdit = {
                             if (media.kind == MediaKind.Image) {
                                 viewModel.openPhotoEditor(media)
@@ -982,14 +1078,22 @@ internal fun ProductionGalleryApp(
                 }
             }
         }
-        Scaffold(
-            contentWindowInsets = if (
-                route == SurfaceRoute.Viewer ||
+        val internalTopBarRoute = route == SurfaceRoute.Settings ||
+            route == SurfaceRoute.People ||
+            route == SurfaceRoute.Moment
+        val contentInsets = when {
+            route == SurfaceRoute.Viewer ||
                 route == SurfaceRoute.PhotoEditor ||
                 route == SurfaceRoute.VideoEditor ||
                 route == SurfaceRoute.PrivateAlbum ||
-                route == SurfaceRoute.PrivateAlbumPicker
-            ) WindowInsets(0, 0, 0, 0) else ScaffoldDefaults.contentWindowInsets,
+                route == SurfaceRoute.PrivateAlbumPicker -> WindowInsets(0, 0, 0, 0)
+            internalTopBarRoute -> ScaffoldDefaults.contentWindowInsets.only(
+                WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal,
+            )
+            else -> ScaffoldDefaults.contentWindowInsets
+        }
+        Scaffold(
+            contentWindowInsets = contentInsets,
             containerColor = if (route == SurfaceRoute.Viewer) Color.Black
             else MaterialTheme.colorScheme.background,
             topBar = {
@@ -1062,16 +1166,18 @@ internal fun ProductionGalleryApp(
                         RootNavigationRail(rootTab) { rootTab = it }
                     }
                     AnimatedSurfaceBody(
-                        key = ScreenMotionKey(route, rootTab),
+                        key = ScreenMotionKey(route, rootTab, surfaceStateKey(route, rootTab, selectedAlbum)),
                         modifier = Modifier.weight(1f),
+                        stateHolder = surfaceStateHolder,
                         controls = controls,
                         content = content,
                     )
                 }
             } else {
                 AnimatedSurfaceBody(
-                    key = ScreenMotionKey(route, rootTab),
+                    key = ScreenMotionKey(route, rootTab, surfaceStateKey(route, rootTab, selectedAlbum)),
                     modifier = Modifier.fillMaxSize().padding(padding),
+                    stateHolder = surfaceStateHolder,
                     controls = controls,
                     content = content,
                 )
@@ -1220,11 +1326,12 @@ internal fun ProductionGalleryApp(
 }
 
 @Composable
-private fun AnimatedSurfaceBody(
+internal fun AnimatedSurfaceBody(
     key: ScreenMotionKey,
     modifier: Modifier,
+    stateHolder: SaveableStateHolder,
     controls: @Composable (SurfaceRoute) -> Unit,
-    content: @Composable (SurfaceRoute, RootTab) -> Unit,
+    content: @Composable (ScreenMotionKey) -> Unit,
 ) {
     GalleryAnimatedContent(
         targetState = key,
@@ -1233,7 +1340,13 @@ private fun AnimatedSurfaceBody(
     ) { activeKey ->
         Column(Modifier.fillMaxSize()) {
             controls(activeKey.route)
-            content(activeKey.route, activeKey.rootTab)
+            if (activeKey.saveableStateKey != null) {
+                stateHolder.SaveableStateProvider(activeKey.saveableStateKey) {
+                    content(activeKey)
+                }
+            } else {
+                content(activeKey)
+            }
         }
     }
 }

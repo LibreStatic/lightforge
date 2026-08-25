@@ -907,14 +907,24 @@ private fun VideoFrameScrubber(
                 .background(GalleryOverlayTokens.TimelineSurface, RoundedCornerShape(10.dp))
                 .padding(horizontal = 8.dp, vertical = 2.dp),
         )
-        GalleryExpressiveIconButton(
-            onClick = config.onClose,
-            modifier = Modifier.align(Alignment.TopEnd).size(32.dp)
-                .background(GalleryOverlayTokens.StrongSurface, RoundedCornerShape(16.dp))
-                .border(1.dp, GalleryOverlayTokens.Border, RoundedCornerShape(16.dp))
-                .semantics { contentDescription = closeDescription },
+        Box(
+            Modifier.align(Alignment.TopEnd).size(48.dp),
+            contentAlignment = Alignment.Center,
         ) {
-            Icon(GalleryIcons.Close, contentDescription = null, tint = GalleryOverlayTokens.Content)
+            GalleryExpressiveIconButton(
+                onClick = config.onClose,
+                modifier = Modifier.size(48.dp)
+                    .semantics { contentDescription = closeDescription },
+            ) {
+                Box(
+                    Modifier.size(32.dp)
+                        .background(GalleryOverlayTokens.StrongSurface, RoundedCornerShape(16.dp))
+                        .border(1.dp, GalleryOverlayTokens.Border, RoundedCornerShape(16.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(GalleryIcons.Close, contentDescription = null, tint = GalleryOverlayTokens.Content)
+                }
+            }
         }
     }
 }

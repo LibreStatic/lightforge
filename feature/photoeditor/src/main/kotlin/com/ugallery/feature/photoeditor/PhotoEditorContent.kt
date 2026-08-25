@@ -44,6 +44,7 @@ import com.ugallery.core.model.RawDevelopmentSettings
 import com.ugallery.core.model.RawMetadata
 import com.ugallery.core.model.RawOutputFormat
 import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.GallerySpacing
 import com.ugallery.core.designsystem.GalleryExpressiveChoiceGroup
 import com.ugallery.core.designsystem.GalleryExpressiveIconButton
 import com.ugallery.core.designsystem.GalleryLoadingIndicator
@@ -147,8 +148,8 @@ private fun PhotoTools(
 ) {
     var selectedTab by remember(state.isRaw) { mutableIntStateOf(if (state.isRaw) 0 else 1) }
     Column(
-        modifier.verticalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier.verticalScroll(rememberScrollState()).padding(GallerySpacing.Md),
+        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Md),
     ) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(if (state.isRaw) stringResource(R.string.photo_editor_raw_title) else stringResource(R.string.photo_editor_filters), style = MaterialTheme.typography.titleMedium)
@@ -261,7 +262,7 @@ private fun RawControls(
 
 @Composable
 private fun RawSlider(label: String, value: Float, range: ClosedFloatingPointRange<Float>, onChange: (Float) -> Unit) {
-    Column {
+    Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, style = MaterialTheme.typography.labelLarge)
             Text(if (range.endInclusive > 100f) value.toInt().toString() else "%.2f".format(value), style = MaterialTheme.typography.labelMedium)

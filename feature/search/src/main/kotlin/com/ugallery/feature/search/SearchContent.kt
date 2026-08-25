@@ -158,7 +158,7 @@ fun SearchContent(
                     onPresetSearch(label)
                     coroutineScope.launch { searchBarState.animateToCollapsed() }
                 },
-                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                modifier = Modifier.fillMaxSize(),
             )
         }
         if (semanticUnavailable) {
@@ -289,6 +289,7 @@ private fun SearchResultsGrid(
         columns = GridCells.Adaptive(128.dp),
         state = gridState,
         modifier = modifier.testTag(SEARCH_RESULTS_GRID_TEST_TAG),
+        contentPadding = PaddingValues(bottom = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {

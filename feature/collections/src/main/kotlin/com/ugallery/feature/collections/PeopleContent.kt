@@ -113,20 +113,19 @@ fun PeopleContent(
     val fullSpan: (androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope.() -> GridItemSpan) = {
         GridItemSpan(maxLineSpan)
     }
-    LazyVerticalGrid(
-        columns = GridCells.Adaptive(140.dp),
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        item(span = fullSpan) {
-            GalleryTopAppBar(
-                title = stringResource(R.string.people_title),
-                onBack = onBack,
-                navigationContentDescription = stringResource(R.string.people_back),
-            )
-        }
+    Column(modifier.fillMaxSize()) {
+        GalleryTopAppBar(
+            title = stringResource(R.string.people_title),
+            onBack = onBack,
+            navigationContentDescription = stringResource(R.string.people_back),
+        )
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(140.dp),
+            modifier = Modifier.fillMaxWidth().weight(1f),
+            contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
         item(span = fullSpan) { Text(stringResource(R.string.people_noncommercial_notice), style = MaterialTheme.typography.bodyMedium) }
         item(span = fullSpan) { Text(stringResource(R.string.people_privacy), color = MaterialTheme.colorScheme.primary) }
         if (!state.consentGranted) {
@@ -168,6 +167,7 @@ fun PeopleContent(
             item(span = fullSpan) {
                 PersonDetail(selected, state.selectedMembers, thumbnailLoader, onRenamePerson, onHidePerson, onSetSelectedAsMe)
             }
+        }
         }
     }
     if (confirmDelete) AlertDialog(

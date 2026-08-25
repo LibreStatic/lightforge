@@ -60,6 +60,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.dp
 import com.ugallery.feature.viewer.VideoViewerController
 import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.GallerySpacing
 import com.ugallery.core.designsystem.GalleryExpressiveChoiceGroup
 import com.ugallery.core.designsystem.GalleryExpressiveButton
 import com.ugallery.core.designsystem.GalleryLoadingIndicator
@@ -211,7 +212,7 @@ fun VideoEditorContent(
             }
             Column(Modifier.fillMaxSize()) {
                 if (landscape) {
-                    val resizeHandleHeight = 28.dp
+                    val resizeHandleHeight = 48.dp
                     val resizableHeight = (availableHeight - resizeHandleHeight).coerceAtLeast(1.dp)
                     val resizableHeightPx = with(LocalDensity.current) { resizableHeight.toPx() }
                     VideoPreview(
@@ -460,7 +461,7 @@ private fun VideoTimeline(
 ) {
     val duration = state.durationMillis.coerceAtLeast(1)
     val position = currentMillis.coerceIn(0, duration)
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Sm)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(formatMillis(position), style = GalleryMonoTypography)
             Text(formatMillis(duration), style = GalleryMonoTypography)
@@ -511,7 +512,7 @@ private fun VideoControls(
     modifier: Modifier = Modifier,
 ) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    Column(modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+    Column(modifier.fillMaxWidth().padding(bottom = GallerySpacing.Sm)) {
         GalleryExpressiveChoiceGroup(
             labels = listOf(
                 stringResource(R.string.video_editor_speed),
@@ -529,7 +530,7 @@ private fun VideoControls(
                 GalleryIcons.Palette,
                 GalleryIcons.Edit,
             ),
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = GallerySpacing.Md, vertical = GallerySpacing.Sm),
         )
         when (selectedTab) {
             0 -> SlowMotionControls(
@@ -542,7 +543,7 @@ private fun VideoControls(
                 onUpdate = onUpdateSlowMotionSegment,
                 onDelete = onDeleteSlowMotionSegment,
             )
-            1 -> Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+            1 -> Column(Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg)) {
                 Text(stringResource(R.string.video_editor_original_audio))
                 val audioDescription = stringResource(R.string.video_editor_audio_description)
                 Slider(
@@ -553,8 +554,8 @@ private fun VideoControls(
                 )
             }
             2 -> Column(
-                Modifier.fillMaxWidth().padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                Modifier.fillMaxWidth().padding(GallerySpacing.Md),
+                verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
             ) {
                 if (state.selectedMusicName == null) {
                     OutlinedButton(onClick = onChooseMusic) {
@@ -570,10 +571,10 @@ private fun VideoControls(
             4 -> ExportControls(state.outputQuality, state.isHevcMain10Available, onOutputQualityChange)
         }
         state.statusMessage?.let {
-            Text(it, Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(it, Modifier.padding(horizontal = GallerySpacing.Lg), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         if (state.isExporting && state.exportProgress != null) {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg)) {
                 GalleryProgressIndicator(
                     progress = { state.exportProgress.coerceIn(0f, 1f) },
                     modifier = Modifier.fillMaxWidth(),
@@ -597,16 +598,22 @@ private fun SlowMotionControls(
 ) {
     val selected = state.slowMotionSegments.firstOrNull { it.id == state.selectedSlowMotionSegmentId }
     Column(
-        Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(GallerySpacing.Md),
+        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
     ) {
         Text(stringResource(R.string.video_editor_base_speed), style = MaterialTheme.typography.titleSmall)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+        ) {
             listOf(1f to R.string.video_editor_speed_normal, 2f to R.string.video_editor_speed_fast).forEach { (speed, label) ->
                 FilterChip(state.speed == speed, { onSpeedChange(speed) }, label = { Text(stringResource(label)) })
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+        ) {
             GalleryExpressiveButton(onClick = { onMarkIn(currentMillis) }) {
                 Text(stringResource(R.string.video_editor_mark_in))
             }
@@ -622,7 +629,7 @@ private fun SlowMotionControls(
             Text(stringResource(R.string.video_editor_slow_segments), style = MaterialTheme.typography.titleSmall)
             Row(
                 Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
             ) {
                 state.slowMotionSegments.forEachIndexed { index, segment ->
                     FilterChip(
@@ -635,7 +642,7 @@ private fun SlowMotionControls(
         }
         selected?.let { segment ->
             Text(stringResource(R.string.video_editor_segment_speed), style = MaterialTheme.typography.titleSmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
                 listOf(0.5f, 0.25f, 0.125f).forEach { speed ->
                     FilterChip(
                         selected = segment.speed == speed,
@@ -647,7 +654,7 @@ private fun SlowMotionControls(
             Text(stringResource(R.string.video_editor_segment_audio), style = MaterialTheme.typography.titleSmall)
             Row(
                 Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
             ) {
                 listOf(
                     SlowMotionAudioMode.PreservePitch to R.string.video_editor_audio_preserve_pitch,
@@ -679,8 +686,8 @@ private fun ColorControls(
     var palette by remember { mutableIntStateOf(0) }
     var selectedBand by remember { mutableIntStateOf(0) }
     Column(
-        modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(GallerySpacing.Md),
+        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
     ) {
         state.logDetectionMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
