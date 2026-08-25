@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -49,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -56,12 +58,15 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ugallery.core.search.MediaSearchHit
 import com.ugallery.core.designsystem.GalleryIcons
 import com.ugallery.core.designsystem.GalleryExpressiveIconButton
 import com.ugallery.core.designsystem.GalleryLoadingIndicator
+import com.ugallery.core.designsystem.GallerySpacing
 import com.ugallery.core.designsystem.VideoDurationBadge
+import com.ugallery.core.designsystem.galleryAdaptiveLayoutInfo
 import com.ugallery.core.designsystem.videoDurationDescription
 import com.ugallery.core.model.MediaKind
 import com.ugallery.core.thumbnail.ThumbnailLoader
@@ -74,6 +79,11 @@ private const val PAGINATION_PREFETCH_DISTANCE = 3
 internal const val SEARCH_RESULTS_GRID_TEST_TAG = "search_results_grid"
 internal const val SEARCH_LOADING_ROW_TEST_TAG = "search_loading_row"
 internal const val SEARCH_LOADING_INDICATOR_TEST_TAG = "search_loading_indicator"
+internal const val SEARCH_CONTENT_COLUMN_TEST_TAG = "search_content_column"
+internal const val SEARCH_EXPANDED_DISCOVERY_HEADING_TEST_TAG = "search_expanded_discovery_heading"
+
+internal fun searchHorizontalGutter(width: Dp) =
+    maxOf(GallerySpacing.Xl, galleryAdaptiveLayoutInfo(width).gutter)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -137,8 +147,16 @@ fun SearchContent(
             },
         )
     }
-    Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-      Column(Modifier.fillMaxSize().widthIn(max = 1_200.dp).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    BoxWithConstraints(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+      val horizontalGutter = searchHorizontalGutter(maxWidth)
+      Column(
+          Modifier
+              .fillMaxSize()
+              .widthIn(max = 1_200.dp)
+              .padding(horizontal = horizontalGutter)
+              .testTag(SEARCH_CONTENT_COLUMN_TEST_TAG),
+          verticalArrangement = Arrangement.spacedBy(10.dp),
+      ) {
         Text(
             stringResource(R.string.search_title),
             style = MaterialTheme.typography.headlineMedium,
@@ -152,14 +170,27 @@ fun SearchContent(
         ExpandedFullScreenSearchBar(
             state = searchBarState,
             inputField = inputField,
+            modifier = Modifier.background(MaterialTheme.colorScheme.surface),
+            colors = SearchBarDefaults.colors(
+                containerColor = Color.Transparent,
+            ),
         ) {
-            SearchDiscovery(
-                onPresetSearch = { label ->
-                    onPresetSearch(label)
-                    coroutineScope.launch { searchBarState.animateToCollapsed() }
-                },
-                modifier = Modifier.fillMaxSize(),
-            )
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(horizontal = horizontalGutter),
+            ) {
+                SearchDiscovery(
+                    onPresetSearch = { label ->
+                        onPresetSearch(label)
+                        coroutineScope.launch { searchBarState.animateToCollapsed() }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = GallerySpacing.Lg),
+                    headingModifier = Modifier.testTag(SEARCH_EXPANDED_DISCOVERY_HEADING_TEST_TAG),
+                )
+            }
         }
         if (semanticUnavailable) {
             Surface(
@@ -335,9 +366,24 @@ private fun SearchLoadingIndicatorRow(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun SearchDiscovery(onPresetSearch: (String) -> Unit, modifier: Modifier = Modifier) {
-    LazyColumn(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        item { Text(stringResource(R.string.search_people_pets), style = MaterialTheme.typography.titleMedium) }
+private fun SearchDiscovery(
+    onPresetSearch: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(),
+    headingModifier: Modifier = Modifier,
+) {
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = contentPadding,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        item {
+            Text(
+                stringResource(R.string.search_people_pets),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = headingModifier,
+            )
+        }
         item { LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(end = 16.dp)) {
             val people = listOf(
                 R.string.search_me to GalleryIcons.User,
