@@ -133,6 +133,9 @@ import com.ugallery.feature.search.SearchContent
 import com.ugallery.feature.settings.AnalysisStatus
 import com.ugallery.feature.settings.FaceAnalysisUiState
 import com.ugallery.feature.settings.RecognitionSettingsContent
+import com.ugallery.feature.settings.SemanticModelCompatibilityUi
+import com.ugallery.feature.settings.SemanticModelSettingsItemUi
+import com.ugallery.feature.settings.SemanticModelSettingsUiState
 import com.ugallery.feature.privatealbum.PrivateAlbumContent
 import com.ugallery.feature.privatealbum.PrivateAlbumRepository
 import com.ugallery.feature.privatealbum.PrivateAlbumDatabase
@@ -145,7 +148,6 @@ import com.ugallery.feature.places.OfflineGazetteer
 import com.ugallery.feature.places.BundledGazetteer
 import com.ugallery.feature.subjectclip.SubjectClipper
 import com.ugallery.feature.objecteraser.ObjectEraser
-import com.ugallery.feature.semanticsearch.SemanticSearchEngine
 
 internal enum class RootTab { Photos, Collections, Search }
 internal enum class SurfaceRoute { Root, Album, Viewer, PhotoEditor, VideoEditor, Trash, Settings, Moment, People, PrivateAlbum, PrivateAlbumPicker, Collage }
@@ -244,6 +246,7 @@ internal fun ProductionGalleryApp(
     val exif by viewModel.exifDetails.collectAsState()
     val search by viewModel.search.collectAsState()
     val searchIndexReady by viewModel.searchIndexReady.collectAsState()
+    val semanticModels by viewModel.semanticModels.collectAsState()
     val detectedContentEnabled by viewModel.detectedContentEnabled.collectAsState()
     val peopleAnalysis by viewModel.peopleAnalysis.collectAsState()
     val petCollectionsEnabled by viewModel.petCollectionsEnabled.collectAsState()
@@ -416,7 +419,6 @@ internal fun ProductionGalleryApp(
         onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
     }
     val gazetteer = remember { OfflineGazetteer(BundledGazetteer.load()) }
-    val semanticEngine = remember { SemanticSearchEngine() }
     val subjectClipper = remember { SubjectClipper() }
     val objectEraser = remember { ObjectEraser() }
     val exportSettingsLauncher = rememberLauncherForActivityResult(
@@ -623,7 +625,6 @@ internal fun ProductionGalleryApp(
                             loading = search.loading,
                             terminal = search.terminal,
                             partialIndex = !searchIndexReady,
-                            semanticUnavailable = !semanticEngine.isSemanticAvailable(),
                             onRetry = { viewModel.search() },
                             error = search.error,
                             detectedContentEnabled = detectedContentEnabled,
@@ -883,6 +884,43 @@ internal fun ProductionGalleryApp(
                     onAllAnalysisEnabledChange = viewModel::setAllLocalAnalysisEnabled,
                     onPeopleAnalysisEnabledChange = viewModel::setPeopleAnalysisEnabled,
                     onContentAnalysisEnabledChange = viewModel::setContentAnalysisEnabled,
+                    semanticModels = SemanticModelSettingsUiState(
+                        enabled = semanticModels.enabled,
+                        automaticSelection = semanticModels.selectionMode == com.ugallery.feature.semanticsearch.SemanticSelectionMode.Automatic,
+                        activeModelId = semanticModels.activeModelId,
+                        buildingModelId = semanticModels.buildingModelId,
+                        indexError = semanticModels.indexError,
+                        models = semanticModels.models.map { model ->
+                            SemanticModelSettingsItemUi(
+                                id = model.descriptor.id,
+                                name = model.descriptor.displayName,
+                                version = model.descriptor.version,
+                                sizeBytes = model.descriptor.packageBytes,
+                                quality = stringResource(
+                                    if (model.descriptor.id == "tinyclip-quality") com.ugallery.feature.settings.R.string.semantic_quality_higher
+                                    else com.ugallery.feature.settings.R.string.semantic_quality_balanced,
+                                ),
+                                languages = stringResource(com.ugallery.feature.settings.R.string.semantic_language_english_focused),
+                                compatibility = when (model.compatibility) {
+                                    com.ugallery.feature.semanticsearch.SemanticModelCompatibility.Recommended -> SemanticModelCompatibilityUi.Recommended
+                                    com.ugallery.feature.semanticsearch.SemanticModelCompatibility.Supported -> SemanticModelCompatibilityUi.Supported
+                                    com.ugallery.feature.semanticsearch.SemanticModelCompatibility.TechnicallyUnsupported -> SemanticModelCompatibilityUi.Unsupported
+                                },
+                                installed = model.installed,
+                                active = model.active,
+                                downloading = model.downloading,
+                                downloadedBytes = model.downloadedBytes,
+                                error = model.error,
+                            )
+                        },
+                    ),
+                    onSemanticEnabledChange = viewModel::setSemanticSearchEnabled,
+                    onSemanticDownload = viewModel::downloadSemanticModel,
+                    onSemanticCancelDownload = viewModel::cancelSemanticModelDownload,
+                    onSemanticActivate = viewModel::activateSemanticModel,
+                    onSemanticDelete = viewModel::deleteSemanticModel,
+                    onSemanticDeleteAll = viewModel::deleteAllSemanticModels,
+                    onSemanticAutomaticSelection = viewModel::useAutomaticSemanticModel,
                     showHeader = false,
                 )
                 SurfaceRoute.PrivateAlbum -> PrivateAlbumContent(

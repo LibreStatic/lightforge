@@ -34,7 +34,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberSearchBarState
@@ -93,7 +92,6 @@ fun SearchContent(
     loading: Boolean,
     terminal: Boolean,
     partialIndex: Boolean,
-    semanticUnavailable: Boolean = false,
     onRetry: () -> Unit = {},
     error: Boolean,
     detectedContentEnabled: Boolean,
@@ -190,31 +188,6 @@ fun SearchContent(
                     contentPadding = PaddingValues(bottom = GallerySpacing.Lg),
                     headingModifier = Modifier.testTag(SEARCH_EXPANDED_DISCOVERY_HEADING_TEST_TAG),
                 )
-            }
-        }
-        if (semanticUnavailable) {
-            Surface(
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                shape = MaterialTheme.shapes.medium,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                ) {
-                    Icon(
-                        GalleryIcons.Warning,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                    )
-                    Text(
-                        stringResource(R.string.search_semantic_unavailable),
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
             }
         }
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 16.dp)) {
@@ -399,9 +372,15 @@ private fun SearchDiscovery(
                         horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
                     ) {
                         Box(
-                            Modifier.size(52.dp).background(MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.shapes.extraLarge),
+                            Modifier.size(52.dp).background(MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.shapes.extraLarge),
                             contentAlignment = androidx.compose.ui.Alignment.Center,
-                        ) { Icon(icon, contentDescription = null) }
+                        ) {
+                            Icon(
+                                icon,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
                         Text(label, style = MaterialTheme.typography.labelMedium)
                     }
                 }

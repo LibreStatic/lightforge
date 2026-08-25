@@ -1,0 +1,4 @@
+torch==2.13.0+cpu
+transformers==4.53.2
+litert-torch==0.9.4
+safetensors==0.8.0

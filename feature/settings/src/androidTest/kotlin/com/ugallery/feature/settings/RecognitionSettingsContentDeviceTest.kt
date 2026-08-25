@@ -36,25 +36,13 @@ class RecognitionSettingsContentDeviceTest {
 
         compose.setContent {
             UGalleryTheme(darkTheme = false) {
-                RecognitionSettingsContent(
-                    state = FaceAnalysisUiState(),
-                    onEnable = {},
-                    onPause = {},
-                    onResume = {},
-                    onAnalyzeAll = {},
-                    onDelete = {},
-                    petCollectionsEnabled = false,
-                    onPetCollectionsEnabledChange = {},
-                    onHideDogResults = {},
-                    onHideCatResults = {},
-                    onRestorePetResults = {},
+                PlaybackSettingsTestContent(
                     settings = settings,
                     onSettingsChange = { transform -> settings = transform(settings) },
                 )
             }
         }
 
-        compose.onNode(hasText(context.getString(R.string.settings_playback))).performClick()
         compose.onNode(hasTestTag("video_scrubbing_mode_row")).assertIsDisplayed().performClick()
         compose.onNode(hasTestTag("video_scrubbing_mode_dialog")).assertExists()
         compose.onNode(hasTestTag("video_scrubbing_mode_Filmstrip")).performClick()

@@ -46,8 +46,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         VideoEditRecipeEntity::class,
         CustomLutEntity::class,
         VideoPlaybackPositionEntity::class,
+        SemanticIndexEntity::class,
+        SemanticEmbeddingEntity::class,
     ],
-    version = 16,
+    version = 17,
     exportSchema = true,
 )
 abstract class GalleryDatabase : RoomDatabase() {
@@ -56,6 +58,7 @@ abstract class GalleryDatabase : RoomDatabase() {
     abstract fun personDao(): PersonDao
     abstract fun editRecipeDao(): EditRecipeDao
     abstract fun colorEditDao(): ColorEditDao
+    abstract fun semanticDao(): SemanticDao
 }
 
 object GalleryDatabaseFactory {
@@ -315,6 +318,35 @@ object GalleryDatabaseFactory {
         }
     }
 
+    val Migration16To17 = object : Migration(16, 17) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """CREATE TABLE IF NOT EXISTS `semantic_indexes` (
+                    `indexId` TEXT NOT NULL, `modelId` TEXT NOT NULL, `modelVersion` TEXT NOT NULL,
+                    `status` TEXT NOT NULL, `embeddedCount` INTEGER NOT NULL,
+                    `createdAtMillis` INTEGER NOT NULL, `updatedAtMillis` INTEGER NOT NULL,
+                    PRIMARY KEY(`indexId`))""",
+            )
+            db.execSQL(
+                """CREATE TABLE IF NOT EXISTS `semantic_embeddings` (
+                    `indexId` TEXT NOT NULL, `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL,
+                    `generationModified` INTEGER NOT NULL, `modelVersion` TEXT NOT NULL,
+                    `quantizedVector` BLOB NOT NULL,
+                    `lsh0` INTEGER NOT NULL, `lsh1` INTEGER NOT NULL, `lsh2` INTEGER NOT NULL,
+                    `lsh3` INTEGER NOT NULL, `lsh4` INTEGER NOT NULL, `lsh5` INTEGER NOT NULL,
+                    `lsh6` INTEGER NOT NULL, `lsh7` INTEGER NOT NULL,
+                    `completedAtMillis` INTEGER NOT NULL,
+                    PRIMARY KEY(`indexId`,`volumeName`,`mediaStoreId`),
+                    FOREIGN KEY(`indexId`) REFERENCES `semantic_indexes`(`indexId`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                    FOREIGN KEY(`volumeName`,`mediaStoreId`) REFERENCES `media_items`(`volumeName`,`mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)""",
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_semantic_embeddings_volumeName_mediaStoreId` ON `semantic_embeddings` (`volumeName`,`mediaStoreId`)")
+            repeat(8) { band ->
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_semantic_embeddings_indexId_lsh$band` ON `semantic_embeddings` (`indexId`,`lsh$band`)")
+            }
+        }
+    }
+
     private fun build(context: Context, name: String): GalleryDatabase = Room.databaseBuilder(
         context.applicationContext,
         GalleryDatabase::class.java,
@@ -323,6 +355,6 @@ object GalleryDatabaseFactory {
         Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7,
         Migration7To8, Migration8To9, Migration9To10, Migration10To11, Migration11To12,
         Migration12To13, Migration13To14, Migration14To15,
-        Migration15To16,
+        Migration15To16, Migration16To17,
     ).build()
 }

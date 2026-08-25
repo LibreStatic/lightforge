@@ -72,6 +72,32 @@ data class FaceAnalysisUiState(
     val status: AnalysisStatus? = null,
 )
 
+enum class SemanticModelCompatibilityUi { Recommended, Supported, Unsupported }
+
+data class SemanticModelSettingsItemUi(
+    val id: String,
+    val name: String,
+    val version: String,
+    val sizeBytes: Long,
+    val quality: String,
+    val languages: String,
+    val compatibility: SemanticModelCompatibilityUi,
+    val installed: Boolean,
+    val active: Boolean,
+    val downloading: Boolean,
+    val downloadedBytes: Long = 0,
+    val error: String? = null,
+)
+
+data class SemanticModelSettingsUiState(
+    val enabled: Boolean = false,
+    val automaticSelection: Boolean = true,
+    val activeModelId: String? = null,
+    val buildingModelId: String? = null,
+    val indexError: String? = null,
+    val models: List<SemanticModelSettingsItemUi> = emptyList(),
+)
+
 /** Nested settings destinations. [Root] lists categories; every other value is a detail page. */
 private enum class SettingsPage { Root, Library, Playback, Gestures, Thumbnails, Operations, Security, Backup, AiAnalysis }
 
@@ -101,6 +127,14 @@ fun RecognitionSettingsContent(
     onAllAnalysisEnabledChange: (Boolean) -> Unit = {},
     onPeopleAnalysisEnabledChange: (Boolean) -> Unit = {},
     onContentAnalysisEnabledChange: (Boolean) -> Unit = {},
+    semanticModels: SemanticModelSettingsUiState = SemanticModelSettingsUiState(),
+    onSemanticEnabledChange: (Boolean) -> Unit = {},
+    onSemanticDownload: (String, Boolean) -> Unit = { _, _ -> },
+    onSemanticCancelDownload: (String) -> Unit = {},
+    onSemanticActivate: (String, Boolean) -> Unit = { _, _ -> },
+    onSemanticDelete: (String) -> Unit = {},
+    onSemanticDeleteAll: () -> Unit = {},
+    onSemanticAutomaticSelection: () -> Unit = {},
     showHeader: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
@@ -162,6 +196,14 @@ fun RecognitionSettingsContent(
                         onAllAnalysisEnabledChange = onAllAnalysisEnabledChange,
                         onPeopleAnalysisEnabledChange = onPeopleAnalysisEnabledChange,
                         onContentAnalysisEnabledChange = onContentAnalysisEnabledChange,
+                        semanticModels = semanticModels,
+                        onSemanticEnabledChange = onSemanticEnabledChange,
+                        onSemanticDownload = onSemanticDownload,
+                        onSemanticCancelDownload = onSemanticCancelDownload,
+                        onSemanticActivate = onSemanticActivate,
+                        onSemanticDelete = onSemanticDelete,
+                        onSemanticDeleteAll = onSemanticDeleteAll,
+                        onSemanticAutomaticSelection = onSemanticAutomaticSelection,
                         showHeader = showHeader,
                     )
                 }
@@ -251,7 +293,14 @@ private fun SettingsCategoryList(
     ) {
         SettingsCategoryGroup(stringResource(R.string.settings_group_viewing)) {
             SettingsCategoryRow(GalleryIcons.Collections, stringResource(R.string.settings_library), "$sortLabel · $filterLabel", 0, 4) { onOpen(SettingsPage.Library) }
-            SettingsCategoryRow(GalleryIcons.Play, stringResource(R.string.settings_playback), enabledPattern.format(playbackCount, 5), 1, 4) { onOpen(SettingsPage.Playback) }
+            SettingsCategoryRow(
+                GalleryIcons.Play,
+                stringResource(R.string.settings_playback),
+                enabledPattern.format(playbackCount, 5),
+                1,
+                4,
+                Modifier.testTag("settings_playback_row"),
+            ) { onOpen(SettingsPage.Playback) }
             SettingsCategoryRow(GalleryIcons.Tune, stringResource(R.string.settings_gestures), enabledPattern.format(gestureCount, 8), 2, 4) { onOpen(SettingsPage.Gestures) }
             SettingsCategoryRow(GalleryIcons.Image, stringResource(R.string.settings_thumbnails), "$columnsSummary · " + enabledPattern.format(thumbnailCount, 5), 3, 4) { onOpen(SettingsPage.Thumbnails) }
         }
@@ -288,12 +337,13 @@ private fun SettingsCategoryRow(
     summary: String?,
     index: Int,
     count: Int,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     SegmentedListItem(
         onClick = onClick,
         shapes = ListItemDefaults.segmentedShapes(index, count),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         leadingContent = {
             Box(
                 Modifier.size(48.dp).background(MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.shapes.extraLarge),
@@ -610,6 +660,14 @@ private fun PlaybackSection(
 }
 
 @Composable
+internal fun PlaybackSettingsTestContent(
+    settings: GallerySettings,
+    onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit,
+) {
+    Column { PlaybackSection(settings, onSettingsChange) }
+}
+
+@Composable
 private fun GesturesSection(
     settings: GallerySettings,
     onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit,
@@ -744,10 +802,18 @@ private fun AiAnalysisSection(
     onAllAnalysisEnabledChange: (Boolean) -> Unit,
     onPeopleAnalysisEnabledChange: (Boolean) -> Unit,
     onContentAnalysisEnabledChange: (Boolean) -> Unit,
+    semanticModels: SemanticModelSettingsUiState,
+    onSemanticEnabledChange: (Boolean) -> Unit,
+    onSemanticDownload: (String, Boolean) -> Unit,
+    onSemanticCancelDownload: (String) -> Unit,
+    onSemanticActivate: (String, Boolean) -> Unit,
+    onSemanticDelete: (String) -> Unit,
+    onSemanticDeleteAll: () -> Unit,
+    onSemanticAutomaticSelection: () -> Unit,
     showHeader: Boolean,
 ) {
     val petCollectionsLabel = stringResource(R.string.pet_collections_enable)
-    val allEnabled = peopleAnalysisEnabled && contentAnalysisEnabled && petCollectionsEnabled
+    val allEnabled = peopleAnalysisEnabled && contentAnalysisEnabled && petCollectionsEnabled && semanticModels.enabled
     if (showHeader) Text(
         stringResource(R.string.face_analysis_title),
         style = MaterialTheme.typography.headlineSmall,
@@ -784,6 +850,16 @@ private fun AiAnalysisSection(
         onCheckedChange = onContentAnalysisEnabledChange,
     )
     Text(stringResource(R.string.local_analysis_content_summary), style = MaterialTheme.typography.bodySmall)
+    SemanticModelsSection(
+        state = semanticModels,
+        onEnabledChange = onSemanticEnabledChange,
+        onDownload = onSemanticDownload,
+        onCancelDownload = onSemanticCancelDownload,
+        onActivate = onSemanticActivate,
+        onDelete = onSemanticDelete,
+        onDeleteAll = onSemanticDeleteAll,
+        onAutomaticSelection = onSemanticAutomaticSelection,
+    )
     SettingsSwitchRow(
         petCollectionsLabel,
         petCollectionsEnabled,
@@ -841,6 +917,156 @@ private fun AiAnalysisSection(
 }
 
 @Composable
+private fun SemanticModelsSection(
+    state: SemanticModelSettingsUiState,
+    onEnabledChange: (Boolean) -> Unit,
+    onDownload: (String, Boolean) -> Unit,
+    onCancelDownload: (String) -> Unit,
+    onActivate: (String, Boolean) -> Unit,
+    onDelete: (String) -> Unit,
+    onDeleteAll: () -> Unit,
+    onAutomaticSelection: () -> Unit,
+) {
+    var downloadModel by rememberSaveable { mutableStateOf<String?>(null) }
+    var activateModel by rememberSaveable { mutableStateOf<String?>(null) }
+    var deleteModel by rememberSaveable { mutableStateOf<String?>(null) }
+    var confirmDeleteAll by rememberSaveable { mutableStateOf(false) }
+    Text(stringResource(R.string.semantic_settings_title), style = MaterialTheme.typography.titleLarge)
+    SettingsSwitchRow(
+        stringResource(R.string.semantic_settings_enabled),
+        state.enabled,
+        modifier = Modifier.testTag("semantic_search_switch"),
+        onCheckedChange = onEnabledChange,
+    )
+    Text(stringResource(R.string.semantic_settings_privacy), style = MaterialTheme.typography.bodySmall)
+    val active = state.models.firstOrNull { it.active }
+    Text(
+        if (active == null) stringResource(R.string.semantic_settings_no_active)
+        else stringResource(R.string.semantic_settings_active, active.name, active.version),
+        style = MaterialTheme.typography.bodyMedium,
+    )
+    state.indexError?.let {
+        Text(stringResource(R.string.semantic_index_error), color = MaterialTheme.colorScheme.error)
+    }
+    if (!state.automaticSelection) {
+        OutlinedButton(onClick = onAutomaticSelection) { Text(stringResource(R.string.semantic_settings_automatic)) }
+    }
+    state.models.forEach { model ->
+        Surface(
+            color = if (model.active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = MaterialTheme.shapes.large,
+            modifier = Modifier.fillMaxWidth().testTag("semantic_model_${model.id}"),
+        ) {
+            Column(Modifier.padding(GallerySpacing.Lg), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(model.name, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        when {
+                            model.active -> stringResource(R.string.semantic_model_active)
+                            state.buildingModelId == model.id -> stringResource(R.string.semantic_model_building)
+                            model.compatibility == SemanticModelCompatibilityUi.Recommended -> stringResource(R.string.semantic_model_recommended)
+                            model.compatibility == SemanticModelCompatibilityUi.Unsupported -> stringResource(R.string.semantic_model_unsupported)
+                            else -> stringResource(R.string.semantic_model_supported)
+                        },
+                        color = if (model.active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                }
+                Text(
+                    stringResource(
+                        R.string.semantic_model_details,
+                        model.version,
+                        model.sizeBytes / (1024 * 1024),
+                        model.quality,
+                        model.languages,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                model.error?.let { Text(stringResource(R.string.semantic_model_error, it), color = MaterialTheme.colorScheme.error) }
+                if (state.buildingModelId == model.id) {
+                    Text(stringResource(R.string.semantic_model_building_description), style = MaterialTheme.typography.bodySmall)
+                }
+                when {
+                    model.downloading -> {
+                        Text(stringResource(R.string.semantic_model_downloading, model.downloadedBytes / (1024 * 1024)))
+                        TextButton(onClick = { onCancelDownload(model.id) }) { Text(stringResource(R.string.semantic_model_cancel)) }
+                    }
+                    !model.installed -> GalleryExpressiveButton(onClick = { downloadModel = model.id }) {
+                        Text(stringResource(R.string.semantic_model_download))
+                    }
+                    else -> Row(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+                        if (!model.active && model.compatibility != SemanticModelCompatibilityUi.Unsupported) {
+                            OutlinedButton(onClick = {
+                                if (model.compatibility == SemanticModelCompatibilityUi.Recommended) onActivate(model.id, false)
+                                else activateModel = model.id
+                            }) { Text(stringResource(R.string.semantic_model_use)) }
+                        }
+                        TextButton(onClick = { deleteModel = model.id }) {
+                            Text(stringResource(R.string.semantic_model_delete), color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (state.models.any { it.installed }) {
+        TextButton(onClick = { confirmDeleteAll = true }) {
+            Text(stringResource(R.string.semantic_models_delete_all), color = MaterialTheme.colorScheme.error)
+        }
+    }
+    downloadModel?.let { id ->
+        AlertDialog(
+            onDismissRequest = { downloadModel = null },
+            title = { Text(stringResource(R.string.semantic_download_title)) },
+            text = { Text(stringResource(R.string.semantic_download_body)) },
+            confirmButton = {
+                TextButton(onClick = { downloadModel = null; onDownload(id, false) }) {
+                    Text(stringResource(R.string.semantic_download_wifi))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { downloadModel = null; onDownload(id, true) }) {
+                    Text(stringResource(R.string.semantic_download_any_network))
+                }
+            },
+        )
+    }
+    activateModel?.let { id ->
+        AlertDialog(
+            onDismissRequest = { activateModel = null },
+            title = { Text(stringResource(R.string.semantic_override_title)) },
+            text = { Text(stringResource(R.string.semantic_override_body)) },
+            confirmButton = {
+                TextButton(onClick = { activateModel = null; onActivate(id, true) }) {
+                    Text(stringResource(R.string.semantic_override_confirm))
+                }
+            },
+            dismissButton = { TextButton(onClick = { activateModel = null }) { Text(stringResource(R.string.face_analysis_cancel)) } },
+        )
+    }
+    deleteModel?.let { id ->
+        AlertDialog(
+            onDismissRequest = { deleteModel = null },
+            title = { Text(stringResource(R.string.semantic_delete_title)) },
+            text = { Text(stringResource(R.string.semantic_delete_body)) },
+            confirmButton = {
+                TextButton(onClick = { deleteModel = null; onDelete(id) }) { Text(stringResource(R.string.semantic_model_delete)) }
+            },
+            dismissButton = { TextButton(onClick = { deleteModel = null }) { Text(stringResource(R.string.face_analysis_cancel)) } },
+        )
+    }
+    if (confirmDeleteAll) AlertDialog(
+        onDismissRequest = { confirmDeleteAll = false },
+        title = { Text(stringResource(R.string.semantic_delete_all_title)) },
+        text = { Text(stringResource(R.string.semantic_delete_all_body)) },
+        confirmButton = {
+            TextButton(onClick = { confirmDeleteAll = false; onDeleteAll() }) { Text(stringResource(R.string.semantic_models_delete_all)) }
+        },
+        dismissButton = { TextButton(onClick = { confirmDeleteAll = false }) { Text(stringResource(R.string.face_analysis_cancel)) } },
+    )
+}
+
+@Composable
 private fun SettingsSwitchRow(
     label: String,
     checked: Boolean,
@@ -878,6 +1104,7 @@ private fun SettingsValueRow(
 ) {
     ListItem(
         onClick = onClick,
+        modifier = modifier,
         trailingContent = { Text(value, color = MaterialTheme.colorScheme.primary) },
     ) { Text(label) }
 }

@@ -111,4 +111,41 @@
     <string name="local_analysis_opt_out_body">UGallery può organizzare persone, animali, contenuto e testo delle foto interamente su questo dispositivo. L’analisi inizia quando continui, usa solo le foto autorizzate e può essere disattivata o eliminata nelle Impostazioni.</string>
     <string name="local_analysis_opt_out_accept">Attiva analisi locale</string>
     <string name="local_analysis_opt_out_decline">Non ora</string>
+
+    <!-- Semantic model management -->
+    <string name="semantic_settings_title">Ricerca semantica</string>
+    <string name="semantic_settings_enabled">Usa ricerca semantica</string>
+    <string name="semantic_settings_privacy">Modelli, ricerche, foto e vettori restano sul dispositivo. Vengono scaricati solo pacchetti verificati.</string>
+    <string name="semantic_settings_no_active">Nessun modello semantico attivo</string>
+    <string name="semantic_settings_active">Modello attivo: %1$s · %2$s</string>
+    <string name="semantic_settings_automatic">Usa raccomandazione automatica</string>
+    <string name="semantic_model_active">Attivo</string>
+    <string name="semantic_model_recommended">Consigliato</string>
+    <string name="semantic_model_supported">Compatibile</string>
+    <string name="semantic_model_unsupported">Incompatibile</string>
+    <string name="semantic_model_details">%1$s · %2$d MB · %3$s · %4$s</string>
+    <string name="semantic_model_error">Download non riuscito: %1$s</string>
+    <string name="semantic_model_downloading">Download: %1$d MB</string>
+    <string name="semantic_model_cancel">Annulla</string>
+    <string name="semantic_model_download">Scarica</string>
+    <string name="semantic_model_use">Usa</string>
+    <string name="semantic_model_delete">Elimina</string>
+    <string name="semantic_models_delete_all">Elimina tutti i modelli scaricati</string>
+    <string name="semantic_download_title">Scarica modello semantico</string>
+    <string name="semantic_download_body">Attendi un Wi‑Fi non a consumo o consenti la rete attuale. I dati della galleria non vengono mai inviati.</string>
+    <string name="semantic_download_wifi">Solo Wi‑Fi</string>
+    <string name="semantic_download_any_network">Usa rete attuale</string>
+    <string name="semantic_override_title">Usare un modello non consigliato?</string>
+    <string name="semantic_override_body">Questo modello può usare più memoria, batteria o tempo di elaborazione. Puoi comunque continuare.</string>
+    <string name="semantic_override_confirm">Usa comunque</string>
+    <string name="semantic_delete_title">Eliminare il modello?</string>
+    <string name="semantic_delete_body">Eliminare il modello attivo disattiva anche la ricerca semantica e rimuove il relativo indice.</string>
+    <string name="semantic_delete_all_title">Eliminare tutti i modelli semantici?</string>
+    <string name="semantic_delete_all_body">Tutti i modelli scaricati e i relativi indici verranno rimossi.</string>
+    <string name="semantic_model_building">Creazione dell’indice</string>
+    <string name="semantic_model_building_description">La raccolta viene indicizzata localmente. Il modello attuale resta attivo fino al completamento.</string>
+    <string name="semantic_quality_balanced">Bilanciato</string>
+    <string name="semantic_quality_higher">Qualità superiore</string>
+    <string name="semantic_language_english_focused">Principalmente inglese</string>
+    <string name="semantic_index_error">Impossibile creare l’indice semantico. Controlla lo spazio disponibile e l’accesso ai contenuti, quindi scegli di nuovo il modello.</string>
 </resources>

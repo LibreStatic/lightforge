@@ -2,7 +2,7 @@
     <string name="search_title">Search</string><string name="search_hint">People, places, or things</string><string name="search_action">Search</string>
     <string name="search_photos">Photos</string><string name="search_videos">Videos</string><string name="search_documents">Documents</string><string name="search_local_analysis">Local analysis</string>
     <string name="search_partial_index">Local analysis is still running. Results may be incomplete.</string><string name="search_privacy">Search and analysis stay on this device.</string>
-    <string name="search_error">Search is temporarily unavailable.</string><string name="search_semantic_unavailable">Semantic search is not available. Using keyword fallback.</string><string name="search_retry">Retry</string><string name="search_empty">No local results</string><string name="search_result">Media result</string>
+    <string name="search_error">Search is temporarily unavailable.</string><string name="search_retry">Retry</string><string name="search_empty">No local results</string><string name="search_result">Media result</string>
     <string name="search_analysis_title">On-device analysis</string><string name="search_analysis_body">Image labels and text recognition run locally in resumable battery-aware chunks. You can pause them or delete all derived data.</string>
     <string name="search_analysis_enable">Enable</string><string name="search_analysis_pause">Pause</string><string name="search_analysis_delete">Delete derived data</string><string name="search_close">Close</string>
     <string name="search_people_pets">People and pets</string>

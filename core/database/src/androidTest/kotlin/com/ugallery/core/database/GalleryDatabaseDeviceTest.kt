@@ -148,7 +148,7 @@ class GalleryDatabaseDeviceTest {
         helper.createDatabase(name, 1).close()
         helper.runMigrationsAndValidate(
             name,
-            16,
+            17,
             true,
             GalleryDatabaseFactory.Migration1To2,
             GalleryDatabaseFactory.Migration2To3,
@@ -165,7 +165,33 @@ class GalleryDatabaseDeviceTest {
             GalleryDatabaseFactory.Migration13To14,
             GalleryDatabaseFactory.Migration14To15,
             GalleryDatabaseFactory.Migration15To16,
+            GalleryDatabaseFactory.Migration16To17,
         ).close()
+    }
+
+    @Test
+    fun version16AddsParallelSemanticIndexTables() {
+        val name = "migration-v16-semantic.db"
+        val helper = MigrationTestHelper(
+            InstrumentationRegistry.getInstrumentation(),
+            GalleryDatabase::class.java,
+        )
+        helper.createDatabase(name, 16).close()
+        helper.runMigrationsAndValidate(
+            name,
+            17,
+            true,
+            GalleryDatabaseFactory.Migration16To17,
+        ).use { database ->
+            database.query("SELECT COUNT(*) FROM semantic_indexes").use { cursor ->
+                assert(cursor.moveToFirst())
+                assertEquals(0, cursor.getInt(0))
+            }
+            database.query("SELECT COUNT(*) FROM semantic_embeddings").use { cursor ->
+                assert(cursor.moveToFirst())
+                assertEquals(0, cursor.getInt(0))
+            }
+        }
     }
 
     @Test

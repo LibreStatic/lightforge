@@ -26,6 +26,11 @@ dependencies {
     implementation(project(":core:search"))
     implementation(project(":core:designsystem"))
     implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.androidx.work.runtime)
+    implementation(libs.litert.api) {
+        exclude(group = "com.google.android.play", module = "ai-delivery")
+    }
+    implementation(libs.androidx.room.runtime)
     implementation(platform(libs.compose.bom))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")

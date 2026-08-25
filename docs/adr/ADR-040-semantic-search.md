@@ -1,37 +1,28 @@
-# ADR-040: Semantic text-image search architecture
+# ADR-040: Downloadable on-device semantic search
 
-Date: 2026-08-19
-
-## Status
-
-Proposed (spike complete, model not bundled)
+- Status: Accepted
+- Date: 2026-08-25
 
 ## Context
 
-M6-T02 requires semantic text-image search using joint embeddings.
-This needs a CLIP-compatible model that encodes both text and images into
-the same vector space for cosine similarity matching.
+Semantic text-image search needs a CLIP-compatible image and text encoder in one vector space. Bundling every hardware tier would inflate the APK and prevent users from choosing a different quality/performance trade-off.
 
 ## Decision
 
-Implement the architecture with a two-tier approach:
-1. Primary: CLIP-based joint embedding (when model is bundled)
-2. Fallback: Keyword search using existing AppSearch index
+UGallery ships a fixed, first-party catalog of immutable TinyCLIP LiteRT packages. The app selects the best technically compatible package for the device and automatically downloads it only over validated unmetered Wi-Fi. A user may explicitly allow another connected network, keep multiple packages, choose any technically compatible package despite a recommendation warning, delete packages individually, or disable semantic search without deleting them.
 
-The SemanticSearchEngine class:
-- isSemanticAvailable(): returns false until a model is bundled
-- search(): uses CLIP when available, falls back to keyword search
-- The CLIP path throws UnsupportedOperationException to prevent silent fallback
+Each archive is downloaded resumably from the allowlisted GitHub release hosts, checked against its exact size and SHA-256 digest, verified with the embedded P-256 public key, extracted through a strict file allowlist into staging, and atomically installed. Custom URLs and unsigned sources are not supported.
 
-Model selection criteria:
-- Must be bundlable as a TFLite/LiteRT model
-- Must support both text and image encoding
-- Must fit within APK size budget (~20-50MB)
-- No runtime model download
+Image indexing runs locally with WorkManager after local-analysis consent. Embeddings are compact 512-dimensional quantized vectors stored in Room under a model-specific index. Switching models builds a parallel replacement index while the current index remains searchable, then atomically activates the replacement. Query embedding, LSH candidate retrieval, exact cosine reranking, and reciprocal-rank fusion with AppSearch all remain on device.
+
+Keyword search remains available whenever semantic search is disabled, has no active index, or is rebuilding its first index.
+
+## Privacy boundary
+
+`INTERNET` and `ACCESS_NETWORK_STATE` exist solely for model package delivery. Gallery media, thumbnails, metadata, search queries, embeddings, and inference are never sent to a service. Cleartext traffic is disabled.
 
 ## Consequences
 
-- Without a bundled model, semantic search falls back to keyword search
-- The fallback is explicitly labeled KEYWORD_FALLBACK
-- No misleading stub: the architecture is real but the model is unbundled
-- No cloud or network dependency
+- The APK stays small while users retain explicit control over storage and model quality.
+- True ABI/RAM incompatibility blocks activation but not download; a recommendation can be overridden.
+- Catalog updates require a new immutable release asset, descriptor digest/size, P-256 signature, license notice, and regression validation.

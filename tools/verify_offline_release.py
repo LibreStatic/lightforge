@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail CI if the offline release gains network permissions or unapproved runtime groups."""
+"""Fail CI if the release gains network capabilities beyond signed model delivery."""
 
 from __future__ import annotations
 
@@ -10,8 +10,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FORBIDDEN_PERMISSIONS = {
-    "android.permission.INTERNET",
-    "android.permission.ACCESS_NETWORK_STATE",
     "android.permission.CHANGE_NETWORK_STATE",
     "android.permission.ACCESS_WIFI_STATE",
     "android.permission.CHANGE_WIFI_STATE",
@@ -61,15 +59,31 @@ def verify_dependencies() -> list[str]:
     return sorted(f"{group}:{artifact}" for group, artifact in coordinates if not approved(group, artifact))
 
 
+def verify_network_sources() -> list[str]:
+    """Keep network clients confined to the signed semantic package downloader."""
+    markers = ("HttpURLConnection", "java.net.URL", "okhttp3.", "retrofit2.")
+    violations: list[str] = []
+    for root_name in ("app", "core", "feature"):
+        for path in (ROOT / root_name).glob("**/src/main/**/*.kt"):
+            if path.name == "SemanticModelStorage.kt" and "feature/semanticsearch/" in path.as_posix():
+                continue
+            source = path.read_text(encoding="utf-8")
+            if any(marker in source for marker in markers):
+                violations.append(str(path.relative_to(ROOT)))
+    return sorted(violations)
+
+
 def main() -> int:
     manifest = merged_manifest()
     permissions = verify_manifest(manifest)
     dependencies = verify_dependencies()
-    if permissions or dependencies:
+    network_sources = verify_network_sources()
+    if permissions or dependencies or network_sources:
         print(f"forbiddenPermissions={permissions}")
         print(f"unapprovedDependencies={dependencies}")
+        print(f"unapprovedNetworkSources={network_sources}")
         return 1
-    print(f"offline guard passed: {manifest.relative_to(ROOT)}")
+    print(f"privacy guard passed: {manifest.relative_to(ROOT)} (model delivery permissions only)")
     return 0
 
 

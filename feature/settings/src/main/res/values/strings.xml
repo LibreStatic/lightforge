@@ -110,4 +110,41 @@
     <string name="settings_summary_on">On</string>
     <string name="settings_summary_off">Off</string>
     <string name="settings_zoom_value">%1$d×</string>
+
+    <!-- Semantic model management -->
+    <string name="semantic_settings_title">Semantic search</string>
+    <string name="semantic_settings_enabled">Use semantic search</string>
+    <string name="semantic_settings_privacy">Models, queries, photos, and embeddings stay on this device. Only verified model packages are downloaded.</string>
+    <string name="semantic_settings_no_active">No active semantic model</string>
+    <string name="semantic_settings_active">Active model: %1$s · %2$s</string>
+    <string name="semantic_settings_automatic">Use automatic recommendation</string>
+    <string name="semantic_model_active">Active</string>
+    <string name="semantic_model_recommended">Recommended</string>
+    <string name="semantic_model_supported">Supported</string>
+    <string name="semantic_model_unsupported">Incompatible</string>
+    <string name="semantic_model_details">%1$s · %2$d MB · %3$s · %4$s</string>
+    <string name="semantic_model_error">Download failed: %1$s</string>
+    <string name="semantic_model_downloading">Downloading: %1$d MB</string>
+    <string name="semantic_model_cancel">Cancel</string>
+    <string name="semantic_model_download">Download</string>
+    <string name="semantic_model_use">Use</string>
+    <string name="semantic_model_delete">Delete</string>
+    <string name="semantic_models_delete_all">Delete all downloaded models</string>
+    <string name="semantic_download_title">Download semantic model</string>
+    <string name="semantic_download_body">Choose whether to wait for unmetered Wi-Fi or allow the current network. Gallery data is never uploaded.</string>
+    <string name="semantic_download_wifi">Wi-Fi only</string>
+    <string name="semantic_download_any_network">Use current network</string>
+    <string name="semantic_override_title">Use a non-recommended model?</string>
+    <string name="semantic_override_body">This model may use more memory, battery, or processing time on this device. You can still continue.</string>
+    <string name="semantic_override_confirm">Use anyway</string>
+    <string name="semantic_delete_title">Delete model?</string>
+    <string name="semantic_delete_body">Deleting the active model also disables semantic search and removes its derived index.</string>
+    <string name="semantic_delete_all_title">Delete every semantic model?</string>
+    <string name="semantic_delete_all_body">All downloaded semantic model packages and their derived indexes will be removed.</string>
+    <string name="semantic_model_building">Building index</string>
+    <string name="semantic_model_building_description">Indexing your library locally. The current model stays active until this finishes.</string>
+    <string name="semantic_quality_balanced">Balanced</string>
+    <string name="semantic_quality_higher">Higher quality</string>
+    <string name="semantic_language_english_focused">English-focused</string>
+    <string name="semantic_index_error">The semantic index could not be built. Check available storage and media access, then choose the model again.</string>
 </resources>

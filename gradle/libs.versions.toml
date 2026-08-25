@@ -82,6 +82,7 @@ android-test = { id = "com.android.test", version.ref = "agp" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+room = { id = "androidx.room", version.ref = "room" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 benchmark = { id = "androidx.benchmark", version.ref = "benchmark" }
 baselineprofile = { id = "androidx.baselineprofile", version.ref = "benchmark" }

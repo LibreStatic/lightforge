@@ -121,6 +121,11 @@ import com.ugallery.feature.videoeditor.VideoEditorContentState
 import com.ugallery.feature.collage.CollageConfig
 import com.ugallery.feature.collage.CollageTemplate
 import com.ugallery.feature.collage.CollageTemplates
+import com.ugallery.feature.semanticsearch.ReciprocalRankFusion
+import com.ugallery.feature.semanticsearch.RankedSemanticKey
+import com.ugallery.feature.semanticsearch.SemanticModelManager
+import com.ugallery.feature.semanticsearch.SemanticModelManagerState
+import com.ugallery.feature.semanticsearch.SemanticSearchEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
@@ -329,6 +334,10 @@ class GalleryViewModel @Inject constructor(
     private var searchCursor: MediaSearchCursor? = null
     private var searchJob: Job? = null
     private var searchGeneration = 0L
+    private var semanticModelManager: SemanticModelManager? = null
+    private var semanticSearchEngine: SemanticSearchEngine? = null
+    private val mutableSemanticModels = MutableStateFlow(SemanticModelManagerState())
+    val semanticModels = mutableSemanticModels.asStateFlow()
     val engineState = mutableEngineState.stateIn(
         viewModelScope,
         SharingStarted.Eagerly,
@@ -493,17 +502,27 @@ class GalleryViewModel @Inject constructor(
                 return@launch
             }
             runtime.value = created
+            semanticModelManager = SemanticModelManager(application, created.database).also { manager ->
+                manager.initializeEnabledDefault(
+                    mutableLocalAnalysisOnboarding.value == LocalAnalysisOnboardingDecision.Accepted,
+                )
+                semanticSearchEngine = SemanticSearchEngine(application, created.database, manager)
+                viewModelScope.launch { manager.state.collect { mutableSemanticModels.value = it } }
+                manager.ensureAutomaticDownload()
+            }
             created.monitor = MediaStoreChangeMonitor(application.contentResolver, viewModelScope) { batch ->
                 batch.rowHints.forEach {
                     created.synchronizer.applyRowHint(it)
                     created.searchIndex.indexKey(it)
                 }
+                semanticModelManager?.scheduleActiveIndexUpdate()
                 refreshLibrary(
                     indexedHintCount = batch.rowHints.size,
                     forceFullReconciliation = batch.requiresFullVolumeReconciliation,
                 )
             }.also { it.start() }
             refreshLibrary()
+            semanticModelManager?.scheduleActiveIndexUpdate()
         }
     }
 
@@ -541,8 +560,16 @@ class GalleryViewModel @Inject constructor(
                 }
                 searchCursor = cursor
                 val page = cursor.nextPage()
+                val semanticHits = runCatching { semanticSearchEngine?.search(raw).orEmpty() }
+                    .getOrDefault(emptyList())
                 if (isCurrentSearch(generation, raw)) {
-                    mutableSearch.value = GallerySearchUiState(raw, page.hits, false, page.isTerminal, false)
+                    mutableSearch.value = GallerySearchUiState(
+                        raw,
+                        fuseSearchHits(page.hits, semanticHits),
+                        false,
+                        page.isTerminal,
+                        false,
+                    )
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -553,6 +580,37 @@ class GalleryViewModel @Inject constructor(
             }
         }
     }
+
+    private fun fuseSearchHits(keyword: List<MediaSearchHit>, semantic: List<MediaSearchHit>): List<MediaSearchHit> {
+        if (semantic.isEmpty()) return keyword
+        fun MediaSearchHit.encodedKey() = "${key.volumeName}:${key.mediaStoreId}"
+        val byKey = (keyword + semantic).associateBy { it.encodedKey() }
+        return ReciprocalRankFusion.fuse(
+            keyword.map { RankedSemanticKey(it.encodedKey(), it.debug.rankingSignal) },
+            semantic.map { RankedSemanticKey(it.encodedKey(), it.debug.rankingSignal) },
+        ).mapNotNull { fused ->
+            byKey[fused.key]?.let { hit ->
+                hit.copy(
+                    debug = SearchRankingDebug(
+                        mutableSearch.value.query,
+                        "hybrid-rrf",
+                        fused.score,
+                        hit.debug.matchedProperties,
+                    ),
+                )
+            }
+        }
+    }
+
+    fun setSemanticSearchEnabled(enabled: Boolean) { semanticModelManager?.setEnabled(enabled) }
+    fun downloadSemanticModel(modelId: String, allowMetered: Boolean) { semanticModelManager?.download(modelId, allowMetered) }
+    fun cancelSemanticModelDownload(modelId: String) { semanticModelManager?.cancelDownload(modelId) }
+    fun activateSemanticModel(modelId: String, allowUnsupported: Boolean) {
+        semanticModelManager?.activate(modelId, allowUnsupported)
+    }
+    fun deleteSemanticModel(modelId: String) { semanticModelManager?.deleteModel(modelId) }
+    fun deleteAllSemanticModels() { semanticModelManager?.deleteAllModels() }
+    fun useAutomaticSemanticModel() { semanticModelManager?.useAutomaticSelection() }
 
     private fun cancelSearchExecution(): Long {
         searchJob?.cancel()
@@ -614,7 +672,9 @@ class GalleryViewModel @Inject constructor(
             runCatching { cursor.nextPage() }.onSuccess { page ->
                 if (isCurrentSearch(generation, raw) && searchCursor === cursor) {
                     mutableSearch.value = mutableSearch.value.copy(
-                        hits = mutableSearch.value.hits + page.hits,
+                        hits = (mutableSearch.value.hits + page.hits).distinctBy { hit ->
+                            "${hit.key.volumeName}:${hit.key.mediaStoreId}"
+                        },
                         loading = false,
                         terminal = page.isTerminal,
                     )
@@ -645,11 +705,13 @@ class GalleryViewModel @Inject constructor(
         localAnalysisOnboardingStore.setDecision(LocalAnalysisOnboardingDecision.Accepted)
         mutableLocalAnalysisOnboarding.value = LocalAnalysisOnboardingDecision.Accepted
         enableAllLocalAnalysis(fullLibrary = true)
+        semanticModelManager?.setEnabled(true)
     }
 
     fun declineLocalAnalysisDefaults() {
         localAnalysisOnboardingStore.setDecision(LocalAnalysisOnboardingDecision.Declined)
         mutableLocalAnalysisOnboarding.value = LocalAnalysisOnboardingDecision.Declined
+        semanticModelManager?.setEnabled(false)
         viewModelScope.launch {
             disableAllLocalAnalysis()
             localAnalysisTasks.reversed().forEach { mlScheduler.deleteDerivedData(it) }
@@ -658,6 +720,7 @@ class GalleryViewModel @Inject constructor(
     }
 
     fun setAllLocalAnalysisEnabled(enabled: Boolean) {
+        semanticModelManager?.setEnabled(enabled)
         if (enabled) enableAllLocalAnalysis(fullLibrary = true)
         else viewModelScope.launch { disableAllLocalAnalysis() }
     }
@@ -2337,6 +2400,8 @@ class GalleryViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        semanticSearchEngine?.close()
+        semanticModelManager?.close()
         runtime.value?.let {
             it.monitor?.close()
             it.thumbnails.close()
