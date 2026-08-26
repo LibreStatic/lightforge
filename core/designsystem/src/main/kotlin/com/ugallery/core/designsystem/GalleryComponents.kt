@@ -43,6 +43,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -414,7 +415,6 @@ fun GalleryStateContent(
             imageVector = GalleryIcons.Image,
             contentDescription = null,
             modifier = Modifier.size(36.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     },
     action: (@Composable () -> Unit)? = null,
@@ -425,14 +425,19 @@ fun GalleryStateContent(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            Box(
+            Surface(
                 modifier = Modifier
                     .size(72.dp)
-                    .clip(MaterialTheme.shapes.extraExtraLarge)
-                    .background(MaterialTheme.colorScheme.secondaryContainer)
                     .semantics { contentDescription = illustrationDescription },
-                contentAlignment = Alignment.Center,
-            ) { illustration() }
+                shape = MaterialTheme.shapes.extraExtraLarge,
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) { illustration() }
+            }
             Spacer(Modifier.height(GallerySpacing.Xl))
             Text(
                 title,

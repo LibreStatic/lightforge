@@ -224,7 +224,6 @@ internal fun PrivateAlbumEmptyState(
                 GalleryIcons.Lock,
                 contentDescription = null,
                 modifier = Modifier.size(36.dp),
-                tint = MaterialTheme.colorScheme.primary,
             )
         },
         action = {
