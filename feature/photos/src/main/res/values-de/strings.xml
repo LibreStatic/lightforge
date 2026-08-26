@@ -1,5 +1,5 @@
 <resources>
-    <string name="photos_title">Fotos</string><string name="library_local">Nur auf diesem Gerät</string>
+    <string name="photos_title">Fotos</string><string name="library_local">Nur lokal</string>
     <string name="empty_library_title">Noch keine Fotos</string><string name="empty_library_body">Auf diesem Gerät gespeicherte Fotos und Videos werden hier angezeigt.</string>
     <string name="limited_access_label">Eingeschränkter Zugriff</string>
     <string name="limited_access_body">Nur ausgewählte Fotos und Videos sind sichtbar.</string>
@@ -13,4 +13,4 @@
     <string name="grant_access_action">Zugriff wählen</string>
     <string name="photo_thumbnail_description">Foto</string>
     <string name="video_thumbnail_description">Video</string>
-<string name="open_settings">Einstellungen öffnen</string><string name="change_grid_density">Rasterdichte ändern</string></resources>
+<string name="open_settings">Einstellungen öffnen</string><string name="change_grid_density">Rasterdichte ändern</string><string name="photos_create">Erstellen</string><string name="photos_updates">Aktuelles</string></resources>

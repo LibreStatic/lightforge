@@ -41,4 +41,11 @@
     <string name="about_dependencies_count">%1$d runtime dependencies</string>
     <string name="about_license_load_error">The bundled license information could not be loaded.</string>
     <string name="about_license_template_note">The bracketed fields in the appendix are part of Apache’s example template and are intentionally left unchanged. UGallery’s completed copyright notice appears above.</string>
+    <string name="nav_create">Create</string><string name="nav_ask">Ask</string><string name="nav_updates">Updates</string><string name="nav_on_device">On device</string><string name="nav_archive">Archive</string><string name="nav_trash">Trash</string>
+    <string name="updates_title">Updates</string><string name="updates_empty">No recent local activity</string><string name="updates_local_body">Indexing, analysis and media actions stay on this device.</string>
+    <string name="device_folders_title">On device</string><string name="device_folders_empty">No device folders</string>
+    <string name="archive_title">Archive</string><string name="archive_empty">Archive is empty</string><string name="archive_empty_body">Archived items disappear from Photos but remain in albums and search.</string><string name="archive_unarchive">Unarchive</string>
+    <string name="create_sheet_title">Create</string><string name="highlight_featured_video">Featured video</string><string name="highlight_selfies">Selfies</string>
+    <string name="activity_archived">%1$d archived</string><string name="activity_unarchived">%1$d unarchived</string><string name="activity_trashed">%1$d moved to trash</string><string name="activity_restored">%1$d restored</string><string name="activity_deleted">%1$d permanently deleted</string><string name="activity_exported">%1$d exported</string><string name="activity_imported">%1$d imported</string><string name="activity_analysis_complete">Local analysis completed</string><string name="activity_analysis_failed">Local analysis needs attention</string>
+    <plurals name="highlight_years_ago"><item quantity="one">%d year ago</item><item quantity="other">%d years ago</item></plurals>
 </resources>

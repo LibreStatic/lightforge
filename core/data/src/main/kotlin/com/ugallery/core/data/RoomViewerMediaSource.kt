@@ -70,6 +70,15 @@ class RoomViewerMediaSource(database: GalleryDatabase) {
         }
         where += "m.isAccessible=1"
         where += "m.isTrashed=?"; args += if (query.trashedOnly) 1 else 0
+        when (query.archiveMode) {
+            MediaQuery.ArchiveMode.Exclude -> where +=
+                "NOT EXISTS (SELECT 1 FROM archived_media am WHERE " +
+                    "am.volumeName=m.volumeName AND am.mediaStoreId=m.mediaStoreId)"
+            MediaQuery.ArchiveMode.Include -> Unit
+            MediaQuery.ArchiveMode.Only -> where +=
+                "EXISTS (SELECT 1 FROM archived_media am WHERE " +
+                    "am.volumeName=m.volumeName AND am.mediaStoreId=m.mediaStoreId)"
+        }
         if (query.favoriteOnly) where += "m.isFavorite=1"
         when (query.kindFilter) {
             MediaQuery.KindFilter.Images -> { where += "m.mediaType=?"; args += 1 }

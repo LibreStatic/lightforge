@@ -12,7 +12,12 @@ import com.ugallery.core.preferences.GalleryFolderToken
 internal object GalleryTimelineQuery {
     fun build(settings: LibrarySettings): SupportSQLiteQuery {
         val args = mutableListOf<Any>()
-        val where = mutableListOf("isAccessible=1", "isTrashed=0")
+        val where = mutableListOf(
+            "isAccessible=1",
+            "isTrashed=0",
+            "NOT EXISTS (SELECT 1 FROM archived_media a WHERE " +
+                "a.volumeName=media_items.volumeName AND a.mediaStoreId=media_items.mediaStoreId)",
+        )
         when (settings.filter) {
             LibraryFilter.All -> Unit
             LibraryFilter.Images -> where += "mediaType=1"

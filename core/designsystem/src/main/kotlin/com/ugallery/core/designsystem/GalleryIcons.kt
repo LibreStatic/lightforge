@@ -39,6 +39,10 @@ import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material.icons.rounded.Archive
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -90,6 +94,10 @@ val GalleryIconSpeed: ImageVector get() = Icons.Rounded.Speed
 val GalleryIconVolume: ImageVector get() = Icons.AutoMirrored.Rounded.VolumeUp
 val GalleryIconVolumeOff: ImageVector get() = Icons.Rounded.VolumeOff
 val GalleryIconMusic: ImageVector get() = Icons.Rounded.MusicNote
+val GalleryIconArchive: ImageVector get() = Icons.Rounded.Archive
+val GalleryIconAsk: ImageVector get() = Icons.Rounded.AutoAwesome
+val GalleryIconFolder: ImageVector get() = Icons.Rounded.Folder
+val GalleryIconNotifications: ImageVector get() = Icons.Rounded.Notifications
 
 /**
  * Standard gallery icon composable with Material 3 defaults:
@@ -157,4 +165,8 @@ object GalleryIcons {
     val Volume get() = GalleryIconVolume
     val VolumeOff get() = GalleryIconVolumeOff
     val Music get() = GalleryIconMusic
+    val Archive get() = GalleryIconArchive
+    val Ask get() = GalleryIconAsk
+    val Folder get() = GalleryIconFolder
+    val Notifications get() = GalleryIconNotifications
 }

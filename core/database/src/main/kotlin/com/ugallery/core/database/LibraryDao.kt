@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface LibraryDao {
-    @RawQuery(observedEntities = [MediaItemEntity::class])
+    @RawQuery(observedEntities = [MediaItemEntity::class, ArchivedMediaEntity::class])
     fun rawTimelinePagingSource(query: SupportSQLiteQuery): androidx.paging.PagingSource<Int, MediaItemEntity>
 
     @Query(
@@ -545,6 +545,8 @@ interface LibraryDao {
         """
         SELECT * FROM media_items
         WHERE isAccessible = 1 AND isTrashed = 0
+            AND NOT EXISTS (SELECT 1 FROM archived_media a
+                WHERE a.volumeName=media_items.volumeName AND a.mediaStoreId=media_items.mediaStoreId)
         ORDER BY timelineSortMillis DESC, mediaStoreId DESC, volumeName DESC
         LIMIT :limit
         """,
@@ -596,6 +598,8 @@ interface LibraryDao {
             (timelineSortMillis = :afterSortMillis AND mediaStoreId = :afterMediaStoreId
                 AND volumeName < :afterVolumeName)
         )
+        AND NOT EXISTS (SELECT 1 FROM archived_media a
+            WHERE a.volumeName=media_items.volumeName AND a.mediaStoreId=media_items.mediaStoreId)
         ORDER BY timelineSortMillis DESC, mediaStoreId DESC, volumeName DESC
         LIMIT :limit
         """,
@@ -606,6 +610,108 @@ interface LibraryDao {
         afterVolumeName: String,
         limit: Int,
     ): List<MediaItemEntity>
+
+    @Query(
+        """
+        SELECT m.* FROM archived_media a
+        JOIN media_items m ON m.volumeName=a.volumeName AND m.mediaStoreId=a.mediaStoreId
+        WHERE m.isAccessible=1 AND m.isTrashed=0
+        ORDER BY m.timelineSortMillis DESC, m.mediaStoreId DESC, m.volumeName DESC
+        LIMIT :limit
+        """,
+    )
+    suspend fun firstArchivePage(limit: Int): List<MediaItemEntity>
+
+    @Query(
+        """
+        SELECT m.* FROM archived_media a
+        JOIN media_items m ON m.volumeName=a.volumeName AND m.mediaStoreId=a.mediaStoreId
+        WHERE m.isAccessible=1 AND m.isTrashed=0 AND (
+            m.timelineSortMillis < :afterSortMillis OR
+            (m.timelineSortMillis = :afterSortMillis AND m.mediaStoreId < :afterMediaStoreId) OR
+            (m.timelineSortMillis = :afterSortMillis AND m.mediaStoreId = :afterMediaStoreId
+                AND m.volumeName < :afterVolumeName)
+        )
+        ORDER BY m.timelineSortMillis DESC, m.mediaStoreId DESC, m.volumeName DESC
+        LIMIT :limit
+        """,
+    )
+    suspend fun archivePageAfter(
+        afterSortMillis: Long,
+        afterMediaStoreId: Long,
+        afterVolumeName: String,
+        limit: Int,
+    ): List<MediaItemEntity>
+
+    @Query(
+        """SELECT COUNT(*) FROM archived_media a JOIN media_items m
+            ON m.volumeName=a.volumeName AND m.mediaStoreId=a.mediaStoreId
+            WHERE m.isAccessible=1 AND m.isTrashed=0""",
+    )
+    fun observeArchiveCount(): Flow<Long>
+
+    @Upsert
+    suspend fun upsertArchived(media: ArchivedMediaEntity)
+
+    @Query("DELETE FROM archived_media WHERE volumeName=:volumeName AND mediaStoreId=:mediaStoreId")
+    suspend fun deleteArchived(volumeName: String, mediaStoreId: Long): Int
+
+    @Query("SELECT EXISTS(SELECT 1 FROM archived_media WHERE volumeName=:volumeName AND mediaStoreId=:mediaStoreId)")
+    fun observeArchived(volumeName: String, mediaStoreId: Long): Flow<Boolean>
+
+    @Query(
+        """SELECT COUNT(*) FROM media_items m WHERE m.isAccessible=1 AND m.isTrashed=0
+            AND NOT EXISTS (SELECT 1 FROM archived_media a
+                WHERE a.volumeName=m.volumeName AND a.mediaStoreId=m.mediaStoreId)""",
+    )
+    fun observeHighlightInvalidation(): Flow<Long>
+
+    @Query(
+        """SELECT COUNT(*) FROM media_items m WHERE m.isAccessible=1 AND m.isTrashed=0
+            AND m.timelineSortMillis>=:fromMillis AND m.timelineSortMillis<:toMillis
+            AND NOT EXISTS (SELECT 1 FROM archived_media a
+                WHERE a.volumeName=m.volumeName AND a.mediaStoreId=m.mediaStoreId)""",
+    )
+    suspend fun highlightCount(fromMillis: Long, toMillis: Long): Long
+
+    @Query(
+        """SELECT m.* FROM media_items m WHERE m.isAccessible=1 AND m.isTrashed=0
+            AND m.timelineSortMillis>=:fromMillis AND m.timelineSortMillis<:toMillis
+            AND NOT EXISTS (SELECT 1 FROM archived_media a
+                WHERE a.volumeName=m.volumeName AND a.mediaStoreId=m.mediaStoreId)
+            ORDER BY m.timelineSortMillis DESC, m.mediaStoreId DESC, m.volumeName DESC LIMIT 1""",
+    )
+    suspend fun highlightCover(fromMillis: Long, toMillis: Long): MediaItemEntity?
+
+    @Query(
+        """SELECT m.* FROM media_items m WHERE m.isAccessible=1 AND m.isTrashed=0
+            AND m.mediaType=3 AND m.timelineSortMillis>=:fromMillis
+            AND NOT EXISTS (SELECT 1 FROM archived_media a
+                WHERE a.volumeName=m.volumeName AND a.mediaStoreId=m.mediaStoreId)
+            ORDER BY m.durationMillis DESC, m.timelineSortMillis DESC LIMIT 1""",
+    )
+    suspend fun featuredVideo(fromMillis: Long): MediaItemEntity?
+
+    @Query(
+        """SELECT m.volumeName AS volumeName, m.bucketId AS bucketId,
+            MAX(m.bucketDisplayName) AS displayName, COUNT(*) AS itemCount,
+            MAX(m.timelineSortMillis) AS latestSortMillis,
+            (SELECT cover.mediaStoreId FROM media_items cover
+                WHERE cover.volumeName=m.volumeName AND cover.bucketId=m.bucketId
+                    AND cover.isAccessible=1 AND cover.isTrashed=0
+                    AND NOT EXISTS (SELECT 1 FROM archived_media ca
+                        WHERE ca.volumeName=cover.volumeName AND ca.mediaStoreId=cover.mediaStoreId)
+                ORDER BY cover.timelineSortMillis DESC LIMIT 1) AS coverMediaStoreId,
+            1 AS isAvailable
+            FROM media_items m
+            WHERE m.bucketId IS NOT NULL AND m.isAccessible=1 AND m.isTrashed=0
+                AND (LOWER(COALESCE(m.bucketDisplayName,'')) LIKE '%selfie%'
+                    OR LOWER(COALESCE(m.relativePath,'')) LIKE '%selfie%')
+                AND NOT EXISTS (SELECT 1 FROM archived_media a
+                    WHERE a.volumeName=m.volumeName AND a.mediaStoreId=m.mediaStoreId)
+            GROUP BY m.volumeName,m.bucketId ORDER BY latestSortMillis DESC""",
+    )
+    suspend fun selfieFolders(): List<PhysicalAlbumRow>
 
     @Query("SELECT * FROM media_items WHERE volumeName = :volumeName AND mediaStoreId = :id")
     suspend fun media(volumeName: String, id: Long): MediaItemEntity?

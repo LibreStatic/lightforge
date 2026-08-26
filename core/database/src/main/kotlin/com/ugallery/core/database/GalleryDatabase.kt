@@ -11,6 +11,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 @Database(
     entities = [
         MediaItemEntity::class,
+        ArchivedMediaEntity::class,
+        ActivityEventEntity::class,
         MediaStoreCheckpointEntity::class,
         AlbumAggregateEntity::class,
         VirtualAlbumEntity::class,
@@ -49,7 +51,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SemanticIndexEntity::class,
         SemanticEmbeddingEntity::class,
     ],
-    version = 17,
+    version = 18,
     exportSchema = true,
 )
 abstract class GalleryDatabase : RoomDatabase() {
@@ -59,6 +61,7 @@ abstract class GalleryDatabase : RoomDatabase() {
     abstract fun editRecipeDao(): EditRecipeDao
     abstract fun colorEditDao(): ColorEditDao
     abstract fun semanticDao(): SemanticDao
+    abstract fun activityDao(): ActivityDao
 }
 
 object GalleryDatabaseFactory {
@@ -347,6 +350,33 @@ object GalleryDatabaseFactory {
         }
     }
 
+    val Migration17To18 = object : Migration(17, 18) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """CREATE TABLE IF NOT EXISTS `archived_media` (
+                    `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL,
+                    `archivedAtMillis` INTEGER NOT NULL,
+                    PRIMARY KEY(`volumeName`,`mediaStoreId`),
+                    FOREIGN KEY(`volumeName`,`mediaStoreId`) REFERENCES `media_items`(`volumeName`,`mediaStoreId`)
+                        ON UPDATE NO ACTION ON DELETE CASCADE)""",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_archived_media_archivedAtMillis` " +
+                    "ON `archived_media` (`archivedAtMillis`)",
+            )
+            db.execSQL(
+                """CREATE TABLE IF NOT EXISTS `activity_events` (
+                    `eventId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `type` TEXT NOT NULL, `occurredAtMillis` INTEGER NOT NULL,
+                    `itemCount` INTEGER NOT NULL, `detail` TEXT)""",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_activity_events_occurredAtMillis` " +
+                    "ON `activity_events` (`occurredAtMillis`)",
+            )
+        }
+    }
+
     private fun build(context: Context, name: String): GalleryDatabase = Room.databaseBuilder(
         context.applicationContext,
         GalleryDatabase::class.java,
@@ -355,6 +385,6 @@ object GalleryDatabaseFactory {
         Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7,
         Migration7To8, Migration8To9, Migration9To10, Migration10To11, Migration11To12,
         Migration12To13, Migration13To14, Migration14To15,
-        Migration15To16, Migration16To17,
+        Migration15To16, Migration16To17, Migration17To18,
     ).build()
 }

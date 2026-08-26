@@ -148,7 +148,7 @@ class GalleryDatabaseDeviceTest {
         helper.createDatabase(name, 1).close()
         helper.runMigrationsAndValidate(
             name,
-            17,
+            18,
             true,
             GalleryDatabaseFactory.Migration1To2,
             GalleryDatabaseFactory.Migration2To3,
@@ -166,7 +166,50 @@ class GalleryDatabaseDeviceTest {
             GalleryDatabaseFactory.Migration14To15,
             GalleryDatabaseFactory.Migration15To16,
             GalleryDatabaseFactory.Migration16To17,
+            GalleryDatabaseFactory.Migration17To18,
         ).close()
+    }
+
+    @Test
+    fun version17AddsArchiveAndActivityTables() {
+        val name = "migration-v17-library-shell.db"
+        val helper = MigrationTestHelper(
+            InstrumentationRegistry.getInstrumentation(),
+            GalleryDatabase::class.java,
+        )
+        helper.createDatabase(name, 17).close()
+        helper.runMigrationsAndValidate(
+            name,
+            18,
+            true,
+            GalleryDatabaseFactory.Migration17To18,
+        ).use { migrated ->
+            migrated.query("SELECT COUNT(*) FROM archived_media").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(0, cursor.getInt(0))
+            }
+            migrated.query("SELECT COUNT(*) FROM activity_events").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(0, cursor.getInt(0))
+            }
+        }
+    }
+
+    @Test
+    fun archivedMediaLeavesTimelineAndAppearsInArchive() = runBlocking {
+        dao.upsertMedia(
+            listOf(
+                media("external_primary", id = 1, sort = 2_000),
+                media("external_primary", id = 2, sort = 1_000),
+            ),
+        )
+        dao.upsertArchived(ArchivedMediaEntity("external_primary", 1, archivedAtMillis = 3_000))
+
+        assertEquals(listOf(2L), dao.firstTimelinePage(10).map(MediaItemEntity::mediaStoreId))
+        assertEquals(listOf(1L), dao.firstArchivePage(10).map(MediaItemEntity::mediaStoreId))
+
+        dao.deleteArchived("external_primary", 1)
+        assertEquals(listOf(1L, 2L), dao.firstTimelinePage(10).map(MediaItemEntity::mediaStoreId))
     }
 
     @Test

@@ -8,6 +8,7 @@ data class MediaQuery(
     val kindFilter: KindFilter = KindFilter.ImagesAndVideos,
     val favoriteOnly: Boolean = false,
     val trashedOnly: Boolean = false,
+    val archiveMode: ArchiveMode = ArchiveMode.Exclude,
     val fromTimelineMillisInclusive: Long? = null,
     val toTimelineMillisExclusive: Long? = null,
     val sort: Sort = Sort.NewestFirst,
@@ -26,6 +27,9 @@ data class MediaQuery(
     }
 
     enum class KindFilter { Images, Videos, Animated, Raw, ImagesAndVideos }
+
+    /** Archive is UGallery-local metadata; it never changes the underlying MediaStore row. */
+    enum class ArchiveMode { Exclude, Include, Only }
 
     enum class SortField { DateTaken, DateModified, Name, Size }
     enum class Grouping { Day, Month, Year, None }

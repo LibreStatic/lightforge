@@ -10,6 +10,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.ugallery.core.thumbnail.NativeImageDecoder
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -18,6 +19,36 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class PhotoViewerPipelineDeviceTest {
+    @Test
+    fun fastOrVisuallySubtleThumbnailUpgradeIsImmediate() = runBlocking {
+        val resolver = InstrumentationRegistry.getInstrumentation().targetContext.contentResolver
+        val decoder = NativeImageDecoder(resolver)
+        val fixture = publish("static.png", "image/png")
+        try {
+            val visiblyDifferent = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888).apply {
+                eraseColor(android.graphics.Color.MAGENTA)
+            }
+            val fastClock = ArrayDeque(listOf(0L, 249L))
+            val fast = PhotoViewerPipeline(decoder, elapsedRealtimeMillis = fastClock::removeFirst)
+                .load(fixture, 1_080, 2_400, visiblyDifferent)
+                .toList().last() as PhotoLoadState.Ready
+            assertEquals(PhotoPreviewTransition.Immediate, fast.thumbnailTransition)
+            (fast.drawable as BitmapDrawable).bitmap.recycle()
+            visiblyDifferent.recycle()
+
+            val equivalentThumbnail = decoder.screenPreview(fixture, 64, 64)
+            val slowClock = ArrayDeque(listOf(0L, 300L))
+            val subtle = PhotoViewerPipeline(decoder, elapsedRealtimeMillis = slowClock::removeFirst)
+                .load(fixture, 1_080, 2_400, equivalentThumbnail)
+                .toList().last() as PhotoLoadState.Ready
+            assertEquals(PhotoPreviewTransition.Immediate, subtle.thumbnailTransition)
+            (subtle.drawable as BitmapDrawable).bitmap.recycle()
+            equivalentThumbnail.recycle()
+        } finally {
+            resolver.delete(fixture, null, null)
+        }
+    }
+
     @Test
     fun staticAnimatedAndCorruptFormatsHaveExplicitStates() = runBlocking {
         val resolver = InstrumentationRegistry.getInstrumentation().targetContext.contentResolver

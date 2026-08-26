@@ -55,6 +55,37 @@ data class MediaItemEntity(
     val dateExpiresSeconds: Long? = null,
 )
 
+@Entity(
+    tableName = "archived_media",
+    primaryKeys = ["volumeName", "mediaStoreId"],
+    foreignKeys = [
+        ForeignKey(
+            entity = MediaItemEntity::class,
+            parentColumns = ["volumeName", "mediaStoreId"],
+            childColumns = ["volumeName", "mediaStoreId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [Index(name = "index_archived_media_archivedAtMillis", value = ["archivedAtMillis"])],
+)
+data class ArchivedMediaEntity(
+    val volumeName: String,
+    val mediaStoreId: Long,
+    val archivedAtMillis: Long,
+)
+
+@Entity(
+    tableName = "activity_events",
+    indices = [Index(name = "index_activity_events_occurredAtMillis", value = ["occurredAtMillis"])],
+)
+data class ActivityEventEntity(
+    @PrimaryKey(autoGenerate = true) val eventId: Long = 0,
+    val type: String,
+    val occurredAtMillis: Long,
+    val itemCount: Long,
+    val detail: String? = null,
+)
+
 @Entity(tableName = "media_store_checkpoints")
 data class MediaStoreCheckpointEntity(
     @androidx.room.PrimaryKey val volumeName: String,

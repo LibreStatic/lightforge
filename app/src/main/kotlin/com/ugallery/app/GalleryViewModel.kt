@@ -4,6 +4,8 @@ import android.app.ActivityManager
 import android.app.Application
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.drawable.AnimatedImageDrawable
+import android.graphics.drawable.BitmapDrawable
 import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
@@ -17,6 +19,13 @@ import com.ugallery.core.database.MomentSummaryRow
 import com.ugallery.core.data.GalleryTimelineRepository
 import com.ugallery.core.data.GalleryAlbumRepository
 import com.ugallery.core.data.GalleryTrashRepository
+import com.ugallery.core.data.GalleryArchiveRepository
+import com.ugallery.core.data.GalleryActivityRepository
+import com.ugallery.core.data.GalleryActivityEvent
+import com.ugallery.core.data.GalleryActivityType
+import com.ugallery.core.data.GalleryHighlight
+import com.ugallery.core.data.GalleryHighlightsRepository
+import com.ugallery.core.data.GalleryQueryMediaRepository
 import com.ugallery.core.data.MediaMetadataRepository
 import com.ugallery.core.database.AlbumMediaFilter
 import com.ugallery.core.database.AlbumSort
@@ -118,7 +127,9 @@ import com.ugallery.feature.collections.PersonMemberCardUi
 import com.ugallery.feature.settings.GalleryFolderOption
 import com.ugallery.feature.permissions.PermissionCoordinator
 import com.ugallery.feature.viewer.PhotoLoadState
+import com.ugallery.feature.viewer.PhotoPreviewTransition
 import com.ugallery.feature.viewer.PhotoViewerPipeline
+import com.ugallery.feature.viewer.ViewerAdjacentPreloadPlanner
 import com.ugallery.feature.viewer.ViewerUiState
 import com.ugallery.feature.photoeditor.PhotoEditorContentState
 import com.ugallery.feature.videoeditor.VideoEditorContentState
@@ -133,6 +144,9 @@ import com.ugallery.feature.semanticsearch.SemanticSearchEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -216,6 +230,10 @@ private data class GalleryRuntime(
     val decoder: NativeImageDecoder,
     val albums: GalleryAlbumRepository,
     val trash: GalleryTrashRepository,
+    val archive: GalleryArchiveRepository,
+    val activity: GalleryActivityRepository,
+    val highlights: GalleryHighlightsRepository,
+    val queryMedia: GalleryQueryMediaRepository,
     val metadata: MediaMetadataRepository,
     val selectionTargets: RoomSelectionTargetSource,
     val viewerMedia: RoomViewerMediaSource,
@@ -392,6 +410,22 @@ class GalleryViewModel @Inject constructor(
         .cachedIn(viewModelScope)
     val trashCount = runtime.filterNotNull().flatMapLatest { it.trash.countFlow() }
         .stateIn(viewModelScope, SharingStarted.Eagerly, 0L)
+    val archive: Flow<PagingData<TimelineMedia>> = runtime.filterNotNull()
+        .flatMapLatest { it.archive.media() }
+        .cachedIn(viewModelScope)
+    val archiveCount = runtime.filterNotNull().flatMapLatest { it.archive.count() }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, 0L)
+    val activity = runtime.filterNotNull().flatMapLatest { it.activity.latest() }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList<GalleryActivityEvent>())
+    val highlights = runtime.filterNotNull().flatMapLatest { it.highlights.highlights(ZoneId.systemDefault()) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList<GalleryHighlight>())
+    private val mutableSelectedHighlight = MutableStateFlow<GalleryHighlight?>(null)
+    val selectedHighlight = mutableSelectedHighlight.asStateFlow()
+    val highlightMedia: Flow<PagingData<TimelineMedia>> = runtime.filterNotNull()
+        .flatMapLatest { active ->
+            mutableSelectedHighlight.filterNotNull().flatMapLatest { active.queryMedia.media(it.query) }
+        }
+        .cachedIn(viewModelScope)
     val momentSummaries = runtime.filterNotNull().flatMapLatest { it.moments.summaries() }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList<MomentSummaryRow>())
     private val albumRequest = MutableStateFlow<AlbumRequest?>(null)
@@ -416,6 +450,9 @@ class GalleryViewModel @Inject constructor(
     private val explicitTargets = linkedMapOf<com.ugallery.core.model.MediaKey, MediaActionTarget>()
     private val mutablePhotoState = MutableStateFlow<PhotoLoadState?>(null)
     val photoState = mutablePhotoState.asStateFlow()
+    private val mutableAdjacentPhotoStates =
+        MutableStateFlow<Map<MediaKey, PhotoLoadState.Ready>>(emptyMap())
+    val adjacentPhotoStates = mutableAdjacentPhotoStates.asStateFlow()
     private val mutableCheapDetails = MutableStateFlow<CheapMediaDetails?>(null)
     val cheapDetails = mutableCheapDetails.asStateFlow()
     private val mutableExifDetails = MutableStateFlow<ExifLoadResult?>(null)
@@ -431,6 +468,7 @@ class GalleryViewModel @Inject constructor(
     private var currentSystemCoordinator: MediaStoreActionCoordinator? = null
     private var pendingWriteMutation: PendingWriteMutation? = savedStateHandle[WriteMutationStateKey]
     private var photoJob: Job? = null
+    private var adjacentPhotoJob: Job? = null
     private var photoEditorJob: Job? = null
     private var photoAutoEnhancementJob: Job? = null
     private var photoAutoEnhancementGeneration = 0L
@@ -527,6 +565,14 @@ class GalleryViewModel @Inject constructor(
                 return@launch
             }
             runtime.value = created
+            viewModelScope.launch {
+                created.thumbnails.memoryPressureGeneration.collect { generation ->
+                    if (generation > 0) {
+                        adjacentPhotoJob?.cancel()
+                        mutableAdjacentPhotoStates.value = emptyMap()
+                    }
+                }
+            }
             semanticModelManager = SemanticModelManager(application, created.database).also { manager ->
                 manager.initializeEnabledDefault(
                     mutableLocalAnalysisOnboarding.value == LocalAnalysisOnboardingDecision.Accepted,
@@ -1255,6 +1301,14 @@ class GalleryViewModel @Inject constructor(
 
     fun selectAllTimeline() = selectAll(currentLibraryQuery())
 
+    fun selectAllTrash() = selectAll(
+        MediaQuery(trashedOnly = true, archiveMode = MediaQuery.ArchiveMode.Include),
+    )
+
+    fun selectAllArchive() = selectAll(
+        MediaQuery(archiveMode = MediaQuery.ArchiveMode.Only),
+    )
+
     private fun selectAll(query: MediaQuery) {
         mutableSelection.value = SelectionSpec.queryAll(query)
         explicitTargets.clear()
@@ -1275,9 +1329,75 @@ class GalleryViewModel @Inject constructor(
     }
 
     fun emptyTrash() = beginQueryAction(
-        SelectionSpec.queryAll(MediaQuery(trashedOnly = true)),
+        SelectionSpec.queryAll(
+            MediaQuery(trashedOnly = true, archiveMode = MediaQuery.ArchiveMode.Include),
+        ),
         MediaAction.Delete,
     )
+
+    fun openHighlight(highlight: GalleryHighlight) {
+        mutableSelectedHighlight.value = highlight
+    }
+
+    fun openHighlightMedia(media: TimelineMedia) {
+        val query = mutableSelectedHighlight.value?.query ?: return
+        openMedia(media, query)
+    }
+
+    fun openArchiveMedia(media: TimelineMedia) = openMedia(
+        media,
+        MediaQuery(archiveMode = MediaQuery.ArchiveMode.Only, grouping = MediaQuery.Grouping.None),
+    )
+
+    fun openTrashMedia(media: TimelineMedia) = openMedia(
+        media,
+        MediaQuery(
+            trashedOnly = true,
+            archiveMode = MediaQuery.ArchiveMode.Include,
+            grouping = MediaQuery.Grouping.None,
+        ),
+    )
+
+    fun setSelectionArchived(archived: Boolean) {
+        val selected = mutableSelection.value
+        val count = mutableSelectionCount.value
+        viewModelScope.launch(Dispatchers.IO) {
+            val active = runtime.value ?: return@launch
+            when (selected) {
+                is SelectionSpec.Explicit -> active.archive.setArchived(selected.keys, archived)
+                is SelectionSpec.QueryAll -> {
+                    var after: MediaKey? = null
+                    while (true) {
+                        val page = active.selectionTargets.page(selected.querySnapshot, after, 500)
+                        if (page.isEmpty()) break
+                        active.archive.setArchived(page.map { it.key }, archived)
+                        after = page.last().key
+                        if (page.size < 500) break
+                    }
+                }
+            }
+            active.activity.record(
+                if (archived) GalleryActivityType.Archived else GalleryActivityType.Unarchived,
+                count,
+            )
+            clearSelection()
+        }
+    }
+
+    fun setMediaArchived(media: TimelineMedia, archived: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            runtime.value?.let { active ->
+                active.archive.setArchived(listOf(media.key), archived)
+                active.activity.record(
+                    if (archived) GalleryActivityType.Archived else GalleryActivityType.Unarchived,
+                    1,
+                )
+            }
+        }
+    }
+
+    fun isArchived(media: TimelineMedia): Flow<Boolean> = runtime.filterNotNull()
+        .flatMapLatest { it.archive.isArchived(media.key) }
 
     fun createVirtualAlbum(name: String) {
         viewModelScope.launch { runtime.value?.albums?.createVirtualAlbum(name) }
@@ -1397,11 +1517,13 @@ class GalleryViewModel @Inject constructor(
         mutableCheapDetails.value = null
         mutableExifDetails.value = null
         mutableDetectedText.value = null
-        mutablePhotoState.value = null
+        val adjacentPreview = mutableAdjacentPhotoStates.value[media.key]
+        mutablePhotoState.value = adjacentPreview
         photoJob?.cancel()
         if (media.kind == MediaKind.Image) {
             val active = runtime.value ?: return
-            val cachedThumbnail = active.thumbnails.bestCached(media.key, media.generationModified)
+            val cachedThumbnail = (adjacentPreview?.drawable as? BitmapDrawable)?.bitmap
+                ?: active.thumbnails.bestCached(media.key, media.generationModified)
             photoJob = viewModelScope.launch {
                 PhotoViewerPipeline(active.decoder).load(
                     media.uri(),
@@ -1409,9 +1531,14 @@ class GalleryViewModel @Inject constructor(
                     3_120,
                     cachedThumbnail = cachedThumbnail,
                 )
-                    .collect { mutablePhotoState.value = it }
+                    .collect { state ->
+                        if (state !is PhotoLoadState.Thumbnail || adjacentPreview == null) {
+                            mutablePhotoState.value = state
+                        }
+                    }
             }
         }
+        preloadViewerNeighbors()
         if (!reloadWindow) return
         viewerWindowJob?.cancel()
         viewerWindowJob = viewModelScope.launch {
@@ -1461,6 +1588,58 @@ class GalleryViewModel @Inject constructor(
                 hasNext = hasNext,
                 isLoading = false,
             )
+            preloadViewerNeighbors()
+        }
+    }
+
+    private fun preloadViewerNeighbors() {
+        adjacentPhotoJob?.cancel()
+        val active = runtime.value ?: run {
+            mutableAdjacentPhotoStates.value = emptyMap()
+            return
+        }
+        val viewer = mutableViewerState.value
+        val policy = active.thumbnails.prefetchPolicy ?: run {
+            mutableAdjacentPhotoStates.value = emptyMap()
+            return
+        }
+        val planned = ViewerAdjacentPreloadPlanner.plan(
+            items = viewer.items,
+            currentIndex = viewer.currentIndex,
+            maxSourcePixels = policy.maxSourcePixels,
+            safeBudgetBytes = policy.safeBudgetBytes(),
+            backgroundPreloadEnabled = policy.extraRows > 0,
+        )
+        val plannedKeys = planned.mapTo(mutableSetOf()) { it.key }
+        mutableAdjacentPhotoStates.value = mutableAdjacentPhotoStates.value.filterKeys(plannedKeys::contains)
+        if (planned.isEmpty()) return
+
+        adjacentPhotoJob = viewModelScope.launch {
+            val previews = coroutineScope {
+                planned.map { neighbor ->
+                    async(Dispatchers.IO) {
+                        try {
+                            val drawable = active.decoder.screenDrawable(
+                                neighbor.uri(),
+                                ViewerAdjacentPreloadPlanner.PreviewWidthPx,
+                                ViewerAdjacentPreloadPlanner.PreviewHeightPx,
+                            )
+                            neighbor.key to PhotoLoadState.Ready(
+                                drawable = drawable,
+                                isAnimated = drawable is AnimatedImageDrawable,
+                                supportsDeepZoom = false,
+                                deepZoomUnavailableReason = null,
+                                thumbnailTransition = PhotoPreviewTransition.Immediate,
+                            )
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Throwable) {
+                            null
+                        }
+                    }
+                }.awaitAll().filterNotNull()
+            }.toMap()
+            mutableAdjacentPhotoStates.value = previews
         }
     }
 
@@ -2785,6 +2964,20 @@ class GalleryViewModel @Inject constructor(
                     favoriteImportCursor != null -> stageNextFavoriteImportChunk()
                 }
             } else if (snapshot?.phase == com.ugallery.core.mediastore.MediaActionPhase.Complete) {
+                val completedProgress = snapshot.progress
+                runtime.value?.activity?.let { activity ->
+                    when (val action = completedProgress.action) {
+                        is MediaAction.Trash -> activity.record(
+                            if (action.enabled) GalleryActivityType.Trashed else GalleryActivityType.Restored,
+                            completedProgress.totalSelected,
+                        )
+                        MediaAction.Delete -> activity.record(
+                            GalleryActivityType.Deleted,
+                            completedProgress.totalSelected,
+                        )
+                        else -> Unit
+                    }
+                }
                 clearSelection()
                 bulkCursor = null
                 savedStateHandle[BulkStateKey] = null
@@ -2910,6 +3103,10 @@ class GalleryViewModel @Inject constructor(
             decoder = decoder,
             albums = GalleryAlbumRepository(database),
             trash = GalleryTrashRepository(database),
+            archive = GalleryArchiveRepository(database),
+            activity = GalleryActivityRepository(database),
+            highlights = GalleryHighlightsRepository(database),
+            queryMedia = GalleryQueryMediaRepository(database),
             metadata = MediaMetadataRepository(context.contentResolver, database),
             selectionTargets = RoomSelectionTargetSource(database),
             viewerMedia = RoomViewerMediaSource(database),

@@ -6,11 +6,29 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -28,6 +46,14 @@ import com.ugallery.core.model.LibraryAccess
 import com.ugallery.core.model.TimelineEntry
 import com.ugallery.core.model.TimelineMedia
 import com.ugallery.core.thumbnail.ThumbnailLoader
+import com.ugallery.core.thumbnail.ThumbnailRequest
+
+data class PhotoHighlightUi(
+    val id: String,
+    val title: String,
+    val cover: TimelineMedia,
+    val onClick: () -> Unit,
+)
 
 enum class LibraryUiState { Starting, Indexing, Ready, PermissionRequired, Error }
 
@@ -39,6 +65,9 @@ fun LibraryPhotosRoute(
     thumbnailLoader: ThumbnailLoader?,
     onRequestAccess: () -> Unit,
     onOpenSettings: () -> Unit = {},
+    onCreate: () -> Unit = {},
+    onOpenUpdates: () -> Unit = {},
+    highlights: List<PhotoHighlightUi> = emptyList(),
     onMediaClick: (TimelineMedia) -> Unit = {},
     isMediaSelected: (TimelineMedia) -> Boolean = { false },
     onMediaSelectionChange: (TimelineMedia, Boolean) -> Unit = { _, _ -> },
@@ -57,40 +86,22 @@ fun LibraryPhotosRoute(
             Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    stringResource(R.string.photos_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.semantics { heading() },
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        GalleryIcons.Lock,
-                        contentDescription = stringResource(R.string.library_local),
-                        modifier = Modifier.padding(end = GallerySpacing.Xs),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        stringResource(R.string.library_local),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+            AssistChip(
+                onClick = {},
+                label = { Text(stringResource(R.string.library_local)) },
+                leadingIcon = { Icon(GalleryIcons.Lock, contentDescription = null, Modifier.size(18.dp)) },
+                modifier = Modifier.weight(1f, fill = false).semantics { heading() },
+            )
+            androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+            GalleryExpressiveIconButton(onClick = onCreate) {
+                Icon(GalleryIcons.Plus, contentDescription = stringResource(R.string.photos_create))
             }
-            GalleryExpressiveIconButton(onClick = {
-                densityState.cycleDensity(
-                    anchorIndex = densityState.anchorIndex,
-                    anchorOffset = densityState.anchorOffset,
-                )
-            }) {
-                Icon(
-                    GalleryIcons.Grid,
-                    contentDescription = stringResource(R.string.change_grid_density),
-                )
+            GalleryExpressiveIconButton(onClick = onOpenUpdates) {
+                Icon(GalleryIcons.Notifications, contentDescription = stringResource(R.string.photos_updates))
             }
             GalleryExpressiveIconButton(onClick = onOpenSettings) {
                 Icon(
-                    GalleryIcons.Settings,
+                    GalleryIcons.User,
                     contentDescription = stringResource(R.string.open_settings),
                 )
             }
@@ -98,6 +109,17 @@ fun LibraryPhotosRoute(
                 stringResource(R.string.limited_access_label),
                 style = MaterialTheme.typography.labelMedium,
             )
+        }
+        if (highlights.isNotEmpty() && thumbnailLoader != null) {
+            LazyRow(
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = GallerySpacing.Lg),
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(GallerySpacing.Sm),
+                modifier = Modifier.fillMaxWidth().padding(bottom = GallerySpacing.Md),
+            ) {
+                items(highlights, key = PhotoHighlightUi::id) { highlight ->
+                    HighlightCard(highlight, thumbnailLoader)
+                }
+            }
         }
         if (access.isLimited) {
             Row(
@@ -145,6 +167,37 @@ fun LibraryPhotosRoute(
                     onDensityChange = onDensityChange,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun HighlightCard(highlight: PhotoHighlightUi, loader: ThumbnailLoader) {
+    val request = remember(highlight.cover) {
+        ThumbnailRequest(highlight.cover.key, highlight.cover.generationModified, 360, 420)
+    }
+    val bitmap by produceState(loader.cached(request), request, loader) {
+        if (value == null) value = runCatching { loader.load(request) }.getOrNull()
+    }
+    Card(
+        Modifier.width(156.dp).height(176.dp).clickable(onClick = highlight.onClick),
+        shape = RoundedCornerShape(20.dp),
+    ) {
+        androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp))) {
+            bitmap?.let {
+                Image(it.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            }
+            androidx.compose.foundation.layout.Box(
+                Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.72f))),
+                ),
+            )
+            Text(
+                highlight.title,
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White,
+                modifier = Modifier.align(Alignment.BottomStart).padding(12.dp),
+            )
         }
     }
 }

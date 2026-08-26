@@ -81,6 +81,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ugallery.core.model.MediaKind
+import com.ugallery.core.model.MediaKey
 import com.ugallery.core.designsystem.GalleryAnimatedVisibility
 import com.ugallery.core.designsystem.GalleryIcons
 import com.ugallery.core.designsystem.GalleryExpressiveIconButton
@@ -138,6 +139,7 @@ fun ViewerContent(
     media: TimelineMedia,
     mediaItems: List<TimelineMedia>,
     photoState: PhotoLoadState?,
+    adjacentPhotoStates: Map<MediaKey, PhotoLoadState.Ready> = emptyMap(),
     videoController: VideoViewerController?,
     thumbnailLoader: ThumbnailLoader?,
     isFavorite: Boolean,
@@ -156,6 +158,7 @@ fun ViewerContent(
     onRepairDate: () -> Unit,
     onTrash: () -> Unit,
     onSelectMedia: (TimelineMedia) -> Unit,
+    trashActionLabel: String? = null,
     onContentTap: () -> Unit = {},
     slowMotionSession: HoldSlowMotionSession? = null,
     onSaveSlowMotionClip: (SlowMotionClip) -> Unit = {},
@@ -443,6 +446,7 @@ fun ViewerContent(
         ) {
             HorizontalPager(
                 state = pagerState,
+                beyondViewportPageCount = 1,
                 userScrollEnabled = !contentZoomed,
                 key = { displayedItems[it].key },
                 modifier = Modifier.fillMaxSize(),
@@ -471,7 +475,18 @@ fun ViewerContent(
                         )
                     }
                 } else {
-                    MediaThumbnail(pageMedia, thumbnailLoader, Modifier.fillMaxSize())
+                    val adjacentPhoto = adjacentPhotoStates[pageMedia.key]
+                    if (pageMedia.kind == MediaKind.Image && adjacentPhoto != null) {
+                        AdjacentPhotoSurface(adjacentPhoto)
+                    } else {
+                        MediaThumbnail(
+                            media = pageMedia,
+                            thumbnailLoader = thumbnailLoader,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit,
+                            backgroundColor = Color.Black,
+                        )
+                    }
                 }
             }
         }
@@ -609,7 +624,12 @@ fun ViewerContent(
                         )
                         HorizontalDivider()
                         DropdownMenuItem(
-                            text = { Text(stringResource(R.string.viewer_trash), color = MaterialTheme.colorScheme.error) },
+                            text = {
+                                Text(
+                                    trashActionLabel ?: stringResource(R.string.viewer_trash),
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            },
                             onClick = { menuExpanded = false; onTrash() },
                             leadingIcon = { Icon(GalleryIcons.Trash, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
                         )
@@ -939,7 +959,10 @@ private fun MediaThumbnail(
     media: TimelineMedia,
     thumbnailLoader: ThumbnailLoader?,
     modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop,
+    backgroundColor: Color? = null,
 ) {
+    val resolvedBackgroundColor = backgroundColor ?: MaterialTheme.colorScheme.surfaceVariant
     val request = remember(media.key, media.generationModified) {
         ThumbnailRequest(media.key, media.generationModified, 320, 320)
     }
@@ -955,15 +978,29 @@ private fun MediaThumbnail(
     }
     val current = bitmap
     if (current == null) {
-        Box(modifier.background(MaterialTheme.colorScheme.surfaceVariant))
+        Box(modifier.background(resolvedBackgroundColor))
     } else {
         Image(
             bitmap = current.asImageBitmap(),
             contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = modifier,
+            contentScale = contentScale,
+            modifier = modifier.background(resolvedBackgroundColor),
         )
     }
+}
+
+@Composable
+private fun AdjacentPhotoSurface(state: PhotoLoadState.Ready) {
+    AndroidView(
+        factory = { context ->
+            ImageView(context).apply {
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                setBackgroundColor(android.graphics.Color.BLACK)
+            }
+        },
+        update = { imageView -> imageView.setImageDrawable(state.drawable) },
+        modifier = Modifier.fillMaxSize().background(Color.Black),
+    )
 }
 
 @Composable
@@ -987,7 +1024,9 @@ private fun PhotoSurface(
             }
         },
         transitionSpec = {
-            if (reducedMotion) {
+            val immediateThumbnailUpgrade = initialState is PhotoLoadState.Thumbnail &&
+                (targetState as? PhotoLoadState.Ready)?.thumbnailTransition == PhotoPreviewTransition.Immediate
+            if (reducedMotion || immediateThumbnailUpgrade) {
                 EnterTransition.None togetherWith ExitTransition.None
             } else {
                 fadeIn(motionScheme.defaultEffectsSpec()) togetherWith

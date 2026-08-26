@@ -79,11 +79,13 @@ fun CollectionsContent(
     physicalAlbums: LazyPagingItems<AlbumSummary>,
     virtualAlbums: LazyPagingItems<AlbumSummary>,
     trashCount: Long,
+    archiveCount: Long,
     momentSummaries: List<MomentSummaryRow>,
     onMomentClick: (MomentEntity) -> Unit,
     onAlbumClick: (AlbumSummary) -> Unit,
     onCreateAlbum: () -> Unit,
     onTrashClick: () -> Unit,
+    onArchiveClick: () -> Unit,
     onLocalAnalysisClick: () -> Unit,
     peopleEnabled: Boolean,
     peopleCount: Long,
@@ -146,6 +148,13 @@ fun CollectionsContent(
             cover = peopleCover,
             circular = true,
             onClick = onPeopleClick,
+        ))
+        add(CollectionCardSpec(
+            key = "archive",
+            title = stringResource(R.string.collections_archive),
+            body = stringResource(R.string.collections_item_count, archiveCount),
+            icon = GalleryIcons.Archive,
+            onClick = onArchiveClick,
         ))
         add(CollectionCardSpec(
             key = "trash",

@@ -1,6 +1,6 @@
 <resources>
     <string name="photos_title">Photos</string>
-    <string name="library_local">Only on this device</string>
+    <string name="library_local">Local only</string>
     <string name="empty_library_title">No photos yet</string>
     <string name="empty_library_body">Photos and videos saved on this device will appear here.</string>
     <string name="limited_access_label">Limited access</string>
@@ -17,4 +17,5 @@
     <string name="video_thumbnail_description">Video</string>
     <string name="open_settings">Open settings</string>
     <string name="change_grid_density">Change grid density</string>
+    <string name="photos_create">Create</string><string name="photos_updates">Updates</string>
 </resources>

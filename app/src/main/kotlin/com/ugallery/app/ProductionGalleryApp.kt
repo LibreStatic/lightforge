@@ -35,12 +35,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.HorizontalFloatingToolbar
-import androidx.compose.material3.ShortNavigationBar
-import androidx.compose.material3.ShortNavigationBarItem
-import androidx.compose.material3.WideNavigationRail
-import androidx.compose.material3.WideNavigationRailItem
-import androidx.compose.material3.WideNavigationRailValue
-import androidx.compose.material3.rememberWideNavigationRailState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Surface
@@ -66,8 +60,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.map
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -85,6 +81,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.ugallery.core.database.AlbumMediaFilter
 import com.ugallery.core.database.AlbumSort
+import com.ugallery.core.data.GalleryHighlightKind
 import com.ugallery.core.mediastore.MediaAction
 import com.ugallery.core.mediastore.MediaActionPhase
 import com.ugallery.core.mediastore.MediaActionTarget
@@ -124,7 +121,9 @@ import com.ugallery.feature.collections.formatMomentDateRange
 import com.ugallery.feature.details.DetailsContent
 import com.ugallery.feature.permissions.PermissionCoordinator
 import com.ugallery.feature.photos.LibraryPhotosRoute
+import com.ugallery.feature.photos.PhotoHighlightUi
 import com.ugallery.feature.photos.AdaptivePagedPhotosTimeline
+import com.ugallery.feature.photos.MediaCollectionGrid
 import com.ugallery.feature.trash.TrashContent
 import com.ugallery.feature.viewer.VideoViewerController
 import com.ugallery.feature.viewer.ViewerContent
@@ -151,7 +150,10 @@ import com.ugallery.feature.subjectclip.SubjectClipper
 import com.ugallery.feature.objecteraser.ObjectEraser
 
 internal enum class RootTab { Photos, Collections, Search }
-internal enum class SurfaceRoute { Root, Album, Viewer, PhotoEditor, VideoEditor, Trash, Settings, About, Moment, People, PrivateAlbum, PrivateAlbumPicker, Collage }
+internal enum class SurfaceRoute {
+    Root, Updates, DeviceFolders, Album, HighlightCollection, Viewer, PhotoEditor, VideoEditor,
+    Archive, Trash, Settings, About, Moment, People, PrivateAlbum, PrivateAlbumPicker, Collage,
+}
 private data class PrivateImportProgress(val completed: Int, val total: Int)
 private data class PrivateImportOutcome(val successful: List<TimelineMedia>, val total: Int)
 internal data class ScreenMotionKey(
@@ -163,6 +165,9 @@ internal data class ScreenMotionKey(
 private sealed interface ViewerReturnDestination {
     data class Root(val tab: RootTab) : ViewerReturnDestination
     data class Album(val key: AlbumKey) : ViewerReturnDestination
+    data object Highlight : ViewerReturnDestination
+    data object Archive : ViewerReturnDestination
+    data object Trash : ViewerReturnDestination
 }
 
 private val ViewerReturnDestinationSaver = listSaver<ViewerReturnDestination?, String>(
@@ -174,6 +179,9 @@ private val ViewerReturnDestinationSaver = listSaver<ViewerReturnDestination?, S
                 is AlbumKey.Physical -> listOf("physical", key.volumeName, key.bucketId.toString())
                 is AlbumKey.Virtual -> listOf("virtual", key.albumId.toString())
             }
+            ViewerReturnDestination.Trash -> listOf("trash")
+            ViewerReturnDestination.Archive -> listOf("archive")
+            ViewerReturnDestination.Highlight -> listOf("highlight")
         }
     },
     restore = { saved ->
@@ -189,6 +197,9 @@ private val ViewerReturnDestinationSaver = listSaver<ViewerReturnDestination?, S
             "virtual" -> saved.getOrNull(1)?.toLongOrNull()?.let { albumId ->
                 ViewerReturnDestination.Album(AlbumKey.Virtual(albumId))
             }
+            "trash" -> ViewerReturnDestination.Trash
+            "archive" -> ViewerReturnDestination.Archive
+            "highlight" -> ViewerReturnDestination.Highlight
             else -> null
         }
     },
@@ -215,6 +226,7 @@ private fun surfaceStateKey(
     else -> null
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ProductionGalleryApp(
     viewModel: GalleryViewModel,
@@ -242,7 +254,12 @@ internal fun ProductionGalleryApp(
     val selection by viewModel.selection.collectAsState()
     val selectionCount by viewModel.selectionCount.collectAsState()
     val photoState by viewModel.photoState.collectAsState()
+    val adjacentPhotoStates by viewModel.adjacentPhotoStates.collectAsState()
     val trashCount by viewModel.trashCount.collectAsState()
+    val archiveCount by viewModel.archiveCount.collectAsState()
+    val activityEvents by viewModel.activity.collectAsState()
+    val highlights by viewModel.highlights.collectAsState()
+    val selectedHighlight by viewModel.selectedHighlight.collectAsState()
     val cheap by viewModel.cheapDetails.collectAsState()
     val exif by viewModel.exifDetails.collectAsState()
     val search by viewModel.search.collectAsState()
@@ -273,6 +290,8 @@ internal fun ProductionGalleryApp(
     val virtualAlbums = viewModel.virtualAlbums.collectAsLazyPagingItems()
     val albumItems = viewModel.albumMedia.collectAsLazyPagingItems()
     val trashItems = viewModel.trash.collectAsLazyPagingItems()
+    val archiveItems = viewModel.archive.collectAsLazyPagingItems()
+    val highlightItems = viewModel.highlightMedia.collectAsLazyPagingItems()
     val activity = context as? Activity
     val lifecycleOwner = LocalLifecycleOwner.current
     var appUnlocked by rememberSaveable { mutableStateOf(!gallerySettings.security.appLockEnabled) }
@@ -369,6 +388,10 @@ internal fun ProductionGalleryApp(
     var sort by rememberSaveable { mutableStateOf(AlbumSort.NewestFirst) }
     var showDetails by rememberSaveable { mutableStateOf(false) }
     var showCreateAlbum by rememberSaveable { mutableStateOf(false) }
+    var showCreateMenu by rememberSaveable { mutableStateOf(false) }
+    var trashSelectionMode by rememberSaveable { mutableStateOf(false) }
+    var archiveSelectionMode by rememberSaveable { mutableStateOf(false) }
+    var trashMenuExpanded by rememberSaveable { mutableStateOf(false) }
     var showAddToAlbum by rememberSaveable { mutableStateOf(false) }
     var showEmptyTrashConfirmation by rememberSaveable { mutableStateOf(false) }
     var showDiscardEditorConfirmation by rememberSaveable { mutableStateOf(false) }
@@ -388,6 +411,12 @@ internal fun ProductionGalleryApp(
     val privateImportSelection = remember { mutableStateMapOf<MediaKey, TimelineMedia>() }
     var privateImportProgress by remember { mutableStateOf<PrivateImportProgress?>(null) }
     var privateImportOutcome by remember { mutableStateOf<PrivateImportOutcome?>(null) }
+
+    LaunchedEffect(route, selectedHighlight) {
+        if (route == SurfaceRoute.HighlightCollection && selectedHighlight == null) {
+            route = SurfaceRoute.Root
+        }
+    }
 
     fun leavePrivateAlbum() {
         privateImportSelection.clear()
@@ -445,6 +474,9 @@ internal fun ProductionGalleryApp(
                 route = SurfaceRoute.Root
             }
             is ViewerReturnDestination.Album -> route = SurfaceRoute.Album
+            ViewerReturnDestination.Archive -> route = SurfaceRoute.Archive
+            ViewerReturnDestination.Trash -> route = SurfaceRoute.Trash
+            ViewerReturnDestination.Highlight -> route = SurfaceRoute.HighlightCollection
             null -> route = SurfaceRoute.Root
         }
     }
@@ -585,6 +617,27 @@ internal fun ProductionGalleryApp(
                         thumbnailLoader = thumbnails,
                         onRequestAccess = ::requestAccess,
                         onOpenSettings = { route = SurfaceRoute.Settings },
+                        onCreate = { showCreateMenu = true },
+                        onOpenUpdates = { route = SurfaceRoute.Updates },
+                        highlights = highlights.map { highlight ->
+                            PhotoHighlightUi(
+                                id = highlight.id,
+                                title = when (highlight.kind) {
+                                    GalleryHighlightKind.YearsAgo -> pluralStringResource(
+                                        R.plurals.highlight_years_ago,
+                                        highlight.yearsAgo ?: 1,
+                                        highlight.yearsAgo ?: 1,
+                                    )
+                                    GalleryHighlightKind.FeaturedVideo -> stringResource(R.string.highlight_featured_video)
+                                    GalleryHighlightKind.Selfies -> stringResource(R.string.highlight_selfies)
+                                },
+                                cover = highlight.cover,
+                                onClick = {
+                                    viewModel.openHighlight(highlight)
+                                    route = SurfaceRoute.HighlightCollection
+                                },
+                            )
+                        },
                         onMediaClick = { media ->
                             if (selectionCount > 0) viewModel.toggleSelection(media)
                             else openViewer(ViewerReturnDestination.Root(RootTab.Photos)) {
@@ -607,6 +660,7 @@ internal fun ProductionGalleryApp(
                         physicalAlbums,
                         virtualAlbums,
                         trashCount,
+                        archiveCount,
                         momentSummaries,
                         onMomentClick = { viewModel.openMoment(it.momentId); route = SurfaceRoute.Moment },
                         onAlbumClick = { album ->
@@ -615,6 +669,7 @@ internal fun ProductionGalleryApp(
                         },
                         onCreateAlbum = { showCreateAlbum = true },
                         onTrashClick = { route = SurfaceRoute.Trash },
+                        onArchiveClick = { route = SurfaceRoute.Archive },
                         onLocalAnalysisClick = { route = SurfaceRoute.Settings },
                         peopleEnabled = true,
                         peopleCount = people.size.toLong(),
@@ -688,6 +743,14 @@ internal fun ProductionGalleryApp(
                             onDeleteDetectedContent = viewModel::deleteDetectedContent,
                         )
                 }
+                SurfaceRoute.Updates -> UpdatesContent(activityEvents)
+                SurfaceRoute.DeviceFolders -> DeviceFoldersContent(
+                    albums = physicalAlbums,
+                    onAlbumClick = { album ->
+                        viewModel.selectAlbum(album, filter, sort)
+                        route = SurfaceRoute.Album
+                    },
+                )
                 SurfaceRoute.Album -> selectedAlbum?.let { album ->
                     thumbnails?.let { loader ->
                         AlbumContent(
@@ -716,6 +779,7 @@ internal fun ProductionGalleryApp(
                         media,
                         viewerState.items,
                         photoState,
+                        adjacentPhotoStates,
                         thumbnails,
                         viewModel,
                         showDetails,
@@ -736,6 +800,7 @@ internal fun ProductionGalleryApp(
                         gazetteer = gazetteer,
                         sessionVideoMuted = sessionVideoMuted,
                         onSessionVideoMutedChange = { sessionVideoMuted = it },
+                        trashContext = viewerReturnDestination == ViewerReturnDestination.Trash,
                     )
                 }
                 SurfaceRoute.PhotoEditor -> photoEditor?.let { session ->
@@ -842,14 +907,58 @@ internal fun ProductionGalleryApp(
                     onResetMe = viewModel::resetMe,
                 )
                 SurfaceRoute.Trash -> TrashContent(
-                    thumbnailLoader = thumbnails,
-                    visibleItems = trashItems.itemSnapshotList.items,
+                    items = trashItems,
                     totalCount = trashCount,
-                    onRestore = { media -> viewModel.openMedia(media); viewModel.beginSystemAction(media, MediaAction.Trash(false)) },
-                    onDeletePermanently = { media -> runDestructive { viewModel.openMedia(media); viewModel.beginSystemAction(media, MediaAction.Delete) } },
-                    onEmptyTrash = { showEmptyTrashConfirmation = true },
-                    showHeader = false,
+                    thumbnailLoader = thumbnails,
+                    selectionMode = trashSelectionMode || selectionCount > 0,
+                    isSelected = { media -> SelectionReducer.isSelected(selection, media.key) },
+                    onOpen = { media ->
+                        openViewer(ViewerReturnDestination.Trash) { viewModel.openTrashMedia(media) }
+                    },
+                    onSelectionModeChange = { enabled ->
+                        trashSelectionMode = enabled
+                        if (!enabled) viewModel.clearSelection()
+                    },
+                    onSelectionChange = viewModel::setMediaSelected,
                 )
+                SurfaceRoute.Archive -> when {
+                    archiveCount == 0L -> GalleryStateContent(
+                        title = stringResource(R.string.archive_empty),
+                        body = stringResource(R.string.archive_empty_body),
+                        illustrationDescription = stringResource(R.string.archive_title),
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    thumbnails != null -> MediaCollectionGrid(
+                        items = archiveItems,
+                        thumbnailLoader = requireNotNull(thumbnails),
+                        selectionMode = archiveSelectionMode || selectionCount > 0,
+                        isSelected = { media -> SelectionReducer.isSelected(selection, media.key) },
+                        onOpen = { media ->
+                            openViewer(ViewerReturnDestination.Archive) { viewModel.openArchiveMedia(media) }
+                        },
+                        onSelectionModeChange = { enabled ->
+                            archiveSelectionMode = enabled
+                            if (!enabled) viewModel.clearSelection()
+                        },
+                        onSelectionChange = viewModel::setMediaSelected,
+                    )
+                    else -> Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                        GalleryLoadingIndicator()
+                    }
+                }
+                SurfaceRoute.HighlightCollection -> thumbnails?.let { loader ->
+                    MediaCollectionGrid(
+                        items = highlightItems,
+                        thumbnailLoader = loader,
+                        selectionMode = selectionCount > 0,
+                        isSelected = { media -> SelectionReducer.isSelected(selection, media.key) },
+                        onOpen = { media ->
+                            openViewer(ViewerReturnDestination.Highlight) { viewModel.openHighlightMedia(media) }
+                        },
+                        onSelectionModeChange = { enabled -> if (!enabled) viewModel.clearSelection() },
+                        onSelectionChange = viewModel::setMediaSelected,
+                    )
+                }
                 SurfaceRoute.Settings -> RecognitionSettingsContent(
                     state = FaceAnalysisUiState(
                         consentGranted = peopleAnalysis.consentGranted,
@@ -1113,26 +1222,63 @@ internal fun ProductionGalleryApp(
                 visible = selectionCount > 0,
                 edge = GalleryMotionEdge.Top,
             ) {
-                SelectionActions(
-                    count = selectionCount,
-                    canShare = selection is SelectionSpec.Explicit && selectionCount <= 500,
-                    showShareLimitNote = selectionCount > 500,
-                    onSelectAll = {
-                        if (activeRoute == SurfaceRoute.Album && selectedAlbum != null) {
-                            viewModel.selectAllAlbum(requireNotNull(selectedAlbum), filter, sort)
-                        } else viewModel.selectAllTimeline()
-                    },
-                    onFavorite = { viewModel.beginSelectionSystemAction(MediaAction.Favorite(true)) },
-                    onTrash = { runDestructive { viewModel.beginSelectionSystemAction(MediaAction.Trash(true)) } },
-                    onDelete = { runDestructive { viewModel.beginSelectionSystemAction(MediaAction.Delete) } },
-                    onAddToAlbum = { showAddToAlbum = true },
-                    onShare = {
-                        viewModel.selectionShareIntent()?.let {
-                            context.startActivity(Intent.createChooser(it, null))
-                        }
-                    },
-                    onClear = viewModel::clearSelection,
-                )
+                when (activeRoute) {
+                    SurfaceRoute.Trash -> ContextSelectionActions(
+                        count = selectionCount,
+                        primaryIcon = GalleryIcons.Download,
+                        primaryLabel = stringResource(com.ugallery.feature.trash.R.string.trash_restore),
+                        onPrimary = {
+                            trashSelectionMode = false
+                            viewModel.beginSelectionSystemAction(MediaAction.Trash(false))
+                        },
+                        secondaryIcon = GalleryIcons.Trash,
+                        secondaryLabel = stringResource(R.string.selection_delete),
+                        onSecondary = {
+                            runDestructive {
+                                trashSelectionMode = false
+                                viewModel.beginSelectionSystemAction(MediaAction.Delete)
+                            }
+                        },
+                        onSelectAll = viewModel::selectAllTrash,
+                        onClear = { trashSelectionMode = false; viewModel.clearSelection() },
+                    )
+                    SurfaceRoute.Archive -> ContextSelectionActions(
+                        count = selectionCount,
+                        primaryIcon = GalleryIcons.Archive,
+                        primaryLabel = stringResource(R.string.archive_unarchive),
+                        onPrimary = { archiveSelectionMode = false; viewModel.setSelectionArchived(false) },
+                        secondaryIcon = GalleryIcons.Trash,
+                        secondaryLabel = stringResource(R.string.selection_trash),
+                        onSecondary = {
+                            runDestructive {
+                                archiveSelectionMode = false
+                                viewModel.beginSelectionSystemAction(MediaAction.Trash(true))
+                            }
+                        },
+                        onSelectAll = viewModel::selectAllArchive,
+                        onClear = { archiveSelectionMode = false; viewModel.clearSelection() },
+                    )
+                    else -> SelectionActions(
+                        count = selectionCount,
+                        canShare = selection is SelectionSpec.Explicit && selectionCount <= 500,
+                        showShareLimitNote = selectionCount > 500,
+                        onSelectAll = {
+                            if (activeRoute == SurfaceRoute.Album && selectedAlbum != null) {
+                                viewModel.selectAllAlbum(requireNotNull(selectedAlbum), filter, sort)
+                            } else viewModel.selectAllTimeline()
+                        },
+                        onFavorite = { viewModel.beginSelectionSystemAction(MediaAction.Favorite(true)) },
+                        onTrash = { runDestructive { viewModel.beginSelectionSystemAction(MediaAction.Trash(true)) } },
+                        onDelete = { runDestructive { viewModel.beginSelectionSystemAction(MediaAction.Delete) } },
+                        onAddToAlbum = { showAddToAlbum = true },
+                        onShare = {
+                            viewModel.selectionShareIntent()?.let {
+                                context.startActivity(Intent.createChooser(it, null))
+                            }
+                        },
+                        onClear = viewModel::clearSelection,
+                    )
+                }
             }
             actionState?.let { state ->
                 if (state.phase is MediaActionPhase.Cancelled) {
@@ -1157,6 +1303,20 @@ internal fun ProductionGalleryApp(
             )
             else -> ScaffoldDefaults.contentWindowInsets
         }
+        val showsLibraryNavigation = route == SurfaceRoute.Root ||
+            route == SurfaceRoute.Updates ||
+            route == SurfaceRoute.DeviceFolders ||
+            route == SurfaceRoute.Archive ||
+            route == SurfaceRoute.Trash ||
+            route == SurfaceRoute.Album ||
+            route == SurfaceRoute.HighlightCollection
+        fun selectRoot(destination: RootTab) {
+            viewModel.clearSelection()
+            archiveSelectionMode = false
+            trashSelectionMode = false
+            rootTab = destination
+            route = SurfaceRoute.Root
+        }
         Scaffold(
             contentWindowInsets = contentInsets,
             containerColor = if (route == SurfaceRoute.Viewer) Color.Black
@@ -1178,19 +1338,85 @@ internal fun ProductionGalleryApp(
                         onBack = { route = SurfaceRoute.Root },
                         navigationContentDescription = stringResource(R.string.nav_back),
                     )
-                    SurfaceRoute.Trash -> GalleryTopAppBar(
-                        title = stringResource(com.ugallery.feature.trash.R.string.trash_title),
+                    SurfaceRoute.Updates -> GalleryTopAppBar(
+                        title = stringResource(R.string.updates_title),
                         onBack = { route = SurfaceRoute.Root },
                         navigationContentDescription = stringResource(R.string.nav_back),
+                    )
+                    SurfaceRoute.DeviceFolders -> GalleryTopAppBar(
+                        title = stringResource(R.string.device_folders_title),
+                        onBack = { route = SurfaceRoute.Root },
+                        navigationContentDescription = stringResource(R.string.nav_back),
+                    )
+                    SurfaceRoute.Archive -> GalleryTopAppBar(
+                        title = stringResource(R.string.archive_title),
+                        onBack = {
+                            archiveSelectionMode = false
+                            viewModel.clearSelection()
+                            route = SurfaceRoute.Root
+                        },
+                        navigationContentDescription = stringResource(R.string.nav_back),
                         actions = {
-                            if (trashCount > 0) TextButton(onClick = {
-                                if (gallerySettings.operations.skipAppDeleteConfirmation) {
-                                    runDestructive(viewModel::emptyTrash)
-                                } else {
-                                    showEmptyTrashConfirmation = true
+                            if (archiveCount > 0 && !archiveSelectionMode && selectionCount == 0L) {
+                                TextButton(onClick = { archiveSelectionMode = true }) {
+                                    Text(stringResource(com.ugallery.feature.trash.R.string.trash_select))
                                 }
-                            }) {
-                                Text(stringResource(com.ugallery.feature.trash.R.string.trash_empty))
+                            }
+                        },
+                    )
+                    SurfaceRoute.HighlightCollection -> GalleryTopAppBar(
+                        title = selectedHighlight?.let { highlight ->
+                            when (highlight.kind) {
+                                GalleryHighlightKind.YearsAgo -> pluralStringResource(
+                                    R.plurals.highlight_years_ago,
+                                    highlight.yearsAgo ?: 1,
+                                    highlight.yearsAgo ?: 1,
+                                )
+                                GalleryHighlightKind.FeaturedVideo -> stringResource(R.string.highlight_featured_video)
+                                GalleryHighlightKind.Selfies -> stringResource(R.string.highlight_selfies)
+                            }
+                        } ?: stringResource(R.string.nav_photos),
+                        onBack = { route = SurfaceRoute.Root },
+                        navigationContentDescription = stringResource(R.string.nav_back),
+                    )
+                    SurfaceRoute.Trash -> GalleryTopAppBar(
+                        title = stringResource(com.ugallery.feature.trash.R.string.trash_title),
+                        onBack = {
+                            trashSelectionMode = false
+                            viewModel.clearSelection()
+                            route = SurfaceRoute.Root
+                        },
+                        navigationContentDescription = stringResource(R.string.nav_back),
+                        actions = {
+                            if (trashCount > 0 && !trashSelectionMode && selectionCount == 0L) {
+                                TextButton(onClick = { trashSelectionMode = true }) {
+                                    Text(stringResource(com.ugallery.feature.trash.R.string.trash_select))
+                                }
+                                Box {
+                                    GalleryExpressiveIconButton(onClick = { trashMenuExpanded = true }) {
+                                        Icon(
+                                            GalleryIcons.More,
+                                            contentDescription = stringResource(com.ugallery.feature.viewer.R.string.viewer_more),
+                                        )
+                                    }
+                                    DropdownMenu(
+                                        expanded = trashMenuExpanded,
+                                        onDismissRequest = { trashMenuExpanded = false },
+                                    ) {
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(com.ugallery.feature.trash.R.string.trash_empty)) },
+                                            leadingIcon = { Icon(GalleryIcons.Trash, contentDescription = null) },
+                                            onClick = {
+                                                trashMenuExpanded = false
+                                                if (gallerySettings.operations.skipAppDeleteConfirmation) {
+                                                    runDestructive(viewModel::emptyTrash)
+                                                } else {
+                                                    showEmptyTrashConfirmation = true
+                                                }
+                                            },
+                                        )
+                                    }
+                                }
                             }
                         },
                     )
@@ -1221,14 +1447,29 @@ internal fun ProductionGalleryApp(
             },
             bottomBar = {
                 if (adaptiveInfo.navigationType == GalleryNavigationType.BottomBar && route == SurfaceRoute.Root) {
-                    RootNavigationBar(rootTab) { rootTab = it }
+                    GalleryBottomDock(
+                        selected = rootTab,
+                        onSelect = ::selectRoot,
+                        onCreate = { showCreateMenu = true },
+                    )
                 }
             },
         ) { padding ->
             if (adaptiveInfo.navigationType == GalleryNavigationType.Rail) {
                 Row(Modifier.fillMaxSize().padding(padding)) {
-                    if (route == SurfaceRoute.Root) {
-                        RootNavigationRail(rootTab) { rootTab = it }
+                    if (showsLibraryNavigation) {
+                        GalleryExpandedRail(
+                            route = route,
+                            selectedRoot = rootTab,
+                            onRoot = ::selectRoot,
+                            onCreate = { showCreateMenu = true },
+                            onRoute = { destination ->
+                                viewModel.clearSelection()
+                                archiveSelectionMode = false
+                                trashSelectionMode = false
+                                route = destination
+                            },
+                        )
                     }
                     AnimatedSurfaceBody(
                         key = ScreenMotionKey(route, rootTab, surfaceStateKey(route, rootTab, selectedAlbum)),
@@ -1241,7 +1482,10 @@ internal fun ProductionGalleryApp(
             } else {
                 AnimatedSurfaceBody(
                     key = ScreenMotionKey(route, rootTab, surfaceStateKey(route, rootTab, selectedAlbum)),
-                    modifier = Modifier.fillMaxSize().padding(padding),
+                    modifier = Modifier.fillMaxSize().padding(padding).then(
+                        if (route == SurfaceRoute.Root) Modifier.rootTabSwipe(rootTab, ::selectRoot)
+                        else Modifier,
+                    ),
                     stateHolder = surfaceStateHolder,
                     controls = controls,
                     content = content,
@@ -1250,6 +1494,36 @@ internal fun ProductionGalleryApp(
         }
     }
 
+    if (showCreateMenu) {
+        ModalBottomSheet(onDismissRequest = { showCreateMenu = false }) {
+            Column(
+                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(stringResource(R.string.create_sheet_title), style = MaterialTheme.typography.headlineSmall)
+                TextButton(
+                    onClick = {
+                        showCreateMenu = false
+                        showCreateAlbum = true
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(GalleryIcons.Album, contentDescription = null)
+                    Text(stringResource(R.string.album_create_title), Modifier.padding(start = 12.dp))
+                }
+                TextButton(
+                    onClick = {
+                        showCreateMenu = false
+                        route = SurfaceRoute.Collage
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(GalleryIcons.Collections, contentDescription = null)
+                    Text(stringResource(R.string.m6_collage), Modifier.padding(start = 12.dp))
+                }
+            }
+        }
+    }
     if (showCreateAlbum) {
         AlbumNameDialog(
             value = newAlbumName,
@@ -1437,6 +1711,40 @@ internal fun AnimatedSurfaceBody(
 }
 
 @Composable
+private fun ContextSelectionActions(
+    count: Long,
+    primaryIcon: ImageVector,
+    primaryLabel: String,
+    onPrimary: () -> Unit,
+    secondaryIcon: ImageVector,
+    secondaryLabel: String,
+    onSecondary: () -> Unit,
+    onSelectAll: () -> Unit,
+    onClear: () -> Unit,
+) {
+    HorizontalFloatingToolbar(
+        expanded = true,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+        leadingContent = {
+            GalleryExpressiveIconButton(onClick = onClear) {
+                Icon(GalleryIcons.Close, contentDescription = stringResource(R.string.selection_clear))
+            }
+            Text(stringResource(R.string.selection_count, count), style = MaterialTheme.typography.titleMedium)
+        },
+        trailingContent = {
+            TextButton(onClick = onSelectAll) { Text(stringResource(R.string.selection_select_all)) }
+        },
+    ) {
+        GalleryExpressiveIconButton(onClick = onPrimary) {
+            Icon(primaryIcon, contentDescription = primaryLabel)
+        }
+        GalleryExpressiveIconButton(onClick = onSecondary) {
+            Icon(secondaryIcon, contentDescription = secondaryLabel)
+        }
+    }
+}
+
+@Composable
 private fun SelectionActions(
     count: Long,
     canShare: Boolean,
@@ -1603,6 +1911,7 @@ private fun ViewerRoute(
     media: TimelineMedia,
     mediaItems: List<TimelineMedia>,
     photoState: com.ugallery.feature.viewer.PhotoLoadState?,
+    adjacentPhotoStates: Map<com.ugallery.core.model.MediaKey, com.ugallery.feature.viewer.PhotoLoadState.Ready>,
     thumbnailLoader: com.ugallery.core.thumbnail.ThumbnailLoader?,
     viewModel: GalleryViewModel,
     showDetails: Boolean,
@@ -1615,6 +1924,7 @@ private fun ViewerRoute(
     gazetteer: OfflineGazetteer? = null,
     sessionVideoMuted: Boolean? = null,
     onSessionVideoMutedChange: (Boolean?) -> Unit = {},
+    trashContext: Boolean = false,
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -1747,6 +2057,7 @@ private fun ViewerRoute(
             media = media,
             mediaItems = mediaItems,
             photoState = photoState,
+            adjacentPhotoStates = adjacentPhotoStates,
             videoController = videoController,
             thumbnailLoader = thumbnailLoader,
             isFavorite = media.isFavorite,
@@ -1781,8 +2092,15 @@ private fun ViewerRoute(
             },
             onRepairDate = ::showDateRepairPicker,
             onShareSanitized = onShareSanitized,
-            onTrash = { runViewerDestructive { viewModel.beginSystemAction(media, MediaAction.Trash(true)) } },
+            onTrash = {
+                runViewerDestructive {
+                    viewModel.beginSystemAction(media, MediaAction.Trash(!trashContext))
+                }
+            },
             onSelectMedia = viewModel::selectViewerMedia,
+            trashActionLabel = if (trashContext) {
+                stringResource(com.ugallery.feature.trash.R.string.trash_restore)
+            } else null,
             onContentTap = { videoController?.unmute(); onSessionVideoMutedChange(false) },
             slowMotionSession = slowMotionSession,
             onSaveSlowMotionClip = { clip ->
@@ -1879,54 +2197,6 @@ private fun ViewerRoute(
             TextButton(onClick = { renameDialogVisible = false }) { Text(stringResource(android.R.string.cancel)) }
         },
     )
-}
-
-@Composable private fun RootNavigationBar(selected: RootTab, onSelect: (RootTab) -> Unit) {
-    ShortNavigationBar { RootTab.entries.forEach { tab ->
-        ShortNavigationBarItem(
-            selected = selected == tab,
-            onClick = { onSelect(tab) },
-            icon = {
-                Icon(
-                    imageVector = when (tab) {
-                        RootTab.Photos -> GalleryIcons.Image
-                        RootTab.Collections -> GalleryIcons.Collections
-                        RootTab.Search -> GalleryIcons.Search
-                    },
-                    contentDescription = stringResource(tab.label()),
-                )
-            },
-            label = { Text(stringResource(tab.label())) },
-        )
-    } }
-}
-
-@Composable private fun RootNavigationRail(selected: RootTab, onSelect: (RootTab) -> Unit) {
-    val railState = rememberWideNavigationRailState(WideNavigationRailValue.Expanded)
-    WideNavigationRail(state = railState) { RootTab.entries.forEach { tab ->
-        WideNavigationRailItem(
-            selected = selected == tab,
-            onClick = { onSelect(tab) },
-            icon = {
-                Icon(
-                    imageVector = when (tab) {
-                        RootTab.Photos -> GalleryIcons.Image
-                        RootTab.Collections -> GalleryIcons.Collections
-                        RootTab.Search -> GalleryIcons.Search
-                    },
-                    contentDescription = stringResource(tab.label()),
-                )
-            },
-            label = { Text(stringResource(tab.label())) },
-            railExpanded = true,
-        )
-    } }
-}
-
-private fun RootTab.label() = when (this) {
-    RootTab.Photos -> R.string.nav_photos
-    RootTab.Collections -> R.string.nav_collections
-    RootTab.Search -> R.string.nav_search
 }
 
 @Composable

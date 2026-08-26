@@ -1,5 +1,5 @@
 <resources>
-    <string name="photos_title">Fotos</string><string name="library_local">Somente neste dispositivo</string>
+    <string name="photos_title">Fotos</string><string name="library_local">Somente local</string>
     <string name="empty_library_title">Ainda não há fotos</string><string name="empty_library_body">As fotos e vídeos salvos neste dispositivo aparecerão aqui.</string>
     <string name="limited_access_label">Acesso limitado</string>
     <string name="limited_access_body">Apenas as fotos e os vídeos selecionados estão visíveis.</string>
@@ -13,4 +13,4 @@
     <string name="grant_access_action">Escolher acesso</string>
     <string name="photo_thumbnail_description">Foto</string>
     <string name="video_thumbnail_description">Vídeo</string>
-<string name="open_settings">Abrir configurações</string><string name="change_grid_density">Alterar densidade da grade</string></resources>
+<string name="open_settings">Abrir configurações</string><string name="change_grid_density">Alterar densidade da grade</string><string name="photos_create">Criar</string><string name="photos_updates">Atualizações</string></resources>
