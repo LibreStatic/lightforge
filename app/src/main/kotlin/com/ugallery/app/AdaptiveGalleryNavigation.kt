@@ -16,6 +16,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,6 +37,13 @@ internal fun GalleryBottomDock(
     onSelect: (RootTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val itemColors = NavigationBarItemDefaults.colors(
+        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+        selectedTextColor = MaterialTheme.colorScheme.primary,
+        indicatorColor = MaterialTheme.colorScheme.primary,
+        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
     NavigationBar(
         modifier = modifier.fillMaxWidth(),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -46,18 +54,21 @@ internal fun GalleryBottomDock(
             onClick = { onSelect(RootTab.Photos) },
             icon = { Icon(GalleryIcons.Image, contentDescription = null) },
             label = { Text(stringResource(R.string.nav_photos), maxLines = 1) },
+            colors = itemColors,
         )
         NavigationBarItem(
             selected = selected == RootTab.Collections,
             onClick = { onSelect(RootTab.Collections) },
             icon = { Icon(GalleryIcons.Collections, contentDescription = null) },
             label = { Text(stringResource(R.string.nav_collections), maxLines = 1) },
+            colors = itemColors,
         )
         NavigationBarItem(
             selected = selected == RootTab.Search,
             onClick = { onSelect(RootTab.Search) },
             icon = { Icon(GalleryIcons.Search, contentDescription = null) },
             label = { Text(stringResource(R.string.nav_search), maxLines = 1) },
+            colors = itemColors,
         )
     }
 }
@@ -99,11 +110,17 @@ private fun RailItem(icon: ImageVector, label: String, isSelected: Boolean, onCl
     ) {
         Surface(
             shape = RoundedCornerShape(20.dp),
-            color = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface,
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+            contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
         ) {
             Icon(icon, contentDescription = null, modifier = Modifier.padding(horizontal = 18.dp, vertical = 7.dp))
         }
-        Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+        Text(
+            label,
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+        )
     }
 }
 
