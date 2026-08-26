@@ -7,6 +7,8 @@ import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingSource
@@ -24,6 +26,7 @@ import com.ugallery.core.model.TimelineEntry
 import com.ugallery.core.model.TimelineMedia
 import com.ugallery.core.thumbnail.ThumbnailLoader
 import com.ugallery.core.thumbnail.ThumbnailSource
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -87,6 +90,7 @@ class VideoDurationBadgeDeviceTest {
             threadCount = 1,
         )
         val selectedMedia = media(1, MediaKind.Image, 0L)
+        var openedDeviceFolders = false
         val entries = Pager(PagingConfig(pageSize = 20)) {
             object : PagingSource<Int, TimelineEntry>() {
                 override suspend fun load(params: LoadParams<Int>): LoadResult<Int, TimelineEntry> =
@@ -108,6 +112,7 @@ class VideoDurationBadgeDeviceTest {
                     entries = entries.collectAsLazyPagingItems(),
                     thumbnailLoader = thumbnails,
                     onRequestAccess = {},
+                    onOpenDeviceFolders = { openedDeviceFolders = true },
                     isMediaSelected = { it.key == selectedMedia.key },
                 )
             }
@@ -115,6 +120,9 @@ class VideoDurationBadgeDeviceTest {
 
         compose.onNodeWithTag("media_test_101").assertIsSelected()
         compose.onNodeWithTag("media_selection_indicator", useUnmergedTree = true).assertExists()
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        compose.onNodeWithText(context.getString(R.string.library_local)).performClick()
+        compose.runOnIdle { assertTrue(openedDeviceFolders) }
         thumbnails.close()
     }
 

@@ -216,13 +216,17 @@ private fun albumStateKey(key: AlbumKey) = when (key) {
     is AlbumKey.Virtual -> "album:virtual:${key.albumId}"
 }
 
-private fun surfaceStateKey(
+internal fun surfaceStateKey(
     route: SurfaceRoute,
     rootTab: RootTab,
     selectedAlbum: AlbumSummary?,
+    selectedHighlightId: String? = null,
 ): String? = when (route) {
     SurfaceRoute.Root -> rootStateKey(rootTab)
     SurfaceRoute.Album -> selectedAlbum?.key?.let(::albumStateKey)
+    SurfaceRoute.Archive -> "archive"
+    SurfaceRoute.Trash -> "trash"
+    SurfaceRoute.HighlightCollection -> selectedHighlightId?.let { "highlight:$it" }
     else -> null
 }
 
@@ -617,6 +621,7 @@ internal fun ProductionGalleryApp(
                         thumbnailLoader = thumbnails,
                         onRequestAccess = ::requestAccess,
                         onOpenSettings = { route = SurfaceRoute.Settings },
+                        onOpenDeviceFolders = { route = SurfaceRoute.DeviceFolders },
                         onCreate = { showCreateMenu = true },
                         onOpenUpdates = { route = SurfaceRoute.Updates },
                         highlights = highlights.map { highlight ->
@@ -628,7 +633,6 @@ internal fun ProductionGalleryApp(
                                         highlight.yearsAgo ?: 1,
                                         highlight.yearsAgo ?: 1,
                                     )
-                                    GalleryHighlightKind.FeaturedVideo -> stringResource(R.string.highlight_featured_video)
                                     GalleryHighlightKind.Selfies -> stringResource(R.string.highlight_selfies)
                                 },
                                 cover = highlight.cover,
@@ -1323,16 +1327,7 @@ internal fun ProductionGalleryApp(
             else MaterialTheme.colorScheme.background,
             topBar = {
                 when (route) {
-                    SurfaceRoute.Root -> if (engineState == LibraryEngineState.Indexing) {
-                        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
-                            Text(
-                                stringResource(R.string.library_index_banner),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth().padding(top = 4.dp))
-                        }
-                    }
+                    SurfaceRoute.Root -> Unit
                     SurfaceRoute.Album -> GalleryTopAppBar(
                         title = selectedAlbum?.name ?: stringResource(com.ugallery.feature.album.R.string.album_untitled),
                         onBack = { route = SurfaceRoute.Root },
@@ -1372,7 +1367,6 @@ internal fun ProductionGalleryApp(
                                     highlight.yearsAgo ?: 1,
                                     highlight.yearsAgo ?: 1,
                                 )
-                                GalleryHighlightKind.FeaturedVideo -> stringResource(R.string.highlight_featured_video)
                                 GalleryHighlightKind.Selfies -> stringResource(R.string.highlight_selfies)
                             }
                         } ?: stringResource(R.string.nav_photos),
@@ -1472,7 +1466,11 @@ internal fun ProductionGalleryApp(
                         )
                     }
                     AnimatedSurfaceBody(
-                        key = ScreenMotionKey(route, rootTab, surfaceStateKey(route, rootTab, selectedAlbum)),
+                        key = ScreenMotionKey(
+                            route,
+                            rootTab,
+                            surfaceStateKey(route, rootTab, selectedAlbum, selectedHighlight?.id),
+                        ),
                         modifier = Modifier.weight(1f),
                         stateHolder = surfaceStateHolder,
                         controls = controls,
@@ -1481,7 +1479,11 @@ internal fun ProductionGalleryApp(
                 }
             } else {
                 AnimatedSurfaceBody(
-                    key = ScreenMotionKey(route, rootTab, surfaceStateKey(route, rootTab, selectedAlbum)),
+                    key = ScreenMotionKey(
+                        route,
+                        rootTab,
+                        surfaceStateKey(route, rootTab, selectedAlbum, selectedHighlight?.id),
+                    ),
                     modifier = Modifier.fillMaxSize().padding(padding).then(
                         if (route == SurfaceRoute.Root) Modifier.rootTabSwipe(rootTab, ::selectRoot)
                         else Modifier,

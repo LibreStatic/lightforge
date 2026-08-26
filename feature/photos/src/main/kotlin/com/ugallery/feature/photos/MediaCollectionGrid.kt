@@ -71,7 +71,6 @@ fun MediaCollectionGrid(
                 itemAtIndex = items::peek,
                 itemKey = { it.key },
                 isSelected = isSelected,
-                enabled = selectionMode,
                 onSelectionChange = { media, selected ->
                     if (!selectionMode) onSelectionModeChange(true)
                     onSelectionChange(media, selected)

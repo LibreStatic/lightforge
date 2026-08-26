@@ -1,6 +1,5 @@
 package com.ugallery.feature.photos
 
-import androidx.compose.animation.core.snap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -44,7 +43,6 @@ import com.ugallery.core.designsystem.RetainGridThumbnailViewport
 import com.ugallery.core.designsystem.VideoDurationBadge
 import com.ugallery.core.designsystem.lazyGridDragSelection
 import com.ugallery.core.designsystem.videoDurationDescription
-import com.ugallery.core.designsystem.rememberGalleryReducedMotion
 import com.ugallery.core.model.TimelineGrouping
 import com.ugallery.core.model.TimelineEntry
 import com.ugallery.core.model.TimelineMedia
@@ -126,7 +124,6 @@ fun PagedPhotosTimeline(
     isMediaSelected: (TimelineMedia) -> Boolean = { false },
 ) {
     require(columns > 0 && thumbnailSizePx > 0)
-    val reducedMotion = rememberGalleryReducedMotion()
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
         state = state,
@@ -161,15 +158,6 @@ fun PagedPhotosTimeline(
                     entry = entry,
                     loader = thumbnailLoader,
                     sizePx = thumbnailSizePx,
-                    modifier = Modifier.animateItem(
-                        fadeInSpec = snap(),
-                        placementSpec = if (reducedMotion) {
-                            snap()
-                        } else {
-                            MaterialTheme.motionScheme.defaultSpatialSpec()
-                        },
-                        fadeOutSpec = snap(),
-                    ),
                     onClick = { onMediaClick(entry.value) },
                     onLongClick = {
                         onMediaSelectionChange(entry.value, !isMediaSelected(entry.value))

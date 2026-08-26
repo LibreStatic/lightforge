@@ -65,6 +65,7 @@ fun LibraryPhotosRoute(
     thumbnailLoader: ThumbnailLoader?,
     onRequestAccess: () -> Unit,
     onOpenSettings: () -> Unit = {},
+    onOpenDeviceFolders: () -> Unit = {},
     onCreate: () -> Unit = {},
     onOpenUpdates: () -> Unit = {},
     highlights: List<PhotoHighlightUi> = emptyList(),
@@ -87,10 +88,10 @@ fun LibraryPhotosRoute(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             AssistChip(
-                onClick = {},
-                label = { Text(stringResource(R.string.library_local)) },
+                onClick = onOpenDeviceFolders,
+                label = { Text(stringResource(R.string.library_local), maxLines = 1) },
                 leadingIcon = { Icon(GalleryIcons.Lock, contentDescription = null, Modifier.size(18.dp)) },
-                modifier = Modifier.weight(1f, fill = false).semantics { heading() },
+                modifier = Modifier.semantics { heading() },
             )
             androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
             GalleryExpressiveIconButton(onClick = onCreate) {
@@ -153,7 +154,11 @@ fun LibraryPhotosRoute(
             }
             entries.itemCount == 0 && engineState == LibraryUiState.Ready -> EmptyLibrary(Modifier.fillMaxSize())
             else -> {
-                if (engineState == LibraryUiState.Indexing) GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
+                androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().height(4.dp)) {
+                    if (engineState == LibraryUiState.Indexing) {
+                        GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
+                    }
+                }
                 AdaptivePagedPhotosTimeline(
                     entries = entries,
                     thumbnailLoader = thumbnailLoader,

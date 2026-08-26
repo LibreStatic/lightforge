@@ -101,7 +101,6 @@ fun TrashContent(
                         if (!selectionMode) onSelectionModeChange(true)
                         onSelectionChange(media, selected)
                     },
-                    enabled = selectionMode,
                 ),
             ) {
                 item(key = "trash-info", span = { GridItemSpan(maxLineSpan) }) {

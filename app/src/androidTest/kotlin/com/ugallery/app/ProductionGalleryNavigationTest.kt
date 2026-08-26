@@ -42,7 +42,7 @@ class ProductionGalleryNavigationTest {
     val compose = createAndroidComposeRule<MainActivity>()
 
     @Test
-    fun restoresPhotosSearchAndAlbumViewportAcrossAnimatedViewerReturns() {
+    fun restoresEveryViewerOriginViewportAcrossAnimatedViewerReturns() {
         compose.mainClock.autoAdvance = false
         var surface by mutableStateOf(TestSurface.Photos)
         var returnSurface by mutableStateOf<TestSurface?>(null)
@@ -138,6 +138,26 @@ class ProductionGalleryNavigationTest {
         compose.runOnIdle { surface = TestSurface.AlbumOne }
         settleTransition()
         assertViewport(TestSurface.AlbumOne, Viewport(11, 13), observed)
+
+        compose.runOnIdle { surface = TestSurface.Trash }
+        settleTransition()
+        requestViewport(TestSurface.Trash, Viewport(index = 43, offset = 19))
+        compose.waitForIdle()
+        compose.onNodeWithTag(openTag(TestSurface.Trash)).performClick()
+        settleTransition()
+        compose.onNodeWithTag(VIEWER_BACK_TAG).performClick()
+        settleTransition()
+        assertViewport(TestSurface.Trash, Viewport(43, 19), observed)
+
+        compose.runOnIdle { surface = TestSurface.Archive }
+        settleTransition()
+        requestViewport(TestSurface.Archive, Viewport(index = 27, offset = 23))
+        compose.waitForIdle()
+        compose.onNodeWithTag(openTag(TestSurface.Archive)).performClick()
+        settleTransition()
+        compose.runOnIdle { compose.activity.onBackPressedDispatcher.onBackPressed() }
+        settleTransition()
+        assertViewport(TestSurface.Archive, Viewport(27, 23), observed)
     }
 
     private fun settleTransition() {
@@ -158,6 +178,8 @@ class ProductionGalleryNavigationTest {
         Search,
         AlbumOne,
         AlbumTwo,
+        Trash,
+        Archive,
         Viewer,
     }
 
@@ -168,6 +190,8 @@ class ProductionGalleryNavigationTest {
         TestSurface.Search -> ScreenMotionKey(SurfaceRoute.Root, RootTab.Search, "root:search")
         TestSurface.AlbumOne -> ScreenMotionKey(SurfaceRoute.Album, RootTab.Collections, "album:virtual:1")
         TestSurface.AlbumTwo -> ScreenMotionKey(SurfaceRoute.Album, RootTab.Collections, "album:virtual:2")
+        TestSurface.Trash -> ScreenMotionKey(SurfaceRoute.Trash, RootTab.Collections, "trash")
+        TestSurface.Archive -> ScreenMotionKey(SurfaceRoute.Archive, RootTab.Collections, "archive")
         TestSurface.Viewer -> ScreenMotionKey(SurfaceRoute.Viewer, RootTab.Photos)
     }
 
@@ -176,6 +200,8 @@ class ProductionGalleryNavigationTest {
         "root:search" -> TestSurface.Search
         "album:virtual:1" -> TestSurface.AlbumOne
         "album:virtual:2" -> TestSurface.AlbumTwo
+        "trash" -> TestSurface.Trash
+        "archive" -> TestSurface.Archive
         else -> error("Unsupported test surface key: $saveableStateKey")
     }
 

@@ -684,15 +684,6 @@ interface LibraryDao {
     suspend fun highlightCover(fromMillis: Long, toMillis: Long): MediaItemEntity?
 
     @Query(
-        """SELECT m.* FROM media_items m WHERE m.isAccessible=1 AND m.isTrashed=0
-            AND m.mediaType=3 AND m.timelineSortMillis>=:fromMillis
-            AND NOT EXISTS (SELECT 1 FROM archived_media a
-                WHERE a.volumeName=m.volumeName AND a.mediaStoreId=m.mediaStoreId)
-            ORDER BY m.durationMillis DESC, m.timelineSortMillis DESC LIMIT 1""",
-    )
-    suspend fun featuredVideo(fromMillis: Long): MediaItemEntity?
-
-    @Query(
         """SELECT m.volumeName AS volumeName, m.bucketId AS bucketId,
             MAX(m.bucketDisplayName) AS displayName, COUNT(*) AS itemCount,
             MAX(m.timelineSortMillis) AS latestSortMillis,

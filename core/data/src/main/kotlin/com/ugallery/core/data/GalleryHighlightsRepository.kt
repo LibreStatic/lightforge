@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.mapLatest
 import java.time.Instant
 import java.time.ZoneId
 
-enum class GalleryHighlightKind { YearsAgo, FeaturedVideo, Selfies }
+enum class GalleryHighlightKind { YearsAgo, Selfies }
 
 data class GalleryHighlight(
     val id: String,
@@ -54,19 +54,6 @@ class GalleryHighlightsRepository(
                 }
             }
         }
-        val recentCutoff = now.minusDays(90).toInstant().toEpochMilli()
-        val video = dao.featuredVideo(recentCutoff)?.let { cover ->
-            GalleryHighlight(
-                id = "featured-video",
-                kind = GalleryHighlightKind.FeaturedVideo,
-                cover = cover.toTimelineMedia(),
-                query = MediaQuery(
-                    kindFilter = MediaQuery.KindFilter.Videos,
-                    fromTimelineMillisInclusive = recentCutoff,
-                    grouping = MediaQuery.Grouping.None,
-                ),
-            )
-        }
         val selfieFolders = dao.selfieFolders()
         val selfies = selfieFolders.firstOrNull()?.coverMediaStoreId?.let { coverId ->
             val folder = selfieFolders.first()
@@ -87,7 +74,6 @@ class GalleryHighlightsRepository(
         }
         return buildList {
             addAll(anniversaries)
-            video?.let(::add)
             selfies?.let(::add)
         }
     }
