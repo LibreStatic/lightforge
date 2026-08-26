@@ -1444,7 +1444,6 @@ internal fun ProductionGalleryApp(
                     GalleryBottomDock(
                         selected = rootTab,
                         onSelect = ::selectRoot,
-                        onCreate = { showCreateMenu = true },
                     )
                 }
             },
