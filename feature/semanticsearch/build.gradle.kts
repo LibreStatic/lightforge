@@ -25,6 +25,7 @@ dependencies {
     implementation(project(":core:database"))
     implementation(project(":core:search"))
     implementation(project(":core:designsystem"))
+    implementation(project(":core:ml"))
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.androidx.work.runtime)
     implementation(libs.litert.api) {

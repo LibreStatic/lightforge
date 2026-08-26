@@ -8,9 +8,10 @@ data class GallerySettings(
     val thumbnails: ThumbnailSettings = ThumbnailSettings(),
     val operations: OperationSettings = OperationSettings(),
     val security: SecuritySettings = SecuritySettings(),
+    val analysis: AnalysisSettings = AnalysisSettings(),
 ) {
     companion object {
-        const val CurrentSchemaVersion = 3
+        const val CurrentSchemaVersion = 4
     }
 }
 
@@ -84,4 +85,8 @@ data class SecuritySettings(
     val appLockEnabled: Boolean = false,
     val destructiveActionLockEnabled: Boolean = false,
     val relockTimeoutMinutes: Int = 1,
+)
+
+data class AnalysisSettings(
+    val fullAnalysisMinimumBatteryPercent: Int = 20,
 )

@@ -66,6 +66,10 @@ class GallerySettingsRepository(context: Context) {
         security = security.copy(
             relockTimeoutMinutes = security.relockTimeoutMinutes.takeIf { it in setOf(0, 1, 5, 15) } ?: 1,
         ),
+        analysis = analysis.copy(
+            fullAnalysisMinimumBatteryPercent = analysis.fullAnalysisMinimumBatteryPercent
+                .takeIf { it in setOf(20, 30, 40, 50) } ?: 20,
+        ),
     )
 
     private fun decode(p: Preferences) = GallerySettings(
@@ -121,6 +125,9 @@ class GallerySettingsRepository(context: Context) {
             destructiveActionLockEnabled = p[Keys.DestructiveLock] ?: false,
             relockTimeoutMinutes = p[Keys.RelockTimeout] ?: 1,
         ),
+        analysis = AnalysisSettings(
+            fullAnalysisMinimumBatteryPercent = p[Keys.FullAnalysisMinimumBattery] ?: 20,
+        ),
     ).normalized()
 
     private fun encode(p: MutablePreferences, s: GallerySettings) {
@@ -161,6 +168,7 @@ class GallerySettingsRepository(context: Context) {
         p[Keys.AppLock] = s.security.appLockEnabled
         p[Keys.DestructiveLock] = s.security.destructiveActionLockEnabled
         p[Keys.RelockTimeout] = s.security.relockTimeoutMinutes
+        p[Keys.FullAnalysisMinimumBattery] = s.analysis.fullAnalysisMinimumBatteryPercent
     }
 
     private fun GallerySettings.toJson() = JSONObject().apply {
@@ -201,6 +209,9 @@ class GallerySettingsRepository(context: Context) {
             put("destructiveActionLockEnabled", security.destructiveActionLockEnabled)
             put("relockTimeoutMinutes", security.relockTimeoutMinutes)
         })
+        put("analysis", JSONObject().apply {
+            put("fullAnalysisMinimumBatteryPercent", analysis.fullAnalysisMinimumBatteryPercent)
+        })
     }
 
     private fun JSONObject.toSettings(): GallerySettings {
@@ -211,6 +222,7 @@ class GallerySettingsRepository(context: Context) {
         val t = optJSONObject("thumbnails") ?: JSONObject()
         val o = optJSONObject("operations") ?: JSONObject()
         val s = optJSONObject("security") ?: JSONObject()
+        val a = optJSONObject("analysis") ?: JSONObject()
         return GallerySettings(
             schemaVersion = optInt("schemaVersion", 1),
             library = LibrarySettings(
@@ -236,6 +248,7 @@ class GallerySettingsRepository(context: Context) {
             thumbnails = ThumbnailSettings(t.bool("cropToFill", true), t.bool("animateMedia", true), t.bool("showVideoDuration", true), t.bool("showFileType", false), t.bool("markFavorites", true), t.optInt("gridColumns", 3)),
             operations = OperationSettings(o.bool("shareWithoutLocationByDefault", false), o.bool("keepLastModifiedWhenPossible", true), o.bool("skipAppDeleteConfirmation", false)),
             security = SecuritySettings(s.bool("appLockEnabled", false), s.bool("destructiveActionLockEnabled", false), s.optInt("relockTimeoutMinutes", 1)),
+            analysis = AnalysisSettings(a.optInt("fullAnalysisMinimumBatteryPercent", 20)),
         )
     }
 
@@ -277,6 +290,7 @@ class GallerySettingsRepository(context: Context) {
         val AppLock = booleanPreferencesKey("security.app_lock")
         val DestructiveLock = booleanPreferencesKey("security.destructive_lock")
         val RelockTimeout = intPreferencesKey("security.relock_timeout")
+        val FullAnalysisMinimumBattery = intPreferencesKey("analysis.full_minimum_battery_percent")
     }
 
     private inline fun <reified T : Enum<T>> String.enumOrDefault(default: T): T =

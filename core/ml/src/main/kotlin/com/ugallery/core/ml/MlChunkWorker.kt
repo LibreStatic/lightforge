@@ -26,7 +26,10 @@ class MlChunkWorker(
         val policy = MlWorkPolicy.forMode(mode)
         val runner = MlChunkRunner(
             MlStateStore(applicationContext),
-            MlExecutionController(AndroidThermalStatusProvider(applicationContext)),
+            MlExecutionController(
+                AndroidThermalStatusProvider(applicationContext),
+                AndroidFullAnalysisEligibility(applicationContext),
+            ),
         )
         return when (val result = runner.run(engine, policy)) {
             is MlRunnerResult.Continue -> {

@@ -19,6 +19,7 @@ class MlChunkRunner(
             state.isConsentEnabled(engine.task),
             state.isPaused(engine.task),
             engine.hasCurrentPermission(),
+            policy.mode,
         )) {
             MlExecutionDecision.ConsentRequired,
             MlExecutionDecision.Paused,
@@ -27,6 +28,7 @@ class MlChunkRunner(
                 return MlRunnerResult.Stopped
             }
             MlExecutionDecision.ThermalBackoff -> return MlRunnerResult.Retry("thermal")
+            MlExecutionDecision.PowerBackoff -> return MlRunnerResult.Retry("power")
             MlExecutionDecision.PermissionLost -> {
                 engine.purgeDerivedData()
                 state.clear(engine.task)

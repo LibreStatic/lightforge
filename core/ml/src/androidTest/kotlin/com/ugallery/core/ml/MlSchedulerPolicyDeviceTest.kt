@@ -32,7 +32,7 @@ class MlSchedulerPolicyDeviceTest {
 
     @After fun tearDown() = MlRuntimeRegistry.clear()
 
-    @Test fun userStartedWorkPoliciesRunWithoutChargingOrIdle() {
+    @Test fun workManagerLeavesChargingOrForegroundChoiceToRuntimeGate() {
         val recent = MlWorkPolicy.forMode(MlRunMode.Recent)
         val full = MlWorkPolicy.forMode(MlRunMode.FullLibrary)
 
@@ -47,13 +47,44 @@ class MlSchedulerPolicyDeviceTest {
         assertEquals(androidx.work.NetworkType.NOT_REQUIRED, full.constraints.requiredNetworkType)
     }
 
-    @Test fun recentAndFullLibraryRequestsCanStartWhileAppIsOpen() {
+    @Test fun fullLibraryRequestUsesBatteryAndStorageGuardsButNotChargingConstraint() {
         val recent = MlChunkWorker.request(MlTaskType.FaceDetection, MlRunMode.Recent)
         val full = MlChunkWorker.request(MlTaskType.FaceDetection, MlRunMode.FullLibrary)
 
         assertFalse(recent.workSpec.constraints.requiresDeviceIdle())
         assertFalse(full.workSpec.constraints.requiresDeviceIdle())
+        assertFalse(recent.workSpec.constraints.requiresCharging())
         assertFalse(full.workSpec.constraints.requiresCharging())
+    }
+
+    @Test fun fullLibraryPowerGateAllowsChargingOrForegroundAboveThreshold() = runBlocking {
+        suspend fun eligible(state: AnalysisBatteryState, foreground: Boolean) =
+            AndroidFullAnalysisEligibility(
+                context,
+                AnalysisBatteryStateProvider { state },
+                { foreground },
+                { 20 },
+            ).isEligible()
+
+        assertTrue(eligible(AnalysisBatteryState(5, charging = true), foreground = false))
+        assertTrue(eligible(AnalysisBatteryState(20, charging = false), foreground = true))
+        assertFalse(eligible(AnalysisBatteryState(19, charging = false), foreground = true))
+        assertFalse(eligible(AnalysisBatteryState(80, charging = false), foreground = false))
+    }
+
+    @Test fun ineligibleFullLibraryBacksOffBeforeOpeningMedia() = runBlocking {
+        val engine = FakeEngine()
+        state.setConsent(engine.task, true)
+        val runner = MlChunkRunner(
+            state,
+            MlExecutionController(
+                ThermalStatusProvider { PowerManager.THERMAL_STATUS_NONE },
+                FullAnalysisEligibility { false },
+            ),
+        )
+
+        assertEquals(MlRunnerResult.Retry("power"), runner.run(engine, MlWorkPolicy.forMode(MlRunMode.FullLibrary)))
+        assertEquals(0, engine.processCalls)
     }
 
     @Test fun moderateThermalStatusBacksOffBeforeOpeningMedia() = runBlocking {

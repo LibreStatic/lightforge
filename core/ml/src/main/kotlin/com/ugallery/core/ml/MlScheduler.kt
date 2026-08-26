@@ -65,6 +65,29 @@ class MlScheduler(context: Context) {
         return enqueue(task, mode)
     }
 
+    /** Cancels unplugged full-library work while preserving its durable request for resume. */
+    fun onAppBackgrounded() {
+        LocalAnalysisForegroundState.setForeground(false)
+        if (AndroidAnalysisBatteryStateProvider(appContext).current().charging) return
+        MlTaskType.entries.filter { state.requestedMode(it) == MlRunMode.FullLibrary }.forEach {
+            workManager.cancelUniqueWork(MlChunkWorker.uniqueName(it))
+        }
+    }
+
+    /** Replaces delayed retries so an eligible foreground pass resumes immediately. */
+    fun onAppForegrounded() {
+        LocalAnalysisForegroundState.setForeground(true)
+        MlTaskType.entries.forEach { task ->
+            val mode = state.requestedMode(task) ?: return@forEach
+            if (!state.isConsentEnabled(task) || state.isPaused(task)) return@forEach
+            workManager.enqueueUniqueWork(
+                MlChunkWorker.uniqueName(task),
+                ExistingWorkPolicy.REPLACE,
+                MlChunkWorker.request(task, mode),
+            )
+        }
+    }
+
     suspend fun deleteDerivedData(task: MlTaskType) {
         workManager.cancelUniqueWork(MlChunkWorker.uniqueName(task)).await()
         MlRuntimeRegistry.engine(task)?.purgeDerivedData()

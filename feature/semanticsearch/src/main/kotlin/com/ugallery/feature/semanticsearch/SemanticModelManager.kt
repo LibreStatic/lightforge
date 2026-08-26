@@ -9,6 +9,7 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.ugallery.core.database.GalleryDatabase
+import com.ugallery.core.ml.AndroidAnalysisBatteryStateProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -137,9 +138,11 @@ class SemanticModelManager(
             database.semanticDao().upsertIndex(
                 com.ugallery.core.database.SemanticIndexEntity(indexId, model.id, model.version, "building", 0, now, now),
             )
-            val request = OneTimeWorkRequestBuilder<SemanticIndexWorker>()
-                .setInputData(workDataOf(SemanticIndexWorker.KeyModelId to model.id, SemanticIndexWorker.KeyIndexId to indexId))
-                .build()
+            val request = SemanticIndexWorker.request(
+                model.id,
+                indexId,
+                SemanticIndexMode.FullLibrary,
+            )
             work.enqueueUniqueWork(SemanticIndexWorker.uniqueName(indexId), ExistingWorkPolicy.REPLACE, request)
             monitorIndexCompletion(indexId)
             refresh()
@@ -185,10 +188,30 @@ class SemanticModelManager(
         if (!preferences.getBoolean(KeyEnabled, false)) return
         val modelId = preferences.getString(KeyActiveModel, null) ?: return
         val indexId = preferences.getString(KeyActiveIndex, null) ?: return
-        val request = OneTimeWorkRequestBuilder<SemanticIndexWorker>()
-            .setInputData(workDataOf(SemanticIndexWorker.KeyModelId to modelId, SemanticIndexWorker.KeyIndexId to indexId))
-            .build()
+        val request = SemanticIndexWorker.request(
+            modelId,
+            indexId,
+            SemanticIndexMode.Incremental,
+        )
         work.enqueueUniqueWork(SemanticIndexWorker.uniqueName(indexId), ExistingWorkPolicy.KEEP, request)
+    }
+
+    fun onAppBackgrounded() {
+        if (AndroidAnalysisBatteryStateProvider(appContext).current().charging) return
+        preferences.getString(KeyPendingIndex, null)?.let { indexId ->
+            work.cancelUniqueWork(SemanticIndexWorker.uniqueName(indexId))
+        }
+    }
+
+    fun onAppForegrounded() {
+        val modelId = preferences.getString(KeyPendingModel, null) ?: return
+        val indexId = preferences.getString(KeyPendingIndex, null) ?: return
+        work.enqueueUniqueWork(
+            SemanticIndexWorker.uniqueName(indexId),
+            ExistingWorkPolicy.REPLACE,
+            SemanticIndexWorker.request(modelId, indexId, SemanticIndexMode.FullLibrary),
+        )
+        monitorIndexCompletion(indexId)
     }
 
     fun ensureAutomaticDownload(allowMetered: Boolean = false) {
@@ -247,9 +270,11 @@ class SemanticModelManager(
             refresh()
             return
         }
-        val request = OneTimeWorkRequestBuilder<SemanticIndexWorker>()
-            .setInputData(workDataOf(SemanticIndexWorker.KeyModelId to modelId, SemanticIndexWorker.KeyIndexId to indexId))
-            .build()
+        val request = SemanticIndexWorker.request(
+            modelId,
+            indexId,
+            SemanticIndexMode.FullLibrary,
+        )
         work.enqueueUniqueWork(SemanticIndexWorker.uniqueName(indexId), ExistingWorkPolicy.KEEP, request)
         monitorIndexCompletion(indexId)
     }

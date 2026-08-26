@@ -63,6 +63,11 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    override fun onStop() {
+        if (usesProductionRuntime) galleryViewModel.onBackground()
+        super.onStop()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)

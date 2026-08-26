@@ -71,7 +71,7 @@
     <string name="face_analysis_pause">Pausa</string>
     <string name="face_analysis_resume">Analizza ora</string>
     <string name="face_analysis_all">Analizza l’intera raccolta</string>
-    <string name="face_analysis_all_requirements">L’analisi completa attende batteria e spazio sufficienti e si mette in pausa se il dispositivo si scalda.</string>
+    <string name="face_analysis_all_requirements">L’analisi completa viene eseguita durante la ricarica o, con l’app aperta, sopra il livello di batteria selezionato. Elabora solo gli elementi nuovi o modificati e si mette in pausa se il dispositivo si scalda.</string>
     <string name="face_analysis_delete">Elimina tutti i dati di analisi locale</string>
     <string name="face_analysis_delete_title">Eliminare tutti i dati di analisi locale?</string>
     <string name="face_analysis_delete_body">Volti, persone, etichette, testo riconosciuto, avanzamento e consenso verranno rimossi. Le foto non vengono mai modificate.</string>
@@ -104,14 +104,17 @@
     <string name="settings_about_summary">Versione, collaboratori e licenze open source</string>
     <string name="local_analysis_privacy">UGallery può analizzare le foto accessibili interamente su questo dispositivo. Nulla viene caricato e puoi interrompere l’analisi o eliminarne i risultati in qualsiasi momento.</string>
     <string name="local_analysis_master">Usa analisi locale</string>
-    <string name="local_analysis_master_summary">Controlla persone e volti, contenuto e testo delle foto e raccolte di animali.</string>
+    <string name="local_analysis_master_summary">Controlla persone e volti, contenuto e testo delle foto e raccolte di animali. Gli elementi noti e invariati non vengono analizzati di nuovo.</string>
+    <string name="local_analysis_minimum_battery">Batteria minima per l’analisi completa</string>
+    <string name="local_analysis_battery_percent">%1$d%%</string>
+    <string name="local_analysis_minimum_battery_summary">Senza caricatore, l’analisi completa viene eseguita solo mentre UGallery è aperta e la batteria è a questo livello o superiore. La ricarica la consente sempre.</string>
     <string name="local_analysis_features">Funzioni di analisi</string>
     <string name="local_analysis_people">Persone e volti</string>
     <string name="local_analysis_people_summary">Rileva i volti e raggruppa localmente le foto della stessa persona.</string>
     <string name="local_analysis_content">Contenuto e testo delle foto</string>
     <string name="local_analysis_content_summary">Crea etichette ricercabili e riconosce il testo. Le raccolte di animali condividono queste etichette.</string>
     <string name="local_analysis_opt_out_title">L’analisi locale è pronta</string>
-    <string name="local_analysis_opt_out_body">UGallery può organizzare persone, animali, contenuto e testo delle foto interamente su questo dispositivo. L’analisi inizia quando continui, usa solo le foto autorizzate e può essere disattivata o eliminata nelle Impostazioni.</string>
+    <string name="local_analysis_opt_out_body">UGallery può organizzare persone, animali, contenuto e testo delle foto interamente su questo dispositivo usando solo le foto autorizzate. L’indicizzazione completa viene eseguita durante la ricarica o mentre UGallery è aperta con almeno il 20 per cento di batteria per impostazione predefinita. Puoi cambiare questo livello, disattivare l’analisi o eliminarne i dati nelle Impostazioni.</string>
     <string name="local_analysis_opt_out_accept">Attiva analisi locale</string>
     <string name="local_analysis_opt_out_decline">Non ora</string>
 

@@ -6,13 +6,16 @@ import android.os.CancellationSignal
 import android.provider.MediaStore
 import android.util.Size
 import androidx.work.CoroutineWorker
+import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkerParameters
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.ugallery.core.database.GalleryDatabaseFactory
 import com.ugallery.core.database.SemanticEmbeddingEntity
+import com.ugallery.core.ml.AndroidFullAnalysisEligibility
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
@@ -22,6 +25,13 @@ class SemanticIndexWorker(context: Context, parameters: WorkerParameters) : Coro
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val modelId = inputData.getString(KeyModelId) ?: return@withContext Result.failure()
         val indexId = inputData.getString(KeyIndexId) ?: return@withContext Result.failure()
+        val mode = inputData.getString(KeyMode)
+            ?.let { runCatching { SemanticIndexMode.valueOf(it) }.getOrNull() }
+            ?: SemanticIndexMode.FullLibrary
+        val fullAnalysisEligibility = AndroidFullAnalysisEligibility(applicationContext)
+        if (mode == SemanticIndexMode.FullLibrary && !fullAnalysisEligibility.isEligible()) {
+            return@withContext Result.retry()
+        }
         val descriptor = SemanticModelCatalog.models.firstOrNull { it.id == modelId } ?: return@withContext Result.failure()
         val installed = SemanticModelStorage(applicationContext).installedModel(descriptor) ?: return@withContext Result.failure()
         val database = GalleryDatabaseFactory.open(applicationContext)
@@ -30,6 +40,9 @@ class SemanticIndexWorker(context: Context, parameters: WorkerParameters) : Coro
             LiteRtSemanticEmbeddingInference(applicationContext, installed).use { inference ->
                 var processed = 0L
                 while (!isStopped && processed < MaxItemsPerRun) {
+                    if (mode == SemanticIndexMode.FullLibrary && !fullAnalysisEligibility.isEligible()) {
+                        return@withContext Result.retry()
+                    }
                     val media = dao.pendingMedia(indexId, descriptor.version, ChunkSize)
                     if (media.isEmpty()) {
                         complete(indexId, descriptor, dao, dao.embeddingCount(indexId))
@@ -79,13 +92,10 @@ class SemanticIndexWorker(context: Context, parameters: WorkerParameters) : Coro
             if (isStopped) {
                 Result.retry()
             } else {
-                val continuation = OneTimeWorkRequestBuilder<SemanticIndexWorker>()
-                    .setInputData(workDataOf(KeyModelId to modelId, KeyIndexId to indexId))
-                    .build()
                 WorkManager.getInstance(applicationContext).enqueueUniqueWork(
                     uniqueName(indexId),
                     ExistingWorkPolicy.APPEND,
-                    continuation,
+                    request(modelId, indexId, mode),
                 ).result.get()
                 Result.success()
             }
@@ -130,11 +140,35 @@ class SemanticIndexWorker(context: Context, parameters: WorkerParameters) : Coro
     companion object {
         const val KeyModelId = "model_id"
         const val KeyIndexId = "index_id"
+        const val KeyMode = "index_mode"
         const val KeyCompletedItems = "completed_items"
         const val KeyError = "error"
         const val ImagePixels = 224
         const val ChunkSize = 8
         const val MaxItemsPerRun = 64
         fun uniqueName(indexId: String) = "semantic-index-$indexId"
+
+        internal fun request(
+            modelId: String,
+            indexId: String,
+            mode: SemanticIndexMode,
+        ): OneTimeWorkRequest = OneTimeWorkRequestBuilder<SemanticIndexWorker>()
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiresBatteryNotLow(true)
+                    .setRequiresStorageNotLow(true)
+                    .setRequiresCharging(false)
+                    .build(),
+            )
+            .setInputData(
+                workDataOf(
+                    KeyModelId to modelId,
+                    KeyIndexId to indexId,
+                    KeyMode to mode.name,
+                ),
+            )
+            .build()
     }
 }
+
+internal enum class SemanticIndexMode { FullLibrary, Incremental }

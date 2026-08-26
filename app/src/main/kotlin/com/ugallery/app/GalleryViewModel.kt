@@ -598,11 +598,26 @@ class GalleryViewModel @Inject constructor(
     }
 
     fun onForeground() {
+        mlScheduler.onAppForegrounded()
+        semanticModelManager?.onAppForegrounded()
+        if (mlScheduler.hasConsent(MlTaskType.FaceDetection)) monitorFaceProgress()
+        if (mlScheduler.hasConsent(MlTaskType.PersonClustering)) monitorPeopleProgress()
+        if (mlScheduler.hasConsent(MlTaskType.ImageLabels)) monitorPetProgress()
         val before = permissions.access.value.unredactedLocation
         val after = permissions.revalidate().unredactedLocation
         if (before && !after) viewModelScope.launch { runtime.value?.metadata?.onLocationPermissionRevoked() }
         viewModelScope.launch { refreshLibrary() }
         revalidateExternalGrant()
+    }
+
+    fun onBackground() {
+        mlScheduler.onAppBackgrounded()
+        semanticModelManager?.onAppBackgrounded()
+        // WorkManager owns durable analysis. These jobs only refresh visible UI and would
+        // otherwise poll SharedPreferences/Room while full-library work waits for power.
+        faceProgressJob?.cancel()
+        peopleProgressJob?.cancel()
+        petProgressJob?.cancel()
     }
 
     fun setSearchQuery(value: String) {
@@ -961,11 +976,9 @@ class GalleryViewModel @Inject constructor(
 
     fun analyzeAllPeople() {
         viewModelScope.launch {
-            listOf(MlTaskType.PersonClustering, MlTaskType.FaceEmbeddings, MlTaskType.FaceDetection).forEach {
-                mlScheduler.deleteDerivedData(it)
-            }
-            peopleRefreshGeneration.value++
             listOf(MlTaskType.FaceDetection, MlTaskType.FaceEmbeddings, MlTaskType.PersonClustering).forEach(mlScheduler::grantConsent)
+            // All engines query missing/stale rows. Keep valid detections, embeddings and
+            // memberships instead of rebuilding the complete people database.
             mlScheduler.restart(MlTaskType.FaceDetection, MlRunMode.FullLibrary)
             monitorFaceProgress()
             monitorPeopleProgress()
@@ -1146,7 +1159,17 @@ class GalleryViewModel @Inject constructor(
         peopleProgressJob = viewModelScope.launch {
             while (isActive) {
                 val next = nextPeopleTask()
-                if (next != null && mlScheduler.hasConsent(next)) mlScheduler.enqueue(next, MlRunMode.Recent)
+                if (next != null && mlScheduler.hasConsent(next)) {
+                    // Face detection may be a bounded recent update. Embedding every detected
+                    // face and rebuilding clusters are library-wide passes and must retain the
+                    // charging gate even when they are scheduled after an earlier stage finishes.
+                    val mode = if (next == MlTaskType.FaceDetection) {
+                        MlRunMode.Recent
+                    } else {
+                        MlRunMode.FullLibrary
+                    }
+                    mlScheduler.enqueue(next, mode)
+                }
                 mutablePeopleAnalysis.value = peopleControlState()
                 refreshMeState()
                 if (next == null) {

@@ -180,6 +180,8 @@ fun RecognitionSettingsContent(
                 }
                 SettingsPage.AiAnalysis -> SettingsSubPage(title = stringResource(R.string.settings_page_ai), onBack = { page = SettingsPage.Root }) {
                     AiAnalysisSection(
+                        settings = settings,
+                        onSettingsChange = onSettingsChange,
                         state = state,
                         onEnable = onEnable,
                         onPause = onPause,
@@ -798,6 +800,8 @@ private fun BackupSection(
 
 @Composable
 private fun AiAnalysisSection(
+    settings: GallerySettings,
+    onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit,
     state: FaceAnalysisUiState,
     onEnable: () -> Unit,
     onPause: () -> Unit,
@@ -834,6 +838,30 @@ private fun AiAnalysisSection(
         modifier = Modifier.semantics { heading() },
     )
     Text(stringResource(R.string.local_analysis_privacy), style = MaterialTheme.typography.bodyLarge)
+    SettingsValueRow(
+        stringResource(R.string.local_analysis_minimum_battery),
+        stringResource(
+            R.string.local_analysis_battery_percent,
+            settings.analysis.fullAnalysisMinimumBatteryPercent,
+        ),
+    ) {
+        val next = when (settings.analysis.fullAnalysisMinimumBatteryPercent) {
+            20 -> 30
+            30 -> 40
+            40 -> 50
+            else -> 20
+        }
+        onSettingsChange { current ->
+            current.copy(
+                analysis = current.analysis.copy(fullAnalysisMinimumBatteryPercent = next),
+            )
+        }
+    }
+    Text(
+        stringResource(R.string.local_analysis_minimum_battery_summary),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         shape = RoundedCornerShape(20.dp),
