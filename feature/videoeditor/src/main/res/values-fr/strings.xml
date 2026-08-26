@@ -74,4 +74,12 @@
     <string name="video_editor_cancel_export">Annuler l’exportation</string>
     <string name="video_editor_slow_overlap">Les segments au ralenti ne peuvent pas se chevaucher</string>
     <string name="video_editor_slow_invalid_range">La sortie doit être après l’entrée</string>
+    <string name="video_editor_transform">Transformer</string>
+    <string name="video_editor_crop_horizontal">Recadrage horizontal</string>
+    <string name="video_editor_crop_vertical">Recadrage vertical</string>
+    <string name="video_editor_straighten">Redresser</string>
+    <string name="video_editor_rotate_90">Pivoter de 90°</string>
+    <string name="video_editor_flip_horizontal">Retourner</string>
+    <string name="video_editor_reset_transform">Réinitialiser</string>
+    <string name="video_editor_music_volume">Volume de la musique</string>
 </resources>

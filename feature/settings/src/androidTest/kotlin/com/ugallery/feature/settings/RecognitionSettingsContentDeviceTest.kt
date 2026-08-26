@@ -131,4 +131,72 @@ class RecognitionSettingsContentDeviceTest {
             .performScrollTo()
             .assertIsDisplayed()
     }
+
+    @Test
+    fun firstSemanticModelBeingIndexedIsReportedAsPreparingRatherThanActive() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val model = SemanticModelSettingsItemUi(
+            id = "quality",
+            name = "TinyCLIP Quality",
+            version = "1.0.0",
+            sizeBytes = 225L * 1024 * 1024,
+            quality = "Higher quality",
+            languages = "Mainly English",
+            compatibility = SemanticModelCompatibilityUi.Supported,
+            installed = true,
+            active = false,
+            downloading = false,
+        )
+
+        compose.setContent {
+            UGalleryTheme(darkTheme = false, dynamicColor = false) {
+                SemanticModelsTestContent(
+                    SemanticModelSettingsUiState(
+                        enabled = true,
+                        buildingModelId = model.id,
+                        models = listOf(model),
+                    ),
+                )
+            }
+        }
+
+        compose.onNode(
+            hasText(context.getString(R.string.semantic_settings_preparing, model.name, model.version)),
+        ).assertIsDisplayed()
+        compose.onNode(hasText(context.getString(R.string.semantic_model_building))).assertIsDisplayed()
+        compose.onNode(hasText(context.getString(R.string.semantic_model_building_first_description))).assertIsDisplayed()
+        compose.onNode(hasText(context.getString(R.string.semantic_settings_no_active))).assertDoesNotExist()
+        compose.onNode(hasText(context.getString(R.string.semantic_model_use))).assertDoesNotExist()
+    }
+
+    @Test
+    fun aboutRowIsReachableAndOpensAbout() {
+        var openCount = 0
+
+        compose.setContent {
+            UGalleryTheme(darkTheme = false, dynamicColor = false) {
+                RecognitionSettingsContent(
+                    state = FaceAnalysisUiState(),
+                    onEnable = {},
+                    onPause = {},
+                    onResume = {},
+                    onAnalyzeAll = {},
+                    onDelete = {},
+                    petCollectionsEnabled = false,
+                    onPetCollectionsEnabledChange = {},
+                    onHideDogResults = {},
+                    onHideCatResults = {},
+                    onRestorePetResults = {},
+                    onOpenAbout = { openCount++ },
+                )
+            }
+        }
+
+        compose.onNode(hasTestTag("settings_about_row"))
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performClick()
+
+        assertEquals(1, openCount)
+    }
 }

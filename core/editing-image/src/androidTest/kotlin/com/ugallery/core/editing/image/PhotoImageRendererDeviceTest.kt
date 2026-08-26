@@ -21,6 +21,47 @@ import java.io.File
 @RunWith(AndroidJUnit4::class)
 class PhotoImageRendererDeviceTest {
     @Test
+    fun croppedExportHasTheRequestedDimensions() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val resolver = context.contentResolver
+        val source = checkNotNull(resolver.insert(
+            MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
+            ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, "renderer-crop-${System.nanoTime()}.png")
+                put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/UGalleryRendererTest")
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            },
+        ))
+        val output = File(context.cacheDir, "renderer-crop-${System.nanoTime()}.png")
+        try {
+            resolver.openOutputStream(source, "w")!!.use { outputStream ->
+                InstrumentationRegistry.getInstrumentation().context.assets.open("static.png").use { input ->
+                    input.copyTo(outputStream)
+                }
+            }
+            resolver.update(source, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null)
+            val key = MediaKey(MediaStore.VOLUME_EXTERNAL_PRIMARY, ContentUris.parseId(source))
+            val recipe = EditRecipe.forSource(key, 0).append(EditOperation.Crop(250, 250, 750, 750))
+            val renderer = PhotoImageRenderer(resolver, maxExportPixels = 2_000_000)
+            val sourceBounds = renderer.bounds(source)
+            val result = renderer.export(source, recipe, output) as PhotoExportOutcome.Completed
+
+            assertTrue(result.width < sourceBounds.width)
+            assertTrue(result.height < sourceBounds.height)
+            val decodedBounds = BitmapFactory.Options().also {
+                it.inJustDecodeBounds = true
+                BitmapFactory.decodeFile(output.absolutePath, it)
+            }
+            assertEquals(result.width, decodedBounds.outWidth)
+            assertEquals(result.height, decodedBounds.outHeight)
+        } finally {
+            resolver.delete(source, null, null)
+            output.delete()
+        }
+    }
+
+    @Test
     fun previewAndFilteredExportAreBoundedAndNonEmpty() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val resolver = context.contentResolver

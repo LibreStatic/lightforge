@@ -99,6 +99,9 @@
     <string name="settings_group_viewing">Biblioteca y visualización</string>
     <string name="settings_group_management">Privacidad y administración</string>
     <string name="settings_group_intelligence">Funciones inteligentes</string>
+    <string name="settings_group_about">Acerca de</string>
+    <string name="settings_about">Acerca de UGallery</string>
+    <string name="settings_about_summary">Versión, contribuidores y licencias de código abierto</string>
     <string name="local_analysis_privacy">UGallery puede analizar tus fotos accesibles completamente en este dispositivo. No se sube nada y podés detener el análisis o borrar sus resultados cuando quieras.</string>
     <string name="local_analysis_master">Usar análisis local</string>
     <string name="local_analysis_master_summary">Controla personas y rostros, contenido y texto de fotos, y colecciones de mascotas.</string>
@@ -117,6 +120,7 @@
     <string name="semantic_settings_enabled">Usar búsqueda semántica</string>
     <string name="semantic_settings_privacy">Los modelos, consultas, fotos y vectores permanecen en este dispositivo. Solo se descargan paquetes de modelos verificados.</string>
     <string name="semantic_settings_no_active">No hay un modelo semántico activo</string>
+    <string name="semantic_settings_preparing">Preparando %1$s %2$s como modelo activo</string>
     <string name="semantic_settings_active">Modelo activo: %1$s · %2$s</string>
     <string name="semantic_settings_automatic">Usar recomendación automática</string>
     <string name="semantic_model_active">Activo</string>
@@ -144,6 +148,7 @@
     <string name="semantic_delete_all_body">Se eliminarán todos los paquetes de modelos semánticos descargados y sus índices derivados.</string>
     <string name="semantic_model_building">Creando índice</string>
     <string name="semantic_model_building_description">Se está indexando tu biblioteca localmente. El modelo actual seguirá activo hasta que termine.</string>
+    <string name="semantic_model_building_first_description">Se está indexando tu biblioteca localmente. Este modelo se activará cuando termine la indexación.</string>
     <string name="semantic_quality_balanced">Equilibrado</string>
     <string name="semantic_quality_higher">Mayor calidad</string>
     <string name="semantic_language_english_focused">Principalmente inglés</string>

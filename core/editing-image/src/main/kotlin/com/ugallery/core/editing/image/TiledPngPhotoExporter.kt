@@ -6,11 +6,11 @@ import android.graphics.BitmapFactory
 import android.graphics.BitmapRegionDecoder
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Rect
+import android.graphics.RectF
 import android.net.Uri
 import com.ugallery.core.model.EditOperation
 import com.ugallery.core.model.EditRecipe
@@ -22,10 +22,13 @@ import java.util.zip.CRC32
 import java.util.zip.Deflater
 import kotlin.coroutines.coroutineContext
 import kotlin.math.ceil
+import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 /**
  * Full-resolution still exporter for sources that cannot fit in one Android Bitmap.
@@ -169,6 +172,32 @@ private class TiledTransformPlan(
                     concat(flip)
                 }
 
+                is EditOperation.Straighten -> {
+                    if (operation.degrees == 0f) return@forEach
+                    val width = outputWidth
+                    val height = outputHeight
+                    val rotation = Matrix().apply {
+                        setRotate(operation.degrees, width / 2f, height / 2f)
+                    }
+                    val bounds = RectF(0f, 0f, width.toFloat(), height.toFloat())
+                    rotation.mapRect(bounds)
+                    rotation.postTranslate(-bounds.left, -bounds.top)
+                    concat(rotation)
+
+                    val (safeWidth, safeHeight) = inscribedRotatedSize(
+                        width,
+                        height,
+                        operation.degrees,
+                    )
+                    val rotatedWidth = bounds.width().roundToInt().coerceAtLeast(1)
+                    val rotatedHeight = bounds.height().roundToInt().coerceAtLeast(1)
+                    val left = ((rotatedWidth - safeWidth) / 2).coerceAtLeast(0)
+                    val top = ((rotatedHeight - safeHeight) / 2).coerceAtLeast(0)
+                    concat(Matrix().apply { setTranslate(-left.toFloat(), -top.toFloat()) })
+                    outputWidth = safeWidth.coerceAtMost(rotatedWidth)
+                    outputHeight = safeHeight.coerceAtMost(rotatedHeight)
+                }
+
                 is EditOperation.Tone, is EditOperation.Filter, is EditOperation.RawDevelop -> Unit
             }
         }
@@ -214,12 +243,7 @@ private class TiledTransformPlan(
     private fun colorize(source: Bitmap): Bitmap {
         var current = source
         colorOperations.forEach { operation ->
-            val matrix = when (operation) {
-                is EditOperation.Tone -> toneMatrix(operation)
-                is EditOperation.Filter -> filterMatrix(operation.name)
-                is EditOperation.RawDevelop -> ColorMatrix()
-                else -> ColorMatrix()
-            }
+            val matrix = PhotoColorTransform.matrixFor(operation)
             val next = Bitmap.createBitmap(current.width, current.height, Bitmap.Config.ARGB_8888)
             Canvas(next).drawBitmap(current, 0f, 0f, Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 colorFilter = ColorMatrixColorFilter(matrix)
@@ -230,27 +254,31 @@ private class TiledTransformPlan(
         return current
     }
 
-    private fun toneMatrix(operation: EditOperation.Tone): ColorMatrix {
-        val contrast = operation.contrast
-        val translate = (1f - contrast) * 127.5f + operation.brightness * 255f
-        val matrix = ColorMatrix(floatArrayOf(
-            contrast, 0f, 0f, 0f, translate,
-            0f, contrast, 0f, 0f, translate,
-            0f, 0f, contrast, 0f, translate,
-            0f, 0f, 0f, 1f, 0f,
-        ))
-        if (operation.saturation != 1f) {
-            matrix.postConcat(ColorMatrix().apply { setSaturation(operation.saturation) })
+    private fun inscribedRotatedSize(width: Int, height: Int, degrees: Float): Pair<Int, Int> {
+        val radians = Math.toRadians(abs(degrees).toDouble())
+        val sine = sin(radians)
+        val cosine = cos(radians)
+        val denominator = cosine * cosine - sine * sine
+        val safeWidth: Double
+        val safeHeight: Double
+        if (minOf(width, height) <= 2 * sine * cosine * maxOf(width, height) ||
+            abs(denominator) < 0.000_001
+        ) {
+            val halfShort = 0.5 * minOf(width, height)
+            if (width >= height) {
+                safeWidth = halfShort / sine.coerceAtLeast(0.000_001)
+                safeHeight = halfShort / cosine.coerceAtLeast(0.000_001)
+            } else {
+                safeWidth = halfShort / cosine.coerceAtLeast(0.000_001)
+                safeHeight = halfShort / sine.coerceAtLeast(0.000_001)
+            }
+        } else {
+            safeWidth = (width * cosine - height * sine) / denominator
+            safeHeight = (height * cosine - width * sine) / denominator
         }
-        return matrix
+        return safeWidth.roundToInt().coerceAtLeast(1) to safeHeight.roundToInt().coerceAtLeast(1)
     }
 
-    private fun filterMatrix(name: String): ColorMatrix = when (name) {
-        "natural" -> toneMatrix(EditOperation.Tone(contrast = 1.08f, saturation = 0.9f))
-        "vivid" -> toneMatrix(EditOperation.Tone(brightness = 0.03f, saturation = 1.2f))
-        "mono" -> ColorMatrix().apply { setSaturation(0f) }
-        else -> ColorMatrix()
-    }
 }
 
 private class PngStreamEncoder(

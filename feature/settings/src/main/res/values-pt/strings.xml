@@ -99,6 +99,9 @@
     <string name="settings_group_viewing">Biblioteca e visualização</string>
     <string name="settings_group_management">Privacidade e gerenciamento</string>
     <string name="settings_group_intelligence">Recursos inteligentes</string>
+    <string name="settings_group_about">Sobre</string>
+    <string name="settings_about">Sobre o UGallery</string>
+    <string name="settings_about_summary">Versão, colaboradores e licenças de código aberto</string>
     <string name="local_analysis_privacy">O UGallery pode analisar suas fotos acessíveis inteiramente neste dispositivo. Nada é enviado e você pode interromper a análise ou excluir os resultados a qualquer momento.</string>
     <string name="local_analysis_master">Usar análise local</string>
     <string name="local_analysis_master_summary">Controla pessoas e rostos, conteúdo e texto das fotos e coleções de animais.</string>
@@ -117,6 +120,7 @@
     <string name="semantic_settings_enabled">Usar pesquisa semântica</string>
     <string name="semantic_settings_privacy">Modelos, consultas, fotos e vetores permanecem neste dispositivo. Somente pacotes verificados são baixados.</string>
     <string name="semantic_settings_no_active">Nenhum modelo semântico ativo</string>
+    <string name="semantic_settings_preparing">Preparando %1$s %2$s como modelo ativo</string>
     <string name="semantic_settings_active">Modelo ativo: %1$s · %2$s</string>
     <string name="semantic_settings_automatic">Usar recomendação automática</string>
     <string name="semantic_model_active">Ativo</string>
@@ -144,6 +148,7 @@
     <string name="semantic_delete_all_body">Todos os modelos baixados e seus índices serão removidos.</string>
     <string name="semantic_model_building">Criando índice</string>
     <string name="semantic_model_building_description">Sua biblioteca está sendo indexada localmente. O modelo atual permanece ativo até a conclusão.</string>
+    <string name="semantic_model_building_first_description">Sua biblioteca está sendo indexada localmente. Este modelo será ativado quando a indexação terminar.</string>
     <string name="semantic_quality_balanced">Equilibrado</string>
     <string name="semantic_quality_higher">Maior qualidade</string>
     <string name="semantic_language_english_focused">Principalmente inglês</string>

@@ -1,7 +1,7 @@
 package com.ugallery.feature.album
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.FilterChip
@@ -26,9 +27,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
@@ -36,7 +39,10 @@ import androidx.paging.compose.LazyPagingItems
 import com.ugallery.core.database.AlbumMediaFilter
 import com.ugallery.core.database.AlbumSort
 import com.ugallery.core.designsystem.GalleryStateContent
+import com.ugallery.core.designsystem.MediaSelectionOverlay
+import com.ugallery.core.designsystem.RetainGridThumbnailViewport
 import com.ugallery.core.designsystem.VideoDurationBadge
+import com.ugallery.core.designsystem.lazyGridDragSelection
 import com.ugallery.core.designsystem.videoDurationDescription
 import com.ugallery.core.model.AlbumAvailability
 import com.ugallery.core.model.AlbumSummary
@@ -45,6 +51,7 @@ import com.ugallery.core.model.TimelineMedia
 import com.ugallery.core.selection.SelectionReducer
 import com.ugallery.core.selection.SelectionSpec
 import com.ugallery.core.thumbnail.ThumbnailLoader
+import com.ugallery.core.thumbnail.ThumbnailPrefetchCandidate
 import com.ugallery.core.thumbnail.ThumbnailRequest
 
 @Composable
@@ -59,7 +66,7 @@ fun AlbumContent(
     onFilterChange: (AlbumMediaFilter) -> Unit,
     onSortChange: (AlbumSort) -> Unit,
     onMediaClick: (TimelineMedia) -> Unit,
-    onMediaLongClick: (TimelineMedia) -> Unit,
+    onMediaSelectionChange: (TimelineMedia, Boolean) -> Unit,
     showHeader: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
@@ -108,10 +115,24 @@ fun AlbumContent(
                 Modifier.fillMaxSize(),
             )
             else -> BoxWithConstraints(Modifier.fillMaxSize()) {
+                val gridState = rememberLazyGridState()
+                val gap = 4.dp
+                val columns = ((maxWidth + gap) / (104.dp + gap)).toInt().coerceAtLeast(1)
+                val thumbnailSizePx = with(LocalDensity.current) {
+                    ((maxWidth - gap * (columns - 1)) / columns).roundToPx()
+                }.coerceAtLeast(1)
                 LazyVerticalGrid(
-                    columns = GridCells.Adaptive(104.dp),
+                    columns = GridCells.Fixed(columns),
+                    state = gridState,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.lazyGridDragSelection(
+                        state = gridState,
+                        itemAtIndex = items::peek,
+                        itemKey = { it.key },
+                        isSelected = { SelectionReducer.isSelected(selection, it.key) },
+                        onSelectionChange = onMediaSelectionChange,
+                    ),
                 ) {
                     items(items.itemCount, key = { index ->
                         items.peek(index)?.key?.let { "${it.volumeName}:${it.mediaStoreId}" } ?: "pending:$index"
@@ -120,13 +141,35 @@ fun AlbumContent(
                             AlbumCell(
                                 media,
                                 thumbnails,
+                                thumbnailSizePx,
                                 selected = SelectionReducer.isSelected(selection, media.key),
                                 onClick = { onMediaClick(media) },
-                                onLongClick = { onMediaLongClick(media) },
+                                onLongClick = {
+                                    onMediaSelectionChange(
+                                        media,
+                                        !SelectionReducer.isSelected(selection, media.key),
+                                    )
+                                },
                             )
                         } ?: Box(Modifier.fillMaxWidth().aspectRatio(1f))
                     }
                 }
+                RetainGridThumbnailViewport(
+                    state = gridState,
+                    loader = thumbnails,
+                    columns = columns,
+                    itemCount = items.itemCount,
+                    contentKey = items.itemSnapshotList,
+                    itemAtIndex = { index ->
+                        val media = items.peek(index) ?: return@RetainGridThumbnailViewport null
+                        ThumbnailPrefetchCandidate(
+                            request = media.thumbnailRequest(thumbnailSizePx),
+                            sourceWidth = media.width,
+                            sourceHeight = media.height,
+                            distanceFromViewportCenter = 0,
+                        )
+                    },
+                )
             }
         }
     }
@@ -136,11 +179,12 @@ fun AlbumContent(
 private fun AlbumCell(
     media: TimelineMedia,
     loader: ThumbnailLoader,
+    sizePx: Int,
     selected: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
-    val request = ThumbnailRequest(media.key, media.generationModified, 256, 256)
+    val request = media.thumbnailRequest(sizePx)
     val bitmap by produceState(loader.cached(request), request) {
         if (value == null) value = runCatching { loader.load(request) }.getOrNull()
     }
@@ -151,11 +195,15 @@ private fun AlbumCell(
         stringResource(R.string.album_photo)
     }
     val modifier = Modifier.fillMaxWidth().aspectRatio(1f)
-        .combinedClickable(onClick = onClick, onLongClick = onLongClick)
         .semantics {
             contentDescription = description
             this.selected = selected
+            onLongClick {
+                onLongClick()
+                true
+            }
         }
+        .clickable(onClick = onClick)
     Box(modifier) {
         bitmap?.let {
             Image(
@@ -171,8 +219,16 @@ private fun AlbumCell(
                 modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
             )
         }
+        MediaSelectionOverlay(selected)
     }
 }
+
+private fun TimelineMedia.thumbnailRequest(sizePx: Int) = ThumbnailRequest(
+    mediaKey = key,
+    generationModified = generationModified,
+    widthPx = sizePx,
+    heightPx = sizePx,
+)
 
 private fun AlbumMediaFilter.label() = when (this) {
     AlbumMediaFilter.All -> R.string.album_all

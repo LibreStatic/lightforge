@@ -1,4 +1,4 @@
-<resources><string name="photo_editor_title">Foto bearbeiten</string><string name="photo_editor_cancel">Abbrechen</string><string name="photo_editor_save_copy">Kopie speichern</string><string name="photo_editor_preview_description">Vorschau der Bearbeitung</string><string name="photo_editor_preview_unavailable">Vorschau nicht verfügbar</string><string name="photo_editor_filters">Filter</string><string name="photo_editor_filter_original">Original</string><string name="photo_editor_filter_natural">Natürlich</string><string name="photo_editor_filter_vivid">Lebendig</string><string name="photo_editor_filter_mono">Mono</string><string name="photo_editor_crop">Zuschneiden</string><string name="photo_editor_rotate">Drehen</string><string name="photo_editor_flip">Spiegeln</string><string name="photo_editor_undo">Rückgängig</string><string name="photo_editor_redo">Wiederholen</string><string name="photo_editor_copy_policy">Die Bearbeitung ist nicht destruktiv. Eine Kopie wird in MediaStore gespeichert; das Original bleibt unverändert.</string>
+<resources><string name="photo_editor_title">Foto bearbeiten</string><string name="photo_editor_cancel">Abbrechen</string><string name="photo_editor_save_copy">Kopie speichern</string><string name="photo_editor_preview_description">Vorschau der Bearbeitung</string><string name="photo_editor_preview_unavailable">Vorschau nicht verfügbar</string><string name="photo_editor_filters">Filter</string><string name="photo_editor_automatic">Automatisch</string><string name="photo_editor_auto_enhance">Verbessern</string><string name="photo_editor_auto_dynamic">Dynamisch</string><string name="photo_editor_auto_analyzing">Foto wird analysiert…</string><string name="photo_editor_auto_preview">Vorschau: %1$s</string><string name="photo_editor_filter_original">Original</string><string name="photo_editor_filter_natural">Natürlich</string><string name="photo_editor_filter_vivid">Lebendig</string><string name="photo_editor_filter_mono">Mono</string><string name="photo_editor_crop">Zuschneiden</string><string name="photo_editor_rotate">Drehen</string><string name="photo_editor_flip">Spiegeln</string><string name="photo_editor_undo">Rückgängig</string><string name="photo_editor_redo">Wiederholen</string><string name="photo_editor_copy_policy">Die Bearbeitung ist nicht destruktiv. Eine Kopie wird in MediaStore gespeichert; das Original bleibt unverändert.</string>
     <string name="photo_editor_raw_title">Kamera-RAW</string>
     <string name="photo_editor_raw_tab">RAW</string>
     <string name="photo_editor_export_tab">Export</string>
@@ -16,4 +16,25 @@
     <string name="photo_editor_output_tiff_srgb">TIFF · sRGB · 16 Bit</string>
     <string name="photo_editor_copy_saved">Kopie gespeichert</string>
     <string name="photo_editor_reset_raw">RAW-Entwicklung zurücksetzen</string>
+    <string name="photo_editor_adjust">Anpassen</string>
+    <string name="photo_editor_brightness">Helligkeit</string>
+    <string name="photo_editor_crop_free">Frei</string>
+    <string name="photo_editor_crop_square">Quadrat</string>
+    <string name="photo_editor_crop_four_three">4:3</string>
+    <string name="photo_editor_crop_three_four">3:4</string>
+    <string name="photo_editor_crop_sixteen_nine">16:9</string>
+    <string name="photo_editor_crop_nine_sixteen">9:16</string>
+    <string name="photo_editor_straighten">Begradigen</string>
+    <string name="photo_editor_reset_crop">Zurücksetzen</string>
+    <string name="photo_editor_cancel_crop">Abbrechen</string>
+    <string name="photo_editor_apply_crop">Anwenden</string>
+    <string name="photo_editor_whites">Weiß</string>
+    <string name="photo_editor_blacks">Schwarz</string>
+    <string name="photo_editor_vibrance">Dynamik</string>
+    <string name="photo_editor_highlight_recovery">Lichter wiederherstellen</string>
+    <string name="photo_editor_chroma_noise_reduction">Farbrauschreduzierung</string>
+    <string name="photo_editor_sharpening">Schärfen</string>
+    <string name="photo_editor_chromatic_aberration">Chromatische Aberration korrigieren</string>
+    <string name="photo_editor_lens_correction">Objektivkorrektur</string>
+    <string name="photo_editor_tiff_geometry_unsupported">Zuschneiden, Drehen, Spiegeln und Begradigen erfordern für RAW-Fotos eine JPEG-Ausgabe.</string>
 </resources>

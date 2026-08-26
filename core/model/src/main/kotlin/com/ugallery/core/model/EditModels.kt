@@ -21,6 +21,11 @@ sealed interface EditOperation : java.io.Serializable {
 
     data class Flip(val horizontal: Boolean) : EditOperation
 
+    /** Clockwise fine rotation used by the interactive crop tool. */
+    data class Straighten(val degrees: Float) : EditOperation {
+        init { require(degrees in -45f..45f) }
+    }
+
     data class Tone(
         val brightness: Float = 0f,
         val contrast: Float = 1f,
@@ -84,11 +89,41 @@ data class EditHistory(
 ) : java.io.Serializable {
     init { require(maxEntries in 1..500) }
 
-    fun apply(operation: EditOperation): EditHistory = copy(
-        past = (past + present).takeLast(maxEntries),
-        present = present.append(operation),
-        future = emptyList(),
-    )
+    fun apply(operation: EditOperation): EditHistory {
+        val operations = when (operation) {
+            is EditOperation.Filter -> replaceSlot<EditOperation.Filter>(
+                operation.takeUnless { it.name == "none" },
+            )
+            is EditOperation.Tone -> replaceSlot<EditOperation.Tone>(
+                operation.takeUnless { it == EditOperation.Tone() },
+            )
+            is EditOperation.Crop -> replaceSlot<EditOperation.Crop>(operation)
+            is EditOperation.Straighten -> replaceSlot<EditOperation.Straighten>(
+                operation.takeUnless { it.degrees == 0f },
+            )
+            is EditOperation.RawDevelop -> replaceSlot<EditOperation.RawDevelop>(operation)
+            is EditOperation.Rotate, is EditOperation.Flip -> present.operations + operation
+        }
+        if (operations == present.operations) return this
+        return copy(
+            past = (past + present).takeLast(maxEntries),
+            present = present.copy(operations = operations, revision = present.revision + 1),
+            future = emptyList(),
+        )
+    }
+
+    private inline fun <reified T : EditOperation> replaceSlot(replacement: T?): List<EditOperation> {
+        val firstIndex = present.operations.indexOfFirst { it is T }
+        if (firstIndex < 0) return if (replacement == null) present.operations else present.operations + replacement
+        return buildList {
+            present.operations.forEachIndexed { index, existing ->
+                when {
+                    index == firstIndex && replacement != null -> add(replacement)
+                    existing !is T -> add(existing)
+                }
+            }
+        }
+    }
 
     fun applyRawDevelopment(settings: RawDevelopmentSettings): EditHistory {
         val operation = EditOperation.RawDevelop(settings)
@@ -99,6 +134,25 @@ data class EditHistory(
         return copy(
             past = (past + present).takeLast(maxEntries),
             present = updated,
+            future = emptyList(),
+        )
+    }
+
+    /** Replaces the complete color grade as one undoable editor action. */
+    fun replaceColorOperations(
+        tone: EditOperation.Tone?,
+        filter: EditOperation.Filter? = null,
+    ): EditHistory {
+        val replacements = buildList<EditOperation> {
+            tone?.takeUnless { it == EditOperation.Tone() }?.let(::add)
+            filter?.takeUnless { it.name == "none" }?.let(::add)
+        }
+        val updatedOperations = present.operations
+            .filterNot { it is EditOperation.Tone || it is EditOperation.Filter } + replacements
+        if (updatedOperations == present.operations) return this
+        return copy(
+            past = (past + present).takeLast(maxEntries),
+            present = present.copy(operations = updatedOperations, revision = present.revision + 1),
             future = emptyList(),
         )
     }
@@ -133,6 +187,7 @@ object EditOperationCodec {
             "${operation.rightPermille},${operation.bottomPermille}"
         is EditOperation.Rotate -> "rotate,${operation.degrees}"
         is EditOperation.Flip -> "flip,${if (operation.horizontal) "h" else "v"}"
+        is EditOperation.Straighten -> "straighten,${operation.degrees}"
         is EditOperation.Tone -> "tone,${operation.brightness},${operation.contrast},${operation.saturation}"
         is EditOperation.Filter -> "filter,${operation.name}"
         is EditOperation.RawDevelop -> buildString {
@@ -155,6 +210,7 @@ object EditOperationCodec {
             "crop" -> EditOperation.Crop(parts[1].toInt(), parts[2].toInt(), parts[3].toInt(), parts[4].toInt())
             "rotate" -> EditOperation.Rotate(parts[1].toInt())
             "flip" -> EditOperation.Flip(parts[1] == "h")
+            "straighten" -> EditOperation.Straighten(parts[1].toFloat())
             "tone" -> EditOperation.Tone(parts[1].toFloat(), parts[2].toFloat(), parts[3].toFloat())
             "filter" -> EditOperation.Filter(parts[1])
             "raw" -> EditOperation.RawDevelop(

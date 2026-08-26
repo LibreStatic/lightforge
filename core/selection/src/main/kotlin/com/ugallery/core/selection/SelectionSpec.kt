@@ -50,6 +50,18 @@ object SelectionReducer {
         }
     }
 
+    fun setSelected(
+        selection: SelectionSpec,
+        key: MediaKey,
+        selected: Boolean,
+        belongsToQuerySnapshot: Boolean = true,
+    ): SelectionSpec {
+        val current = isSelected(selection, key, belongsToQuerySnapshot)
+        return if (current == selected) selection else {
+            toggle(selection, key, belongsToQuerySnapshot)
+        }
+    }
+
     fun isSelected(
         selection: SelectionSpec,
         key: MediaKey,

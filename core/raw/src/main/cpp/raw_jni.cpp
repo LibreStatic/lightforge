@@ -121,6 +121,11 @@ Java_com_ugallery_core_raw_LibRawBridge_nativeRender(
         r *= toneScale;
         g *= toneScale;
         b *= toneScale;
+        // Whites and blacks operate on opposite ends of the tonal range without moving
+        // mid-grey as aggressively as exposure.
+        r += values[5] * 0.25f * highlightWeight + values[6] * 0.20f * shadowWeight;
+        g += values[5] * 0.25f * highlightWeight + values[6] * 0.20f * shadowWeight;
+        b += values[5] * 0.25f * highlightWeight + values[6] * 0.20f * shadowWeight;
         luma = r * 0.2126f + g * 0.7152f + b * 0.0722f;
         const float chroma = std::max(r, std::max(g, b)) - std::min(r, std::min(g, b));
         const float vibranceScale = 1.0f + vibrance * (1.0f - std::clamp(chroma, 0.0f, 1.0f));
@@ -132,6 +137,33 @@ Java_com_ugallery_core_raw_LibRawBridge_nativeRender(
         const int gi = std::clamp(static_cast<int>(g * 255.0f), 0, 255);
         const int bi = std::clamp(static_cast<int>(b * 255.0f), 0, 255);
         argb[i] = static_cast<jint>(0xff000000u | (ri << 16) | (gi << 8) | bi);
+    }
+    const float sharpening = std::clamp(values[13], 0.0f, 1.0f);
+    if (sharpening > 0.0f && image->width > 2 && image->height > 2) {
+        const std::vector<jint> original = argb;
+        for (int y = 1; y < image->height - 1; ++y) {
+            for (int x = 1; x < image->width - 1; ++x) {
+                const int index = y * image->width + x;
+                const jint center = original[index];
+                int outputChannels[3];
+                const int shifts[3] = {16, 8, 0};
+                for (int channel = 0; channel < 3; ++channel) {
+                    const int shift = shifts[channel];
+                    const int value = (center >> shift) & 0xff;
+                    const int neighbours = ((original[index - 1] >> shift) & 0xff)
+                        + ((original[index + 1] >> shift) & 0xff)
+                        + ((original[index - image->width] >> shift) & 0xff)
+                        + ((original[index + image->width] >> shift) & 0xff);
+                    outputChannels[channel] = std::clamp(
+                        static_cast<int>(value + sharpening * 1.5f * (value - neighbours / 4.0f)),
+                        0,
+                        255
+                    );
+                }
+                argb[index] = static_cast<jint>(0xff000000u | (outputChannels[0] << 16)
+                    | (outputChannels[1] << 8) | outputChannels[2]);
+            }
+        }
     }
     jintArray colors = env->NewIntArray(pixels);
     env->SetIntArrayRegion(colors, 0, pixels, argb.data());

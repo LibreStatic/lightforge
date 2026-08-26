@@ -38,6 +38,8 @@ class RoomSearchDocumentSource(database: GalleryDatabase) : SearchDocumentSource
         timelineSortMillis = media.timelineSortMillis,
         generationModified = media.generationModified,
         favorite = media.isFavorite,
+        width = media.width,
+        height = media.height,
         ocrText = ocrText,
         canonicalLabels = canonicalLabelsCsv?.split(',').orEmpty(),
         labelModelVersion = labelModelVersion.versionCode(),

@@ -4,12 +4,24 @@
     <string name="photo_editor_save_copy">Save copy</string>
     <string name="photo_editor_preview_description">Photo edit preview</string>
     <string name="photo_editor_preview_unavailable">Preview unavailable</string>
-    <string name="photo_editor_filters">Filters</string>
+    <string name="photo_editor_filters">Filters</string><string name="photo_editor_automatic">Automatic</string><string name="photo_editor_auto_enhance">Enhance</string><string name="photo_editor_auto_dynamic">Dynamic</string><string name="photo_editor_auto_analyzing">Analyzing photo…</string><string name="photo_editor_auto_preview">%1$s preview</string>
     <string name="photo_editor_filter_original">Original</string>
     <string name="photo_editor_filter_natural">Natural</string>
     <string name="photo_editor_filter_vivid">Vivid</string>
     <string name="photo_editor_filter_mono">Mono</string>
     <string name="photo_editor_crop">Crop</string>
+    <string name="photo_editor_adjust">Adjust</string>
+    <string name="photo_editor_brightness">Brightness</string>
+    <string name="photo_editor_crop_free">Free</string>
+    <string name="photo_editor_crop_square">Square</string>
+    <string name="photo_editor_crop_four_three">4:3</string>
+    <string name="photo_editor_crop_three_four">3:4</string>
+    <string name="photo_editor_crop_sixteen_nine">16:9</string>
+    <string name="photo_editor_crop_nine_sixteen">9:16</string>
+    <string name="photo_editor_straighten">Straighten</string>
+    <string name="photo_editor_reset_crop">Reset</string>
+    <string name="photo_editor_cancel_crop">Cancel</string>
+    <string name="photo_editor_apply_crop">Apply</string>
     <string name="photo_editor_rotate">Rotate</string>
     <string name="photo_editor_flip">Flip</string>
     <string name="photo_editor_undo">Undo</string>
@@ -32,4 +44,13 @@
     <string name="photo_editor_output_tiff_srgb">TIFF · sRGB · 16-bit</string>
     <string name="photo_editor_copy_saved">Copy saved</string>
     <string name="photo_editor_reset_raw">Reset RAW development</string>
+    <string name="photo_editor_whites">Whites</string>
+    <string name="photo_editor_blacks">Blacks</string>
+    <string name="photo_editor_vibrance">Vibrance</string>
+    <string name="photo_editor_highlight_recovery">Highlight recovery</string>
+    <string name="photo_editor_chroma_noise_reduction">Chroma noise reduction</string>
+    <string name="photo_editor_sharpening">Sharpening</string>
+    <string name="photo_editor_chromatic_aberration">Chromatic aberration correction</string>
+    <string name="photo_editor_lens_correction">Lens correction</string>
+    <string name="photo_editor_tiff_geometry_unsupported">Crop, rotate, flip, and straighten require JPEG output for RAW photos.</string>
 </resources>

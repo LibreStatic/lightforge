@@ -24,6 +24,8 @@ data class MediaSearchDocument(
     val timelineSortMillis: Long,
     val generationModified: Long,
     val favorite: Boolean,
+    val width: Int = 0,
+    val height: Int = 0,
     val ocrText: String? = null,
     val canonicalLabels: List<String> = emptyList(),
     val personIds: List<String> = emptyList(),
@@ -144,6 +146,8 @@ internal fun MediaSearchDocument.genericDocument(): GenericDocument =
         .setPropertyLong(MediaSearchSchema.Property.TimelineSortMillis, timelineSortMillis)
         .setPropertyLong(MediaSearchSchema.Property.GenerationModified, generationModified)
         .setPropertyLong(MediaSearchSchema.Property.DurationMillis, durationMillis.coerceAtLeast(0L))
+        .setPropertyLong(MediaSearchSchema.Property.Width, width.coerceAtLeast(0).toLong())
+        .setPropertyLong(MediaSearchSchema.Property.Height, height.coerceAtLeast(0).toLong())
         .setPropertyBoolean(MediaSearchSchema.Property.Favorite, favorite)
         .setPropertyString(MediaSearchSchema.Property.FavoriteToken, if (favorite) "favorite" else "normal")
         .setPropertyLong(MediaSearchSchema.Property.SchemaVersion, MediaSearchSchema.Version)

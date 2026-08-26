@@ -3,6 +3,9 @@
     <string name="settings_group_viewing">Library and viewing</string>
     <string name="settings_group_management">Privacy and management</string>
     <string name="settings_group_intelligence">Smart features</string>
+    <string name="settings_group_about">About</string>
+    <string name="settings_about">About UGallery</string>
+    <string name="settings_about_summary">Version, contributors, and open-source licenses</string>
     <string name="settings_library">Library</string>
     <string name="settings_library_sort">Sort by</string>
     <string name="settings_sort_date_taken">Date taken</string>
@@ -116,6 +119,7 @@
     <string name="semantic_settings_enabled">Use semantic search</string>
     <string name="semantic_settings_privacy">Models, queries, photos, and embeddings stay on this device. Only verified model packages are downloaded.</string>
     <string name="semantic_settings_no_active">No active semantic model</string>
+    <string name="semantic_settings_preparing">Preparing %1$s %2$s as the active model</string>
     <string name="semantic_settings_active">Active model: %1$s · %2$s</string>
     <string name="semantic_settings_automatic">Use automatic recommendation</string>
     <string name="semantic_model_active">Active</string>
@@ -143,6 +147,7 @@
     <string name="semantic_delete_all_body">All downloaded semantic model packages and their derived indexes will be removed.</string>
     <string name="semantic_model_building">Building index</string>
     <string name="semantic_model_building_description">Indexing your library locally. The current model stays active until this finishes.</string>
+    <string name="semantic_model_building_first_description">Indexing your library locally. This model will become active when indexing finishes.</string>
     <string name="semantic_quality_balanced">Balanced</string>
     <string name="semantic_quality_higher">Higher quality</string>
     <string name="semantic_language_english_focused">English-focused</string>

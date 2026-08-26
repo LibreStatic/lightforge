@@ -2,15 +2,14 @@ package com.ugallery.feature.photos
 
 import androidx.compose.animation.core.snap
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
@@ -18,8 +17,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,15 +32,17 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.shape.CircleShape
 import androidx.paging.compose.LazyPagingItems
 import com.ugallery.core.designsystem.GalleryGridMetrics
-import com.ugallery.core.designsystem.GalleryIcons
 import com.ugallery.core.designsystem.GallerySpacing
+import com.ugallery.core.designsystem.MediaSelectionOverlay
+import com.ugallery.core.designsystem.RetainGridThumbnailViewport
 import com.ugallery.core.designsystem.VideoDurationBadge
+import com.ugallery.core.designsystem.lazyGridDragSelection
 import com.ugallery.core.designsystem.videoDurationDescription
 import com.ugallery.core.designsystem.rememberGalleryReducedMotion
 import com.ugallery.core.model.TimelineGrouping
@@ -51,6 +50,7 @@ import com.ugallery.core.model.TimelineEntry
 import com.ugallery.core.model.TimelineMedia
 import com.ugallery.core.model.MediaKind
 import com.ugallery.core.thumbnail.ThumbnailLoader
+import com.ugallery.core.thumbnail.ThumbnailPrefetchCandidate
 import com.ugallery.core.thumbnail.ThumbnailRequest
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -64,7 +64,7 @@ fun AdaptivePagedPhotosTimeline(
     state: LazyGridState = rememberLazyGridState(),
     densityState: TimelineDensityState = rememberTimelineDensityState(),
     onMediaClick: (TimelineMedia) -> Unit = {},
-    onMediaLongClick: (TimelineMedia) -> Unit = {},
+    onMediaSelectionChange: (TimelineMedia, Boolean) -> Unit = { _, _ -> },
     preferredColumns: Int? = null,
     cropThumbnails: Boolean = true,
     onDensityChange: ((Int) -> Unit)? = null,
@@ -104,7 +104,7 @@ fun AdaptivePagedPhotosTimeline(
             state = state,
             densityState = densityState,
             onMediaClick = onMediaClick,
-            onMediaLongClick = onMediaLongClick,
+            onMediaSelectionChange = onMediaSelectionChange,
             cropThumbnails = cropThumbnails,
             isMediaSelected = isMediaSelected,
         )
@@ -121,7 +121,7 @@ fun PagedPhotosTimeline(
     state: LazyGridState = rememberLazyGridState(),
     densityState: TimelineDensityState? = null,
     onMediaClick: (TimelineMedia) -> Unit = {},
-    onMediaLongClick: (TimelineMedia) -> Unit = {},
+    onMediaSelectionChange: (TimelineMedia, Boolean) -> Unit = { _, _ -> },
     cropThumbnails: Boolean = true,
     isMediaSelected: (TimelineMedia) -> Boolean = { false },
 ) {
@@ -136,6 +136,13 @@ fun PagedPhotosTimeline(
         modifier.timelinePinchDensity(densityState, state) { index ->
             entries.peek(index)?.stableKey
         })
+            .lazyGridDragSelection(
+                state = state,
+                itemAtIndex = { index -> (entries.peek(index) as? TimelineEntry.Media)?.value },
+                itemKey = { it.key },
+                isSelected = isMediaSelected,
+                onSelectionChange = onMediaSelectionChange,
+            )
             .testTag("timeline_grid")
             .semantics { testTagsAsResourceId = true },
     ) {
@@ -164,7 +171,9 @@ fun PagedPhotosTimeline(
                         fadeOutSpec = snap(),
                     ),
                     onClick = { onMediaClick(entry.value) },
-                    onLongClick = { onMediaLongClick(entry.value) },
+                    onLongClick = {
+                        onMediaSelectionChange(entry.value, !isMediaSelected(entry.value))
+                    },
                     cropToFill = cropThumbnails,
                     selected = isMediaSelected(entry.value),
                 )
@@ -177,6 +186,22 @@ fun PagedPhotosTimeline(
             }
         }
     }
+    RetainGridThumbnailViewport(
+        state = state,
+        loader = thumbnailLoader,
+        columns = columns,
+        itemCount = entries.itemCount,
+        contentKey = entries.itemSnapshotList,
+        itemAtIndex = { index ->
+            val media = (entries.peek(index) as? TimelineEntry.Media)?.value ?: return@RetainGridThumbnailViewport null
+            ThumbnailPrefetchCandidate(
+                request = media.thumbnailRequest(thumbnailSizePx),
+                sourceWidth = media.width,
+                sourceHeight = media.height,
+                distanceFromViewportCenter = 0,
+            )
+        },
+    )
     if (densityState != null) {
         PreserveTimelineAnchor(
             densityState = densityState,
@@ -230,12 +255,7 @@ private fun TimelineThumbnail(
     } else {
         stringResource(R.string.photo_thumbnail_description)
     }
-    val request = ThumbnailRequest(
-        mediaKey = entry.value.key,
-        generationModified = entry.value.generationModified,
-        widthPx = sizePx,
-        heightPx = sizePx,
-    )
+    val request = entry.value.thumbnailRequest(sizePx)
     val bitmap by produceState(loader.cached(request), request, loader) {
         if (value == null) value = runCatching { loader.load(request) }.getOrNull()
     }
@@ -248,7 +268,13 @@ private fun TimelineThumbnail(
             this.contentDescription = contentDescription
             this.selected = selected
         }
-        .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+        .semantics {
+            onLongClick {
+                onLongClick()
+                true
+            }
+        }
+        .clickable(onClick = onClick)
     Box(cellModifier) {
         if (loaded == null) {
             Box(
@@ -270,24 +296,13 @@ private fun TimelineThumbnail(
                 modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
             )
         }
-        if (selected) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.26f)),
-            )
-            Surface(
-                modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(28.dp),
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-            ) {
-                Icon(
-                    imageVector = GalleryIcons.Check,
-                    contentDescription = null,
-                    modifier = Modifier.padding(5.dp),
-                )
-            }
-        }
+        MediaSelectionOverlay(selected)
     }
 }
+
+private fun TimelineMedia.thumbnailRequest(sizePx: Int) = ThumbnailRequest(
+    mediaKey = key,
+    generationModified = generationModified,
+    widthPx = sizePx,
+    heightPx = sizePx,
+)

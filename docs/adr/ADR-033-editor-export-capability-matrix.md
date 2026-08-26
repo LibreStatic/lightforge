@@ -25,6 +25,9 @@ heap and hardware encoder limits vary by API level and device.
    Preview remains sampled. Export region-decodes 512 px source tiles, applies
    the recipe per tile and streams an 8-bit PNG without allocating a full-size
    source or destination bitmap. The result MIME is propagated to MediaStore.
+   Interactive crop uses normalized source coordinates, aspect presets, fine
+   straightening and a single replaceable crop/straighten recipe slot so
+   changing a crop does not accidentally stack the previous crop.
 4. **The 200 MP transformed gate is closed for the validated SDR cohort.** The
    API 33 emulator test exports 20,000×10,000 pixels, validates transformed
    output and completes without a full-size bitmap allocation. PNG output does
@@ -32,14 +35,21 @@ heap and hardware encoder limits vary by API level and device.
    be repeated on physical devices before claiming device-wide parity.
 5. **Video uses Media3 Transformer.** Trim, constant speed, original-audio
    volume, H.264/AAC output, progress and cancellation are supported where the
-   capability matrix allows them. Unsupported HDR/codec cases return an
+   capability matrix allows them. Crop, fine/quarter-turn rotation and
+   horizontal flip use the same Media3 effects in preview and export. Export
+   preserves source dimensions by default rather than silently reducing 4K/8K
+   media to 1080p. Unsupported HDR/codec cases return an
    explicit fallback state and never report silent success.
-6. **Local music selection is mixed through Media3 Composition.** A local track
+6. **Editor sessions are explicit drafts.** Recipe changes survive process
+   recreation, Back asks before discarding dirty work, and intentional discard
+   deletes the draft. Saving publishes a verified copy, clears the draft and
+   opens the newly published MediaStore item.
+7. **Local music selection is mixed through Media3 Composition.** A local track
    is an explicit opt-in second audio sequence, looped to the trimmed output
    duration and processed with independent volume. Export fails rather than
    silently dropping the selected track; the API 33 test decodes non-silent
    output after muting original audio.
-7. **Private sharing is a derived local copy.** Images are re-encoded to
+8. **Private sharing is a derived local copy.** Images are re-encoded to
    remove EXIF/GPS; videos are locally re-encoded. `FileProvider` grants a
    bounded cache URI, originals remain untouched, and expired temporary files
    are removed.

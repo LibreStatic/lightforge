@@ -49,7 +49,7 @@ class VideoEditorContentDeviceTest {
         }
         compose.onNode(hasText(text(R.string.video_editor_save_copy))).assertIsDisplayed().performClick()
         compose.onNode(hasText(text(R.string.video_editor_speed))).performClick()
-        compose.onNode(hasText(text(R.string.video_editor_speed_fast))).performClick()
+        compose.onNode(hasText("2.0×")).performClick()
         assertEquals(2f, speed)
         assertEquals(1, saves)
     }

@@ -8,10 +8,25 @@ import java.io.ObjectInputStream
 import java.io.ObjectOutputStream
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SelectionSpecTest {
+    @Test
+    fun `set selected is idempotent in explicit and query all modes`() {
+        val explicit = SelectionSpec.explicit(listOf(key(1)))
+        assertSame(explicit, SelectionReducer.setSelected(explicit, key(1), true))
+        assertSame(explicit, SelectionReducer.setSelected(explicit, key(2), false))
+
+        val queryAll = SelectionSpec.queryAll(MediaQuery(), listOf(key(3)))
+        assertSame(queryAll, SelectionReducer.setSelected(queryAll, key(2), true))
+        assertSame(queryAll, SelectionReducer.setSelected(queryAll, key(3), false))
+
+        assertFalse(SelectionReducer.isSelected(SelectionReducer.setSelected(queryAll, key(2), false), key(2)))
+        assertTrue(SelectionReducer.isSelected(SelectionReducer.setSelected(queryAll, key(3), true), key(3)))
+    }
+
     @Test
     fun `select all over 100k retains only query and exclusions`() {
         val query = MediaQuery(scope = MediaQuery.Scope.PhysicalAlbum("external_primary", 7))

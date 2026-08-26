@@ -51,6 +51,7 @@ internal interface VideoEngine {
     fun release()
     fun attachSurface(surfaceView: SurfaceView?)
     fun setVolume(volume: Float)
+    fun setPlaybackSpeed(speed: Float) = Unit
     fun setRepeatEnabled(enabled: Boolean)
     fun setVideoEffects(effects: List<Effect>)
     fun currentPositionMillis(): Long
@@ -174,6 +175,11 @@ class VideoViewerController internal constructor(
         mutableState.value = ready.copy(isMuted = false)
     }
     @MainThread fun seekTo(positionMillis: Long) { check(!released); engine.seekTo(positionMillis.coerceAtLeast(0)) }
+    @MainThread fun setVolume(volume: Float) { check(!released); engine.setVolume(volume.coerceIn(0f, 1f)) }
+    @MainThread fun setPlaybackSpeed(speed: Float) {
+        check(!released)
+        engine.setPlaybackSpeed(speed.coerceIn(0.125f, 4f))
+    }
     @MainThread
     fun seekBy(deltaMillis: Long) {
         check(!released)
@@ -295,6 +301,7 @@ private class Media3VideoEngine(context: Context, enableVideoEffects: Boolean) :
         if (surfaceView != null) player.setVideoSurfaceView(surfaceView)
     }
     override fun setVolume(volume: Float) { player.volume = volume.coerceIn(0f, 1f) }
+    override fun setPlaybackSpeed(speed: Float) { player.setPlaybackSpeed(speed) }
     override fun setRepeatEnabled(enabled: Boolean) {
         player.repeatMode = if (enabled) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
     }

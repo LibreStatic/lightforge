@@ -5,6 +5,23 @@ import java.util.UUID
 
 enum class SlowMotionAudioMode { PreservePitch, Muted, Varispeed }
 
+data class VideoGeometry(
+    val left: Float = 0f,
+    val top: Float = 0f,
+    val right: Float = 1f,
+    val bottom: Float = 1f,
+    val rotationDegrees: Float = 0f,
+    val flipHorizontal: Boolean = false,
+) {
+    init {
+        require(left >= 0f && left < right && right <= 1f)
+        require(top >= 0f && top < bottom && bottom <= 1f)
+        require(rotationDegrees in -45f..315f)
+    }
+
+    val isIdentity: Boolean get() = this == VideoGeometry()
+}
+
 data class SlowMotionSegment(
     val id: String = UUID.randomUUID().toString(),
     val startMillis: Long,
@@ -28,6 +45,7 @@ data class VideoEditRecipe(
     val originalAudioVolume: Float = 1f,
     val musicUri: Uri? = null,
     val musicVolume: Float = 0.6f,
+    val geometry: VideoGeometry = VideoGeometry(),
     val colorGrade: VideoColorGrade = VideoColorGrade(),
     val outputQuality: VideoOutputQuality = VideoOutputQuality.H264Compatible,
     val slowMotionSegments: List<SlowMotionSegment> = emptyList(),
@@ -49,6 +67,7 @@ data class VideoEditRecipe(
         get() = startMillis > 0 || endMillis != null || speed != 1f ||
             originalAudioVolume != 1f || musicUri != null
             || colorGrade.hasChanges
+            || !geometry.isIdentity
             || slowMotionSegments.isNotEmpty()
 }
 

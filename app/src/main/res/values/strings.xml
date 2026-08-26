@@ -19,4 +19,26 @@
 <string name="m6_pet_recognition">Pet recognition</string>
 <string name="m6_pet_unavailable">Pet recognition is not available. Showing labels only.</string>
     <string name="m6_collage_description">Collages are rendered locally. Select photos in the timeline, then choose a template.</string>
-<string name="m6_collage_saved">Collage saved to your gallery.</string><string name="m6_collage_failed">The collage could not be created.</string><string name="viewer_rename">Rename</string><string name="viewer_file_name">File name</string><string name="viewer_choose_app">Choose an app</string><string name="viewer_copy_complete">Copy created</string><string name="viewer_move_copy_complete">Copy created; approve removal of the original to finish moving</string><string name="viewer_action_unavailable">This action is unavailable</string></resources>
+<string name="m6_collage_saved">Collage saved to your gallery.</string><string name="m6_collage_failed">The collage could not be created.</string><string name="viewer_rename">Rename</string><string name="viewer_file_name">File name</string><string name="viewer_choose_app">Choose an app</string><string name="viewer_copy_complete">Copy created</string><string name="viewer_move_copy_complete">Copy created; approve removal of the original to finish moving</string><string name="viewer_action_unavailable">This action is unavailable</string><string name="editor_discard_title">Discard edits?</string>
+<string name="editor_discard_message">Your unsaved changes will be removed.</string>
+<string name="editor_discard_confirm">Discard</string>
+<string name="editor_keep_editing">Keep editing</string>
+<string name="about_title">About UGallery</string>
+<string name="about_version">Version %1$s</string>
+<string name="about_description">A private, expressive gallery for viewing, organizing, and editing your photos and videos on device.</string>
+<string name="about_developer_label">Developed by</string>
+<string name="about_developer">LibreStatic contributors</string>
+<string name="about_source_code">Source code</string>
+<string name="about_source_code_summary">View UGallery on GitHub</string>
+<string name="about_app_license">UGallery license</string>
+<string name="about_app_license_summary">Read the verbatim Apache License 2.0</string>
+<string name="about_app_license_title">UGallery license</string>
+<string name="about_licenses">Third-party licenses</string>
+<string name="about_licenses_summary">Open-source software used by UGallery</string>
+<string name="about_licenses_title">Third-party licenses</string>
+<string name="about_back">Back</string>
+<string name="about_app_icon">UGallery app icon</string>
+    <string name="about_dependencies_count">%1$d runtime dependencies</string>
+    <string name="about_license_load_error">The bundled license information could not be loaded.</string>
+    <string name="about_license_template_note">The bracketed fields in the appendix are part of Apache’s example template and are intentionally left unchanged. UGallery’s completed copyright notice appears above.</string>
+</resources>

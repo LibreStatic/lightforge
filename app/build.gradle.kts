@@ -6,6 +6,10 @@ plugins {
     alias(libs.plugins.baselineprofile)
 }
 
+dependencyLocking {
+    lockAllConfigurations()
+}
+
 android {
     namespace = "com.ugallery.app"
     compileSdk = 37
@@ -62,6 +66,58 @@ android {
     packaging {
         resources.excludes += setOf("/META-INF/{AL2.0,LGPL2.1}")
     }
+}
+
+val verbatimLicenseCopies = listOf(
+    "LICENSE" to "app/src/main/assets/licenses/UGallery-Apache-2.0.txt",
+    "COPYRIGHT" to "app/src/main/assets/licenses/UGallery-Copyright.txt",
+    "core/raw/third_party/libraw/LICENSE.LGPL" to "app/src/main/assets/licenses/LibRaw-LGPL.txt",
+    "core/raw/third_party/libraw/LICENSE.CDDL" to "app/src/main/assets/licenses/LibRaw-CDDL.txt",
+    "core/frame-interpolation/src/main/resources/META-INF/NCNN_LICENSE.txt" to
+        "app/src/main/assets/licenses/ncnn-BSD-3-Clause-and-notices.txt",
+    "core/frame-interpolation/src/main/resources/META-INF/RIFE_NCNN_LICENSE.txt" to
+        "app/src/main/assets/licenses/rife-ncnn-vulkan-MIT.txt",
+    "docs/models/licenses/SFACE_APACHE_2.0.txt" to
+        "app/src/main/assets/licenses/SFace-Apache-2.0.txt",
+)
+
+val verifyVerbatimLicenseCopies by tasks.registering(Exec::class) {
+    group = "verification"
+    description = "Verifies that license assets are byte-for-byte copies of their canonical sources."
+    inputs.files(verbatimLicenseCopies.flatMap { (source, bundled) -> listOf(source, bundled) })
+    workingDir(rootProject.projectDir)
+    commandLine(
+        "bash",
+        "-c",
+        verbatimLicenseCopies.joinToString(" && ") { (source, bundled) ->
+            "cmp --silent '$source' '$bundled' || { echo 'Bundled license is not a verbatim copy: $bundled' >&2; exit 1; }"
+        },
+    )
+}
+
+val verifyThirdPartyLicenses by tasks.registering(Exec::class) {
+    group = "verification"
+    description = "Verifies that the checked-in third-party license catalog matches the runtime lockfile."
+    inputs.files(
+        "gradle.lockfile",
+        rootProject.file("tools/generate_third_party_licenses.py"),
+        "src/main/assets/third_party_licenses.json",
+    )
+    workingDir(rootProject.projectDir)
+    commandLine(
+        "python3",
+        "tools/generate_third_party_licenses.py",
+        "--lockfile",
+        "app/gradle.lockfile",
+        "--output",
+        "app/src/main/assets/third_party_licenses.json",
+        "--check",
+    )
+}
+
+tasks.named("preBuild").configure {
+    dependsOn(verifyVerbatimLicenseCopies)
+    dependsOn(verifyThirdPartyLicenses)
 }
 
 dependencies {

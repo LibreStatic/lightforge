@@ -121,6 +121,7 @@ fun RecognitionSettingsContent(
     onExportSettings: () -> Unit = {},
     onImportSettings: () -> Unit = {},
     onResetSettings: () -> Unit = {},
+    onOpenAbout: () -> Unit = {},
     onBack: () -> Unit = {},
     peopleAnalysisEnabled: Boolean = state.consentGranted,
     contentAnalysisEnabled: Boolean = petAnalysisState.consentGranted,
@@ -153,6 +154,7 @@ fun RecognitionSettingsContent(
                         settings = settings,
                         aiConsentGranted = peopleAnalysisEnabled || contentAnalysisEnabled || petCollectionsEnabled,
                         onOpen = { page = it },
+                        onOpenAbout = onOpenAbout,
                     )
                 }
                 SettingsPage.Library -> SettingsSubPage(title = stringResource(R.string.settings_library), onBack = { page = SettingsPage.Root }) {
@@ -238,6 +240,7 @@ private fun SettingsCategoryList(
     settings: GallerySettings,
     aiConsentGranted: Boolean,
     onOpen: (SettingsPage) -> Unit,
+    onOpenAbout: () -> Unit,
 ) {
     val sortLabel = stringResource(when (settings.library.sort) {
         LibrarySort.DateTaken -> R.string.settings_sort_date_taken
@@ -311,6 +314,17 @@ private fun SettingsCategoryList(
         }
         SettingsCategoryGroup(stringResource(R.string.settings_group_intelligence)) {
             SettingsCategoryRow(GalleryIcons.Analyze, stringResource(R.string.settings_page_ai), if (aiConsentGranted) onLabel else offLabel, 0, 1) { onOpen(SettingsPage.AiAnalysis) }
+        }
+        SettingsCategoryGroup(stringResource(R.string.settings_group_about)) {
+            SettingsCategoryRow(
+                GalleryIcons.Info,
+                stringResource(R.string.settings_about),
+                stringResource(R.string.settings_about_summary),
+                0,
+                1,
+                Modifier.testTag("settings_about_row"),
+                onClick = onOpenAbout,
+            )
         }
     }
 }
@@ -821,7 +835,7 @@ private fun AiAnalysisSection(
     )
     Text(stringResource(R.string.local_analysis_privacy), style = MaterialTheme.typography.bodyLarge)
     Surface(
-        color = MaterialTheme.colorScheme.primaryContainer,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
         shape = RoundedCornerShape(20.dp),
     ) {
         Column(Modifier.padding(GallerySpacing.Lg), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Md)) {
@@ -833,7 +847,7 @@ private fun AiAnalysisSection(
             Text(
                 stringResource(R.string.local_analysis_master_summary),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -940,9 +954,13 @@ private fun SemanticModelsSection(
     )
     Text(stringResource(R.string.semantic_settings_privacy), style = MaterialTheme.typography.bodySmall)
     val active = state.models.firstOrNull { it.active }
+    val building = state.models.firstOrNull { it.id == state.buildingModelId }
     Text(
-        if (active == null) stringResource(R.string.semantic_settings_no_active)
-        else stringResource(R.string.semantic_settings_active, active.name, active.version),
+        when {
+            active != null -> stringResource(R.string.semantic_settings_active, active.name, active.version)
+            building != null -> stringResource(R.string.semantic_settings_preparing, building.name, building.version)
+            else -> stringResource(R.string.semantic_settings_no_active)
+        },
         style = MaterialTheme.typography.bodyMedium,
     )
     state.indexError?.let {
@@ -984,7 +1002,13 @@ private fun SemanticModelsSection(
                 )
                 model.error?.let { Text(stringResource(R.string.semantic_model_error, it), color = MaterialTheme.colorScheme.error) }
                 if (state.buildingModelId == model.id) {
-                    Text(stringResource(R.string.semantic_model_building_description), style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        stringResource(
+                            if (active == null) R.string.semantic_model_building_first_description
+                            else R.string.semantic_model_building_description,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
                 when {
                     model.downloading -> {
@@ -995,7 +1019,11 @@ private fun SemanticModelsSection(
                         Text(stringResource(R.string.semantic_model_download))
                     }
                     else -> Row(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
-                        if (!model.active && model.compatibility != SemanticModelCompatibilityUi.Unsupported) {
+                        if (
+                            !model.active &&
+                            state.buildingModelId != model.id &&
+                            model.compatibility != SemanticModelCompatibilityUi.Unsupported
+                        ) {
                             OutlinedButton(onClick = {
                                 if (model.compatibility == SemanticModelCompatibilityUi.Recommended) onActivate(model.id, false)
                                 else activateModel = model.id
@@ -1067,6 +1095,22 @@ private fun SemanticModelsSection(
 }
 
 @Composable
+internal fun SemanticModelsTestContent(state: SemanticModelSettingsUiState) {
+    Column {
+        SemanticModelsSection(
+            state = state,
+            onEnabledChange = {},
+            onDownload = { _, _ -> },
+            onCancelDownload = {},
+            onActivate = { _, _ -> },
+            onDelete = {},
+            onDeleteAll = {},
+            onAutomaticSelection = {},
+        )
+    }
+}
+
+@Composable
 private fun SettingsSwitchRow(
     label: String,
     checked: Boolean,
@@ -1075,7 +1119,10 @@ private fun SettingsSwitchRow(
 ) {
     ListItem(
         colors = ListItemDefaults.colors(
-            containerColor = if (checked) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+            // The switch already communicates the state. Keeping the row on a
+            // neutral surface avoids mixing unrelated dynamic primary and
+            // secondary container palettes on the same control.
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         ),
         checked = checked,
         onCheckedChange = onCheckedChange,
@@ -1086,6 +1133,9 @@ private fun SettingsSwitchRow(
                 onCheckedChange = null,
                 modifier = Modifier.semantics { contentDescription = label },
                 colors = SwitchDefaults.colors(
+                    checkedTrackColor = MaterialTheme.colorScheme.primary,
+                    checkedBorderColor = MaterialTheme.colorScheme.primary,
+                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
                     uncheckedTrackColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     uncheckedBorderColor = MaterialTheme.colorScheme.outline,
                     uncheckedThumbColor = MaterialTheme.colorScheme.outline,

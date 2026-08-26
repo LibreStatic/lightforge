@@ -112,6 +112,7 @@ import com.ugallery.core.model.AlbumKey
 import com.ugallery.core.model.AlbumSummary
 import com.ugallery.core.ml.LocalAnalysisOnboardingDecision
 import com.ugallery.core.selection.SelectionSpec
+import com.ugallery.core.selection.SelectionReducer
 import com.ugallery.core.search.SearchConcept
 import com.ugallery.core.search.SearchVocabulary
 import com.ugallery.feature.album.AlbumContent
@@ -150,7 +151,7 @@ import com.ugallery.feature.subjectclip.SubjectClipper
 import com.ugallery.feature.objecteraser.ObjectEraser
 
 internal enum class RootTab { Photos, Collections, Search }
-internal enum class SurfaceRoute { Root, Album, Viewer, PhotoEditor, VideoEditor, Trash, Settings, Moment, People, PrivateAlbum, PrivateAlbumPicker, Collage }
+internal enum class SurfaceRoute { Root, Album, Viewer, PhotoEditor, VideoEditor, Trash, Settings, About, Moment, People, PrivateAlbum, PrivateAlbumPicker, Collage }
 private data class PrivateImportProgress(val completed: Int, val total: Int)
 private data class PrivateImportOutcome(val successful: List<TimelineMedia>, val total: Int)
 internal data class ScreenMotionKey(
@@ -370,6 +371,7 @@ internal fun ProductionGalleryApp(
     var showCreateAlbum by rememberSaveable { mutableStateOf(false) }
     var showAddToAlbum by rememberSaveable { mutableStateOf(false) }
     var showEmptyTrashConfirmation by rememberSaveable { mutableStateOf(false) }
+    var showDiscardEditorConfirmation by rememberSaveable { mutableStateOf(false) }
     var newAlbumName by rememberSaveable { mutableStateOf("") }
     var pendingRequestId by rememberSaveable { mutableStateOf<Long?>(null) }
     var selectedCollageTemplateIndex by rememberSaveable { mutableStateOf(0) }
@@ -451,12 +453,18 @@ internal fun ProductionGalleryApp(
         when {
             showDetails -> showDetails = false
             route == SurfaceRoute.PhotoEditor -> {
-                viewModel.closePhotoEditor()
-                route = SurfaceRoute.Viewer
+                if (photoEditor?.content?.isDirty == true) showDiscardEditorConfirmation = true
+                else {
+                    viewModel.closePhotoEditor()
+                    route = SurfaceRoute.Viewer
+                }
             }
             route == SurfaceRoute.VideoEditor -> {
-                viewModel.closeVideoEditor()
-                route = SurfaceRoute.Viewer
+                if (videoEditor?.content?.isDirty == true) showDiscardEditorConfirmation = true
+                else {
+                    viewModel.closeVideoEditor()
+                    route = SurfaceRoute.Viewer
+                }
             }
             route == SurfaceRoute.People && selectedPerson != null -> viewModel.closePerson()
             route == SurfaceRoute.PrivateAlbumPicker -> {
@@ -465,6 +473,7 @@ internal fun ProductionGalleryApp(
             }
             route == SurfaceRoute.PrivateAlbum -> leavePrivateAlbum()
             route == SurfaceRoute.Viewer -> restoreViewerReturnDestination()
+            route == SurfaceRoute.About -> route = SurfaceRoute.Settings
             else -> route = SurfaceRoute.Root
         }
     }
@@ -538,6 +547,11 @@ internal fun ProductionGalleryApp(
             Toast.makeText(context, message, Toast.LENGTH_LONG).show()
         }
     }
+    LaunchedEffect(Unit) {
+        viewModel.editorCopyOpened.collect {
+            route = SurfaceRoute.Viewer
+        }
+    }
 
     if (external != null) {
         ExternalViewer(
@@ -577,7 +591,10 @@ internal fun ProductionGalleryApp(
                                 viewModel.openTimelineMedia(media)
                             }
                         },
-                        onMediaLongClick = viewModel::toggleSelection,
+                        isMediaSelected = { media ->
+                            SelectionReducer.isSelected(selection, media.key)
+                        },
+                        onMediaSelectionChange = viewModel::setMediaSelected,
                         preferredColumns = gallerySettings.thumbnails.gridColumns,
                         cropThumbnails = gallerySettings.thumbnails.cropToFill,
                         onDensityChange = { columns ->
@@ -689,7 +706,7 @@ internal fun ProductionGalleryApp(
                                     viewModel.openAlbumMedia(media, album, filter, sort)
                                 }
                             },
-                            onMediaLongClick = viewModel::toggleSelection,
+                            onMediaSelectionChange = viewModel::setMediaSelected,
                             showHeader = false,
                         )
                     }
@@ -724,12 +741,16 @@ internal fun ProductionGalleryApp(
                 SurfaceRoute.PhotoEditor -> photoEditor?.let { session ->
                     PhotoEditorContent(
                         state = session.content,
-                        onBack = { viewModel.closePhotoEditor(); route = SurfaceRoute.Viewer },
+                        onBack = ::handleBack,
                         onSaveCopy = viewModel::savePhotoEditorCopy,
                         onApply = viewModel::applyPhotoEdit,
                         onUndo = viewModel::undoPhotoEdit,
                         onRedo = viewModel::redoPhotoEdit,
-                        onRawSettingsChange = viewModel::setRawDevelopment,
+                        onRawSettingsChange = viewModel::previewRawDevelopment,
+                        onRawSettingsChangeFinished = viewModel::commitRawDevelopment,
+                        onTonePreview = viewModel::previewPhotoTone,
+                        onToneChangeFinished = viewModel::commitPhotoTone,
+                        onApplyAutoSuggestion = viewModel::applyPhotoAutoSuggestion,
                         onRawOutputFormatChange = viewModel::setRawOutputFormat,
                     )
                 }
@@ -747,16 +768,18 @@ internal fun ProductionGalleryApp(
                     VideoEditorContent(
                         state = session.content,
                         controller = controller,
-                        onBack = { viewModel.closeVideoEditor(); route = SurfaceRoute.Viewer },
+                        onBack = ::handleBack,
                         onSaveCopy = viewModel::saveVideoEditorCopy,
                         onSpeedChange = viewModel::setVideoSpeed,
                         onOriginalVolumeChange = viewModel::setVideoOriginalVolume,
                         onChooseMusic = { musicPicker.launch(arrayOf("audio/*")) },
                         onRemoveMusic = viewModel::removeVideoMusic,
+                        onMusicVolumeChange = viewModel::setVideoMusicVolume,
                         onSeek = { position -> viewModel.seekVideo(position); controller.seekTo(position) },
                         onTrimChange = viewModel::setVideoTrim,
                         onColorGradeChange = viewModel::setVideoColorGrade,
                         onOutputQualityChange = viewModel::setVideoOutputQuality,
+                        onGeometryChange = viewModel::setVideoGeometry,
                         onImportLut = { lutPicker.launch(arrayOf("text/plain", "application/octet-stream")) },
                         onMarkSlowMotionIn = viewModel::markVideoSlowMotionIn,
                         onMarkSlowMotionOut = viewModel::markVideoSlowMotionOut,
@@ -921,7 +944,12 @@ internal fun ProductionGalleryApp(
                     onSemanticDelete = viewModel::deleteSemanticModel,
                     onSemanticDeleteAll = viewModel::deleteAllSemanticModels,
                     onSemanticAutomaticSelection = viewModel::useAutomaticSemanticModel,
+                    onOpenAbout = { route = SurfaceRoute.About },
                     showHeader = false,
+                )
+                SurfaceRoute.About -> AboutContent(
+                    versionName = BuildConfig.VERSION_NAME,
+                    onBack = { route = SurfaceRoute.Settings },
                 )
                 SurfaceRoute.PrivateAlbum -> PrivateAlbumContent(
                     repository = privateAlbumRepo,
@@ -967,6 +995,17 @@ internal fun ProductionGalleryApp(
                     val pickerLimitMessage = stringResource(
                         com.ugallery.feature.privatealbum.R.string.private_picker_limit,
                     )
+                    fun updatePrivateImportSelection(media: TimelineMedia, selected: Boolean) {
+                        if (!selected) {
+                            privateImportSelection.remove(media.key)
+                        } else if (!privateImportSelection.containsKey(media.key)) {
+                            if (privateImportSelection.size < 500) {
+                                privateImportSelection[media.key] = media
+                            } else {
+                                Toast.makeText(context, pickerLimitMessage, Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
                     Column(Modifier.fillMaxSize()) {
                     Text(
                         stringResource(
@@ -1000,25 +1039,12 @@ internal fun ProductionGalleryApp(
                             preferredColumns = gallerySettings.thumbnails.gridColumns,
                             cropThumbnails = gallerySettings.thumbnails.cropToFill,
                             onMediaClick = { media ->
-                                if (privateImportSelection.containsKey(media.key)) {
-                                    privateImportSelection.remove(media.key)
-                                } else if (privateImportSelection.size < 500) {
-                                    privateImportSelection[media.key] = media
-                                } else {
-                                    Toast.makeText(
-                                        context,
-                                        pickerLimitMessage,
-                                        Toast.LENGTH_LONG,
-                                    ).show()
-                                }
+                                updatePrivateImportSelection(
+                                    media,
+                                    !privateImportSelection.containsKey(media.key),
+                                )
                             },
-                            onMediaLongClick = { media ->
-                                if (privateImportSelection.containsKey(media.key)) {
-                                    privateImportSelection.remove(media.key)
-                                } else if (privateImportSelection.size < 500) {
-                                    privateImportSelection[media.key] = media
-                                }
-                            },
+                            onMediaSelectionChange = ::updatePrivateImportSelection,
                             isMediaSelected = { privateImportSelection.containsKey(it.key) },
                         )
                     }
@@ -1117,6 +1143,7 @@ internal fun ProductionGalleryApp(
             }
         }
         val internalTopBarRoute = route == SurfaceRoute.Settings ||
+            route == SurfaceRoute.About ||
             route == SurfaceRoute.People ||
             route == SurfaceRoute.Moment
         val contentInsets = when {
@@ -1167,7 +1194,7 @@ internal fun ProductionGalleryApp(
                             }
                         },
                     )
-                    SurfaceRoute.Settings -> Unit
+                    SurfaceRoute.Settings, SurfaceRoute.About -> Unit
                     SurfaceRoute.PrivateAlbumPicker -> GalleryTopAppBar(
                         title = stringResource(com.ugallery.feature.privatealbum.R.string.private_picker_title),
                         onBack = {
@@ -1244,6 +1271,26 @@ internal fun ProductionGalleryApp(
                     viewModel.addSelectionToVirtualAlbum(it.albumId)
                 }
                 showAddToAlbum = false
+            },
+        )
+    }
+    if (showDiscardEditorConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDiscardEditorConfirmation = false },
+            title = { Text(stringResource(R.string.editor_discard_title)) },
+            text = { Text(stringResource(R.string.editor_discard_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDiscardEditorConfirmation = false
+                    if (route == SurfaceRoute.PhotoEditor) viewModel.closePhotoEditor()
+                    else if (route == SurfaceRoute.VideoEditor) viewModel.closeVideoEditor()
+                    route = SurfaceRoute.Viewer
+                }) { Text(stringResource(R.string.editor_discard_confirm)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardEditorConfirmation = false }) {
+                    Text(stringResource(R.string.editor_keep_editing))
+                }
             },
         )
     }

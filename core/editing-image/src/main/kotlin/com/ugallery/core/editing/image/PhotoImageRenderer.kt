@@ -21,6 +21,9 @@ import java.io.IOException
 import kotlin.coroutines.coroutineContext
 import kotlin.math.ceil
 import kotlin.math.max
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.math.roundToInt
 
 data class ImageBounds(val width: Int, val height: Int, val mimeType: String?)
@@ -63,6 +66,11 @@ class PhotoImageRenderer(
                 ?: throw IOException("Unable to decode image preview")
             applyRecipe(decoded, recipe)
         }
+
+    /** Applies a recipe to an already decoded bitmap, consuming it when a transform replaces it. */
+    suspend fun renderDecoded(source: Bitmap, recipe: EditRecipe): Bitmap = withContext(ioDispatcher) {
+        applyRecipe(source, recipe)
+    }
 
     suspend fun export(
         uri: Uri,
@@ -205,8 +213,9 @@ class PhotoImageRenderer(
                 is EditOperation.Crop -> crop(current, operation)
                 is EditOperation.Rotate -> transform(current, Matrix().apply { postRotate(operation.degrees.toFloat()) })
                 is EditOperation.Flip -> transform(current, Matrix().apply { postScale(if (operation.horizontal) -1f else 1f, if (operation.horizontal) 1f else -1f) })
-                is EditOperation.Tone -> color(current, toneMatrix(operation))
-                is EditOperation.Filter -> color(current, filterMatrix(operation.name))
+                is EditOperation.Straighten -> straighten(current, operation.degrees)
+                is EditOperation.Tone, is EditOperation.Filter ->
+                    color(current, PhotoColorTransform.matrixFor(operation))
                 is EditOperation.RawDevelop -> current
             }
             if (next !== current && !current.isRecycled) current.recycle()
@@ -226,35 +235,49 @@ class PhotoImageRenderer(
     private fun transform(bitmap: Bitmap, matrix: Matrix): Bitmap =
         Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
 
+    private fun straighten(bitmap: Bitmap, degrees: Float): Bitmap {
+        if (degrees == 0f) return bitmap
+        val rotated = transform(bitmap, Matrix().apply { postRotate(degrees) })
+        val radians = Math.toRadians(abs(degrees).toDouble())
+        val sine = sin(radians)
+        val cosine = cos(radians)
+        val denominator = cosine * cosine - sine * sine
+        val width: Double
+        val height: Double
+        if (minOf(bitmap.width, bitmap.height) <= 2 * sine * cosine * maxOf(bitmap.width, bitmap.height) ||
+            abs(denominator) < 0.000_001
+        ) {
+            val halfShort = 0.5 * minOf(bitmap.width, bitmap.height)
+            if (bitmap.width >= bitmap.height) {
+                width = halfShort / sine.coerceAtLeast(0.000_001)
+                height = halfShort / cosine.coerceAtLeast(0.000_001)
+            } else {
+                width = halfShort / cosine.coerceAtLeast(0.000_001)
+                height = halfShort / sine.coerceAtLeast(0.000_001)
+            }
+        } else {
+            width = (bitmap.width * cosine - bitmap.height * sine) / denominator
+            height = (bitmap.height * cosine - bitmap.width * sine) / denominator
+        }
+        val cropWidth = width.roundToInt().coerceIn(1, rotated.width)
+        val cropHeight = height.roundToInt().coerceIn(1, rotated.height)
+        val result = Bitmap.createBitmap(
+            rotated,
+            (rotated.width - cropWidth) / 2,
+            (rotated.height - cropHeight) / 2,
+            cropWidth,
+            cropHeight,
+        )
+        if (result !== rotated && !rotated.isRecycled) rotated.recycle()
+        return result
+    }
+
     private fun color(bitmap: Bitmap, matrix: ColorMatrix): Bitmap {
         val output = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
         Canvas(output).drawBitmap(bitmap, 0f, 0f, Paint(Paint.ANTI_ALIAS_FLAG).apply {
             colorFilter = ColorMatrixColorFilter(matrix)
         })
         return output
-    }
-
-    private fun toneMatrix(operation: EditOperation.Tone): ColorMatrix {
-        val contrast = operation.contrast
-        val translate = (1f - contrast) * 127.5f + operation.brightness * 255f
-        val matrix = ColorMatrix(floatArrayOf(
-            contrast, 0f, 0f, 0f, translate,
-            0f, contrast, 0f, 0f, translate,
-            0f, 0f, contrast, 0f, translate,
-            0f, 0f, 0f, 1f, 0f,
-        ))
-        if (operation.saturation != 1f) {
-            val saturation = ColorMatrix().apply { setSaturation(operation.saturation) }
-            matrix.postConcat(saturation)
-        }
-        return matrix
-    }
-
-    private fun filterMatrix(name: String): ColorMatrix = when (name) {
-        "natural" -> toneMatrix(EditOperation.Tone(contrast = 1.08f, saturation = 0.9f))
-        "vivid" -> toneMatrix(EditOperation.Tone(brightness = 0.03f, saturation = 1.2f))
-        "mono" -> ColorMatrix().apply { setSaturation(0f) }
-        else -> ColorMatrix()
     }
 
     private fun compressFormat(mimeType: String?): Bitmap.CompressFormat = when (mimeType?.lowercase()) {

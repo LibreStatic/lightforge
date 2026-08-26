@@ -85,4 +85,12 @@
     <string name="video_editor_cancel_export">Cancel export</string>
     <string name="video_editor_slow_overlap">Slow-motion segments cannot overlap</string>
     <string name="video_editor_slow_invalid_range">Mark out must be after mark in</string>
+    <string name="video_editor_transform">Transform</string>
+    <string name="video_editor_crop_horizontal">Horizontal crop</string>
+    <string name="video_editor_crop_vertical">Vertical crop</string>
+    <string name="video_editor_straighten">Straighten</string>
+    <string name="video_editor_rotate_90">Rotate 90°</string>
+    <string name="video_editor_flip_horizontal">Flip</string>
+    <string name="video_editor_reset_transform">Reset</string>
+    <string name="video_editor_music_volume">Music volume</string>
 </resources>

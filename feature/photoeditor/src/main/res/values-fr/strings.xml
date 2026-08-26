@@ -1,4 +1,4 @@
-<resources><string name="photo_editor_title">Modifier la photo</string><string name="photo_editor_cancel">Annuler</string><string name="photo_editor_save_copy">Enregistrer une copie</string><string name="photo_editor_preview_description">Aperçu de la retouche</string><string name="photo_editor_preview_unavailable">Aperçu indisponible</string><string name="photo_editor_filters">Filtres</string><string name="photo_editor_filter_original">Original</string><string name="photo_editor_filter_natural">Naturel</string><string name="photo_editor_filter_vivid">Vif</string><string name="photo_editor_filter_mono">Mono</string><string name="photo_editor_crop">Recadrer</string><string name="photo_editor_rotate">Pivoter</string><string name="photo_editor_flip">Retourner</string><string name="photo_editor_undo">Annuler l’action</string><string name="photo_editor_redo">Rétablir</string><string name="photo_editor_copy_policy">La retouche est non destructive. Une copie est enregistrée dans MediaStore et l’original reste inchangé.</string>
+<resources><string name="photo_editor_title">Modifier la photo</string><string name="photo_editor_cancel">Annuler</string><string name="photo_editor_save_copy">Enregistrer une copie</string><string name="photo_editor_preview_description">Aperçu de la retouche</string><string name="photo_editor_preview_unavailable">Aperçu indisponible</string><string name="photo_editor_filters">Filtres</string><string name="photo_editor_automatic">Automatique</string><string name="photo_editor_auto_enhance">Améliorer</string><string name="photo_editor_auto_dynamic">Dynamique</string><string name="photo_editor_auto_analyzing">Analyse de la photo…</string><string name="photo_editor_auto_preview">Aperçu : %1$s</string><string name="photo_editor_filter_original">Original</string><string name="photo_editor_filter_natural">Naturel</string><string name="photo_editor_filter_vivid">Vif</string><string name="photo_editor_filter_mono">Mono</string><string name="photo_editor_crop">Recadrer</string><string name="photo_editor_rotate">Pivoter</string><string name="photo_editor_flip">Retourner</string><string name="photo_editor_undo">Annuler l’action</string><string name="photo_editor_redo">Rétablir</string><string name="photo_editor_copy_policy">La retouche est non destructive. Une copie est enregistrée dans MediaStore et l’original reste inchangé.</string>
     <string name="photo_editor_raw_title">RAW de l’appareil</string>
     <string name="photo_editor_raw_tab">RAW</string>
     <string name="photo_editor_export_tab">Exporter</string>
@@ -16,4 +16,25 @@
     <string name="photo_editor_output_tiff_srgb">TIFF · sRGB · 16 bits</string>
     <string name="photo_editor_copy_saved">Copie enregistrée</string>
     <string name="photo_editor_reset_raw">Réinitialiser le développement RAW</string>
+    <string name="photo_editor_adjust">Ajuster</string>
+    <string name="photo_editor_brightness">Luminosité</string>
+    <string name="photo_editor_crop_free">Libre</string>
+    <string name="photo_editor_crop_square">Carré</string>
+    <string name="photo_editor_crop_four_three">4:3</string>
+    <string name="photo_editor_crop_three_four">3:4</string>
+    <string name="photo_editor_crop_sixteen_nine">16:9</string>
+    <string name="photo_editor_crop_nine_sixteen">9:16</string>
+    <string name="photo_editor_straighten">Redresser</string>
+    <string name="photo_editor_reset_crop">Réinitialiser</string>
+    <string name="photo_editor_cancel_crop">Annuler</string>
+    <string name="photo_editor_apply_crop">Appliquer</string>
+    <string name="photo_editor_whites">Blancs</string>
+    <string name="photo_editor_blacks">Noirs</string>
+    <string name="photo_editor_vibrance">Vibrance</string>
+    <string name="photo_editor_highlight_recovery">Récupération des hautes lumières</string>
+    <string name="photo_editor_chroma_noise_reduction">Réduction du bruit chromatique</string>
+    <string name="photo_editor_sharpening">Netteté</string>
+    <string name="photo_editor_chromatic_aberration">Correction de l’aberration chromatique</string>
+    <string name="photo_editor_lens_correction">Correction de l’objectif</string>
+    <string name="photo_editor_tiff_geometry_unsupported">Le recadrage, la rotation, le retournement et le redressement nécessitent une sortie JPEG pour les photos RAW.</string>
 </resources>

@@ -52,6 +52,8 @@ class SemanticSearchEngine(
                     favorite = media.isFavorite,
                     debug = SearchRankingDebug(query, "semantic:${index.modelId}", score.toDouble(), listOf("semanticEmbedding")),
                     durationMillis = media.durationMillis,
+                    width = media.width,
+                    height = media.height,
                 )
             }
         }

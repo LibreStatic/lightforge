@@ -3,6 +3,8 @@ package com.ugallery.core.editing.video
 import android.graphics.Color
 import androidx.media3.common.Effect
 import androidx.media3.effect.SingleColorLut
+import androidx.media3.effect.Crop
+import androidx.media3.effect.ScaleAndRotateTransformation
 import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.pow
@@ -17,6 +19,23 @@ object VideoColorGradeEffects {
     ): List<Effect> {
         if (grade.bypass || (!grade.hasChanges && customLut == null)) return emptyList()
         return listOf(SingleColorLut.createFromCube(buildCube(grade, customLut, cubeSize)))
+    }
+
+    fun geometryEffects(geometry: VideoGeometry): List<Effect> = buildList {
+        if (geometry.left > 0f || geometry.top > 0f || geometry.right < 1f || geometry.bottom < 1f) {
+            add(Crop(
+                -1f + geometry.left * 2f,
+                -1f + geometry.right * 2f,
+                1f - geometry.bottom * 2f,
+                1f - geometry.top * 2f,
+            ))
+        }
+        if (geometry.rotationDegrees != 0f || geometry.flipHorizontal) {
+            add(ScaleAndRotateTransformation.Builder()
+                .setScale(if (geometry.flipHorizontal) -1f else 1f, 1f)
+                .setRotationDegrees(geometry.rotationDegrees)
+                .build())
+        }
     }
 
     fun buildCube(

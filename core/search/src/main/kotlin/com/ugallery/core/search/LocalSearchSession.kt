@@ -21,7 +21,7 @@ class LocalSearchSession(private val context: Context) {
 
 object MediaSearchSchema {
     const val Type = "MediaDocument"
-    const val Version = 4L
+    const val Version = 5L
 
     object Property {
         const val MediaKey = "mediaKey"
@@ -38,6 +38,8 @@ object MediaSearchSchema {
         const val TimelineSortMillis = "timelineSortMillis"
         const val GenerationModified = "generationModified"
         const val DurationMillis = "durationMillis"
+        const val Width = "width"
+        const val Height = "height"
         const val Favorite = "favorite"
         const val FavoriteToken = "favoriteToken"
         const val SchemaVersion = "schemaVersion"
@@ -60,6 +62,8 @@ object MediaSearchSchema {
         .addProperty(number(Property.TimelineSortMillis, range = true))
         .addProperty(number(Property.GenerationModified))
         .addProperty(optionalNumber(Property.DurationMillis))
+        .addProperty(optionalNumber(Property.Width))
+        .addProperty(optionalNumber(Property.Height))
         .addProperty(boolean(Property.Favorite))
         .addProperty(exact(Property.FavoriteToken, required = true))
         .addProperty(number(Property.SchemaVersion))

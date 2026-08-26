@@ -1,4 +1,4 @@
-<resources><string name="photo_editor_title">Modifica foto</string><string name="photo_editor_cancel">Annulla</string><string name="photo_editor_save_copy">Salva copia</string><string name="photo_editor_preview_description">Anteprima modifica</string><string name="photo_editor_preview_unavailable">Anteprima non disponibile</string><string name="photo_editor_filters">Filtri</string><string name="photo_editor_filter_original">Originale</string><string name="photo_editor_filter_natural">Naturale</string><string name="photo_editor_filter_vivid">Vivido</string><string name="photo_editor_filter_mono">Mono</string><string name="photo_editor_crop">Ritaglia</string><string name="photo_editor_rotate">Ruota</string><string name="photo_editor_flip">Capovolgi</string><string name="photo_editor_undo">Annulla</string><string name="photo_editor_redo">Ripristina</string><string name="photo_editor_copy_policy">La modifica non è distruttiva. Salva copia crea un nuovo elemento in MediaStore e conserva l’originale.</string>
+<resources><string name="photo_editor_title">Modifica foto</string><string name="photo_editor_cancel">Annulla</string><string name="photo_editor_save_copy">Salva copia</string><string name="photo_editor_preview_description">Anteprima modifica</string><string name="photo_editor_preview_unavailable">Anteprima non disponibile</string><string name="photo_editor_filters">Filtri</string><string name="photo_editor_automatic">Automatico</string><string name="photo_editor_auto_enhance">Migliora</string><string name="photo_editor_auto_dynamic">Dinamico</string><string name="photo_editor_auto_analyzing">Analisi della foto…</string><string name="photo_editor_auto_preview">Anteprima %1$s</string><string name="photo_editor_filter_original">Originale</string><string name="photo_editor_filter_natural">Naturale</string><string name="photo_editor_filter_vivid">Vivido</string><string name="photo_editor_filter_mono">Mono</string><string name="photo_editor_crop">Ritaglia</string><string name="photo_editor_rotate">Ruota</string><string name="photo_editor_flip">Capovolgi</string><string name="photo_editor_undo">Annulla</string><string name="photo_editor_redo">Ripristina</string><string name="photo_editor_copy_policy">La modifica non è distruttiva. Salva copia crea un nuovo elemento in MediaStore e conserva l’originale.</string>
     <string name="photo_editor_raw_title">RAW fotocamera</string>
     <string name="photo_editor_raw_tab">RAW</string>
     <string name="photo_editor_export_tab">Esporta</string>
@@ -16,4 +16,25 @@
     <string name="photo_editor_output_tiff_srgb">TIFF · sRGB · 16 bit</string>
     <string name="photo_editor_copy_saved">Copia salvata</string>
     <string name="photo_editor_reset_raw">Reimposta sviluppo RAW</string>
+    <string name="photo_editor_adjust">Regola</string>
+    <string name="photo_editor_brightness">Luminosità</string>
+    <string name="photo_editor_crop_free">Libero</string>
+    <string name="photo_editor_crop_square">Quadrato</string>
+    <string name="photo_editor_crop_four_three">4:3</string>
+    <string name="photo_editor_crop_three_four">3:4</string>
+    <string name="photo_editor_crop_sixteen_nine">16:9</string>
+    <string name="photo_editor_crop_nine_sixteen">9:16</string>
+    <string name="photo_editor_straighten">Raddrizza</string>
+    <string name="photo_editor_reset_crop">Reimposta</string>
+    <string name="photo_editor_cancel_crop">Annulla</string>
+    <string name="photo_editor_apply_crop">Applica</string>
+    <string name="photo_editor_whites">Bianchi</string>
+    <string name="photo_editor_blacks">Neri</string>
+    <string name="photo_editor_vibrance">Vividezza</string>
+    <string name="photo_editor_highlight_recovery">Recupero alte luci</string>
+    <string name="photo_editor_chroma_noise_reduction">Riduzione rumore cromatico</string>
+    <string name="photo_editor_sharpening">Nitidezza</string>
+    <string name="photo_editor_chromatic_aberration">Correzione aberrazione cromatica</string>
+    <string name="photo_editor_lens_correction">Correzione obiettivo</string>
+    <string name="photo_editor_tiff_geometry_unsupported">Ritaglio, rotazione, riflessione e raddrizzamento richiedono l’output JPEG per le foto RAW.</string>
 </resources>

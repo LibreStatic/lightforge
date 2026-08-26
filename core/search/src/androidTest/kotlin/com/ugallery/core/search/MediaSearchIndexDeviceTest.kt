@@ -78,6 +78,20 @@ class MediaSearchIndexDeviceTest {
         }
     }
 
+    @Test fun dimensionsRoundTripForThumbnailPrefetch() = runBlocking {
+        val database = uniqueDatabase()
+        AppSearchMediaIndex(context, database).use { index ->
+            index.ensureSchema(forceOverride = true)
+            index.put(listOf(document("external_primary", 9, ocr = "mountain", width = 8_192, height = 6_144)))
+        }
+
+        AppSearchMediaSearchRepository(context, database).search("mountain").use { cursor ->
+            val hit = cursor.nextPage().hits.single()
+            assertEquals(8_192, hit.width)
+            assertEquals(6_144, hit.height)
+        }
+    }
+
     @Test fun rebuildResumesAcrossCoordinatorRecreation() = runBlocking {
         val database = uniqueDatabase()
         val documents = (0L until 650L).map { document("external_primary", it, ocr = "local $it") }
@@ -190,6 +204,8 @@ class MediaSearchIndexDeviceTest {
         people: List<String> = emptyList(),
         kind: MediaKind = MediaKind.Image,
         durationMillis: Long = 0L,
+        width: Int = 4_000,
+        height: Int = 3_000,
     ) = MediaSearchDocument(
         key = MediaKey(volume, id), kind = kind,
         mimeType = if (kind == MediaKind.Video) "video/mp4" else "image/jpeg",
@@ -197,6 +213,8 @@ class MediaSearchIndexDeviceTest {
         generationModified = 1, favorite = favorite, ocrText = ocr,
         canonicalLabels = labels, personIds = people, ocrModelVersion = 1, labelModelVersion = 1,
         durationMillis = durationMillis,
+        width = width,
+        height = height,
     )
 
     private fun uniqueDatabase() = "m3-${UUID.randomUUID()}"

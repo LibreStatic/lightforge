@@ -29,6 +29,14 @@ class VideoEditRecipeCodecTest {
             speed = 1.5f,
             originalAudioVolume = 0.75f,
             musicVolume = 0.4f,
+            geometry = VideoGeometry(
+                left = 0.1f,
+                top = 0.2f,
+                right = 0.9f,
+                bottom = 0.8f,
+                rotationDegrees = 2.5f,
+                flipHorizontal = true,
+            ),
             colorGrade = grade,
             outputQuality = VideoOutputQuality.HevcMain10,
             slowMotionSegments = listOf(
@@ -55,5 +63,6 @@ class VideoEditRecipeCodecTest {
         val decoded = VideoEditRecipeCodec.decode("version=1\nspeed=0.5\n")
         assertEquals(0.5f, decoded.speed)
         assertEquals(emptyList<SlowMotionSegment>(), decoded.slowMotionSegments)
+        assertEquals(VideoGeometry(), decoded.geometry)
     }
 }

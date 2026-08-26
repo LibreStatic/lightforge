@@ -99,6 +99,9 @@
     <string name="settings_group_viewing">Bibliothek und Anzeige</string>
     <string name="settings_group_management">Datenschutz und Verwaltung</string>
     <string name="settings_group_intelligence">Intelligente Funktionen</string>
+    <string name="settings_group_about">Info</string>
+    <string name="settings_about">Über UGallery</string>
+    <string name="settings_about_summary">Version, Mitwirkende und Open-Source-Lizenzen</string>
     <string name="local_analysis_privacy">UGallery kann deine freigegebenen Fotos vollständig auf diesem Gerät analysieren. Nichts wird hochgeladen und du kannst die Analyse jederzeit stoppen oder ihre Ergebnisse löschen.</string>
     <string name="local_analysis_master">Lokale Analyse verwenden</string>
     <string name="local_analysis_master_summary">Steuert Personen und Gesichter, Fotoinhalte und Text sowie Tiersammlungen.</string>
@@ -117,6 +120,7 @@
     <string name="semantic_settings_enabled">Semantische Suche verwenden</string>
     <string name="semantic_settings_privacy">Modelle, Suchanfragen, Fotos und Vektoren bleiben auf diesem Gerät. Nur verifizierte Modellpakete werden geladen.</string>
     <string name="semantic_settings_no_active">Kein semantisches Modell aktiv</string>
+    <string name="semantic_settings_preparing">%1$s %2$s wird als aktives Modell vorbereitet</string>
     <string name="semantic_settings_active">Aktives Modell: %1$s · %2$s</string>
     <string name="semantic_settings_automatic">Automatische Empfehlung verwenden</string>
     <string name="semantic_model_active">Aktiv</string>
@@ -144,6 +148,7 @@
     <string name="semantic_delete_all_body">Alle geladenen semantischen Modelle und ihre Indizes werden entfernt.</string>
     <string name="semantic_model_building">Index wird erstellt</string>
     <string name="semantic_model_building_description">Deine Mediathek wird lokal indexiert. Das aktuelle Modell bleibt bis zum Abschluss aktiv.</string>
+    <string name="semantic_model_building_first_description">Deine Mediathek wird lokal indexiert. Dieses Modell wird nach Abschluss der Indexierung aktiviert.</string>
     <string name="semantic_quality_balanced">Ausgewogen</string>
     <string name="semantic_quality_higher">Höhere Qualität</string>
     <string name="semantic_language_english_focused">Vorwiegend Englisch</string>

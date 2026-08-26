@@ -13,6 +13,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
+import java.io.Closeable
 import kotlin.coroutines.coroutineContext
 
 data class RawNativeImage(val argb: IntArray, val width: Int, val height: Int)
@@ -40,6 +41,29 @@ class RawDeveloper(
     private val scratchDirectory: File,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
+    suspend fun openPreviewSession(uri: Uri): RawPreviewSession = withContext(ioDispatcher) {
+        scratchDirectory.mkdirs()
+        val source = File(scratchDirectory, "raw-preview-${System.nanoTime()}.bin")
+        try {
+            resolver.openInputStream(uri)?.use { input ->
+                source.outputStream().buffered().use { output ->
+                    val buffer = ByteArray(256 * 1_024)
+                    while (true) {
+                        coroutineContext.ensureActive()
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        if (count > 0) output.write(buffer, 0, count)
+                    }
+                }
+            } ?: throw IOException("RAW source cannot be opened")
+            check(source.length() > 0) { "RAW source is empty" }
+            RawPreviewSession(source, ioDispatcher)
+        } catch (failure: Throwable) {
+            source.delete()
+            throw failure
+        }
+    }
+
     suspend fun inspect(uri: Uri): RawMetadata = withSource(uri) { source ->
         parseMetadata(LibRawBridge.nativeInspect(source.absolutePath))
     }
@@ -130,30 +154,54 @@ class RawDeveloper(
             }
         }
 
-    private fun parseMetadata(encoded: String): RawMetadata {
-        val values = encoded.split('|')
-        if (values.firstOrNull() == "ERROR") throw IOException(values.drop(1).joinToString(" "))
-        require(values.size >= 13) { "RAW metadata is incomplete" }
-        val blackLevel = values[6].toInt().coerceAtLeast(0)
-        val whiteLevel = values[5].toInt().coerceAtLeast(blackLevel + 1)
-        val bitsPerSample = (32 - whiteLevel.countLeadingZeroBits()).coerceIn(1, 16)
-        return RawMetadata(
-            make = values[0], model = values[1], lens = values[2],
-            width = values[3].toInt(), height = values[4].toInt(), bitsPerSample = bitsPerSample,
-            whiteLevel = whiteLevel, blackLevel = blackLevel,
-            iso = values[7].toFloatOrNull()?.toInt()?.takeIf { it > 0 },
-            shutterSeconds = values[8].toDoubleOrNull()?.takeIf { it > 0.0 },
-            aperture = values[9].toDoubleOrNull()?.takeIf { it > 0.0 },
-            focalLengthMm = values[10].toDoubleOrNull()?.takeIf { it > 0.0 },
-            sensorLayout = runCatching { RawSensorLayout.valueOf(values[11]) }.getOrDefault(RawSensorLayout.Unknown),
-            colorDescription = values[12],
-        )
-    }
+    private fun parseMetadata(encoded: String): RawMetadata = parseRawMetadata(encoded)
 
     private fun estimateScratchBytes(metadata: RawMetadata): Long =
         metadata.width.toLong() * metadata.height.toLong() * 10L + 128L * 1_024 * 1_024
 
     private companion object { const val MaxJpegPixels = 36_000_000L }
+}
+
+/** A staged RAW source that avoids copying the content URI for every interactive preview frame. */
+class RawPreviewSession internal constructor(
+    private val source: File,
+    private val ioDispatcher: CoroutineDispatcher,
+) : Closeable {
+    suspend fun inspect(): RawMetadata = withContext(ioDispatcher) {
+        parseRawMetadata(LibRawBridge.nativeInspect(source.absolutePath))
+    }
+
+    suspend fun renderPreview(settings: RawDevelopmentSettings, maxDimension: Int): Bitmap =
+        withContext(ioDispatcher) {
+            require(maxDimension in 256..4_096)
+            val native = LibRawBridge.nativeRender(source.absolutePath, settings.nativeValues(), maxDimension)
+                ?: throw IOException("RAW preview could not be developed")
+            Bitmap.createBitmap(native.argb, native.width, native.height, Bitmap.Config.ARGB_8888)
+        }
+
+    override fun close() {
+        source.delete()
+    }
+}
+
+private fun parseRawMetadata(encoded: String): RawMetadata {
+    val values = encoded.split('|')
+    if (values.firstOrNull() == "ERROR") throw IOException(values.drop(1).joinToString(" "))
+    require(values.size >= 13) { "RAW metadata is incomplete" }
+    val blackLevel = values[6].toInt().coerceAtLeast(0)
+    val whiteLevel = values[5].toInt().coerceAtLeast(blackLevel + 1)
+    val bitsPerSample = (32 - whiteLevel.countLeadingZeroBits()).coerceIn(1, 16)
+    return RawMetadata(
+        make = values[0], model = values[1], lens = values[2],
+        width = values[3].toInt(), height = values[4].toInt(), bitsPerSample = bitsPerSample,
+        whiteLevel = whiteLevel, blackLevel = blackLevel,
+        iso = values[7].toFloatOrNull()?.toInt()?.takeIf { it > 0 },
+        shutterSeconds = values[8].toDoubleOrNull()?.takeIf { it > 0.0 },
+        aperture = values[9].toDoubleOrNull()?.takeIf { it > 0.0 },
+        focalLengthMm = values[10].toDoubleOrNull()?.takeIf { it > 0.0 },
+        sensorLayout = runCatching { RawSensorLayout.valueOf(values[11]) }.getOrDefault(RawSensorLayout.Unknown),
+        colorDescription = values[12],
+    )
 }
 
 fun isRawMimeOrName(mimeType: String?, displayName: String?): Boolean {

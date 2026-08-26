@@ -21,7 +21,6 @@ import androidx.media3.transformer.Transformer
 import androidx.media3.transformer.DefaultEncoderFactory
 import androidx.media3.transformer.VideoEncoderSettings
 import androidx.media3.transformer.TransformationRequest
-import androidx.media3.effect.Presentation
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -93,8 +92,8 @@ class Media3VideoExporter(private val context: Context) {
             .setClippingConfiguration(clipping)
             .build()
         val videoEffects = buildList {
+            addAll(VideoColorGradeEffects.geometryEffects(request.recipe.geometry))
             addAll(VideoColorGradeEffects.create(request.recipe.colorGrade, request.customLut))
-            max1080Presentation(request.input)?.let(::add)
         }
         val editedBuilder = EditedMediaItem.Builder(mediaItem)
         if (request.recipe.speed != 1f) {
@@ -355,16 +354,6 @@ class Media3VideoExporter(private val context: Context) {
         }
     }.getOrDefault(false)
 
-    private fun max1080Presentation(uri: Uri): androidx.media3.common.Effect? = runCatching {
-        MediaMetadataRetriever().use { retriever ->
-            retriever.setDataSource(context.applicationContext, uri)
-            val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull()
-                ?: return@use null
-            val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull()
-                ?: return@use null
-            if (minOf(width, height) > 1_080) Presentation.createForShortSide(1_080) else null
-        }
-    }.getOrNull()
 }
 
 private class ConstantSpeedProvider(private val speed: Float) : SpeedProvider {

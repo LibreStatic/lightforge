@@ -28,6 +28,8 @@ data class MediaSearchHit(
     val favorite: Boolean,
     val debug: SearchRankingDebug,
     val durationMillis: Long = 0,
+    val width: Int = 0,
+    val height: Int = 0,
 )
 
 data class MediaSearchPage(
@@ -78,6 +80,8 @@ class MediaSearchCursor internal constructor(
                 matchInfos.map { it.propertyPath }.distinct(),
             ),
             durationMillis = document.getPropertyLong(MediaSearchSchema.Property.DurationMillis),
+            width = document.getPropertyLong(MediaSearchSchema.Property.Width).toInt().coerceAtLeast(0),
+            height = document.getPropertyLong(MediaSearchSchema.Property.Height).toInt().coerceAtLeast(0),
         )
     }
 }

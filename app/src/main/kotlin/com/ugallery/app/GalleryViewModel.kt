@@ -4,6 +4,7 @@ import android.app.ActivityManager
 import android.app.Application
 import android.content.Context
 import android.graphics.Bitmap
+import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
@@ -82,9 +83,11 @@ import com.ugallery.core.preferences.FavoriteBackupRecord
 import com.ugallery.core.preferences.GalleryBackupCodec
 import com.ugallery.core.preferences.GalleryFolderToken
 import com.ugallery.core.editing.image.PhotoExportOutcome
+import com.ugallery.core.editing.image.PhotoAutoEnhancementAnalyzer
 import com.ugallery.core.editing.image.PhotoImageRenderer
 import com.ugallery.core.editing.video.Media3VideoExporter
 import com.ugallery.core.editing.video.VideoEditRecipe
+import com.ugallery.core.editing.video.VideoGeometry
 import com.ugallery.core.editing.video.VideoExportRequest
 import com.ugallery.core.editing.video.CubeLut
 import com.ugallery.core.editing.video.CustomLutOption
@@ -100,6 +103,7 @@ import com.ugallery.core.database.MediaItemEntity
 import com.ugallery.core.database.PhysicalAlbumRow
 import com.ugallery.core.raw.RawDeveloper
 import com.ugallery.core.raw.RawExportOutcome
+import com.ugallery.core.raw.RawPreviewSession
 import com.ugallery.core.raw.isRawMimeOrName
 import com.ugallery.core.selection.SelectionReducer
 import com.ugallery.core.selection.SelectionSpec
@@ -145,6 +149,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -180,8 +185,18 @@ data class PhotoEditorSession(
     val content: PhotoEditorContentState,
 )
 
+private data class RawPreviewRequest(
+    val generation: Long,
+    val settings: RawDevelopmentSettings,
+    val recipe: EditRecipe,
+    val maxDimension: Int,
+    val minimumIntervalMillis: Long,
+    val final: Boolean,
+)
+
 data class VideoEditorSession(
     val media: TimelineMedia,
+    val baselineRecipe: VideoEditRecipe,
     val recipe: VideoEditRecipe,
     val content: VideoEditorContentState,
 )
@@ -417,6 +432,14 @@ class GalleryViewModel @Inject constructor(
     private var pendingWriteMutation: PendingWriteMutation? = savedStateHandle[WriteMutationStateKey]
     private var photoJob: Job? = null
     private var photoEditorJob: Job? = null
+    private var photoAutoEnhancementJob: Job? = null
+    private var photoAutoEnhancementGeneration = 0L
+    private var photoRecipeJob: Job? = null
+    private var rawPreviewJob: Job? = null
+    private var rawPreviewSession: RawPreviewSession? = null
+    private var rawPreviewRequests: Channel<RawPreviewRequest>? = null
+    private var rawPreviewGeneration = 0L
+    private var rawPreviewProfile: RawPreviewProfile? = null
     private var videoEditorJob: Job? = null
     private var videoRecipeJob: Job? = null
     private var slowMotionSaveJob: Job? = null
@@ -432,6 +455,8 @@ class GalleryViewModel @Inject constructor(
     val photoEditor = mutablePhotoEditor.asStateFlow()
     private val mutableVideoEditor = MutableStateFlow<VideoEditorSession?>(null)
     val videoEditor = mutableVideoEditor.asStateFlow()
+    private val mutableEditorCopyOpened = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val editorCopyOpened = mutableEditorCopyOpened.asSharedFlow()
     private val mutableQuickSlowMotionSave = MutableStateFlow(QuickSlowMotionSaveState())
     val quickSlowMotionSave = mutableQuickSlowMotionSave.asStateFlow()
     private val mutableSanitizedShare = MutableSharedFlow<Intent>(extraBufferCapacity = 1)
@@ -658,6 +683,8 @@ class GalleryViewModel @Inject constructor(
                         listOf("faceEmbedding"),
                     ),
                     durationMillis = media.durationMillis,
+                    width = media.width,
+                    height = media.height,
                 )
             }
     }
@@ -1182,9 +1209,18 @@ class GalleryViewModel @Inject constructor(
     }
 
     fun toggleSelection(media: TimelineMedia) {
+        setMediaSelected(
+            media = media,
+            selected = !SelectionReducer.isSelected(mutableSelection.value, media.key),
+        )
+    }
+
+    /** Idempotent selection mutation used by drag gestures and accessibility actions. */
+    fun setMediaSelected(media: TimelineMedia, selected: Boolean) {
         val before = mutableSelection.value
         val wasSelected = SelectionReducer.isSelected(before, media.key)
-        val updated = SelectionReducer.toggle(before, media.key)
+        if (wasSelected == selected) return
+        val updated = SelectionReducer.setSelected(before, media.key, selected)
         mutableSelection.value = updated
         when (updated) {
             is SelectionSpec.Explicit -> {
@@ -1196,7 +1232,7 @@ class GalleryViewModel @Inject constructor(
             is SelectionSpec.QueryAll -> {
                 explicitTargets.clear()
                 mutableSelectionCount.value = (
-                    mutableSelectionCount.value + if (wasSelected) -1 else 1
+                    mutableSelectionCount.value + if (selected) 1 else -1
                 ).coerceAtLeast(0)
             }
         }
@@ -1365,8 +1401,14 @@ class GalleryViewModel @Inject constructor(
         photoJob?.cancel()
         if (media.kind == MediaKind.Image) {
             val active = runtime.value ?: return
+            val cachedThumbnail = active.thumbnails.bestCached(media.key, media.generationModified)
             photoJob = viewModelScope.launch {
-                PhotoViewerPipeline(active.decoder).load(media.uri(), 1_440, 3_120)
+                PhotoViewerPipeline(active.decoder).load(
+                    media.uri(),
+                    1_440,
+                    3_120,
+                    cachedThumbnail = cachedThumbnail,
+                )
                     .collect { mutablePhotoState.value = it }
             }
         }
@@ -1426,6 +1468,9 @@ class GalleryViewModel @Inject constructor(
         if (media.kind != MediaKind.Image) return
         mutableCurrentMedia.value = media
         photoEditorJob?.cancel()
+        photoAutoEnhancementJob?.cancel()
+        photoAutoEnhancementGeneration++
+        closeRawPreviewSession()
         photoEditorJob = viewModelScope.launch {
             val active = runtime.value ?: return@launch
             val initial = withContext(Dispatchers.IO) {
@@ -1439,50 +1484,94 @@ class GalleryViewModel @Inject constructor(
             val isRaw = isRawMimeOrName(storedMedia?.mimeType, storedMedia?.displayName)
             val rawSettings = initial.operations.filterIsInstance<EditOperation.RawDevelop>()
                 .lastOrNull()?.settings ?: RawDevelopmentSettings()
-            val rawMetadata = if (isRaw) runCatching {
+            val stagedRaw = if (isRaw) runCatching {
                 RawDeveloper(
                     getApplication<Application>().contentResolver,
                     java.io.File(getApplication<Application>().cacheDir, "raw-scratch"),
-                ).inspect(mediaUri(media))
+                ).openPreviewSession(mediaUri(media))
             }.getOrNull() else null
+            rawPreviewSession = stagedRaw
+            val rawMetadata = stagedRaw?.let { runCatching { it.inspect() }.getOrNull() }
             mutablePhotoEditor.value = PhotoEditorSession(
                 media = media,
                 history = EditHistory.initial(initial),
                 content = PhotoEditorContentState(
                     isRendering = true,
+                    isAutoEnhancementAnalyzing = !isRaw,
+                    isDirty = initial.operations.isNotEmpty(),
                     selectedFilter = selectedFilter(initial),
+                    tone = selectedTone(initial),
+                    colorOperations = photoColorOperations(initial),
+                    crop = selectedCrop(initial),
+                    straightenDegrees = selectedStraighten(initial),
                     isRaw = isRaw,
                     rawMetadata = rawMetadata,
                     rawSettings = rawSettings,
                 ),
             )
             renderPhotoEditorPreview(active, media, initial)
+            if (isRaw && stagedRaw != null) {
+                startRawPreviewWorker(media, stagedRaw)
+                mutablePhotoEditor.value?.content?.rawSettings?.takeIf { it != rawSettings }?.let {
+                    enqueueRawPreview(it, initial, final = true)
+                }
+            }
         }
     }
 
-    fun setRawDevelopment(settings: RawDevelopmentSettings) {
+    fun previewPhotoTone(tone: EditOperation.Tone) {
         val session = mutablePhotoEditor.value ?: return
-        if (!session.content.isRaw) return
-        val updated = session.history.applyRawDevelopment(settings)
+        if (tone == session.content.tone) return
         mutablePhotoEditor.value = session.copy(
-            history = updated,
             content = session.content.copy(
-                rawSettings = settings,
-                isRendering = true,
-                canUndo = true,
-                canRedo = false,
+                tone = tone,
+                colorOperations = replacePhotoColorOperation(session.history.present.operations, tone),
+                isDirty = true,
                 statusMessage = null,
             ),
         )
-        photoEditorJob?.cancel()
-        photoEditorJob = viewModelScope.launch {
-            delay(60)
-            val active = runtime.value ?: return@launch
-            withContext(Dispatchers.IO) {
-                active.database.editRecipeDao().replace(updated.present, System.currentTimeMillis())
-            }
-            renderPhotoEditorPreview(active, session.media, updated.present)
+    }
+
+    fun commitPhotoTone() {
+        val session = mutablePhotoEditor.value ?: return
+        commitPhotoEdit(session.content.tone, renderRequired = false)
+    }
+
+    fun previewRawDevelopment(settings: RawDevelopmentSettings) {
+        val session = mutablePhotoEditor.value ?: return
+        if (!session.content.isRaw) return
+        if (settings == session.content.rawSettings) return
+        mutablePhotoEditor.value = session.copy(
+            content = session.content.copy(
+                rawSettings = settings,
+                isRendering = true,
+                isDirty = true,
+                statusMessage = null,
+            ),
+        )
+        enqueueRawPreview(settings, session.history.present, final = false)
+    }
+
+    fun commitRawDevelopment() {
+        val session = mutablePhotoEditor.value ?: return
+        if (!session.content.isRaw) return
+        if (selectedRawSettings(session.history.present) == session.content.rawSettings) {
+            enqueueRawPreview(session.content.rawSettings, session.history.present, final = true)
+            return
         }
+        val updated = session.history.applyRawDevelopment(session.content.rawSettings)
+        if (updated == session.history) return
+        mutablePhotoEditor.value = session.copy(
+            history = updated,
+            content = session.content.copy(
+                isRendering = true,
+                isDirty = true,
+                canUndo = updated.past.isNotEmpty(),
+                canRedo = false,
+            ),
+        )
+        persistPhotoRecipe(updated.present)
+        enqueueRawPreview(session.content.rawSettings, updated.present, final = true)
     }
 
     fun setRawOutputFormat(format: RawOutputFormat) {
@@ -1491,25 +1580,69 @@ class GalleryViewModel @Inject constructor(
     }
 
     fun applyPhotoEdit(operation: EditOperation) {
+        commitPhotoEdit(
+            operation,
+            renderRequired = operation !is EditOperation.Tone && operation !is EditOperation.Filter,
+        )
+    }
+
+    fun applyPhotoAutoSuggestion(tone: EditOperation.Tone?) {
         val session = mutablePhotoEditor.value ?: return
-        val updated = session.history.apply(operation)
+        if (session.content.isRaw) return
+        val updated = session.history.replaceColorOperations(tone)
+        if (updated == session.history) return
         mutablePhotoEditor.value = session.copy(
             history = updated,
             content = session.content.copy(
-                isRendering = true,
+                isRendering = false,
+                isDirty = updated.present.operations.isNotEmpty(),
                 canUndo = updated.past.isNotEmpty(),
                 canRedo = false,
                 selectedFilter = selectedFilter(updated.present),
+                tone = selectedTone(updated.present),
+                colorOperations = photoColorOperations(updated.present),
                 statusMessage = null,
             ),
         )
-        photoEditorJob?.cancel()
-        photoEditorJob = viewModelScope.launch {
-            val active = runtime.value ?: return@launch
-            withContext(Dispatchers.IO) {
-                active.database.editRecipeDao().replace(updated.present, System.currentTimeMillis())
+        persistPhotoRecipe(updated.present)
+    }
+
+    private fun commitPhotoEdit(operation: EditOperation, renderRequired: Boolean) {
+        val session = mutablePhotoEditor.value ?: return
+        val updated = session.history.apply(operation)
+        if (updated == session.history) return
+        mutablePhotoEditor.value = session.copy(
+            history = updated,
+            content = session.content.copy(
+                isRendering = renderRequired,
+                isDirty = updated.present.operations.isNotEmpty(),
+                canUndo = updated.past.isNotEmpty(),
+                canRedo = false,
+                selectedFilter = selectedFilter(updated.present),
+                tone = selectedTone(updated.present),
+                colorOperations = photoColorOperations(updated.present),
+                crop = selectedCrop(updated.present),
+                straightenDegrees = selectedStraighten(updated.present),
+                statusMessage = null,
+            ),
+        )
+        persistPhotoRecipe(updated.present)
+        if (renderRequired && session.content.isRaw) {
+            enqueueRawPreview(session.content.rawSettings, updated.present, final = true)
+        } else if (renderRequired) {
+            photoEditorJob?.cancel()
+            photoEditorJob = viewModelScope.launch {
+                val active = runtime.value ?: return@launch
+                renderPhotoEditorPreview(active, session.media, updated.present)
             }
-            renderPhotoEditorPreview(active, session.media, updated.present)
+        }
+    }
+
+    private fun persistPhotoRecipe(recipe: EditRecipe) {
+        photoRecipeJob?.cancel()
+        photoRecipeJob = viewModelScope.launch(Dispatchers.IO) {
+            delay(80)
+            runtime.value?.database?.editRecipeDao()?.replace(recipe, System.currentTimeMillis())
         }
     }
 
@@ -1520,23 +1653,32 @@ class GalleryViewModel @Inject constructor(
         val session = mutablePhotoEditor.value ?: return
         val updated = transform(session.history)
         if (updated == session.history) return
+        val renderRequired = photoBaseOperations(session.history.present) != photoBaseOperations(updated.present)
         mutablePhotoEditor.value = session.copy(
             history = updated,
             content = session.content.copy(
-                isRendering = true,
+                isRendering = renderRequired,
+                isDirty = updated.present.operations.isNotEmpty(),
                 canUndo = updated.past.isNotEmpty(),
                 canRedo = updated.future.isNotEmpty(),
                 selectedFilter = selectedFilter(updated.present),
+                tone = selectedTone(updated.present),
+                colorOperations = photoColorOperations(updated.present),
+                crop = selectedCrop(updated.present),
+                straightenDegrees = selectedStraighten(updated.present),
+                rawSettings = selectedRawSettings(updated.present),
                 statusMessage = null,
             ),
         )
-        photoEditorJob?.cancel()
-        photoEditorJob = viewModelScope.launch {
-            val active = runtime.value ?: return@launch
-            withContext(Dispatchers.IO) {
-                active.database.editRecipeDao().replace(updated.present, System.currentTimeMillis())
+        persistPhotoRecipe(updated.present)
+        if (session.content.isRaw && renderRequired) {
+            enqueueRawPreview(selectedRawSettings(updated.present), updated.present, final = true)
+        } else if (renderRequired) {
+            photoEditorJob?.cancel()
+            photoEditorJob = viewModelScope.launch {
+                val active = runtime.value ?: return@launch
+                renderPhotoEditorPreview(active, session.media, updated.present)
             }
-            renderPhotoEditorPreview(active, session.media, updated.present)
         }
     }
 
@@ -1556,13 +1698,33 @@ class GalleryViewModel @Inject constructor(
             val extension = if (outputMime == "image/tiff") "tif" else
                 MimeTypeMap.getSingleton().getExtensionFromMimeType(outputMime) ?: "jpg"
             val temp = java.io.File(getApplication<Application>().cacheDir, "photo-edit-${System.nanoTime()}.$extension")
+            val transformedRaw = java.io.File(getApplication<Application>().cacheDir, "photo-edit-geometry-${System.nanoTime()}.jpg")
             try {
                 if (session.content.isRaw) {
+                    val geometryRecipe = session.history.present.copy(
+                        operations = session.history.present.operations.filterNot { it is EditOperation.RawDevelop },
+                    )
+                    if (session.content.rawOutputFormat == RawOutputFormat.Tiff16Srgb && !geometryRecipe.isIdentity) {
+                        updatePhotoExportFailure(getApplication<Application>().getString(
+                            com.ugallery.feature.photoeditor.R.string.photo_editor_tiff_geometry_unsupported,
+                        ))
+                        return@launch
+                    }
                     when (val result = RawDeveloper(
                         getApplication<Application>().contentResolver,
                         java.io.File(getApplication<Application>().cacheDir, "raw-scratch"),
                     ).export(mediaUri(session.media), session.content.rawSettings, session.content.rawOutputFormat, temp)) {
-                        is RawExportOutcome.Completed -> publishPhotoResult(result.file, result.mimeType, extension, result.warnings)
+                        is RawExportOutcome.Completed -> if (geometryRecipe.isIdentity) {
+                            publishPhotoResult(result.file, result.mimeType, extension, result.warnings)
+                        } else when (val transformed = PhotoImageRenderer(getApplication<Application>().contentResolver).export(
+                            Uri.fromFile(result.file), geometryRecipe, transformedRaw,
+                        )) {
+                            is PhotoExportOutcome.Completed -> publishPhotoResult(
+                                transformed.file, transformed.mimeType ?: "image/jpeg", "jpg",
+                                result.warnings + transformed.warnings,
+                            )
+                            is PhotoExportOutcome.Failure -> updatePhotoExportFailure(transformed.reason)
+                        }
                         is RawExportOutcome.Failure -> updatePhotoExportFailure(result.reason)
                     }
                 } else when (val result = PhotoImageRenderer(getApplication<Application>().contentResolver).export(
@@ -1584,13 +1746,14 @@ class GalleryViewModel @Inject constructor(
                 )
             } finally {
                 temp.delete()
+                transformedRaw.delete()
             }
         }
     }
 
     private suspend fun publishPhotoResult(file: java.io.File, mimeType: String, fallbackExtension: String, warnings: List<String>) {
         val publishedExtension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: fallbackExtension
-        PendingMediaWriter(getApplication<Application>().contentResolver).publishFile(
+        val published = PendingMediaWriter(getApplication<Application>().contentResolver).publishFile(
             file,
             MediaWriteSpec(
                 MediaStore.VOLUME_EXTERNAL_PRIMARY, MediaKind.Image,
@@ -1598,18 +1761,7 @@ class GalleryViewModel @Inject constructor(
                 mimeType, "Pictures/UGallery",
             ),
         )
-        mutablePhotoEditor.value = mutablePhotoEditor.value?.copy(
-            content = mutablePhotoEditor.value!!.content.copy(
-                isExporting = false,
-                statusMessage = buildString {
-                    append(getApplication<Application>().getString(
-                        com.ugallery.feature.photoeditor.R.string.photo_editor_copy_saved,
-                    ))
-                    if (warnings.isNotEmpty()) append(" — ").append(warnings.joinToString("; "))
-                },
-            ),
-        )
-        refreshLibrary()
+        finishEditorCopy(published, MediaKind.Image)
     }
 
     private fun updatePhotoExportFailure(reason: String) {
@@ -1621,14 +1773,134 @@ class GalleryViewModel @Inject constructor(
     fun closePhotoEditor() {
         val session = mutablePhotoEditor.value
         photoEditorJob?.cancel()
+        photoAutoEnhancementJob?.cancel()
+        photoAutoEnhancementGeneration++
+        photoRecipeJob?.cancel()
+        closeRawPreviewSession()
         if (session != null) viewModelScope.launch {
             val active = runtime.value ?: return@launch
             withContext(Dispatchers.IO) {
-                active.database.editRecipeDao().replace(session.history.present, System.currentTimeMillis())
+                active.database.editRecipeDao().deleteRecipe(session.history.present.recipeId)
             }
         }
         session?.content?.preview?.recycle()
+        session?.content?.originalPreview?.takeIf { it !== session.content.preview }?.recycle()
+        session?.content?.cropSourcePreview?.takeIf {
+            it !== session.content.preview && it !== session.content.originalPreview
+        }?.recycle()
         mutablePhotoEditor.value = null
+    }
+
+    private fun closeRawPreviewSession() {
+        rawPreviewRequests?.close()
+        rawPreviewRequests = null
+        rawPreviewJob?.cancel()
+        rawPreviewJob = null
+        rawPreviewSession?.close()
+        rawPreviewSession = null
+        rawPreviewProfile = null
+        rawPreviewGeneration++
+    }
+
+    private fun startRawPreviewWorker(
+        media: TimelineMedia,
+        stagedRaw: RawPreviewSession,
+    ) {
+        rawPreviewRequests?.close()
+        rawPreviewJob?.cancel()
+        rawPreviewProfile = RawPreviewPolicy.detect(getApplication())
+        val requests = Channel<RawPreviewRequest>(Channel.CONFLATED)
+        rawPreviewRequests = requests
+        rawPreviewJob = viewModelScope.launch {
+            var lastStartedAt = 0L
+            for (request in requests) {
+                val remaining = request.minimumIntervalMillis -
+                    (SystemClock.elapsedRealtime() - lastStartedAt)
+                if (remaining > 0) delay(remaining)
+                lastStartedAt = SystemClock.elapsedRealtime()
+                var cropSource: Bitmap? = null
+                val rendered = try {
+                    val developed = stagedRaw.renderPreview(request.settings, request.maxDimension)
+                    val cropOperations = request.recipe.operations.filter {
+                        it is EditOperation.Rotate || it is EditOperation.Flip
+                    }
+                    val cropInput = if (request.final) developed.copy(Bitmap.Config.ARGB_8888, false) else null
+                    cropSource = cropInput?.let {
+                        PhotoImageRenderer(getApplication<Application>().contentResolver).renderDecoded(
+                            it,
+                            request.recipe.copy(operations = cropOperations),
+                        )
+                    }
+                    PhotoImageRenderer(getApplication<Application>().contentResolver).renderDecoded(
+                        developed,
+                        request.recipe.copy(
+                            operations = photoBaseOperations(request.recipe)
+                                .filterNot { it is EditOperation.RawDevelop },
+                        ),
+                    )
+                } catch (cancelled: CancellationException) {
+                    cropSource?.recycle()
+                    throw cancelled
+                } catch (failure: Throwable) {
+                    cropSource?.recycle()
+                    if (request.generation == rawPreviewGeneration) {
+                        mutablePhotoEditor.value = mutablePhotoEditor.value?.let { current ->
+                            current.copy(content = current.content.copy(
+                                isRendering = false,
+                                statusMessage = failure.message,
+                            ))
+                        }
+                    }
+                    continue
+                }
+                val current = mutablePhotoEditor.value
+                if (
+                    request.generation == rawPreviewGeneration &&
+                    current?.media?.key == media.key
+                ) {
+                    current.content.preview?.takeIf { old ->
+                        old !== rendered && old !== current.content.originalPreview &&
+                            old !== current.content.cropSourcePreview
+                    }?.recycle()
+                    if (cropSource != null) {
+                        current.content.cropSourcePreview?.takeIf { old ->
+                            old !== current.content.preview && old !== current.content.originalPreview &&
+                                old !== cropSource
+                        }?.recycle()
+                    }
+                    mutablePhotoEditor.value = current.copy(
+                        content = current.content.copy(
+                            preview = rendered,
+                            cropSourcePreview = cropSource ?: current.content.cropSourcePreview,
+                            isRendering = false,
+                            statusMessage = null,
+                        ),
+                    )
+                } else {
+                    rendered.recycle()
+                    cropSource?.takeIf { it !== rendered }?.recycle()
+                }
+            }
+        }
+    }
+
+    private fun enqueueRawPreview(
+        settings: RawDevelopmentSettings,
+        recipe: EditRecipe,
+        final: Boolean,
+    ) {
+        val profile = rawPreviewProfile ?: return
+        val generation = ++rawPreviewGeneration
+        rawPreviewRequests?.trySend(
+            RawPreviewRequest(
+                generation = generation,
+                settings = settings,
+                recipe = recipe,
+                maxDimension = if (final) 1_600 else profile.maxDimension,
+                minimumIntervalMillis = if (final) 0 else profile.minimumIntervalMillis,
+                final = final,
+            ),
+        )
     }
 
     private suspend fun renderPhotoEditorPreview(
@@ -1637,14 +1909,22 @@ class GalleryViewModel @Inject constructor(
         recipe: EditRecipe,
     ) {
         val currentBeforeRender = mutablePhotoEditor.value
+        val baseRecipe = recipe.copy(operations = photoBaseOperations(recipe))
         val preview = try {
             if (currentBeforeRender?.content?.isRaw == true) {
-                RawDeveloper(
+                val developed = rawPreviewSession?.renderPreview(
+                    currentBeforeRender.content.rawSettings,
+                    1_600,
+                ) ?: RawDeveloper(
                     getApplication<Application>().contentResolver,
                     java.io.File(getApplication<Application>().cacheDir, "raw-scratch"),
                 ).renderPreview(mediaUri(media), currentBeforeRender.content.rawSettings, 1_600)
+                PhotoImageRenderer(getApplication<Application>().contentResolver).renderDecoded(
+                    developed,
+                    baseRecipe.copy(operations = baseRecipe.operations.filterNot { it is EditOperation.RawDevelop }),
+                )
             } else PhotoImageRenderer(getApplication<Application>().contentResolver)
-                .renderPreview(mediaUri(media), recipe, 1_600)
+                .renderPreview(mediaUri(media), baseRecipe, 1_600)
         } catch (failure: Throwable) {
             val current = mutablePhotoEditor.value
             if (current?.history?.present?.revision == recipe.revision) {
@@ -1654,13 +1934,85 @@ class GalleryViewModel @Inject constructor(
             }
             return
         }
+        val originalPreview = if (currentBeforeRender?.content?.originalPreview == null) {
+            runCatching {
+                if (currentBeforeRender?.content?.isRaw == true) {
+                    rawPreviewSession?.renderPreview(RawDevelopmentSettings(), 1_600)
+                        ?: RawDeveloper(
+                            getApplication<Application>().contentResolver,
+                            java.io.File(getApplication<Application>().cacheDir, "raw-scratch"),
+                        ).renderPreview(mediaUri(media), RawDevelopmentSettings(), 1_600)
+                } else {
+                    PhotoImageRenderer(getApplication<Application>().contentResolver).renderPreview(
+                        mediaUri(media),
+                        EditRecipe.forSource(media.key, media.generationModified),
+                        1_600,
+                    )
+                }
+            }.getOrNull()
+        } else currentBeforeRender.content.originalPreview
+        val cropSourceRecipe = baseRecipe.copy(
+            operations = recipe.operations.filter { it is EditOperation.Rotate || it is EditOperation.Flip },
+        )
+        val cropSourcePreview = runCatching {
+            if (cropSourceRecipe.isIdentity) {
+                originalPreview
+            } else if (currentBeforeRender?.content?.isRaw == true) {
+                val developed = rawPreviewSession?.renderPreview(
+                    currentBeforeRender.content.rawSettings,
+                    1_600,
+                ) ?: RawDeveloper(
+                    getApplication<Application>().contentResolver,
+                    java.io.File(getApplication<Application>().cacheDir, "raw-scratch"),
+                ).renderPreview(mediaUri(media), currentBeforeRender.content.rawSettings, 1_600)
+                PhotoImageRenderer(getApplication<Application>().contentResolver).renderDecoded(
+                    developed,
+                    cropSourceRecipe,
+                )
+            } else PhotoImageRenderer(getApplication<Application>().contentResolver).renderPreview(
+                mediaUri(media), cropSourceRecipe, 1_600,
+            )
+        }.getOrNull()
         val current = mutablePhotoEditor.value
         if (current?.history?.present?.revision == recipe.revision) {
             current.content.preview?.takeIf { it !== preview }?.recycle()
+            current.content.cropSourcePreview?.takeIf {
+                it !== preview && it !== originalPreview && it !== cropSourcePreview
+            }?.recycle()
             mutablePhotoEditor.value = current.copy(
-                content = current.content.copy(preview = preview, isRendering = false),
+                content = current.content.copy(
+                    preview = preview,
+                    originalPreview = originalPreview,
+                    cropSourcePreview = cropSourcePreview,
+                    isRendering = false,
+                ),
             )
-        } else preview.recycle()
+            if (!current.content.isRaw && current.content.autoEnhancementSuggestions == null) {
+                startPhotoAutoEnhancementAnalysis(current.media, originalPreview ?: preview)
+            }
+        } else {
+            preview.recycle()
+            cropSourcePreview?.takeIf { it !== originalPreview && it !== preview }?.recycle()
+            originalPreview?.takeIf {
+                it !== currentBeforeRender?.content?.originalPreview && it !== preview
+            }?.recycle()
+        }
+    }
+
+    private fun startPhotoAutoEnhancementAnalysis(media: TimelineMedia, source: Bitmap) {
+        photoAutoEnhancementJob?.cancel()
+        val generation = ++photoAutoEnhancementGeneration
+        photoAutoEnhancementJob = viewModelScope.launch(Dispatchers.Default) {
+            val suggestions = runCatching { PhotoAutoEnhancementAnalyzer.analyze(source) }.getOrNull()
+            val current = mutablePhotoEditor.value
+            if (generation != photoAutoEnhancementGeneration || current?.media?.key != media.key) return@launch
+            mutablePhotoEditor.value = current.copy(
+                content = current.content.copy(
+                    autoEnhancementSuggestions = suggestions,
+                    isAutoEnhancementAnalyzing = false,
+                ),
+            )
+        }
     }
 
     fun openVideoEditor(media: TimelineMedia) {
@@ -1708,6 +2060,7 @@ class GalleryViewModel @Inject constructor(
             val customLut = recipe.colorGrade.lut.customId?.let { lutRepository.load(it) }
             mutableVideoEditor.value = VideoEditorSession(
                 media = media,
+                baselineRecipe = if (stored == null) recipe else VideoEditRecipe(),
                 recipe = recipe,
                 content = VideoEditorContentState(
                     durationMillis = media.durationMillis,
@@ -1716,12 +2069,16 @@ class GalleryViewModel @Inject constructor(
                     speed = recipe.speed,
                     originalAudioVolume = recipe.originalAudioVolume,
                     selectedMusicName = recipe.musicUri?.lastPathSegment,
+                    selectedMusicUri = recipe.musicUri,
+                    musicVolume = recipe.musicVolume,
                     colorGrade = recipe.colorGrade,
                     customLuts = lutRepository.summaries(),
                     activeCustomLut = customLut,
                     outputQuality = recipe.outputQuality,
+                    geometry = recipe.geometry,
                     isHevcMain10Available = supportsMain10,
                     slowMotionSegments = recipe.slowMotionSegments,
+                    isDirty = stored != null,
                     logDetectionMessage = if (detection.confidence >= 0.8f) {
                         getApplication<Application>().getString(
                             com.ugallery.feature.videoeditor.R.string.video_editor_detected_profile,
@@ -1756,6 +2113,7 @@ class GalleryViewModel @Inject constructor(
         mutableVideoEditor.value = session.copy(
             recipe = recipe,
             content = session.content.copy(
+                isDirty = recipe != session.baselineRecipe,
                 trimStartMillis = start,
                 trimEndMillis = end,
                 slowMotionSegments = adjustedSegments,
@@ -1769,7 +2127,10 @@ class GalleryViewModel @Inject constructor(
     fun setVideoSpeed(speed: Float) {
         val session = mutableVideoEditor.value ?: return
         val recipe = session.recipe.copy(speed = speed)
-        mutableVideoEditor.value = session.copy(recipe = recipe, content = session.content.copy(speed = speed))
+        mutableVideoEditor.value = session.copy(
+            recipe = recipe,
+            content = session.content.copy(speed = speed, isDirty = recipe != session.baselineRecipe),
+        )
         persistVideoRecipe(recipe)
     }
 
@@ -1810,6 +2171,7 @@ class GalleryViewModel @Inject constructor(
         mutableVideoEditor.value = session.copy(
             recipe = recipe,
             content = session.content.copy(
+                isDirty = recipe != session.baselineRecipe,
                 slowMotionSegments = segments,
                 selectedSlowMotionSegmentId = candidate.id,
                 slowMotionMarkInMillis = null,
@@ -1838,7 +2200,7 @@ class GalleryViewModel @Inject constructor(
         val recipe = session.recipe.copy(slowMotionSegments = replacement)
         mutableVideoEditor.value = session.copy(
             recipe = recipe,
-            content = session.content.copy(slowMotionSegments = replacement, statusMessage = null),
+            content = session.content.copy(slowMotionSegments = replacement, statusMessage = null, isDirty = recipe != session.baselineRecipe),
         )
         persistVideoRecipe(recipe)
     }
@@ -1851,6 +2213,7 @@ class GalleryViewModel @Inject constructor(
             recipe = recipe,
             content = session.content.copy(
                 slowMotionSegments = segments,
+                isDirty = recipe != session.baselineRecipe,
                 selectedSlowMotionSegmentId = null,
                 statusMessage = null,
             ),
@@ -1892,7 +2255,7 @@ class GalleryViewModel @Inject constructor(
                         },
                     ),
                 )
-                PendingMediaWriter(getApplication<Application>().contentResolver).publishFile(
+                val published = PendingMediaWriter(getApplication<Application>().contentResolver).publishFile(
                     temp,
                     MediaWriteSpec(
                         MediaStore.VOLUME_EXTERNAL_PRIMARY,
@@ -1925,7 +2288,10 @@ class GalleryViewModel @Inject constructor(
     fun setVideoOriginalVolume(volume: Float) {
         val session = mutableVideoEditor.value ?: return
         val recipe = session.recipe.copy(originalAudioVolume = volume)
-        mutableVideoEditor.value = session.copy(recipe = recipe, content = session.content.copy(originalAudioVolume = volume))
+        mutableVideoEditor.value = session.copy(
+            recipe = recipe,
+            content = session.content.copy(originalAudioVolume = volume, isDirty = recipe != session.baselineRecipe),
+        )
         persistVideoRecipe(recipe)
     }
 
@@ -1934,18 +2300,40 @@ class GalleryViewModel @Inject constructor(
         val recipe = session.recipe.copy(musicUri = uri)
         mutableVideoEditor.value = session.copy(
             recipe = recipe,
-            content = session.content.copy(selectedMusicName = displayName),
+            content = session.content.copy(
+                selectedMusicName = displayName,
+                selectedMusicUri = uri,
+                isDirty = recipe != session.baselineRecipe,
+            ),
         )
         persistVideoRecipe(recipe)
     }
 
     fun removeVideoMusic() {
         val session = mutableVideoEditor.value ?: return
+        val recipe = session.recipe.copy(musicUri = null)
         mutableVideoEditor.value = session.copy(
-            recipe = session.recipe.copy(musicUri = null),
-            content = session.content.copy(selectedMusicName = null),
+            recipe = recipe,
+            content = session.content.copy(
+                selectedMusicName = null,
+                selectedMusicUri = null,
+                isDirty = recipe != session.baselineRecipe,
+            ),
         )
-        persistVideoRecipe(session.recipe.copy(musicUri = null))
+        persistVideoRecipe(recipe)
+    }
+
+    fun setVideoMusicVolume(volume: Float) {
+        val session = mutableVideoEditor.value ?: return
+        val recipe = session.recipe.copy(musicVolume = volume.coerceIn(0f, 1f))
+        mutableVideoEditor.value = session.copy(
+            recipe = recipe,
+            content = session.content.copy(
+                musicVolume = recipe.musicVolume,
+                isDirty = recipe != session.baselineRecipe,
+            ),
+        )
+        persistVideoRecipe(recipe)
     }
 
     fun setVideoColorGrade(grade: VideoColorGrade) {
@@ -1953,7 +2341,12 @@ class GalleryViewModel @Inject constructor(
         val recipe = session.recipe.copy(colorGrade = grade)
         mutableVideoEditor.value = session.copy(
             recipe = recipe,
-            content = session.content.copy(colorGrade = grade, activeCustomLut = null, statusMessage = null),
+            content = session.content.copy(
+                colorGrade = grade,
+                activeCustomLut = null,
+                statusMessage = null,
+                isDirty = recipe != session.baselineRecipe,
+            ),
         )
         persistVideoRecipe(recipe)
         val customId = grade.lut.customId ?: return
@@ -1973,7 +2366,20 @@ class GalleryViewModel @Inject constructor(
         val recipe = session.recipe.copy(outputQuality = quality)
         mutableVideoEditor.value = session.copy(
             recipe = recipe,
-            content = session.content.copy(outputQuality = quality),
+            content = session.content.copy(outputQuality = quality, isDirty = recipe != session.baselineRecipe),
+        )
+        persistVideoRecipe(recipe)
+    }
+
+    fun setVideoGeometry(geometry: VideoGeometry) {
+        val session = mutableVideoEditor.value ?: return
+        val recipe = session.recipe.copy(geometry = geometry)
+        mutableVideoEditor.value = session.copy(
+            recipe = recipe,
+            content = session.content.copy(
+                geometry = geometry,
+                isDirty = recipe != session.baselineRecipe,
+            ),
         )
         persistVideoRecipe(recipe)
     }
@@ -2060,7 +2466,7 @@ class GalleryViewModel @Inject constructor(
                         },
                     ),
                 )
-                PendingMediaWriter(getApplication<Application>().contentResolver).publishFile(
+                val published = PendingMediaWriter(getApplication<Application>().contentResolver).publishFile(
                     result.output,
                     MediaWriteSpec(
                         MediaStore.VOLUME_EXTERNAL_PRIMARY,
@@ -2070,18 +2476,7 @@ class GalleryViewModel @Inject constructor(
                         "Movies/UGallery",
                     ),
                 )
-                mutableVideoEditor.value = mutableVideoEditor.value?.copy(
-                    content = mutableVideoEditor.value!!.content.copy(
-                        isExporting = false,
-                        exportProgress = null,
-                        statusMessage = getApplication<Application>().getString(
-                            if (result.fallbackWarning == null) {
-                                com.ugallery.feature.videoeditor.R.string.video_editor_copy_saved
-                            } else com.ugallery.feature.videoeditor.R.string.video_editor_encoder_fallback
-                        ),
-                    ),
-                )
-                refreshLibrary()
+                finishEditorCopy(published, MediaKind.Video)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Throwable) {
@@ -2108,22 +2503,109 @@ class GalleryViewModel @Inject constructor(
         if (session != null) viewModelScope.launch {
             val active = runtime.value ?: return@launch
             withContext(Dispatchers.IO) {
-                active.database.colorEditDao().saveVideoRecipe(
-                    VideoEditRecipeEntity(
-                        session.media.key.volumeName,
-                        session.media.key.mediaStoreId,
-                        session.media.generationModified,
-                        VideoEditRecipeCodec.encode(session.recipe),
-                        System.currentTimeMillis(),
-                    ),
+                active.database.colorEditDao().deleteVideoRecipes(
+                    session.media.key.volumeName,
+                    session.media.key.mediaStoreId,
                 )
             }
         }
         mutableVideoEditor.value = null
     }
 
+    private suspend fun finishEditorCopy(copy: PublishedCopy, kind: MediaKind) {
+        val photoSession = mutablePhotoEditor.value
+        val videoSession = mutableVideoEditor.value
+        val active = runtime.value
+        withContext(Dispatchers.IO) {
+            if (photoSession != null) active?.database?.editRecipeDao()
+                ?.deleteRecipe(photoSession.history.present.recipeId)
+            if (videoSession != null) active?.database?.colorEditDao()
+                ?.deleteVideoRecipes(videoSession.media.key.volumeName, videoSession.media.key.mediaStoreId)
+        }
+        photoSession?.content?.preview?.recycle()
+        photoSession?.content?.originalPreview
+            ?.takeIf { it !== photoSession.content.preview }
+            ?.recycle()
+        photoSession?.content?.cropSourcePreview
+            ?.takeIf { it !== photoSession.content.preview && it !== photoSession.content.originalPreview }
+            ?.recycle()
+        mutablePhotoEditor.value = null
+        mutableVideoEditor.value = null
+        refreshLibrary()
+        val media = publishedTimelineMedia(copy.uri, kind)
+        if (media != null) openMedia(media)
+        mutableEditorCopyOpened.emit(Unit)
+    }
+
+    private suspend fun publishedTimelineMedia(uri: Uri, kind: MediaKind): TimelineMedia? =
+        withContext(Dispatchers.IO) {
+            val projection = arrayOf(
+                MediaStore.MediaColumns._ID,
+                MediaStore.MediaColumns.GENERATION_MODIFIED,
+                MediaStore.MediaColumns.DATE_TAKEN,
+                MediaStore.MediaColumns.DATE_ADDED,
+                MediaStore.MediaColumns.WIDTH,
+                MediaStore.MediaColumns.HEIGHT,
+                MediaStore.MediaColumns.DURATION,
+                MediaStore.MediaColumns.DISPLAY_NAME,
+                MediaStore.MediaColumns.SIZE,
+                MediaStore.MediaColumns.DATE_MODIFIED,
+            )
+            getApplication<Application>().contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                if (!cursor.moveToFirst()) return@withContext null
+                val dateAddedSeconds = cursor.getLong(3)
+                TimelineMedia(
+                    key = MediaKey(MediaStore.getVolumeName(uri), cursor.getLong(0)),
+                    kind = kind,
+                    generationModified = cursor.getLong(1),
+                    timelineSortMillis = cursor.getLong(2).takeIf { it > 0 } ?: dateAddedSeconds * 1_000,
+                    width = cursor.getInt(4),
+                    height = cursor.getInt(5),
+                    durationMillis = cursor.getLong(6),
+                    displayName = cursor.getString(7),
+                    sizeBytes = cursor.getLong(8),
+                    dateModifiedSeconds = cursor.getLong(9),
+                )
+            }
+        }
+
     private fun selectedFilter(recipe: EditRecipe): String =
         recipe.operations.asReversed().filterIsInstance<EditOperation.Filter>().firstOrNull()?.name ?: "none"
+
+    private fun selectedTone(recipe: EditRecipe): EditOperation.Tone =
+        recipe.operations.asReversed().filterIsInstance<EditOperation.Tone>().firstOrNull()
+            ?: EditOperation.Tone()
+
+    private fun selectedRawSettings(recipe: EditRecipe): RawDevelopmentSettings =
+        recipe.operations.asReversed().filterIsInstance<EditOperation.RawDevelop>()
+            .firstOrNull()?.settings ?: RawDevelopmentSettings()
+
+    private fun photoColorOperations(recipe: EditRecipe): List<EditOperation> =
+        recipe.operations.filter { it is EditOperation.Tone || it is EditOperation.Filter }
+
+    private fun photoBaseOperations(recipe: EditRecipe): List<EditOperation> =
+        recipe.operations.filterNot { it is EditOperation.Tone || it is EditOperation.Filter }
+
+    private fun replacePhotoColorOperation(
+        operations: List<EditOperation>,
+        tone: EditOperation.Tone,
+    ): List<EditOperation> {
+        val replacement = tone.takeUnless { it == EditOperation.Tone() }
+        val result = operations.toMutableList()
+        val index = result.indexOfFirst { it is EditOperation.Tone }
+        when {
+            index >= 0 && replacement != null -> result[index] = replacement
+            index >= 0 -> result.removeAt(index)
+            replacement != null -> result += replacement
+        }
+        return result.filter { it is EditOperation.Tone || it is EditOperation.Filter }
+    }
+
+    private fun selectedCrop(recipe: EditRecipe): EditOperation.Crop? =
+        recipe.operations.filterIsInstance<EditOperation.Crop>().firstOrNull()
+
+    private fun selectedStraighten(recipe: EditRecipe): Float =
+        recipe.operations.filterIsInstance<EditOperation.Straighten>().firstOrNull()?.degrees ?: 0f
 
     private fun imageExportMime(sourceMime: String?): String = when (sourceMime?.lowercase()) {
         "image/png", "image/webp" -> sourceMime.lowercase()
@@ -2424,7 +2906,7 @@ class GalleryViewModel @Inject constructor(
             scanner = InitialMediaScanner(reader, store, { permissions.access.value }),
             synchronizer = IncrementalMediaSynchronizer(reader, store, { permissions.access.value }),
             generations = MediaStoreGenerationProbe(context),
-            thumbnails = ThumbnailLoader.native(decoder, maxCache),
+            thumbnails = ThumbnailLoader.native(context, decoder, maxCache),
             decoder = decoder,
             albums = GalleryAlbumRepository(database),
             trash = GalleryTrashRepository(database),

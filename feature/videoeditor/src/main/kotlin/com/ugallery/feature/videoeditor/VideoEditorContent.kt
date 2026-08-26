@@ -1,6 +1,7 @@
 package com.ugallery.feature.videoeditor
 
 import android.view.SurfaceView
+import android.net.Uri
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
@@ -78,6 +79,7 @@ import com.ugallery.core.editing.video.RealtimeColorLut
 import com.ugallery.core.editing.video.VideoColorGrade
 import com.ugallery.core.editing.video.VideoColorGradeEffects
 import com.ugallery.core.editing.video.VideoOutputQuality
+import com.ugallery.core.editing.video.VideoGeometry
 import com.ugallery.core.editing.video.SlowMotionAudioMode
 import com.ugallery.core.editing.video.SlowMotionSegment
 import kotlinx.coroutines.Dispatchers
@@ -100,12 +102,16 @@ data class VideoEditorContentState(
     val speed: Float = 1f,
     val originalAudioVolume: Float = 1f,
     val selectedMusicName: String? = null,
+    val selectedMusicUri: Uri? = null,
+    val musicVolume: Float = 0.6f,
     val isExporting: Boolean = false,
+    val isDirty: Boolean = false,
     val statusMessage: String? = null,
     val colorGrade: VideoColorGrade = VideoColorGrade(),
     val customLuts: List<CustomLutOption> = emptyList(),
     val activeCustomLut: CubeLut? = null,
     val outputQuality: VideoOutputQuality = VideoOutputQuality.H264Compatible,
+    val geometry: VideoGeometry = VideoGeometry(),
     val logDetectionMessage: String? = null,
     val isHevcMain10Available: Boolean = false,
     val slowMotionSegments: List<SlowMotionSegment> = emptyList(),
@@ -124,10 +130,12 @@ fun VideoEditorContent(
     onOriginalVolumeChange: (Float) -> Unit,
     onChooseMusic: () -> Unit,
     onRemoveMusic: () -> Unit,
+    onMusicVolumeChange: (Float) -> Unit = {},
     onSeek: (Long) -> Unit,
     onTrimChange: (Long, Long) -> Unit,
     onColorGradeChange: (VideoColorGrade) -> Unit = {},
     onOutputQualityChange: (VideoOutputQuality) -> Unit = {},
+    onGeometryChange: (VideoGeometry) -> Unit = {},
     onImportLut: () -> Unit = {},
     onMarkSlowMotionIn: (Long) -> Unit = {},
     onMarkSlowMotionOut: (Long) -> Unit = {},
@@ -138,12 +146,71 @@ fun VideoEditorContent(
     modifier: Modifier = Modifier,
 ) {
     var previewPositionMillis by remember(controller) { mutableLongStateOf(state.currentMillis) }
+    val context = LocalContext.current
+    val musicController = remember(state.selectedMusicUri) {
+        state.selectedMusicUri?.let { uri ->
+            VideoViewerController(context, initialLooping = true).also {
+                it.select(uri, autoplay = true)
+                it.setVolume(state.musicVolume)
+            }
+        }
+    }
+    DisposableEffect(musicController) { onDispose { musicController?.close() } }
     LaunchedEffect(controller) {
         controller?.setLooping(true)
     }
-    LaunchedEffect(controller) {
+    LaunchedEffect(
+        controller,
+        state.trimStartMillis,
+        state.trimEndMillis,
+        state.speed,
+        state.originalAudioVolume,
+        state.musicVolume,
+        musicController,
+        state.slowMotionSegments,
+    ) {
+        var appliedSpeed = Float.NaN
+        var appliedVolume = Float.NaN
         while (true) {
-            previewPositionMillis = controller?.currentPositionMillis() ?: state.currentMillis
+            val position = controller?.currentPositionMillis() ?: state.currentMillis
+            val trimEnd = state.trimEndMillis.takeIf { it > state.trimStartMillis }
+                ?: state.durationMillis
+            if (controller != null && (position < state.trimStartMillis || position >= trimEnd)) {
+                controller.seekTo(state.trimStartMillis)
+                previewPositionMillis = state.trimStartMillis
+            } else {
+                previewPositionMillis = position
+            }
+            val slowSegment = state.slowMotionSegments.firstOrNull {
+                previewPositionMillis in it.startMillis until it.endMillis
+            }
+            val desiredSpeed = slowSegment?.speed ?: state.speed
+            val desiredVolume = if (slowSegment?.audioMode == SlowMotionAudioMode.Muted) {
+                0f
+            } else state.originalAudioVolume
+            if (controller != null && desiredSpeed != appliedSpeed) {
+                controller.setPlaybackSpeed(desiredSpeed)
+                appliedSpeed = desiredSpeed
+            }
+            if (controller != null && desiredVolume != appliedVolume) {
+                controller.setVolume(desiredVolume)
+                appliedVolume = desiredVolume
+            }
+            if (musicController != null) {
+                musicController.setVolume(state.musicVolume)
+                val musicPosition = musicController.currentPositionMillis()
+                val desiredPosition = editedTimelinePosition(
+                    previewPositionMillis,
+                    state.trimStartMillis,
+                    state.speed,
+                    state.slowMotionSegments,
+                )
+                if (kotlin.math.abs(musicPosition - desiredPosition) > 350) {
+                    musicController.seekTo(desiredPosition)
+                }
+                val mainReady = controller?.state?.value as? VideoViewerState.Ready
+                if (mainReady?.isPlaying == true) musicController.play() else musicController.pause()
+            }
             delay(100)
         }
     }
@@ -157,9 +224,11 @@ fun VideoEditorContent(
             )
         }
     }
-    LaunchedEffect(controller, realtimeColorLut) {
+    LaunchedEffect(controller, realtimeColorLut, state.geometry) {
         if (controller != null && realtimeColorLut != null) {
-            controller.setVideoEffects(listOf(realtimeColorLut))
+            controller.setVideoEffects(
+                VideoColorGradeEffects.geometryEffects(state.geometry) + realtimeColorLut,
+            )
         }
     }
     val gradePreviewRequests = remember(controller) {
@@ -247,8 +316,10 @@ fun VideoEditorContent(
                         onOriginalVolumeChange = onOriginalVolumeChange,
                         onChooseMusic = onChooseMusic,
                         onRemoveMusic = onRemoveMusic,
+                        onMusicVolumeChange = onMusicVolumeChange,
                         onColorGradeChange = onColorGradeChange,
                         onOutputQualityChange = onOutputQualityChange,
+                        onGeometryChange = onGeometryChange,
                         onImportLut = onImportLut,
                         onMarkSlowMotionIn = onMarkSlowMotionIn,
                         onMarkSlowMotionOut = onMarkSlowMotionOut,
@@ -275,8 +346,10 @@ fun VideoEditorContent(
                         onOriginalVolumeChange = onOriginalVolumeChange,
                         onChooseMusic = onChooseMusic,
                         onRemoveMusic = onRemoveMusic,
+                        onMusicVolumeChange = onMusicVolumeChange,
                         onColorGradeChange = onColorGradeChange,
                         onOutputQualityChange = onOutputQualityChange,
+                        onGeometryChange = onGeometryChange,
                         onImportLut = onImportLut,
                         onMarkSlowMotionIn = onMarkSlowMotionIn,
                         onMarkSlowMotionOut = onMarkSlowMotionOut,
@@ -290,6 +363,29 @@ fun VideoEditorContent(
             }
         }
     }
+}
+
+private fun editedTimelinePosition(
+    sourcePositionMillis: Long,
+    trimStartMillis: Long,
+    baseSpeed: Float,
+    slowSegments: List<SlowMotionSegment>,
+): Long {
+    val target = sourcePositionMillis.coerceAtLeast(trimStartMillis)
+    var cursor = trimStartMillis
+    var outputMillis = 0.0
+    slowSegments.forEach { segment ->
+        if (target <= cursor) return outputMillis.toLong()
+        val normalEnd = minOf(target, segment.startMillis)
+        outputMillis += (normalEnd - cursor).coerceAtLeast(0) / baseSpeed.toDouble()
+        if (target <= segment.startMillis) return outputMillis.toLong()
+        val slowEnd = minOf(target, segment.endMillis)
+        outputMillis += (slowEnd - segment.startMillis).coerceAtLeast(0) / segment.speed.toDouble()
+        if (target <= segment.endMillis) return outputMillis.toLong()
+        cursor = segment.endMillis
+    }
+    outputMillis += (target - cursor).coerceAtLeast(0) / baseSpeed.toDouble()
+    return outputMillis.toLong()
 }
 
 @Composable
@@ -346,8 +442,10 @@ private fun VideoEditingPanel(
     onOriginalVolumeChange: (Float) -> Unit,
     onChooseMusic: () -> Unit,
     onRemoveMusic: () -> Unit,
+    onMusicVolumeChange: (Float) -> Unit,
     onColorGradeChange: (VideoColorGrade) -> Unit,
     onOutputQualityChange: (VideoOutputQuality) -> Unit,
+    onGeometryChange: (VideoGeometry) -> Unit,
     onImportLut: () -> Unit,
     onMarkSlowMotionIn: (Long) -> Unit,
     onMarkSlowMotionOut: (Long) -> Unit,
@@ -365,10 +463,24 @@ private fun VideoEditingPanel(
                     onTrimChange = onTrimChange,
                 )
         VideoControls(
-            state, currentMillis, onSpeedChange, onOriginalVolumeChange, onChooseMusic, onRemoveMusic,
-            onColorGradeChange, onOutputQualityChange, onImportLut, onMarkSlowMotionIn,
-            onMarkSlowMotionOut, onSelectSlowMotionSegment, onUpdateSlowMotionSegment,
-            onDeleteSlowMotionSegment, onCancelExport, Modifier.weight(1f),
+            state = state,
+            currentMillis = currentMillis,
+            onSpeedChange = onSpeedChange,
+            onOriginalVolumeChange = onOriginalVolumeChange,
+            onChooseMusic = onChooseMusic,
+            onRemoveMusic = onRemoveMusic,
+            onMusicVolumeChange = onMusicVolumeChange,
+            onColorGradeChange = onColorGradeChange,
+            onOutputQualityChange = onOutputQualityChange,
+            onGeometryChange = onGeometryChange,
+            onImportLut = onImportLut,
+            onMarkSlowMotionIn = onMarkSlowMotionIn,
+            onMarkSlowMotionOut = onMarkSlowMotionOut,
+            onSelectSlowMotionSegment = onSelectSlowMotionSegment,
+            onUpdateSlowMotionSegment = onUpdateSlowMotionSegment,
+            onDeleteSlowMotionSegment = onDeleteSlowMotionSegment,
+            onCancelExport = onCancelExport,
+            modifier = Modifier.weight(1f),
         )
     }
 }
@@ -500,8 +612,10 @@ private fun VideoControls(
     onOriginalVolumeChange: (Float) -> Unit,
     onChooseMusic: () -> Unit,
     onRemoveMusic: () -> Unit,
+    onMusicVolumeChange: (Float) -> Unit,
     onColorGradeChange: (VideoColorGrade) -> Unit,
     onOutputQualityChange: (VideoOutputQuality) -> Unit,
+    onGeometryChange: (VideoGeometry) -> Unit,
     onImportLut: () -> Unit,
     onMarkSlowMotionIn: (Long) -> Unit,
     onMarkSlowMotionOut: (Long) -> Unit,
@@ -519,6 +633,7 @@ private fun VideoControls(
                 stringResource(R.string.video_editor_audio),
                 stringResource(R.string.video_editor_music),
                 stringResource(R.string.video_editor_color),
+                stringResource(R.string.video_editor_transform),
                 stringResource(R.string.video_editor_export),
             ),
             selectedIndex = selectedTab,
@@ -528,6 +643,7 @@ private fun VideoControls(
                 GalleryIcons.Volume,
                 GalleryIcons.Music,
                 GalleryIcons.Palette,
+                GalleryIcons.Crop,
                 GalleryIcons.Edit,
             ),
             modifier = Modifier.padding(horizontal = GallerySpacing.Md, vertical = GallerySpacing.Sm),
@@ -564,11 +680,18 @@ private fun VideoControls(
                     }
                 } else {
                     Text(state.selectedMusicName)
+                    Text(stringResource(R.string.video_editor_music_volume))
+                    Slider(
+                        value = state.musicVolume,
+                        onValueChange = onMusicVolumeChange,
+                        valueRange = 0f..1f,
+                    )
                     TextButton(onClick = onRemoveMusic) { Text(stringResource(R.string.video_editor_remove_music)) }
                 }
             }
             3 -> ColorControls(state, onColorGradeChange, onImportLut, Modifier.weight(1f))
-            4 -> ExportControls(state.outputQuality, state.isHevcMain10Available, onOutputQualityChange)
+            4 -> TransformControls(state.geometry, onGeometryChange)
+            5 -> ExportControls(state.outputQuality, state.isHevcMain10Available, onOutputQualityChange)
         }
         state.statusMessage?.let {
             Text(it, Modifier.padding(horizontal = GallerySpacing.Lg), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -606,8 +729,12 @@ private fun SlowMotionControls(
             Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
         ) {
-            listOf(1f to R.string.video_editor_speed_normal, 2f to R.string.video_editor_speed_fast).forEach { (speed, label) ->
-                FilterChip(state.speed == speed, { onSpeedChange(speed) }, label = { Text(stringResource(label)) })
+            listOf(0.25f, 0.5f, 1f, 1.5f, 2f, 4f).forEach { speed ->
+                FilterChip(
+                    selected = state.speed == speed,
+                    onClick = { onSpeedChange(speed) },
+                    label = { Text("${speed}×") },
+                )
             }
         }
         Row(
@@ -847,6 +974,66 @@ private fun ExportControls(selected: VideoOutputQuality, isHevcMain10Available: 
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+}
+
+@Composable
+private fun TransformControls(geometry: VideoGeometry, onChange: (VideoGeometry) -> Unit) {
+    val fineRotation = ((geometry.rotationDegrees + 45f) % 90f + 90f) % 90f - 45f
+    val quarterRotation = geometry.rotationDegrees - fineRotation
+    Column(
+        Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(GallerySpacing.Md),
+        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+    ) {
+        Text(stringResource(R.string.video_editor_crop_horizontal), style = MaterialTheme.typography.labelLarge)
+        RangeSlider(
+            value = geometry.left..geometry.right,
+            onValueChange = {
+                val left = it.start.coerceAtMost(it.endInclusive - 0.02f).coerceAtLeast(0f)
+                val right = it.endInclusive.coerceAtLeast(left + 0.02f).coerceAtMost(1f)
+                onChange(geometry.copy(left = left, right = right))
+            },
+            valueRange = 0f..1f,
+        )
+        Text(stringResource(R.string.video_editor_crop_vertical), style = MaterialTheme.typography.labelLarge)
+        RangeSlider(
+            value = geometry.top..geometry.bottom,
+            onValueChange = {
+                val top = it.start.coerceAtMost(it.endInclusive - 0.02f).coerceAtLeast(0f)
+                val bottom = it.endInclusive.coerceAtLeast(top + 0.02f).coerceAtMost(1f)
+                onChange(geometry.copy(top = top, bottom = bottom))
+            },
+            valueRange = 0f..1f,
+        )
+        Text(stringResource(R.string.video_editor_straighten), style = MaterialTheme.typography.labelLarge)
+        Slider(
+            value = fineRotation,
+            onValueChange = {
+                onChange(geometry.copy(rotationDegrees = normalizeVideoRotation(quarterRotation + it)))
+            },
+            valueRange = -45f..45f,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
+            OutlinedButton(onClick = {
+                val rotated = normalizeVideoRotation(geometry.rotationDegrees + 90f)
+                onChange(geometry.copy(rotationDegrees = rotated))
+            }) { Text(stringResource(R.string.video_editor_rotate_90)) }
+            FilterChip(
+                selected = geometry.flipHorizontal,
+                onClick = { onChange(geometry.copy(flipHorizontal = !geometry.flipHorizontal)) },
+                label = { Text(stringResource(R.string.video_editor_flip_horizontal)) },
+            )
+            TextButton(onClick = { onChange(VideoGeometry()) }) {
+                Text(stringResource(R.string.video_editor_reset_transform))
+            }
+        }
+    }
+}
+
+private fun normalizeVideoRotation(value: Float): Float {
+    var result = value
+    while (result > 315f) result -= 360f
+    while (result < -45f) result += 360f
+    return result
 }
 
 private fun formatMillis(value: Long): String {

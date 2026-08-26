@@ -74,4 +74,12 @@
     <string name="video_editor_cancel_export">Annulla esportazione</string>
     <string name="video_editor_slow_overlap">I segmenti al rallentatore non possono sovrapporsi</string>
     <string name="video_editor_slow_invalid_range">La fine deve essere dopo l’inizio</string>
+    <string name="video_editor_transform">Trasforma</string>
+    <string name="video_editor_crop_horizontal">Ritaglio orizzontale</string>
+    <string name="video_editor_crop_vertical">Ritaglio verticale</string>
+    <string name="video_editor_straighten">Raddrizza</string>
+    <string name="video_editor_rotate_90">Ruota di 90°</string>
+    <string name="video_editor_flip_horizontal">Capovolgi</string>
+    <string name="video_editor_reset_transform">Reimposta</string>
+    <string name="video_editor_music_volume">Volume musica</string>
 </resources>

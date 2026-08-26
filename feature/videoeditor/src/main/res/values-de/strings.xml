@@ -74,4 +74,12 @@
     <string name="video_editor_cancel_export">Export abbrechen</string>
     <string name="video_editor_slow_overlap">Zeitlupensegmente dürfen sich nicht überlappen</string>
     <string name="video_editor_slow_invalid_range">Das Ende muss nach dem Start liegen</string>
+    <string name="video_editor_transform">Transformieren</string>
+    <string name="video_editor_crop_horizontal">Horizontal zuschneiden</string>
+    <string name="video_editor_crop_vertical">Vertikal zuschneiden</string>
+    <string name="video_editor_straighten">Begradigen</string>
+    <string name="video_editor_rotate_90">Um 90° drehen</string>
+    <string name="video_editor_flip_horizontal">Spiegeln</string>
+    <string name="video_editor_reset_transform">Zurücksetzen</string>
+    <string name="video_editor_music_volume">Musiklautstärke</string>
 </resources>

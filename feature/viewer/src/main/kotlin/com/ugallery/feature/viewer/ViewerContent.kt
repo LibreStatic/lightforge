@@ -88,6 +88,7 @@ import com.ugallery.core.designsystem.GalleryExpressiveButton
 import com.ugallery.core.designsystem.GalleryLoadingIndicator
 import com.ugallery.core.designsystem.GalleryMotionEdge
 import com.ugallery.core.designsystem.GalleryOverlayTokens
+import com.ugallery.core.designsystem.rememberGalleryReducedMotion
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
@@ -106,8 +107,12 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.media.AudioManager
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -969,7 +974,53 @@ private fun PhotoSurface(
     zoomTapGeneration: Int,
     onZoomedChange: (Boolean) -> Unit,
 ) {
+    val reducedMotion = rememberGalleryReducedMotion()
+    val motionScheme = MaterialTheme.motionScheme
+    AnimatedContent(
+        targetState = state,
+        contentKey = { current ->
+            when (current) {
+                is PhotoLoadState.Thumbnail -> "thumbnail"
+                is PhotoLoadState.Ready -> "ready"
+                is PhotoLoadState.Error -> "error"
+                null -> "loading"
+            }
+        },
+        transitionSpec = {
+            if (reducedMotion) {
+                EnterTransition.None togetherWith ExitTransition.None
+            } else {
+                fadeIn(motionScheme.defaultEffectsSpec()) togetherWith
+                    fadeOut(motionScheme.fastEffectsSpec())
+            }
+        },
+        modifier = Modifier.fillMaxSize(),
+    ) { current ->
+        PhotoSurfaceState(
+            state = current,
+            settings = settings,
+            zoomTapPosition = zoomTapPosition,
+            zoomTapGeneration = zoomTapGeneration,
+            onZoomedChange = onZoomedChange,
+        )
+    }
+}
+
+@Composable
+private fun PhotoSurfaceState(
+    state: PhotoLoadState?,
+    settings: GestureSettings,
+    zoomTapPosition: Offset,
+    zoomTapGeneration: Int,
+    onZoomedChange: (Boolean) -> Unit,
+) {
     when (state) {
+        is PhotoLoadState.Thumbnail -> Image(
+            bitmap = state.bitmap.asImageBitmap(),
+            contentDescription = stringResource(R.string.viewer_photo_description),
+            modifier = Modifier.fillMaxSize().background(Color.Black),
+            contentScale = ContentScale.Fit,
+        )
         is PhotoLoadState.Ready -> {
             val scope = rememberCoroutineScope()
             var containerSize by remember(state.drawable) { mutableStateOf(IntSize.Zero) }

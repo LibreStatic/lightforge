@@ -74,4 +74,12 @@
     <string name="video_editor_cancel_export">Cancelar exportação</string>
     <string name="video_editor_slow_overlap">Os trechos em câmera lenta não podem se sobrepor</string>
     <string name="video_editor_slow_invalid_range">A saída deve ficar após a entrada</string>
+    <string name="video_editor_transform">Transformar</string>
+    <string name="video_editor_crop_horizontal">Corte horizontal</string>
+    <string name="video_editor_crop_vertical">Corte vertical</string>
+    <string name="video_editor_straighten">Endireitar</string>
+    <string name="video_editor_rotate_90">Girar 90°</string>
+    <string name="video_editor_flip_horizontal">Inverter</string>
+    <string name="video_editor_reset_transform">Redefinir</string>
+    <string name="video_editor_music_volume">Volume da música</string>
 </resources>

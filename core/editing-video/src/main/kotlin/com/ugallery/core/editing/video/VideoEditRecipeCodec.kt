@@ -9,7 +9,7 @@ object VideoEditRecipeCodec {
     fun encode(recipe: VideoEditRecipe): String {
         val grade = recipe.colorGrade
         return Properties().apply {
-            setProperty("version", "2")
+            setProperty("version", "3")
             setProperty("start", recipe.startMillis.toString())
             recipe.endMillis?.let { setProperty("end", it.toString()) }
             setProperty("speed", recipe.speed.toString())
@@ -17,6 +17,10 @@ object VideoEditRecipeCodec {
             recipe.musicUri?.let { setProperty("music", it.toString()) }
             setProperty("musicVolume", recipe.musicVolume.toString())
             setProperty("quality", recipe.outputQuality.name)
+            setProperty("geometry", recipe.geometry.let {
+                listOf(it.left, it.top, it.right, it.bottom, it.rotationDegrees, it.flipHorizontal)
+                    .joinToString(",")
+            })
             setProperty("profile", grade.inputProfile.name)
             setProperty("profileAuto", grade.profileWasAutoDetected.toString())
             setProperty("exposure", grade.exposureEv.toString())
@@ -51,8 +55,10 @@ object VideoEditRecipeCodec {
 
     fun decode(encoded: String): VideoEditRecipe {
         val properties = Properties().apply { load(StringReader(encoded)) }
-        val version = properties.getProperty("version")?.toIntOrNull()
-        require(version == 1 || version == 2) { "Unsupported video recipe version" }
+        val version = requireNotNull(properties.getProperty("version")?.toIntOrNull()) {
+            "Unsupported video recipe version"
+        }
+        require(version in 1..3) { "Unsupported video recipe version" }
         val wheels = properties.getProperty("wheels", "").split(',').mapNotNull(String::toFloatOrNull)
         fun wheel(offset: Int) = if (wheels.size >= offset + 4) {
             LogWheel(wheels[offset], wheels[offset + 1], wheels[offset + 2], wheels[offset + 3])
@@ -98,6 +104,18 @@ object VideoEditRecipeCodec {
                 }.getOrNull()
             }.sortedBy(SlowMotionSegment::startMillis)
         } else emptyList()
+        val geometry = properties.getProperty("geometry", "").split(',').let { values ->
+            if (version >= 3 && values.size == 6) runCatching {
+                VideoGeometry(
+                    left = values[0].toFloat(),
+                    top = values[1].toFloat(),
+                    right = values[2].toFloat(),
+                    bottom = values[3].toFloat(),
+                    rotationDegrees = values[4].toFloat(),
+                    flipHorizontal = values[5].toBoolean(),
+                )
+            }.getOrDefault(VideoGeometry()) else VideoGeometry()
+        }
         return VideoEditRecipe(
             startMillis = properties.getProperty("start", "0").toLong(),
             endMillis = properties.getProperty("end")?.toLongOrNull(),
@@ -105,6 +123,7 @@ object VideoEditRecipeCodec {
             originalAudioVolume = floatValue(properties, "audio", 1f),
             musicUri = properties.getProperty("music")?.let(Uri::parse),
             musicVolume = floatValue(properties, "musicVolume", 0.6f),
+            geometry = geometry,
             colorGrade = grade,
             outputQuality = enumValue(properties, "quality", VideoOutputQuality.H264Compatible),
             slowMotionSegments = slowSegments,

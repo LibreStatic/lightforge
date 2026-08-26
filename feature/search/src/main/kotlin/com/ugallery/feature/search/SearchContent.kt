@@ -52,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -64,11 +65,13 @@ import com.ugallery.core.designsystem.GalleryIcons
 import com.ugallery.core.designsystem.GalleryExpressiveIconButton
 import com.ugallery.core.designsystem.GalleryLoadingIndicator
 import com.ugallery.core.designsystem.GallerySpacing
+import com.ugallery.core.designsystem.RetainGridThumbnailViewport
 import com.ugallery.core.designsystem.VideoDurationBadge
 import com.ugallery.core.designsystem.galleryAdaptiveLayoutInfo
 import com.ugallery.core.designsystem.videoDurationDescription
 import com.ugallery.core.model.MediaKind
 import com.ugallery.core.thumbnail.ThumbnailLoader
+import com.ugallery.core.thumbnail.ThumbnailPrefetchCandidate
 import com.ugallery.core.thumbnail.ThumbnailRequest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.collectLatest
@@ -289,21 +292,46 @@ private fun SearchResultsGrid(
         terminal = terminal,
         onLoadMore = onLoadMore,
     )
-    LazyVerticalGrid(
-        columns = GridCells.Adaptive(128.dp),
-        state = gridState,
-        modifier = modifier.testTag(SEARCH_RESULTS_GRID_TEST_TAG),
-        contentPadding = PaddingValues(bottom = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        items(hits, key = { "${it.key.volumeName}:${it.key.mediaStoreId}" }) { hit ->
-            SearchResultCard(hit, thumbnailLoader) { onHit(hit) }
-        }
-        if (loading && !terminal) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                SearchLoadingIndicatorRow(Modifier.padding(vertical = 12.dp))
+    BoxWithConstraints(modifier) {
+        val gap = 8.dp
+        val columns = ((maxWidth + gap) / (128.dp + gap)).toInt().coerceAtLeast(1)
+        val thumbnailSizePx = with(LocalDensity.current) {
+            ((maxWidth - gap * (columns - 1)) / columns).roundToPx()
+        }.coerceAtLeast(1)
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(columns),
+            state = gridState,
+            modifier = Modifier.fillMaxSize().testTag(SEARCH_RESULTS_GRID_TEST_TAG),
+            contentPadding = PaddingValues(bottom = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(gap),
+            verticalArrangement = Arrangement.spacedBy(gap),
+        ) {
+            items(hits, key = { "${it.key.volumeName}:${it.key.mediaStoreId}" }) { hit ->
+                SearchResultCard(hit, thumbnailLoader, thumbnailSizePx) { onHit(hit) }
             }
+            if (loading && !terminal) {
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    SearchLoadingIndicatorRow(Modifier.padding(vertical = 12.dp))
+                }
+            }
+        }
+        if (thumbnailLoader != null) {
+            RetainGridThumbnailViewport(
+                state = gridState,
+                loader = thumbnailLoader,
+                columns = columns,
+                itemCount = hits.size,
+                contentKey = hits,
+                itemAtIndex = { index ->
+                    val hit = hits.getOrNull(index) ?: return@RetainGridThumbnailViewport null
+                    ThumbnailPrefetchCandidate(
+                        request = hit.thumbnailRequest(thumbnailSizePx),
+                        sourceWidth = hit.width,
+                        sourceHeight = hit.height,
+                        distanceFromViewportCenter = 0,
+                    )
+                },
+            )
         }
     }
 }
@@ -412,8 +440,13 @@ private fun SearchDiscovery(
 }
 
 @Composable
-private fun SearchResultCard(hit: MediaSearchHit, loader: ThumbnailLoader?, onClick: () -> Unit) {
-    val request = ThumbnailRequest(hit.key, hit.generationModified, widthPx = 320, heightPx = 320)
+private fun SearchResultCard(
+    hit: MediaSearchHit,
+    loader: ThumbnailLoader?,
+    sizePx: Int,
+    onClick: () -> Unit,
+) {
+    val request = hit.thumbnailRequest(sizePx)
     val bitmap by produceState(loader?.cached(request), request, loader) {
         if (value == null && loader != null) value = runCatching { loader.load(request) }.getOrNull()
     }
@@ -448,3 +481,10 @@ private fun SearchResultCard(hit: MediaSearchHit, loader: ThumbnailLoader?, onCl
         Text(hit.displayName ?: fallbackDescription, Modifier.padding(8.dp), maxLines = 2)
     }
 }
+
+private fun MediaSearchHit.thumbnailRequest(sizePx: Int) = ThumbnailRequest(
+    mediaKey = key,
+    generationModified = generationModified,
+    widthPx = sizePx,
+    heightPx = sizePx,
+)

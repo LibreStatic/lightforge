@@ -1,6 +1,7 @@
 package com.ugallery.feature.viewer
 
 import android.content.ContentValues
+import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.provider.MediaStore
@@ -10,6 +11,7 @@ import com.ugallery.core.thumbnail.NativeImageDecoder
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -27,11 +29,14 @@ class PhotoViewerPipelineDeviceTest {
             publish("corrupt.jpg", "image/jpeg"),
         )
         try {
-            val static = pipeline.load(fixtures[0], 1_080, 2_400).toList().single()
-                as PhotoLoadState.Ready
+            val cached = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888)
+            val staticStates = pipeline.load(fixtures[0], 1_080, 2_400, cachedThumbnail = cached).toList()
+            assertSame(cached, (staticStates.first() as PhotoLoadState.Thumbnail).bitmap)
+            val static = staticStates.last() as PhotoLoadState.Ready
             assertFalse(static.isAnimated)
             assertTrue(static.supportsDeepZoom)
             (static.drawable as BitmapDrawable).bitmap.recycle()
+            cached.recycle()
 
             val gif = pipeline.load(fixtures[1], 1_080, 2_400).toList().single()
                 as PhotoLoadState.Ready
