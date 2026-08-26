@@ -48,16 +48,18 @@ class InitialMediaScannerTest {
     }
 
     @Test
-    fun providerVersionChangeDropsOnlyThatRebuildableVolumeIndex() = runTest {
+    fun providerVersionChangeKeepsKnownRowsAndSweepsOnlyMissingRows() = runTest {
         val store = FakeStore().apply {
             checkpoint = checkpoint(version = "old", lastId = 5, scanState = ScanState.Running)
             items["external_primary" to 5L] = record(5).toEntity(1)
+            items["external_primary" to 6L] = record(6).toEntity(1)
             items["sd-card" to 5L] = record(5, "sd-card").toEntity(1)
         }
 
-        scanner(FakePages(emptyList()), store, ::fullAccess).scan(volume(version = "new"))
+        scanner(FakePages(listOf(record(5))), store, ::fullAccess).scan(volume(version = "new"))
 
-        assertEquals(setOf("sd-card" to 5L), store.items.keys)
+        assertEquals(setOf("external_primary" to 5L, "sd-card" to 5L), store.items.keys)
+        assertEquals(0, store.reconciledEntityWrites)
         assertEquals("new", store.checkpoint?.providerVersion)
         assertEquals(1, store.resetCount)
     }
@@ -118,13 +120,13 @@ class InitialMediaScannerTest {
         var resetCount = 0
         var commitCount = 0
         var largestCommit = 0
+        var reconciledEntityWrites = 0
 
         override suspend fun checkpoint(volumeName: String) = checkpoint?.takeIf {
             it.volumeName == volumeName
         }
 
         override suspend fun resetVolumeForScan(checkpoint: MediaStoreCheckpointEntity) {
-            items.keys.removeAll { it.first == checkpoint.volumeName }
             this.checkpoint = checkpoint
             resetCount++
         }
@@ -139,7 +141,33 @@ class InitialMediaScannerTest {
             largestCommit = maxOf(largestCommit, items.size)
         }
 
+        override suspend fun reconcileMediaPage(
+            items: List<MediaItemEntity>,
+            checkpoint: MediaStoreCheckpointEntity,
+        ) {
+            items.forEach { item ->
+                val key = item.volumeName to item.mediaStoreId
+                val current = this.items[key]
+                if (current == null || current.generationModified != item.generationModified) {
+                    this.items[key] = item
+                    reconciledEntityWrites++
+                } else {
+                    this.items[key] = current.copy(lastSeenScanId = item.lastSeenScanId)
+                }
+            }
+            this.checkpoint = checkpoint
+            commitCount++
+            largestCommit = maxOf(largestCommit, items.size)
+        }
+
         override suspend fun upsertCheckpoint(checkpoint: MediaStoreCheckpointEntity) {
+            this.checkpoint = checkpoint
+        }
+
+        override suspend fun completeScan(checkpoint: MediaStoreCheckpointEntity, scanId: Long) {
+            items.entries.removeAll { (key, value) ->
+                key.first == checkpoint.volumeName && value.lastSeenScanId != scanId
+            }
             this.checkpoint = checkpoint
         }
 

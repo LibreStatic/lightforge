@@ -35,7 +35,12 @@ interface MediaIndexStore {
         items: List<MediaItemEntity>,
         checkpoint: MediaStoreCheckpointEntity,
     )
+    suspend fun reconcileMediaPage(
+        items: List<MediaItemEntity>,
+        checkpoint: MediaStoreCheckpointEntity,
+    )
     suspend fun upsertCheckpoint(checkpoint: MediaStoreCheckpointEntity)
+    suspend fun completeScan(checkpoint: MediaStoreCheckpointEntity, scanId: Long)
 }
 
 class RoomMediaIndexStore(private val dao: LibraryDao) : IncrementalMediaIndexStore {
@@ -46,8 +51,14 @@ class RoomMediaIndexStore(private val dao: LibraryDao) : IncrementalMediaIndexSt
         items: List<MediaItemEntity>,
         checkpoint: MediaStoreCheckpointEntity,
     ) = dao.commitMediaPage(items, checkpoint)
+    override suspend fun reconcileMediaPage(
+        items: List<MediaItemEntity>,
+        checkpoint: MediaStoreCheckpointEntity,
+    ) = dao.reconcileMediaPage(items, checkpoint)
     override suspend fun upsertCheckpoint(checkpoint: MediaStoreCheckpointEntity) =
         dao.upsertCheckpoint(checkpoint)
+    override suspend fun completeScan(checkpoint: MediaStoreCheckpointEntity, scanId: Long) =
+        dao.completeVolumeScan(checkpoint, scanId)
     override suspend fun deleteMedia(volumeName: String, id: Long): Int =
         dao.deleteMedia(volumeName, id)
 }
@@ -92,12 +103,15 @@ class InitialMediaScanner(
             }
 
             if (page.records.isEmpty()) {
+                val completedScanId = requireNotNull(checkpoint.activeScanId)
                 checkpoint = checkpoint.copy(
                     scanState = ScanState.Complete.name,
                     activeScanId = null,
                     lastSuccessfulSyncMillis = nowMillis(),
                 )
-                store.upsertCheckpoint(checkpoint)
+                // Mark-and-sweep keeps unchanged rows (and their ML foreign-key children)
+                // throughout reconciliation, then removes only files absent from MediaStore.
+                store.completeScan(checkpoint, completedScanId)
                 return@withContext InitialScanResult.Complete(indexed)
             }
 
@@ -105,7 +119,7 @@ class InitialMediaScanner(
             check(nextId > checkpoint.lastScannedId) { "MediaStore page did not advance" }
             val items = page.records.map { it.toEntity(checkpoint.activeScanId!!) }
             checkpoint = checkpoint.copy(lastScannedId = nextId)
-            store.commitMediaPage(items, checkpoint)
+            store.reconcileMediaPage(items, checkpoint)
             indexed += items.size
             onProgress(ScanProgress(volume.volumeName, indexed, nextId))
         }

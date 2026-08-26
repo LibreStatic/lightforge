@@ -55,6 +55,11 @@ data class MediaItemEntity(
     val dateExpiresSeconds: Long? = null,
 )
 
+data class KnownMediaGeneration(
+    val mediaStoreId: Long,
+    val generationModified: Long,
+)
+
 @Entity(
     tableName = "archived_media",
     primaryKeys = ["volumeName", "mediaStoreId"],

@@ -116,6 +116,15 @@ class IncrementalMediaSynchronizerTest {
         override suspend fun upsertCheckpoint(checkpoint: MediaStoreCheckpointEntity) {
             this.checkpoint = checkpoint
         }
+
+        override suspend fun reconcileMediaPage(
+            items: List<MediaItemEntity>,
+            checkpoint: MediaStoreCheckpointEntity,
+        ) = commitMediaPage(items, checkpoint)
+
+        override suspend fun completeScan(checkpoint: MediaStoreCheckpointEntity, scanId: Long) {
+            this.checkpoint = checkpoint
+        }
         override suspend fun deleteMedia(volumeName: String, id: Long): Int {
             deleteCount++
             return if (items.remove(volumeName to id) != null) 1 else 0

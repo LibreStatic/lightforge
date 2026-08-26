@@ -535,9 +535,50 @@ interface LibraryDao {
         upsertCheckpoint(checkpoint)
     }
 
+    @Query(
+        "SELECT mediaStoreId, generationModified FROM media_items " +
+            "WHERE volumeName=:volumeName AND mediaStoreId IN (:mediaStoreIds)",
+    )
+    suspend fun knownMediaGenerations(
+        volumeName: String,
+        mediaStoreIds: List<Long>,
+    ): List<KnownMediaGeneration>
+
+    @Query(
+        "UPDATE media_items SET lastSeenScanId=:scanId " +
+            "WHERE volumeName=:volumeName AND mediaStoreId IN (:mediaStoreIds)",
+    )
+    suspend fun markMediaSeen(volumeName: String, mediaStoreIds: List<Long>, scanId: Long): Int
+
+    /** Full reconciliation touches known rows but writes complete entities only for new/stale files. */
+    @Transaction
+    suspend fun reconcileMediaPage(
+        items: List<MediaItemEntity>,
+        checkpoint: MediaStoreCheckpointEntity,
+    ) {
+        if (items.isNotEmpty()) {
+            val volumeName = items.first().volumeName
+            require(items.all { it.volumeName == volumeName })
+            val known = knownMediaGenerations(volumeName, items.map(MediaItemEntity::mediaStoreId))
+                .associate { it.mediaStoreId to it.generationModified }
+            markMediaSeen(volumeName, items.map(MediaItemEntity::mediaStoreId), items.first().lastSeenScanId)
+            val newOrChanged = items.filter { known[it.mediaStoreId] != it.generationModified }
+            if (newOrChanged.isNotEmpty()) upsertMedia(newOrChanged)
+        }
+        upsertCheckpoint(checkpoint)
+    }
+
     @Transaction
     suspend fun resetVolumeForScan(checkpoint: MediaStoreCheckpointEntity) {
-        deleteVolumeIndex(checkpoint.volumeName)
+        upsertCheckpoint(checkpoint)
+    }
+
+    @Query("DELETE FROM media_items WHERE volumeName=:volumeName AND lastSeenScanId!=:scanId")
+    suspend fun deleteItemsNotSeenInScan(volumeName: String, scanId: Long): Int
+
+    @Transaction
+    suspend fun completeVolumeScan(checkpoint: MediaStoreCheckpointEntity, scanId: Long) {
+        deleteItemsNotSeenInScan(checkpoint.volumeName, scanId)
         upsertCheckpoint(checkpoint)
     }
 
