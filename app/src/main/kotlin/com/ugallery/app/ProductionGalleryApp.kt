@@ -230,6 +230,21 @@ internal fun surfaceStateKey(
     else -> null
 }
 
+internal fun availableSurfaceRoute(
+    requested: SurfaceRoute,
+    hasCurrentMedia: Boolean,
+    hasSelectedAlbum: Boolean,
+    hasSelectedHighlight: Boolean,
+): SurfaceRoute = when (requested) {
+    SurfaceRoute.Viewer,
+    SurfaceRoute.PhotoEditor,
+    SurfaceRoute.VideoEditor,
+    -> requested.takeIf { hasCurrentMedia } ?: SurfaceRoute.Root
+    SurfaceRoute.Album -> requested.takeIf { hasSelectedAlbum } ?: SurfaceRoute.Root
+    SurfaceRoute.HighlightCollection -> requested.takeIf { hasSelectedHighlight } ?: SurfaceRoute.Root
+    else -> requested
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun ProductionGalleryApp(
@@ -416,9 +431,17 @@ internal fun ProductionGalleryApp(
     var privateImportProgress by remember { mutableStateOf<PrivateImportProgress?>(null) }
     var privateImportOutcome by remember { mutableStateOf<PrivateImportOutcome?>(null) }
 
-    LaunchedEffect(route, selectedHighlight) {
-        if (route == SurfaceRoute.HighlightCollection && selectedHighlight == null) {
-            route = SurfaceRoute.Root
+    val renderedRoute = availableSurfaceRoute(
+        requested = route,
+        hasCurrentMedia = currentMedia != null,
+        hasSelectedAlbum = selectedAlbum != null,
+        hasSelectedHighlight = selectedHighlight != null,
+    )
+    LaunchedEffect(route, renderedRoute) {
+        if (route != renderedRoute) {
+            viewerReturnDestination = null
+            showDetails = false
+            route = renderedRoute
         }
     }
 
@@ -514,7 +537,7 @@ internal fun ProductionGalleryApp(
         }
     }
 
-    BackHandler(enabled = route != SurfaceRoute.Root || showDetails, onBack = ::handleBack)
+    BackHandler(enabled = renderedRoute != SurfaceRoute.Root || showDetails, onBack = ::handleBack)
 
     val musicPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -1292,28 +1315,28 @@ internal fun ProductionGalleryApp(
                 }
             }
         }
-        val internalTopBarRoute = route == SurfaceRoute.Settings ||
-            route == SurfaceRoute.About ||
-            route == SurfaceRoute.People ||
-            route == SurfaceRoute.Moment
+        val internalTopBarRoute = renderedRoute == SurfaceRoute.Settings ||
+            renderedRoute == SurfaceRoute.About ||
+            renderedRoute == SurfaceRoute.People ||
+            renderedRoute == SurfaceRoute.Moment
         val contentInsets = when {
-            route == SurfaceRoute.Viewer ||
-                route == SurfaceRoute.PhotoEditor ||
-                route == SurfaceRoute.VideoEditor ||
-                route == SurfaceRoute.PrivateAlbum ||
-                route == SurfaceRoute.PrivateAlbumPicker -> WindowInsets(0, 0, 0, 0)
+            renderedRoute == SurfaceRoute.Viewer ||
+                renderedRoute == SurfaceRoute.PhotoEditor ||
+                renderedRoute == SurfaceRoute.VideoEditor ||
+                renderedRoute == SurfaceRoute.PrivateAlbum ||
+                renderedRoute == SurfaceRoute.PrivateAlbumPicker -> WindowInsets(0, 0, 0, 0)
             internalTopBarRoute -> ScaffoldDefaults.contentWindowInsets.only(
                 WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal,
             )
             else -> ScaffoldDefaults.contentWindowInsets
         }
-        val showsLibraryNavigation = route == SurfaceRoute.Root ||
-            route == SurfaceRoute.Updates ||
-            route == SurfaceRoute.DeviceFolders ||
-            route == SurfaceRoute.Archive ||
-            route == SurfaceRoute.Trash ||
-            route == SurfaceRoute.Album ||
-            route == SurfaceRoute.HighlightCollection
+        val showsLibraryNavigation = renderedRoute == SurfaceRoute.Root ||
+            renderedRoute == SurfaceRoute.Updates ||
+            renderedRoute == SurfaceRoute.DeviceFolders ||
+            renderedRoute == SurfaceRoute.Archive ||
+            renderedRoute == SurfaceRoute.Trash ||
+            renderedRoute == SurfaceRoute.Album ||
+            renderedRoute == SurfaceRoute.HighlightCollection
         fun selectRoot(destination: RootTab) {
             viewModel.clearSelection()
             archiveSelectionMode = false
@@ -1323,10 +1346,10 @@ internal fun ProductionGalleryApp(
         }
         Scaffold(
             contentWindowInsets = contentInsets,
-            containerColor = if (route == SurfaceRoute.Viewer) Color.Black
+            containerColor = if (renderedRoute == SurfaceRoute.Viewer) Color.Black
             else MaterialTheme.colorScheme.background,
             topBar = {
-                when (route) {
+                when (renderedRoute) {
                     SurfaceRoute.Root -> Unit
                     SurfaceRoute.Album -> GalleryTopAppBar(
                         title = selectedAlbum?.name ?: stringResource(com.ugallery.feature.album.R.string.album_untitled),
@@ -1440,7 +1463,7 @@ internal fun ProductionGalleryApp(
                 }
             },
             bottomBar = {
-                if (adaptiveInfo.navigationType == GalleryNavigationType.BottomBar && route == SurfaceRoute.Root) {
+                if (adaptiveInfo.navigationType == GalleryNavigationType.BottomBar && renderedRoute == SurfaceRoute.Root) {
                     GalleryBottomDock(
                         selected = rootTab,
                         onSelect = ::selectRoot,
@@ -1452,7 +1475,7 @@ internal fun ProductionGalleryApp(
                 Row(Modifier.fillMaxSize().padding(padding)) {
                     if (showsLibraryNavigation) {
                         GalleryExpandedRail(
-                            route = route,
+                            route = renderedRoute,
                             selectedRoot = rootTab,
                             onRoot = ::selectRoot,
                             onCreate = { showCreateMenu = true },
@@ -1466,9 +1489,9 @@ internal fun ProductionGalleryApp(
                     }
                     AnimatedSurfaceBody(
                         key = ScreenMotionKey(
-                            route,
+                            renderedRoute,
                             rootTab,
-                            surfaceStateKey(route, rootTab, selectedAlbum, selectedHighlight?.id),
+                            surfaceStateKey(renderedRoute, rootTab, selectedAlbum, selectedHighlight?.id),
                         ),
                         modifier = Modifier.weight(1f),
                         stateHolder = surfaceStateHolder,
@@ -1479,12 +1502,12 @@ internal fun ProductionGalleryApp(
             } else {
                 AnimatedSurfaceBody(
                     key = ScreenMotionKey(
-                        route,
+                        renderedRoute,
                         rootTab,
-                        surfaceStateKey(route, rootTab, selectedAlbum, selectedHighlight?.id),
+                        surfaceStateKey(renderedRoute, rootTab, selectedAlbum, selectedHighlight?.id),
                     ),
                     modifier = Modifier.fillMaxSize().padding(padding).then(
-                        if (route == SurfaceRoute.Root) Modifier.rootTabSwipe(rootTab, ::selectRoot)
+                        if (renderedRoute == SurfaceRoute.Root) Modifier.rootTabSwipe(rootTab, ::selectRoot)
                         else Modifier,
                     ),
                     stateHolder = surfaceStateHolder,

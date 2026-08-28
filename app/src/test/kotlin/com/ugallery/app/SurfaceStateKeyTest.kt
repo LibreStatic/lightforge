@@ -38,4 +38,56 @@ class SurfaceStateKeyTest {
         )
         assertNull(surfaceStateKey(SurfaceRoute.Viewer, RootTab.Photos, selectedAlbum = null))
     }
+
+    @Test
+    fun restoredRoutesWithoutTheirViewModelContentFallBackToRoot() {
+        listOf(
+            SurfaceRoute.Viewer,
+            SurfaceRoute.PhotoEditor,
+            SurfaceRoute.VideoEditor,
+        ).forEach { route ->
+            assertEquals(
+                SurfaceRoute.Root,
+                availableSurfaceRoute(
+                    requested = route,
+                    hasCurrentMedia = false,
+                    hasSelectedAlbum = true,
+                    hasSelectedHighlight = true,
+                ),
+            )
+        }
+        assertEquals(
+            SurfaceRoute.Root,
+            availableSurfaceRoute(
+                requested = SurfaceRoute.Album,
+                hasCurrentMedia = true,
+                hasSelectedAlbum = false,
+                hasSelectedHighlight = true,
+            ),
+        )
+        assertEquals(
+            SurfaceRoute.Root,
+            availableSurfaceRoute(
+                requested = SurfaceRoute.HighlightCollection,
+                hasCurrentMedia = true,
+                hasSelectedAlbum = true,
+                hasSelectedHighlight = false,
+            ),
+        )
+    }
+
+    @Test
+    fun routesRemainAvailableWhileTheirRequiredContentExists() {
+        SurfaceRoute.entries.forEach { route ->
+            assertEquals(
+                route,
+                availableSurfaceRoute(
+                    requested = route,
+                    hasCurrentMedia = true,
+                    hasSelectedAlbum = true,
+                    hasSelectedHighlight = true,
+                ),
+            )
+        }
+    }
 }
