@@ -2,15 +2,16 @@ package com.ugallery.core.editing.video
 
 import java.io.Serializable
 
+/** Input transfer curve. This does not imply a vendor-gamut to Rec.709 matrix conversion. */
 enum class LogInputProfile(val displayName: String) {
     Standard("Standard Rec.709"),
     AppleLog("Apple Log"),
-    SonySLog2("Sony S-Log2 / S-Gamut3.Cine"),
-    SonySLog3("Sony S-Log3 / S-Gamut3.Cine"),
-    CanonLog2("Canon Log 2 / Cinema Gamut"),
-    CanonLog3("Canon Log 3 / Cinema Gamut"),
-    PanasonicVLog("Panasonic V-Log / V-Gamut"),
-    DjiDLog("DJI D-Log / D-Gamut"),
+    SonySLog2("Sony S-Log2"),
+    SonySLog3("Sony S-Log3"),
+    CanonLog2("Canon Log 2"),
+    CanonLog3("Canon Log 3"),
+    PanasonicVLog("Panasonic V-Log"),
+    DjiDLog("DJI D-Log"),
     FujifilmFLog("Fujifilm F-Log"),
     FujifilmFLog2("Fujifilm F-Log2"),
     NikonNLog("Nikon N-Log"),
@@ -84,7 +85,9 @@ data class VideoColorGrade(
         require(exposureEv in -5f..5f)
         require(temperature in -1f..1f && tint in -1f..1f)
         require(contrast in -1f..1f && pivot in 0.05f..0.95f && saturation in -1f..1f)
-        require(hueBands.map { it.band }.distinct().size == hueBands.size)
+        require(hueBands.map(HueBandAdjustment::band) == HueBand.entries) {
+            "Hue adjustments must contain every band in canonical order"
+        }
     }
 
     val hasChanges: Boolean get() = !bypass && copy(profileWasAutoDetected = false) != VideoColorGrade()

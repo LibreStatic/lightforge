@@ -94,6 +94,30 @@ class VideoEditRecipeCodecTest {
     }
 
     @Test
+    fun normalizesPartialAndDuplicateHueBands() {
+        val decoded = VideoEditRecipeCodec.decode(
+            """
+            version=4
+            bands=Red,5.0,0.1,-0.2;Blue,2.0,0.0,0.0;Red,-7.0,0.3,0.4;invalid
+            """.trimIndent(),
+        )
+
+        assertEquals(HueBand.entries, decoded.colorGrade.hueBands.map(HueBandAdjustment::band))
+        assertEquals(
+            HueBandAdjustment(HueBand.Red, -7f, 0.3f, 0.4f),
+            decoded.colorGrade.hueBands.first(),
+        )
+        assertEquals(
+            HueBandAdjustment(HueBand.Blue, 2f, 0f, 0f),
+            decoded.colorGrade.hueBands.first { it.band == HueBand.Blue },
+        )
+        assertEquals(
+            HueBandAdjustment(HueBand.Green),
+            decoded.colorGrade.hueBands.first { it.band == HueBand.Green },
+        )
+    }
+
+    @Test
     fun interpolatesAnnotationKeyframesAcrossShortestRotation() {
         val layer = VideoAnnotationLayer(
             shape = VideoAnnotationShape.Rectangle,

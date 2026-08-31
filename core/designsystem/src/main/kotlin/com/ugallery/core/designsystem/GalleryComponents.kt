@@ -18,6 +18,8 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -29,6 +31,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -41,6 +44,7 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.Surface
@@ -68,6 +72,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 
 enum class GalleryMotionEdge { Top, Bottom, Start, End }
 
@@ -359,7 +364,28 @@ fun GalleryExpressiveChoiceGroup(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
     icons: List<ImageVector?> = emptyList(),
+    minimumItemWidth: Dp? = null,
 ) {
+    if (minimumItemWidth != null) {
+        Row(
+            modifier = modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            labels.forEachIndexed { index, label ->
+                val icon = icons.getOrNull(index)
+                FilterChip(
+                    selected = selectedIndex == index,
+                    onClick = { onSelect(index) },
+                    label = { Text(label, maxLines = 1) },
+                    leadingIcon = icon?.let { imageVector ->
+                        { Icon(imageVector, contentDescription = null) }
+                    },
+                    modifier = Modifier.widthIn(min = minimumItemWidth).heightIn(min = 48.dp),
+                )
+            }
+        }
+        return
+    }
     ButtonGroup(
         overflowIndicator = { state -> ButtonGroupDefaults.OverflowIndicator(state) },
         modifier = modifier.fillMaxWidth(),

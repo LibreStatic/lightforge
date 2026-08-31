@@ -15,7 +15,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -68,6 +71,10 @@ fun LibraryPhotosRoute(
     onOpenDeviceFolders: () -> Unit = {},
     onCreate: () -> Unit = {},
     onOpenUpdates: () -> Unit = {},
+    activeExportCount: Int = 0,
+    activeExportProgress: Float? = null,
+    activeExportDescription: String? = null,
+    onOpenExportQueue: () -> Unit = {},
     highlights: List<PhotoHighlightUi> = emptyList(),
     onMediaClick: (TimelineMedia) -> Unit = {},
     isMediaSelected: (TimelineMedia) -> Boolean = { false },
@@ -97,8 +104,15 @@ fun LibraryPhotosRoute(
             GalleryExpressiveIconButton(onClick = onCreate) {
                 Icon(GalleryIcons.Plus, contentDescription = stringResource(R.string.photos_create))
             }
-            GalleryExpressiveIconButton(onClick = onOpenUpdates) {
-                Icon(GalleryIcons.Notifications, contentDescription = stringResource(R.string.photos_updates))
+            GalleryExpressiveIconButton(
+                onClick = if (activeExportCount > 0) onOpenExportQueue else onOpenUpdates,
+            ) {
+                UpdatesIndicator(
+                    activeExportCount = activeExportCount,
+                    activeExportProgress = activeExportProgress,
+                    contentDescription = activeExportDescription
+                        ?: stringResource(R.string.photos_updates),
+                )
             }
             GalleryExpressiveIconButton(onClick = onOpenSettings) {
                 Icon(
@@ -172,6 +186,48 @@ fun LibraryPhotosRoute(
                     onDensityChange = onDensityChange,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun UpdatesIndicator(
+    activeExportCount: Int,
+    activeExportProgress: Float?,
+    contentDescription: String,
+) {
+    if (activeExportCount <= 0) {
+        Icon(GalleryIcons.Notifications, contentDescription = contentDescription)
+        return
+    }
+    BadgedBox(
+        badge = {
+            Badge {
+                Text(if (activeExportCount > 99) "99+" else activeExportCount.toString())
+            }
+        },
+    ) {
+        androidx.compose.foundation.layout.Box(
+            Modifier.size(36.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (activeExportProgress == null) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(34.dp),
+                    strokeWidth = 3.dp,
+                )
+            } else {
+                CircularProgressIndicator(
+                    progress = { activeExportProgress.coerceIn(0f, 1f) },
+                    modifier = Modifier.size(34.dp),
+                    strokeWidth = 3.dp,
+                )
+            }
+            Icon(
+                GalleryIcons.Notifications,
+                contentDescription = contentDescription,
+                modifier = Modifier.size(19.dp),
+            )
         }
     }
 }

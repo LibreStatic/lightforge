@@ -2,6 +2,7 @@ package com.ugallery.core.editing.video
 
 import android.content.Context
 import android.content.ContentValues
+import android.graphics.Color
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
@@ -38,6 +39,38 @@ import kotlinx.coroutines.runBlocking
 @UnstableApi
 @RunWith(AndroidJUnit4::class)
 class Media3ExportDeviceTest {
+    @Test
+    fun logColorGradeIsRenderedThroughMedia3() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val input = copyAssetToCache(context, "m0_h264.mp4")
+        val output = File(context.cacheDir, "log-grade-${System.nanoTime()}.mp4")
+        try {
+            Media3VideoExporter(context).export(
+                VideoExportRequest(
+                    input = Uri.fromFile(input),
+                    output = output,
+                    recipe = VideoEditRecipe(
+                        startMillis = 0,
+                        endMillis = 1_000,
+                        colorGrade = VideoColorGrade(
+                            inputProfile = LogInputProfile.SonySLog3,
+                            exposureEv = 0.75f,
+                            saturation = 0.2f,
+                            lut = LutReference(builtIn = BuiltInLook.Monochrome, intensity = 1f),
+                        ),
+                    ),
+                ),
+            )
+
+            assertTrue(output.isFile && output.length() > 0)
+            val meanPixelDelta = frameMeanAbsoluteRgbDelta(input, output, 500_000)
+            assertTrue("LOG grade was not visible: delta=$meanPixelDelta", meanPixelDelta > 12.0)
+        } finally {
+            input.delete()
+            output.delete()
+        }
+    }
+
     @Test
     fun timedInkAndRedactionAnnotationsExportThroughMedia3() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -319,6 +352,33 @@ class Media3ExportDeviceTest {
     private fun mediaDurationMs(file: File): Long = MediaMetadataRetriever().use { retriever ->
         retriever.setDataSource(file.absolutePath)
         retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)!!.toLong()
+    }
+
+    private fun frameMeanAbsoluteRgbDelta(first: File, second: File, timeUs: Long): Double {
+        val firstFrame = framePixels(first, timeUs)
+        val secondFrame = framePixels(second, timeUs)
+        check(firstFrame.first == secondFrame.first)
+        var delta = 0L
+        firstFrame.second.indices.forEach { index ->
+            val firstColor = firstFrame.second[index]
+            val secondColor = secondFrame.second[index]
+            delta += kotlin.math.abs(Color.red(firstColor) - Color.red(secondColor))
+            delta += kotlin.math.abs(Color.green(firstColor) - Color.green(secondColor))
+            delta += kotlin.math.abs(Color.blue(firstColor) - Color.blue(secondColor))
+        }
+        return delta.toDouble() / firstFrame.second.size / 3.0
+    }
+
+    private fun framePixels(file: File, timeUs: Long): Pair<Pair<Int, Int>, IntArray> = MediaMetadataRetriever().use { retriever ->
+        retriever.setDataSource(file.absolutePath)
+        val bitmap = checkNotNull(retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST))
+        try {
+            val pixels = IntArray(bitmap.width * bitmap.height)
+            bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+            (bitmap.width to bitmap.height) to pixels
+        } finally {
+            bitmap.recycle()
+        }
     }
 
     private fun mediaDurationMs(context: Context, uri: Uri): Long = MediaMetadataRetriever().use { retriever ->

@@ -1,18 +1,19 @@
 package com.ugallery.feature.videoeditor
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.FilterChip
@@ -22,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -30,14 +32,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.ugallery.core.designsystem.GalleryIcons
 import com.ugallery.core.designsystem.GalleryProgressIndicator
@@ -171,10 +180,14 @@ internal fun VideoAnnotationControls(
     onAddKeyframe: (String, Long) -> Unit,
     onTrack: (String, Long) -> Unit,
     onCancelTracking: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val selected = state.annotations.firstOrNull { it.id == state.selectedAnnotationId }
     Column(
-        Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = GallerySpacing.Md),
+        modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = GallerySpacing.Md),
         verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
     ) {
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -201,31 +214,78 @@ internal fun VideoAnnotationControls(
             }
         }
         if (tool.appearance in setOf(VideoAnnotationAppearance.Pen, VideoAnnotationAppearance.Highlighter)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
+            ) {
                 listOf(
-                    Color(0xFFFF3B30), Color(0xFFFFCC00), Color(0xFF34C759),
-                    Color(0xFF0A84FF), Color(0xFFAF52DE), Color.White, Color.Black,
-                ).forEach { color ->
-                    Box(
-                        Modifier
-                            .background(color, CircleShape)
-                            .clickable { onToolChange(tool.copy(color = color, eraser = false)) }
-                            .padding(12.dp),
-                    )
+                    Color(0xFFFF3B30) to R.string.video_editor_annotation_color_red,
+                    Color(0xFFFFCC00) to R.string.video_editor_annotation_color_yellow,
+                    Color(0xFF34C759) to R.string.video_editor_annotation_color_green,
+                    Color(0xFF0A84FF) to R.string.video_editor_annotation_color_blue,
+                    Color(0xFFAF52DE) to R.string.video_editor_annotation_color_purple,
+                    Color.White to R.string.video_editor_annotation_color_white,
+                    Color.Black to R.string.video_editor_annotation_color_black,
+                ).forEach { (color, label) ->
+                    val isSelected = !tool.eraser && tool.color == color
+                    val swatchContentColor = if (color.luminance() >= 0.5f) Color.Black else Color.White
+                    val description = stringResource(label)
+                    Surface(
+                        onClick = { onToolChange(tool.copy(color = color, eraser = false)) },
+                        modifier = Modifier
+                            .size(48.dp)
+                            .semantics {
+                                contentDescription = description
+                                this.selected = isSelected
+                                role = Role.RadioButton
+                            },
+                        shape = CircleShape,
+                        color = color,
+                        contentColor = swatchContentColor,
+                        border = BorderStroke(if (isSelected) 3.dp else 1.dp, swatchContentColor),
+                    ) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            if (isSelected) {
+                                Icon(
+                                    GalleryIcons.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(22.dp),
+                                )
+                            }
+                        }
+                    }
                 }
             }
-            Text(stringResource(R.string.video_editor_annotation_width))
-            Slider(tool.strokeWidth, { onToolChange(tool.copy(strokeWidth = it)) }, valueRange = 0.003f..0.08f)
-            Text(stringResource(R.string.video_editor_annotation_opacity))
-            Slider(tool.opacity, { onToolChange(tool.copy(opacity = it)) }, valueRange = 0.1f..1f)
+            val widthDescription = stringResource(R.string.video_editor_annotation_width)
+            Text(widthDescription)
+            Slider(
+                tool.strokeWidth,
+                { onToolChange(tool.copy(strokeWidth = it)) },
+                modifier = Modifier.semantics { contentDescription = widthDescription },
+                valueRange = 0.003f..0.08f,
+            )
+            val opacityDescription = stringResource(R.string.video_editor_annotation_opacity)
+            Text(opacityDescription)
+            Slider(
+                tool.opacity,
+                { onToolChange(tool.copy(opacity = it)) },
+                modifier = Modifier.semantics { contentDescription = opacityDescription },
+                valueRange = 0.1f..1f,
+            )
             FilterChip(
                 selected = tool.filled,
                 onClick = { onToolChange(tool.copy(filled = !tool.filled)) },
                 label = { Text(stringResource(R.string.video_editor_annotation_fill)) },
             )
         } else {
-            Text(stringResource(R.string.video_editor_annotation_intensity))
-            Slider(tool.intensity, { onToolChange(tool.copy(intensity = it)) }, valueRange = 0.1f..1f)
+            val intensityDescription = stringResource(R.string.video_editor_annotation_intensity)
+            Text(intensityDescription)
+            Slider(
+                tool.intensity,
+                { onToolChange(tool.copy(intensity = it)) },
+                modifier = Modifier.semantics { contentDescription = intensityDescription },
+                valueRange = 0.1f..1f,
+            )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             IconButton(onClick = onUndo) { Icon(GalleryIcons.Undo, stringResource(R.string.video_editor_undo)) }
@@ -247,13 +307,21 @@ internal fun VideoAnnotationControls(
         }
         selected?.let { layer ->
             val duration = state.durationMillis.coerceAtLeast(1)
-            Text(stringResource(R.string.video_editor_annotation_timing))
+            val timingDescription = stringResource(R.string.video_editor_annotation_timing)
+            val allowedStart = state.trimStartMillis.coerceIn(0, (duration - 1).coerceAtLeast(0))
+            val allowedEnd = state.trimEndMillis
+                .takeIf { it > allowedStart }
+                ?.coerceAtMost(duration)
+                ?: duration
+            val visibleStart = layer.startMillis.coerceIn(allowedStart, (allowedEnd - 1).coerceAtLeast(allowedStart))
+            val visibleEnd = layer.endMillis.coerceIn(visibleStart + 1, allowedEnd.coerceAtLeast(visibleStart + 1))
+            Text(timingDescription)
             RangeSlider(
-                value = layer.startMillis.toFloat()..layer.endMillis.toFloat(),
+                value = visibleStart.toFloat()..visibleEnd.toFloat(),
                 onValueChangeFinished = {},
                 onValueChange = { range ->
-                    val start = range.start.toLong().coerceIn(state.trimStartMillis, layer.endMillis - 1)
-                    val end = range.endInclusive.toLong().coerceIn(start + 1, state.trimEndMillis)
+                    val start = range.start.toLong().coerceIn(allowedStart, allowedEnd - 1)
+                    val end = range.endInclusive.toLong().coerceIn(start + 1, allowedEnd)
                     onUpdate(layer.copy(
                         startMillis = start,
                         endMillis = end,
@@ -261,6 +329,7 @@ internal fun VideoAnnotationControls(
                     ))
                 },
                 valueRange = 0f..duration.toFloat(),
+                modifier = Modifier.semantics { contentDescription = timingDescription },
             )
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 VideoAnnotationTrackingMode.entries.forEach { mode ->
@@ -282,15 +351,42 @@ internal fun VideoAnnotationControls(
                     VideoAnnotationKeyframe(safeTime, updated)).sortedBy(VideoAnnotationKeyframe::timeMillis)
                 onUpdate(layer.copy(keyframes = keyframes))
             }
-            Text(stringResource(R.string.video_editor_annotation_horizontal_position))
-            Slider(transform.translationX, { updateTransform(transform.copy(translationX = it)) }, valueRange = -1f..1f)
-            Text(stringResource(R.string.video_editor_annotation_vertical_position))
-            Slider(transform.translationY, { updateTransform(transform.copy(translationY = it)) }, valueRange = -1f..1f)
-            Text(stringResource(R.string.video_editor_annotation_scale))
-            Slider(transform.scaleX, { updateTransform(transform.copy(scaleX = it, scaleY = it)) }, valueRange = 0.1f..3f)
-            Text(stringResource(R.string.video_editor_annotation_rotation))
-            Slider(transform.rotationDegrees, { updateTransform(transform.copy(rotationDegrees = it)) }, valueRange = -180f..180f)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            val horizontalPositionDescription = stringResource(R.string.video_editor_annotation_horizontal_position)
+            Text(horizontalPositionDescription)
+            Slider(
+                transform.translationX,
+                { updateTransform(transform.copy(translationX = it)) },
+                modifier = Modifier.semantics { contentDescription = horizontalPositionDescription },
+                valueRange = -1f..1f,
+            )
+            val verticalPositionDescription = stringResource(R.string.video_editor_annotation_vertical_position)
+            Text(verticalPositionDescription)
+            Slider(
+                transform.translationY,
+                { updateTransform(transform.copy(translationY = it)) },
+                modifier = Modifier.semantics { contentDescription = verticalPositionDescription },
+                valueRange = -1f..1f,
+            )
+            val scaleDescription = stringResource(R.string.video_editor_annotation_scale)
+            Text(scaleDescription)
+            Slider(
+                transform.scaleX,
+                { updateTransform(transform.copy(scaleX = it, scaleY = it)) },
+                modifier = Modifier.semantics { contentDescription = scaleDescription },
+                valueRange = 0.1f..3f,
+            )
+            val rotationDescription = stringResource(R.string.video_editor_annotation_rotation)
+            Text(rotationDescription)
+            Slider(
+                transform.rotationDegrees,
+                { updateTransform(transform.copy(rotationDegrees = it)) },
+                modifier = Modifier.semantics { contentDescription = rotationDescription },
+                valueRange = -180f..180f,
+            )
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
+            ) {
                 TextButton(onClick = { onMove(layer.id, -1) }) {
                     Text(stringResource(R.string.video_editor_annotation_move_back))
                 }
@@ -298,7 +394,10 @@ internal fun VideoAnnotationControls(
                     Text(stringResource(R.string.video_editor_annotation_move_forward))
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
+            ) {
                 if (layer.trackingMode == VideoAnnotationTrackingMode.Keyframes) {
                     OutlinedButton(onClick = { onAddKeyframe(layer.id, currentMillis) }) {
                         Text(stringResource(R.string.video_editor_add_keyframe))

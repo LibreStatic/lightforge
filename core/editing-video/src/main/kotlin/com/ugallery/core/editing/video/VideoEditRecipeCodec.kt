@@ -66,14 +66,17 @@ object VideoEditRecipeCodec {
         fun wheel(offset: Int) = if (wheels.size >= offset + 4) {
             LogWheel(wheels[offset], wheels[offset + 1], wheels[offset + 2], wheels[offset + 3])
         } else LogWheel()
-        val bands = properties.getProperty("bands", "").split(';').mapNotNull { encodedBand ->
+        val decodedBands = properties.getProperty("bands", "").split(';').mapNotNull { encodedBand ->
             val values = encodedBand.split(',')
             runCatching {
                 HueBandAdjustment(
                     HueBand.valueOf(values[0]), values[1].toFloat(), values[2].toFloat(), values[3].toFloat(),
                 )
             }.getOrNull()
-        }.ifEmpty { HueBand.entries.map(::HueBandAdjustment) }
+        }.associateBy(HueBandAdjustment::band)
+        // Persisted recipes can be truncated or come from an older writer. Downstream color
+        // controls address every band, so always restore a complete, deterministic set.
+        val bands = HueBand.entries.map { band -> decodedBands[band] ?: HueBandAdjustment(band) }
         val grade = VideoColorGrade(
             inputProfile = enumValue(properties, "profile", LogInputProfile.Standard),
             profileWasAutoDetected = properties.getProperty("profileAuto").toBoolean(),

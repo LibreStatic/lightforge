@@ -66,6 +66,19 @@ data class VideoExportJob(
     val updatedAtMillis: Long,
 )
 
+internal fun VideoExportJob.afterWorkerInterruption(): VideoExportJob =
+    if (status == VideoExportJobStatus.Cancelled) {
+        copy(error = null)
+    } else {
+        copy(
+            status = VideoExportJobStatus.Queued,
+            phase = VideoExportPhase.Preparing,
+            progressPermille = 0,
+            pendingUri = null,
+            error = null,
+        )
+    }
+
 /** Durable file-backed export state; WorkManager owns execution and FIFO ordering. */
 class VideoExportStore private constructor(private val context: Context) {
     private val directory = File(context.filesDir, "video-export-jobs").apply { mkdirs() }
@@ -221,8 +234,17 @@ class VideoExportWorker(context: Context, parameters: WorkerParameters) : Corout
             val database = GalleryDatabaseFactory.open(applicationContext)
             val customLut = try {
                 recipe.colorGrade.lut.customId?.let { customId ->
-                    LutRepository(applicationContext.contentResolver, database.colorEditDao(), File(applicationContext.filesDir, "luts"))
-                        .load(customId)
+                    runCatching {
+                        LutRepository(
+                            applicationContext.contentResolver,
+                            database.colorEditDao(),
+                            File(applicationContext.filesDir, "luts"),
+                        ).load(customId)
+                    }.getOrNull() ?: error(
+                        applicationContext.getString(
+                            com.ugallery.feature.videoeditor.R.string.video_editor_lut_unavailable,
+                        ),
+                    )
                 }
             } finally {
                 database.close()
@@ -278,7 +300,10 @@ class VideoExportWorker(context: Context, parameters: WorkerParameters) : Corout
             notifications.notify(notificationId(id), completionNotification(completed))
             return Result.success(workDataOf(OutputUriKey to published.uri.toString()))
         } catch (cancelled: CancellationException) {
-            store.update(id) { it.copy(status = VideoExportJobStatus.Cancelled, error = null) }
+            // Only the explicit store flag represents a user cancellation. WorkManager can also
+            // stop a CoroutineWorker when constraints or system scheduling change; treating that
+            // interruption as a completed user cancellation would permanently lose the export.
+            store.update(id, VideoExportJob::afterWorkerInterruption)
             throw cancelled
         } catch (failure: Throwable) {
             val failed = store.update(id) {

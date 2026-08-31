@@ -104,6 +104,7 @@ import com.ugallery.core.editing.video.VideoExportRequest
 import com.ugallery.core.editing.video.CubeLut
 import com.ugallery.core.editing.video.CustomLutOption
 import com.ugallery.core.editing.video.LogProfileDetector
+import com.ugallery.core.editing.video.LutReference
 import com.ugallery.core.editing.video.VideoColorGrade
 import com.ugallery.core.editing.video.VideoEditRecipeCodec
 import com.ugallery.core.editing.video.VideoOutputQuality
@@ -116,6 +117,7 @@ import com.ugallery.core.editing.video.VideoAnnotationTracker
 import com.ugallery.core.editing.video.VideoAnnotationTrackingResult
 import com.ugallery.core.editing.video.NormalizedPoint
 import com.ugallery.core.editing.video.VideoAnnotationShape
+import com.ugallery.core.editing.video.withTrimRange
 import com.ugallery.core.database.VideoEditRecipeEntity
 import com.ugallery.core.database.VideoPlaybackPositionEntity
 import com.ugallery.core.database.MediaItemEntity
@@ -143,6 +145,7 @@ import com.ugallery.feature.viewer.ViewerAdjacentPreloadPlanner
 import com.ugallery.feature.viewer.ViewerUiState
 import com.ugallery.feature.photoeditor.PhotoEditorContentState
 import com.ugallery.feature.videoeditor.VideoEditorContentState
+import com.ugallery.feature.videoeditor.labelResource
 import com.ugallery.feature.collage.CollageConfig
 import com.ugallery.feature.collage.CollageTemplate
 import com.ugallery.feature.collage.CollageTemplates
@@ -224,7 +227,12 @@ data class VideoEditorSession(
     val baselineRecipe: VideoEditRecipe,
     val recipe: VideoEditRecipe,
     val content: VideoEditorContentState,
-)
+    val pendingExportRecipe: VideoEditRecipe? = null,
+    val exportJobId: String? = null,
+) {
+    fun isDirty(candidate: VideoEditRecipe = recipe): Boolean =
+        candidate != (pendingExportRecipe ?: baselineRecipe)
+}
 
 data class QuickSlowMotionSaveState(
     val progress: Float? = null,
@@ -497,6 +505,8 @@ class GalleryViewModel @Inject constructor(
     private var rawPreviewProfile: RawPreviewProfile? = null
     private var videoEditorJob: Job? = null
     private var videoRecipeJob: Job? = null
+    private var videoRecipeDiscardJob: Job? = null
+    private var videoEditorOpenGeneration = 0L
     private var videoAnnotationTrackingJob: Job? = null
     private val videoAnnotationUndo = ArrayDeque<List<VideoAnnotationLayer>>()
     private val videoAnnotationRedo = ArrayDeque<List<VideoAnnotationLayer>>()
@@ -513,6 +523,8 @@ class GalleryViewModel @Inject constructor(
     val photoEditor = mutablePhotoEditor.asStateFlow()
     private val mutableVideoEditor = MutableStateFlow<VideoEditorSession?>(null)
     val videoEditor = mutableVideoEditor.asStateFlow()
+    private val mutableVideoEditorOpening = MutableStateFlow(false)
+    val videoEditorOpening = mutableVideoEditorOpening.asStateFlow()
     private val mutableEditorCopyOpened = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val editorCopyOpened = mutableEditorCopyOpened.asSharedFlow()
     private val mutableQuickSlowMotionSave = MutableStateFlow(QuickSlowMotionSaveState())
@@ -585,26 +597,7 @@ class GalleryViewModel @Inject constructor(
                 }
                 knownExportStatuses = jobs.associate { it.id to it.status }
                 val session = mutableVideoEditor.value ?: return@collect
-                val latest = jobs.firstOrNull { it.inputUri == mediaUri(session.media).toString() }
-                    ?: return@collect
-                val active = latest.status == VideoExportJobStatus.Queued || latest.status == VideoExportJobStatus.Running
-                val statusMessage = when (latest.status) {
-                    VideoExportJobStatus.Queued -> getApplication<Application>().getString(R.string.video_export_queued)
-                    VideoExportJobStatus.Completed -> getApplication<Application>().getString(
-                        if (latest.usedSoftwareCodec) com.ugallery.feature.videoeditor.R.string.video_editor_encoder_fallback
-                        else com.ugallery.feature.videoeditor.R.string.video_editor_copy_saved,
-                    )
-                    VideoExportJobStatus.Failed -> latest.error ?: getApplication<Application>().getString(R.string.video_export_failed)
-                    VideoExportJobStatus.Cancelled -> getApplication<Application>().getString(R.string.video_export_cancelled)
-                    VideoExportJobStatus.Running -> null
-                }
-                mutableVideoEditor.value = session.copy(content = session.content.copy(
-                    isExporting = active,
-                    exportProgress = latest.progressPermille / 1000f,
-                    exportPhase = latest.phase,
-                    usedSoftwareCodec = latest.usedSoftwareCodec,
-                    statusMessage = statusMessage,
-                ))
+                mutableVideoEditor.value = session.withVideoExportState(jobs)
             }
         }
         if (mlScheduler.hasConsent(MlTaskType.FaceDetection)) monitorFaceProgress()
@@ -2272,6 +2265,52 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
+    private fun VideoEditorSession.withVideoExportState(
+        jobs: List<VideoExportJob>,
+    ): VideoEditorSession {
+        val job = trackedVideoExport(
+            jobs = jobs,
+            exportJobId = exportJobId,
+            inputUri = mediaUri(media).toString(),
+        ) ?: return this
+        val exportedRecipe = pendingExportRecipe
+            ?.takeIf { exportJobId == null || exportJobId == job.id }
+            ?: runCatching { VideoEditRecipeCodec.decode(job.encodedRecipe) }
+                .getOrNull()
+                ?.normalizedForEditor(content.durationMillis, content.isHevcMain10Available)
+        val nextBaseline = if (job.status == VideoExportJobStatus.Completed) {
+            exportedRecipe ?: baselineRecipe
+        } else {
+            baselineRecipe
+        }
+        val nextPending = exportedRecipe.takeIf { job.isActive }
+        val statusMessage = when (job.status) {
+            VideoExportJobStatus.Queued -> getApplication<Application>().getString(R.string.video_export_queued)
+            VideoExportJobStatus.Completed -> getApplication<Application>().getString(
+                if (job.usedSoftwareCodec) com.ugallery.feature.videoeditor.R.string.video_editor_encoder_fallback
+                else com.ugallery.feature.videoeditor.R.string.video_editor_copy_saved,
+            )
+            VideoExportJobStatus.Failed -> job.error
+                ?: getApplication<Application>().getString(R.string.video_export_failed)
+            VideoExportJobStatus.Cancelled ->
+                getApplication<Application>().getString(R.string.video_export_cancelled)
+            VideoExportJobStatus.Running -> null
+        }
+        return copy(
+            baselineRecipe = nextBaseline,
+            pendingExportRecipe = nextPending,
+            exportJobId = job.id,
+            content = content.copy(
+                isExporting = job.isActive,
+                isDirty = recipe != (nextPending ?: nextBaseline),
+                exportProgress = job.progressPermille / 1000f,
+                exportPhase = job.phase,
+                usedSoftwareCodec = job.usedSoftwareCodec,
+                statusMessage = statusMessage,
+            ),
+        )
+    }
+
     fun openVideoEditor(media: TimelineMedia) {
         if (media.kind != MediaKind.Video) return
         mutableCurrentMedia.value = media
@@ -2279,77 +2318,107 @@ class GalleryViewModel @Inject constructor(
         videoAnnotationTrackingJob?.cancel()
         videoAnnotationUndo.clear()
         videoAnnotationRedo.clear()
+        val generation = ++videoEditorOpenGeneration
+        val pendingDiscard = videoRecipeDiscardJob
+        mutableVideoEditorOpening.value = true
         videoEditorJob = viewModelScope.launch {
-            val active = runtime.value ?: return@launch
-            val stored = withContext(Dispatchers.IO) {
-                active.database.colorEditDao().videoRecipe(
-                    media.key.volumeName, media.key.mediaStoreId, media.generationModified,
+            try {
+                pendingDiscard?.join()
+                if (generation != videoEditorOpenGeneration) return@launch
+                val active = runtime.value ?: return@launch
+                val storedEntity = withContext(Dispatchers.IO) {
+                    active.database.colorEditDao().videoRecipe(
+                        media.key.volumeName, media.key.mediaStoreId, media.generationModified,
+                    )
+                }
+                val stored = storedEntity
+                    ?.let { runCatching { VideoEditRecipeCodec.decode(it.encodedRecipe) }.getOrNull() }
+                val inputUri = mediaUri(media).toString()
+                val activeExport = activeVideoExportForInput(videoExportStore.jobs.value, inputUri)
+                val exportedRecipe = activeExport?.let { job ->
+                    runCatching { VideoEditRecipeCodec.decode(job.encodedRecipe) }.getOrNull()
+                }
+                val detection = LogProfileDetector(getApplication<Application>()).detect(mediaUri(media))
+                val initialRecipe = VideoEditRecipe(
+                    colorGrade = VideoColorGrade(
+                        inputProfile = detection.profile,
+                        profileWasAutoDetected = detection.confidence >= 0.8f,
+                    ),
                 )
-            }?.let { runCatching { VideoEditRecipeCodec.decode(it.encodedRecipe) }.getOrNull() }
-            val detection = LogProfileDetector(getApplication<Application>()).detect(mediaUri(media))
-            val loadedRecipe = stored ?: VideoEditRecipe(
-                colorGrade = VideoColorGrade(
-                    inputProfile = detection.profile,
-                    profileWasAutoDetected = detection.confidence >= 0.8f,
-                ),
-            )
-            // Version-one recipes represented slow motion as a global speed. Convert that
-            // legacy shape into the new editable full-range segment when the duration is known.
-            val legacySegmentEnd = loadedRecipe.endMillis ?: media.durationMillis
-            val detectedRecipe = if (
-                loadedRecipe.speed in setOf(0.5f, 0.25f, 0.125f) &&
-                loadedRecipe.slowMotionSegments.isEmpty() &&
-                legacySegmentEnd > loadedRecipe.startMillis
-            ) {
-                loadedRecipe.copy(
-                    speed = 1f,
-                    slowMotionSegments = listOf(
-                        SlowMotionSegment(
-                            startMillis = loadedRecipe.startMillis,
-                            endMillis = legacySegmentEnd,
-                            speed = loadedRecipe.speed,
+                val supportsMain10 = VideoOutputCapabilities.supportsHevcMain10()
+                val loadedRecipe = (preferredVideoEditorRecipe(
+                    storedRecipe = stored,
+                    storedUpdatedAtMillis = storedEntity?.updatedAtMillis,
+                    activeExportRecipe = exportedRecipe,
+                    activeExportCreatedAtMillis = activeExport?.createdAtMillis,
+                ) ?: initialRecipe)
+                    .normalizedForEditor(media.durationMillis, supportsMain10)
+                val pendingExportRecipe = exportedRecipe
+                    ?.normalizedForEditor(media.durationMillis, supportsMain10)
+                val lutRepository = lutRepository(active)
+                val requestedCustomLutId = loadedRecipe.colorGrade.lut.customId
+                val customLut = requestedCustomLutId?.let { customId ->
+                    runCatching { lutRepository.load(customId) }.getOrNull()
+                }
+                val customLutUnavailable = requestedCustomLutId != null && customLut == null
+                val recipe = if (customLutUnavailable) {
+                    loadedRecipe.copy(colorGrade = loadedRecipe.colorGrade.copy(lut = LutReference()))
+                } else {
+                    loadedRecipe
+                }
+                val baselineRecipe = when {
+                    activeExport != null -> initialRecipe
+                    stored == null -> recipe
+                    else -> VideoEditRecipe()
+                }
+                val session = VideoEditorSession(
+                    media = media,
+                    baselineRecipe = baselineRecipe,
+                    recipe = recipe,
+                    pendingExportRecipe = pendingExportRecipe,
+                    exportJobId = activeExport?.id,
+                    content = VideoEditorContentState(
+                        currentMillis = recipe.startMillis,
+                        durationMillis = media.durationMillis,
+                        trimStartMillis = recipe.startMillis,
+                        trimEndMillis = recipe.endMillis ?: media.durationMillis,
+                        speed = recipe.speed,
+                        originalAudioVolume = recipe.originalAudioVolume,
+                        selectedMusicName = recipe.musicUri?.lastPathSegment,
+                        selectedMusicUri = recipe.musicUri,
+                        musicVolume = recipe.musicVolume,
+                        colorGrade = recipe.colorGrade,
+                        customLuts = lutRepository.summaries(),
+                        activeCustomLut = customLut,
+                        outputQuality = recipe.outputQuality,
+                        geometry = recipe.geometry,
+                        isHevcMain10Available = supportsMain10,
+                        slowMotionSegments = recipe.slowMotionSegments,
+                        annotations = recipe.annotations,
+                        isDirty = recipe != (pendingExportRecipe ?: baselineRecipe),
+                        statusMessage = if (customLutUnavailable) {
+                            getApplication<Application>().getString(
+                                com.ugallery.feature.videoeditor.R.string.video_editor_lut_unavailable,
+                            )
+                        } else null,
+                        logDetectionMessage = if (detection.confidence >= 0.8f) {
+                            getApplication<Application>().getString(
+                                com.ugallery.feature.videoeditor.R.string.video_editor_detected_profile,
+                                getApplication<Application>().getString(detection.profile.labelResource()),
+                            )
+                        } else getApplication<Application>().getString(
+                            com.ugallery.feature.videoeditor.R.string.video_editor_profile_unknown,
                         ),
                     ),
                 )
-            } else loadedRecipe
-            val supportsMain10 = VideoOutputCapabilities.supportsHevcMain10()
-            val recipe = if (detectedRecipe.outputQuality == VideoOutputQuality.HevcMain10 && !supportsMain10) {
-                detectedRecipe.copy(outputQuality = VideoOutputQuality.H264Compatible)
-            } else detectedRecipe
-            val lutRepository = lutRepository(active)
-            val customLut = recipe.colorGrade.lut.customId?.let { lutRepository.load(it) }
-            mutableVideoEditor.value = VideoEditorSession(
-                media = media,
-                baselineRecipe = if (stored == null) recipe else VideoEditRecipe(),
-                recipe = recipe,
-                content = VideoEditorContentState(
-                    durationMillis = media.durationMillis,
-                    trimStartMillis = recipe.startMillis,
-                    trimEndMillis = recipe.endMillis ?: media.durationMillis,
-                    speed = recipe.speed,
-                    originalAudioVolume = recipe.originalAudioVolume,
-                    selectedMusicName = recipe.musicUri?.lastPathSegment,
-                    selectedMusicUri = recipe.musicUri,
-                    musicVolume = recipe.musicVolume,
-                    colorGrade = recipe.colorGrade,
-                    customLuts = lutRepository.summaries(),
-                    activeCustomLut = customLut,
-                    outputQuality = recipe.outputQuality,
-                    geometry = recipe.geometry,
-                    isHevcMain10Available = supportsMain10,
-                    slowMotionSegments = recipe.slowMotionSegments,
-                    annotations = recipe.annotations,
-                    isDirty = stored != null,
-                    logDetectionMessage = if (detection.confidence >= 0.8f) {
-                        getApplication<Application>().getString(
-                            com.ugallery.feature.videoeditor.R.string.video_editor_detected_profile,
-                            detection.profile.displayName,
-                        )
-                    } else getApplication<Application>().getString(
-                        com.ugallery.feature.videoeditor.R.string.video_editor_profile_unknown,
-                    ),
-                ),
-            )
+                if (generation == videoEditorOpenGeneration) {
+                    mutableVideoEditor.value = session.withVideoExportState(videoExportStore.jobs.value)
+                }
+            } finally {
+                if (generation == videoEditorOpenGeneration) {
+                    mutableVideoEditorOpening.value = false
+                }
+            }
         }
     }
 
@@ -2358,41 +2427,35 @@ class GalleryViewModel @Inject constructor(
         val duration = session.content.durationMillis.coerceAtLeast(1)
         val start = startMillis.coerceIn(0, duration - 1)
         val end = endMillis.coerceIn(start + 1, duration)
-        val adjustedSegments = session.recipe.slowMotionSegments.mapNotNull { segment ->
-            val adjustedStart = segment.startMillis.coerceAtLeast(start)
-            val adjustedEnd = segment.endMillis.coerceAtMost(end)
-            if (adjustedEnd <= adjustedStart) null else segment.copy(
-                startMillis = adjustedStart,
-                endMillis = adjustedEnd,
-            )
+        if (start == session.recipe.startMillis &&
+            end == (session.recipe.endMillis ?: duration)
+        ) return
+        videoAnnotationTrackingJob?.cancel()
+        videoAnnotationUndo.clear()
+        videoAnnotationRedo.clear()
+        val recipe = session.recipe.withTrimRange(start, end).let { trimmed ->
+            if (end == duration) trimmed.copy(endMillis = null) else trimmed
         }
-        val adjustedAnnotations = session.recipe.annotations.mapNotNull { layer ->
-            val adjustedStart = layer.startMillis.coerceAtLeast(start)
-            val adjustedEnd = layer.endMillis.coerceAtMost(end)
-            if (adjustedEnd <= adjustedStart) null else layer.copy(
-                startMillis = adjustedStart,
-                endMillis = adjustedEnd,
-                keyframes = layer.keyframes.filter { it.timeMillis in adjustedStart..adjustedEnd },
-            )
-        }
-        val recipe = session.recipe.copy(
-            startMillis = start,
-            endMillis = end,
-            slowMotionSegments = adjustedSegments,
-            annotations = adjustedAnnotations,
-        )
+        val adjustedSegments = recipe.slowMotionSegments
+        val adjustedAnnotations = recipe.annotations
         mutableVideoEditor.value = session.copy(
             recipe = recipe,
             content = session.content.copy(
-                isDirty = recipe != session.baselineRecipe,
+                currentMillis = session.content.currentMillis.takeIf { it in start until end } ?: start,
+                isDirty = session.isDirty(recipe),
                 trimStartMillis = start,
                 trimEndMillis = end,
                 slowMotionSegments = adjustedSegments,
                 annotations = adjustedAnnotations,
+                slowMotionMarkInMillis = session.content.slowMotionMarkInMillis
+                    ?.takeIf { it in start until end },
                 selectedAnnotationId = session.content.selectedAnnotationId
                     ?.takeIf { id -> adjustedAnnotations.any { it.id == id } },
                 selectedSlowMotionSegmentId = session.content.selectedSlowMotionSegmentId
                     ?.takeIf { id -> adjustedSegments.any { it.id == id } },
+                annotationTrackingProgress = null,
+                annotationTrackingCorrectionMillis = session.content.annotationTrackingCorrectionMillis
+                    ?.takeIf { it in start until end },
             ),
         )
         persistVideoRecipe(recipe)
@@ -2400,10 +2463,11 @@ class GalleryViewModel @Inject constructor(
 
     fun setVideoSpeed(speed: Float) {
         val session = mutableVideoEditor.value ?: return
-        val recipe = session.recipe.copy(speed = speed)
+        val safeSpeed = speed.coerceIn(0.25f, 4f)
+        val recipe = session.recipe.copy(speed = safeSpeed)
         mutableVideoEditor.value = session.copy(
             recipe = recipe,
-            content = session.content.copy(speed = speed, isDirty = recipe != session.baselineRecipe),
+            content = session.content.copy(speed = safeSpeed, isDirty = session.isDirty(recipe)),
         )
         persistVideoRecipe(recipe)
     }
@@ -2412,7 +2476,7 @@ class GalleryViewModel @Inject constructor(
         val session = mutableVideoEditor.value ?: return
         val position = positionMillis.coerceIn(
             session.content.trimStartMillis,
-            session.content.trimEndMillis,
+            (session.content.trimEndMillis - 1).coerceAtLeast(session.content.trimStartMillis),
         )
         mutableVideoEditor.value = session.copy(
             content = session.content.copy(slowMotionMarkInMillis = position, statusMessage = null),
@@ -2445,7 +2509,7 @@ class GalleryViewModel @Inject constructor(
         mutableVideoEditor.value = session.copy(
             recipe = recipe,
             content = session.content.copy(
-                isDirty = recipe != session.baselineRecipe,
+                isDirty = session.isDirty(recipe),
                 slowMotionSegments = segments,
                 selectedSlowMotionSegmentId = candidate.id,
                 slowMotionMarkInMillis = null,
@@ -2465,6 +2529,10 @@ class GalleryViewModel @Inject constructor(
 
     fun updateVideoSlowMotionSegment(segment: SlowMotionSegment) {
         val session = mutableVideoEditor.value ?: return
+        val trimEnd = session.recipe.endMillis ?: session.content.durationMillis
+        if (session.recipe.slowMotionSegments.none { it.id == segment.id } ||
+            segment.startMillis < session.recipe.startMillis || segment.endMillis > trimEnd
+        ) return
         val replacement = session.recipe.slowMotionSegments.map {
             if (it.id == segment.id) segment else it
         }.sortedBy(SlowMotionSegment::startMillis)
@@ -2474,7 +2542,7 @@ class GalleryViewModel @Inject constructor(
         val recipe = session.recipe.copy(slowMotionSegments = replacement)
         mutableVideoEditor.value = session.copy(
             recipe = recipe,
-            content = session.content.copy(slowMotionSegments = replacement, statusMessage = null, isDirty = recipe != session.baselineRecipe),
+            content = session.content.copy(slowMotionSegments = replacement, statusMessage = null, isDirty = session.isDirty(recipe)),
         )
         persistVideoRecipe(recipe)
     }
@@ -2482,12 +2550,13 @@ class GalleryViewModel @Inject constructor(
     fun deleteVideoSlowMotionSegment(id: String) {
         val session = mutableVideoEditor.value ?: return
         val segments = session.recipe.slowMotionSegments.filterNot { it.id == id }
+        if (segments.size == session.recipe.slowMotionSegments.size) return
         val recipe = session.recipe.copy(slowMotionSegments = segments)
         mutableVideoEditor.value = session.copy(
             recipe = recipe,
             content = session.content.copy(
                 slowMotionSegments = segments,
-                isDirty = recipe != session.baselineRecipe,
+                isDirty = session.isDirty(recipe),
                 selectedSlowMotionSegmentId = null,
                 statusMessage = null,
             ),
@@ -2560,10 +2629,11 @@ class GalleryViewModel @Inject constructor(
 
     fun setVideoOriginalVolume(volume: Float) {
         val session = mutableVideoEditor.value ?: return
-        val recipe = session.recipe.copy(originalAudioVolume = volume)
+        val safeVolume = volume.coerceIn(0f, 1f)
+        val recipe = session.recipe.copy(originalAudioVolume = safeVolume)
         mutableVideoEditor.value = session.copy(
             recipe = recipe,
-            content = session.content.copy(originalAudioVolume = volume, isDirty = recipe != session.baselineRecipe),
+            content = session.content.copy(originalAudioVolume = safeVolume, isDirty = session.isDirty(recipe)),
         )
         persistVideoRecipe(recipe)
     }
@@ -2576,7 +2646,7 @@ class GalleryViewModel @Inject constructor(
             content = session.content.copy(
                 selectedMusicName = displayName,
                 selectedMusicUri = uri,
-                isDirty = recipe != session.baselineRecipe,
+                isDirty = session.isDirty(recipe),
             ),
         )
         persistVideoRecipe(recipe)
@@ -2590,7 +2660,7 @@ class GalleryViewModel @Inject constructor(
             content = session.content.copy(
                 selectedMusicName = null,
                 selectedMusicUri = null,
-                isDirty = recipe != session.baselineRecipe,
+                isDirty = session.isDirty(recipe),
             ),
         )
         persistVideoRecipe(recipe)
@@ -2603,7 +2673,7 @@ class GalleryViewModel @Inject constructor(
             recipe = recipe,
             content = session.content.copy(
                 musicVolume = recipe.musicVolume,
-                isDirty = recipe != session.baselineRecipe,
+                isDirty = session.isDirty(recipe),
             ),
         )
         persistVideoRecipe(recipe)
@@ -2618,17 +2688,37 @@ class GalleryViewModel @Inject constructor(
                 colorGrade = grade,
                 activeCustomLut = null,
                 statusMessage = null,
-                isDirty = recipe != session.baselineRecipe,
+                isDirty = session.isDirty(recipe),
             ),
         )
         persistVideoRecipe(recipe)
         val customId = grade.lut.customId ?: return
         viewModelScope.launch {
             val active = runtime.value ?: return@launch
-            val lut = lutRepository(active).load(customId)
+            val lut = runCatching { lutRepository(active).load(customId) }.getOrNull()
             val current = mutableVideoEditor.value
             if (current?.recipe?.colorGrade?.lut?.customId == customId) {
-                mutableVideoEditor.value = current.copy(content = current.content.copy(activeCustomLut = lut))
+                if (lut != null) {
+                    mutableVideoEditor.value = current.copy(
+                        content = current.content.copy(activeCustomLut = lut),
+                    )
+                } else {
+                    val safeGrade = current.recipe.colorGrade.copy(lut = LutReference())
+                    val safeRecipe = current.recipe.copy(colorGrade = safeGrade)
+                    mutableVideoEditor.value = current.copy(
+                        recipe = safeRecipe,
+                        content = current.content.copy(
+                            colorGrade = safeGrade,
+                            activeCustomLut = null,
+                            customLuts = current.content.customLuts.filterNot { it.id == customId },
+                            statusMessage = getApplication<Application>().getString(
+                                com.ugallery.feature.videoeditor.R.string.video_editor_lut_unavailable,
+                            ),
+                            isDirty = current.isDirty(safeRecipe),
+                        ),
+                    )
+                    persistVideoRecipe(safeRecipe)
+                }
             }
         }
     }
@@ -2639,7 +2729,7 @@ class GalleryViewModel @Inject constructor(
         val recipe = session.recipe.copy(outputQuality = quality)
         mutableVideoEditor.value = session.copy(
             recipe = recipe,
-            content = session.content.copy(outputQuality = quality, isDirty = recipe != session.baselineRecipe),
+            content = session.content.copy(outputQuality = quality, isDirty = session.isDirty(recipe)),
         )
         persistVideoRecipe(recipe)
     }
@@ -2651,7 +2741,7 @@ class GalleryViewModel @Inject constructor(
             recipe = recipe,
             content = session.content.copy(
                 geometry = geometry,
-                isDirty = recipe != session.baselineRecipe,
+                isDirty = session.isDirty(recipe),
             ),
         )
         persistVideoRecipe(recipe)
@@ -2667,7 +2757,10 @@ class GalleryViewModel @Inject constructor(
 
     fun updateVideoAnnotation(layer: VideoAnnotationLayer) {
         val session = mutableVideoEditor.value ?: return
-        if (session.recipe.annotations.none { it.id == layer.id }) return
+        if (session.recipe.annotations.none { it.id == layer.id } ||
+            layer.startMillis < session.recipe.startMillis ||
+            layer.endMillis > (session.recipe.endMillis ?: session.content.durationMillis)
+        ) return
         commitVideoAnnotations(session.recipe.annotations.map { if (it.id == layer.id) layer else it }, layer.id)
     }
 
@@ -2838,13 +2931,15 @@ class GalleryViewModel @Inject constructor(
 
     private fun applyVideoAnnotations(updated: List<VideoAnnotationLayer>, selectedId: String?) {
         val session = mutableVideoEditor.value ?: return
+        val trimEnd = session.recipe.endMillis ?: session.content.durationMillis
+        if (updated.any { it.startMillis < session.recipe.startMillis || it.endMillis > trimEnd }) return
         val recipe = session.recipe.copy(annotations = updated)
         mutableVideoEditor.value = session.copy(
             recipe = recipe,
             content = session.content.copy(
                 annotations = updated,
                 selectedAnnotationId = selectedId,
-                isDirty = recipe != session.baselineRecipe,
+                isDirty = session.isDirty(recipe),
             ),
         )
         persistVideoRecipe(recipe)
@@ -2912,9 +3007,15 @@ class GalleryViewModel @Inject constructor(
         java.io.File(getApplication<Application>().filesDir, "luts"),
     )
 
-    fun seekVideo(positionMillis: Long) {
-        val session = mutableVideoEditor.value ?: return
-        mutableVideoEditor.value = session.copy(content = session.content.copy(currentMillis = positionMillis))
+    fun seekVideo(positionMillis: Long): Long {
+        val session = mutableVideoEditor.value ?: return positionMillis
+        val position = clampVideoPosition(
+            positionMillis,
+            session.content.trimStartMillis,
+            session.content.trimEndMillis,
+        )
+        mutableVideoEditor.value = session.copy(content = session.content.copy(currentMillis = position))
+        return position
     }
 
     fun saveVideoEditorCopy() {
@@ -2922,22 +3023,31 @@ class GalleryViewModel @Inject constructor(
         if (session.content.isExporting) return
         val job = videoExportStore.enqueue(mediaUri(session.media), session.recipe)
         mutableVideoEditor.value = session.copy(
-            baselineRecipe = session.recipe,
+            pendingExportRecipe = session.recipe,
+            exportJobId = job.id,
             content = session.content.copy(
-            isExporting = true,
-            isDirty = false,
-            exportProgress = 0f,
-            exportPhase = job.phase,
-            statusMessage = getApplication<Application>().getString(R.string.video_export_queued),
-        ))
+                isExporting = true,
+                isDirty = false,
+                exportProgress = 0f,
+                exportPhase = job.phase,
+                usedSoftwareCodec = false,
+                statusMessage = getApplication<Application>().getString(R.string.video_export_queued),
+            ))
     }
 
     fun cancelVideoEditorExport() {
         val session = mutableVideoEditor.value ?: return
-        videoExportStore.jobs.value.firstOrNull {
-            it.inputUri == mediaUri(session.media).toString() &&
-                (it.status == VideoExportJobStatus.Queued || it.status == VideoExportJobStatus.Running)
-        }?.let(videoExportStore::cancel)
+        val jobs = videoExportStore.jobs.value
+        val tracked = session.exportJobId
+            ?.let { id -> jobs.firstOrNull { it.id == id && it.isActive } }
+        val active = tracked ?: activeVideoExportForInput(jobs, mediaUri(session.media).toString())
+        active?.let(videoExportStore::cancel)
+    }
+
+    fun cancelVideoExportJob(jobId: String) {
+        videoExportStore.jobs.value
+            .firstOrNull { it.id == jobId && it.isActive }
+            ?.let(videoExportStore::cancel)
     }
 
     fun setUserHardwareWorkload(workload: UserHardwareWorkload?) {
@@ -2960,18 +3070,27 @@ class GalleryViewModel @Inject constructor(
 
     fun closeVideoEditor() {
         val session = mutableVideoEditor.value
+        videoEditorOpenGeneration++
+        mutableVideoEditorOpening.value = false
         videoEditorJob?.cancel()
-        videoRecipeJob?.cancel()
+        val pendingRecipeWrite = videoRecipeJob
+        videoRecipeJob = null
+        pendingRecipeWrite?.cancel()
         videoAnnotationTrackingJob?.cancel()
         videoAnnotationUndo.clear()
         videoAnnotationRedo.clear()
-        if (session != null) viewModelScope.launch {
-            val active = runtime.value ?: return@launch
-            withContext(Dispatchers.IO) {
-                active.database.colorEditDao().deleteVideoRecipes(
-                    session.media.key.volumeName,
-                    session.media.key.mediaStoreId,
-                )
+        if (session != null) {
+            val previousDiscard = videoRecipeDiscardJob
+            videoRecipeDiscardJob = viewModelScope.launch {
+                previousDiscard?.join()
+                pendingRecipeWrite?.join()
+                val active = runtime.value ?: return@launch
+                withContext(Dispatchers.IO) {
+                    active.database.colorEditDao().deleteVideoRecipes(
+                        session.media.key.volumeName,
+                        session.media.key.mediaStoreId,
+                    )
+                }
             }
         }
         mutableVideoEditor.value = null

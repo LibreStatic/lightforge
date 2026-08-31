@@ -40,4 +40,12 @@
 <string name="video_export_view">Ver</string>
 <string name="video_export_queued">Exportación en cola. Puedes seguir usando UGallery.</string>
 <string name="video_export_cancelled">Exportación de vídeo cancelada</string>
+<string name="video_export_queue_title">Exportaciones de vídeo</string>
+<string name="video_export_waiting">Esperando en la cola</string>
+<string name="video_export_progress_percent">%1$d%%</string>
+<string name="video_export_close">Cerrar</string>
+<plurals name="video_exports_active">
+    <item quantity="one">%d exportación activa</item>
+    <item quantity="other">%d exportaciones activas</item>
+</plurals>
 </resources>

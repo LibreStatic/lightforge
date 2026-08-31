@@ -24,10 +24,13 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -69,6 +72,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -86,6 +90,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.ugallery.core.database.AlbumMediaFilter
 import com.ugallery.core.database.AlbumSort
+import com.ugallery.core.editing.video.VideoExportPhase
 import com.ugallery.core.data.GalleryHighlightKind
 import com.ugallery.core.mediastore.MediaAction
 import com.ugallery.core.mediastore.MediaActionPhase
@@ -95,6 +100,7 @@ import com.ugallery.core.designsystem.GalleryIcons
 import com.ugallery.core.designsystem.GalleryExpressiveIconButton
 import com.ugallery.core.designsystem.GalleryExpressiveButton
 import com.ugallery.core.designsystem.GalleryIndeterminateProgressIndicator
+import com.ugallery.core.designsystem.GalleryProgressIndicator
 import com.ugallery.core.designsystem.GalleryLoadingIndicator
 import com.ugallery.core.designsystem.GalleryAnimatedContent
 import com.ugallery.core.designsystem.GalleryAnimatedVisibility
@@ -313,6 +319,15 @@ internal fun ProductionGalleryApp(
     val externalPhoto by viewModel.externalPhotoState.collectAsState()
     val photoEditor by viewModel.photoEditor.collectAsState()
     val videoEditor by viewModel.videoEditor.collectAsState()
+    val videoEditorOpening by viewModel.videoEditorOpening.collectAsState()
+    val videoExports by viewModel.videoExports.collectAsState()
+    val activeVideoExports = remember(videoExports) { activeVideoExportQueue(videoExports) }
+    val globalExportProgress = remember(activeVideoExports) {
+        activeVideoExportProgress(activeVideoExports)
+    }
+    val activeExportDescription = activeVideoExports.takeIf { it.isNotEmpty() }?.let {
+        pluralStringResource(R.plurals.video_exports_active, it.size, it.size)
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     val timeline = viewModel.timeline.collectAsLazyPagingItems()
     val physicalAlbums = viewModel.physicalAlbums.collectAsLazyPagingItems()
@@ -424,6 +439,7 @@ internal fun ProductionGalleryApp(
     var showAddToAlbum by rememberSaveable { mutableStateOf(false) }
     var showEmptyTrashConfirmation by rememberSaveable { mutableStateOf(false) }
     var showDiscardEditorConfirmation by rememberSaveable { mutableStateOf(false) }
+    var showVideoExportQueue by rememberSaveable { mutableStateOf(false) }
     var newAlbumName by rememberSaveable { mutableStateOf("") }
     var pendingRequestId by rememberSaveable { mutableStateOf<Long?>(null) }
     var selectedCollageTemplateIndex by rememberSaveable { mutableStateOf(0) }
@@ -447,7 +463,7 @@ internal fun ProductionGalleryApp(
         hasSelectedAlbum = selectedAlbum != null,
         hasSelectedHighlight = selectedHighlight != null,
         hasPhotoEditor = photoEditor != null,
-        hasVideoEditor = videoEditor != null,
+        hasVideoEditor = videoEditor != null || videoEditorOpening,
     )
     val userHardwareWorkload = when {
         renderedRoute == SurfaceRoute.VideoEditor -> UserHardwareWorkload.VideoEditor
@@ -707,6 +723,10 @@ internal fun ProductionGalleryApp(
                         onOpenDeviceFolders = { route = SurfaceRoute.DeviceFolders },
                         onCreate = { showCreateMenu = true },
                         onOpenUpdates = { route = SurfaceRoute.Updates },
+                        activeExportCount = activeVideoExports.size,
+                        activeExportProgress = globalExportProgress,
+                        activeExportDescription = activeExportDescription,
+                        onOpenExportQueue = { showVideoExportQueue = true },
                         highlights = highlights.map { highlight ->
                             PhotoHighlightUi(
                                 id = highlight.id,
@@ -906,8 +926,14 @@ internal fun ProductionGalleryApp(
                         onRawOutputFormatChange = viewModel::setRawOutputFormat,
                     )
                 }
-                SurfaceRoute.VideoEditor -> videoEditor?.let { session ->
-                    val controller = remember(session.media.key) {
+                SurfaceRoute.VideoEditor -> {
+                    if (videoEditor == null && videoEditorOpening) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                            GalleryLoadingIndicator()
+                        }
+                    }
+                    videoEditor?.let { session ->
+                        val controller = remember(session.media.key) {
                         VideoViewerController(
                             context,
                             enableVideoEffects = true,
@@ -927,7 +953,7 @@ internal fun ProductionGalleryApp(
                         onChooseMusic = { musicPicker.launch(arrayOf("audio/*")) },
                         onRemoveMusic = viewModel::removeVideoMusic,
                         onMusicVolumeChange = viewModel::setVideoMusicVolume,
-                        onSeek = { position -> viewModel.seekVideo(position); controller.seekTo(position) },
+                        onSeek = { position -> controller.seekTo(viewModel.seekVideo(position)) },
                         onTrimChange = viewModel::setVideoTrim,
                         onColorGradeChange = viewModel::setVideoColorGrade,
                         onOutputQualityChange = viewModel::setVideoOutputQuality,
@@ -951,7 +977,9 @@ internal fun ProductionGalleryApp(
                         onTrackAnnotation = viewModel::startVideoAnnotationTracking,
                         onCancelAnnotationTracking = viewModel::cancelVideoAnnotationTracking,
                         onCancelExport = viewModel::cancelVideoExport,
+                        foldInfo = adaptiveInfo.foldInfo,
                     )
+                    }
                 }
                 SurfaceRoute.Moment -> selectedMoment?.let { moment ->
                     val scope = rememberCoroutineScope()
@@ -1552,6 +1580,10 @@ internal fun ProductionGalleryApp(
                             selectedRoot = rootTab,
                             onRoot = ::selectRoot,
                             onCreate = { showCreateMenu = true },
+                            activeExportCount = activeVideoExports.size,
+                            activeExportProgress = globalExportProgress,
+                            activeExportDescription = activeExportDescription,
+                            onOpenExportQueue = { showVideoExportQueue = true },
                             onRoute = { destination ->
                                 viewModel.clearSelection()
                                 archiveSelectionMode = false
@@ -1589,6 +1621,17 @@ internal fun ProductionGalleryApp(
                 )
             }
         }
+    }
+
+    LaunchedEffect(activeVideoExports.isEmpty()) {
+        if (activeVideoExports.isEmpty()) showVideoExportQueue = false
+    }
+    if (showVideoExportQueue && activeVideoExports.isNotEmpty()) {
+        VideoExportQueueDialog(
+            jobs = activeVideoExports,
+            onCancel = viewModel::cancelVideoExportJob,
+            onDismiss = { showVideoExportQueue = false },
+        )
     }
 
     if (showCreateMenu) {
@@ -1779,6 +1822,103 @@ internal fun ProductionGalleryApp(
             },
         )
     }
+}
+
+@Composable
+private fun VideoExportQueueDialog(
+    jobs: List<VideoExportJob>,
+    onCancel: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(stringResource(R.string.video_export_queue_title))
+                Text(
+                    pluralStringResource(R.plurals.video_exports_active, jobs.size, jobs.size),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        text = {
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 440.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                items(jobs, key = VideoExportJob::id) { job ->
+                    Surface(
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                    ) {
+                        Column(
+                            Modifier.fillMaxWidth().padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(job.displayName, style = MaterialTheme.typography.titleSmall, maxLines = 2)
+                            val phaseLabel = if (job.status == VideoExportJobStatus.Queued) {
+                                stringResource(R.string.video_export_waiting)
+                            } else {
+                                stringResource(job.phase.queueLabelResource())
+                            }
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(
+                                    phaseLabel,
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                if (job.status == VideoExportJobStatus.Running) {
+                                    Text(
+                                        stringResource(
+                                            R.string.video_export_progress_percent,
+                                            job.progressPermille / 10,
+                                        ),
+                                        modifier = Modifier.padding(start = 12.dp),
+                                        style = MaterialTheme.typography.labelMedium,
+                                    )
+                                }
+                            }
+                            if (job.status == VideoExportJobStatus.Running) {
+                                GalleryProgressIndicator(
+                                    progress = { job.progressPermille.coerceIn(0, 1000) / 1000f },
+                                )
+                            } else {
+                                GalleryIndeterminateProgressIndicator()
+                            }
+                            TextButton(
+                                onClick = { onCancel(job.id) },
+                                modifier = Modifier.align(androidx.compose.ui.Alignment.End),
+                            ) {
+                                Text(stringResource(R.string.video_export_cancel))
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.video_export_close))
+            }
+        },
+    )
+}
+
+private fun VideoExportPhase.queueLabelResource(): Int = when (this) {
+    VideoExportPhase.Preparing -> R.string.video_export_preparing
+    VideoExportPhase.GeneratingFrames -> R.string.video_export_generating_frames
+    VideoExportPhase.Rendering -> R.string.video_export_rendering
+    VideoExportPhase.Publishing -> R.string.video_export_publishing
+    VideoExportPhase.Verifying -> R.string.video_export_verifying
+    VideoExportPhase.Completed -> R.string.video_export_complete
 }
 
 @Composable

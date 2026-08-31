@@ -105,4 +105,19 @@ class SurfaceStateKeyTest {
             ),
         )
     }
+
+    @Test
+    fun videoEditorRouteRemainsAvailableWhileTheSessionIsOpening() {
+        assertEquals(
+            SurfaceRoute.VideoEditor,
+            availableSurfaceRoute(
+                requested = SurfaceRoute.VideoEditor,
+                hasCurrentMedia = true,
+                hasSelectedAlbum = false,
+                hasSelectedHighlight = false,
+                hasPhotoEditor = false,
+                hasVideoEditor = true,
+            ),
+        )
+    }
 }
