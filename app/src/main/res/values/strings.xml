@@ -48,4 +48,18 @@
     <string name="create_sheet_title">Create</string><string name="highlight_selfies">Selfies</string>
     <string name="activity_archived">%1$d archived</string><string name="activity_unarchived">%1$d unarchived</string><string name="activity_trashed">%1$d moved to trash</string><string name="activity_restored">%1$d restored</string><string name="activity_deleted">%1$d permanently deleted</string><string name="activity_exported">%1$d exported</string><string name="activity_imported">%1$d imported</string><string name="activity_analysis_complete">Local analysis completed</string><string name="activity_analysis_failed">Local analysis needs attention</string>
     <plurals name="highlight_years_ago"><item quantity="one">%d year ago</item><item quantity="other">%d years ago</item></plurals>
+<string name="video_export_channel">Video exports</string>
+<string name="video_export_title">Exporting video</string>
+<string name="video_export_preparing">Preparing export…</string>
+<string name="video_export_generating_frames">Generating slow-motion frames…</string>
+<string name="video_export_rendering">Rendering video…</string>
+<string name="video_export_publishing">Saving to your gallery…</string>
+<string name="video_export_verifying">Verifying saved video…</string>
+<string name="video_export_complete">Video export complete</string>
+<string name="video_export_complete_software">Video saved using a software codec fallback</string>
+<string name="video_export_failed">Video export failed</string>
+<string name="video_export_cancel">Cancel</string>
+<string name="video_export_view">View</string>
+<string name="video_export_queued">Export queued. You can keep using UGallery.</string>
+<string name="video_export_cancelled">Video export cancelled</string>
 </resources>

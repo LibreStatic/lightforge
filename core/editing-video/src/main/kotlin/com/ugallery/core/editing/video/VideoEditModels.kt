@@ -49,6 +49,7 @@ data class VideoEditRecipe(
     val colorGrade: VideoColorGrade = VideoColorGrade(),
     val outputQuality: VideoOutputQuality = VideoOutputQuality.H264Compatible,
     val slowMotionSegments: List<SlowMotionSegment> = emptyList(),
+    val annotations: List<VideoAnnotationLayer> = emptyList(),
 ) {
     init {
         require(startMillis >= 0)
@@ -61,6 +62,9 @@ data class VideoEditRecipe(
         require(slowMotionSegments.all { segment ->
             segment.startMillis >= startMillis && (endMillis == null || segment.endMillis <= endMillis)
         })
+        require(annotations.all { layer ->
+            layer.startMillis >= startMillis && (endMillis == null || layer.endMillis <= endMillis)
+        })
     }
 
     val hasChanges: Boolean
@@ -69,6 +73,7 @@ data class VideoEditRecipe(
             || colorGrade.hasChanges
             || !geometry.isIdentity
             || slowMotionSegments.isNotEmpty()
+            || annotations.isNotEmpty()
 }
 
 data class VideoExportResult(
@@ -77,4 +82,7 @@ data class VideoExportResult(
     val videoMimeType: String?,
     val audioMimeType: String?,
     val fallbackWarning: String?,
+    val videoEncoderName: String? = null,
+    val videoDecoderName: String? = null,
+    val usedSoftwareCodec: Boolean = false,
 )

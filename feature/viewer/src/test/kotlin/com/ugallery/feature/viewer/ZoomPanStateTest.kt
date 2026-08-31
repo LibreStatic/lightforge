@@ -86,4 +86,56 @@ class ZoomPanStateTest {
         assertTrue(zoom.offsetY.value in -50f..50f)
         assertTrue(zoom.isZoomed)
     }
+
+    @Test
+    fun flingKeepsVelocityDurationWhileZoomBoundsAdaptItsTravel() {
+        val velocity = Offset(1_000f, 0f)
+        val nearIdentity = createFlingPlan(
+            current = Offset.Zero,
+            velocityPxPerSecond = velocity,
+            bounds = Offset(40f, 40f),
+            minimumVelocityPxPerSecond = 50f,
+        )
+        val deepZoom = createFlingPlan(
+            current = Offset.Zero,
+            velocityPxPerSecond = velocity,
+            bounds = Offset(500f, 500f),
+            minimumVelocityPxPerSecond = 50f,
+        )
+
+        requireNotNull(nearIdentity)
+        requireNotNull(deepZoom)
+        // Matches the float-to-int truncation used by the reference behavior.
+        assertEquals(249, nearIdentity.durationMillis)
+        assertEquals(nearIdentity.durationMillis, deepZoom.durationMillis)
+        assertEquals(40f, nearIdentity.target.x, 0.001f)
+        assertEquals(125f, deepZoom.target.x, 0.001f)
+    }
+
+    @Test
+    fun flingUsesSharedDurationForBothAxesAndClampsEachToItsZoomBounds() {
+        val plan = createFlingPlan(
+            current = Offset(10f, -10f),
+            velocityPxPerSecond = Offset(1_000f, -1_000f),
+            bounds = Offset(80f, 200f),
+            minimumVelocityPxPerSecond = 50f,
+        )
+
+        requireNotNull(plan)
+        assertEquals(353, plan.durationMillis)
+        assertEquals(80f, plan.target.x, 0.001f)
+        assertEquals(-186.7767f, plan.target.y, 0.001f)
+    }
+
+    @Test
+    fun flingIgnoresReleaseBelowMinimumVelocity() {
+        val plan = createFlingPlan(
+            current = Offset.Zero,
+            velocityPxPerSecond = Offset(49f, -49f),
+            bounds = Offset(500f, 500f),
+            minimumVelocityPxPerSecond = 50f,
+        )
+
+        assertEquals(null, plan)
+    }
 }

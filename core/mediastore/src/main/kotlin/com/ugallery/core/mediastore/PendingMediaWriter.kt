@@ -70,6 +70,7 @@ class PendingMediaWriter(
         source: File,
         spec: MediaWriteSpec,
         onProgress: suspend (Long) -> Unit = {},
+        onVerifying: suspend () -> Unit = {},
     ): PublishedCopy = withContext(ioDispatcher) {
         require(source.isFile && source.length() > 0) { "Rendered source is empty" }
         val expectedSize = source.length()
@@ -105,6 +106,7 @@ class PendingMediaWriter(
             }
             check(copied == expectedSize) { "Rendered source changed while publishing" }
             val expectedDigest = sourceDigest.digest().hex()
+            onVerifying()
             verifyAndPublish(pending, copied, expectedDigest)
             persistPending(null)
             PublishedCopy(pending, copied, expectedDigest)

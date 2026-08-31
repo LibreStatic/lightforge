@@ -26,4 +26,18 @@
     <string name="create_sheet_title">Créer</string><string name="highlight_selfies">Selfies</string>
     <string name="activity_archived">%1$d archivés</string><string name="activity_unarchived">%1$d désarchivés</string><string name="activity_trashed">%1$d placés dans la corbeille</string><string name="activity_restored">%1$d restaurés</string><string name="activity_deleted">%1$d supprimés définitivement</string><string name="activity_exported">%1$d exportés</string><string name="activity_imported">%1$d importés</string><string name="activity_analysis_complete">Analyse locale terminée</string><string name="activity_analysis_failed">L’analyse locale requiert votre attention</string>
     <plurals name="highlight_years_ago"><item quantity="one">Il y a %d an</item><item quantity="other">Il y a %d ans</item></plurals>
+<string name="video_export_channel">Exports vidéo</string>
+<string name="video_export_title">Exportation de la vidéo</string>
+<string name="video_export_preparing">Préparation de l’export…</string>
+<string name="video_export_generating_frames">Génération des images au ralenti…</string>
+<string name="video_export_rendering">Rendu de la vidéo…</string>
+<string name="video_export_publishing">Enregistrement dans votre galerie…</string>
+<string name="video_export_verifying">Vérification de la vidéo enregistrée…</string>
+<string name="video_export_complete">Exportation vidéo terminée</string>
+<string name="video_export_complete_software">Vidéo enregistrée avec un codec logiciel de secours</string>
+<string name="video_export_failed">Échec de l’exportation vidéo</string>
+<string name="video_export_cancel">Annuler</string>
+<string name="video_export_view">Afficher</string>
+<string name="video_export_queued">Exportation mise en attente. Vous pouvez continuer à utiliser UGallery.</string>
+<string name="video_export_cancelled">Exportation vidéo annulée</string>
 </resources>

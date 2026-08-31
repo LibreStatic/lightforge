@@ -3,15 +3,20 @@
 package com.ugallery.core.editing.video
 
 import android.content.Context
+import android.media.metrics.LogSessionId
 import android.media.MediaMetadataRetriever
 import android.media.MediaCodecInfo
 import android.net.Uri
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.SpeedParameters
 import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.SpeedProvider
+import androidx.media3.common.util.Clock
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.EditedMediaItemSequence
 import androidx.media3.transformer.Composition
@@ -19,6 +24,9 @@ import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.Transformer
 import androidx.media3.transformer.DefaultEncoderFactory
+import androidx.media3.transformer.DefaultAssetLoaderFactory
+import androidx.media3.transformer.DefaultDecoderFactory
+import androidx.media3.transformer.ProgressHolder
 import androidx.media3.transformer.VideoEncoderSettings
 import androidx.media3.transformer.TransformationRequest
 import kotlinx.coroutines.CancellationException
@@ -31,6 +39,15 @@ import java.nio.ByteOrder
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
+enum class VideoExportPhase { Preparing, GeneratingFrames, Rendering, Publishing, Verifying, Completed }
+
+data class VideoExportProgress(
+    val phase: VideoExportPhase,
+    val fraction: Float?,
+) {
+    init { require(fraction == null || fraction in 0f..1f) }
+}
+
 data class VideoExportRequest(
     val input: Uri,
     val output: File,
@@ -38,12 +55,13 @@ data class VideoExportRequest(
     val videoMimeType: String = MimeTypes.VIDEO_H264,
     val audioMimeType: String = MimeTypes.AUDIO_AAC,
     val customLut: CubeLut? = null,
-    val onProgress: (Float) -> Unit = {},
+    val onProgress: (VideoExportProgress) -> Unit = {},
 )
 
 /** Media3 Transformer wrapper with trim, speed and PCM volume processing. */
 class Media3VideoExporter(private val context: Context) {
     suspend fun export(request: VideoExportRequest): VideoExportResult {
+        request.onProgress(VideoExportProgress(VideoExportPhase.Preparing, 0f))
         val clipEndMillis = request.recipe.endMillis ?: withContext(Dispatchers.IO) {
             MediaMetadataRetriever().use { retriever ->
                 retriever.setDataSource(context.applicationContext, request.input)
@@ -53,7 +71,7 @@ class Media3VideoExporter(private val context: Context) {
         if (request.recipe.slowMotionSegments.isEmpty()) {
             return withContext(Dispatchers.Main.immediate) {
                 exportOnMain(request, clipEndMillis, emptyList())
-            }
+            }.also { request.onProgress(VideoExportProgress(VideoExportPhase.Completed, 1f)) }
         }
         val frameRoot = File(context.cacheDir, "rife-export-${System.nanoTime()}")
         return try {
@@ -63,14 +81,18 @@ class Media3VideoExporter(private val context: Context) {
                     segment = segment,
                     destination = File(frameRoot, segment.id),
                     onProgress = { segmentProgress ->
-                        request.onProgress((index + segmentProgress) / request.recipe.slowMotionSegments.size * 0.75f)
+                        request.onProgress(
+                            VideoExportProgress(
+                                VideoExportPhase.GeneratingFrames,
+                                (index + segmentProgress) / request.recipe.slowMotionSegments.size,
+                            ),
+                        )
                     },
                 )
             }
-            request.onProgress(0.8f)
             withContext(Dispatchers.Main.immediate) {
                 exportOnMain(request, clipEndMillis, segments)
-            }.also { request.onProgress(1f) }
+            }.also { request.onProgress(VideoExportProgress(VideoExportPhase.Completed, 1f)) }
         } finally {
             withContext(Dispatchers.IO) { frameRoot.deleteRecursively() }
         }
@@ -94,6 +116,9 @@ class Media3VideoExporter(private val context: Context) {
         val videoEffects = buildList {
             addAll(VideoColorGradeEffects.geometryEffects(request.recipe.geometry))
             addAll(VideoColorGradeEffects.create(request.recipe.colorGrade, request.customLut))
+            if (request.recipe.annotations.isNotEmpty()) {
+                add(VideoAnnotationEffect(request.recipe.annotations))
+            }
         }
         val editedBuilder = EditedMediaItem.Builder(mediaItem)
         if (request.recipe.speed != 1f) {
@@ -150,6 +175,21 @@ class Media3VideoExporter(private val context: Context) {
         return suspendCancellableCoroutine { continuation ->
             lateinit var transformer: Transformer
             var fallbackWarning: String? = null
+            var decoderName: String? = null
+            val mainHandler = Handler(Looper.getMainLooper())
+            val progressHolder = ProgressHolder()
+            var progressPolling = true
+            val progressPoll = object : Runnable {
+                override fun run() {
+                    if (!progressPolling) return
+                    val fraction = when (transformer.getProgress(progressHolder)) {
+                        Transformer.PROGRESS_STATE_AVAILABLE -> progressHolder.progress / 100f
+                        else -> null
+                    }
+                    request.onProgress(VideoExportProgress(VideoExportPhase.Rendering, fraction))
+                    mainHandler.postDelayed(this, ProgressPollMillis)
+                }
+            }
             val transformerBuilder = Transformer.Builder(context.applicationContext)
                 .setVideoMimeType(
                     if (request.recipe.outputQuality == VideoOutputQuality.HevcMain10) {
@@ -157,24 +197,40 @@ class Media3VideoExporter(private val context: Context) {
                     } else request.videoMimeType,
                 )
                 .setAudioMimeType(request.audioMimeType)
+            val encoderBuilder = DefaultEncoderFactory.Builder(context.applicationContext)
+                .setVideoEncoderSelector(HardwareCodecSelectors.encoder)
+                .setEnableFallback(true)
             if (request.recipe.outputQuality == VideoOutputQuality.HevcMain10) {
-                transformerBuilder.setEncoderFactory(
-                    DefaultEncoderFactory.Builder(context.applicationContext)
-                        .setRequestedVideoEncoderSettings(
-                            VideoEncoderSettings.Builder()
-                                .setEncodingProfileLevel(
-                                    MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10,
-                                    MediaCodecInfo.CodecProfileLevel.HEVCMainTierLevel5,
-                                )
-                                .build(),
+                encoderBuilder.setRequestedVideoEncoderSettings(
+                    VideoEncoderSettings.Builder()
+                        .setEncodingProfileLevel(
+                            MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10,
+                            MediaCodecInfo.CodecProfileLevel.HEVCMainTierLevel5,
                         )
-                        .setEnableFallback(true)
                         .build(),
+                )
+            }
+            transformerBuilder.setEncoderFactory(encoderBuilder.build())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val decoderFactory = DefaultDecoderFactory.Builder(context.applicationContext)
+                    .setMediaCodecSelector(HardwareCodecSelectors.decoder)
+                    .setEnableDecoderFallback(true)
+                    .setListener { codecName, _ -> decoderName = codecName }
+                    .build()
+                transformerBuilder.setAssetLoaderFactory(
+                    DefaultAssetLoaderFactory(
+                        context.applicationContext,
+                        decoderFactory,
+                        Clock.DEFAULT,
+                        LogSessionId.LOG_SESSION_ID_NONE,
+                    ),
                 )
             }
             transformer = transformerBuilder
                 .addListener(object : Transformer.Listener {
                     override fun onCompleted(composition: androidx.media3.transformer.Composition, exportResult: ExportResult) {
+                        progressPolling = false
+                        mainHandler.removeCallbacks(progressPoll)
                         if (continuation.isActive) continuation.resume(
                             VideoExportResult(
                                 request.output,
@@ -184,6 +240,10 @@ class Media3VideoExporter(private val context: Context) {
                                 } else request.videoMimeType,
                                 audioMimeType = request.audioMimeType,
                                 fallbackWarning = fallbackWarning,
+                                videoEncoderName = exportResult.videoEncoderName,
+                                videoDecoderName = decoderName,
+                                usedSoftwareCodec = HardwareCodecSelectors.isSoftwareCodec(exportResult.videoEncoderName) ||
+                                    HardwareCodecSelectors.isSoftwareCodec(decoderName),
                             ),
                         )
                     }
@@ -201,13 +261,19 @@ class Media3VideoExporter(private val context: Context) {
                         exportResult: ExportResult,
                         exportException: ExportException,
                     ) {
+                        progressPolling = false
+                        mainHandler.removeCallbacks(progressPoll)
                         if (continuation.isActive) continuation.resumeWithException(exportException)
                     }
                 })
                 .build()
             continuation.invokeOnCancellation {
-                transformer.cancel()
-                request.output.delete()
+                progressPolling = false
+                mainHandler.post {
+                    mainHandler.removeCallbacks(progressPoll)
+                    transformer.cancel()
+                    request.output.delete()
+                }
             }
             try {
                 if (composition != null) {
@@ -215,12 +281,17 @@ class Media3VideoExporter(private val context: Context) {
                 } else {
                     transformer.start(edited, request.output.absolutePath)
                 }
+                progressPoll.run()
             } catch (failure: Throwable) {
+                progressPolling = false
+                mainHandler.removeCallbacks(progressPoll)
                 request.output.delete()
                 if (continuation.isActive) continuation.resumeWithException(failure)
             }
         }
     }
+
+    private companion object { const val ProgressPollMillis = 250L }
 
     private fun buildSlowMotionComposition(
         request: VideoExportRequest,

@@ -1305,6 +1305,17 @@ private fun VideoSurface(
             VideoViewerState.Released -> Unit
             null -> GalleryLoadingIndicator()
         }
+        if ((state as? VideoViewerState.Ready)?.usedSoftwareDecoder == true) {
+            Text(
+                text = stringResource(R.string.viewer_software_decoder_warning),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(16.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.medium)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            )
+        }
     }
     DisposableEffect(controller) { onDispose { controller.attachSurface(null) } }
 }

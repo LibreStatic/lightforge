@@ -48,6 +48,32 @@ class VideoEditRecipeCodecTest {
                     audioMode = SlowMotionAudioMode.Muted,
                 ),
             ),
+            annotations = listOf(
+                VideoAnnotationLayer(
+                    id = "annotation-1",
+                    shape = VideoAnnotationShape.Star,
+                    points = listOf(NormalizedPoint(0.2f, 0.25f), NormalizedPoint(0.6f, 0.7f)),
+                    style = VideoAnnotationStyle(
+                        appearance = VideoAnnotationAppearance.Mosaic,
+                        colorArgb = 0xFF123456.toInt(),
+                        strokeWidth = 0.02f,
+                        opacity = 0.8f,
+                        filled = true,
+                        intensity = 0.75f,
+                    ),
+                    startMillis = 700,
+                    endMillis = 9_000,
+                    trackingMode = VideoAnnotationTrackingMode.Automatic,
+                    keyframes = listOf(
+                        VideoAnnotationKeyframe(700, VideoAnnotationTransform()),
+                        VideoAnnotationKeyframe(
+                            9_000,
+                            VideoAnnotationTransform(0.1f, -0.1f, 1.2f, 0.9f, 15f),
+                            confidence = 0.82f,
+                        ),
+                    ),
+                ),
+            ),
         )
 
         assertEquals(recipe, VideoEditRecipeCodec.decode(VideoEditRecipeCodec.encode(recipe)))
@@ -64,5 +90,24 @@ class VideoEditRecipeCodecTest {
         assertEquals(0.5f, decoded.speed)
         assertEquals(emptyList<SlowMotionSegment>(), decoded.slowMotionSegments)
         assertEquals(VideoGeometry(), decoded.geometry)
+        assertEquals(emptyList<VideoAnnotationLayer>(), decoded.annotations)
+    }
+
+    @Test
+    fun interpolatesAnnotationKeyframesAcrossShortestRotation() {
+        val layer = VideoAnnotationLayer(
+            shape = VideoAnnotationShape.Rectangle,
+            points = listOf(NormalizedPoint(0.1f, 0.1f), NormalizedPoint(0.3f, 0.3f)),
+            startMillis = 0,
+            endMillis = 1_001,
+            trackingMode = VideoAnnotationTrackingMode.Keyframes,
+            keyframes = listOf(
+                VideoAnnotationKeyframe(0, VideoAnnotationTransform(rotationDegrees = 170f)),
+                VideoAnnotationKeyframe(1_000, VideoAnnotationTransform(translationX = 0.2f, rotationDegrees = -170f)),
+            ),
+        )
+
+        assertEquals(0.1f, layer.transformAt(500).translationX, 0.0001f)
+        assertEquals(180f, layer.transformAt(500).rotationDegrees, 0.0001f)
     }
 }

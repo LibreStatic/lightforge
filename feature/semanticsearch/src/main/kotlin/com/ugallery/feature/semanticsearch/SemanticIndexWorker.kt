@@ -16,6 +16,7 @@ import androidx.work.workDataOf
 import com.ugallery.core.database.GalleryDatabaseFactory
 import com.ugallery.core.database.SemanticEmbeddingEntity
 import com.ugallery.core.ml.AndroidFullAnalysisEligibility
+import com.ugallery.core.ml.UserHardwareWorkloadGate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
@@ -28,6 +29,7 @@ class SemanticIndexWorker(context: Context, parameters: WorkerParameters) : Coro
         val mode = inputData.getString(KeyMode)
             ?.let { runCatching { SemanticIndexMode.valueOf(it) }.getOrNull() }
             ?: SemanticIndexMode.FullLibrary
+        if (UserHardwareWorkloadGate.isActive()) return@withContext Result.success()
         val fullAnalysisEligibility = AndroidFullAnalysisEligibility(applicationContext)
         if (mode == SemanticIndexMode.FullLibrary && !fullAnalysisEligibility.isEligible()) {
             return@withContext Result.retry()
@@ -40,6 +42,7 @@ class SemanticIndexWorker(context: Context, parameters: WorkerParameters) : Coro
             LiteRtSemanticEmbeddingInference(applicationContext, installed).use { inference ->
                 var processed = 0L
                 while (!isStopped && processed < MaxItemsPerRun) {
+                    if (UserHardwareWorkloadGate.isActive()) return@withContext Result.success()
                     if (mode == SemanticIndexMode.FullLibrary && !fullAnalysisEligibility.isEligible()) {
                         return@withContext Result.retry()
                     }

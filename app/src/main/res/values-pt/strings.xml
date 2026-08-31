@@ -26,4 +26,18 @@
     <string name="create_sheet_title">Criar</string><string name="highlight_selfies">Selfies</string>
     <string name="activity_archived">%1$d arquivados</string><string name="activity_unarchived">%1$d desarquivados</string><string name="activity_trashed">%1$d movidos para a lixeira</string><string name="activity_restored">%1$d restaurados</string><string name="activity_deleted">%1$d excluídos permanentemente</string><string name="activity_exported">%1$d exportados</string><string name="activity_imported">%1$d importados</string><string name="activity_analysis_complete">Análise local concluída</string><string name="activity_analysis_failed">A análise local requer atenção</string>
     <plurals name="highlight_years_ago"><item quantity="one">Há %d ano</item><item quantity="other">Há %d anos</item></plurals>
+<string name="video_export_channel">Exportações de vídeo</string>
+<string name="video_export_title">A exportar vídeo</string>
+<string name="video_export_preparing">A preparar a exportação…</string>
+<string name="video_export_generating_frames">A gerar fotogramas em câmara lenta…</string>
+<string name="video_export_rendering">A processar o vídeo…</string>
+<string name="video_export_publishing">A guardar na galeria…</string>
+<string name="video_export_verifying">A verificar o vídeo guardado…</string>
+<string name="video_export_complete">Exportação de vídeo concluída</string>
+<string name="video_export_complete_software">Vídeo guardado usando um codec de software alternativo</string>
+<string name="video_export_failed">Falha ao exportar o vídeo</string>
+<string name="video_export_cancel">Cancelar</string>
+<string name="video_export_view">Ver</string>
+<string name="video_export_queued">Exportação em fila. Pode continuar a usar o UGallery.</string>
+<string name="video_export_cancelled">Exportação de vídeo cancelada</string>
 </resources>

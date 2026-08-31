@@ -66,6 +66,9 @@ import com.ugallery.core.ml.PetType
 import com.ugallery.core.ml.PeopleRepository
 import com.ugallery.core.ml.MlRunMode
 import com.ugallery.core.ml.MlControlState
+import com.ugallery.core.ml.UserHardwareLease
+import com.ugallery.core.ml.UserHardwareWorkload
+import com.ugallery.core.ml.UserHardwareWorkloadGate
 import com.ugallery.core.search.AppSearchMediaSearchRepository
 import com.ugallery.core.search.MediaSearchCursor
 import com.ugallery.core.search.MediaSearchHit
@@ -106,6 +109,13 @@ import com.ugallery.core.editing.video.VideoEditRecipeCodec
 import com.ugallery.core.editing.video.VideoOutputQuality
 import com.ugallery.core.editing.video.VideoOutputCapabilities
 import com.ugallery.core.editing.video.SlowMotionSegment
+import com.ugallery.core.editing.video.VideoAnnotationLayer
+import com.ugallery.core.editing.video.VideoAnnotationKeyframe
+import com.ugallery.core.editing.video.VideoAnnotationTrackingMode
+import com.ugallery.core.editing.video.VideoAnnotationTracker
+import com.ugallery.core.editing.video.VideoAnnotationTrackingResult
+import com.ugallery.core.editing.video.NormalizedPoint
+import com.ugallery.core.editing.video.VideoAnnotationShape
 import com.ugallery.core.database.VideoEditRecipeEntity
 import com.ugallery.core.database.VideoPlaybackPositionEntity
 import com.ugallery.core.database.MediaItemEntity
@@ -141,6 +151,7 @@ import com.ugallery.feature.semanticsearch.RankedSemanticKey
 import com.ugallery.feature.semanticsearch.SemanticModelManager
 import com.ugallery.feature.semanticsearch.SemanticModelManagerState
 import com.ugallery.feature.semanticsearch.SemanticSearchEngine
+import com.ugallery.feature.semanticsearch.SemanticAnalysisPriority
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
@@ -256,6 +267,12 @@ class GalleryViewModel @Inject constructor(
     private val mutableSearchIndexReady = MutableStateFlow(false)
     val searchIndexReady = mutableSearchIndexReady.asStateFlow()
     private val mlScheduler = MlScheduler(application)
+    private val videoExportStore = VideoExportStore.get(application)
+    val videoExports = videoExportStore.jobs
+    private val mutableVideoExportCompleted = MutableSharedFlow<VideoExportJob>(extraBufferCapacity = 8)
+    val videoExportCompleted = mutableVideoExportCompleted.asSharedFlow()
+    private var userHardwareLease: UserHardwareLease? = null
+    private var userHardwareWorkload: UserHardwareWorkload? = null
     private val localAnalysisOnboardingStore = LocalAnalysisOnboardingStore(application)
     private val peopleAnalysisTasks = listOf(
         MlTaskType.FaceDetection,
@@ -480,6 +497,9 @@ class GalleryViewModel @Inject constructor(
     private var rawPreviewProfile: RawPreviewProfile? = null
     private var videoEditorJob: Job? = null
     private var videoRecipeJob: Job? = null
+    private var videoAnnotationTrackingJob: Job? = null
+    private val videoAnnotationUndo = ArrayDeque<List<VideoAnnotationLayer>>()
+    private val videoAnnotationRedo = ArrayDeque<List<VideoAnnotationLayer>>()
     private var slowMotionSaveJob: Job? = null
     private var bulkCursor: BulkCursor? = savedStateHandle[BulkStateKey]
     private var favoriteImportCursor: FavoriteImportCursor? = savedStateHandle[FavoriteImportStateKey]
@@ -552,6 +572,41 @@ class GalleryViewModel @Inject constructor(
     }
 
     init {
+        var knownExportStatuses = videoExportStore.jobs.value.associate { it.id to it.status }
+        viewModelScope.launch {
+            videoExportStore.jobs.collect { jobs ->
+                jobs.forEach { job ->
+                    if (job.status == VideoExportJobStatus.Completed &&
+                        knownExportStatuses[job.id] != VideoExportJobStatus.Completed
+                    ) {
+                        mutableVideoExportCompleted.emit(job)
+                        viewModelScope.launch { refreshLibrary() }
+                    }
+                }
+                knownExportStatuses = jobs.associate { it.id to it.status }
+                val session = mutableVideoEditor.value ?: return@collect
+                val latest = jobs.firstOrNull { it.inputUri == mediaUri(session.media).toString() }
+                    ?: return@collect
+                val active = latest.status == VideoExportJobStatus.Queued || latest.status == VideoExportJobStatus.Running
+                val statusMessage = when (latest.status) {
+                    VideoExportJobStatus.Queued -> getApplication<Application>().getString(R.string.video_export_queued)
+                    VideoExportJobStatus.Completed -> getApplication<Application>().getString(
+                        if (latest.usedSoftwareCodec) com.ugallery.feature.videoeditor.R.string.video_editor_encoder_fallback
+                        else com.ugallery.feature.videoeditor.R.string.video_editor_copy_saved,
+                    )
+                    VideoExportJobStatus.Failed -> latest.error ?: getApplication<Application>().getString(R.string.video_export_failed)
+                    VideoExportJobStatus.Cancelled -> getApplication<Application>().getString(R.string.video_export_cancelled)
+                    VideoExportJobStatus.Running -> null
+                }
+                mutableVideoEditor.value = session.copy(content = session.content.copy(
+                    isExporting = active,
+                    exportProgress = latest.progressPermille / 1000f,
+                    exportPhase = latest.phase,
+                    usedSoftwareCodec = latest.usedSoftwareCodec,
+                    statusMessage = statusMessage,
+                ))
+            }
+        }
         if (mlScheduler.hasConsent(MlTaskType.FaceDetection)) monitorFaceProgress()
         if (mlScheduler.hasConsent(MlTaskType.PersonClustering)) monitorPeopleProgress()
         if (mlScheduler.hasConsent(MlTaskType.ImageLabels)) monitorPetProgress()
@@ -2221,6 +2276,9 @@ class GalleryViewModel @Inject constructor(
         if (media.kind != MediaKind.Video) return
         mutableCurrentMedia.value = media
         videoEditorJob?.cancel()
+        videoAnnotationTrackingJob?.cancel()
+        videoAnnotationUndo.clear()
+        videoAnnotationRedo.clear()
         videoEditorJob = viewModelScope.launch {
             val active = runtime.value ?: return@launch
             val stored = withContext(Dispatchers.IO) {
@@ -2280,6 +2338,7 @@ class GalleryViewModel @Inject constructor(
                     geometry = recipe.geometry,
                     isHevcMain10Available = supportsMain10,
                     slowMotionSegments = recipe.slowMotionSegments,
+                    annotations = recipe.annotations,
                     isDirty = stored != null,
                     logDetectionMessage = if (detection.confidence >= 0.8f) {
                         getApplication<Application>().getString(
@@ -2307,10 +2366,20 @@ class GalleryViewModel @Inject constructor(
                 endMillis = adjustedEnd,
             )
         }
+        val adjustedAnnotations = session.recipe.annotations.mapNotNull { layer ->
+            val adjustedStart = layer.startMillis.coerceAtLeast(start)
+            val adjustedEnd = layer.endMillis.coerceAtMost(end)
+            if (adjustedEnd <= adjustedStart) null else layer.copy(
+                startMillis = adjustedStart,
+                endMillis = adjustedEnd,
+                keyframes = layer.keyframes.filter { it.timeMillis in adjustedStart..adjustedEnd },
+            )
+        }
         val recipe = session.recipe.copy(
             startMillis = start,
             endMillis = end,
             slowMotionSegments = adjustedSegments,
+            annotations = adjustedAnnotations,
         )
         mutableVideoEditor.value = session.copy(
             recipe = recipe,
@@ -2319,6 +2388,9 @@ class GalleryViewModel @Inject constructor(
                 trimStartMillis = start,
                 trimEndMillis = end,
                 slowMotionSegments = adjustedSegments,
+                annotations = adjustedAnnotations,
+                selectedAnnotationId = session.content.selectedAnnotationId
+                    ?.takeIf { id -> adjustedAnnotations.any { it.id == id } },
                 selectedSlowMotionSegmentId = session.content.selectedSlowMotionSegmentId
                     ?.takeIf { id -> adjustedSegments.any { it.id == id } },
             ),
@@ -2424,10 +2496,7 @@ class GalleryViewModel @Inject constructor(
     }
 
     fun cancelVideoExport() {
-        videoEditorJob?.cancel()
-        mutableVideoEditor.value = mutableVideoEditor.value?.let { session ->
-            session.copy(content = session.content.copy(isExporting = false, exportProgress = null))
-        }
+        cancelVideoEditorExport()
     }
 
     fun saveQuickSlowMotionClip(media: TimelineMedia, startMillis: Long, endMillis: Long) {
@@ -2453,7 +2522,9 @@ class GalleryViewModel @Inject constructor(
                             slowMotionSegments = listOf(segment),
                         ),
                         onProgress = { progress ->
-                            mutableQuickSlowMotionSave.value = mutableQuickSlowMotionSave.value.copy(progress = progress)
+                            progress.fraction?.let { fraction ->
+                                mutableQuickSlowMotionSave.value = mutableQuickSlowMotionSave.value.copy(progress = fraction)
+                            }
                         },
                     ),
                 )
@@ -2586,6 +2657,207 @@ class GalleryViewModel @Inject constructor(
         persistVideoRecipe(recipe)
     }
 
+    fun addVideoAnnotation(layer: VideoAnnotationLayer) {
+        val session = mutableVideoEditor.value ?: return
+        if (layer.startMillis < session.recipe.startMillis ||
+            layer.endMillis > (session.recipe.endMillis ?: session.content.durationMillis)
+        ) return
+        commitVideoAnnotations(session.recipe.annotations + layer, layer.id)
+    }
+
+    fun updateVideoAnnotation(layer: VideoAnnotationLayer) {
+        val session = mutableVideoEditor.value ?: return
+        if (session.recipe.annotations.none { it.id == layer.id }) return
+        commitVideoAnnotations(session.recipe.annotations.map { if (it.id == layer.id) layer else it }, layer.id)
+    }
+
+    fun eraseVideoAnnotations(points: List<NormalizedPoint>, timeMillis: Long) {
+        if (points.isEmpty()) return
+        val session = mutableVideoEditor.value ?: return
+        val updated = session.recipe.annotations.flatMap { layer ->
+            if (timeMillis !in layer.startMillis until layer.endMillis) return@flatMap listOf(layer)
+            if (layer.shape != VideoAnnotationShape.Freehand) {
+                val left = layer.points.minOf(NormalizedPoint::x) - AnnotationEraserRadius
+                val right = layer.points.maxOf(NormalizedPoint::x) + AnnotationEraserRadius
+                val top = layer.points.minOf(NormalizedPoint::y) - AnnotationEraserRadius
+                val bottom = layer.points.maxOf(NormalizedPoint::y) + AnnotationEraserRadius
+                if (points.any { it.x in left..right && it.y in top..bottom }) emptyList() else listOf(layer)
+            } else {
+                val groups = mutableListOf<MutableList<NormalizedPoint>>()
+                layer.points.forEach { layerPoint ->
+                    val erased = points.any { eraserPoint ->
+                        val dx = layerPoint.x - eraserPoint.x
+                        val dy = layerPoint.y - eraserPoint.y
+                        dx * dx + dy * dy <= AnnotationEraserRadius * AnnotationEraserRadius
+                    }
+                    if (erased) {
+                        if (groups.lastOrNull()?.isNotEmpty() == true) groups.add(mutableListOf())
+                    } else {
+                        if (groups.isEmpty()) groups.add(mutableListOf())
+                        groups.last() += layerPoint
+                    }
+                }
+                groups.filter { it.size >= 2 }.mapIndexed { index, segment ->
+                    layer.copy(
+                        id = if (index == 0) layer.id else java.util.UUID.randomUUID().toString(),
+                        points = segment,
+                    )
+                }
+            }
+        }
+        if (updated != session.recipe.annotations) commitVideoAnnotations(updated, null)
+    }
+
+    fun selectVideoAnnotation(id: String?) {
+        val session = mutableVideoEditor.value ?: return
+        if (id != null && session.recipe.annotations.none { it.id == id }) return
+        mutableVideoEditor.value = session.copy(content = session.content.copy(selectedAnnotationId = id))
+    }
+
+    fun deleteVideoAnnotation(id: String) {
+        val session = mutableVideoEditor.value ?: return
+        val updated = session.recipe.annotations.filterNot { it.id == id }
+        if (updated.size == session.recipe.annotations.size) return
+        commitVideoAnnotations(updated, null)
+    }
+
+    fun moveVideoAnnotation(id: String, delta: Int) {
+        val session = mutableVideoEditor.value ?: return
+        val index = session.recipe.annotations.indexOfFirst { it.id == id }
+        if (index < 0) return
+        val target = (index + delta).coerceIn(0, session.recipe.annotations.lastIndex)
+        if (target == index) return
+        val updated = session.recipe.annotations.toMutableList()
+        val layer = updated.removeAt(index)
+        updated.add(target, layer)
+        commitVideoAnnotations(updated, id)
+    }
+
+    fun clearVideoAnnotations() {
+        if (mutableVideoEditor.value?.recipe?.annotations.isNullOrEmpty()) return
+        commitVideoAnnotations(emptyList(), null)
+    }
+
+    fun undoVideoAnnotation() {
+        val session = mutableVideoEditor.value ?: return
+        val previous = videoAnnotationUndo.removeLastOrNull() ?: return
+        pushBounded(videoAnnotationRedo, session.recipe.annotations)
+        applyVideoAnnotations(previous, null)
+    }
+
+    fun redoVideoAnnotation() {
+        val session = mutableVideoEditor.value ?: return
+        val next = videoAnnotationRedo.removeLastOrNull() ?: return
+        pushBounded(videoAnnotationUndo, session.recipe.annotations)
+        applyVideoAnnotations(next, null)
+    }
+
+    fun addVideoAnnotationKeyframe(id: String, timeMillis: Long) {
+        val session = mutableVideoEditor.value ?: return
+        val layer = session.recipe.annotations.firstOrNull { it.id == id } ?: return
+        val safeTime = timeMillis.coerceIn(layer.startMillis, layer.endMillis)
+        val current = layer.transformAt(safeTime)
+        val keyframes = (layer.keyframes.filterNot { it.timeMillis == safeTime } +
+            VideoAnnotationKeyframe(safeTime, current)).sortedBy(VideoAnnotationKeyframe::timeMillis)
+        updateVideoAnnotation(layer.copy(
+            trackingMode = VideoAnnotationTrackingMode.Keyframes,
+            keyframes = keyframes,
+        ))
+    }
+
+    fun startVideoAnnotationTracking(id: String, seedTimeMillis: Long) {
+        val session = mutableVideoEditor.value ?: return
+        val layer = session.recipe.annotations.firstOrNull { it.id == id } ?: return
+        videoAnnotationTrackingJob?.cancel()
+        mutableVideoEditor.value = session.copy(content = session.content.copy(
+            annotationTrackingProgress = 0f,
+            annotationTrackingCorrectionMillis = null,
+            statusMessage = null,
+        ))
+        videoAnnotationTrackingJob = viewModelScope.launch {
+            try {
+                val trackedLayer = layer.copy(trackingMode = VideoAnnotationTrackingMode.Automatic)
+                when (val result = VideoAnnotationTracker(getApplication<Application>()).track(
+                    mediaUri(session.media),
+                    trackedLayer,
+                    seedTimeMillis.coerceIn(layer.startMillis, layer.endMillis - 1),
+                    onProgress = { progress ->
+                        mutableVideoEditor.value = mutableVideoEditor.value?.let { current ->
+                            current.copy(content = current.content.copy(annotationTrackingProgress = progress))
+                        }
+                    },
+                )) {
+                    is VideoAnnotationTrackingResult.Complete -> {
+                        updateVideoAnnotation(trackedLayer.copy(keyframes = result.keyframes))
+                        mutableVideoEditor.value = mutableVideoEditor.value?.let { current ->
+                            current.copy(content = current.content.copy(annotationTrackingProgress = null))
+                        }
+                    }
+                    is VideoAnnotationTrackingResult.NeedsCorrection -> {
+                        updateVideoAnnotation(trackedLayer.copy(keyframes = result.completedKeyframes))
+                        mutableVideoEditor.value = mutableVideoEditor.value?.let { current ->
+                            current.copy(content = current.content.copy(
+                                annotationTrackingProgress = null,
+                                annotationTrackingCorrectionMillis = result.timeMillis,
+                                statusMessage = getApplication<Application>().getString(
+                                    com.ugallery.feature.videoeditor.R.string.video_editor_tracking_needs_correction,
+                                ),
+                            ))
+                        }
+                    }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Throwable) {
+                mutableVideoEditor.value = mutableVideoEditor.value?.let { current ->
+                    current.copy(content = current.content.copy(
+                        annotationTrackingProgress = null,
+                        statusMessage = getApplication<Application>().getString(
+                            com.ugallery.feature.videoeditor.R.string.video_editor_tracking_failed,
+                        ),
+                    ))
+                }
+            }
+        }
+    }
+
+    fun cancelVideoAnnotationTracking() {
+        videoAnnotationTrackingJob?.cancel()
+        mutableVideoEditor.value = mutableVideoEditor.value?.let { session ->
+            session.copy(content = session.content.copy(annotationTrackingProgress = null))
+        }
+    }
+
+    private fun commitVideoAnnotations(updated: List<VideoAnnotationLayer>, selectedId: String?) {
+        val session = mutableVideoEditor.value ?: return
+        if (updated == session.recipe.annotations) return
+        pushBounded(videoAnnotationUndo, session.recipe.annotations)
+        videoAnnotationRedo.clear()
+        applyVideoAnnotations(updated, selectedId)
+    }
+
+    private fun applyVideoAnnotations(updated: List<VideoAnnotationLayer>, selectedId: String?) {
+        val session = mutableVideoEditor.value ?: return
+        val recipe = session.recipe.copy(annotations = updated)
+        mutableVideoEditor.value = session.copy(
+            recipe = recipe,
+            content = session.content.copy(
+                annotations = updated,
+                selectedAnnotationId = selectedId,
+                isDirty = recipe != session.baselineRecipe,
+            ),
+        )
+        persistVideoRecipe(recipe)
+    }
+
+    private fun pushBounded(
+        stack: ArrayDeque<List<VideoAnnotationLayer>>,
+        value: List<VideoAnnotationLayer>,
+    ) {
+        if (stack.size == 100) stack.removeFirst()
+        stack.addLast(value)
+    }
+
     fun importVideoLut(uri: Uri, displayName: String) {
         viewModelScope.launch {
             val active = runtime.value ?: return@launch
@@ -2648,53 +2920,41 @@ class GalleryViewModel @Inject constructor(
     fun saveVideoEditorCopy() {
         val session = mutableVideoEditor.value ?: return
         if (session.content.isExporting) return
-        mutableVideoEditor.value = session.copy(content = session.content.copy(
+        val job = videoExportStore.enqueue(mediaUri(session.media), session.recipe)
+        mutableVideoEditor.value = session.copy(
+            baselineRecipe = session.recipe,
+            content = session.content.copy(
             isExporting = true,
-            exportProgress = if (session.recipe.slowMotionSegments.isEmpty()) null else 0f,
-            statusMessage = null,
+            isDirty = false,
+            exportProgress = 0f,
+            exportPhase = job.phase,
+            statusMessage = getApplication<Application>().getString(R.string.video_export_queued),
         ))
-        videoEditorJob?.cancel()
-        videoEditorJob = viewModelScope.launch {
-            val temp = java.io.File(getApplication<Application>().cacheDir, "video-edit-${System.nanoTime()}.mp4")
-            try {
-                val result = Media3VideoExporter(getApplication<Application>()).export(
-                    VideoExportRequest(
-                        mediaUri(session.media), temp, session.recipe,
-                        customLut = session.content.activeCustomLut,
-                        onProgress = { progress ->
-                            mutableVideoEditor.value = mutableVideoEditor.value?.let { current ->
-                                current.copy(content = current.content.copy(exportProgress = progress))
-                            }
-                        },
-                    ),
-                )
-                val published = PendingMediaWriter(getApplication<Application>().contentResolver).publishFile(
-                    result.output,
-                    MediaWriteSpec(
-                        MediaStore.VOLUME_EXTERNAL_PRIMARY,
-                        MediaKind.Video,
-                        "UGallery-edited-${System.currentTimeMillis()}.mp4",
-                        "video/mp4",
-                        "Movies/UGallery",
-                    ),
-                )
-                finishEditorCopy(published, MediaKind.Video)
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (failure: Throwable) {
-                android.util.Log.e("UGalleryVideoEditor", "Video copy export failed", failure)
-                mutableVideoEditor.value = mutableVideoEditor.value?.copy(
-                    content = mutableVideoEditor.value!!.content.copy(
-                        isExporting = false,
-                        exportProgress = null,
-                        statusMessage = failure.message ?: getApplication<Application>().getString(
-                            com.ugallery.feature.videoeditor.R.string.video_editor_save_failed,
-                        ),
-                    ),
-                )
-            } finally {
-                temp.delete()
+    }
+
+    fun cancelVideoEditorExport() {
+        val session = mutableVideoEditor.value ?: return
+        videoExportStore.jobs.value.firstOrNull {
+            it.inputUri == mediaUri(session.media).toString() &&
+                (it.status == VideoExportJobStatus.Queued || it.status == VideoExportJobStatus.Running)
+        }?.let(videoExportStore::cancel)
+    }
+
+    fun setUserHardwareWorkload(workload: UserHardwareWorkload?) {
+        if (workload == userHardwareWorkload) return
+        userHardwareLease?.let(UserHardwareWorkloadGate::release)
+        userHardwareLease = null
+        userHardwareWorkload = workload
+        if (workload != null) {
+            val lease = UserHardwareWorkloadGate.acquire(workload)
+            userHardwareLease = lease
+            if (lease.activatedGate) {
+                mlScheduler.suspendForUserWork()
+                SemanticAnalysisPriority.suspendForUserWork(getApplication())
             }
+        } else if (!UserHardwareWorkloadGate.isActive()) {
+            mlScheduler.resumeAfterUserWork()
+            SemanticAnalysisPriority.resumeAfterUserWork(getApplication())
         }
     }
 
@@ -2702,6 +2962,9 @@ class GalleryViewModel @Inject constructor(
         val session = mutableVideoEditor.value
         videoEditorJob?.cancel()
         videoRecipeJob?.cancel()
+        videoAnnotationTrackingJob?.cancel()
+        videoAnnotationUndo.clear()
+        videoAnnotationRedo.clear()
         if (session != null) viewModelScope.launch {
             val active = runtime.value ?: return@launch
             withContext(Dispatchers.IO) {
@@ -3098,6 +3361,7 @@ class GalleryViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        userHardwareLease?.let(UserHardwareWorkloadGate::release)
         semanticSearchEngine?.close()
         semanticModelManager?.close()
         runtime.value?.let {
@@ -3372,5 +3636,6 @@ class GalleryViewModel @Inject constructor(
         const val WriteMutationStateKey = "pending_write_mutation"
         const val ViewerWindowRadius = 80
         const val ViewerWindowRefreshThreshold = 12
+        const val AnnotationEraserRadius = 0.028f
     }
 }

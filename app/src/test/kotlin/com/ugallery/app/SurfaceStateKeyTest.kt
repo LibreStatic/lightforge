@@ -90,4 +90,19 @@ class SurfaceStateKeyTest {
             )
         }
     }
+
+    @Test
+    fun editorRouteWithoutSessionFallsBackToViewerInsteadOfRenderingBlank() {
+        assertEquals(
+            SurfaceRoute.Viewer,
+            availableSurfaceRoute(
+                requested = SurfaceRoute.VideoEditor,
+                hasCurrentMedia = true,
+                hasSelectedAlbum = false,
+                hasSelectedHighlight = false,
+                hasPhotoEditor = false,
+                hasVideoEditor = false,
+            ),
+        )
+    }
 }

@@ -26,4 +26,18 @@
     <string name="create_sheet_title">Erstellen</string><string name="highlight_selfies">Selfies</string>
     <string name="activity_archived">%1$d archiviert</string><string name="activity_unarchived">%1$d dearchiviert</string><string name="activity_trashed">%1$d in den Papierkorb verschoben</string><string name="activity_restored">%1$d wiederhergestellt</string><string name="activity_deleted">%1$d endgültig gelöscht</string><string name="activity_exported">%1$d exportiert</string><string name="activity_imported">%1$d importiert</string><string name="activity_analysis_complete">Lokale Analyse abgeschlossen</string><string name="activity_analysis_failed">Lokale Analyse erfordert Aufmerksamkeit</string>
     <plurals name="highlight_years_ago"><item quantity="one">Vor %d Jahr</item><item quantity="other">Vor %d Jahren</item></plurals>
+<string name="video_export_channel">Videoexporte</string>
+<string name="video_export_title">Video wird exportiert</string>
+<string name="video_export_preparing">Export wird vorbereitet…</string>
+<string name="video_export_generating_frames">Zeitlupenbilder werden erzeugt…</string>
+<string name="video_export_rendering">Video wird verarbeitet…</string>
+<string name="video_export_publishing">Video wird in der Galerie gespeichert…</string>
+<string name="video_export_verifying">Gespeichertes Video wird überprüft…</string>
+<string name="video_export_complete">Videoexport abgeschlossen</string>
+<string name="video_export_complete_software">Video mit Software-Codec als Ausweichlösung gespeichert</string>
+<string name="video_export_failed">Videoexport fehlgeschlagen</string>
+<string name="video_export_cancel">Abbrechen</string>
+<string name="video_export_view">Ansehen</string>
+<string name="video_export_queued">Export eingereiht. Du kannst UGallery weiter verwenden.</string>
+<string name="video_export_cancelled">Videoexport abgebrochen</string>
 </resources>

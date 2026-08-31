@@ -1,3 +1,5 @@
+@file:Suppress("UnsafeOptInUsageError")
+
 package com.ugallery.core.editing.video
 
 import android.graphics.Color

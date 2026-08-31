@@ -39,6 +39,56 @@ import kotlinx.coroutines.runBlocking
 @RunWith(AndroidJUnit4::class)
 class Media3ExportDeviceTest {
     @Test
+    fun timedInkAndRedactionAnnotationsExportThroughMedia3() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val input = copyAssetToCache(context, "m0_h264.mp4")
+        val output = File(context.cacheDir, "annotations-${System.nanoTime()}.mp4")
+        try {
+            Media3VideoExporter(context).export(
+                VideoExportRequest(
+                    input = Uri.fromFile(input),
+                    output = output,
+                    recipe = VideoEditRecipe(
+                        startMillis = 0,
+                        endMillis = 1_000,
+                        annotations = listOf(
+                            VideoAnnotationLayer(
+                                shape = VideoAnnotationShape.Freehand,
+                                points = listOf(
+                                    NormalizedPoint(0.1f, 0.1f),
+                                    NormalizedPoint(0.5f, 0.5f),
+                                    NormalizedPoint(0.9f, 0.2f),
+                                ),
+                                startMillis = 0,
+                                endMillis = 1_000,
+                            ),
+                            VideoAnnotationLayer(
+                                shape = VideoAnnotationShape.Rectangle,
+                                points = listOf(NormalizedPoint(0.25f, 0.25f), NormalizedPoint(0.6f, 0.6f)),
+                                style = VideoAnnotationStyle(
+                                    appearance = VideoAnnotationAppearance.Mosaic,
+                                    intensity = 0.8f,
+                                ),
+                                startMillis = 250,
+                                endMillis = 750,
+                            ),
+                        ),
+                    ),
+                ),
+            )
+
+            assertTrue(output.isFile && output.length() > 0)
+            MediaMetadataRetriever().use { retriever ->
+                retriever.setDataSource(output.absolutePath)
+                assertNotNull(retriever.getFrameAtTime(500_000, MediaMetadataRetriever.OPTION_CLOSEST))
+            }
+        } finally {
+            input.delete()
+            output.delete()
+        }
+    }
+
+    @Test
     fun aiSlowMotionSegmentProducesExtendedVideo() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val input = copyAssetToCache(context, "m0_h264.mp4")

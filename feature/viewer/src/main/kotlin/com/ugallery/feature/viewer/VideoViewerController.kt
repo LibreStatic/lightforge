@@ -13,6 +13,9 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -27,6 +30,8 @@ sealed interface VideoViewerState {
         val isLooping: Boolean,
         val durationMillis: Long,
         val aspectRatio: Float? = null,
+        val videoDecoderName: String? = null,
+        val usedSoftwareDecoder: Boolean = false,
     ) : VideoViewerState
     data class Failure(val uri: Uri, val unsupported: Boolean, val errorCode: Int) : VideoViewerState
     data object Released : VideoViewerState
@@ -38,6 +43,7 @@ internal interface VideoEngine {
         fun onPlayingChanged(isPlaying: Boolean, durationMillis: Long)
         fun onVideoAspectRatioChanged(aspectRatio: Float)
         fun onFailure(errorCode: Int, unsupported: Boolean)
+        fun onDecoderChanged(codecName: String, softwareOnly: Boolean) = Unit
     }
 
     var listener: Listener?
@@ -82,6 +88,8 @@ class VideoViewerController internal constructor(
     private var playbackIsPlaying = false
     private var playbackDurationMillis = 0L
     private var playbackAspectRatio: Float? = null
+    private var videoDecoderName: String? = null
+    private var usedSoftwareDecoder = false
     private var scrubbing = false
 
     init {
@@ -106,6 +114,11 @@ class VideoViewerController internal constructor(
                 val uri = activeUri ?: return
                 mutableState.value = VideoViewerState.Failure(uri, unsupported, errorCode)
             }
+            override fun onDecoderChanged(codecName: String, softwareOnly: Boolean) {
+                videoDecoderName = codecName
+                usedSoftwareDecoder = softwareOnly
+                if (playbackReady) updateReady(playbackDurationMillis, playbackIsPlaying)
+            }
         }
     }
 
@@ -126,6 +139,8 @@ class VideoViewerController internal constructor(
         playbackIsPlaying = false
         playbackDurationMillis = 0
         playbackAspectRatio = null
+        videoDecoderName = null
+        usedSoftwareDecoder = false
         mutableState.value = VideoViewerState.Loading(uri, poster)
         engine.setVolume(if (muted) 0f else 1f)
         engine.setMedia(uri)
@@ -230,6 +245,8 @@ class VideoViewerController internal constructor(
         playbackIsPlaying = false
         playbackDurationMillis = 0
         playbackAspectRatio = null
+        videoDecoderName = null
+        usedSoftwareDecoder = false
         engine.listener = null
         engine.stopAndClear()
         engine.release()
@@ -246,12 +263,27 @@ class VideoViewerController internal constructor(
             looping,
             durationMillis.coerceAtLeast(0),
             playbackAspectRatio,
+            videoDecoderName,
+            usedSoftwareDecoder,
         )
     }
 }
 
 private class Media3VideoEngine(context: Context, enableVideoEffects: Boolean) : VideoEngine {
-    private val player = ExoPlayer.Builder(context).build()
+    private val decoderSelector = MediaCodecSelector { mimeType, secure, tunneling ->
+        MediaCodecSelector.DEFAULT.getDecoderInfos(mimeType, secure, tunneling)
+            .sortedWith(
+                compareByDescending<androidx.media3.exoplayer.mediacodec.MediaCodecInfo> {
+                    it.hardwareAccelerated
+                }.thenBy { it.softwareOnly }.thenBy { it.name },
+            )
+    }
+    private val player = ExoPlayer.Builder(
+        context,
+        DefaultRenderersFactory(context)
+            .setMediaCodecSelector(decoderSelector)
+            .setEnableDecoderFallback(true),
+    ).build()
     override var listener: VideoEngine.Listener? = null
 
     init {
@@ -281,6 +313,25 @@ private class Media3VideoEngine(context: Context, enableVideoEffects: Boolean) :
 
             override fun onPlayerError(error: PlaybackException) {
                 listener?.onFailure(error.errorCode, error.errorCode in UnsupportedErrorCodes)
+            }
+        })
+        player.addAnalyticsListener(object : AnalyticsListener {
+            override fun onVideoDecoderInitialized(
+                eventTime: AnalyticsListener.EventTime,
+                decoderName: String,
+                initializedTimestampMs: Long,
+                initializationDurationMs: Long,
+            ) {
+                val softwareOnly = runCatching {
+                    decoderSelector.getDecoderInfos(
+                        player.videoFormat?.sampleMimeType ?: return,
+                        false,
+                        false,
+                    ).firstOrNull { it.name == decoderName }?.softwareOnly
+                }.getOrNull() ?: decoderName.lowercase().let {
+                    it.startsWith("omx.google.") || it.startsWith("c2.android.") || it.contains("software")
+                }
+                listener?.onDecoderChanged(decoderName, softwareOnly)
             }
         })
     }

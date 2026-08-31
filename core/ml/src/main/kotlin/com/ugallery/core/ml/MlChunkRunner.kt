@@ -29,6 +29,7 @@ class MlChunkRunner(
             }
             MlExecutionDecision.ThermalBackoff -> return MlRunnerResult.Retry("thermal")
             MlExecutionDecision.PowerBackoff -> return MlRunnerResult.Retry("power")
+            MlExecutionDecision.UserPriority -> return MlRunnerResult.Stopped
             MlExecutionDecision.PermissionLost -> {
                 engine.purgeDerivedData()
                 state.clear(engine.task)

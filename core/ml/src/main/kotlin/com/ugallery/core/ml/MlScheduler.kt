@@ -38,6 +38,7 @@ class MlScheduler(context: Context) {
         if (state.requestedMode(task) != null) return true
         state.setPaused(task, false)
         state.setRequestedMode(task, mode)
+        if (UserHardwareWorkloadGate.isActive()) return true
         workManager.enqueueUniqueWork(
             MlChunkWorker.uniqueName(task),
             ExistingWorkPolicy.KEEP,
@@ -77,6 +78,26 @@ class MlScheduler(context: Context) {
     /** Replaces delayed retries so an eligible foreground pass resumes immediately. */
     fun onAppForegrounded() {
         LocalAnalysisForegroundState.setForeground(true)
+        if (UserHardwareWorkloadGate.isActive()) return
+        resumeRequestedWork()
+    }
+
+    /** Stops heavy analysis without changing consent, manual pause, checkpoints, or requested modes. */
+    fun suspendForUserWork() {
+        MlTaskType.entries.forEach { task ->
+            state.checkpoint(task)?.takeIf { it.status == MlCheckpoint.Status.Running }?.let {
+                state.write(it.copy(status = MlCheckpoint.Status.Ready))
+            }
+            workManager.cancelUniqueWork(MlChunkWorker.uniqueName(task))
+        }
+    }
+
+    fun resumeAfterUserWork() {
+        if (UserHardwareWorkloadGate.isActive()) return
+        resumeRequestedWork()
+    }
+
+    private fun resumeRequestedWork() {
         MlTaskType.entries.forEach { task ->
             val mode = state.requestedMode(task) ?: return@forEach
             if (!state.isConsentEnabled(task) || state.isPaused(task)) return@forEach

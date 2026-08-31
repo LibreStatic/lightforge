@@ -60,7 +60,7 @@ fun MediaSelectionOverlay(
 }
 
 /**
- * [redacted]-style selection brush for lazy grids.
+ * gallery-style selection brush for lazy grids.
  *
  * A long press chooses select or deselect mode from the anchor item. Dragging paints every loaded
  * item crossed by the gesture, including items skipped between pointer samples. Holding near an

@@ -42,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -82,6 +83,10 @@ import com.ugallery.core.editing.video.VideoOutputQuality
 import com.ugallery.core.editing.video.VideoGeometry
 import com.ugallery.core.editing.video.SlowMotionAudioMode
 import com.ugallery.core.editing.video.SlowMotionSegment
+import com.ugallery.core.editing.video.VideoAnnotationEffect
+import com.ugallery.core.editing.video.VideoAnnotationLayer
+import com.ugallery.core.editing.video.VideoExportPhase
+import com.ugallery.core.editing.video.NormalizedPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -118,6 +123,27 @@ data class VideoEditorContentState(
     val selectedSlowMotionSegmentId: String? = null,
     val slowMotionMarkInMillis: Long? = null,
     val exportProgress: Float? = null,
+    val exportPhase: VideoExportPhase? = null,
+    val usedSoftwareCodec: Boolean = false,
+    val annotations: List<VideoAnnotationLayer> = emptyList(),
+    val selectedAnnotationId: String? = null,
+    val annotationTrackingProgress: Float? = null,
+    val annotationTrackingCorrectionMillis: Long? = null,
+)
+
+private data class VideoAnnotationActions(
+    val add: (VideoAnnotationLayer) -> Unit,
+    val update: (VideoAnnotationLayer) -> Unit,
+    val erase: (List<NormalizedPoint>, Long) -> Unit,
+    val select: (String?) -> Unit,
+    val delete: (String) -> Unit,
+    val move: (String, Int) -> Unit,
+    val clear: () -> Unit,
+    val undo: () -> Unit,
+    val redo: () -> Unit,
+    val addKeyframe: (String, Long) -> Unit,
+    val track: (String, Long) -> Unit,
+    val cancelTracking: () -> Unit,
 )
 
 @Composable
@@ -142,10 +168,38 @@ fun VideoEditorContent(
     onSelectSlowMotionSegment: (String) -> Unit = {},
     onUpdateSlowMotionSegment: (SlowMotionSegment) -> Unit = {},
     onDeleteSlowMotionSegment: (String) -> Unit = {},
+    onAddAnnotation: (VideoAnnotationLayer) -> Unit = {},
+    onUpdateAnnotation: (VideoAnnotationLayer) -> Unit = {},
+    onEraseAnnotations: (List<NormalizedPoint>, Long) -> Unit = { _, _ -> },
+    onSelectAnnotation: (String?) -> Unit = {},
+    onDeleteAnnotation: (String) -> Unit = {},
+    onMoveAnnotation: (String, Int) -> Unit = { _, _ -> },
+    onClearAnnotations: () -> Unit = {},
+    onUndoAnnotation: () -> Unit = {},
+    onRedoAnnotation: () -> Unit = {},
+    onAddAnnotationKeyframe: (String, Long) -> Unit = { _, _ -> },
+    onTrackAnnotation: (String, Long) -> Unit = { _, _ -> },
+    onCancelAnnotationTracking: () -> Unit = {},
     onCancelExport: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var previewPositionMillis by remember(controller) { mutableLongStateOf(state.currentMillis) }
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    var annotationTool by remember { mutableStateOf(VideoAnnotationToolState()) }
+    val annotationActions = VideoAnnotationActions(
+        onAddAnnotation,
+        onUpdateAnnotation,
+        onEraseAnnotations,
+        onSelectAnnotation,
+        onDeleteAnnotation,
+        onMoveAnnotation,
+        onClearAnnotations,
+        onUndoAnnotation,
+        onRedoAnnotation,
+        onAddAnnotationKeyframe,
+        onTrackAnnotation,
+        onCancelAnnotationTracking,
+    )
     val context = LocalContext.current
     val musicController = remember(state.selectedMusicUri) {
         state.selectedMusicUri?.let { uri ->
@@ -158,6 +212,14 @@ fun VideoEditorContent(
     DisposableEffect(musicController) { onDispose { musicController?.close() } }
     LaunchedEffect(controller) {
         controller?.setLooping(true)
+    }
+    LaunchedEffect(controller, state.annotationTrackingCorrectionMillis) {
+        state.annotationTrackingCorrectionMillis?.let { position ->
+            previewPositionMillis = position
+            onSeek(position)
+            controller?.seekTo(position)
+            controller?.pause()
+        }
     }
     LaunchedEffect(
         controller,
@@ -224,12 +286,17 @@ fun VideoEditorContent(
             )
         }
     }
-    LaunchedEffect(controller, realtimeColorLut, state.geometry) {
-        if (controller != null && realtimeColorLut != null) {
+    val realtimeAnnotations = remember(controller) { controller?.let { VideoAnnotationEffect(emptyList()) } }
+    LaunchedEffect(controller, realtimeColorLut, realtimeAnnotations, state.geometry) {
+        if (controller != null && realtimeColorLut != null && realtimeAnnotations != null) {
             controller.setVideoEffects(
-                VideoColorGradeEffects.geometryEffects(state.geometry) + realtimeColorLut,
+                VideoColorGradeEffects.geometryEffects(state.geometry) + realtimeColorLut + realtimeAnnotations,
             )
         }
+    }
+    LaunchedEffect(controller, realtimeAnnotations, state.annotations) {
+        realtimeAnnotations?.updateLayers(state.annotations)
+        controller?.refreshVideoFrame()
     }
     val gradePreviewRequests = remember(controller) {
         Channel<VideoGradePreviewRequest>(Channel.CONFLATED)
@@ -285,8 +352,14 @@ fun VideoEditorContent(
                     val resizableHeight = (availableHeight - resizeHandleHeight).coerceAtLeast(1.dp)
                     val resizableHeightPx = with(LocalDensity.current) { resizableHeight.toPx() }
                     VideoPreview(
-                        controller,
-                        Modifier
+                        controller = controller,
+                        annotationsActive = selectedTab == AnnotationTabIndex,
+                        annotationTool = annotationTool,
+                        state = state,
+                        currentMillis = previewPositionMillis,
+                        onAddAnnotation = annotationActions.add,
+                        onEraseAnnotations = { points -> annotationActions.erase(points, previewPositionMillis) },
+                        modifier = Modifier
                             .fillMaxWidth()
                             .height(resizableHeight * landscapePreviewFraction),
                     )
@@ -327,12 +400,23 @@ fun VideoEditorContent(
                         onUpdateSlowMotionSegment = onUpdateSlowMotionSegment,
                         onDeleteSlowMotionSegment = onDeleteSlowMotionSegment,
                         onCancelExport = onCancelExport,
+                        selectedTab = selectedTab,
+                        onTabChange = { selectedTab = it },
+                        annotationTool = annotationTool,
+                        onAnnotationToolChange = { annotationTool = it },
+                        annotationActions = annotationActions,
                         modifier = Modifier.weight(1f),
                     )
                 } else {
                     VideoPreview(
-                        controller,
-                        Modifier.weight(previewWeight).fillMaxWidth(),
+                        controller = controller,
+                        annotationsActive = selectedTab == AnnotationTabIndex,
+                        annotationTool = annotationTool,
+                        state = state,
+                        currentMillis = previewPositionMillis,
+                        onAddAnnotation = annotationActions.add,
+                        onEraseAnnotations = { points -> annotationActions.erase(points, previewPositionMillis) },
+                        modifier = Modifier.weight(previewWeight).fillMaxWidth(),
                     )
                     VideoEditingPanel(
                         state = state,
@@ -357,6 +441,11 @@ fun VideoEditorContent(
                         onUpdateSlowMotionSegment = onUpdateSlowMotionSegment,
                         onDeleteSlowMotionSegment = onDeleteSlowMotionSegment,
                         onCancelExport = onCancelExport,
+                        selectedTab = selectedTab,
+                        onTabChange = { selectedTab = it },
+                        annotationTool = annotationTool,
+                        onAnnotationToolChange = { annotationTool = it },
+                        annotationActions = annotationActions,
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -453,6 +542,11 @@ private fun VideoEditingPanel(
     onUpdateSlowMotionSegment: (SlowMotionSegment) -> Unit,
     onDeleteSlowMotionSegment: (String) -> Unit,
     onCancelExport: () -> Unit,
+    selectedTab: Int,
+    onTabChange: (Int) -> Unit,
+    annotationTool: VideoAnnotationToolState,
+    onAnnotationToolChange: (VideoAnnotationToolState) -> Unit,
+    annotationActions: VideoAnnotationActions,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.fillMaxWidth()) {
@@ -480,13 +574,27 @@ private fun VideoEditingPanel(
             onUpdateSlowMotionSegment = onUpdateSlowMotionSegment,
             onDeleteSlowMotionSegment = onDeleteSlowMotionSegment,
             onCancelExport = onCancelExport,
+            selectedTab = selectedTab,
+            onTabChange = onTabChange,
+            annotationTool = annotationTool,
+            onAnnotationToolChange = onAnnotationToolChange,
+            annotationActions = annotationActions,
             modifier = Modifier.weight(1f),
         )
     }
 }
 
 @Composable
-private fun VideoPreview(controller: VideoViewerController?, modifier: Modifier) {
+private fun VideoPreview(
+    controller: VideoViewerController?,
+    annotationsActive: Boolean,
+    annotationTool: VideoAnnotationToolState,
+    state: VideoEditorContentState,
+    currentMillis: Long,
+    onAddAnnotation: (VideoAnnotationLayer) -> Unit,
+    onEraseAnnotations: (List<NormalizedPoint>) -> Unit,
+    modifier: Modifier,
+) {
     Box(modifier.background(Color.Black), contentAlignment = Alignment.Center) {
         if (controller == null) {
             Text(stringResource(R.string.video_editor_preview_unavailable), color = Color.White)
@@ -513,6 +621,21 @@ private fun VideoPreview(controller: VideoViewerController?, modifier: Modifier)
                 AndroidView(
                     factory = { context -> SurfaceView(context).also(controller::attachSurface) },
                     modifier = surfaceModifier.semantics { contentDescription = description },
+                )
+                VideoAnnotationGestureLayer(
+                    enabled = annotationsActive,
+                    tool = annotationTool,
+                    startMillis = state.trimStartMillis,
+                    endMillis = state.trimEndMillis.takeIf { it > state.trimStartMillis }
+                        ?: state.durationMillis,
+                    selectedLayer = state.annotations.firstOrNull { it.id == state.selectedAnnotationId },
+                    currentMillis = currentMillis,
+                    onAdd = {
+                        controller.pause()
+                        onAddAnnotation(it)
+                    },
+                    onErase = onEraseAnnotations,
+                    modifier = surfaceModifier,
                 )
             }
         }
@@ -556,11 +679,23 @@ private fun VideoPreview(controller: VideoViewerController?, modifier: Modifier)
             VideoViewerState.Idle, is VideoViewerState.Loading -> GalleryLoadingIndicator()
             VideoViewerState.Released -> Unit
         }
+        if ((viewerState as? VideoViewerState.Ready)?.usedSoftwareDecoder == true) {
+            Text(
+                text = stringResource(R.string.video_editor_software_decoder_warning),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(GallerySpacing.Md)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.medium)
+                    .padding(horizontal = GallerySpacing.Md, vertical = GallerySpacing.Sm),
+            )
+        }
         DisposableEffect(controller) { onDispose { controller.attachSurface(null) } }
     }
 }
 
 private const val DefaultLandscapePreviewFraction = 0.45f
+private const val AnnotationTabIndex = 5
 private const val MinLandscapePreviewFraction = 0.2f
 private const val MaxLandscapePreviewFraction = 0.7f
 
@@ -623,9 +758,13 @@ private fun VideoControls(
     onUpdateSlowMotionSegment: (SlowMotionSegment) -> Unit,
     onDeleteSlowMotionSegment: (String) -> Unit,
     onCancelExport: () -> Unit,
+    selectedTab: Int,
+    onTabChange: (Int) -> Unit,
+    annotationTool: VideoAnnotationToolState,
+    onAnnotationToolChange: (VideoAnnotationToolState) -> Unit,
+    annotationActions: VideoAnnotationActions,
     modifier: Modifier = Modifier,
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) }
     Column(modifier.fillMaxWidth().padding(bottom = GallerySpacing.Sm)) {
         GalleryExpressiveChoiceGroup(
             labels = listOf(
@@ -634,16 +773,18 @@ private fun VideoControls(
                 stringResource(R.string.video_editor_music),
                 stringResource(R.string.video_editor_color),
                 stringResource(R.string.video_editor_transform),
+                stringResource(R.string.video_editor_draw),
                 stringResource(R.string.video_editor_export),
             ),
             selectedIndex = selectedTab,
-            onSelect = { selectedTab = it },
+            onSelect = onTabChange,
             icons = listOf(
                 GalleryIcons.Speed,
                 GalleryIcons.Volume,
                 GalleryIcons.Music,
                 GalleryIcons.Palette,
                 GalleryIcons.Crop,
+                GalleryIcons.Edit,
                 GalleryIcons.Edit,
             ),
             modifier = Modifier.padding(horizontal = GallerySpacing.Md, vertical = GallerySpacing.Sm),
@@ -691,21 +832,53 @@ private fun VideoControls(
             }
             3 -> ColorControls(state, onColorGradeChange, onImportLut, Modifier.weight(1f))
             4 -> TransformControls(state.geometry, onGeometryChange)
-            5 -> ExportControls(state.outputQuality, state.isHevcMain10Available, onOutputQualityChange)
+            AnnotationTabIndex -> VideoAnnotationControls(
+                state = state,
+                currentMillis = currentMillis,
+                tool = annotationTool,
+                onToolChange = onAnnotationToolChange,
+                onSelect = annotationActions.select,
+                onUpdate = annotationActions.update,
+                onDelete = annotationActions.delete,
+                onMove = annotationActions.move,
+                onClear = annotationActions.clear,
+                onUndo = annotationActions.undo,
+                onRedo = annotationActions.redo,
+                onAddKeyframe = annotationActions.addKeyframe,
+                onTrack = annotationActions.track,
+                onCancelTracking = annotationActions.cancelTracking,
+            )
+            6 -> ExportControls(state.outputQuality, state.isHevcMain10Available, onOutputQualityChange)
         }
         state.statusMessage?.let {
             Text(it, Modifier.padding(horizontal = GallerySpacing.Lg), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        if (state.isExporting && state.exportProgress != null) {
+        if (state.isExporting) {
             Column(Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg)) {
-                GalleryProgressIndicator(
-                    progress = { state.exportProgress.coerceIn(0f, 1f) },
-                    modifier = Modifier.fillMaxWidth(),
+                state.exportProgress?.let { progress ->
+                    GalleryProgressIndicator(
+                        progress = { progress.coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } ?: GalleryLoadingIndicator()
+                Text(
+                    stringResource(state.exportPhase.exportLabel()),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 TextButton(onClick = onCancelExport) { Text(stringResource(R.string.video_editor_cancel_export)) }
             }
         }
     }
+}
+
+@StringRes
+private fun VideoExportPhase?.exportLabel(): Int = when (this) {
+    VideoExportPhase.GeneratingFrames -> R.string.video_editor_export_generating_frames
+    VideoExportPhase.Rendering -> R.string.video_editor_export_rendering
+    VideoExportPhase.Publishing -> R.string.video_editor_export_publishing
+    VideoExportPhase.Verifying -> R.string.video_editor_export_verifying
+    VideoExportPhase.Completed -> R.string.video_editor_copy_saved
+    VideoExportPhase.Preparing, null -> R.string.video_editor_export_preparing
 }
 
 @Composable

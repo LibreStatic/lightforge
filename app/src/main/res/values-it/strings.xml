@@ -26,4 +26,18 @@
     <string name="create_sheet_title">Crea</string><string name="highlight_selfies">Selfie</string>
     <string name="activity_archived">%1$d archiviati</string><string name="activity_unarchived">%1$d rimossi dall’archivio</string><string name="activity_trashed">%1$d spostati nel cestino</string><string name="activity_restored">%1$d ripristinati</string><string name="activity_deleted">%1$d eliminati definitivamente</string><string name="activity_exported">%1$d esportati</string><string name="activity_imported">%1$d importati</string><string name="activity_analysis_complete">Analisi locale completata</string><string name="activity_analysis_failed">L’analisi locale richiede attenzione</string>
     <plurals name="highlight_years_ago"><item quantity="one">%d anno fa</item><item quantity="other">%d anni fa</item></plurals>
+<string name="video_export_channel">Esportazioni video</string>
+<string name="video_export_title">Esportazione del video</string>
+<string name="video_export_preparing">Preparazione dell’esportazione…</string>
+<string name="video_export_generating_frames">Generazione dei fotogrammi al rallentatore…</string>
+<string name="video_export_rendering">Elaborazione del video…</string>
+<string name="video_export_publishing">Salvataggio nella galleria…</string>
+<string name="video_export_verifying">Verifica del video salvato…</string>
+<string name="video_export_complete">Esportazione video completata</string>
+<string name="video_export_complete_software">Video salvato usando un codec software alternativo</string>
+<string name="video_export_failed">Esportazione del video non riuscita</string>
+<string name="video_export_cancel">Annulla</string>
+<string name="video_export_view">Visualizza</string>
+<string name="video_export_queued">Esportazione in coda. Puoi continuare a usare UGallery.</string>
+<string name="video_export_cancelled">Esportazione video annullata</string>
 </resources>

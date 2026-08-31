@@ -9,7 +9,7 @@ object VideoEditRecipeCodec {
     fun encode(recipe: VideoEditRecipe): String {
         val grade = recipe.colorGrade
         return Properties().apply {
-            setProperty("version", "3")
+            setProperty("version", "4")
             setProperty("start", recipe.startMillis.toString())
             recipe.endMillis?.let { setProperty("end", it.toString()) }
             setProperty("speed", recipe.speed.toString())
@@ -48,6 +48,9 @@ object VideoEditRecipeCodec {
                     segment.audioMode.name,
                 ).joinToString(",")
             })
+            if (recipe.annotations.isNotEmpty()) {
+                setProperty("annotations", VideoAnnotationCodec.encode(recipe.annotations))
+            }
         }.let { properties ->
             StringWriter().also { properties.store(it, null) }.toString()
         }
@@ -58,7 +61,7 @@ object VideoEditRecipeCodec {
         val version = requireNotNull(properties.getProperty("version")?.toIntOrNull()) {
             "Unsupported video recipe version"
         }
-        require(version in 1..3) { "Unsupported video recipe version" }
+        require(version in 1..4) { "Unsupported video recipe version" }
         val wheels = properties.getProperty("wheels", "").split(',').mapNotNull(String::toFloatOrNull)
         fun wheel(offset: Int) = if (wheels.size >= offset + 4) {
             LogWheel(wheels[offset], wheels[offset + 1], wheels[offset + 2], wheels[offset + 3])
@@ -116,6 +119,11 @@ object VideoEditRecipeCodec {
                 )
             }.getOrDefault(VideoGeometry()) else VideoGeometry()
         }
+        val annotations = if (version >= 4) {
+            properties.getProperty("annotations")?.let { encodedAnnotations ->
+                runCatching { VideoAnnotationCodec.decode(encodedAnnotations) }.getOrDefault(emptyList())
+            }.orEmpty()
+        } else emptyList()
         return VideoEditRecipe(
             startMillis = properties.getProperty("start", "0").toLong(),
             endMillis = properties.getProperty("end")?.toLongOrNull(),
@@ -127,6 +135,7 @@ object VideoEditRecipeCodec {
             colorGrade = grade,
             outputQuality = enumValue(properties, "quality", VideoOutputQuality.H264Compatible),
             slowMotionSegments = slowSegments,
+            annotations = annotations,
         )
     }
 

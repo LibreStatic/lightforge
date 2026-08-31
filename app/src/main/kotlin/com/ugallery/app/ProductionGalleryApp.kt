@@ -1,6 +1,8 @@
 package com.ugallery.app
 
+import android.Manifest
 import android.app.Activity
+import android.content.pm.PackageManager
 import android.content.Intent
 import android.os.Build
 import android.view.WindowManager
@@ -37,6 +39,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -108,6 +113,7 @@ import com.ugallery.core.model.MediaKey
 import com.ugallery.core.model.AlbumKey
 import com.ugallery.core.model.AlbumSummary
 import com.ugallery.core.ml.LocalAnalysisOnboardingDecision
+import com.ugallery.core.ml.UserHardwareWorkload
 import com.ugallery.core.selection.SelectionSpec
 import com.ugallery.core.selection.SelectionReducer
 import com.ugallery.core.search.SearchConcept
@@ -235,11 +241,14 @@ internal fun availableSurfaceRoute(
     hasCurrentMedia: Boolean,
     hasSelectedAlbum: Boolean,
     hasSelectedHighlight: Boolean,
+    hasPhotoEditor: Boolean = hasCurrentMedia,
+    hasVideoEditor: Boolean = hasCurrentMedia,
 ): SurfaceRoute = when (requested) {
-    SurfaceRoute.Viewer,
-    SurfaceRoute.PhotoEditor,
-    SurfaceRoute.VideoEditor,
-    -> requested.takeIf { hasCurrentMedia } ?: SurfaceRoute.Root
+    SurfaceRoute.Viewer -> requested.takeIf { hasCurrentMedia } ?: SurfaceRoute.Root
+    SurfaceRoute.PhotoEditor -> requested.takeIf { hasCurrentMedia && hasPhotoEditor }
+        ?: if (hasCurrentMedia) SurfaceRoute.Viewer else SurfaceRoute.Root
+    SurfaceRoute.VideoEditor -> requested.takeIf { hasCurrentMedia && hasVideoEditor }
+        ?: if (hasCurrentMedia) SurfaceRoute.Viewer else SurfaceRoute.Root
     SurfaceRoute.Album -> requested.takeIf { hasSelectedAlbum } ?: SurfaceRoute.Root
     SurfaceRoute.HighlightCollection -> requested.takeIf { hasSelectedHighlight } ?: SurfaceRoute.Root
     else -> requested
@@ -304,6 +313,7 @@ internal fun ProductionGalleryApp(
     val externalPhoto by viewModel.externalPhotoState.collectAsState()
     val photoEditor by viewModel.photoEditor.collectAsState()
     val videoEditor by viewModel.videoEditor.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
     val timeline = viewModel.timeline.collectAsLazyPagingItems()
     val physicalAlbums = viewModel.physicalAlbums.collectAsLazyPagingItems()
     val virtualAlbums = viewModel.virtualAlbums.collectAsLazyPagingItems()
@@ -436,7 +446,23 @@ internal fun ProductionGalleryApp(
         hasCurrentMedia = currentMedia != null,
         hasSelectedAlbum = selectedAlbum != null,
         hasSelectedHighlight = selectedHighlight != null,
+        hasPhotoEditor = photoEditor != null,
+        hasVideoEditor = videoEditor != null,
     )
+    val userHardwareWorkload = when {
+        renderedRoute == SurfaceRoute.VideoEditor -> UserHardwareWorkload.VideoEditor
+        renderedRoute == SurfaceRoute.PhotoEditor -> UserHardwareWorkload.PhotoEditor
+        external?.kind == MediaKind.Video -> UserHardwareWorkload.VideoViewer
+        renderedRoute == SurfaceRoute.Viewer && currentMedia?.kind == MediaKind.Video ->
+            UserHardwareWorkload.VideoViewer
+        else -> null
+    }
+    LaunchedEffect(userHardwareWorkload) {
+        viewModel.setUserHardwareWorkload(userHardwareWorkload)
+    }
+    DisposableEffect(Unit) {
+        onDispose { viewModel.setUserHardwareWorkload(null) }
+    }
     LaunchedEffect(route, renderedRoute) {
         if (route != renderedRoute) {
             viewerReturnDestination = null
@@ -550,6 +576,18 @@ internal fun ProductionGalleryApp(
             viewModel.setVideoMusic(uri, uri.lastPathSegment?.substringAfterLast('/') ?: "Local track")
         }
     }
+    val exportNotificationPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { viewModel.saveVideoEditorCopy() }
+    fun startVideoExport() {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            exportNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            viewModel.saveVideoEditorCopy()
+        }
+    }
     val lutPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             runCatching {
@@ -609,6 +647,28 @@ internal fun ProductionGalleryApp(
     LaunchedEffect(Unit) {
         viewModel.editorCopyOpened.collect {
             route = SurfaceRoute.Viewer
+        }
+    }
+    val exportCompleteMessage = stringResource(R.string.video_export_complete)
+    val exportSoftwareMessage = stringResource(R.string.video_export_complete_software)
+    val viewExportLabel = stringResource(R.string.video_export_view)
+    LaunchedEffect(Unit) {
+        viewModel.videoExportCompleted.collect { job ->
+            val result = snackbarHostState.showSnackbar(
+                message = if (job.usedSoftwareCodec) exportSoftwareMessage else exportCompleteMessage,
+                actionLabel = viewExportLabel,
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                val uri = android.net.Uri.parse(job.outputUri)
+                runCatching {
+                    context.startActivity(
+                        Intent(context, MainActivity::class.java)
+                            .setAction(Intent.ACTION_VIEW)
+                            .setDataAndType(uri, "video/mp4")
+                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
+                    )
+                }
+            }
         }
     }
 
@@ -861,7 +921,7 @@ internal fun ProductionGalleryApp(
                         state = session.content,
                         controller = controller,
                         onBack = ::handleBack,
-                        onSaveCopy = viewModel::saveVideoEditorCopy,
+                        onSaveCopy = ::startVideoExport,
                         onSpeedChange = viewModel::setVideoSpeed,
                         onOriginalVolumeChange = viewModel::setVideoOriginalVolume,
                         onChooseMusic = { musicPicker.launch(arrayOf("audio/*")) },
@@ -878,6 +938,18 @@ internal fun ProductionGalleryApp(
                         onSelectSlowMotionSegment = viewModel::selectVideoSlowMotionSegment,
                         onUpdateSlowMotionSegment = viewModel::updateVideoSlowMotionSegment,
                         onDeleteSlowMotionSegment = viewModel::deleteVideoSlowMotionSegment,
+                        onAddAnnotation = viewModel::addVideoAnnotation,
+                        onUpdateAnnotation = viewModel::updateVideoAnnotation,
+                        onEraseAnnotations = viewModel::eraseVideoAnnotations,
+                        onSelectAnnotation = viewModel::selectVideoAnnotation,
+                        onDeleteAnnotation = viewModel::deleteVideoAnnotation,
+                        onMoveAnnotation = viewModel::moveVideoAnnotation,
+                        onClearAnnotations = viewModel::clearVideoAnnotations,
+                        onUndoAnnotation = viewModel::undoVideoAnnotation,
+                        onRedoAnnotation = viewModel::redoVideoAnnotation,
+                        onAddAnnotationKeyframe = viewModel::addVideoAnnotationKeyframe,
+                        onTrackAnnotation = viewModel::startVideoAnnotationTracking,
+                        onCancelAnnotationTracking = viewModel::cancelVideoAnnotationTracking,
                         onCancelExport = viewModel::cancelVideoExport,
                     )
                 }
@@ -1345,6 +1417,7 @@ internal fun ProductionGalleryApp(
             route = SurfaceRoute.Root
         }
         Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) },
             contentWindowInsets = contentInsets,
             containerColor = if (renderedRoute == SurfaceRoute.Viewer) Color.Black
             else MaterialTheme.colorScheme.background,

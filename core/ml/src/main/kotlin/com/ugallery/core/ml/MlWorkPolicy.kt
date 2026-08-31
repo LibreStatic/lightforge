@@ -91,11 +91,14 @@ class AndroidThermalStatusProvider(context: Context) : ThermalStatusProvider {
     override fun status(): Int = power.currentThermalStatus
 }
 
-enum class MlExecutionDecision { Run, ConsentRequired, Paused, PermissionLost, PowerBackoff, ThermalBackoff }
+enum class MlExecutionDecision {
+    Run, ConsentRequired, Paused, PermissionLost, PowerBackoff, ThermalBackoff, UserPriority,
+}
 
 class MlExecutionController(
     private val thermal: ThermalStatusProvider,
     private val fullAnalysisEligibility: FullAnalysisEligibility = FullAnalysisEligibility { true },
+    private val userWorkloadActive: () -> Boolean = UserHardwareWorkloadGate::isActive,
 ) {
     suspend fun decide(
         consent: Boolean,
@@ -105,6 +108,7 @@ class MlExecutionController(
     ): MlExecutionDecision = when {
         !consent -> MlExecutionDecision.ConsentRequired
         paused -> MlExecutionDecision.Paused
+        userWorkloadActive() -> MlExecutionDecision.UserPriority
         !permission -> MlExecutionDecision.PermissionLost
         mode == MlRunMode.FullLibrary && !fullAnalysisEligibility.isEligible() -> MlExecutionDecision.PowerBackoff
         thermal.status() >= PowerManager.THERMAL_STATUS_MODERATE -> MlExecutionDecision.ThermalBackoff
