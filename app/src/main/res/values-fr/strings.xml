@@ -36,6 +36,7 @@
 <string name="video_export_complete">Exportation vidéo terminée</string>
 <string name="video_export_complete_software">Vidéo enregistrée avec un codec logiciel de secours</string>
 <string name="video_export_failed">Échec de l’exportation vidéo</string>
+<string name="video_export_hdr_unsupported">Cet appareil ne peut pas encoder le HDR avec une surface d’entrée matérielle 10 bits compatible. Choisissez SDR Rec.709.</string>
 <string name="video_export_cancel">Annuler</string>
 <string name="video_export_view">Afficher</string>
 <string name="video_export_queued">Exportation mise en attente. Vous pouvez continuer à utiliser UGallery.</string>

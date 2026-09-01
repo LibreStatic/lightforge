@@ -58,6 +58,7 @@
 <string name="video_export_complete">Video export complete</string>
 <string name="video_export_complete_software">Video saved using a software codec fallback</string>
 <string name="video_export_failed">Video export failed</string>
+<string name="video_export_hdr_unsupported">This device cannot encode HDR with a supported 10-bit hardware input surface. Choose SDR Rec.709.</string>
 <string name="video_export_cancel">Cancel</string>
 <string name="video_export_view">View</string>
 <string name="video_export_queued">Export queued. You can keep using UGallery.</string>

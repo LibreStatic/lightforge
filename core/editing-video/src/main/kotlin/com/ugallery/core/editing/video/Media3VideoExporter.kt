@@ -61,6 +61,15 @@ data class VideoExportRequest(
 /** Media3 Transformer wrapper with trim, speed and PCM volume processing. */
 class Media3VideoExporter(private val context: Context) {
     suspend fun export(request: VideoExportRequest): VideoExportResult {
+        if (request.recipe.dynamicRange != VideoDynamicRange.SdrRec709) {
+            val capabilities = VideoOutputCapabilities.hdr(context.applicationContext)
+            val supported = when (request.recipe.dynamicRange) {
+                VideoDynamicRange.SdrRec709 -> true
+                VideoDynamicRange.HdrHlg -> capabilities.hlg
+                VideoDynamicRange.Hdr10Pq -> capabilities.hdr10
+            }
+            if (!supported) throw HdrVideoExportUnsupportedException(request.recipe.dynamicRange)
+        }
         request.onProgress(VideoExportProgress(VideoExportPhase.Preparing, 0f))
         val clipEndMillis = request.recipe.endMillis ?: withContext(Dispatchers.IO) {
             MediaMetadataRetriever().use { retriever ->
@@ -206,8 +215,8 @@ class Media3VideoExporter(private val context: Context) {
             val encoderBuilder = DefaultEncoderFactory.Builder(context.applicationContext)
                 .setVideoEncoderSelector(HardwareCodecSelectors.encoder)
                 .setEnableFallback(true)
-            if (request.recipe.outputQuality == VideoOutputQuality.HevcMain10 ||
-                request.recipe.dynamicRange != VideoDynamicRange.SdrRec709
+            if (request.recipe.outputQuality == VideoOutputQuality.HevcMain10 &&
+                request.recipe.dynamicRange == VideoDynamicRange.SdrRec709
             ) {
                 encoderBuilder.setRequestedVideoEncoderSettings(
                     VideoEncoderSettings.Builder()
@@ -457,6 +466,10 @@ class Media3VideoExporter(private val context: Context) {
     }.getOrDefault(false)
 
 }
+
+class HdrVideoExportUnsupportedException(
+    val dynamicRange: VideoDynamicRange,
+) : IllegalStateException("${dynamicRange.name} hardware export is not supported by this device")
 
 private class ConstantSpeedProvider(private val speed: Float) : SpeedProvider {
     override fun getSpeed(timeUs: Long): Float = speed

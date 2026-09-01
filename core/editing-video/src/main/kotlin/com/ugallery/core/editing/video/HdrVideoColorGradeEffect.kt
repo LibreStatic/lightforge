@@ -4,6 +4,7 @@ package com.ugallery.core.editing.video
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.Color
 import android.opengl.GLES20
 import androidx.media3.common.VideoFrameProcessingException
 import androidx.media3.common.util.GlProgram
@@ -35,9 +36,15 @@ private class HdrVideoColorGradeShaderProgram(
     } catch (failure: Exception) {
         throw VideoFrameProcessingException(failure)
     }
-    private val lutBitmap = customLut?.toAtlasBitmap()
+    // GlProgram requires every active sampler to be bound even when the shader branch that reads
+    // it is disabled. Keep a real identity texture for built-in looks and grading without a .cube.
+    private val lutBitmap = customLut?.toAtlasBitmap() ?: Bitmap.createBitmap(
+        1,
+        1,
+        Bitmap.Config.ARGB_8888,
+    ).apply { eraseColor(Color.WHITE) }
     private val lutTexture = try {
-        lutBitmap?.let(GlUtil::createTexture) ?: -1
+        GlUtil.createTexture(lutBitmap)
     } catch (failure: GlUtil.GlException) {
         throw VideoFrameProcessingException(failure)
     }
@@ -82,7 +89,7 @@ private class HdrVideoColorGradeShaderProgram(
         try {
             program.use()
             program.setSamplerTexIdUniform("uTexSampler", inputTexId, 0)
-            if (lutTexture != -1) program.setSamplerTexIdUniform("uLutSampler", lutTexture, 1)
+            program.setSamplerTexIdUniform("uLutSampler", lutTexture, 1)
             program.bindAttributesAndUniforms()
             GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
         } catch (failure: GlUtil.GlException) {
@@ -92,9 +99,9 @@ private class HdrVideoColorGradeShaderProgram(
 
     override fun release() {
         super.release()
-        lutBitmap?.recycle()
+        lutBitmap.recycle()
         try {
-            if (lutTexture != -1) GlUtil.deleteTexture(lutTexture)
+            GlUtil.deleteTexture(lutTexture)
             program.delete()
         } catch (failure: GlUtil.GlException) {
             throw VideoFrameProcessingException(failure)

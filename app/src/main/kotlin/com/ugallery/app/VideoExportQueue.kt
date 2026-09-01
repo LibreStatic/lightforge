@@ -5,13 +5,14 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.BroadcastReceiver
 import android.content.pm.ServiceInfo
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
 import androidx.work.CoroutineWorker
@@ -23,11 +24,13 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.ugallery.core.database.GalleryDatabaseFactory
+import com.ugallery.core.editing.video.HdrVideoExportUnsupportedException
 import com.ugallery.core.editing.video.Media3VideoExporter
 import com.ugallery.core.editing.video.VideoEditRecipe
 import com.ugallery.core.editing.video.VideoEditRecipeCodec
 import com.ugallery.core.editing.video.VideoExportPhase
 import com.ugallery.core.editing.video.VideoExportRequest
+import com.ugallery.core.editing.video.videoExportDiagnostic
 import com.ugallery.core.mediastore.MediaWriteSpec
 import com.ugallery.core.mediastore.PendingMediaWriter
 import com.ugallery.core.ml.MlScheduler
@@ -306,12 +309,19 @@ class VideoExportWorker(context: Context, parameters: WorkerParameters) : Corout
             store.update(id, VideoExportJob::afterWorkerInterruption)
             throw cancelled
         } catch (failure: Throwable) {
+            val causes = generateSequence(failure) { it.cause }.toList()
+            val message = if (causes.any { it is HdrVideoExportUnsupportedException }) {
+                applicationContext.getString(R.string.video_export_hdr_unsupported)
+            } else {
+                videoExportDiagnostic(failure, applicationContext.getString(R.string.video_export_failed))
+            }
+            Log.e("VideoExportWorker", "Video export $id failed: $message", failure)
             val failed = store.update(id) {
-                it.copy(status = VideoExportJobStatus.Failed, error = failure.message ?: applicationContext.getString(R.string.video_export_failed))
+                it.copy(status = VideoExportJobStatus.Failed, error = message)
             }
             if (failed != null) notifications.notify(notificationId(id), failureNotification(failed))
             // A failed item must not cancel later dependants in the FIFO WorkManager chain.
-            return Result.success(Data.Builder().putString("error", failure.message).build())
+            return Result.success(Data.Builder().putString("error", message).build())
         } finally {
             output.delete()
             UserHardwareWorkloadGate.release(lease)

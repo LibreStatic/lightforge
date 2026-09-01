@@ -36,6 +36,7 @@
 <string name="video_export_complete">Exportação de vídeo concluída</string>
 <string name="video_export_complete_software">Vídeo guardado usando um codec de software alternativo</string>
 <string name="video_export_failed">Falha ao exportar o vídeo</string>
+<string name="video_export_hdr_unsupported">Este dispositivo não consegue codificar HDR com uma superfície de entrada de hardware de 10 bits compatível. Escolha SDR Rec.709.</string>
 <string name="video_export_cancel">Cancelar</string>
 <string name="video_export_view">Ver</string>
 <string name="video_export_queued">Exportação em fila. Pode continuar a usar o UGallery.</string>
