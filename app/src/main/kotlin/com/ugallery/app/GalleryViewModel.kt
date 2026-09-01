@@ -93,7 +93,6 @@ import com.ugallery.core.preferences.GallerySettingsRepository
 import com.ugallery.core.preferences.VideoResumePolicy
 import com.ugallery.core.preferences.FavoriteBackupRecord
 import com.ugallery.core.preferences.GalleryBackupCodec
-import com.ugallery.core.preferences.GalleryFolderToken
 import com.ugallery.core.editing.image.PhotoExportOutcome
 import com.ugallery.core.editing.image.PhotoAutoEnhancementAnalyzer
 import com.ugallery.core.editing.image.PhotoImageRenderer
@@ -421,8 +420,11 @@ class GalleryViewModel @Inject constructor(
         .map { rows ->
             rows.filter(PhysicalAlbumRow::isAvailable).map { row ->
                 GalleryFolderOption(
-                    token = GalleryFolderToken.encode(row.volumeName, row.bucketId),
-                    label = "${row.displayName ?: row.bucketId} (${row.itemCount})",
+                    volumeName = row.volumeName,
+                    bucketId = row.bucketId,
+                    relativePath = row.relativePath,
+                    displayName = row.displayName ?: row.bucketId.toString(),
+                    itemCount = row.itemCount,
                 )
             }
         }
@@ -3563,8 +3565,6 @@ class GalleryViewModel @Inject constructor(
 
     private fun currentLibraryQuery(): MediaQuery {
         val library = gallerySettings.value.library
-        fun decode(tokens: Set<String>) = tokens.mapNotNull(GalleryFolderToken::decode)
-            .mapTo(linkedSetOf()) { MediaQuery.PhysicalFolder(it.first, it.second) }
         return MediaQuery(
             kindFilter = when (library.filter) {
                 com.ugallery.core.preferences.LibraryFilter.All -> MediaQuery.KindFilter.ImagesAndVideos
@@ -3589,8 +3589,7 @@ class GalleryViewModel @Inject constructor(
             folderMode = if (library.folderSelectionMode == com.ugallery.core.preferences.FolderSelectionMode.OnlyIncluded) {
                 MediaQuery.FolderMode.OnlyIncluded
             } else MediaQuery.FolderMode.AllExceptExcluded,
-            includedFolders = decode(library.includedFolders),
-            excludedFolders = decode(library.excludedFolders),
+            folderRules = library.folderRules,
         )
     }
 

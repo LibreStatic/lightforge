@@ -7,7 +7,6 @@ import com.ugallery.core.preferences.LibraryFilter
 import com.ugallery.core.preferences.LibraryGrouping
 import com.ugallery.core.preferences.LibrarySettings
 import com.ugallery.core.preferences.LibrarySort
-import com.ugallery.core.preferences.GalleryFolderToken
 
 internal object GalleryTimelineQuery {
     fun build(settings: LibrarySettings): SupportSQLiteQuery {
@@ -32,23 +31,12 @@ internal object GalleryTimelineQuery {
                 "OR LOWER(COALESCE(displayName,'')) GLOB '*.[aA][rR][wW]' " +
                 "OR LOWER(COALESCE(displayName,'')) GLOB '*.[rR][aA][fF]')"
         }
-        val selectedTokens = when (settings.folderSelectionMode) {
-            FolderSelectionMode.AllExceptExcluded -> settings.excludedFolders
-            FolderSelectionMode.OnlyIncluded -> settings.includedFolders
-        }.mapNotNull(GalleryFolderToken::decode)
-        if (settings.folderSelectionMode == FolderSelectionMode.OnlyIncluded && selectedTokens.isEmpty()) {
-            where += "0"
-        } else if (selectedTokens.isNotEmpty()) {
-            val clauses = selectedTokens.map {
-                args += it.first
-                args += it.second
-                "(volumeName=? AND bucketId=?)"
-            }
-            where += when (settings.folderSelectionMode) {
-                FolderSelectionMode.AllExceptExcluded -> "NOT (${clauses.joinToString(" OR ")})"
-                FolderSelectionMode.OnlyIncluded -> "(${clauses.joinToString(" OR ")})"
-            }
-        }
+        FolderSelectionSql.predicate(
+            alias = "media_items",
+            defaultSelected = settings.folderSelectionMode == FolderSelectionMode.AllExceptExcluded,
+            rules = settings.folderRules,
+            args = args,
+        )?.let(where::add)
         val direction = if (settings.ascending) "ASC" else "DESC"
         val selectedSort = when (settings.sort) {
             LibrarySort.DateTaken -> "timelineSortMillis"

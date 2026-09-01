@@ -14,6 +14,7 @@ import com.ugallery.core.model.AlbumAvailability
 import com.ugallery.core.model.AlbumKey
 import com.ugallery.core.model.MediaKey
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.first
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -39,6 +40,18 @@ class GalleryAlbumRepositoryDeviceTest {
 
     @After
     fun closeDatabase() = database.close()
+
+    @Test
+    fun physicalFolderOptionsExposeRelativePathsForHierarchy() = runBlocking {
+        val dao = database.libraryDao()
+        dao.upsertMedia(listOf(media("external_primary", 7, 7_000, relativePath = "Pictures/Family/")))
+
+        val option = dao.physicalAlbumOptions().first().single()
+
+        assertEquals("Pictures/Family/", option.relativePath)
+        assertEquals("external_primary", option.volumeName)
+        assertEquals(BucketId, option.bucketId)
+    }
 
     @Test
     fun virtualAlbumCrudStoresReferencesWithoutMovingMedia() = runBlocking {

@@ -18,8 +18,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.ugallery.core.designsystem.UGalleryTheme
 import com.ugallery.core.preferences.GallerySettings
+import com.ugallery.core.preferences.FolderSelectionTarget
 import com.ugallery.core.preferences.VideoScrubbingMode
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -28,6 +31,53 @@ import org.junit.runner.RunWith
 class RecognitionSettingsContentDeviceTest {
     @get:Rule
     val compose = createComposeRule()
+
+    @Test
+    fun folderBrowserNavigatesHierarchyAndKeepsDirectFolderExceptions() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        var settings by mutableStateOf(GallerySettings())
+        val folders = listOf(
+            GalleryFolderOption("external_primary", 1L, "Pictures/", "Pictures", 2L),
+            GalleryFolderOption("external_primary", 2L, "Pictures/Family/", "Family", 3L),
+        )
+
+        compose.setContent {
+            UGalleryTheme(darkTheme = false, dynamicColor = false) {
+                RecognitionSettingsContent(
+                    state = FaceAnalysisUiState(),
+                    onEnable = {},
+                    onPause = {},
+                    onResume = {},
+                    onAnalyzeAll = {},
+                    onDelete = {},
+                    petCollectionsEnabled = false,
+                    onPetCollectionsEnabledChange = {},
+                    onHideDogResults = {},
+                    onHideCatResults = {},
+                    onRestorePetResults = {},
+                    settings = settings,
+                    folderOptions = folders,
+                    onSettingsChange = { transform -> settings = transform(settings) },
+                )
+            }
+        }
+
+        compose.onNode(hasText(context.getString(R.string.settings_library))).performClick()
+        compose.onNode(hasTestTag("folder_browser_row")).performClick()
+        compose.onNode(hasContentDescription(context.getString(R.string.settings_toggle_folder, "Pictures")))
+            .performClick()
+        compose.waitForIdle()
+
+        assertFalse(settings.library.folderRules[FolderSelectionTarget.Path("external_primary", "Pictures/")]!!)
+
+        compose.onNode(hasText("Pictures")).performClick()
+        compose.onNode(hasText(context.getString(R.string.settings_subfolders))).assertIsDisplayed()
+        compose.onNode(hasText("Family")).assertIsDisplayed()
+        compose.onNode(hasText(context.getString(R.string.settings_folder_direct_items))).performClick()
+        compose.waitForIdle()
+
+        assertTrue(settings.library.folderRules[FolderSelectionTarget.Bucket("external_primary", 1L)]!!)
+    }
 
     @Test
     fun playbackLetsUsersChooseTheVideoScrubbingMode() {

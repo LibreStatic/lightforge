@@ -21,6 +21,20 @@
     <string name="settings_folder_exclude_mode">Tous sauf les désactivés</string>
     <string name="settings_folder_include_mode">Dossiers sélectionnés uniquement</string>
     <string name="settings_folders">Dossiers</string>
+    <string name="settings_folders_empty">Aucun dossier multimédia</string>
+    <string name="settings_folders_enabled_summary">%1$d/%2$d</string>
+    <string name="settings_internal_storage">Stockage interne</string>
+    <string name="settings_storage_volume">Stockage %1$s</string>
+    <string name="settings_folder_and_subfolders">Ce dossier et ses sous-dossiers</string>
+    <string name="settings_folder_direct_items">Éléments de ce dossier uniquement</string>
+    <string name="settings_subfolders">Sous-dossiers</string>
+    <string name="settings_toggle_folder">Modifier la sélection de %1$s</string>
+    <string name="settings_open_folder">Ouvrir %1$s</string>
+    <plurals name="settings_media_items">
+        <item quantity="one">%d élément multimédia</item>
+        <item quantity="many">%d éléments multimédias</item>
+        <item quantity="other">%d éléments multimédias</item>
+    </plurals>
     <string name="settings_playback">Lecture vidéo</string>
     <string name="settings_video_scrubbing_mode">Navigation dans la vidéo</string>
     <string name="settings_video_scrubbing_legacy">Barre de défilement classique</string>

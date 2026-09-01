@@ -726,7 +726,8 @@ interface LibraryDao {
 
     @Query(
         """SELECT m.volumeName AS volumeName, m.bucketId AS bucketId,
-            MAX(m.bucketDisplayName) AS displayName, COUNT(*) AS itemCount,
+            MAX(m.bucketDisplayName) AS displayName, MAX(m.relativePath) AS relativePath,
+            COUNT(*) AS itemCount,
             MAX(m.timelineSortMillis) AS latestSortMillis,
             (SELECT cover.mediaStoreId FROM media_items cover
                 WHERE cover.volumeName=m.volumeName AND cover.bucketId=m.bucketId
@@ -763,6 +764,7 @@ interface LibraryDao {
     @Query(
         """
         SELECT m.volumeName, m.bucketId, MAX(m.bucketDisplayName) AS displayName,
+            MAX(m.relativePath) AS relativePath,
             COUNT(*) AS itemCount, MAX(m.timelineSortMillis) AS latestSortMillis,
             (SELECT cover.mediaStoreId FROM media_items AS cover
              WHERE cover.volumeName = m.volumeName AND cover.bucketId = m.bucketId
@@ -781,6 +783,7 @@ interface LibraryDao {
     @Query(
         """
         SELECT m.volumeName, m.bucketId, MAX(m.bucketDisplayName) AS displayName,
+            MAX(m.relativePath) AS relativePath,
             COUNT(*) AS itemCount, MAX(m.timelineSortMillis) AS latestSortMillis,
             (SELECT cover.mediaStoreId FROM media_items AS cover
              WHERE cover.volumeName=m.volumeName AND cover.bucketId=m.bucketId AND cover.isTrashed=0

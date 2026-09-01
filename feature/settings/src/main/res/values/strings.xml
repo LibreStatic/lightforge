@@ -28,6 +28,19 @@
     <string name="settings_folder_exclude_mode">All except disabled</string>
     <string name="settings_folder_include_mode">Only selected folders</string>
     <string name="settings_folders">Folders</string>
+    <string name="settings_folders_empty">No media folders</string>
+    <string name="settings_folders_enabled_summary">%1$d/%2$d</string>
+    <string name="settings_internal_storage">Internal storage</string>
+    <string name="settings_storage_volume">Storage %1$s</string>
+    <string name="settings_folder_and_subfolders">This folder and subfolders</string>
+    <string name="settings_folder_direct_items">Items in this folder only</string>
+    <string name="settings_subfolders">Subfolders</string>
+    <string name="settings_toggle_folder">Toggle %1$s</string>
+    <string name="settings_open_folder">Open %1$s</string>
+    <plurals name="settings_media_items">
+        <item quantity="one">%d media item</item>
+        <item quantity="other">%d media items</item>
+    </plurals>
     <string name="settings_playback">Video playback</string>
     <string name="settings_video_scrubbing_mode">Video scrubbing</string>
     <string name="settings_video_scrubbing_legacy">Legacy seek bar</string>

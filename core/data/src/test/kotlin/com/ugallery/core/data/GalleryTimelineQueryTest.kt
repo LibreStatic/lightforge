@@ -5,6 +5,7 @@ import com.ugallery.core.preferences.LibraryFilter
 import com.ugallery.core.preferences.LibraryGrouping
 import com.ugallery.core.preferences.LibrarySettings
 import com.ugallery.core.preferences.LibrarySort
+import com.ugallery.core.preferences.FolderSelectionTarget
 import com.ugallery.core.preferences.GalleryFolderToken
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -41,11 +42,28 @@ class GalleryTimelineQueryTest {
         val query = GalleryTimelineQuery.build(
             LibrarySettings(
                 folderSelectionMode = FolderSelectionMode.OnlyIncluded,
-                includedFolders = setOf(token),
+                folderRules = mapOf(FolderSelectionTarget.Bucket(hostileVolume, 42L) to true),
             ),
         )
         assertFalse(query.sql.contains(hostileVolume))
         assertEquals(2, query.argCount)
+    }
+
+    @Test fun `deep paths and exact buckets use bound precedence`() {
+        val hostilePath = "Pictures/%_Family/' OR 1=1/"
+        val query = GalleryTimelineQuery.build(
+            LibrarySettings(
+                folderSelectionMode = FolderSelectionMode.AllExceptExcluded,
+                folderRules = mapOf(
+                    FolderSelectionTarget.Path("external_primary", "Pictures/") to false,
+                    FolderSelectionTarget.Path("external_primary", hostilePath) to true,
+                    FolderSelectionTarget.Bucket("external_primary", 42L) to false,
+                ),
+            ),
+        )
+        assertFalse(query.sql.contains(hostilePath))
+        assertTrue(query.sql.indexOf("bucketId") < query.sql.indexOf("instr"))
+        assertEquals(6, query.argCount)
     }
 
     @Test fun `empty allow list returns no media and malformed token is rejected`() {

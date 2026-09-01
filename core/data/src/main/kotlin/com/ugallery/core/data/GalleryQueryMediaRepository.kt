@@ -43,22 +43,12 @@ class GalleryQueryMediaRepository(private val database: GalleryDatabase) {
         }
         query.fromTimelineMillisInclusive?.let { where += "m.timelineSortMillis>=?"; args += it }
         query.toTimelineMillisExclusive?.let { where += "m.timelineSortMillis<?"; args += it }
-        val folders = when (query.folderMode) {
-            MediaQuery.FolderMode.AllExceptExcluded -> query.excludedFolders
-            MediaQuery.FolderMode.OnlyIncluded -> query.includedFolders
-        }
-        if (query.folderMode == MediaQuery.FolderMode.OnlyIncluded && folders.isEmpty()) {
-            where += "0"
-        } else if (folders.isNotEmpty()) {
-            val clauses = folders.map { folder ->
-                args += folder.volumeName
-                args += folder.bucketId
-                "(m.volumeName=? AND m.bucketId=?)"
-            }
-            where += if (query.folderMode == MediaQuery.FolderMode.AllExceptExcluded) {
-                "NOT (${clauses.joinToString(" OR ")})"
-            } else "(${clauses.joinToString(" OR ")})"
-        }
+        FolderSelectionSql.predicate(
+            alias = "m",
+            defaultSelected = query.folderMode == MediaQuery.FolderMode.AllExceptExcluded,
+            rules = query.folderRules,
+            args = args,
+        )?.let(where::add)
         val direction = if (query.sort == MediaQuery.Sort.NewestFirst) "DESC" else "ASC"
         return SimpleSQLiteQuery(
             "SELECT m.* FROM media_items m WHERE ${where.joinToString(" AND ")} " +

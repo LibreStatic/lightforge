@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
+import org.json.JSONArray
 import org.json.JSONObject
 
 private val Context.gallerySettingsStore by preferencesDataStore("gallery-settings")
@@ -54,8 +55,16 @@ class GallerySettingsRepository(context: Context) {
     private fun GallerySettings.normalized() = copy(
         schemaVersion = GallerySettings.CurrentSchemaVersion,
         library = library.copy(
-            includedFolders = library.includedFolders.filter(String::isNotBlank).toSet(),
-            excludedFolders = library.excludedFolders.filter(String::isNotBlank).toSet(),
+            folderRules = buildMap {
+                library.folderRules.forEach { (target, selected) ->
+                    val normalized = when (target) {
+                        is FolderSelectionTarget.Path -> FolderSelectionPolicy.normalizeRelativePath(target.relativePath)
+                            ?.let { FolderSelectionTarget.Path(target.volumeName, it) }
+                        is FolderSelectionTarget.Bucket -> target
+                    }
+                    normalized?.let { put(it, selected) }
+                }
+            },
         ),
         gestures = gestures.copy(
             photoMaxZoom = gestures.photoMaxZoom.coerceIn(2f, 8f),
@@ -80,8 +89,13 @@ class GallerySettingsRepository(context: Context) {
             grouping = p[Keys.LibraryGrouping]?.enumOrDefault(LibraryGrouping.Day) ?: LibraryGrouping.Day,
             folderSelectionMode = p[Keys.FolderMode]?.enumOrDefault(FolderSelectionMode.AllExceptExcluded)
                 ?: FolderSelectionMode.AllExceptExcluded,
-            includedFolders = p[Keys.IncludedFolders].orEmpty(),
-            excludedFolders = p[Keys.ExcludedFolders].orEmpty(),
+            folderRules = p[Keys.FolderRules]?.mapNotNull(::decodeStoredFolderRule)?.toMap()
+                ?: migrateLegacyFolderRules(
+                    mode = p[Keys.FolderMode]?.enumOrDefault(FolderSelectionMode.AllExceptExcluded)
+                        ?: FolderSelectionMode.AllExceptExcluded,
+                    included = p[Keys.IncludedFolders].orEmpty(),
+                    excluded = p[Keys.ExcludedFolders].orEmpty(),
+                ),
         ),
         playback = PlaybackSettings(
             autoplayVideos = p[Keys.Autoplay] ?: true,
@@ -136,8 +150,10 @@ class GallerySettingsRepository(context: Context) {
         p[Keys.LibraryFilter] = s.library.filter.name
         p[Keys.LibraryGrouping] = s.library.grouping.name
         p[Keys.FolderMode] = s.library.folderSelectionMode.name
-        p[Keys.IncludedFolders] = s.library.includedFolders
-        p[Keys.ExcludedFolders] = s.library.excludedFolders
+        p[Keys.FolderRules] = s.library.folderRules.entries
+            .mapTo(linkedSetOf()) { encodeStoredFolderRule(it) }
+        p.remove(Keys.IncludedFolders)
+        p.remove(Keys.ExcludedFolders)
         p[Keys.Autoplay] = s.playback.autoplayVideos
         p[Keys.StartMuted] = s.playback.startVideosMuted
         p[Keys.Loop] = s.playback.loopVideos
@@ -177,8 +193,11 @@ class GallerySettingsRepository(context: Context) {
             put("sort", library.sort.name); put("ascending", library.ascending)
             put("filter", library.filter.name); put("grouping", library.grouping.name)
             put("folderSelectionMode", library.folderSelectionMode.name)
-            put("includedFolders", org.json.JSONArray(library.includedFolders.sorted()))
-            put("excludedFolders", org.json.JSONArray(library.excludedFolders.sorted()))
+            put("folderRules", JSONArray().apply {
+                library.folderRules.entries
+                    .sortedBy { encodeStoredFolderRule(it) }
+                    .forEach { put(folderRuleJson(it.key, it.value)) }
+            })
         })
         put("playback", JSONObject().apply {
             put("autoplayVideos", playback.autoplayVideos); put("startVideosMuted", playback.startVideosMuted)
@@ -232,8 +251,16 @@ class GallerySettingsRepository(context: Context) {
                 grouping = l.optString("grouping").enumOrDefault(LibraryGrouping.Day),
                 folderSelectionMode = l.optString("folderSelectionMode")
                     .enumOrDefault(FolderSelectionMode.AllExceptExcluded),
-                includedFolders = l.stringSet("includedFolders"),
-                excludedFolders = l.stringSet("excludedFolders"),
+                folderRules = if (l.has("folderRules")) {
+                    l.optJSONArray("folderRules").toFolderRules()
+                } else {
+                    migrateLegacyFolderRules(
+                        mode = l.optString("folderSelectionMode")
+                            .enumOrDefault(FolderSelectionMode.AllExceptExcluded),
+                        included = l.stringSet("includedFolders"),
+                        excluded = l.stringSet("excludedFolders"),
+                    )
+                },
             ),
             playback = PlaybackSettings(
                 autoplayVideos = p.bool("autoplayVideos", true),
@@ -258,6 +285,7 @@ class GallerySettingsRepository(context: Context) {
         val LibraryFilter = stringPreferencesKey("library.filter")
         val LibraryGrouping = stringPreferencesKey("library.grouping")
         val FolderMode = stringPreferencesKey("library.folder_mode")
+        val FolderRules = stringSetPreferencesKey("library.folder_rules")
         val IncludedFolders = stringSetPreferencesKey("library.included_folders")
         val ExcludedFolders = stringSetPreferencesKey("library.excluded_folders")
         val Autoplay = booleanPreferencesKey("playback.autoplay")
@@ -300,6 +328,47 @@ class GallerySettingsRepository(context: Context) {
         val values = optJSONArray(name) ?: return emptySet()
         return buildSet {
             for (index in 0 until values.length()) values.optString(index).takeIf(String::isNotBlank)?.let(::add)
+        }
+    }
+
+    private fun folderRuleJson(target: FolderSelectionTarget, selected: Boolean) = JSONObject().apply {
+        put("selected", selected)
+        put("volumeName", target.volumeName)
+        when (target) {
+            is FolderSelectionTarget.Path -> {
+                put("type", "path")
+                put("relativePath", target.relativePath)
+            }
+            is FolderSelectionTarget.Bucket -> {
+                put("type", "bucket")
+                put("bucketId", target.bucketId)
+            }
+        }
+    }
+
+    private fun encodeStoredFolderRule(entry: Map.Entry<FolderSelectionTarget, Boolean>): String =
+        folderRuleJson(entry.key, entry.value).toString()
+
+    private fun decodeStoredFolderRule(value: String): Pair<FolderSelectionTarget, Boolean>? =
+        runCatching { JSONObject(value).toFolderRule() }.getOrNull()
+
+    private fun JSONObject.toFolderRule(): Pair<FolderSelectionTarget, Boolean>? {
+        val volume = optString("volumeName").takeIf(String::isNotBlank) ?: return null
+        val target = when (optString("type")) {
+            "path" -> FolderSelectionPolicy.normalizeRelativePath(optString("relativePath"))
+                ?.let { FolderSelectionTarget.Path(volume, it) }
+            "bucket" -> if (has("bucketId")) FolderSelectionTarget.Bucket(volume, getLong("bucketId")) else null
+            else -> null
+        } ?: return null
+        return target to optBoolean("selected", false)
+    }
+
+    private fun JSONArray?.toFolderRules(): Map<FolderSelectionTarget, Boolean> = buildMap {
+        val array = this@toFolderRules ?: return@buildMap
+        for (index in 0 until array.length()) {
+            runCatching { array.optJSONObject(index)?.toFolderRule() }.getOrNull()?.let { (target, selected) ->
+                put(target, selected)
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.ugallery.core.selection
 
+import com.ugallery.core.preferences.FolderSelectionTarget
 import java.io.Serializable
 
 /** Immutable description of the rows covered by a select-all operation. */
@@ -15,8 +16,7 @@ data class MediaQuery(
     val sortField: SortField = SortField.DateTaken,
     val grouping: Grouping = Grouping.Day,
     val folderMode: FolderMode = FolderMode.AllExceptExcluded,
-    val includedFolders: Set<PhysicalFolder> = emptySet(),
-    val excludedFolders: Set<PhysicalFolder> = emptySet(),
+    val folderRules: Map<FolderSelectionTarget, Boolean> = emptyMap(),
 ) : Serializable {
     init {
         require(
@@ -34,10 +34,6 @@ data class MediaQuery(
     enum class SortField { DateTaken, DateModified, Name, Size }
     enum class Grouping { Day, Month, Year, None }
     enum class FolderMode { AllExceptExcluded, OnlyIncluded }
-    data class PhysicalFolder(val volumeName: String, val bucketId: Long) : Serializable {
-        init { require(volumeName.isNotBlank()) }
-    }
-
     /** The scope is data, never SQL, so restored state cannot inject a query. */
     sealed interface Scope : Serializable {
         data object Timeline : Scope

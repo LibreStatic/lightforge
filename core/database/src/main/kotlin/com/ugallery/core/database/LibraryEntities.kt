@@ -159,6 +159,7 @@ data class PhysicalAlbumRow(
     val volumeName: String,
     val bucketId: Long,
     val displayName: String?,
+    val relativePath: String?,
     val itemCount: Long,
     val latestSortMillis: Long,
     val coverMediaStoreId: Long?,

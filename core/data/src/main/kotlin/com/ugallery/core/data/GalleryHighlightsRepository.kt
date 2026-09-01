@@ -3,6 +3,7 @@ package com.ugallery.core.data
 import com.ugallery.core.database.GalleryDatabase
 import com.ugallery.core.model.TimelineMedia
 import com.ugallery.core.selection.MediaQuery
+import com.ugallery.core.preferences.FolderSelectionTarget
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.mapLatest
 import java.time.Instant
@@ -64,9 +65,9 @@ class GalleryHighlightsRepository(
                     cover = cover.toTimelineMedia(),
                     query = MediaQuery(
                         folderMode = MediaQuery.FolderMode.OnlyIncluded,
-                        includedFolders = selfieFolders.map { row ->
-                            MediaQuery.PhysicalFolder(row.volumeName, row.bucketId)
-                        }.toSet(),
+                        folderRules = selfieFolders.associate { row ->
+                            FolderSelectionTarget.Bucket(row.volumeName, row.bucketId) to true
+                        },
                         grouping = MediaQuery.Grouping.None,
                     ),
                 )

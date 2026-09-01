@@ -1,5 +1,7 @@
 package com.ugallery.core.preferences
 
+import java.io.Serializable
+
 data class GallerySettings(
     val schemaVersion: Int = CurrentSchemaVersion,
     val library: LibrarySettings = LibrarySettings(),
@@ -11,7 +13,7 @@ data class GallerySettings(
     val analysis: AnalysisSettings = AnalysisSettings(),
 ) {
     companion object {
-        const val CurrentSchemaVersion = 4
+        const val CurrentSchemaVersion = 5
     }
 }
 
@@ -26,9 +28,76 @@ data class LibrarySettings(
     val filter: LibraryFilter = LibraryFilter.All,
     val grouping: LibraryGrouping = LibraryGrouping.Day,
     val folderSelectionMode: FolderSelectionMode = FolderSelectionMode.AllExceptExcluded,
-    val includedFolders: Set<String> = emptySet(),
-    val excludedFolders: Set<String> = emptySet(),
+    val folderRules: Map<FolderSelectionTarget, Boolean> = emptyMap(),
 )
+
+sealed interface FolderSelectionTarget : Serializable {
+    val volumeName: String
+
+    data class Path(
+        override val volumeName: String,
+        val relativePath: String,
+    ) : FolderSelectionTarget {
+        init {
+            require(volumeName.isNotBlank())
+            require(relativePath.isNotBlank() && relativePath.endsWith('/'))
+        }
+    }
+
+    data class Bucket(
+        override val volumeName: String,
+        val bucketId: Long,
+    ) : FolderSelectionTarget {
+        init { require(volumeName.isNotBlank()) }
+    }
+}
+
+object FolderSelectionPolicy {
+    fun normalizeRelativePath(value: String?): String? {
+        val segments = value
+            ?.replace('\\', '/')
+            ?.split('/')
+            ?.filter(String::isNotBlank)
+            .orEmpty()
+        return segments.takeIf(List<String>::isNotEmpty)?.joinToString(separator = "/", postfix = "/")
+    }
+
+    fun isSelected(
+        defaultSelected: Boolean,
+        rules: Map<FolderSelectionTarget, Boolean>,
+        volumeName: String,
+        bucketId: Long,
+        relativePath: String?,
+    ): Boolean {
+        rules[FolderSelectionTarget.Bucket(volumeName, bucketId)]?.let { return it }
+        val normalizedPath = normalizeRelativePath(relativePath) ?: return defaultSelected
+        return rules.asSequence()
+            .mapNotNull { (target, selected) ->
+                val path = target as? FolderSelectionTarget.Path ?: return@mapNotNull null
+                if (path.volumeName == volumeName && normalizedPath.startsWith(path.relativePath)) {
+                    path.relativePath.length to selected
+                } else null
+            }
+            .maxByOrNull { it.first }
+            ?.second
+            ?: defaultSelected
+    }
+
+}
+
+internal fun migrateLegacyFolderRules(
+    mode: FolderSelectionMode,
+    included: Set<String>,
+    excluded: Set<String>,
+): Map<FolderSelectionTarget, Boolean> = buildMap {
+    included.mapNotNull(GalleryFolderToken::decode).forEach { (volume, bucket) ->
+        put(FolderSelectionTarget.Bucket(volume, bucket), true)
+    }
+    excluded.mapNotNull(GalleryFolderToken::decode).forEach { (volume, bucket) ->
+        val target = FolderSelectionTarget.Bucket(volume, bucket)
+        if (mode == FolderSelectionMode.AllExceptExcluded || target !in this) put(target, false)
+    }
+}
 
 object GalleryFolderToken {
     fun encode(volumeName: String, bucketId: Long): String = "$volumeName|$bucketId"

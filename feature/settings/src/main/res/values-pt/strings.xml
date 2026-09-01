@@ -21,6 +21,20 @@
     <string name="settings_folder_exclude_mode">Todas exceto as desativadas</string>
     <string name="settings_folder_include_mode">Somente pastas selecionadas</string>
     <string name="settings_folders">Pastas</string>
+    <string name="settings_folders_empty">Nenhuma pasta de mídia</string>
+    <string name="settings_folders_enabled_summary">%1$d/%2$d</string>
+    <string name="settings_internal_storage">Armazenamento interno</string>
+    <string name="settings_storage_volume">Armazenamento %1$s</string>
+    <string name="settings_folder_and_subfolders">Esta pasta e subpastas</string>
+    <string name="settings_folder_direct_items">Somente itens desta pasta</string>
+    <string name="settings_subfolders">Subpastas</string>
+    <string name="settings_toggle_folder">Alterar seleção de %1$s</string>
+    <string name="settings_open_folder">Abrir %1$s</string>
+    <plurals name="settings_media_items">
+        <item quantity="one">%d item de mídia</item>
+        <item quantity="many">%d itens de mídia</item>
+        <item quantity="other">%d itens de mídia</item>
+    </plurals>
     <string name="settings_playback">Reprodução de vídeo</string>
     <string name="settings_video_scrubbing_mode">Navegação no vídeo</string>
     <string name="settings_video_scrubbing_legacy">Barra de busca clássica</string>

@@ -15,11 +15,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -33,9 +36,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.TriStateCheckbox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -48,9 +53,13 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.state.ToggleableState
 import com.ugallery.core.preferences.GallerySettings
 import com.ugallery.core.preferences.FolderSelectionMode
+import com.ugallery.core.preferences.FolderSelectionPolicy
+import com.ugallery.core.preferences.FolderSelectionTarget
 import com.ugallery.core.preferences.LibraryFilter
 import com.ugallery.core.preferences.LibraryGrouping
 import com.ugallery.core.preferences.LibrarySort
@@ -61,7 +70,13 @@ import com.ugallery.core.designsystem.GalleryTopAppBar
 import com.ugallery.core.designsystem.GalleryExpressiveButton
 import com.ugallery.core.designsystem.GalleryIndeterminateProgressIndicator
 
-data class GalleryFolderOption(val token: String, val label: String)
+data class GalleryFolderOption(
+    val volumeName: String,
+    val bucketId: Long,
+    val relativePath: String?,
+    val displayName: String,
+    val itemCount: Long,
+)
 
 enum class AnalysisStatus { Ready, Running, Paused, Complete }
 
@@ -99,7 +114,7 @@ data class SemanticModelSettingsUiState(
 )
 
 /** Nested settings destinations. [Root] lists categories; every other value is a detail page. */
-private enum class SettingsPage { Root, Library, Playback, Gestures, Thumbnails, Operations, Security, Backup, AiAnalysis }
+private enum class SettingsPage { Root, Library, LibraryFolders, Playback, Gestures, Thumbnails, Operations, Security, Backup, AiAnalysis }
 
 @Composable
 fun RecognitionSettingsContent(
@@ -141,8 +156,32 @@ fun RecognitionSettingsContent(
 ) {
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     var page by rememberSaveable { mutableStateOf(SettingsPage.Root) }
+    var folderVolume by rememberSaveable { mutableStateOf<String?>(null) }
+    var folderPath by rememberSaveable { mutableStateOf<String?>(null) }
 
-    BackHandler { if (page == SettingsPage.Root) onBack() else page = SettingsPage.Root }
+    fun leaveFolderLevel() {
+        val current = folderPath
+        if (current == null) {
+            page = SettingsPage.Library
+        } else {
+            val segments = current.trimEnd('/').split('/')
+            if (segments.size == 1) {
+                folderVolume = null
+                folderPath = null
+            } else {
+                folderPath = segments.dropLast(1).joinToString(separator = "/", postfix = "/")
+            }
+        }
+    }
+
+    BackHandler {
+        when (page) {
+            SettingsPage.Root -> onBack()
+            SettingsPage.LibraryFolders -> leaveFolderLevel()
+            SettingsPage.Library -> page = SettingsPage.Root
+            else -> page = SettingsPage.Root
+        }
+    }
 
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(
@@ -158,8 +197,21 @@ fun RecognitionSettingsContent(
                     )
                 }
                 SettingsPage.Library -> SettingsSubPage(title = stringResource(R.string.settings_library), onBack = { page = SettingsPage.Root }) {
-                    LibrarySection(settings, folderOptions, onSettingsChange)
+                    LibrarySection(settings, folderOptions, onSettingsChange) {
+                        folderVolume = null
+                        folderPath = null
+                        page = SettingsPage.LibraryFolders
+                    }
                 }
+                SettingsPage.LibraryFolders -> FolderSelectionPage(
+                    settings = settings,
+                    folderOptions = folderOptions,
+                    currentVolume = folderVolume,
+                    currentPath = folderPath,
+                    onOpenFolder = { volume, path -> folderVolume = volume; folderPath = path },
+                    onBack = ::leaveFolderLevel,
+                    onSettingsChange = onSettingsChange,
+                )
                 SettingsPage.Playback -> SettingsSubPage(title = stringResource(R.string.settings_playback), onBack = { page = SettingsPage.Root }) {
                     PlaybackSection(settings, onSettingsChange)
                 }
@@ -405,11 +457,318 @@ private fun SettingsHeader(title: String, onBack: () -> Unit) {
     )
 }
 
+internal data class FolderTreeNode(
+    val volumeName: String,
+    val relativePath: String?,
+    val name: String,
+    val directOption: GalleryFolderOption?,
+    val children: List<FolderTreeNode>,
+) {
+    val options: List<GalleryFolderOption> = buildList {
+        directOption?.let(::add)
+        children.forEach { addAll(it.options) }
+    }
+    val itemCount: Long = options.sumOf(GalleryFolderOption::itemCount)
+}
+
+private class MutableFolderTreeNode(
+    val volumeName: String,
+    val relativePath: String?,
+    val name: String,
+) {
+    var directOption: GalleryFolderOption? = null
+    val children = linkedMapOf<String, MutableFolderTreeNode>()
+
+    fun freeze(): FolderTreeNode = FolderTreeNode(
+        volumeName = volumeName,
+        relativePath = relativePath,
+        name = name,
+        directOption = directOption,
+        children = children.values.map(MutableFolderTreeNode::freeze)
+            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name }),
+    )
+}
+
+internal fun buildFolderHierarchy(options: List<GalleryFolderOption>): List<FolderTreeNode> {
+    val roots = linkedMapOf<String, MutableFolderTreeNode>()
+    options.forEach { option ->
+        val normalizedPath = FolderSelectionPolicy.normalizeRelativePath(option.relativePath)
+        if (normalizedPath == null) {
+            roots["${option.volumeName}|#${option.bucketId}"] = MutableFolderTreeNode(
+                volumeName = option.volumeName,
+                relativePath = null,
+                name = option.displayName,
+            ).also { it.directOption = option }
+            return@forEach
+        }
+        var parentChildren = roots
+        val segments = normalizedPath.trimEnd('/').split('/')
+        segments.forEachIndexed { index, segment ->
+            val path = segments.take(index + 1).joinToString(separator = "/", postfix = "/")
+            val key = "${option.volumeName}|$path"
+            val node = parentChildren.getOrPut(key) {
+                MutableFolderTreeNode(option.volumeName, path, segment)
+            }
+            if (index == segments.lastIndex) node.directOption = option
+            parentChildren = node.children
+        }
+    }
+    return roots.values.map(MutableFolderTreeNode::freeze)
+        .sortedWith(
+            compareBy<FolderTreeNode> { if (it.volumeName == "external_primary") 0 else 1 }
+                .thenBy { it.volumeName }
+                .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name },
+        )
+}
+
+private fun FolderTreeNode.find(volumeName: String, relativePath: String): FolderTreeNode? {
+    if (this.volumeName == volumeName && this.relativePath == relativePath) return this
+    return children.firstNotNullOfOrNull { it.find(volumeName, relativePath) }
+}
+
+private fun FolderTreeNode.selectionState(settings: GallerySettings): ToggleableState {
+    val defaultSelected = settings.library.folderSelectionMode == FolderSelectionMode.AllExceptExcluded
+    val selected = options.count { option ->
+        FolderSelectionPolicy.isSelected(
+            defaultSelected,
+            settings.library.folderRules,
+            option.volumeName,
+            option.bucketId,
+            option.relativePath,
+        )
+    }
+    return when (selected) {
+        0 -> ToggleableState.Off
+        options.size -> ToggleableState.On
+        else -> ToggleableState.Indeterminate
+    }
+}
+
+private fun GallerySettings.withFolderNodeSelected(node: FolderTreeNode, selected: Boolean): GallerySettings {
+    val optionTargets = node.options.mapTo(hashSetOf()) {
+        FolderSelectionTarget.Bucket(it.volumeName, it.bucketId)
+    }
+    val path = node.relativePath
+    val retained = library.folderRules.filterKeys { target ->
+        when (target) {
+            is FolderSelectionTarget.Path -> path == null || target.volumeName != node.volumeName ||
+                !target.relativePath.startsWith(path)
+            is FolderSelectionTarget.Bucket -> target !in optionTargets
+        }
+    }
+    val updated = retained.toMutableMap().apply {
+        if (path != null) {
+            put(FolderSelectionTarget.Path(node.volumeName, path), selected)
+        } else {
+            node.directOption?.let { put(FolderSelectionTarget.Bucket(it.volumeName, it.bucketId), selected) }
+        }
+    }
+    return copy(library = library.copy(folderRules = updated))
+}
+
+private fun GallerySettings.withDirectFolderSelected(option: GalleryFolderOption, selected: Boolean): GallerySettings {
+    val target = FolderSelectionTarget.Bucket(option.volumeName, option.bucketId)
+    val withoutExact = library.folderRules - target
+    val defaultSelected = library.folderSelectionMode == FolderSelectionMode.AllExceptExcluded
+    val inherited = FolderSelectionPolicy.isSelected(
+        defaultSelected,
+        withoutExact,
+        option.volumeName,
+        option.bucketId,
+        option.relativePath,
+    )
+    val updated = if (inherited == selected) withoutExact else withoutExact + (target to selected)
+    return copy(library = library.copy(folderRules = updated))
+}
+
+@Composable
+private fun FolderSelectionPage(
+    settings: GallerySettings,
+    folderOptions: List<GalleryFolderOption>,
+    currentVolume: String?,
+    currentPath: String?,
+    onOpenFolder: (String, String) -> Unit,
+    onBack: () -> Unit,
+    onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit,
+) {
+    val roots = remember(folderOptions) { buildFolderHierarchy(folderOptions) }
+    val currentNode = if (currentVolume != null && currentPath != null) {
+        roots.firstNotNullOfOrNull { it.find(currentVolume, currentPath) }
+    } else null
+    val title = currentNode?.name ?: stringResource(R.string.settings_folders)
+
+    Column(Modifier.fillMaxSize()) {
+        SettingsHeader(title, onBack)
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().widthIn(max = 720.dp),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    horizontal = GallerySpacing.Xl,
+                    vertical = GallerySpacing.Lg,
+                ),
+                verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+            ) {
+                if (currentNode == null) {
+                    if (roots.isEmpty()) {
+                        item { Text(stringResource(R.string.settings_folders_empty)) }
+                    } else {
+                        roots.groupBy(FolderTreeNode::volumeName).forEach { (volume, nodes) ->
+                            item(key = "volume:$volume") {
+                                Text(
+                                    if (volume == "external_primary") {
+                                        stringResource(R.string.settings_internal_storage)
+                                    } else {
+                                        stringResource(R.string.settings_storage_volume, volume)
+                                    },
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = GallerySpacing.Md, vertical = GallerySpacing.Sm),
+                                )
+                            }
+                            items(nodes, key = { "${it.volumeName}|${it.relativePath}|${it.name}" }) { node ->
+                                FolderNodeRow(
+                                    node = node,
+                                    state = node.selectionState(settings),
+                                    onToggle = { selected ->
+                                        onSettingsChange { it.withFolderNodeSelected(node, selected) }
+                                    },
+                                    onOpen = node.relativePath?.let { path -> { onOpenFolder(node.volumeName, path) } },
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    item(key = "path") {
+                        Text(
+                            currentNode.relativePath.orEmpty(),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    item(key = "subtree") {
+                        FolderSelectionRow(
+                            label = stringResource(R.string.settings_folder_and_subfolders),
+                            count = currentNode.itemCount,
+                            state = currentNode.selectionState(settings),
+                            onToggle = { selected ->
+                                onSettingsChange { it.withFolderNodeSelected(currentNode, selected) }
+                            },
+                        )
+                    }
+                    currentNode.directOption?.let { direct ->
+                        item(key = "direct") {
+                            val selected = FolderSelectionPolicy.isSelected(
+                                settings.library.folderSelectionMode == FolderSelectionMode.AllExceptExcluded,
+                                settings.library.folderRules,
+                                direct.volumeName,
+                                direct.bucketId,
+                                direct.relativePath,
+                            )
+                            DirectFolderSelectionRow(direct.itemCount, selected) { enabled ->
+                                onSettingsChange { it.withDirectFolderSelected(direct, enabled) }
+                            }
+                        }
+                    }
+                    if (currentNode.children.isNotEmpty()) {
+                        item(key = "subfolders-heading") {
+                            Text(
+                                stringResource(R.string.settings_subfolders),
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.padding(top = GallerySpacing.Md),
+                            )
+                        }
+                        items(currentNode.children, key = { "${it.volumeName}|${it.relativePath}" }) { node ->
+                            FolderNodeRow(
+                                node = node,
+                                state = node.selectionState(settings),
+                                onToggle = { selected ->
+                                    onSettingsChange { it.withFolderNodeSelected(node, selected) }
+                                },
+                                onOpen = node.relativePath?.let { path -> { onOpenFolder(node.volumeName, path) } },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FolderNodeRow(
+    node: FolderTreeNode,
+    state: ToggleableState,
+    onToggle: (Boolean) -> Unit,
+    onOpen: (() -> Unit)?,
+) {
+    val toggleLabel = stringResource(R.string.settings_toggle_folder, node.name)
+    ListItem(
+        supportingContent = { Text(pluralStringResource(R.plurals.settings_media_items, node.itemCount.toInt(), node.itemCount)) },
+        leadingContent = { Icon(GalleryIcons.Folder, contentDescription = null) },
+        trailingContent = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TriStateCheckbox(
+                    state = state,
+                    onClick = { onToggle(state != ToggleableState.On) },
+                    modifier = Modifier.semantics { contentDescription = toggleLabel },
+                )
+                if (onOpen != null) {
+                    IconButton(onClick = onOpen) {
+                        Icon(
+                            Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                            contentDescription = stringResource(R.string.settings_open_folder, node.name),
+                        )
+                    }
+                }
+            }
+        },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        modifier = Modifier.fillMaxWidth().clickable {
+            if (onOpen != null) onOpen() else onToggle(state != ToggleableState.On)
+        },
+    ) { Text(node.name) }
+}
+
+@Composable
+private fun FolderSelectionRow(
+    label: String,
+    count: Long,
+    state: ToggleableState,
+    onToggle: (Boolean) -> Unit,
+) {
+    ListItem(
+        supportingContent = { Text(pluralStringResource(R.plurals.settings_media_items, count.toInt(), count)) },
+        trailingContent = {
+            TriStateCheckbox(state = state, onClick = { onToggle(state != ToggleableState.On) })
+        },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        modifier = Modifier.fillMaxWidth().clickable { onToggle(state != ToggleableState.On) },
+    ) { Text(label) }
+}
+
+@Composable
+private fun DirectFolderSelectionRow(count: Long, selected: Boolean, onToggle: (Boolean) -> Unit) {
+    val label = stringResource(R.string.settings_folder_direct_items)
+    ListItem(
+        supportingContent = { Text(pluralStringResource(R.plurals.settings_media_items, count.toInt(), count)) },
+        trailingContent = {
+            Checkbox(
+                checked = selected,
+                onCheckedChange = null,
+                modifier = Modifier.semantics { contentDescription = label },
+            )
+        },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        modifier = Modifier.fillMaxWidth().clickable { onToggle(!selected) },
+    ) { Text(label) }
+}
+
 @Composable
 private fun LibrarySection(
     settings: GallerySettings,
     folderOptions: List<GalleryFolderOption>,
     onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit,
+    onOpenFolders: () -> Unit,
 ) {
     var sortDialogVisible by rememberSaveable { mutableStateOf(false) }
     var filterDialogVisible by rememberSaveable { mutableStateOf(false) }
@@ -469,34 +828,27 @@ private fun LibrarySection(
         modifier = Modifier.testTag("folder_mode_row"),
         onClick = { folderModeDialogVisible = true },
     )
-    if (folderOptions.isNotEmpty()) {
-        Text(stringResource(R.string.settings_folders), style = MaterialTheme.typography.titleMedium)
-        folderOptions.forEach { folder ->
-            val checked = when (settings.library.folderSelectionMode) {
-                FolderSelectionMode.AllExceptExcluded -> folder.token !in settings.library.excludedFolders
-                FolderSelectionMode.OnlyIncluded -> folder.token in settings.library.includedFolders
-            }
-            SettingsSwitchRow(folder.label, checked) { enabled ->
-                onSettingsChange { current ->
-                    val library = current.library
-                    when (library.folderSelectionMode) {
-                        FolderSelectionMode.AllExceptExcluded -> current.copy(
-                            library = library.copy(
-                                excludedFolders = if (enabled) library.excludedFolders - folder.token
-                                else library.excludedFolders + folder.token,
-                            ),
-                        )
-                        FolderSelectionMode.OnlyIncluded -> current.copy(
-                            library = library.copy(
-                                includedFolders = if (enabled) library.includedFolders + folder.token
-                                else library.includedFolders - folder.token,
-                            ),
-                        )
-                    }
-                }
-            }
-        }
+    val defaultSelected = settings.library.folderSelectionMode == FolderSelectionMode.AllExceptExcluded
+    val selectedFolders = folderOptions.count { option ->
+        FolderSelectionPolicy.isSelected(
+            defaultSelected = defaultSelected,
+            rules = settings.library.folderRules,
+            volumeName = option.volumeName,
+            bucketId = option.bucketId,
+            relativePath = option.relativePath,
+        )
     }
+    val folderSummary = if (folderOptions.isEmpty()) {
+        stringResource(R.string.settings_folders_empty)
+    } else {
+        stringResource(R.string.settings_folders_enabled_summary, selectedFolders, folderOptions.size)
+    }
+    SettingsValueRow(
+        label = stringResource(R.string.settings_folders),
+        value = folderSummary,
+        modifier = Modifier.testTag("folder_browser_row"),
+        onClick = onOpenFolders,
+    )
     if (sortDialogVisible) {
         SettingsSingleChoiceDialog(
             title = stringResource(R.string.settings_library_sort),

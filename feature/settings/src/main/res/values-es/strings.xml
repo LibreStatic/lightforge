@@ -21,6 +21,20 @@
     <string name="settings_folder_exclude_mode">Todas excepto las desactivadas</string>
     <string name="settings_folder_include_mode">Solo carpetas seleccionadas</string>
     <string name="settings_folders">Carpetas</string>
+    <string name="settings_folders_empty">No hay carpetas multimedia</string>
+    <string name="settings_folders_enabled_summary">%1$d/%2$d</string>
+    <string name="settings_internal_storage">Almacenamiento interno</string>
+    <string name="settings_storage_volume">Almacenamiento %1$s</string>
+    <string name="settings_folder_and_subfolders">Esta carpeta y sus subcarpetas</string>
+    <string name="settings_folder_direct_items">Solo elementos de esta carpeta</string>
+    <string name="settings_subfolders">Subcarpetas</string>
+    <string name="settings_toggle_folder">Cambiar selección de %1$s</string>
+    <string name="settings_open_folder">Abrir %1$s</string>
+    <plurals name="settings_media_items">
+        <item quantity="one">%d elemento multimedia</item>
+        <item quantity="many">%d elementos multimedia</item>
+        <item quantity="other">%d elementos multimedia</item>
+    </plurals>
     <string name="settings_playback">Reproducción de video</string>
     <string name="settings_video_scrubbing_mode">Desplazamiento del video</string>
     <string name="settings_video_scrubbing_legacy">Barra de búsqueda clásica</string>

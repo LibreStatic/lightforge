@@ -21,6 +21,19 @@
     <string name="settings_folder_exclude_mode">Alle außer deaktivierten</string>
     <string name="settings_folder_include_mode">Nur ausgewählte Ordner</string>
     <string name="settings_folders">Ordner</string>
+    <string name="settings_folders_empty">Keine Medienordner</string>
+    <string name="settings_folders_enabled_summary">%1$d/%2$d</string>
+    <string name="settings_internal_storage">Interner Speicher</string>
+    <string name="settings_storage_volume">Speicher %1$s</string>
+    <string name="settings_folder_and_subfolders">Dieser Ordner und Unterordner</string>
+    <string name="settings_folder_direct_items">Nur Elemente in diesem Ordner</string>
+    <string name="settings_subfolders">Unterordner</string>
+    <string name="settings_toggle_folder">Auswahl für %1$s ändern</string>
+    <string name="settings_open_folder">%1$s öffnen</string>
+    <plurals name="settings_media_items">
+        <item quantity="one">%d Medienelement</item>
+        <item quantity="other">%d Medienelemente</item>
+    </plurals>
     <string name="settings_playback">Videowiedergabe</string>
     <string name="settings_video_scrubbing_mode">Videonavigation</string>
     <string name="settings_video_scrubbing_legacy">Klassische Fortschrittsleiste</string>

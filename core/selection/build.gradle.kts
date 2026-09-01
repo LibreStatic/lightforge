@@ -21,6 +21,7 @@ android {
 
 dependencies {
     implementation(project(":core:model"))
+    implementation(project(":core:preferences"))
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.junit4)
 }
