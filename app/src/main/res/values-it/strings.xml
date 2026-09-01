@@ -46,6 +46,7 @@
 <string name="video_export_progress_percent">%1$d%%</string>
 <string name="video_export_close">Chiudi</string>
 <string name="video_export_details">Dettagli</string>
+<string name="video_export_dismiss">Nascondi avanzamento esportazione</string>
 <plurals name="video_exports_active">
     <item quantity="one">%d esportazione attiva</item>
     <item quantity="other">%d esportazioni attive</item>

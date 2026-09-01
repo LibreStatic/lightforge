@@ -35,6 +35,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -443,6 +444,7 @@ internal fun ProductionGalleryApp(
     var showEmptyTrashConfirmation by rememberSaveable { mutableStateOf(false) }
     var showDiscardEditorConfirmation by rememberSaveable { mutableStateOf(false) }
     var showVideoExportQueue by rememberSaveable { mutableStateOf(false) }
+    var dismissedVideoExportIds by rememberSaveable { mutableStateOf("") }
     var newAlbumName by rememberSaveable { mutableStateOf("") }
     var pendingRequestId by rememberSaveable { mutableStateOf<Long?>(null) }
     var selectedCollageTemplateIndex by rememberSaveable { mutableStateOf(0) }
@@ -1448,6 +1450,13 @@ internal fun ProductionGalleryApp(
             rootTab = destination
             route = SurfaceRoute.Root
         }
+        val dismissedExportIds = remember(dismissedVideoExportIds) {
+            dismissedVideoExportIds.split(',').filter(String::isNotBlank).toSet()
+        }
+        val hasUndismissedExport = activeVideoExports.any { it.id !in dismissedExportIds }
+        LaunchedEffect(activeVideoExports.isEmpty()) {
+            if (activeVideoExports.isEmpty()) dismissedVideoExportIds = ""
+        }
         Scaffold(
             snackbarHost = {
                 Column(
@@ -1460,7 +1469,7 @@ internal fun ProductionGalleryApp(
                 ) {
                     SnackbarHost(snackbarHostState)
                     GalleryAnimatedVisibility(
-                        visible = activeVideoExports.isNotEmpty() &&
+                        visible = hasUndismissedExport &&
                             !(renderedRoute == SurfaceRoute.VideoEditor &&
                                 videoEditor?.content?.isExporting == true),
                         edge = GalleryMotionEdge.Bottom,
@@ -1470,6 +1479,11 @@ internal fun ProductionGalleryApp(
                                 job = job,
                                 activeCount = activeVideoExports.size,
                                 onOpen = { showVideoExportQueue = true },
+                                onDismiss = {
+                                    dismissedVideoExportIds = (
+                                        dismissedExportIds + activeVideoExports.map(VideoExportJob::id)
+                                    ).joinToString(",")
+                                },
                                 modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth(),
                             )
                         }
@@ -1859,6 +1873,7 @@ private fun VideoExportGlobalStatusCard(
     job: VideoExportJob,
     activeCount: Int,
     onOpen: () -> Unit,
+    onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val phaseLabel = if (job.status == VideoExportJobStatus.Queued) {
@@ -1874,9 +1889,9 @@ private fun VideoExportGlobalStatusCard(
         onClick = onOpen,
         modifier = modifier,
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-        tonalElevation = 6.dp,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        tonalElevation = 2.dp,
     ) {
         Column(
             Modifier.fillMaxWidth().padding(GallerySpacing.Lg),
@@ -1917,20 +1932,41 @@ private fun VideoExportGlobalStatusCard(
                         style = MaterialTheme.typography.labelLarge,
                     )
                 }
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(32.dp),
+                ) {
+                    Icon(
+                        GalleryIcons.Close,
+                        contentDescription = stringResource(R.string.video_export_dismiss),
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
             }
             Box(Modifier.fillMaxWidth().padding(vertical = GallerySpacing.Xs)) {
                 if (progress == null) {
-                    GalleryIndeterminateProgressIndicator()
+                    GalleryIndeterminateProgressIndicator(
+                        color = LocalContentColor.current,
+                        trackColor = LocalContentColor.current.copy(alpha = 0.2f),
+                    )
                 } else {
-                    GalleryProgressIndicator(progress = { progress })
+                    GalleryProgressIndicator(
+                        progress = { progress },
+                        color = LocalContentColor.current,
+                        trackColor = LocalContentColor.current.copy(alpha = 0.2f),
+                    )
                 }
             }
-            Text(
-                stringResource(R.string.video_export_details),
+            TextButton(
+                onClick = onOpen,
                 modifier = Modifier.align(Alignment.End),
-                style = MaterialTheme.typography.labelLarge,
-                maxLines = 1,
-            )
+            ) {
+                Text(
+                    stringResource(R.string.video_export_details),
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }

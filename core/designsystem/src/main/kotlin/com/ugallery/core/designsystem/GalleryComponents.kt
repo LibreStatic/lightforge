@@ -420,14 +420,29 @@ fun GalleryLoadingIndicator(
 fun GalleryProgressIndicator(
     progress: () -> Float,
     modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.primary,
+    trackColor: Color = MaterialTheme.colorScheme.surfaceVariant,
 ) {
-    LinearWavyProgressIndicator(progress = progress, modifier = modifier.fillMaxWidth())
+    LinearWavyProgressIndicator(
+        progress = progress,
+        modifier = modifier.fillMaxWidth(),
+        color = color,
+        trackColor = trackColor,
+    )
 }
 
 /** Expressive wavy progress for long-running work without a known completion fraction. */
 @Composable
-fun GalleryIndeterminateProgressIndicator(modifier: Modifier = Modifier) {
-    LinearWavyProgressIndicator(modifier = modifier.fillMaxWidth())
+fun GalleryIndeterminateProgressIndicator(
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.primary,
+    trackColor: Color = MaterialTheme.colorScheme.surfaceVariant,
+) {
+    LinearWavyProgressIndicator(
+        modifier = modifier.fillMaxWidth(),
+        color = color,
+        trackColor = trackColor,
+    )
 }
 
 @Composable

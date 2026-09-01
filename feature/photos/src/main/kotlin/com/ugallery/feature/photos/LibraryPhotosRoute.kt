@@ -16,7 +16,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -200,15 +199,12 @@ private fun UpdatesIndicator(
         Icon(GalleryIcons.Notifications, contentDescription = contentDescription)
         return
     }
-    BadgedBox(
-        badge = {
-            Badge {
-                Text(if (activeExportCount > 99) "99+" else activeExportCount.toString())
-            }
-        },
+    androidx.compose.foundation.layout.Box(
+        Modifier.size(40.dp),
+        contentAlignment = Alignment.Center,
     ) {
         androidx.compose.foundation.layout.Box(
-            Modifier.size(36.dp),
+            Modifier.size(34.dp),
             contentAlignment = Alignment.Center,
         ) {
             if (activeExportProgress == null) {
@@ -228,6 +224,9 @@ private fun UpdatesIndicator(
                 contentDescription = contentDescription,
                 modifier = Modifier.size(19.dp),
             )
+        }
+        Badge(Modifier.align(Alignment.TopEnd)) {
+            Text(if (activeExportCount > 99) "99+" else activeExportCount.toString())
         }
     }
 }
