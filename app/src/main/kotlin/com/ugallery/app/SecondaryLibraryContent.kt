@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import com.ugallery.core.data.GalleryActivityEvent
 import com.ugallery.core.data.GalleryActivityType
@@ -100,7 +101,7 @@ internal fun DeviceFoldersContent(
     onAlbumClick: (AlbumSummary) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (albums.itemCount == 0) {
+    if (albums.itemCount == 0 && albums.loadState.refresh !is LoadState.Loading) {
         GalleryStateContent(
             stringResource(R.string.device_folders_empty),
             stringResource(R.string.device_folders_title),

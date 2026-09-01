@@ -24,6 +24,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -36,8 +38,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.graphics.asImageBitmap
@@ -60,6 +60,12 @@ internal fun collectionGridColumns(availableWidth: Dp): Int = when {
     availableWidth < 292.dp -> 1
     availableWidth < 840.dp -> 2
     else -> 4
+}
+
+internal fun collectionRowCount(itemCount: Int, columns: Int): Int {
+    require(itemCount >= 0)
+    require(columns > 0)
+    return (itemCount + columns - 1) / columns
 }
 
 private val CollectionCoverHeight = 88.dp
@@ -106,10 +112,6 @@ fun CollectionsContent(
 ) {
     val dogsTitle = stringResource(R.string.collections_dogs)
     val catsTitle = stringResource(R.string.collections_cats)
-    val albums = buildList {
-        repeat(virtualAlbums.itemCount) { virtualAlbums[it]?.let(::add) }
-        repeat(physicalAlbums.itemCount) { physicalAlbums[it]?.let(::add) }
-    }
     val petCards = if (petCollectionsEnabled) listOf(
         CollectionCardSpec(
             key = "dogs",
@@ -163,19 +165,6 @@ fun CollectionsContent(
             icon = GalleryIcons.Trash,
             onClick = onTrashClick,
         ))
-        albums.forEach { album ->
-            add(CollectionCardSpec(
-                key = "album:${album.key}",
-                title = album.name ?: stringResource(R.string.collections_untitled),
-                body = if (album.availability == AlbumAvailability.VolumeUnavailable) {
-                    stringResource(R.string.collections_volume_unavailable)
-                } else {
-                    stringResource(R.string.collections_item_count, album.itemCount)
-                },
-                cover = album.cover,
-                onClick = { onAlbumClick(album) },
-            ))
-        }
     }
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
       Column(Modifier.fillMaxSize().widthIn(max = 1_200.dp).padding(horizontal = GallerySpacing.Lg), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -197,8 +186,16 @@ fun CollectionsContent(
                         modifier = Modifier.padding(vertical = 4.dp),
                     )
                 }
-                collectionCardRows(libraryCards, columns, thumbnailLoader)
-                if (albums.isEmpty() && physicalAlbums.loadState.refresh !is LoadState.Loading &&
+                pagedLibraryCardRows(
+                    cards = libraryCards,
+                    virtualAlbums = virtualAlbums,
+                    physicalAlbums = physicalAlbums,
+                    columns = columns,
+                    thumbnailLoader = thumbnailLoader,
+                    onAlbumClick = onAlbumClick,
+                )
+                if (virtualAlbums.itemCount == 0 && physicalAlbums.itemCount == 0 &&
+                    physicalAlbums.loadState.refresh !is LoadState.Loading &&
                     virtualAlbums.loadState.refresh !is LoadState.Loading
                 ) {
                     item(key = "empty-albums") {
@@ -267,6 +264,78 @@ fun CollectionsContent(
     }
 }
 
+private fun LazyListScope.pagedLibraryCardRows(
+    cards: List<CollectionCardSpec>,
+    virtualAlbums: LazyPagingItems<AlbumSummary>,
+    physicalAlbums: LazyPagingItems<AlbumSummary>,
+    columns: Int,
+    thumbnailLoader: ThumbnailLoader?,
+    onAlbumClick: (AlbumSummary) -> Unit,
+) {
+    val virtualAlbumCount = virtualAlbums.itemCount
+    val totalItemCount = cards.size + virtualAlbumCount + physicalAlbums.itemCount
+    // Access LazyPagingItems only from composed rows. Reading every index while building this
+    // section defeats Paging, continuously invalidates rows, and restarts visible cover loads.
+    repeat(collectionRowCount(totalItemCount, columns)) { rowIndex ->
+        item(key = "library-row:$rowIndex") {
+            Row(
+                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                val rowStart = rowIndex * columns
+                repeat(columns) { columnIndex ->
+                    val itemIndex = rowStart + columnIndex
+                    val card = when {
+                        itemIndex >= totalItemCount -> null
+                        itemIndex < cards.size -> cards[itemIndex]
+                        itemIndex < cards.size + virtualAlbumCount -> {
+                            virtualAlbums[itemIndex - cards.size]?.asCollectionCard(
+                                onClick = onAlbumClick,
+                            )
+                        }
+                        else -> {
+                            physicalAlbums[itemIndex - cards.size - virtualAlbumCount]?.asCollectionCard(
+                                onClick = onAlbumClick,
+                            )
+                        }
+                    }
+                    if (card == null) {
+                        Spacer(Modifier.weight(1f))
+                    } else {
+                        key(card.key) {
+                            CollectionCard(
+                                title = card.title,
+                                body = card.body,
+                                onClick = card.onClick,
+                                icon = card.icon,
+                                cover = card.cover,
+                                circular = card.circular,
+                                thumbnailLoader = thumbnailLoader,
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlbumSummary.asCollectionCard(
+    onClick: (AlbumSummary) -> Unit,
+) = CollectionCardSpec(
+    key = "album:$key",
+    title = name ?: stringResource(R.string.collections_untitled),
+    body = if (availability == AlbumAvailability.VolumeUnavailable) {
+        stringResource(R.string.collections_volume_unavailable)
+    } else {
+        stringResource(R.string.collections_item_count, itemCount)
+    },
+    cover = cover,
+    onClick = { onClick(this) },
+)
+
 private fun LazyListScope.collectionCardRows(
     cards: List<CollectionCardSpec>,
     columns: Int,
@@ -310,10 +379,25 @@ private fun CollectionCard(
     wide: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
-    val bitmap by produceState<android.graphics.Bitmap?>(null, cover, thumbnailLoader) {
-        value = if (cover == null || thumbnailLoader == null) null else runCatching {
-            thumbnailLoader.load(ThumbnailRequest(cover, 0, 512, 320))
-        }.getOrNull()
+    val thumbnailRequest = cover?.let { ThumbnailRequest(it, 0, 512, 320) }
+    val cachedBitmap = remember(thumbnailRequest, thumbnailLoader) {
+        thumbnailRequest?.let { request ->
+            thumbnailLoader?.cached(request)
+                ?: thumbnailLoader?.bestCached(request.mediaKey, request.generationModified)
+        }
+    }
+    val bitmap by produceState<android.graphics.Bitmap?>(
+        initialValue = cachedBitmap,
+        thumbnailRequest,
+        thumbnailLoader,
+    ) {
+        if (thumbnailRequest == null || thumbnailLoader == null) {
+            value = null
+        } else {
+            runCatching { thumbnailLoader.load(thumbnailRequest) }
+                .getOrNull()
+                ?.let { value = it }
+        }
     }
     Card(
         modifier
