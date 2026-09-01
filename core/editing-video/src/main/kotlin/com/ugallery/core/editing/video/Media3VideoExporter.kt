@@ -17,6 +17,7 @@ import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.SpeedProvider
 import androidx.media3.common.util.Clock
+import androidx.media3.container.Mp4TimestampData
 import androidx.media3.transformer.EditedMediaItem
 import androidx.media3.transformer.EditedMediaItemSequence
 import androidx.media3.transformer.Composition
@@ -27,6 +28,7 @@ import androidx.media3.transformer.DefaultEncoderFactory
 import androidx.media3.transformer.DefaultAssetLoaderFactory
 import androidx.media3.transformer.DefaultDecoderFactory
 import androidx.media3.transformer.ProgressHolder
+import androidx.media3.transformer.InAppMp4Muxer
 import androidx.media3.transformer.VideoEncoderSettings
 import androidx.media3.transformer.TransformationRequest
 import kotlinx.coroutines.CancellationException
@@ -57,6 +59,14 @@ data class VideoExportRequest(
     val customLut: CubeLut? = null,
     val onProgress: (VideoExportProgress) -> Unit = {},
 )
+
+internal fun freshExportMetadataProvider(
+    nowMillis: () -> Long = System::currentTimeMillis,
+) = InAppMp4Muxer.MetadataProvider { entries ->
+    val timestamp = Mp4TimestampData.unixTimeToMp4TimeSeconds(nowMillis())
+    entries.removeAll { it is Mp4TimestampData }
+    entries.add(Mp4TimestampData(timestamp, timestamp))
+}
 
 /** Media3 Transformer wrapper with trim, speed and PCM volume processing. */
 class Media3VideoExporter(private val context: Context) {
@@ -212,6 +222,7 @@ class Media3VideoExporter(private val context: Context) {
                     } else request.videoMimeType,
                 )
                 .setAudioMimeType(request.audioMimeType)
+                .setMuxerFactory(InAppMp4Muxer.Factory(freshExportMetadataProvider()))
             val encoderBuilder = DefaultEncoderFactory.Builder(context.applicationContext)
                 .setVideoEncoderSelector(HardwareCodecSelectors.encoder)
                 .setEnableFallback(true)
@@ -242,13 +253,18 @@ class Media3VideoExporter(private val context: Context) {
                     .setEnableDecoderFallback(true)
                     .setListener { codecName, _ -> decoderName = codecName }
                     .build()
+                val assetLoaderFactory = DefaultAssetLoaderFactory(
+                    context.applicationContext,
+                    decoderFactory,
+                    Clock.DEFAULT,
+                    LogSessionId.LOG_SESSION_ID_NONE,
+                )
                 transformerBuilder.setAssetLoaderFactory(
-                    DefaultAssetLoaderFactory(
-                        context.applicationContext,
-                        decoderFactory,
-                        Clock.DEFAULT,
-                        LogSessionId.LOG_SESSION_ID_NONE,
-                    ),
+                    if (request.recipe.dynamicRange == VideoDynamicRange.SdrRec709) {
+                        assetLoaderFactory
+                    } else {
+                        HdrGraphInputAssetLoaderFactory(assetLoaderFactory)
+                    },
                 )
             }
             transformer = transformerBuilder

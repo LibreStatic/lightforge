@@ -253,12 +253,18 @@ object VideoColorGradeEffects {
 
     private fun applyLogWheels(rgb: FloatArray, wheels: LogWheels) {
         val luminance = luma(rgb).coerceIn(0f, 1f)
-        val shadowWeight = smooth(0.55f, 0.05f, 1f - luminance)
-        val highlightWeight = smooth(0.45f, 0.95f, luminance)
-        val middleWeight = (1f - shadowWeight - highlightWeight).coerceIn(0f, 1f)
+        val (shadowWeight, middleWeight, highlightWeight) = logWheelWeights(luminance)
         applyWheel(rgb, wheels.shadows, shadowWeight)
         applyWheel(rgb, wheels.midtones, middleWeight)
         applyWheel(rgb, wheels.highlights, highlightWeight)
+    }
+
+    internal fun logWheelWeights(luminance: Float): FloatArray {
+        val normalized = luminance.coerceIn(0f, 1f)
+        val shadowWeight = 1f - smooth(0.05f, 0.55f, normalized)
+        val highlightWeight = smooth(0.45f, 0.95f, normalized)
+        val middleWeight = (1f - shadowWeight - highlightWeight).coerceIn(0f, 1f)
+        return floatArrayOf(shadowWeight, middleWeight, highlightWeight)
     }
 
     private fun applyWheel(rgb: FloatArray, wheel: LogWheel, weight: Float) {

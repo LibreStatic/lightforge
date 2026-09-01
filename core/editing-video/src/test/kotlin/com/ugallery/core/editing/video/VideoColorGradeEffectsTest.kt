@@ -7,6 +7,58 @@ import org.junit.Test
 
 class VideoColorGradeEffectsTest {
     @Test
+    fun logWheelMasksTargetTheirExpectedTonalRanges() {
+        val shadows = VideoColorGradeEffects.logWheelWeights(0f)
+        val midtones = VideoColorGradeEffects.logWheelWeights(0.5f)
+        val highlights = VideoColorGradeEffects.logWheelWeights(1f)
+
+        assertArrayEquals(floatArrayOf(1f, 0f, 0f), shadows, 0.000001f)
+        assertTrue(midtones[1] > midtones[0] && midtones[1] > midtones[2])
+        assertArrayEquals(floatArrayOf(0f, 0f, 1f), highlights, 0.000001f)
+    }
+
+    @Test
+    fun shadowAndHighlightWheelsChangeTheCorrespondingPreviewTones() {
+        val darkInput = floatArrayOf(0.1f, 0.1f, 0.1f)
+        val brightInput = floatArrayOf(0.9f, 0.9f, 0.9f)
+        val neutral = VideoColorGrade()
+        val shadowGrade = neutral.copy(
+            logWheels = LogWheels(shadows = LogWheel(level = 0.5f)),
+        )
+        val highlightGrade = neutral.copy(
+            logWheels = LogWheels(highlights = LogWheel(level = -0.5f)),
+        )
+
+        val neutralDark = VideoColorGradeEffects.grade(darkInput, neutral, null)
+        val neutralBright = VideoColorGradeEffects.grade(brightInput, neutral, null)
+        val shadowDark = VideoColorGradeEffects.grade(darkInput, shadowGrade, null)
+        val shadowBright = VideoColorGradeEffects.grade(brightInput, shadowGrade, null)
+        val highlightDark = VideoColorGradeEffects.grade(darkInput, highlightGrade, null)
+        val highlightBright = VideoColorGradeEffects.grade(brightInput, highlightGrade, null)
+
+        assertTrue(shadowDark[0] - neutralDark[0] > 0.1f)
+        assertEquals(neutralBright[0], shadowBright[0], 0.0001f)
+        assertEquals(neutralDark[0], highlightDark[0], 0.0001f)
+        assertTrue(neutralBright[0] - highlightBright[0] > 0.03f)
+    }
+
+    @Test
+    fun logWheelChangesArePresentInTheRealtimePreviewCube() {
+        val neutral = VideoColorGradeEffects.buildPreviewCube(VideoColorGrade(), size = 5)
+        val shadows = VideoColorGradeEffects.buildPreviewCube(
+            VideoColorGrade(logWheels = LogWheels(shadows = LogWheel(red = 0.5f))),
+            size = 5,
+        )
+        val highlights = VideoColorGradeEffects.buildPreviewCube(
+            VideoColorGrade(logWheels = LogWheels(highlights = LogWheel(blue = -0.5f))),
+            size = 5,
+        )
+
+        assertTrue(neutral[1][1][1] != shadows[1][1][1])
+        assertTrue(neutral[4][4][4] != highlights[4][4][4])
+    }
+
+    @Test
     fun hueBandAdjustmentsAreOrderIndependent() {
         val input = floatArrayOf(0.2601f, 0.1732f, 0.1055f)
         val adjustments = listOf(

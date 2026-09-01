@@ -9,6 +9,7 @@ import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.MediaStore
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
@@ -32,6 +33,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import kotlinx.coroutines.runBlocking
@@ -39,6 +41,81 @@ import kotlinx.coroutines.runBlocking
 @UnstableApi
 @RunWith(AndroidJUnit4::class)
 class Media3ExportDeviceTest {
+    @Test
+    fun exportedCopyUsesFreshCreationDate() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val input = copyAssetToCache(context, "m0_h264.mp4")
+        val output = File(context.cacheDir, "fresh-date-${System.nanoTime()}.mp4")
+        val startedAt = System.currentTimeMillis()
+        var published: Uri? = null
+        try {
+            Media3VideoExporter(context).export(
+                VideoExportRequest(
+                    input = Uri.fromFile(input),
+                    output = output,
+                    recipe = VideoEditRecipe(startMillis = 0, endMillis = 1_000),
+                ),
+            )
+            published = PendingMediaPublisher(context.contentResolver).publishValidatedVideo(
+                tempFile = output,
+                displayName = "UGallery-fresh-date-${System.nanoTime()}.mp4",
+                relativePath = "Movies/UGalleryBenchmark",
+            )
+
+            val dateTaken = mediaLong(context, published, MediaStore.MediaColumns.DATE_TAKEN)
+            assertTrue(
+                "export retained a stale source timestamp: $dateTaken",
+                dateTaken in (startedAt - 1_000L)..(System.currentTimeMillis() + 1_000L),
+            )
+        } finally {
+            published?.let { context.contentResolver.delete(it, null, null) }
+            input.delete()
+            output.delete()
+        }
+    }
+
+    @Test
+    fun logInSdrContainerExportsHlgAndHdr10WithHardwareCodecs() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val capabilities = VideoOutputCapabilities.hdr(context)
+        assumeTrue("Device has no hardware HLG export path", capabilities.hlg)
+        assumeTrue("Device has no hardware HDR10 export path", capabilities.hdr10)
+        val input = copyAssetToCache(context, "m0_h264.mp4")
+        try {
+            listOf(
+                VideoDynamicRange.HdrHlg to C.COLOR_TRANSFER_HLG,
+                VideoDynamicRange.Hdr10Pq to C.COLOR_TRANSFER_ST2084,
+            ).forEach { (dynamicRange, expectedTransfer) ->
+                val output = File(context.cacheDir, "hdr-${dynamicRange.name}-${System.nanoTime()}.mp4")
+                try {
+                    val result = Media3VideoExporter(context).export(
+                        VideoExportRequest(
+                            input = Uri.fromFile(input),
+                            output = output,
+                            recipe = VideoEditRecipe(
+                                startMillis = 0,
+                                endMillis = 1_000,
+                                dynamicRange = dynamicRange,
+                                colorGrade = VideoColorGrade(inputProfile = LogInputProfile.SonySLog3),
+                            ),
+                        ),
+                    )
+
+                    assertTrue(output.isFile && output.length() > 0)
+                    assertFalse("HDR export used a software codec", result.usedSoftwareCodec)
+                    val format = videoTrackFormat(output)
+                    assertEquals(MimeTypes.VIDEO_H265, format.getString(MediaFormat.KEY_MIME))
+                    assertEquals(C.COLOR_SPACE_BT2020, format.getInteger(MediaFormat.KEY_COLOR_STANDARD))
+                    assertEquals(expectedTransfer, format.getInteger(MediaFormat.KEY_COLOR_TRANSFER))
+                } finally {
+                    output.delete()
+                }
+            }
+        } finally {
+            input.delete()
+        }
+    }
+
     @Test
     fun logColorGradeIsRenderedThroughMedia3() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -398,6 +475,12 @@ class Media3ExportDeviceTest {
             cursor.getInt(0)
         }
 
+    private fun mediaLong(context: Context, uri: Uri, column: String): Long =
+        context.contentResolver.query(uri, arrayOf(column), null, null, null)!!.use { cursor ->
+            check(cursor.moveToFirst())
+            cursor.getLong(0)
+        }
+
     private fun mediaRowsNamed(context: Context, displayName: String): Int =
         context.contentResolver.query(
             MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
@@ -489,5 +572,17 @@ class Media3ExportDeviceTest {
         }
         check(outputEnded) { "audio decoder timed out" }
         return if (sampleCount == 0L) 0.0 else absoluteSum.toDouble() / sampleCount.toDouble()
+    }
+
+    private fun videoTrackFormat(file: File): MediaFormat = MediaExtractor().let { extractor ->
+        try {
+            extractor.setDataSource(file.absolutePath)
+            val videoTrack = (0 until extractor.trackCount).firstOrNull { index ->
+                extractor.getTrackFormat(index).getString(MediaFormat.KEY_MIME)?.startsWith("video/") == true
+            } ?: error("No video track in ${file.name}")
+            extractor.getTrackFormat(videoTrack)
+        } finally {
+            extractor.release()
+        }
     }
 }

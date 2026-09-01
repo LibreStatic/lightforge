@@ -143,7 +143,9 @@ vec3 sampleLut(vec3 rgb) {
 }
 
 void main() {
-  vec3 source709Linear = bt2020To709(texture2D(uTexSampler, vTexSamplingCoord).rgb);
+  // Media3's accepted SDR-to-HDR graph path supplies linear BT.709 in a float texture. Rebuild the
+  // original electrical signal before applying the selected camera LOG inverse curve.
+  vec3 source709Linear = texture2D(uTexSampler, vTexSamplingCoord).rgb;
   vec3 signal = vec3(encode709(source709Linear.r), encode709(source709Linear.g), encode709(source709Linear.b));
   vec3 rgb = vec3(decodeLog(signal.r, uInputProfile), decodeLog(signal.g, uInputProfile), decodeLog(signal.b, uInputProfile));
 
@@ -154,7 +156,7 @@ void main() {
     rgb.g *= 1.0 + uTint * 0.06;
     rgb = (rgb - uPivot) * exp2(uContrast * 1.5) + uPivot;
     float y = clamp(luma(rgb), 0.0, 1.0);
-    float sw = smoothWeight(0.55, 0.05, 1.0 - y);
+    float sw = 1.0 - smoothWeight(0.05, 0.55, y);
     float hw = smoothWeight(0.45, 0.95, y);
     rgb = applyWheel(rgb, uShadows, sw);
     rgb = applyWheel(rgb, uMidtones, clamp(1.0 - sw - hw, 0.0, 1.0));
