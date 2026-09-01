@@ -21,6 +21,8 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.ugallery.core.designsystem.GalleryFoldInfo
 import com.ugallery.core.designsystem.GalleryFoldOrientation
 import com.ugallery.core.designsystem.UGalleryTheme
+import com.ugallery.core.editing.video.VideoExportPhase
+import com.ugallery.core.editing.video.VideoDynamicRange
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -89,6 +91,66 @@ class VideoEditorContentDeviceTest {
         assertTrue("Tool labels must not be squeezed into clipped buttons", speedWidth >= minimumWidthPx - 1f)
         assertTrue("Every visible tool keeps the same readable minimum", audioWidth >= minimumWidthPx - 1f)
         compose.onNode(hasText(text(R.string.video_editor_export))).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun exportProgressCardKeepsTheAnimatedIndicatorInsideItsContainer() {
+        compose.setContent {
+            UGalleryTheme {
+                VideoExportProgressCard(
+                    progress = 0.42f,
+                    phase = VideoExportPhase.Rendering,
+                    onCancel = {},
+                    modifier = Modifier.requiredSize(width = 360.dp, height = 200.dp),
+                )
+            }
+        }
+
+        val cardBounds = compose.onNode(hasTestTag("video-export-progress-card"))
+            .assertIsDisplayed()
+            .fetchSemanticsNode().boundsInRoot
+        val indicatorBounds = compose.onNode(hasTestTag("video-export-progress-indicator"))
+            .assertIsDisplayed()
+            .fetchSemanticsNode().boundsInRoot
+        val minimumInset = with(compose.density) { 16.dp.toPx() }
+
+        assertTrue(indicatorBounds.top - cardBounds.top >= minimumInset - 1f)
+        assertTrue(indicatorBounds.left - cardBounds.left >= minimumInset - 1f)
+        assertTrue(cardBounds.right - indicatorBounds.right >= minimumInset - 1f)
+    }
+
+    @Test
+    fun exportPanelExposesHdrTransferChoices() {
+        var selected = VideoDynamicRange.SdrRec709
+        compose.setContent {
+            UGalleryTheme {
+                VideoEditorContent(
+                    state = VideoEditorContentState(
+                        durationMillis = 18_000,
+                        trimEndMillis = 18_000,
+                        isHevcMain10Available = true,
+                        isHlgExportAvailable = true,
+                        isHdr10ExportAvailable = true,
+                    ),
+                    controller = null,
+                    onBack = {},
+                    onSaveCopy = {},
+                    onSpeedChange = {},
+                    onOriginalVolumeChange = {},
+                    onChooseMusic = {},
+                    onRemoveMusic = {},
+                    onSeek = {},
+                    onTrimChange = { _, _ -> },
+                    onDynamicRangeChange = { selected = it },
+                )
+            }
+        }
+
+        compose.onNode(hasText(text(R.string.video_editor_export))).performScrollTo().performClick()
+        compose.onNode(hasText(text(R.string.video_editor_dynamic_range))).assertIsDisplayed()
+        compose.onNode(hasText(text(R.string.video_editor_dynamic_range_hlg))).performClick()
+
+        assertEquals(VideoDynamicRange.HdrHlg, selected)
     }
 
     @Test

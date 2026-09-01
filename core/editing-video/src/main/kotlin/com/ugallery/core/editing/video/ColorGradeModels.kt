@@ -95,6 +95,13 @@ data class VideoColorGrade(
 
 enum class VideoOutputQuality { HevcMain10, H264Compatible }
 
+/** Output transfer function and color volume, independent from the codec/profile choice. */
+enum class VideoDynamicRange {
+    SdrRec709,
+    HdrHlg,
+    Hdr10Pq,
+}
+
 data class LogProfileDetection(
     val profile: LogInputProfile,
     val confidence: Float,

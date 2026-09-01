@@ -48,6 +48,7 @@ data class VideoEditRecipe(
     val geometry: VideoGeometry = VideoGeometry(),
     val colorGrade: VideoColorGrade = VideoColorGrade(),
     val outputQuality: VideoOutputQuality = VideoOutputQuality.H264Compatible,
+    val dynamicRange: VideoDynamicRange = VideoDynamicRange.SdrRec709,
     val slowMotionSegments: List<SlowMotionSegment> = emptyList(),
     val annotations: List<VideoAnnotationLayer> = emptyList(),
 ) {
@@ -71,6 +72,7 @@ data class VideoEditRecipe(
         get() = startMillis > 0 || endMillis != null || speed != 1f ||
             originalAudioVolume != 1f || musicUri != null
             || colorGrade.hasChanges
+            || dynamicRange != VideoDynamicRange.SdrRec709
             || !geometry.isIdentity
             || slowMotionSegments.isNotEmpty()
             || annotations.isNotEmpty()

@@ -107,6 +107,7 @@ import com.ugallery.core.editing.video.LutReference
 import com.ugallery.core.editing.video.VideoColorGrade
 import com.ugallery.core.editing.video.VideoEditRecipeCodec
 import com.ugallery.core.editing.video.VideoOutputQuality
+import com.ugallery.core.editing.video.VideoDynamicRange
 import com.ugallery.core.editing.video.VideoOutputCapabilities
 import com.ugallery.core.editing.video.SlowMotionSegment
 import com.ugallery.core.editing.video.VideoAnnotationLayer
@@ -2348,15 +2349,26 @@ class GalleryViewModel @Inject constructor(
                     ),
                 )
                 val supportsMain10 = VideoOutputCapabilities.supportsHevcMain10()
+                val hdrCapabilities = VideoOutputCapabilities.hdr(getApplication<Application>())
                 val loadedRecipe = (preferredVideoEditorRecipe(
                     storedRecipe = stored,
                     storedUpdatedAtMillis = storedEntity?.updatedAtMillis,
                     activeExportRecipe = exportedRecipe,
                     activeExportCreatedAtMillis = activeExport?.createdAtMillis,
                 ) ?: initialRecipe)
-                    .normalizedForEditor(media.durationMillis, supportsMain10)
+                    .normalizedForEditor(
+                        media.durationMillis,
+                        supportsMain10,
+                        hdrCapabilities.hlg,
+                        hdrCapabilities.hdr10,
+                    )
                 val pendingExportRecipe = exportedRecipe
-                    ?.normalizedForEditor(media.durationMillis, supportsMain10)
+                    ?.normalizedForEditor(
+                        media.durationMillis,
+                        supportsMain10,
+                        hdrCapabilities.hlg,
+                        hdrCapabilities.hdr10,
+                    )
                 val lutRepository = lutRepository(active)
                 val requestedCustomLutId = loadedRecipe.colorGrade.lut.customId
                 val customLut = requestedCustomLutId?.let { customId ->
@@ -2393,8 +2405,11 @@ class GalleryViewModel @Inject constructor(
                         customLuts = lutRepository.summaries(),
                         activeCustomLut = customLut,
                         outputQuality = recipe.outputQuality,
+                        dynamicRange = recipe.dynamicRange,
                         geometry = recipe.geometry,
                         isHevcMain10Available = supportsMain10,
+                        isHlgExportAvailable = hdrCapabilities.hlg,
+                        isHdr10ExportAvailable = hdrCapabilities.hdr10,
                         slowMotionSegments = recipe.slowMotionSegments,
                         annotations = recipe.annotations,
                         isDirty = recipe != (pendingExportRecipe ?: baselineRecipe),
@@ -2728,10 +2743,42 @@ class GalleryViewModel @Inject constructor(
     fun setVideoOutputQuality(quality: VideoOutputQuality) {
         val session = mutableVideoEditor.value ?: return
         if (quality == VideoOutputQuality.HevcMain10 && !session.content.isHevcMain10Available) return
-        val recipe = session.recipe.copy(outputQuality = quality)
+        val recipe = session.recipe.copy(
+            outputQuality = quality,
+            dynamicRange = if (quality == VideoOutputQuality.H264Compatible) {
+                VideoDynamicRange.SdrRec709
+            } else session.recipe.dynamicRange,
+        )
         mutableVideoEditor.value = session.copy(
             recipe = recipe,
-            content = session.content.copy(outputQuality = quality, isDirty = session.isDirty(recipe)),
+            content = session.content.copy(
+                outputQuality = quality,
+                dynamicRange = recipe.dynamicRange,
+                isDirty = session.isDirty(recipe),
+            ),
+        )
+        persistVideoRecipe(recipe)
+    }
+
+    fun setVideoDynamicRange(dynamicRange: VideoDynamicRange) {
+        val session = mutableVideoEditor.value ?: return
+        val supported = when (dynamicRange) {
+            VideoDynamicRange.SdrRec709 -> true
+            VideoDynamicRange.HdrHlg -> session.content.isHlgExportAvailable
+            VideoDynamicRange.Hdr10Pq -> session.content.isHdr10ExportAvailable
+        }
+        if (!supported) return
+        val outputQuality = if (dynamicRange == VideoDynamicRange.SdrRec709) {
+            session.recipe.outputQuality
+        } else VideoOutputQuality.HevcMain10
+        val recipe = session.recipe.copy(dynamicRange = dynamicRange, outputQuality = outputQuality)
+        mutableVideoEditor.value = session.copy(
+            recipe = recipe,
+            content = session.content.copy(
+                dynamicRange = dynamicRange,
+                outputQuality = outputQuality,
+                isDirty = session.isDirty(recipe),
+            ),
         )
         persistVideoRecipe(recipe)
     }

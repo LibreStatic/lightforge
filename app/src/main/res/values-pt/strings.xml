@@ -44,6 +44,7 @@
 <string name="video_export_waiting">À espera na fila</string>
 <string name="video_export_progress_percent">%1$d%%</string>
 <string name="video_export_close">Fechar</string>
+<string name="video_export_details">Detalhes</string>
 <plurals name="video_exports_active">
     <item quantity="one">%d exportação ativa</item>
     <item quantity="other">%d exportações ativas</item>

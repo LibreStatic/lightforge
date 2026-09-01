@@ -3,6 +3,7 @@ package com.ugallery.app
 import com.ugallery.core.editing.video.VideoEditRecipe
 import com.ugallery.core.editing.video.VideoExportPhase
 import com.ugallery.core.editing.video.VideoOutputQuality
+import com.ugallery.core.editing.video.VideoDynamicRange
 import com.ugallery.core.model.MediaKey
 import com.ugallery.core.model.MediaKind
 import com.ugallery.core.model.TimelineMedia
@@ -82,6 +83,38 @@ class VideoEditorFlowStateTest {
             .normalizedForEditor(durationMillis = 10_000, supportsHevcMain10 = false)
 
         assertEquals(VideoOutputQuality.H264Compatible, normalized.outputQuality)
+    }
+
+    @Test
+    fun unavailableHdrTransferIsDowngradedWithoutMislabelingMain10AsHdr() {
+        val normalized = VideoEditRecipe(
+            outputQuality = VideoOutputQuality.HevcMain10,
+            dynamicRange = VideoDynamicRange.HdrHlg,
+        ).normalizedForEditor(
+            durationMillis = 10_000,
+            supportsHevcMain10 = true,
+            supportsHlgExport = false,
+            supportsHdr10Export = true,
+        )
+
+        assertEquals(VideoOutputQuality.HevcMain10, normalized.outputQuality)
+        assertEquals(VideoDynamicRange.SdrRec709, normalized.dynamicRange)
+    }
+
+    @Test
+    fun hdrOutputAlwaysUsesMain10() {
+        val normalized = VideoEditRecipe(
+            outputQuality = VideoOutputQuality.H264Compatible,
+            dynamicRange = VideoDynamicRange.Hdr10Pq,
+        ).normalizedForEditor(
+            durationMillis = 10_000,
+            supportsHevcMain10 = true,
+            supportsHlgExport = true,
+            supportsHdr10Export = true,
+        )
+
+        assertEquals(VideoOutputQuality.HevcMain10, normalized.outputQuality)
+        assertEquals(VideoDynamicRange.Hdr10Pq, normalized.dynamicRange)
     }
 
     @Test

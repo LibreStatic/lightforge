@@ -79,6 +79,7 @@ import com.ugallery.core.designsystem.GallerySpacing
 import com.ugallery.core.designsystem.GalleryWindowClass
 import com.ugallery.core.designsystem.GalleryExpressiveChoiceGroup
 import com.ugallery.core.designsystem.GalleryExpressiveButton
+import com.ugallery.core.designsystem.GalleryIndeterminateProgressIndicator
 import com.ugallery.core.designsystem.GalleryLoadingIndicator
 import com.ugallery.core.designsystem.GalleryProgressIndicator
 import com.ugallery.core.designsystem.GalleryMonoTypography
@@ -96,6 +97,7 @@ import com.ugallery.core.editing.video.RealtimeColorLut
 import com.ugallery.core.editing.video.VideoColorGrade
 import com.ugallery.core.editing.video.VideoColorGradeEffects
 import com.ugallery.core.editing.video.VideoOutputQuality
+import com.ugallery.core.editing.video.VideoDynamicRange
 import com.ugallery.core.editing.video.VideoGeometry
 import com.ugallery.core.editing.video.SlowMotionAudioMode
 import com.ugallery.core.editing.video.SlowMotionSegment
@@ -134,9 +136,12 @@ data class VideoEditorContentState(
     val customLuts: List<CustomLutOption> = emptyList(),
     val activeCustomLut: CubeLut? = null,
     val outputQuality: VideoOutputQuality = VideoOutputQuality.H264Compatible,
+    val dynamicRange: VideoDynamicRange = VideoDynamicRange.SdrRec709,
     val geometry: VideoGeometry = VideoGeometry(),
     val logDetectionMessage: String? = null,
     val isHevcMain10Available: Boolean = false,
+    val isHlgExportAvailable: Boolean = false,
+    val isHdr10ExportAvailable: Boolean = false,
     val slowMotionSegments: List<SlowMotionSegment> = emptyList(),
     val selectedSlowMotionSegmentId: String? = null,
     val slowMotionMarkInMillis: Long? = null,
@@ -179,6 +184,7 @@ fun VideoEditorContent(
     onTrimChange: (Long, Long) -> Unit,
     onColorGradeChange: (VideoColorGrade) -> Unit = {},
     onOutputQualityChange: (VideoOutputQuality) -> Unit = {},
+    onDynamicRangeChange: (VideoDynamicRange) -> Unit = {},
     onGeometryChange: (VideoGeometry) -> Unit = {},
     onImportLut: () -> Unit = {},
     onMarkSlowMotionIn: (Long) -> Unit = {},
@@ -426,6 +432,7 @@ fun VideoEditorContent(
                         onMusicVolumeChange = onMusicVolumeChange,
                         onColorGradeChange = onColorGradeChange,
                         onOutputQualityChange = onOutputQualityChange,
+                        onDynamicRangeChange = onDynamicRangeChange,
                         onGeometryChange = onGeometryChange,
                         onImportLut = onImportLut,
                         onMarkSlowMotionIn = onMarkSlowMotionIn,
@@ -771,6 +778,7 @@ private fun VideoEditingPanel(
     onMusicVolumeChange: (Float) -> Unit,
     onColorGradeChange: (VideoColorGrade) -> Unit,
     onOutputQualityChange: (VideoOutputQuality) -> Unit,
+    onDynamicRangeChange: (VideoDynamicRange) -> Unit,
     onGeometryChange: (VideoGeometry) -> Unit,
     onImportLut: () -> Unit,
     onMarkSlowMotionIn: (Long) -> Unit,
@@ -803,6 +811,7 @@ private fun VideoEditingPanel(
             onMusicVolumeChange = onMusicVolumeChange,
             onColorGradeChange = onColorGradeChange,
             onOutputQualityChange = onOutputQualityChange,
+            onDynamicRangeChange = onDynamicRangeChange,
             onGeometryChange = onGeometryChange,
             onImportLut = onImportLut,
             onMarkSlowMotionIn = onMarkSlowMotionIn,
@@ -959,6 +968,8 @@ private val WideColorControlsBreakpoint = 480.dp
 private val WideLogWheelsBreakpoint = 600.dp
 private const val VideoEditorPreviewTag = "video-editor-preview"
 private const val VideoEditorPanelTag = "video-editor-panel"
+private const val VideoExportProgressCardTag = "video-export-progress-card"
+private const val VideoExportProgressIndicatorTag = "video-export-progress-indicator"
 
 @Composable
 private fun VideoTimeline(
@@ -1017,6 +1028,7 @@ private fun VideoControls(
     onMusicVolumeChange: (Float) -> Unit,
     onColorGradeChange: (VideoColorGrade) -> Unit,
     onOutputQualityChange: (VideoOutputQuality) -> Unit,
+    onDynamicRangeChange: (VideoDynamicRange) -> Unit,
     onGeometryChange: (VideoGeometry) -> Unit,
     onImportLut: () -> Unit,
     onMarkSlowMotionIn: (Long) -> Unit,
@@ -1126,10 +1138,10 @@ private fun VideoControls(
                     modifier = Modifier.fillMaxSize(),
                 )
                 6 -> ExportControls(
-                    state.outputQuality,
-                    state.isHevcMain10Available,
-                    onOutputQualityChange,
-                    Modifier.fillMaxSize(),
+                    state = state,
+                    onQualitySelected = onOutputQualityChange,
+                    onDynamicRangeSelected = onDynamicRangeChange,
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
         }
@@ -1144,17 +1156,77 @@ private fun VideoControls(
             }
         }
         if (state.isExporting) {
-            Column(Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg)) {
-                state.exportProgress?.let { progress ->
-                    GalleryProgressIndicator(
-                        progress = { progress.coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth(),
+            VideoExportProgressCard(
+                progress = state.exportProgress,
+                phase = state.exportPhase,
+                onCancel = onCancelExport,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Md),
+            )
+        }
+    }
+}
+
+@Composable
+internal fun VideoExportProgressCard(
+    progress: Float?,
+    phase: VideoExportPhase?,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.testTag(VideoExportProgressCardTag),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(GallerySpacing.Lg),
+            verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Md),
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.video_editor_export_in_progress),
+                        style = MaterialTheme.typography.titleSmall,
                     )
-                } ?: GalleryLoadingIndicator()
-                Text(
-                    stringResource(state.exportPhase.exportLabel()),
-                )
-                TextButton(onClick = onCancelExport) { Text(stringResource(R.string.video_editor_cancel_export)) }
+                    Text(
+                        stringResource(phase.exportLabel()),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                progress?.let { value ->
+                    Text(
+                        stringResource(
+                            R.string.video_editor_export_progress_percent,
+                            (value.coerceIn(0f, 1f) * 100f).toInt(),
+                        ),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+            }
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = GallerySpacing.Xs)
+                    .testTag(VideoExportProgressIndicatorTag),
+            ) {
+                progress?.let { value ->
+                    GalleryProgressIndicator(
+                        progress = { value.coerceIn(0f, 1f) },
+                    )
+                } ?: GalleryIndeterminateProgressIndicator()
+            }
+            TextButton(
+                onClick = onCancel,
+                modifier = Modifier.align(Alignment.End),
+            ) {
+                Text(stringResource(R.string.video_editor_cancel_export))
             }
         }
     }
@@ -1533,24 +1605,67 @@ private fun GradeSlider(label: String, value: Float, range: ClosedFloatingPointR
 
 @Composable
 private fun ExportControls(
-    selected: VideoOutputQuality,
-    isHevcMain10Available: Boolean,
-    onSelected: (VideoOutputQuality) -> Unit,
+    state: VideoEditorContentState,
+    onQualitySelected: (VideoOutputQuality) -> Unit,
+    onDynamicRangeSelected: (VideoDynamicRange) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(
+        modifier.verticalScroll(rememberScrollState()).padding(GallerySpacing.Md),
+        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+    ) {
         Text(stringResource(R.string.video_editor_output_quality), style = MaterialTheme.typography.titleSmall)
         VideoOutputQuality.entries.forEach { quality ->
             FilterChip(
-                selected = selected == quality,
-                onClick = { onSelected(quality) },
-                enabled = quality != VideoOutputQuality.HevcMain10 || isHevcMain10Available,
+                selected = state.outputQuality == quality,
+                onClick = { onQualitySelected(quality) },
+                enabled = quality != VideoOutputQuality.HevcMain10 || state.isHevcMain10Available,
                 label = { Text(stringResource(if (quality == VideoOutputQuality.HevcMain10) R.string.video_editor_hevc_10bit else R.string.video_editor_h264)) },
                 modifier = EditorChipModifier,
             )
         }
-        if (!isHevcMain10Available) Text(
+        if (!state.isHevcMain10Available) Text(
             stringResource(R.string.video_editor_hevc_unavailable),
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Text(stringResource(R.string.video_editor_dynamic_range), style = MaterialTheme.typography.titleSmall)
+        VideoDynamicRange.entries.forEach { dynamicRange ->
+            val label = when (dynamicRange) {
+                VideoDynamicRange.SdrRec709 -> R.string.video_editor_dynamic_range_sdr
+                VideoDynamicRange.HdrHlg -> R.string.video_editor_dynamic_range_hlg
+                VideoDynamicRange.Hdr10Pq -> R.string.video_editor_dynamic_range_hdr10
+            }
+            FilterChip(
+                selected = state.dynamicRange == dynamicRange,
+                onClick = { onDynamicRangeSelected(dynamicRange) },
+                enabled = when (dynamicRange) {
+                    VideoDynamicRange.SdrRec709 -> true
+                    VideoDynamicRange.HdrHlg -> state.isHlgExportAvailable
+                    VideoDynamicRange.Hdr10Pq -> state.isHdr10ExportAvailable
+                },
+                label = { Text(stringResource(label)) },
+                modifier = EditorChipModifier,
+            )
+        }
+        Surface(
+            shape = MaterialTheme.shapes.small,
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        ) {
+            Text(
+                text = stringResource(
+                    if (state.dynamicRange == VideoDynamicRange.SdrRec709) {
+                        R.string.video_editor_dynamic_range_sdr_description
+                    } else {
+                        R.string.video_editor_dynamic_range_hdr_description
+                    },
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(GallerySpacing.Md),
+            )
+        }
+        if (!state.isHlgExportAvailable && !state.isHdr10ExportAvailable) Text(
+            stringResource(R.string.video_editor_hdr_unavailable),
             style = MaterialTheme.typography.bodySmall,
         )
     }

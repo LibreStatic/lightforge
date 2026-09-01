@@ -3,6 +3,7 @@ package com.ugallery.app
 import com.ugallery.core.editing.video.SlowMotionSegment
 import com.ugallery.core.editing.video.VideoEditRecipe
 import com.ugallery.core.editing.video.VideoOutputQuality
+import com.ugallery.core.editing.video.VideoDynamicRange
 
 internal val VideoExportJob.isActive: Boolean
     get() = status == VideoExportJobStatus.Queued || status == VideoExportJobStatus.Running
@@ -67,6 +68,8 @@ internal fun clampVideoPosition(
 internal fun VideoEditRecipe.normalizedForEditor(
     durationMillis: Long,
     supportsHevcMain10: Boolean,
+    supportsHlgExport: Boolean = supportsHevcMain10,
+    supportsHdr10Export: Boolean = supportsHevcMain10,
 ): VideoEditRecipe {
     val legacySegmentEnd = endMillis ?: durationMillis
     val withModernSlowMotion = if (
@@ -85,13 +88,24 @@ internal fun VideoEditRecipe.normalizedForEditor(
             ),
         )
     } else this
-    val withSupportedOutput = if (
+    val withSupportedCodec = if (
         withModernSlowMotion.outputQuality == VideoOutputQuality.HevcMain10 &&
         !supportsHevcMain10
     ) {
         withModernSlowMotion.copy(outputQuality = VideoOutputQuality.H264Compatible)
     } else withModernSlowMotion
-    return if (withSupportedOutput.endMillis == durationMillis) {
-        withSupportedOutput.copy(endMillis = null)
-    } else withSupportedOutput
+    val rangeSupported = when (withSupportedCodec.dynamicRange) {
+        VideoDynamicRange.SdrRec709 -> true
+        VideoDynamicRange.HdrHlg -> supportsHlgExport
+        VideoDynamicRange.Hdr10Pq -> supportsHdr10Export
+    }
+    val withSupportedRange = if (!rangeSupported) {
+        withSupportedCodec.copy(dynamicRange = VideoDynamicRange.SdrRec709)
+    } else withSupportedCodec
+    val consistentOutput = if (withSupportedRange.dynamicRange != VideoDynamicRange.SdrRec709) {
+        withSupportedRange.copy(outputQuality = VideoOutputQuality.HevcMain10)
+    } else withSupportedRange
+    return if (consistentOutput.endMillis == durationMillis) {
+        consistentOutput.copy(endMillis = null)
+    } else consistentOutput
 }

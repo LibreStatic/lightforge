@@ -66,6 +66,7 @@
 <string name="video_export_waiting">Waiting in queue</string>
 <string name="video_export_progress_percent">%1$d%%</string>
 <string name="video_export_close">Close</string>
+<string name="video_export_details">Details</string>
 <plurals name="video_exports_active">
     <item quantity="one">%d export active</item>
     <item quantity="other">%d exports active</item>

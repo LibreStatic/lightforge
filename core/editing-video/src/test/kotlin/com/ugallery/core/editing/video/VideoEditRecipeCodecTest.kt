@@ -39,6 +39,7 @@ class VideoEditRecipeCodecTest {
             ),
             colorGrade = grade,
             outputQuality = VideoOutputQuality.HevcMain10,
+            dynamicRange = VideoDynamicRange.Hdr10Pq,
             slowMotionSegments = listOf(
                 SlowMotionSegment(
                     id = "slow-1",
@@ -91,6 +92,15 @@ class VideoEditRecipeCodecTest {
         assertEquals(emptyList<SlowMotionSegment>(), decoded.slowMotionSegments)
         assertEquals(VideoGeometry(), decoded.geometry)
         assertEquals(emptyList<VideoAnnotationLayer>(), decoded.annotations)
+        assertEquals(VideoDynamicRange.SdrRec709, decoded.dynamicRange)
+    }
+
+    @Test
+    fun versionFourRecipeDefaultsToSdr() {
+        val decoded = VideoEditRecipeCodec.decode("version=4\nquality=HevcMain10\n")
+
+        assertEquals(VideoOutputQuality.HevcMain10, decoded.outputQuality)
+        assertEquals(VideoDynamicRange.SdrRec709, decoded.dynamicRange)
     }
 
     @Test

@@ -9,7 +9,7 @@ object VideoEditRecipeCodec {
     fun encode(recipe: VideoEditRecipe): String {
         val grade = recipe.colorGrade
         return Properties().apply {
-            setProperty("version", "4")
+            setProperty("version", "5")
             setProperty("start", recipe.startMillis.toString())
             recipe.endMillis?.let { setProperty("end", it.toString()) }
             setProperty("speed", recipe.speed.toString())
@@ -17,6 +17,7 @@ object VideoEditRecipeCodec {
             recipe.musicUri?.let { setProperty("music", it.toString()) }
             setProperty("musicVolume", recipe.musicVolume.toString())
             setProperty("quality", recipe.outputQuality.name)
+            setProperty("dynamicRange", recipe.dynamicRange.name)
             setProperty("geometry", recipe.geometry.let {
                 listOf(it.left, it.top, it.right, it.bottom, it.rotationDegrees, it.flipHorizontal)
                     .joinToString(",")
@@ -61,7 +62,7 @@ object VideoEditRecipeCodec {
         val version = requireNotNull(properties.getProperty("version")?.toIntOrNull()) {
             "Unsupported video recipe version"
         }
-        require(version in 1..4) { "Unsupported video recipe version" }
+        require(version in 1..5) { "Unsupported video recipe version" }
         val wheels = properties.getProperty("wheels", "").split(',').mapNotNull(String::toFloatOrNull)
         fun wheel(offset: Int) = if (wheels.size >= offset + 4) {
             LogWheel(wheels[offset], wheels[offset + 1], wheels[offset + 2], wheels[offset + 3])
@@ -137,6 +138,9 @@ object VideoEditRecipeCodec {
             geometry = geometry,
             colorGrade = grade,
             outputQuality = enumValue(properties, "quality", VideoOutputQuality.H264Compatible),
+            dynamicRange = if (version >= 5) {
+                enumValue(properties, "dynamicRange", VideoDynamicRange.SdrRec709)
+            } else VideoDynamicRange.SdrRec709,
             slowMotionSegments = slowSegments,
             annotations = annotations,
         )

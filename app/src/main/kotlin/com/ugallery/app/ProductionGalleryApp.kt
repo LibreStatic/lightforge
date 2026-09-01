@@ -67,6 +67,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.map
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -77,6 +78,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.viewinterop.AndroidView
 import android.graphics.drawable.AnimatedImageDrawable
@@ -97,6 +99,7 @@ import com.ugallery.core.mediastore.MediaActionPhase
 import com.ugallery.core.mediastore.MediaActionTarget
 import com.ugallery.core.mediastore.ScopedMediaOperations
 import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.GallerySpacing
 import com.ugallery.core.designsystem.GalleryExpressiveIconButton
 import com.ugallery.core.designsystem.GalleryExpressiveButton
 import com.ugallery.core.designsystem.GalleryIndeterminateProgressIndicator
@@ -957,6 +960,7 @@ internal fun ProductionGalleryApp(
                         onTrimChange = viewModel::setVideoTrim,
                         onColorGradeChange = viewModel::setVideoColorGrade,
                         onOutputQualityChange = viewModel::setVideoOutputQuality,
+                        onDynamicRangeChange = viewModel::setVideoDynamicRange,
                         onGeometryChange = viewModel::setVideoGeometry,
                         onImportLut = { lutPicker.launch(arrayOf("text/plain", "application/octet-stream")) },
                         onMarkSlowMotionIn = viewModel::markVideoSlowMotionIn,
@@ -1445,7 +1449,33 @@ internal fun ProductionGalleryApp(
             route = SurfaceRoute.Root
         }
         Scaffold(
-            snackbarHost = { SnackbarHost(snackbarHostState) },
+            snackbarHost = {
+                Column(
+                    Modifier.fillMaxWidth().padding(
+                        horizontal = GallerySpacing.Lg,
+                        vertical = GallerySpacing.Sm,
+                    ),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+                ) {
+                    SnackbarHost(snackbarHostState)
+                    GalleryAnimatedVisibility(
+                        visible = activeVideoExports.isNotEmpty() &&
+                            !(renderedRoute == SurfaceRoute.VideoEditor &&
+                                videoEditor?.content?.isExporting == true),
+                        edge = GalleryMotionEdge.Bottom,
+                    ) {
+                        activeVideoExports.firstOrNull()?.let { job ->
+                            VideoExportGlobalStatusCard(
+                                job = job,
+                                activeCount = activeVideoExports.size,
+                                onOpen = { showVideoExportQueue = true },
+                                modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth(),
+                            )
+                        }
+                    }
+                }
+            },
             contentWindowInsets = contentInsets,
             containerColor = if (renderedRoute == SurfaceRoute.Viewer) Color.Black
             else MaterialTheme.colorScheme.background,
@@ -1821,6 +1851,87 @@ internal fun ProductionGalleryApp(
                 }
             },
         )
+    }
+}
+
+@Composable
+private fun VideoExportGlobalStatusCard(
+    job: VideoExportJob,
+    activeCount: Int,
+    onOpen: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val phaseLabel = if (job.status == VideoExportJobStatus.Queued) {
+        stringResource(R.string.video_export_waiting)
+    } else {
+        stringResource(job.phase.queueLabelResource())
+    }
+    val progress = job.takeIf { it.status == VideoExportJobStatus.Running }
+        ?.progressPermille
+        ?.coerceIn(0, 1000)
+        ?.div(1000f)
+    Surface(
+        onClick = onOpen,
+        modifier = modifier,
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        tonalElevation = 6.dp,
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(GallerySpacing.Lg),
+            verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Md),
+            ) {
+                Icon(
+                    GalleryIcons.Video,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                )
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        pluralStringResource(
+                            R.plurals.video_exports_active,
+                            activeCount,
+                            activeCount,
+                        ),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Text(
+                        phaseLabel,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (progress != null) {
+                    Text(
+                        stringResource(
+                            R.string.video_export_progress_percent,
+                            (progress * 100f).toInt(),
+                        ),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+            }
+            Box(Modifier.fillMaxWidth().padding(vertical = GallerySpacing.Xs)) {
+                if (progress == null) {
+                    GalleryIndeterminateProgressIndicator()
+                } else {
+                    GalleryProgressIndicator(progress = { progress })
+                }
+            }
+            Text(
+                stringResource(R.string.video_export_details),
+                modifier = Modifier.align(Alignment.End),
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+            )
+        }
     }
 }
 

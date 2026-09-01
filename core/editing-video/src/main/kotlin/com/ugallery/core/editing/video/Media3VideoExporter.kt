@@ -115,7 +115,11 @@ class Media3VideoExporter(private val context: Context) {
             .build()
         val videoEffects = buildList {
             addAll(VideoColorGradeEffects.geometryEffects(request.recipe.geometry))
-            addAll(VideoColorGradeEffects.create(request.recipe.colorGrade, request.customLut))
+            if (request.recipe.dynamicRange == VideoDynamicRange.SdrRec709) {
+                addAll(VideoColorGradeEffects.create(request.recipe.colorGrade, request.customLut))
+            } else {
+                add(HdrVideoColorGradeEffect(request.recipe.colorGrade, request.customLut))
+            }
             if (request.recipe.annotations.isNotEmpty()) {
                 add(VideoAnnotationEffect(request.recipe.annotations))
             }
@@ -192,7 +196,9 @@ class Media3VideoExporter(private val context: Context) {
             }
             val transformerBuilder = Transformer.Builder(context.applicationContext)
                 .setVideoMimeType(
-                    if (request.recipe.outputQuality == VideoOutputQuality.HevcMain10) {
+                    if (request.recipe.outputQuality == VideoOutputQuality.HevcMain10 ||
+                        request.recipe.dynamicRange != VideoDynamicRange.SdrRec709
+                    ) {
                         MimeTypes.VIDEO_H265
                     } else request.videoMimeType,
                 )
@@ -200,7 +206,9 @@ class Media3VideoExporter(private val context: Context) {
             val encoderBuilder = DefaultEncoderFactory.Builder(context.applicationContext)
                 .setVideoEncoderSelector(HardwareCodecSelectors.encoder)
                 .setEnableFallback(true)
-            if (request.recipe.outputQuality == VideoOutputQuality.HevcMain10) {
+            if (request.recipe.outputQuality == VideoOutputQuality.HevcMain10 ||
+                request.recipe.dynamicRange != VideoDynamicRange.SdrRec709
+            ) {
                 encoderBuilder.setRequestedVideoEncoderSettings(
                     VideoEncoderSettings.Builder()
                         .setEncodingProfileLevel(
@@ -210,7 +218,15 @@ class Media3VideoExporter(private val context: Context) {
                         .build(),
                 )
             }
-            transformerBuilder.setEncoderFactory(encoderBuilder.build())
+            val encoderFactory = encoderBuilder.build()
+            if (request.recipe.dynamicRange == VideoDynamicRange.SdrRec709) {
+                transformerBuilder.setEncoderFactory(encoderFactory)
+            } else {
+                val hdrColorInfo = request.recipe.dynamicRange.toColorInfo()
+                transformerBuilder
+                    .setVideoFrameProcessorFactory(ForcedColorInfoVideoFrameProcessorFactory(hdrColorInfo))
+                    .setEncoderFactory(ForcedColorInfoEncoderFactory(encoderFactory, hdrColorInfo))
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val decoderFactory = DefaultDecoderFactory.Builder(context.applicationContext)
                     .setMediaCodecSelector(HardwareCodecSelectors.decoder)
@@ -235,7 +251,9 @@ class Media3VideoExporter(private val context: Context) {
                             VideoExportResult(
                                 request.output,
                                 durationMillis = outputDurationMillis,
-                                videoMimeType = if (request.recipe.outputQuality == VideoOutputQuality.HevcMain10) {
+                                videoMimeType = if (request.recipe.outputQuality == VideoOutputQuality.HevcMain10 ||
+                                    request.recipe.dynamicRange != VideoDynamicRange.SdrRec709
+                                ) {
                                     MimeTypes.VIDEO_H265
                                 } else request.videoMimeType,
                                 audioMimeType = request.audioMimeType,
@@ -276,8 +294,19 @@ class Media3VideoExporter(private val context: Context) {
                 }
             }
             try {
-                if (composition != null) {
-                    transformer.start(composition, request.output.absolutePath)
+                val exportComposition = composition ?: if (
+                    request.recipe.dynamicRange != VideoDynamicRange.SdrRec709
+                ) {
+                    Composition.Builder(
+                        listOf(
+                            EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_AUDIO, C.TRACK_TYPE_VIDEO))
+                                .addItem(edited)
+                                .build(),
+                        ),
+                    ).setHdrMode(Composition.HDR_MODE_KEEP_HDR).build()
+                } else null
+                if (exportComposition != null) {
+                    transformer.start(exportComposition, request.output.absolutePath)
                 } else {
                     transformer.start(edited, request.output.absolutePath)
                 }
@@ -360,7 +389,9 @@ class Media3VideoExporter(private val context: Context) {
                 .setIsLooping(true)
                 .build()
         }
-        return Composition.Builder(sequences).build()
+        return Composition.Builder(sequences)
+            .setHdrMode(Composition.HDR_MODE_KEEP_HDR)
+            .build()
     }
 
     private fun sourceVideoItem(

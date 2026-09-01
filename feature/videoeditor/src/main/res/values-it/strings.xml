@@ -24,6 +24,13 @@
     <string name="video_editor_lut_intensity">Intensità LUT</string>
     <string name="video_editor_import_lut">Importa LUT .cube</string>
     <string name="video_editor_output_quality">Qualità di uscita</string>
+    <string name="video_editor_dynamic_range">Gamma dinamica</string>
+    <string name="video_editor_dynamic_range_sdr">SDR · Rec.709</string>
+    <string name="video_editor_dynamic_range_hlg">HDR · HLG</string>
+    <string name="video_editor_dynamic_range_hdr10">HDR10 · PQ</string>
+    <string name="video_editor_dynamic_range_sdr_description">Gamma dinamica standard per la massima compatibilità. Le alte luci LOG vengono adattate a Rec.709.</string>
+    <string name="video_editor_dynamic_range_hdr_description">Esporta BT.2020 a 10 bit con margine di 1.000 nit. L’anteprima è adattata in SDR; il file esportato conserva il risultato HDR.</string>
+    <string name="video_editor_hdr_unavailable">L’esportazione HDR richiede Android 10, OpenGL ES 3 e un codificatore hardware HEVC Main10 su questo dispositivo.</string>
     <string name="video_editor_hevc_10bit">HEVC Main10 · 10 bit</string>
     <string name="video_editor_h264">H.264 · compatibile 8 bit</string>
 
@@ -72,6 +79,8 @@
     <string name="video_editor_audio_varispeed">Tonalità rallentata</string>
     <string name="video_editor_delete_segment">Elimina segmento</string>
     <string name="video_editor_cancel_export">Annulla esportazione</string>
+    <string name="video_editor_export_in_progress">Esportazione del video</string>
+    <string name="video_editor_export_progress_percent">%1$d%%</string>
     <string name="video_editor_slow_overlap">I segmenti al rallentatore non possono sovrapporsi</string>
     <string name="video_editor_slow_invalid_range">La fine deve essere dopo l’inizio</string>
     <string name="video_editor_transform">Trasforma</string>
