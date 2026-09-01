@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.Image
@@ -103,16 +104,13 @@ fun LibraryPhotosRoute(
             GalleryExpressiveIconButton(onClick = onCreate) {
                 Icon(GalleryIcons.Plus, contentDescription = stringResource(R.string.photos_create))
             }
-            GalleryExpressiveIconButton(
+            UpdatesAction(
                 onClick = if (activeExportCount > 0) onOpenExportQueue else onOpenUpdates,
-            ) {
-                UpdatesIndicator(
-                    activeExportCount = activeExportCount,
-                    activeExportProgress = activeExportProgress,
-                    contentDescription = activeExportDescription
-                        ?: stringResource(R.string.photos_updates),
-                )
-            }
+                activeExportCount = activeExportCount,
+                activeExportProgress = activeExportProgress,
+                contentDescription = activeExportDescription
+                    ?: stringResource(R.string.photos_updates),
+            )
             GalleryExpressiveIconButton(onClick = onOpenSettings) {
                 Icon(
                     GalleryIcons.User,
@@ -190,44 +188,67 @@ fun LibraryPhotosRoute(
 }
 
 @Composable
-private fun UpdatesIndicator(
+private fun UpdatesAction(
+    onClick: () -> Unit,
     activeExportCount: Int,
     activeExportProgress: Float?,
     contentDescription: String,
 ) {
-    if (activeExportCount <= 0) {
-        Icon(GalleryIcons.Notifications, contentDescription = contentDescription)
-        return
-    }
     androidx.compose.foundation.layout.Box(
-        Modifier.size(40.dp),
+        Modifier.size(48.dp),
         contentAlignment = Alignment.Center,
     ) {
-        androidx.compose.foundation.layout.Box(
-            Modifier.size(34.dp),
-            contentAlignment = Alignment.Center,
+        GalleryExpressiveIconButton(
+            onClick = onClick,
+            modifier = Modifier.size(48.dp),
         ) {
-            if (activeExportProgress == null) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(34.dp),
-                    strokeWidth = 3.dp,
-                )
+            if (activeExportCount <= 0) {
+                Icon(GalleryIcons.Notifications, contentDescription = contentDescription)
             } else {
-                CircularProgressIndicator(
-                    progress = { activeExportProgress.coerceIn(0f, 1f) },
-                    modifier = Modifier.size(34.dp),
-                    strokeWidth = 3.dp,
+                UpdatesIndicator(
+                    activeExportProgress = activeExportProgress,
+                    contentDescription = contentDescription,
                 )
             }
-            Icon(
-                GalleryIcons.Notifications,
-                contentDescription = contentDescription,
-                modifier = Modifier.size(19.dp),
+        }
+        if (activeExportCount > 0) {
+            Badge(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = (-2).dp, y = 2.dp),
+            ) {
+                Text(if (activeExportCount > 99) "99+" else activeExportCount.toString())
+            }
+        }
+    }
+}
+
+@Composable
+private fun UpdatesIndicator(
+    activeExportProgress: Float?,
+    contentDescription: String,
+) {
+    androidx.compose.foundation.layout.Box(
+        Modifier.size(34.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (activeExportProgress == null) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(34.dp),
+                strokeWidth = 3.dp,
+            )
+        } else {
+            CircularProgressIndicator(
+                progress = { activeExportProgress.coerceIn(0f, 1f) },
+                modifier = Modifier.size(34.dp),
+                strokeWidth = 3.dp,
             )
         }
-        Badge(Modifier.align(Alignment.TopEnd)) {
-            Text(if (activeExportCount > 99) "99+" else activeExportCount.toString())
-        }
+        Icon(
+            GalleryIcons.Notifications,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(19.dp),
+        )
     }
 }
 
