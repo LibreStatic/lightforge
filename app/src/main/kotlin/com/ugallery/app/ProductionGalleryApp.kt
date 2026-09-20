@@ -2426,32 +2426,46 @@ internal fun ProductionGalleryApp(
                 }
             }
             if (moveState.entry != null || moveState.unreadable) {
-                Surface(color = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer) {
+                val banner = verifiedMoveBanner(moveState.entry?.phase, moveState.failed, moveState.unreadable)
+                val success = banner.tone == VerifiedMoveTone.Success
+                Surface(
+                    color = if (success) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = if (success) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                ) {
                     Column(Modifier.fillMaxWidth().padding(12.dp).testTag("verified-move-panel")) {
-                        val completed = moveState.entry?.phase == VerifiedMovePhase.Completed
-                        Text(stringResource(if (completed) R.string.move_verified_complete else R.string.move_verified_pending))
-                        Text(stringResource(if (moveState.failed || moveState.unreadable) R.string.move_verified_failed else R.string.move_verified_body))
+                        Text(stringResource(when (banner.tone) {
+                            VerifiedMoveTone.Success -> R.string.move_verified_complete
+                            VerifiedMoveTone.Attention -> R.string.move_verified_attention
+                            VerifiedMoveTone.Progress -> R.string.move_verified_pending
+                        }))
+                        Text(stringResource(when (banner.tone) {
+                            VerifiedMoveTone.Success -> R.string.move_verified_complete_body
+                            VerifiedMoveTone.Attention -> R.string.move_verified_failed
+                            VerifiedMoveTone.Progress -> R.string.move_verified_body
+                        }))
                         if (moveState.busy) Text(stringResource(R.string.move_verified_working))
                         val moveButtonColors = androidx.compose.material3.ButtonDefaults.textButtonColors(
                             contentColor = androidx.compose.material3.LocalContentColor.current,
                             disabledContentColor = androidx.compose.material3.LocalContentColor.current.copy(alpha = 0.38f),
                         )
                         Column {
-                            if (moveState.unreadable) {
+                            if (banner.showReview) {
                                 TextButton(colors = moveButtonColors, onClick = { viewModel.verifiedMove.reviewUnreadable() },
                                     enabled = !moveState.busy, modifier = Modifier.testTag("verified-move-review")) {
                                     Text(stringResource(R.string.move_verified_review))
                                 }
                             }
-                            TextButton(colors = moveButtonColors, onClick = { viewModel.verifiedMove.requestAttempt() },
-                                enabled = !moveState.busy && moveState.entry != null && !completed,
+                            if (banner.showRetry) TextButton(colors = moveButtonColors, onClick = { viewModel.verifiedMove.requestAttempt() },
+                                enabled = !moveState.busy,
                                 modifier = Modifier.testTag("verified-move-retry")) { Text(stringResource(R.string.action_retry)) }
-                            TextButton(colors = moveButtonColors, onClick = { moveState.entry?.proof?.treeUri?.let { moveTreeLauncher.launch(android.net.Uri.parse(it)) } },
-                                enabled = !moveState.busy && moveState.entry != null && !completed,
+                            if (banner.showAccess) TextButton(colors = moveButtonColors, onClick = { moveState.entry?.proof?.treeUri?.let { moveTreeLauncher.launch(android.net.Uri.parse(it)) } },
+                                enabled = !moveState.busy,
                                 modifier = Modifier.testTag("verified-move-access")) { Text(stringResource(R.string.move_verified_access)) }
-                            TextButton(colors = moveButtonColors, onClick = { viewModel.verifiedMove.forget() }, enabled = !moveState.busy && moveState.entry != null,
+                            if (banner.showForget) TextButton(colors = moveButtonColors, onClick = { viewModel.verifiedMove.forget() }, enabled = !moveState.busy,
                                 modifier = Modifier.testTag("verified-move-forget")) { Text(stringResource(R.string.move_verified_forget)) }
+                            // A clean move is finished: dismissing it is confirmation, not abandoning a repair.
+                            if (banner.showDone) TextButton(colors = moveButtonColors, onClick = { viewModel.verifiedMove.forget() }, enabled = !moveState.busy,
+                                modifier = Modifier.testTag("verified-move-done")) { Text(stringResource(R.string.move_verified_done)) }
                         }
                     }
                 }

@@ -77,7 +77,7 @@ class VerifiedMovePlatformDeviceTest {
             check(VerifiedMoveOperations.identity(f.resolver, f.source) == null)
             assertEquals(f.sourceHash, f.hash(copied.uri))
             completed = true
-            compose.onNodeWithTag("verified-move-forget").assertIsEnabled().performTouchInput { click() }
+            compose.onNodeWithTag("verified-move-done").assertIsEnabled().performTouchInput { click() }
             withTimeout(10_000) { while (journal.readActive() != null) delay(50) }
             println("VERIFIED_MOVE_SYSTEM actual MainActivity panel Retry→Android Cancel→source unchanged→Retry→Android Delete→original absent destinationSHA=${f.sourceHash}; seeded proof, no SAF picker or biometric acceptance")
         } catch (caught: Throwable) {
