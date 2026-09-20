@@ -209,26 +209,35 @@ class PdfProjectRepository(
                         }
                     }
                     val hash = sha256(dest)
-                    val pdf =
+                    val header = ByteArray(PdfImageSignature.LENGTH)
+                    val read =
                         dest.inputStream().use { input ->
-                            val magic = ByteArray(5)
-                            input.read(magic) == 5 && String(magic, Charsets.US_ASCII) == "%PDF-"
+                            var filled = 0
+                            while (filled < header.size) {
+                                val n = input.read(header, filled, header.size - filled)
+                                if (n < 0) break
+                                filled += n
+                            }
+                            filled
                         }
-                    if (pdf) {
+                    val signature = PdfImageSignature.of(header, read)
+                    if (signature == PdfImageSignature.PDF) {
                         val imported = engine.inspect(dest)
                         if (pages.size + imported.size > 100)
                             throw PdfOperationFailure(PdfFailure.LimitExceeded)
                         pages.addAll(imported.map { it.copy(source = hash) })
-                        known[hash] = PdfAsset(hash, "application/pdf")
+                        known[hash] = PdfAsset(hash, PdfImageSignature.PDF)
                     } else {
                         val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                         BitmapFactory.decodeFile(dest.path, o)
-                        if (
-                            !(o.outWidth > 0 &&
-                                o.outHeight > 0 &&
-                                o.outMimeType in listOf("image/jpeg", "image/png", "image/webp"))
-                        )
-                            throw PdfOperationFailure(PdfFailure.UnsupportedFormat)
+                        val mime =
+                            PdfImageSignature.accept(
+                                header,
+                                read,
+                                o.outMimeType,
+                                o.outWidth,
+                                o.outHeight,
+                            ) ?: throw PdfOperationFailure(PdfFailure.UnsupportedFormat)
                         val orientation =
                             runCatching {
                                     androidx.exifinterface.media
@@ -244,7 +253,7 @@ class PdfProjectRepository(
                         val a =
                             PdfAsset(
                                 hash,
-                                o.outMimeType,
+                                mime,
                                 if (orientation >= 5) o.outHeight else o.outWidth,
                                 if (orientation >= 5) o.outWidth else o.outHeight,
                                 orientation,
@@ -537,8 +546,27 @@ class PdfProjectRepository(
                 } else {
                     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                     BitmapFactory.decodeFile(f.path, bounds)
+                    val head = ByteArray(PdfImageSignature.LENGTH)
+                    val readHead =
+                        f.inputStream().use { input ->
+                            var filled = 0
+                            while (filled < head.size) {
+                                val n = input.read(head, filled, head.size - filled)
+                                if (n < 0) break
+                                filled += n
+                            }
+                            filled
+                        }
+                    // The archive's declared type must match the bytes, not the decoder's optional
+                    // naming of them.
                     require(
-                        bounds.outWidth > 0 && bounds.outHeight > 0 && bounds.outMimeType == mime
+                        PdfImageSignature.accept(
+                            head,
+                            readHead,
+                            bounds.outMimeType,
+                            bounds.outWidth,
+                            bounds.outHeight,
+                        ) == mime
                     )
                     val orientation =
                         runCatching {
