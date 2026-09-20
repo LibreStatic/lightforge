@@ -4958,6 +4958,22 @@ class GalleryViewModel @Inject constructor(
     }
 
     internal val verifiedMove = VerifiedMoveController(getApplication<Application>(), viewModelScope)
+
+    /**
+     * A verified move retires the original outside the MediaStore action coordinator, so nothing
+     * else hints the row away. Without this the timeline - and the viewer pager reading it - keeps
+     * counting a file that is no longer on disk.
+     */
+    init {
+        viewModelScope.launch {
+            verifiedMove.state
+                .map { retiredMoveRow(it.entry) }
+                .distinctUntilChanged()
+                .filterNotNull()
+                .collect { key -> runtime.value?.synchronizer?.applyRowHint(key) }
+        }
+    }
+
     internal val pendingTreeOperation: PendingTreeOperation?
         get() = savedStateHandle["pending_tree_operation_v1"]
 
