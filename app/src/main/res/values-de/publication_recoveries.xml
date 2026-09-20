@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="publication_recoveries_title">Wiederherstellbare Veröffentlichungen</string>
+    <string name="publication_recoveries_back">Zurück</string>
+    <string name="publication_recoveries_refresh">Aktualisieren</string>
+    <string name="publication_recoveries_result">Gespeichertes Ergebnis</string>
+    <string name="publication_recoveries_loading">Veröffentlichungen werden geprüft…</string>
+    <string name="publication_recoveries_error">Einige Einträge oder Dateien konnten nicht gelesen werden. Aktualisiere zur erneuten Prüfung; kein Ergebnis wird als fehlend angenommen.</string>
+    <string name="publication_recoveries_changed">Der geprüfte Zustand hat sich geändert. Prüfe den aktualisierten Eintrag vor einem neuen Versuch.</string>
+    <string name="publication_recoveries_failed">Die Operation konnte nicht bestätigt werden. Prüfe den aktualisierten Zustand vor einer weiteren Aktion.</string>
+    <string name="publication_recoveries_completed">Operation abgeschlossen.</string>
+    <string name="publication_recoveries_empty">Keine Veröffentlichungen zur Wiederherstellung.</string>
+    <string name="publication_recoveries_review">Diese Veröffentlichung prüfen</string>
+    <string name="publication_recoveries_id">ID: %1$s</string>
+    <string name="publication_recoveries_no_destination">Kein Ziel aufgezeichnet</string>
+    <string name="publication_recoveries_hash">Geprüfter SHA-256: %1$s</string>
+    <string name="publication_recoveries_bytes">Bytes: %1$d</string>
+    <string name="publication_recoveries_preview">Geprüfte statische Vorschau des gespeicherten Ergebnisses</string>
+    <string name="publication_recoveries_open">Öffnen</string>
+    <string name="publication_recoveries_share">Teilen</string>
+    <string name="publication_recoveries_confirm_complete">Die geprüfte Datei sichtbar machen, ohne eine weitere Kopie zu erstellen. Originale werden nicht verändert.</string>
+    <string name="publication_recoveries_confirm_remove">Nur die geprüfte ausstehende Datei und ihren Wiederherstellungseintrag löschen. Veröffentlichte Dateien und Originale bleiben erhalten. Dies kann nicht rückgängig gemacht werden.</string>
+    <string name="publication_recoveries_confirm_forget">Nur diesen Wiederherstellungseintrag entfernen. Vorhandene Dateien bleiben erhalten; eine unfertige Datei ist möglicherweise über diesen Bildschirm nicht mehr auffindbar.</string>
+    <string name="publication_recoveries_confirm">Bestätigen</string>
+    <string name="publication_recoveries_dismiss">Abbrechen</string>
+    <string name="publication_recoveries_kind_collage">Collage</string>
+    <string name="publication_recoveries_kind_gif">GIF</string>
+    <string name="publication_recoveries_kind_frame">Einzelbild eines Bewegungsfotos (JPEG)</string>
+    <string name="publication_recoveries_kind_clip">Clip eines Bewegungsfotos (MP4)</string>
+    <string name="publication_recoveries_kind_motion_unknown">Bewegungsfoto — Ergebnistyp unbekannt</string>
+    <string name="publication_recoveries_phase_intent">Veröffentlichungsabsicht aufgezeichnet</string>
+    <string name="publication_recoveries_phase_inserted">Ausstehende Datei aufgezeichnet</string>
+    <string name="publication_recoveries_phase_ready">Geprüfte Datei bereit</string>
+    <string name="publication_recoveries_phase_published">Veröffentlicht</string>
+    <string name="publication_recoveries_phase_incomplete">Veröffentlichung unvollständig</string>
+    <string name="publication_recoveries_phase_conflict">Ergebnis fehlt oder wurde verändert</string>
+    <string name="publication_recoveries_phase_unreadable">Eintrag unlesbar — Aktionen gesperrt</string>
+    <string name="publication_recoveries_phase_missing">Die Daten der ausstehenden Datei fehlen</string>
+    <string name="publication_recoveries_phase_busy">Veröffentlichung beschäftigt — später aktualisieren</string>
+    <string name="publication_recoveries_phase_unknown">Zustand nicht geprüft</string>
+    <string name="publication_recoveries_complete">Veröffentlichung abschließen</string>
+    <string name="publication_recoveries_remove">Ausstehende Datei entfernen</string>
+    <string name="publication_recoveries_forget">Eintrag vergessen (Dateien behalten)</string>
+</resources>

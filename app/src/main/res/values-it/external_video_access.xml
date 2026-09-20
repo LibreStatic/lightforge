@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="external_video_access_title">Sorgente video non disponibile</string>
+    <string name="external_video_access_body">Prima di riprendere la modifica, verifica che si tratti ancora del video originale e che l’accesso sia disponibile. Se l’autorizzazione è scaduta, riapri il video nell’app originale e conferma l’accesso, poi torna qui.</string>
+    <string name="external_video_access_draft">La bozza è conservata. Tornare qui o ripristinare l’autorizzazione non riapre automaticamente l’editor. Scegli Verifica accesso per verificare il file originale.</string>
+    <string name="external_video_access_retry">Verifica accesso</string>
+    <string name="external_video_access_back">Indietro</string>
+    <string name="external_video_access_checking">Verifica della sorgente…</string>
+    <string name="external_video_access_source_changed">Questo URI ora punta a un altro file. La bozza è conservata. Ripristina il video originale a questo URI, poi scegli Verifica accesso, oppure torna indietro.</string>
+</resources>

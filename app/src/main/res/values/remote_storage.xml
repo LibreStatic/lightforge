@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="remote_storage_title">Own server backup</string>
+    <string name="remote_storage_working">Transferring a verified backup</string>
+    <string name="remote_storage_permission_explanation">Allow local network access to connect to your own SFTP or SMB server. No hosted service or account is used.</string>
+    <string name="remote_storage_permission_allow">Allow local network</string>
+    <string name="remote_storage_permission_settings">Open app settings</string>
+    <string name="remote_storage_back">Back</string>
+</resources>

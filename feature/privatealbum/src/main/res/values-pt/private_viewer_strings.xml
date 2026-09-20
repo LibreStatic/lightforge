@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="private_viewer_title">Visualizador privado</string>
+    <string name="private_viewer_back">Voltar</string>
+    <string name="private_viewer_locked">O visualizador privado está bloqueado. Desbloqueie o álbum para continuar.</string>
+    <string name="private_viewer_unlock">Desbloquear álbum</string>
+    <string name="private_viewer_error">Não foi possível ler ou verificar este item privado.</string>
+    <string name="private_viewer_retry">Tentar novamente</string>
+    <string name="private_viewer_export">Exportar uma cópia</string>
+    <string name="private_viewer_photo">Foto privada</string>
+    <string name="private_viewer_zoom">Zoom</string>
+    <string name="private_viewer_zoom_value">Zoom: %1$.1f×</string>
+    <string name="private_viewer_reset">Redefinir visualização</string>
+    <string name="private_viewer_seek">Posição do vídeo</string>
+    <string name="private_viewer_time">%1$s / %2$s</string>
+    <string name="private_viewer_play">Reproduzir</string>
+    <string name="private_viewer_pause">Pausar</string>
+</resources>

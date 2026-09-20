@@ -1,0 +1,21 @@
+<resources>
+    <string name="private_key_protection_action">Proteggi le chiavi con autenticazione del dispositivo</string>
+    <string name="private_key_protection_title">Proteggi le chiavi dei contenuti e dell’indice</string>
+    <string name="private_key_protection_body">Richiedi l’autenticazione del dispositivo per usare le chiavi di cifratura di foto e video privati e la chiave indipendente dell’indice privato.</string>
+    <string name="private_key_protection_index_scope">L’indice privato si chiude quando blocchi o esci dall’album, oppure metti l’app in background. La chiusura dell’indice mantiene intatto un backup cifrato già preparato.</string>
+    <string name="private_key_protection_risk">Rimuovere o reimpostare il blocco schermo del dispositivo può rendere inutilizzabili queste chiavi e bloccare definitivamente l’accesso. Esporta un backup cifrato prima di continuare.</string>
+    <string name="private_key_protection_working">Protezione delle chiavi di cifratura dei contenuti e della chiave indipendente dell’indice. Attendi il completamento dell’operazione.</string>
+    <string name="private_key_protection_authentication_required">Autenticati nuovamente sul dispositivo per continuare a proteggere le chiavi dei contenuti e dell’indice.</string>
+    <string name="private_key_protection_failed">La protezione non è stata completata. Autenticati nuovamente e riprova.</string>
+    <string name="private_key_protection_complete_title">Chiavi dei contenuti e dell’indice protette</string>
+    <string name="private_key_protection_complete">Le chiavi di cifratura dei contenuti e la chiave indipendente dell’indice ora richiedono l’autenticazione del dispositivo.</string>
+    <string name="private_key_protection_protect">Proteggi</string>
+    <string name="private_key_protection_working_button">Protezione…</string>
+    <string name="private_key_protection_cancel">Annulla</string>
+    <string name="private_key_protection_continue">Continua autenticazione</string>
+    <string name="private_key_protection_retry">Riprova</string>
+    <string name="private_key_protection_done">Fine</string>
+    <string name="private_key_protection_credentials_required">Configura un blocco schermo con PIN, sequenza o password nelle impostazioni di sistema. Poi torna qui e tocca Riprova per proteggere le chiavi dei contenuti e dell’indice.</string>
+    <string name="private_key_unlock_body">Sblocca con la biometria o il blocco schermo del dispositivo.</string>
+    <string name="private_key_auth_unavailable">L’autenticazione del dispositivo non è disponibile. Configura un blocco schermo nelle impostazioni di sistema, poi torna e riprova.</string>
+</resources>

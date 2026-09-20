@@ -22,10 +22,10 @@
     <string name="about_license_template_note">Os campos entre colchetes no apêndice fazem parte do modelo de exemplo da Apache e são mantidos sem alterações intencionalmente. O aviso de direitos autorais preenchido do UGallery aparece acima.</string>
     <string name="nav_create">Criar</string><string name="nav_ask">Perguntar</string><string name="nav_updates">Atualizações</string><string name="nav_on_device">No dispositivo</string><string name="nav_archive">Arquivo</string><string name="nav_trash">Lixeira</string>
     <string name="updates_title">Atualizações</string><string name="updates_empty">Nenhuma atividade local recente</string><string name="updates_local_body">Indexação, análise e ações permanecem neste dispositivo.</string><string name="device_folders_title">No dispositivo</string><string name="device_folders_empty">Nenhuma pasta do dispositivo</string>
-    <string name="archive_title">Arquivo</string><string name="archive_empty">O Arquivo está vazio</string><string name="archive_empty_body">Itens arquivados somem de Fotos, mas permanecem nos álbuns e na pesquisa.</string><string name="archive_unarchive">Desarquivar</string>
+    <string name="archive_title">Arquivo</string><string name="archive_empty">O Arquivo está vazio</string><string name="archive_empty_body">Itens arquivados somem de Fotos, mas permanecem nos álbuns e na pesquisa.</string><string name="archive_unarchive">Desarquivar</string><string name="archive_move">Mover para o arquivo</string>
     <string name="create_sheet_title">Criar</string><string name="highlight_selfies">Selfies</string>
     <string name="activity_archived">%1$d arquivados</string><string name="activity_unarchived">%1$d desarquivados</string><string name="activity_trashed">%1$d movidos para a lixeira</string><string name="activity_restored">%1$d restaurados</string><string name="activity_deleted">%1$d excluídos permanentemente</string><string name="activity_exported">%1$d exportados</string><string name="activity_imported">%1$d importados</string><string name="activity_analysis_complete">Análise local concluída</string><string name="activity_analysis_failed">A análise local requer atenção</string>
-    <plurals name="highlight_years_ago"><item quantity="one">Há %d ano</item><item quantity="other">Há %d anos</item></plurals>
+    <plurals name="highlight_years_ago"><item quantity="one">Há %d ano</item><item quantity="many">Há %d anos</item><item quantity="other">Há %d anos</item></plurals>
 <string name="video_export_channel">Exportações de vídeo</string>
 <string name="video_export_title">A exportar vídeo</string>
 <string name="video_export_preparing">A preparar a exportação…</string>
@@ -49,6 +49,39 @@
 <string name="video_export_dismiss">Ocultar progresso da exportação</string>
 <plurals name="video_exports_active">
     <item quantity="one">%d exportação ativa</item>
+    <item quantity="many">%d exportações ativas</item>
     <item quantity="other">%d exportações ativas</item>
 </plurals>
-</resources>
+
+    <string name="manual_recovery_title">Recuperar salvamento da recordação</string>
+    <string name="manual_recovery_committed">Esta recordação já foi salva. Abra sem criar outra cópia.</string>
+    <string name="manual_recovery_missing">O salvamento foi interrompido. Tente novamente com as mesmas fotos, ordem, título e opção de inclusão revisados.</string>
+    <string name="manual_recovery_conflict">Esta solicitação não corresponde mais à recordação salva. Nenhuma recordação ou foto será alterada.</string>
+    <string name="manual_recovery_unavailable">Não foi possível verificar a recuperação. Mantenha a solicitação e verifique novamente.</string>
+    <string name="manual_recovery_dismiss_info">Dispensar a recuperação remove apenas a solicitação pendente, não uma recordação salva ou foto.</string>
+    <string name="manual_recovery_open">Abrir recordação</string>
+    <string name="manual_recovery_retry">Tentar salvar novamente</string>
+    <string name="manual_recovery_check">Verificar novamente</string>
+    <string name="manual_recovery_dismiss">Dispensar recuperação</string>
+    <string name="manual_recovery_later">Mais tarde</string>
+    <plurals name="manual_recovery_photo_count"><item quantity="one">%1$d foto</item><item quantity="many">%1$d fotos</item><item quantity="other">%1$d fotos</item></plurals>
+    <string name="move_verified_pending">Movimentação pendente</string>
+    <string name="move_verified_complete">Original ausente; cópia verificada mantida</string>
+    <string name="move_verified_body">A cópia é mantida. Cada tentativa verifica os dois arquivos antes de solicitar a exclusão do original.</string>
+    <string name="move_verified_failed">Verifique os dois arquivos ou restaure o acesso à mesma pasta.</string>
+    <string name="move_verified_working">Verificando movimentação…</string>
+    <string name="move_verified_access">Restaurar acesso</string>
+    <string name="move_verified_forget">Encerrar acompanhamento</string>
+    <string name="move_verified_review">Revisar registro ilegível</string>
+    <string name="move_verified_preserve">Preservar registro e encerrar acompanhamento</string>
+    <string name="move_verified_review_body">O registro ilegível da movimentação será preservado localmente para diagnóstico. O acompanhamento terminará para permitir outra movimentação. As fotos originais e as cópias não serão alteradas nem excluídas.</string>
+    <string name="move_verified_review_identity">Registro: %1$d bytes\nSHA-256: %2$s</string>
+    <string name="move_copy_title">Cópia de movimentação interrompida</string>
+    <string name="move_copy_body">O original foi preservado. Revise a cópia registrada para tentar novamente ou excluir apenas essa cópia.</string>
+    <string name="move_copy_unknown">A solicitação à pasta foi interrompida antes de registrar o resultado. Uma cópia pode permanecer na pasta escolhida. Encerrar o acompanhamento preserva todos os arquivos.</string>
+    <string name="move_copy_review">Revisar cópia interrompida</string>
+    <string name="move_copy_retry">Tentar copiar novamente</string>
+    <string name="move_copy_discard">Excluir cópia registrada</string>
+    <string name="move_copy_review_body">Tentar novamente substitui a cópia revisada a partir do original inalterado. Excluir remove apenas a cópia revisada. Ambas as ações verificam os arquivos novamente e preservam o original.</string>
+    <string name="move_copy_forget_body">Encerrar o acompanhamento sem excluir arquivos? Uma cópia incompleta ou não registrada pode permanecer na pasta escolhida.</string>
+<string name="creation_collage_needs_two_images">Apenas %1$d foto selecionada. Escolha de 2 a 4 fotos.</string><string name="creation_collage_too_many">%1$d fotos selecionadas. Não escolha mais do que 4.</string><string name="creation_collage_images_only">As colagens usam apenas fotos. Remova os vídeos da seleção.</string><string name="creation_collage_draft_pending">Ainda há um rascunho de colagem em restauração. Abra ou descarte antes.</string><string name="creation_collage_sources_missing">As fotos selecionadas já não estão disponíveis. Escolha outras e tente novamente.</string></resources>

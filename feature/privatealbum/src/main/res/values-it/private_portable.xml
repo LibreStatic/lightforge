@@ -1,0 +1,21 @@
+<resources>
+    <string name="private_portable_title">Backup cifrato</string>
+    <string name="private_portable_body">Conserva una copia dell’album privato protetta da password. Solo file cifrati escono dall’app. Conserva la password separatamente: non può essere recuperata.</string>
+    <string name="private_portable_export">Backup dell’album privato</string>
+    <string name="private_portable_import">Ripristina backup cifrato</string>
+    <string name="private_portable_password_note">Usa almeno 12 caratteri. La password non viene salvata.</string>
+    <string name="private_portable_password">Password</string>
+    <string name="private_portable_confirm_password">Conferma password</string>
+    <string name="private_portable_prepare">Prepara e verifica</string>
+    <string name="private_portable_progress">Verifica di %1$d su %2$d…</string>
+    <string name="private_portable_review">%1$d elementi verificati sono pronti. Gli originali restano intatti. Verranno aggiunte copie cifrate a questo album privato.</string>
+    <string name="private_portable_commit">Ripristina copie private</string>
+    <string name="private_portable_restored">%1$d copie private ripristinate.</string>
+    <string name="private_portable_previous">Questo backup è già stato ripristinato (%1$d elementi). Questa è una ricevuta storica; gli elementi eliminati non vengono ripristinati di nuovo.</string>
+    <string name="private_portable_saved">Backup cifrato salvato e verificato tramite rilettura.</string>
+    <string name="private_portable_share">Condividi backup cifrato</string>
+    <string name="private_portable_error">Non è stato possibile verificare il backup. Controlla password, accesso al documento e spazio libero. Nessun elemento non verificato è stato aggiunto.</string>
+    <string name="private_portable_cancel_title">Annullare questa operazione?</string>
+    <string name="private_portable_cancel_body">I file cifrati temporanei non confermati verranno rimossi. Gli originali e gli elementi già ripristinati restano intatti.</string>
+    <string name="private_portable_continue">Continua</string>
+</resources>

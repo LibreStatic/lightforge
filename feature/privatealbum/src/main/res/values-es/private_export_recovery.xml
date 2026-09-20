@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="private_export_recovery_title">Recuperación de exportaciones</string>
+    <string name="private_export_recovery_review">Revisar exportación</string>
+    <string name="private_export_recovery_back">Atrás</string>
+    <string name="private_export_recovery_refresh">Actualizar</string>
+    <string name="private_export_recovery_working">Comprobando exportación…</string>
+    <string name="private_export_recovery_cancel">Cancelar</string>
+    <string name="private_export_recovery_open">Abrir copia exportada</string>
+    <string name="private_export_recovery_complete">Completar exportación</string>
+    <string name="private_export_recovery_close_result">Cerrar resultado</string>
+    <string name="private_export_recovery_remove">Eliminar copia parcial</string>
+    <string name="private_export_recovery_forget">Olvidar registro</string>
+    <string name="private_export_recovery_confirm">Confirmar</string>
+    <string name="private_export_recovery_intro">Revisá exportaciones interrumpidas y copias fuera del álbum privado. Estas acciones nunca eliminan los originales privados.</string>
+    <string name="private_export_recovery_empty">No hay registros de recuperación. Las exportaciones completadas o interrumpidas aparecerán aquí cuando tengan un registro para revisar.</string>
+    <string name="private_export_recovery_export_failed">La exportación anterior terminó sin un resultado confirmado. Revisá su registro antes de volver a exportar.</string>
+    <string name="private_export_recovery_error">El resultado no está confirmado. Actualizá para revisar el estado actual antes de reintentar.</string>
+    <string name="private_export_recovery_cancelled">Se dejó de esperar. Actualizá para comprobar el estado actual antes de otra acción.</string>
+    <string name="private_export_recovery_completed">Exportación completada. Revisá el resultado publicado para abrirlo.</string>
+    <string name="private_export_recovery_removed">Se eliminó la copia parcial revisada. Los originales privados no se eliminaron.</string>
+    <string name="private_export_recovery_forgotten">Se cerró el registro. No se eliminó ningún archivo exportado.</string>
+    <string name="private_export_recovery_ready">Lista para completar</string>
+    <string name="private_export_recovery_published">Copia publicada</string>
+    <string name="private_export_recovery_partial">Copia parcial</string>
+    <string name="private_export_recovery_missing">Falta el archivo de salida</string>
+    <string name="private_export_recovery_conflict">El archivo cambió</string>
+    <string name="private_export_recovery_unknown">Identidad del archivo desconocida</string>
+    <string name="private_export_recovery_ready_body">Hay una copia completa sin cifrar preparada. Completar vuelve a comprobarla antes de hacerla visible fuera del álbum privado.</string>
+    <string name="private_export_recovery_published_body">Esta copia exportada está fuera del álbum privado. Abrir vuelve a comprobarla. Cerrar el resultado elimina únicamente su registro, no el archivo.</string>
+    <string name="private_export_recovery_partial_body">La exportación no terminó. Podés solicitar que se elimine únicamente la copia pendiente exacta de este registro revisado; primero se comprueban su identidad y contenido actuales.</string>
+    <string name="private_export_recovery_missing_body">Falta el archivo registrado. Olvidar elimina únicamente su registro. Volver a exportar puede crear un duplicado si todavía existe una copia anterior en otro lugar.</string>
+    <string name="private_export_recovery_conflict_body">La identidad o el contenido del archivo ya no coinciden con el registro. No se ofrece eliminar archivos. Olvidar solo elimina el seguimiento; puede quedar una copia sin cifrar.</string>
+    <string name="private_export_recovery_unknown_body">La identidad del archivo no está confirmada tras la interrupción. No se adopta ni elimina ningún archivo por su nombre. Olvidar solo elimina el seguimiento; puede quedar una copia sin cifrar.</string>
+    <string name="private_export_recovery_confirm_remove">¿Eliminar únicamente el archivo pendiente identificado por este registro revisado? Su identidad y contenido se volverán a comprobar antes de eliminarlo. Los originales privados no se eliminan.</string>
+    <string name="private_export_recovery_confirm_forget">¿Cerrar este registro sin eliminar ningún archivo exportado? Puede seguir existiendo una copia sin cifrar fuera del álbum privado. Volver a exportar puede crear duplicados.</string>
+</resources>

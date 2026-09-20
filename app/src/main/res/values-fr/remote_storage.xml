@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="remote_storage_title">Sauvegarde sur votre serveur</string>
+    <string name="remote_storage_working">Transfert d’une sauvegarde vérifiée</string>
+    <string name="remote_storage_permission_explanation">Autorisez le réseau local pour connecter votre serveur SFTP ou SMB. Aucun service ni compte cloud n’est utilisé.</string>
+    <string name="remote_storage_permission_allow">Autoriser le réseau local</string>
+    <string name="remote_storage_permission_settings">Ouvrir les paramètres</string>
+    <string name="remote_storage_back">Retour</string>
+</resources>

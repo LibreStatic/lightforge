@@ -69,6 +69,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.text
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.setProgress
@@ -79,6 +81,9 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ugallery.core.model.MediaKind
 import com.ugallery.core.model.MediaKey
@@ -93,7 +98,7 @@ import com.ugallery.core.designsystem.rememberGalleryReducedMotion
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
-import com.ugallery.core.model.TimelineMedia
+import com.ugallery.core.model.ViewerMedia
 import com.ugallery.core.thumbnail.ThumbnailLoader
 import com.ugallery.core.thumbnail.ThumbnailRequest
 import com.ugallery.core.preferences.GestureSettings
@@ -136,29 +141,33 @@ import kotlinx.coroutines.delay
 
 @Composable
 fun ViewerContent(
-    media: TimelineMedia,
-    mediaItems: List<TimelineMedia>,
+    media: ViewerMedia,
+    mediaItems: List<ViewerMedia>,
     photoState: PhotoLoadState?,
     adjacentPhotoStates: Map<MediaKey, PhotoLoadState.Ready> = emptyMap(),
     videoController: VideoViewerController?,
     thumbnailLoader: ThumbnailLoader?,
     isFavorite: Boolean,
     onBack: () -> Unit,
-    onToggleFavorite: () -> Unit,
+    onToggleFavorite: (() -> Unit)?,
     onShare: () -> Unit,
-    onShareSanitized: () -> Unit,
-    onDetails: () -> Unit,
-    onEdit: () -> Unit,
-    onRename: () -> Unit,
-    onCopy: () -> Unit,
-    onMove: () -> Unit,
-    onOpenWith: () -> Unit,
-    onSetAs: () -> Unit,
-    onPrint: () -> Unit,
-    onRepairDate: () -> Unit,
-    onTrash: () -> Unit,
-    onSelectMedia: (TimelineMedia) -> Unit,
+    onShareSanitized: (() -> Unit)?,
+    onDetails: (() -> Unit)?,
+    onEdit: (() -> Unit)?,
+    onRename: (() -> Unit)?,
+    onCopy: (() -> Unit)?,
+    onMove: (() -> Unit)?,
+    onOpenWith: (() -> Unit)?,
+    onSetAs: (() -> Unit)?,
+    onPrint: (() -> Unit)?,
+    onRepairDate: (() -> Unit)?,
+    onTrash: (() -> Unit)?,
+    onSelectMedia: (ViewerMedia) -> Unit,
+    onArchive: (() -> Unit)? = null,
+    archiveActionLabel: String? = null,
     trashActionLabel: String? = null,
+    onMotionPhoto: (() -> Unit)? = null,
+    motionPhotoLabel: String? = null,
     onContentTap: () -> Unit = {},
     slowMotionSession: HoldSlowMotionSession? = null,
     onSaveSlowMotionClip: (SlowMotionClip) -> Unit = {},
@@ -169,16 +178,16 @@ fun ViewerContent(
     videoScrubbingMode: VideoScrubbingMode = VideoScrubbingMode.LegacySeekBar,
     modifier: Modifier = Modifier,
 ) {
-    var chromeVisible by rememberSaveable(media.key) { mutableStateOf(true) }
+    var chromeVisible by rememberSaveable(media.viewerId) { mutableStateOf(true) }
     var menuExpanded by remember { mutableStateOf(false) }
-    var contentZoomed by remember(media.key) { mutableStateOf(false) }
-    var slowHoldConsumed by remember(media.key) { mutableStateOf(false) }
+    var contentZoomed by remember(media.viewerId) { mutableStateOf(false) }
+    var slowHoldConsumed by remember(media.viewerId) { mutableStateOf(false) }
     val slowMotionState by slowMotionSession?.state?.collectAsStateWithLifecycle()
         ?: remember { mutableStateOf<HoldSlowMotionState>(HoldSlowMotionState.Idle) }
-    var zoomTapGeneration by remember(media.key) { mutableIntStateOf(0) }
-    var chromeInteractionGeneration by remember(media.key) { mutableIntStateOf(0) }
-    var zoomTapPosition by remember(media.key) { mutableStateOf(Offset.Zero) }
-    var gestureFeedback by remember(media.key) { mutableStateOf<String?>(null) }
+    var zoomTapGeneration by remember(media.viewerId) { mutableIntStateOf(0) }
+    var chromeInteractionGeneration by remember(media.viewerId) { mutableIntStateOf(0) }
+    var zoomTapPosition by remember(media.viewerId) { mutableStateOf(Offset.Zero) }
+    var gestureFeedback by remember(media.viewerId) { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val view = LocalView.current
     val activity = context.findActivity()
@@ -186,13 +195,13 @@ fun ViewerContent(
     val videoState = videoController?.state?.collectAsStateWithLifecycle()?.value
     val videoIsPlaying = (videoState as? VideoViewerState.Ready)?.isPlaying == true
     val videoDurationMillis = (videoState as? VideoViewerState.Ready)?.durationMillis ?: 0L
-    var videoPositionMillis by remember(media.key) { mutableLongStateOf(0L) }
-    var videoScrubPositionMillis by remember(media.key) { mutableLongStateOf(0L) }
-    var videoScrubbing by remember(media.key) { mutableStateOf(false) }
-    var filmstripExpanded by rememberSaveable(media.key, videoScrubbingMode) {
+    var videoPositionMillis by remember(media.viewerId) { mutableLongStateOf(0L) }
+    var videoScrubPositionMillis by remember(media.viewerId) { mutableLongStateOf(0L) }
+    var videoScrubbing by remember(media.viewerId) { mutableStateOf(false) }
+    var filmstripExpanded by rememberSaveable(media.viewerId, videoScrubbingMode) {
         mutableStateOf(videoScrubbingMode == VideoScrubbingMode.Filmstrip)
     }
-    var filmstripUnavailable by remember(media.key, media.generationModified) { mutableStateOf(false) }
+    var filmstripUnavailable by remember(media.viewerId, media.generationModified) { mutableStateOf(false) }
     val filmstripFrameRequest = (videoState as? VideoViewerState.Ready)?.takeIf {
         videoScrubbingMode == VideoScrubbingMode.Filmstrip && it.durationMillis > 0L
     }
@@ -224,7 +233,7 @@ fun ViewerContent(
             cachedVideoFrames.orEmpty().forEach { frame -> if (!frame.isRecycled) frame.recycle() }
         }
     }
-    LaunchedEffect(videoController, media.key, videoDurationMillis, videoScrubbing) {
+    LaunchedEffect(videoController, media.viewerId, videoDurationMillis, videoScrubbing) {
         val controller = videoController ?: return@LaunchedEffect
         if (videoDurationMillis <= 0L) return@LaunchedEffect
         while (true) {
@@ -234,8 +243,20 @@ fun ViewerContent(
             delay(VIDEO_POSITION_UPDATE_MILLIS)
         }
     }
-    DisposableEffect(videoController, media.key) {
-        onDispose { videoController?.endScrubbing() }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, videoController, media.viewerId) {
+        val lifecycle = lifecycleOwner.lifecycle
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                videoController?.onBackground()
+                videoScrubbing = false
+            }
+        }
+        lifecycle.addObserver(observer)
+        onDispose {
+            lifecycle.removeObserver(observer)
+            videoController?.onBackground()
+        }
     }
     fun beginVideoScrub() {
         if (videoScrubbing) return
@@ -311,7 +332,7 @@ fun ViewerContent(
         }
     }
     LaunchedEffect(
-        media.key,
+        media.viewerId,
         media.kind,
         videoIsPlaying,
         chromeVisible,
@@ -329,12 +350,12 @@ fun ViewerContent(
         }
     }
     val displayedItems = mediaItems.ifEmpty { listOf(media) }
-    val selectedIndex = displayedItems.indexOfFirst { it.key == media.key }.coerceAtLeast(0)
+    val selectedIndex = displayedItems.indexOfFirst { it.viewerId == media.viewerId }.coerceAtLeast(0)
     val pagerState = rememberPagerState(initialPage = selectedIndex) { displayedItems.size }
     val latestDisplayedItems by rememberUpdatedState(displayedItems)
-    val latestMediaKey by rememberUpdatedState(media.key)
+    val latestMediaKey by rememberUpdatedState(media.viewerId)
     val latestOnSelectMedia by rememberUpdatedState(onSelectMedia)
-    LaunchedEffect(media.key, selectedIndex) {
+    LaunchedEffect(media.viewerId, selectedIndex) {
         if (pagerState.currentPage != selectedIndex) pagerState.scrollToPage(selectedIndex)
     }
     LaunchedEffect(pagerState) {
@@ -344,7 +365,7 @@ fun ViewerContent(
             .distinctUntilChanged()
             .collect { page ->
                 latestDisplayedItems.getOrNull(page)
-                    ?.takeIf { it.key != latestMediaKey }
+                    ?.takeIf { it.viewerId != latestMediaKey }
                     ?.let(latestOnSelectMedia)
             }
     }
@@ -357,7 +378,7 @@ fun ViewerContent(
         Box(
             Modifier
                 .fillMaxSize()
-                .pointerInput(media.key, gestureSettings, contentZoomed) {
+                .pointerInput(media.viewerId, gestureSettings, contentZoomed) {
                     var start = Offset.Zero
                     var totalY = 0f
                     var initialBrightness = 0.5f
@@ -400,7 +421,7 @@ fun ViewerContent(
                         onDragCancel = { gestureFeedback = null },
                     )
                 }
-                .pointerInput(onContentTap, slowMotionSession, videoController, media.key, gestureSettings) {
+                .pointerInput(onContentTap, slowMotionSession, videoController, media.viewerId, gestureSettings) {
                     detectTapGestures(
                         onPress = {
                             if (media.kind != MediaKind.Video || slowMotionSession == null || videoController == null) {
@@ -448,11 +469,11 @@ fun ViewerContent(
                 state = pagerState,
                 beyondViewportPageCount = 1,
                 userScrollEnabled = !contentZoomed,
-                key = { displayedItems[it].key },
+                key = { displayedItems[it].viewerId },
                 modifier = Modifier.fillMaxSize(),
             ) { page ->
                 val pageMedia = displayedItems[page]
-                if (pageMedia.key == media.key) {
+                if (pageMedia.viewerId == media.viewerId) {
                     if (media.kind == MediaKind.Video) {
                         VideoSurface(
                             controller = videoController,
@@ -475,7 +496,7 @@ fun ViewerContent(
                         )
                     }
                 } else {
-                    val adjacentPhoto = adjacentPhotoStates[pageMedia.key]
+                    val adjacentPhoto = pageMedia.mediaKey?.let(adjacentPhotoStates::get)
                     if (pageMedia.kind == MediaKind.Image && adjacentPhoto != null) {
                         AdjacentPhotoSurface(adjacentPhoto)
                     } else {
@@ -575,64 +596,53 @@ fun ViewerContent(
                 GalleryExpressiveIconButton(onClick = onBack) {
                     Icon(GalleryIcons.Back, contentDescription = stringResource(R.string.viewer_back), tint = GalleryOverlayTokens.Content)
                 }
+                if (onMotionPhoto != null && motionPhotoLabel != null) {
+                    androidx.compose.material3.FilledTonalButton(onClick = onMotionPhoto) {
+                        Icon(GalleryIcons.Play, contentDescription = null)
+                        Text(motionPhotoLabel)
+                    }
+                }
                 Text(dateLabel, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, color = GalleryOverlayTokens.Content, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 Box {
                     GalleryExpressiveIconButton(onClick = { menuExpanded = true }) {
                         Icon(GalleryIcons.More, contentDescription = stringResource(R.string.viewer_more), tint = GalleryOverlayTokens.Content)
                     }
                     DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                        DropdownMenuItem(
+                        onDetails?.let { action -> DropdownMenuItem(
                             text = { Text(stringResource(R.string.viewer_details)) },
-                            onClick = { menuExpanded = false; onDetails() },
+                            onClick = { menuExpanded = false; action() },
                             leadingIcon = { Icon(GalleryIcons.Info, contentDescription = null) },
-                        )
-                        HorizontalDivider()
-                        DropdownMenuItem(
+                        ) }
+                        onShareSanitized?.let { action -> DropdownMenuItem(
                             text = { Text(stringResource(R.string.viewer_share_private)) },
-                            onClick = { menuExpanded = false; onShareSanitized() },
+                            onClick = { menuExpanded = false; action() },
                             leadingIcon = { Icon(GalleryIcons.Lock, contentDescription = null) },
-                        )
-                        DropdownMenuItem(
+                        ) }
+                        onPrint?.takeIf { media.kind == MediaKind.Image }?.let { action -> DropdownMenuItem(
                             text = { Text(stringResource(R.string.viewer_print)) },
-                            enabled = media.kind == MediaKind.Image,
-                            onClick = { menuExpanded = false; onPrint() },
-                        )
-                        HorizontalDivider()
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.viewer_rename)) },
-                            onClick = { menuExpanded = false; onRename() },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.viewer_copy_to)) },
-                            onClick = { menuExpanded = false; onCopy() },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.viewer_move_to)) },
-                            onClick = { menuExpanded = false; onMove() },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.viewer_set_as)) },
-                            onClick = { menuExpanded = false; onSetAs() },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.viewer_open_with)) },
-                            onClick = { menuExpanded = false; onOpenWith() },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.viewer_repair_date)) },
-                            onClick = { menuExpanded = false; onRepairDate() },
-                        )
-                        HorizontalDivider()
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    trashActionLabel ?: stringResource(R.string.viewer_trash),
-                                    color = MaterialTheme.colorScheme.error,
-                                )
-                            },
-                            onClick = { menuExpanded = false; onTrash() },
-                            leadingIcon = { Icon(GalleryIcons.Trash, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                        )
+                            onClick = { menuExpanded = false; action() },
+                        ) }
+                        onRename?.let { action -> DropdownMenuItem(text = { Text(stringResource(R.string.viewer_rename)) }, onClick = { menuExpanded = false; action() }) }
+                        onCopy?.let { action -> DropdownMenuItem(text = { Text(stringResource(R.string.viewer_copy_to)) }, onClick = { menuExpanded = false; action() }) }
+                        onMove?.let { action -> DropdownMenuItem(text = { Text(stringResource(R.string.viewer_move_to)) }, onClick = { menuExpanded = false; action() }) }
+                        onSetAs?.let { action -> DropdownMenuItem(text = { Text(stringResource(R.string.viewer_set_as)) }, onClick = { menuExpanded = false; action() }) }
+                        onOpenWith?.let { action -> DropdownMenuItem(text = { Text(stringResource(R.string.viewer_open_with)) }, onClick = { menuExpanded = false; action() }) }
+                        onRepairDate?.let { action -> DropdownMenuItem(text = { Text(stringResource(R.string.viewer_repair_date)) }, onClick = { menuExpanded = false; action() }) }
+                        if (onArchive != null && archiveActionLabel != null) {
+                            DropdownMenuItem(
+                                text = { Text(archiveActionLabel) },
+                                onClick = { menuExpanded = false; onArchive() },
+                                leadingIcon = { Icon(GalleryIcons.Archive, contentDescription = null) },
+                            )
+                        }
+                        onTrash?.let { action ->
+                            HorizontalDivider()
+                            DropdownMenuItem(
+                                text = { Text(trashActionLabel ?: stringResource(R.string.viewer_trash), color = MaterialTheme.colorScheme.error) },
+                                onClick = { menuExpanded = false; action() },
+                                leadingIcon = { Icon(GalleryIcons.Trash, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                            )
+                        }
                     }
                 }
             }
@@ -679,9 +689,9 @@ fun ViewerContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     ViewerAction(onClick = onShare, icon = GalleryIcons.Share, label = stringResource(R.string.viewer_share), modifier = Modifier.weight(1f))
-                    ViewerAction(onClick = onEdit, icon = GalleryIcons.Edit, label = stringResource(R.string.viewer_edit), modifier = Modifier.weight(1f))
-                    ViewerAction(onClick = onToggleFavorite, icon = GalleryIcons.Heart, label = stringResource(if (isFavorite) R.string.viewer_unfavorite else R.string.viewer_favorite), modifier = Modifier.weight(1f))
-                    ViewerAction(onClick = onDetails, icon = GalleryIcons.Info, label = stringResource(R.string.viewer_details), modifier = Modifier.weight(1f))
+                    onEdit?.let { ViewerAction(onClick = it, icon = GalleryIcons.Edit, label = stringResource(R.string.viewer_edit), modifier = Modifier.weight(1f)) }
+                    onToggleFavorite?.let { ViewerAction(onClick = it, icon = GalleryIcons.Heart, label = stringResource(if (isFavorite) R.string.viewer_unfavorite else R.string.viewer_favorite), modifier = Modifier.weight(1f)) }
+                    onDetails?.let { ViewerAction(onClick = it, icon = GalleryIcons.Info, label = stringResource(R.string.viewer_details), modifier = Modifier.weight(1f)) }
                 }
             }
         }
@@ -690,7 +700,14 @@ fun ViewerContent(
 
 @Composable
 private fun ViewerAction(onClick: () -> Unit, icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, modifier: Modifier = Modifier) {
-    androidx.compose.material3.TextButton(onClick = onClick, modifier = modifier.heightIn(min = 72.dp)) {
+    androidx.compose.material3.TextButton(
+        onClick = onClick,
+        modifier = modifier.heightIn(min = 72.dp)
+            .semantics {
+                contentDescription = label
+                text = androidx.compose.ui.text.AnnotatedString(label)
+            },
+    ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(icon, contentDescription = null, tint = GalleryOverlayTokens.Content)
             Text(
@@ -700,6 +717,7 @@ private fun ViewerAction(onClick: () -> Unit, icon: androidx.compose.ui.graphics
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.clearAndSetSemantics {},
             )
         }
     }
@@ -751,10 +769,10 @@ private fun LegacyVideoSeekBar(
 
 @Composable
 private fun ViewerFilmstrip(
-    items: List<TimelineMedia>,
+    items: List<ViewerMedia>,
     selectedIndex: Int,
     thumbnailLoader: ThumbnailLoader?,
-    onSelectMedia: (TimelineMedia) -> Unit,
+    onSelectMedia: (ViewerMedia) -> Unit,
     expandedVideo: VideoFilmstripConfig? = null,
     onSelectedVideoTap: (() -> Unit)? = null,
 ) {
@@ -770,7 +788,7 @@ private fun ViewerFilmstrip(
         contentPadding = PaddingValues(horizontal = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        itemsIndexed(items, key = { _, item -> item.key }) { index, item ->
+        itemsIndexed(items, key = { _, item -> item.viewerId }) { index, item ->
             val selected = index == selectedIndex
             val position = stringResource(R.string.viewer_thumbnail_position, index + 1, items.size)
             if (selected && expandedVideo != null) {
@@ -799,7 +817,7 @@ private fun ViewerFilmstrip(
                             shape = RoundedCornerShape(8.dp),
                         )
                         .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
-                        .pointerInput(item.key, selected, onSelectedVideoTap) {
+                        .pointerInput(item.viewerId, selected, onSelectedVideoTap) {
                             detectTapGestures {
                                 if (selected && item.kind == MediaKind.Video && onSelectedVideoTap != null) {
                                     onSelectedVideoTap()
@@ -956,23 +974,23 @@ private fun VideoFrameScrubber(
 
 @Composable
 private fun MediaThumbnail(
-    media: TimelineMedia,
+    media: ViewerMedia,
     thumbnailLoader: ThumbnailLoader?,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
     backgroundColor: Color? = null,
 ) {
     val resolvedBackgroundColor = backgroundColor ?: MaterialTheme.colorScheme.surfaceVariant
-    val request = remember(media.key, media.generationModified) {
-        ThumbnailRequest(media.key, media.generationModified, 320, 320)
+    val request = remember(media.mediaKey, media.generationModified) {
+        media.mediaKey?.let { ThumbnailRequest(it, media.generationModified, 320, 320) }
     }
     val bitmap by produceState(
-        initialValue = thumbnailLoader?.cached(request),
-        media.key,
+        initialValue = request?.let { thumbnailLoader?.cached(it) },
+        media.mediaKey,
         media.generationModified,
         thumbnailLoader,
     ) {
-        if (value == null && thumbnailLoader != null) {
+        if (value == null && thumbnailLoader != null && request != null) {
             value = runCatching { thumbnailLoader.load(request) }.getOrNull()
         }
     }
@@ -1098,7 +1116,11 @@ private fun PhotoSurfaceState(
             }
             AndroidView(
                 factory = { context -> ImageView(context).apply { scaleType = ImageView.ScaleType.FIT_CENTER } },
-                update = { it.setImageDrawable(state.drawable) },
+                update = {
+                    it.setImageDrawable(state.drawable)
+                    // AndroidView's native accessibility child must expose the same localized label.
+                    it.contentDescription = description
+                },
                 modifier = Modifier.fillMaxSize()
                     .onSizeChanged { containerSize = it }
                     .graphicsLayer(
@@ -1229,6 +1251,7 @@ private fun VideoSurface(
     val scope = rememberCoroutineScope()
     var videoContainerSize by remember(controller) { mutableStateOf(IntSize.Zero) }
     val density = LocalDensity.current
+    val resolvedAspectRatio = (state as? VideoViewerState.Ready)?.aspectRatio ?: aspectRatio
     val zoom = remember(controller) {
         ZoomPanState(
             density = density,
@@ -1255,7 +1278,7 @@ private fun VideoSurface(
         if (state !is VideoViewerState.Failure) {
             AndroidView(
                 factory = { context -> android.view.SurfaceView(context).also(controller::attachSurface) },
-                modifier = (aspectRatio?.let { Modifier.aspectRatio(it) } ?: Modifier.fillMaxSize())
+                modifier = (resolvedAspectRatio?.let { Modifier.aspectRatio(it) } ?: Modifier.fillMaxSize())
                     .onSizeChanged { videoContainerSize = it }
                     .graphicsLayer(
                         scaleX = zoom.scale.value,

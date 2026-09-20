@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="private_export_recovery_title">Récupération des exports</string>
+    <string name="private_export_recovery_review">Vérifier un export</string>
+    <string name="private_export_recovery_back">Retour</string>
+    <string name="private_export_recovery_refresh">Actualiser</string>
+    <string name="private_export_recovery_working">Vérification de l’export…</string>
+    <string name="private_export_recovery_cancel">Annuler</string>
+    <string name="private_export_recovery_open">Ouvrir la copie exportée</string>
+    <string name="private_export_recovery_complete">Terminer l’export</string>
+    <string name="private_export_recovery_close_result">Fermer le résultat</string>
+    <string name="private_export_recovery_remove">Supprimer la copie partielle</string>
+    <string name="private_export_recovery_forget">Oublier le suivi</string>
+    <string name="private_export_recovery_confirm">Confirmer</string>
+    <string name="private_export_recovery_intro">Vérifiez les exports interrompus et les copies hors de l’album privé. Ces actions ne suppriment jamais les originaux privés.</string>
+    <string name="private_export_recovery_empty">Aucun suivi de récupération. Les exports terminés ou interrompus apparaîtront ici lorsqu’un suivi est disponible.</string>
+    <string name="private_export_recovery_export_failed">Le précédent export s’est terminé sans résultat confirmé. Vérifiez son suivi avant de relancer un export.</string>
+    <string name="private_export_recovery_error">Le résultat n’est pas confirmé. Actualisez pour vérifier son état avant de réessayer.</string>
+    <string name="private_export_recovery_cancelled">L’attente a été arrêtée. Actualisez pour vérifier l’état actuel avant une autre action.</string>
+    <string name="private_export_recovery_completed">Export terminé. Vérifiez le résultat publié pour l’ouvrir.</string>
+    <string name="private_export_recovery_removed">La copie partielle vérifiée a été supprimée. Les originaux privés n’ont pas été supprimés.</string>
+    <string name="private_export_recovery_forgotten">Suivi fermé. Aucun fichier exporté n’a été supprimé.</string>
+    <string name="private_export_recovery_ready">Prêt à terminer</string>
+    <string name="private_export_recovery_published">Copie publiée</string>
+    <string name="private_export_recovery_partial">Copie partielle</string>
+    <string name="private_export_recovery_missing">Fichier de sortie absent</string>
+    <string name="private_export_recovery_conflict">Fichier modifié</string>
+    <string name="private_export_recovery_unknown">Identité du fichier inconnue</string>
+    <string name="private_export_recovery_ready_body">Une copie complète non chiffrée est préparée. Terminer la vérifie à nouveau avant de la rendre visible hors de l’album privé.</string>
+    <string name="private_export_recovery_published_body">Cette copie exportée se trouve hors de l’album privé. Ouvrir la vérifie à nouveau. Fermer ce résultat supprime uniquement son suivi, pas le fichier.</string>
+    <string name="private_export_recovery_partial_body">L’export n’est pas terminé. Seule la copie exacte en attente associée à ce suivi peut être supprimée, après vérification de son identité et de son contenu actuels.</string>
+    <string name="private_export_recovery_missing_body">Le fichier enregistré est absent. Oublier supprime uniquement son suivi. Un nouvel export peut créer un doublon si une ancienne copie existe ailleurs.</string>
+    <string name="private_export_recovery_conflict_body">L’identité ou le contenu du fichier ne correspond plus au suivi. Aucune suppression de fichier n’est proposée. Oublier supprime le suivi uniquement ; une copie non chiffrée peut subsister.</string>
+    <string name="private_export_recovery_unknown_body">L’identité du fichier n’est pas confirmée après l’interruption. Aucun fichier n’est adopté ou supprimé selon son nom. Oublier supprime uniquement le suivi ; une copie non chiffrée peut subsister.</string>
+    <string name="private_export_recovery_confirm_remove">Supprimer uniquement le fichier en attente identifié par ce suivi vérifié ? Son identité et son contenu seront revérifiés avant la suppression. Les originaux privés ne sont pas supprimés.</string>
+    <string name="private_export_recovery_confirm_forget">Fermer ce suivi sans supprimer de fichier exporté ? Une copie non chiffrée peut toujours exister hors de l’album privé. Un nouvel export peut créer des doublons.</string>
+</resources>

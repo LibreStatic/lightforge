@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="gif_publication_checking">Comprobando el GIF guardado…</string>
+    <string name="gif_publication_not_started">El GIF no se publicó. Comprobá otra vez o volvé explícitamente a editar. No se creará una copia automáticamente.</string>
+    <string name="gif_publication_incomplete">La publicación está incompleta. Se conserva su registro de recuperación. Comprobá otra vez o volvé; crear otra copia está bloqueado.</string>
+    <string name="gif_publication_conflict">El GIF guardado falta o cambió. Abrir, compartir y exportar otra copia están bloqueados. Se conserva su recuperación.</string>
+    <string name="gif_publication_unreadable">No se pudo verificar el GIF guardado. Comprobá otra vez o volvé; se conserva su recuperación.</string>
+    <string name="gif_publication_unverified">El GIF se guardó, pero la verificación no terminó a tiempo. Comprobá otra vez para confirmarlo antes de abrirlo o compartirlo.</string>
+    <string name="gif_publication_new_draft">Este GIF está guardado. Cerrá este borrador e iniciá uno nuevo para crear otra copia.</string>
+    <string name="gif_publication_sources_unavailable">Las fotos originales no están disponibles. Un GIF guardado verificado se puede abrir o compartir; editar y exportar están bloqueados.</string>
+    <string name="gif_publication_check">Comprobar GIF guardado</string>
+    <string name="gif_publication_keep_editing">Volver a editar</string>
+</resources>

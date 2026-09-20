@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="remote_storage_title">Backup sul tuo server</string>
+    <string name="remote_storage_working">Trasferimento di un backup verificato</string>
+    <string name="remote_storage_permission_explanation">Consenti la rete locale per connettere il tuo server SFTP o SMB. Non viene usato alcun servizio o account cloud.</string>
+    <string name="remote_storage_permission_allow">Consenti rete locale</string>
+    <string name="remote_storage_permission_settings">Apri impostazioni app</string>
+    <string name="remote_storage_back">Indietro</string>
+</resources>

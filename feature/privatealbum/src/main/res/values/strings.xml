@@ -32,4 +32,4 @@
     <string name="private_import_result_failed">No items could be added. Your originals were not changed.</string>
     <string name="private_keep_originals">Keep originals</string>
     <string name="private_delete_originals">Delete originals</string>
-</resources>
+<string name="private_open_security_settings">Open settings</string></resources>

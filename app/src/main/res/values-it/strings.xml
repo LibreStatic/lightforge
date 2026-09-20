@@ -22,10 +22,10 @@
     <string name="about_license_template_note">I campi tra parentesi quadre nell’appendice fanno parte del modello di esempio di Apache e vengono intenzionalmente lasciati invariati. L’avviso di copyright compilato di UGallery appare sopra.</string>
     <string name="nav_create">Crea</string><string name="nav_ask">Chiedi</string><string name="nav_updates">Aggiornamenti</string><string name="nav_on_device">Sul dispositivo</string><string name="nav_archive">Archivio</string><string name="nav_trash">Cestino</string>
     <string name="updates_title">Aggiornamenti</string><string name="updates_empty">Nessuna attività locale recente</string><string name="updates_local_body">Indicizzazione, analisi e azioni restano su questo dispositivo.</string><string name="device_folders_title">Sul dispositivo</string><string name="device_folders_empty">Nessuna cartella del dispositivo</string>
-    <string name="archive_title">Archivio</string><string name="archive_empty">L’Archivio è vuoto</string><string name="archive_empty_body">Gli elementi archiviati spariscono da Foto ma restano negli album e nella ricerca.</string><string name="archive_unarchive">Rimuovi dall’archivio</string>
+    <string name="archive_title">Archivio</string><string name="archive_empty">L’Archivio è vuoto</string><string name="archive_empty_body">Gli elementi archiviati spariscono da Foto ma restano negli album e nella ricerca.</string><string name="archive_unarchive">Rimuovi dall’archivio</string><string name="archive_move">Sposta nell’archivio</string>
     <string name="create_sheet_title">Crea</string><string name="highlight_selfies">Selfie</string>
     <string name="activity_archived">%1$d archiviati</string><string name="activity_unarchived">%1$d rimossi dall’archivio</string><string name="activity_trashed">%1$d spostati nel cestino</string><string name="activity_restored">%1$d ripristinati</string><string name="activity_deleted">%1$d eliminati definitivamente</string><string name="activity_exported">%1$d esportati</string><string name="activity_imported">%1$d importati</string><string name="activity_analysis_complete">Analisi locale completata</string><string name="activity_analysis_failed">L’analisi locale richiede attenzione</string>
-    <plurals name="highlight_years_ago"><item quantity="one">%d anno fa</item><item quantity="other">%d anni fa</item></plurals>
+    <plurals name="highlight_years_ago"><item quantity="one">%d anno fa</item><item quantity="many">%d anni fa</item><item quantity="other">%d anni fa</item></plurals>
 <string name="video_export_channel">Esportazioni video</string>
 <string name="video_export_title">Esportazione del video</string>
 <string name="video_export_preparing">Preparazione dell’esportazione…</string>
@@ -49,6 +49,39 @@
 <string name="video_export_dismiss">Nascondi avanzamento esportazione</string>
 <plurals name="video_exports_active">
     <item quantity="one">%d esportazione attiva</item>
+    <item quantity="many">%d esportazioni attive</item>
     <item quantity="other">%d esportazioni attive</item>
 </plurals>
-</resources>
+
+    <string name="manual_recovery_title">Recupera il salvataggio del ricordo</string>
+    <string name="manual_recovery_committed">Questo ricordo è già stato salvato. Aprilo senza creare un’altra copia.</string>
+    <string name="manual_recovery_missing">Il salvataggio è stato interrotto. Riprova con le stesse foto, ordine, titolo e scelta di inclusione già confermati.</string>
+    <string name="manual_recovery_conflict">Questa richiesta non corrisponde più al ricordo salvato. Nessun ricordo o foto verrà modificato.</string>
+    <string name="manual_recovery_unavailable">Non è stato possibile verificare il recupero. Conserva la richiesta e verifica di nuovo.</string>
+    <string name="manual_recovery_dismiss_info">Ignorare il recupero rimuove solo la richiesta in sospeso, non un ricordo salvato o una foto.</string>
+    <string name="manual_recovery_open">Apri ricordo</string>
+    <string name="manual_recovery_retry">Riprova a salvare</string>
+    <string name="manual_recovery_check">Verifica di nuovo</string>
+    <string name="manual_recovery_dismiss">Ignora recupero</string>
+    <string name="manual_recovery_later">Più tardi</string>
+    <plurals name="manual_recovery_photo_count"><item quantity="one">%1$d foto</item><item quantity="many">%1$d foto</item><item quantity="other">%1$d foto</item></plurals>
+    <string name="move_verified_pending">Spostamento in attesa</string>
+    <string name="move_verified_complete">Originale assente; copia verificata conservata</string>
+    <string name="move_verified_body">La copia viene conservata. Ogni tentativo verifica entrambi i file prima di richiedere l’eliminazione dell’originale.</string>
+    <string name="move_verified_failed">Controlla entrambi i file o ripristina l’accesso alla stessa cartella.</string>
+    <string name="move_verified_working">Verifica dello spostamento…</string>
+    <string name="move_verified_access">Ripristina accesso</string>
+    <string name="move_verified_forget">Termina monitoraggio</string>
+    <string name="move_verified_review">Esamina registro illeggibile</string>
+    <string name="move_verified_preserve">Conserva registro e termina monitoraggio</string>
+    <string name="move_verified_review_body">Il registro illeggibile dello spostamento verrà conservato localmente per la diagnosi. Il monitoraggio terminerà per consentire un altro spostamento. Le foto originali e le copie non verranno modificate né eliminate.</string>
+    <string name="move_verified_review_identity">Registro: %1$d byte\nSHA-256: %2$s</string>
+    <string name="move_copy_title">Copia dello spostamento interrotta</string>
+    <string name="move_copy_body">Il file originale è conservato. Esamina la copia registrata per riprovare o eliminare solo quella copia.</string>
+    <string name="move_copy_unknown">La richiesta alla cartella si è interrotta prima di registrare il risultato. Una copia può rimanere nella cartella scelta. Terminare il monitoraggio conserva tutti i file.</string>
+    <string name="move_copy_review">Esamina copia interrotta</string>
+    <string name="move_copy_retry">Riprova copia</string>
+    <string name="move_copy_discard">Elimina copia registrata</string>
+    <string name="move_copy_review_body">Riprova sostituisce la copia esaminata dal file originale invariato. Elimina rimuove solo la copia esaminata. Entrambe le azioni ricontrollano i file e conservano il file originale.</string>
+    <string name="move_copy_forget_body">Terminare il monitoraggio senza eliminare file? Una copia incompleta o non registrata può rimanere nella cartella scelta.</string>
+<string name="creation_collage_needs_two_images">Hai selezionato solo %1$d foto. Scegline da 2 a 4.</string><string name="creation_collage_too_many">Hai selezionato %1$d foto. Non sceglierne più di 4.</string><string name="creation_collage_images_only">I collage usano solo foto. Togli i video dalla selezione.</string><string name="creation_collage_draft_pending">È ancora in ripristino una bozza di collage. Aprila o eliminala prima.</string><string name="creation_collage_sources_missing">Le foto selezionate non sono più disponibili. Scegline altre e riprova.</string></resources>

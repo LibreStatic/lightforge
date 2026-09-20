@@ -23,6 +23,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.ugallery.core.designsystem.UGalleryTheme
 import com.ugallery.core.model.MediaKey
 import com.ugallery.core.model.MediaKind
+import com.ugallery.core.model.ViewerMedia
 import com.ugallery.core.model.TimelineMedia
 import com.ugallery.core.thumbnail.ThumbnailLoader
 import com.ugallery.core.thumbnail.ThumbnailSource
@@ -52,7 +53,7 @@ class ViewerGesturesDeviceTest {
 
     @Test fun tapTogglesFilmstripAndSwipeSelectsTheNextItem() {
         val items = listOf(media(1), media(2), media(3))
-        var selected: TimelineMedia? = null
+        var selected: ViewerMedia? = null
         compose.setContent {
             UGalleryTheme {
                 ViewerContent(
@@ -95,14 +96,15 @@ class ViewerGesturesDeviceTest {
 
         compose.onRoot().performTouchInput { swipeLeft() }
         compose.waitUntil { selected != null }
-        assertEquals(2L, selected?.key?.mediaStoreId)
+        assertEquals(items[1].mediaKey, selected?.mediaKey)
+        assertEquals(items[1].viewerId, selected?.viewerId)
     }
 
     @Test fun replacingTheViewerWindowAfterSwipeDoesNotSelectAnUnrelatedItem() {
         val originalWindow = listOf(media(1), media(2), media(3))
         val shiftedWindow = listOf(media(2), media(3), media(4))
         val selections = mutableListOf<Long>()
-        var current by mutableStateOf(originalWindow[1])
+        var current by mutableStateOf<ViewerMedia>(originalWindow[1])
         var window by mutableStateOf(originalWindow)
         compose.setContent {
             UGalleryTheme {
@@ -128,24 +130,26 @@ class ViewerGesturesDeviceTest {
                     onRepairDate = {},
                     onTrash = {},
                     onSelectMedia = {
-                        selections += it.key.mediaStoreId
+                        val key = requireNotNull(it.mediaKey)
+                        selections += key.mediaStoreId
                         current = it
-                        if (it.key.mediaStoreId == 3L) window = shiftedWindow
+                        if (key.mediaStoreId == 3L) window = shiftedWindow
                     },
                 )
             }
         }
 
         compose.onRoot().performTouchInput { swipeLeft() }
-        compose.waitUntil { current.key.mediaStoreId == 3L }
+        compose.waitUntil { current.mediaKey == shiftedWindow[1].mediaKey }
         compose.waitForIdle()
 
         assertEquals(listOf(3L), selections)
+        assertEquals(shiftedWindow[1].viewerId, current.viewerId)
     }
 
     @Test fun secondDoubleTapResetsPhotoZoomAndUnlocksPaging() {
         val items = listOf(media(1), media(2))
-        var selected: TimelineMedia? = null
+        var selected: ViewerMedia? = null
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val bitmap = Bitmap.createBitmap(400, 400, Bitmap.Config.ARGB_8888)
         val photo = PhotoLoadState.Ready(
@@ -192,7 +196,8 @@ class ViewerGesturesDeviceTest {
         compose.waitForIdle()
         compose.onRoot().performTouchInput { swipeLeft() }
         compose.waitUntil { selected != null }
-        assertEquals(2L, selected?.key?.mediaStoreId)
+        assertEquals(items[1].mediaKey, selected?.mediaKey)
+        assertEquals(items[1].viewerId, selected?.viewerId)
     }
 
     @Test fun landscapeVideoKeepsItsRatioAndPlaybackChromeAutoHidesUntilPaused() {

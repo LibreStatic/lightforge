@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="private_viewer_title">Visionneuse privée</string>
+    <string name="private_viewer_back">Retour</string>
+    <string name="private_viewer_locked">La visionneuse privée est verrouillée. Déverrouillez l’album pour continuer.</string>
+    <string name="private_viewer_unlock">Déverrouiller l’album</string>
+    <string name="private_viewer_error">Cet élément privé n’a pas pu être lu ou vérifié.</string>
+    <string name="private_viewer_retry">Réessayer</string>
+    <string name="private_viewer_export">Exporter une copie</string>
+    <string name="private_viewer_photo">Photo privée</string>
+    <string name="private_viewer_zoom">Zoom</string>
+    <string name="private_viewer_zoom_value">Zoom : %1$.1f×</string>
+    <string name="private_viewer_reset">Réinitialiser la vue</string>
+    <string name="private_viewer_seek">Position de la vidéo</string>
+    <string name="private_viewer_time">%1$s / %2$s</string>
+    <string name="private_viewer_play">Lire</string>
+    <string name="private_viewer_pause">Mettre en pause</string>
+</resources>

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="publication_recoveries_title">Pubblicazioni da recuperare</string>
+    <string name="publication_recoveries_back">Indietro</string>
+    <string name="publication_recoveries_refresh">Aggiorna</string>
+    <string name="publication_recoveries_result">Risultato salvato</string>
+    <string name="publication_recoveries_loading">Verifica delle pubblicazioni…</string>
+    <string name="publication_recoveries_error">Alcuni registri o file non sono stati letti. Aggiorna per verificare di nuovo; nessun risultato viene considerato assente.</string>
+    <string name="publication_recoveries_changed">Lo stato esaminato è cambiato. Esamina il registro aggiornato prima di riprovare.</string>
+    <string name="publication_recoveries_failed">Non è stato possibile confermare l’operazione. Verifica lo stato aggiornato prima di un’altra azione.</string>
+    <string name="publication_recoveries_completed">Operazione completata.</string>
+    <string name="publication_recoveries_empty">Nessuna pubblicazione da recuperare.</string>
+    <string name="publication_recoveries_review">Esamina questa pubblicazione</string>
+    <string name="publication_recoveries_id">ID: %1$s</string>
+    <string name="publication_recoveries_no_destination">Nessuna destinazione registrata</string>
+    <string name="publication_recoveries_hash">SHA-256 verificato: %1$s</string>
+    <string name="publication_recoveries_bytes">Byte: %1$d</string>
+    <string name="publication_recoveries_preview">Anteprima statica verificata del risultato salvato</string>
+    <string name="publication_recoveries_open">Apri</string>
+    <string name="publication_recoveries_share">Condividi</string>
+    <string name="publication_recoveries_confirm_complete">Rendere visibile il file esaminato e verificato senza creare un’altra copia. Gli originali non vengono modificati.</string>
+    <string name="publication_recoveries_confirm_remove">Eliminare solo il file in sospeso esaminato e il suo registro di recupero. I file pubblicati e gli originali vengono conservati. Questa azione è irreversibile.</string>
+    <string name="publication_recoveries_confirm_forget">Rimuovere solo questo registro di recupero. I file esistenti vengono conservati; un file incompleto potrebbe non essere più individuabile da questa schermata.</string>
+    <string name="publication_recoveries_confirm">Conferma</string>
+    <string name="publication_recoveries_dismiss">Annulla</string>
+    <string name="publication_recoveries_kind_collage">Collage</string>
+    <string name="publication_recoveries_kind_gif">GIF</string>
+    <string name="publication_recoveries_kind_frame">Fotogramma di foto in movimento (JPEG)</string>
+    <string name="publication_recoveries_kind_clip">Clip di foto in movimento (MP4)</string>
+    <string name="publication_recoveries_kind_motion_unknown">Foto in movimento — tipo di risultato sconosciuto</string>
+    <string name="publication_recoveries_phase_intent">Intenzione di pubblicazione registrata</string>
+    <string name="publication_recoveries_phase_inserted">File in sospeso registrato</string>
+    <string name="publication_recoveries_phase_ready">File verificato pronto</string>
+    <string name="publication_recoveries_phase_published">Pubblicato</string>
+    <string name="publication_recoveries_phase_incomplete">Pubblicazione incompleta</string>
+    <string name="publication_recoveries_phase_conflict">Risultato assente o modificato</string>
+    <string name="publication_recoveries_phase_unreadable">Registro illeggibile — azioni bloccate</string>
+    <string name="publication_recoveries_phase_missing">I dati del file in sospeso sono assenti</string>
+    <string name="publication_recoveries_phase_busy">Pubblicazione occupata — aggiorna più tardi</string>
+    <string name="publication_recoveries_phase_unknown">Stato non verificato</string>
+    <string name="publication_recoveries_complete">Completa pubblicazione</string>
+    <string name="publication_recoveries_remove">Rimuovi file in sospeso</string>
+    <string name="publication_recoveries_forget">Dimentica registro (conserva file)</string>
+</resources>

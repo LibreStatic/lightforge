@@ -1,0 +1,27 @@
+<resources>
+    <string name="creation_gif_title">Crea GIF</string>
+    <string name="creation_gif_back">Indietro</string>
+    <string name="creation_gif_preview">Anteprima animazione</string>
+    <string name="creation_gif_position">Fotogramma %1$d di %2$d</string>
+    <string name="creation_gif_play">Riproduci</string>
+    <string name="creation_gif_pause">Pausa</string>
+    <string name="creation_gif_previous">Precedente</string>
+    <string name="creation_gif_next">Successivo</string>
+    <string name="creation_gif_earlier">Sposta prima</string>
+    <string name="creation_gif_later">Sposta dopo</string>
+    <string name="creation_gif_remove">Rimuovi fotogramma</string>
+    <string name="creation_gif_duration">Durata per fotogramma</string>
+    <string name="creation_gif_seconds">%1$d s</string>
+    <string name="creation_gif_note">GIF locale: 512 × 512 pixel, 256 colori, senza audio e in ciclo. Seleziona 2–60 foto. Gli originali restano intatti.</string>
+    <string name="creation_gif_error">Una foto è cambiata o non è disponibile, oppure l’operazione non è riuscita. Controlla la selezione e riprova.</string>
+    <string name="creation_gif_cancelled">Esportazione annullata; nessuna copia incompleta conservata.</string>
+    <string name="creation_gif_cancel">Annulla esportazione</string>
+    <string name="creation_gif_export">Esporta GIF</string>
+    <string name="creation_gif_saved">GIF salvata su questo dispositivo</string>
+    <string name="creation_gif_open">Apri</string>
+    <string name="creation_gif_share">Condividi</string>
+    <string name="creation_gif_leave">Uscire dall’esportazione?</string>
+    <string name="creation_gif_leave_hint">L’esportazione verrà annullata. Le foto originali restano intatte.</string>
+    <string name="creation_gif_keep">Continua a esportare</string>
+    <string name="creation_gif_no_selection">Seleziona 2–60 foto in Foto, quindi scegli Crea GIF.</string>
+</resources>

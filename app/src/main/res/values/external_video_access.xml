@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="external_video_access_title">Video source unavailable</string>
+    <string name="external_video_access_body">Before editing resumes, check that this is still the original video and access is available. If permission has expired, reopen the video in its original app and confirm access, then return here.</string>
+    <string name="external_video_access_draft">Your draft is preserved. Returning here or restoring permission does not reopen the editor automatically. Choose Check access to verify the original file.</string>
+    <string name="external_video_access_retry">Check access</string>
+    <string name="external_video_access_back">Back</string>
+    <string name="external_video_access_checking">Checking source…</string>
+    <string name="external_video_access_source_changed">This URI now points to a different file. Your draft is preserved. Restore the original video at this URI, then choose Check access, or go back.</string>
+</resources>

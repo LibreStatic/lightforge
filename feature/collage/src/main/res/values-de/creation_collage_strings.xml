@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="creation_collage_title">Collage</string>
+    <string name="creation_collage_back">Zurück</string>
+    <string name="creation_collage_originals">Passe das Layout an, ohne Originale zu ändern. Die exportierte PNG-Datei entspricht dieser Vorschau.</string>
+    <string name="creation_collage_preview">Collage-Vorschau</string>
+    <string name="creation_collage_template">Layout</string>
+    <string name="creation_collage_order">Fotoreihenfolge</string>
+    <string name="creation_collage_photo">Foto %1$d</string>
+    <string name="creation_collage_earlier">Nach vorne</string>
+    <string name="creation_collage_later">Nach hinten</string>
+    <string name="creation_collage_crop">Foto %1$d anpassen</string>
+    <string name="creation_collage_zoom">Zoom</string>
+    <string name="creation_collage_horizontal">Horizontale Position</string>
+    <string name="creation_collage_vertical">Vertikale Position</string>
+    <string name="creation_collage_reset">Zuschnitt zurücksetzen</string>
+    <string name="creation_collage_error">Die Collage konnte nicht vorbereitet oder gespeichert werden. Prüfe den Zugriff auf die Originalfotos und versuche es erneut.</string>
+    <string name="creation_collage_retry">Erneut versuchen</string>
+    <string name="creation_collage_cancelled">Export abgebrochen. Originale bleiben unverändert.</string>
+    <string name="creation_collage_publishing">Kopie wird gespeichert und geprüft…</string>
+    <string name="creation_collage_cancel">Abbrechen</string>
+    <string name="creation_collage_export">Kopie speichern</string>
+    <string name="creation_collage_saved">Kopie gespeichert und geprüft</string>
+    <string name="creation_collage_open">Öffnen</string>
+    <string name="creation_collage_share">Teilen</string>
+    <string name="creation_collage_leave">Collage verlassen?</string>
+    <string name="creation_collage_leave_hint">Laufenden Vorgang abbrechen und zurückkehren? Die Originale bleiben unverändert.</string>
+    <string name="creation_collage_keep">Weiter bearbeiten</string>
+    <string name="creation_collage_grid2">Raster · 2</string>
+    <string name="creation_collage_grid3">Raster · 3</string>
+    <string name="creation_collage_grid4">Raster · 4</string>
+    <string name="creation_collage_stack3">Stapel · 3</string>
+    <string name="creation_collage_strip3">Streifen · 3</string>
+    <string name="creation_collage_polaroid3">Polaroid · 3</string>
+    <string name="creation_collage_strip4">Streifen · 4</string>
+    <string name="creation_collage_no_selection">Wähle 2 bis 4 Fotos und dann Collage aus.</string>
+</resources>

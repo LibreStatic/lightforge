@@ -1,0 +1,21 @@
+<resources>
+    <string name="private_portable_title">Copia cifrada</string>
+    <string name="private_portable_body">Guardá una copia de tu álbum privado protegida con contraseña. Solo salen archivos cifrados de la app. Guardá la contraseña por separado; no se puede recuperar.</string>
+    <string name="private_portable_export">Respaldar álbum privado</string>
+    <string name="private_portable_import">Restaurar copia cifrada</string>
+    <string name="private_portable_password_note">Usá al menos 12 caracteres. La contraseña no se guarda.</string>
+    <string name="private_portable_password">Contraseña</string>
+    <string name="private_portable_confirm_password">Confirmar contraseña</string>
+    <string name="private_portable_prepare">Preparar y verificar</string>
+    <string name="private_portable_progress">Verificando %1$d de %2$d…</string>
+    <string name="private_portable_review">Hay %1$d elementos verificados. Los originales quedan intactos. Se agregarán copias cifradas a este álbum privado.</string>
+    <string name="private_portable_commit">Restaurar copias privadas</string>
+    <string name="private_portable_restored">Se restauraron %1$d copias privadas.</string>
+    <string name="private_portable_previous">Esta copia ya se restauró (%1$d elementos). Es un comprobante histórico; los elementos que eliminaste no se restauran nuevamente.</string>
+    <string name="private_portable_saved">Copia cifrada guardada y verificada mediante lectura.</string>
+    <string name="private_portable_share">Compartir copia cifrada</string>
+    <string name="private_portable_error">La copia no se pudo verificar. Revisá la contraseña, el acceso al archivo y el espacio libre. No se agregaron elementos sin verificar.</string>
+    <string name="private_portable_cancel_title">¿Cancelar esta operación?</string>
+    <string name="private_portable_cancel_body">Se eliminarán los archivos cifrados temporales sin confirmar. Tus originales y los elementos restaurados anteriormente quedan intactos.</string>
+    <string name="private_portable_continue">Continuar</string>
+</resources>

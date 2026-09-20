@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="creation_collage_publication_uncertain">L’exportation reste non résolue. Les informations de récupération sont conservées. Vérifiez à nouveau ou revenez en arrière ; une autre copie reste bloquée.</string>
+    <string name="creation_collage_keep_editing">Continuer la modification</string>
+    <string name="creation_collage_publication_not_started">Aucune copie publiée ne correspond à cette tentative. Choisissez Continuer la modification pour reprendre le brouillon sans exporter.</string>
+    <string name="creation_collage_publication_conflict">Le registre d’exportation ou la copie enregistrée ne correspond pas à ce collage. Les informations de récupération sont conservées ; aucune autre copie ne sera créée.</string>
+    <string name="creation_collage_publication_unreadable">L’exportation précédente n’a pas pu être vérifiée. Les informations de récupération sont conservées. Vérifiez à nouveau ou revenez plus tard.</string>
+    <string name="creation_collage_check_export">Vérifier l’exportation</string>
+    <string name="creation_collage_sources_unavailable">Les photos originales sont indisponibles ou ont changé. Les copies enregistrées peuvent être vérifiées, mais créer une autre copie est bloqué.</string>
+    <string name="creation_collage_published_new_draft">Pour modifier une autre copie, revenez en arrière et créez un nouveau collage. Ce PNG enregistré sera conservé.</string>
+</resources>

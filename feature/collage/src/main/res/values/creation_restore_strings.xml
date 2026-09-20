@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="creation_collage_publication_uncertain">Export is unresolved. Recovery information is preserved. Check again or go back; creating another copy stays blocked.</string>
+    <string name="creation_collage_keep_editing">Keep editing</string>
+    <string name="creation_collage_publication_not_started">No published copy was found for this export attempt. Choose Keep editing to return to your draft without exporting.</string>
+    <string name="creation_collage_publication_conflict">The export record or saved copy does not match this collage. Recovery information is preserved; no new copy will be created.</string>
+    <string name="creation_collage_publication_unreadable">The previous export could not be verified. Recovery information is preserved. Check again or return later.</string>
+    <string name="creation_collage_check_export">Check export</string>
+    <string name="creation_collage_sources_unavailable">The original photos are unavailable or changed. Saved copies can still be checked, but creating another copy is blocked.</string>
+    <string name="creation_collage_published_new_draft">To edit another copy, go back and start a new collage. This saved PNG will be kept.</string>
+</resources>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="external_video_access_title">Videoquelle nicht verfügbar</string>
+    <string name="external_video_access_body">Prüfe vor dem Fortsetzen der Bearbeitung, ob dies noch das ursprüngliche Video ist und der Zugriff verfügbar ist. Wenn die Berechtigung abgelaufen ist, öffne das Video erneut in der ursprünglichen App und bestätige den Zugriff. Kehre dann hierher zurück.</string>
+    <string name="external_video_access_draft">Dein Entwurf bleibt erhalten. Die Rückkehr hierher oder das Wiederherstellen der Berechtigung öffnet den Editor nicht automatisch. Wähle Zugriff prüfen, um die ursprüngliche Datei zu überprüfen.</string>
+    <string name="external_video_access_retry">Zugriff prüfen</string>
+    <string name="external_video_access_back">Zurück</string>
+    <string name="external_video_access_checking">Quelle wird geprüft…</string>
+    <string name="external_video_access_source_changed">Diese URI verweist jetzt auf eine andere Datei. Dein Entwurf bleibt erhalten. Stelle das ursprüngliche Video unter dieser URI wieder her und wähle Zugriff prüfen, oder gehe zurück.</string>
+</resources>

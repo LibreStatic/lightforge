@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="private_export_recovery_title">Exportwiederherstellung</string>
+    <string name="private_export_recovery_review">Export prüfen</string>
+    <string name="private_export_recovery_back">Zurück</string>
+    <string name="private_export_recovery_refresh">Aktualisieren</string>
+    <string name="private_export_recovery_working">Export wird geprüft…</string>
+    <string name="private_export_recovery_cancel">Abbrechen</string>
+    <string name="private_export_recovery_open">Exportierte Kopie öffnen</string>
+    <string name="private_export_recovery_complete">Export abschließen</string>
+    <string name="private_export_recovery_close_result">Ergebnis schließen</string>
+    <string name="private_export_recovery_remove">Teilkopie entfernen</string>
+    <string name="private_export_recovery_forget">Eintrag verwerfen</string>
+    <string name="private_export_recovery_confirm">Bestätigen</string>
+    <string name="private_export_recovery_intro">Prüfe unterbrochene Exporte und Kopien außerhalb des privaten Albums. Diese Aktionen löschen niemals private Originale.</string>
+    <string name="private_export_recovery_empty">Keine Wiederherstellungseinträge. Abgeschlossene oder unterbrochene Exporte erscheinen hier, sobald ein Eintrag zur Prüfung vorhanden ist.</string>
+    <string name="private_export_recovery_export_failed">Der vorherige Export endete ohne bestätigtes Ergebnis. Prüfe seinen Eintrag vor einem erneuten Export.</string>
+    <string name="private_export_recovery_error">Das Ergebnis ist nicht bestätigt. Aktualisiere den Status, bevor du es erneut versuchst.</string>
+    <string name="private_export_recovery_cancelled">Das Warten wurde beendet. Aktualisiere den Status vor einer weiteren Aktion.</string>
+    <string name="private_export_recovery_completed">Export abgeschlossen. Prüfe das veröffentlichte Ergebnis, um es zu öffnen.</string>
+    <string name="private_export_recovery_removed">Die geprüfte Teilkopie wurde entfernt. Private Originale wurden nicht gelöscht.</string>
+    <string name="private_export_recovery_forgotten">Eintrag geschlossen. Keine exportierte Datei wurde gelöscht.</string>
+    <string name="private_export_recovery_ready">Bereit zum Abschließen</string>
+    <string name="private_export_recovery_published">Veröffentlichte Kopie</string>
+    <string name="private_export_recovery_partial">Teilkopie</string>
+    <string name="private_export_recovery_missing">Ausgabedatei fehlt</string>
+    <string name="private_export_recovery_conflict">Datei wurde geändert</string>
+    <string name="private_export_recovery_unknown">Dateiidentität unbekannt</string>
+    <string name="private_export_recovery_ready_body">Eine vollständige unverschlüsselte Kopie ist vorbereitet. Abschließen prüft sie erneut, bevor sie außerhalb des privaten Albums sichtbar wird.</string>
+    <string name="private_export_recovery_published_body">Diese exportierte Kopie befindet sich außerhalb des privaten Albums. Öffnen prüft sie erneut. Das Schließen des Ergebnisses entfernt nur den Eintrag, nicht die Datei.</string>
+    <string name="private_export_recovery_partial_body">Der Export wurde nicht abgeschlossen. Nur die genaue ausstehende Kopie dieses geprüften Eintrags kann entfernt werden; ihre aktuelle Identität und ihr Inhalt werden vorher geprüft.</string>
+    <string name="private_export_recovery_missing_body">Die erfasste Datei fehlt. Verwerfen entfernt nur ihren Eintrag. Ein erneuter Export kann ein Duplikat erstellen, wenn eine frühere Kopie anderswo noch vorhanden ist.</string>
+    <string name="private_export_recovery_conflict_body">Identität oder Inhalt der Datei stimmen nicht mehr mit dem Eintrag überein. Das Löschen der Datei wird nicht angeboten. Verwerfen entfernt nur den Eintrag; eine unverschlüsselte Kopie kann verbleiben.</string>
+    <string name="private_export_recovery_unknown_body">Nach der Unterbrechung ist die Dateiidentität nicht bestätigt. Keine Datei wird anhand ihres Namens übernommen oder gelöscht. Verwerfen entfernt nur den Eintrag; eine unverschlüsselte Kopie kann verbleiben.</string>
+    <string name="private_export_recovery_confirm_remove">Nur die ausstehende Datei dieses geprüften Eintrags entfernen? Identität und Inhalt werden vor dem Löschen erneut geprüft. Private Originale werden nicht gelöscht.</string>
+    <string name="private_export_recovery_confirm_forget">Diesen Eintrag schließen, ohne exportierte Dateien zu löschen? Eine unverschlüsselte Kopie kann außerhalb des privaten Albums verbleiben. Ein erneuter Export kann Duplikate erzeugen.</string>
+</resources>

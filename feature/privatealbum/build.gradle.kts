@@ -22,6 +22,12 @@ android {
     buildFeatures { compose = true }
 }
 
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.androidTest?.sources?.assets?.addStaticSourceDirectory("../motionphotos/src/androidTest/assets")
+    }
+}
+
 dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:security"))
@@ -34,7 +40,12 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    implementation(libs.sqlcipher.android)
     implementation(libs.androidx.paging.runtime)
+    implementation(libs.androidx.media3.exoplayer)
+    implementation("androidx.media3:media3-datasource:1.11.0")
+    implementation(libs.androidx.exifinterface)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.biometric)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.core.ktx)
@@ -50,5 +61,6 @@ dependencies {
     androidTestImplementation(libs.androidx.test.ext)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.espresso)
+    androidTestImplementation(libs.androidx.uiautomator)
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="private_index_unavailable_title">Álbum privado no disponible</string>
+    <string name="private_index_unavailable_body">No se pudo abrir el índice privado. Los archivos existentes se conservan. Reintentá o volvé atrás; no se restablecerá ni se creará otro álbum.</string>
+    <string name="private_index_retry">Reintentar</string>
+    <string name="private_index_loading">Abriendo álbum privado…</string>
+</resources>

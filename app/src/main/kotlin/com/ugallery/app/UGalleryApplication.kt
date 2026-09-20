@@ -9,5 +9,6 @@ class UGalleryApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         DetectedContentRuntime.install(this)
+        DocumentAutoArchiveWorker.install(this)
     }
 }

@@ -27,6 +27,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.testTagsAsResourceId
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -101,6 +104,7 @@ internal fun GalleryExpandedRail(
             RailItem(GalleryIcons.Image, stringResource(R.string.nav_photos), route == SurfaceRoute.Root && selectedRoot == RootTab.Photos) { onRoot(RootTab.Photos) }
             RailItem(GalleryIcons.Collections, stringResource(R.string.nav_collections), route == SurfaceRoute.Root && selectedRoot == RootTab.Collections) { onRoot(RootTab.Collections) }
             RailItem(GalleryIcons.Plus, stringResource(R.string.nav_create), false, onClick = onCreate)
+            RailItem(GalleryIcons.Collections, stringResource(R.string.publication_recoveries_title), route == SurfaceRoute.PublicationRecoveries, tag = "rail-publication-recoveries") { onRoute(SurfaceRoute.PublicationRecoveries) }
             HorizontalDivider(Modifier.padding(horizontal = 30.dp, vertical = 8.dp))
             RailItem(GalleryIcons.Ask, stringResource(R.string.nav_ask), route == SurfaceRoute.Root && selectedRoot == RootTab.Search) { onRoot(RootTab.Search) }
             RailItem(
@@ -115,6 +119,15 @@ internal fun GalleryExpandedRail(
                     else onRoute(SurfaceRoute.Updates)
                 },
             )
+            RailItem(GalleryIcons.Collections, stringResource(com.ugallery.feature.collections.R.string.memory_controls_title), route == SurfaceRoute.MemoryControls, tag = "rail-memory-controls") { onRoute(SurfaceRoute.MemoryControls) }
+            RailItem(GalleryIcons.Collections, stringResource(com.ugallery.feature.collections.R.string.smart_title), route == SurfaceRoute.SmartAlbums, tag = "rail-smart-albums") { onRoute(SurfaceRoute.SmartAlbums) }
+            RailItem(GalleryIcons.Collections, stringResource(com.ugallery.feature.collections.R.string.stacks_title), route == SurfaceRoute.Stacks) { onRoute(SurfaceRoute.Stacks) }
+            RailItem(GalleryIcons.Collections, stringResource(com.ugallery.feature.collections.R.string.documents_title), route == SurfaceRoute.Documents) { onRoute(SurfaceRoute.Documents) }
+            RailItem(GalleryIcons.Collections, stringResource(com.ugallery.feature.pdfstudio.R.string.pdf_studio), route == SurfaceRoute.PdfStudio) { onRoute(SurfaceRoute.PdfStudio) }
+            RailItem(GalleryIcons.Collections, stringResource(com.ugallery.feature.places.R.string.places_title), route == SurfaceRoute.OfflinePlaces, tag = "rail-offline-places") { onRoute(SurfaceRoute.OfflinePlaces) }
+            RailItem(GalleryIcons.Folder, stringResource(com.ugallery.feature.ownsync.R.string.own_sync_title), route == SurfaceRoute.OwnSync, tag = "rail-own-sync") { onRoute(SurfaceRoute.OwnSync) }
+            RailItem(GalleryIcons.Folder, stringResource(com.ugallery.feature.localsharing.R.string.peer_title), route == SurfaceRoute.LocalSharing, tag = "rail-local-sharing") { onRoute(SurfaceRoute.LocalSharing) }
+            RailItem(GalleryIcons.Collections, stringResource(com.ugallery.feature.petrecognition.R.string.pet_title), route == SurfaceRoute.PetIdentity, tag = "rail-pet-identity") { onRoute(SurfaceRoute.PetIdentity) }
             RailItem(GalleryIcons.Folder, stringResource(R.string.nav_on_device), route == SurfaceRoute.DeviceFolders) { onRoute(SurfaceRoute.DeviceFolders) }
             RailItem(GalleryIcons.Archive, stringResource(R.string.nav_archive), route == SurfaceRoute.Archive) { onRoute(SurfaceRoute.Archive) }
             RailItem(GalleryIcons.Trash, stringResource(R.string.nav_trash), route == SurfaceRoute.Trash) { onRoute(SurfaceRoute.Trash) }
@@ -123,18 +136,21 @@ internal fun GalleryExpandedRail(
 }
 
 @Composable
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 private fun RailItem(
     icon: ImageVector,
     label: String,
     isSelected: Boolean,
+    tag: String? = null,
     badgeCount: Int = 0,
     progress: Float? = null,
     contentDescription: String? = null,
     onClick: () -> Unit,
 ) {
     Column(
-        Modifier.fillMaxWidth().clickable(role = Role.Tab, onClick = onClick)
+        Modifier.fillMaxWidth().then(if (tag != null) Modifier.testTag(tag) else Modifier).clickable(role = Role.Tab, onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 6.dp).semantics {
+                testTagsAsResourceId = true
                 selected = isSelected
                 if (contentDescription != null) this.contentDescription = contentDescription
             },
@@ -144,7 +160,7 @@ private fun RailItem(
         Surface(
             shape = RoundedCornerShape(20.dp),
             color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
-            contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+            contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
         ) {
             BadgedBox(
                 badge = {
@@ -177,9 +193,10 @@ private fun RailItem(
         }
         Text(
             label,
-            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MaterialTheme.colorScheme.onSurface,
             style = MaterialTheme.typography.labelMedium,
-            maxLines = 1,
+            maxLines = 3,
+            textAlign = TextAlign.Center,
         )
     }
 }

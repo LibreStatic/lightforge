@@ -1,5 +1,8 @@
 package com.ugallery.app
 
+import kotlinx.coroutines.flow.catch
+
+import androidx.room.withTransaction
 import android.app.ActivityManager
 import android.app.Application
 import android.content.Context
@@ -161,6 +164,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -168,12 +173,14 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -187,10 +194,14 @@ import java.time.ZoneId
 import android.content.ContentUris
 import android.content.Intent
 import android.net.Uri
+import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
+import android.provider.OpenableColumns
 import android.provider.MediaStore
 import android.webkit.MimeTypeMap
 import javax.inject.Inject
 import org.json.JSONObject
+import com.ugallery.core.model.ViewerMedia
 
 enum class LibraryEngineState { Starting, Indexing, Ready, PermissionRequired, Error }
 
@@ -208,10 +219,27 @@ internal fun GallerySearchUiState.withEditedQuery(value: String): GallerySearchU
 }
 
 data class PhotoEditorSession(
-    val media: TimelineMedia,
+    val source: EditorMediaSource,
     val history: EditHistory,
     val content: PhotoEditorContentState,
+    /** Cancel/save-copy discard only this session's draft, not a restored recipe on entry. */
+    val entryRecipe: EditRecipe? = null,
+    val entryRecipeUpdatedAtMillis: Long = 0,
 )
+
+data class EditorMediaSource(
+    val uriString: String,
+    val kind: MediaKind,
+    val libraryMedia: TimelineMedia? = null,
+    val mimeType: String? = null,
+    val displayName: String? = null,
+    val width: Int = 0,
+    val height: Int = 0,
+    val durationMillis: Long = 0,
+) {
+    val uri: Uri get() = Uri.parse(uriString)
+    val stableId: String get() = libraryMedia?.viewerId ?: uriString
+}
 
 private data class RawPreviewRequest(
     val generation: Long,
@@ -223,12 +251,19 @@ private data class RawPreviewRequest(
 )
 
 data class VideoEditorSession(
-    val media: TimelineMedia,
+    val source: EditorMediaSource,
     val baselineRecipe: VideoEditRecipe,
     val recipe: VideoEditRecipe,
     val content: VideoEditorContentState,
     val pendingExportRecipe: VideoEditRecipe? = null,
     val exportJobId: String? = null,
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val recoverySource: ViewerRestoreSnapshot? = null,
+    val recovered: Boolean = false,
+    val externalAccessBlocked: Boolean = false,
+    val externalAccessChecking: Boolean = false,
+    val externalSourceChanged: Boolean = false,
+    val externalRecoverySource: ExternalVideoSourceSnapshot? = null,
 ) {
     fun isDirty(candidate: VideoEditRecipe = recipe): Boolean =
         candidate != (pendingExportRecipe ?: baselineRecipe)
@@ -245,7 +280,10 @@ private data class GalleryRuntime(
     val scanner: InitialMediaScanner,
     val synchronizer: IncrementalMediaSynchronizer,
     val generations: MediaStoreGenerationProbe,
-    val thumbnails: ThumbnailLoader,
+    var thumbnails: ThumbnailLoader,
+    val motionKeyFrames: com.ugallery.core.data.MotionKeyFrameRepository,
+    val thumbnailFactory: () -> ThumbnailLoader,
+    val organizationBackup: GalleryOrganizationBackupAdapter,
     val decoder: NativeImageDecoder,
     val albums: GalleryAlbumRepository,
     val trash: GalleryTrashRepository,
@@ -262,7 +300,7 @@ private data class GalleryRuntime(
 )
 
 @HiltViewModel
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 class GalleryViewModel @Inject constructor(
     application: Application,
     val permissions: PermissionCoordinator,
@@ -402,13 +440,45 @@ class GalleryViewModel @Inject constructor(
         LibraryEngineState.Starting,
     )
     val access = permissions.access
-    val timeline: Flow<PagingData<TimelineEntry>> = gallerySettings
-        .map { it.library }
-        .flatMapLatest { library ->
-            runtime.filterNotNull().flatMapLatest { it.timeline.timeline(ZoneId.systemDefault(), library) }
+    val timeline: Flow<PagingData<TimelineEntry>> by lazy {
+        combine(gallerySettings.map { it.library }, selection.map {
+            it !is SelectionSpec.Explicit || it.keys.isNotEmpty()
+        }) { library, selecting -> library to selecting }
+            .distinctUntilChanged()
+            .flatMapLatest { (library, selecting) ->
+                runtime.filterNotNull().flatMapLatest {
+                    it.timeline.timeline(ZoneId.systemDefault(), library, collapseStacks = !selecting)
+                }
+            }.cachedIn(viewModelScope)
+    }
+    private val mutableBackupRecovery = MutableStateFlow(BackupRecoveryUiState())
+    val backupRecovery = mutableBackupRecovery.asStateFlow()
+    private var backupRecoveryJob: Job? = null
+
+    fun recoverIncompleteBackups() {
+        if (backupRecoveryJob?.isActive == true) return
+        val active = runtime.value ?: return
+        backupRecoveryJob = viewModelScope.launch {
+            mutableBackupRecovery.value = BackupRecoveryUiState(working = true)
+            try {
+                val result = GalleryRestoreMediaSession.recover(
+                    getApplication<Application>(),
+                    com.ugallery.feature.settings.LocalBackupTaskStore(getApplication<Application>()).retainedGalleryOperations() +
+                        GalleryLocalSharingImportPort.retainedOperations(getApplication<Application>()),
+                ) {
+                    active.database.galleryRestoreReceiptDao().get(it) != null
+                }
+                mutableBackupRecovery.value = BackupRecoveryUiState(removed = result.removed, retained = result.retained)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { mutableBackupRecovery.value = BackupRecoveryUiState(failed = true) }
         }
-        .cachedIn(viewModelScope)
-    val thumbnailLoader = runtime.map { it?.thumbnails }.stateIn(
+    }
+
+    val organizationBackup = runtime.map { it?.organizationBackup }.stateIn(
+        viewModelScope, SharingStarted.Eagerly, null,
+    )
+    private val thumbnailEpoch = MutableStateFlow(0L)
+    val thumbnailLoader = combine(runtime, thumbnailEpoch) { active, _ -> active?.thumbnails }.stateIn(
         viewModelScope,
         SharingStarted.Eagerly,
         null,
@@ -441,6 +511,49 @@ class GalleryViewModel @Inject constructor(
     val archive: Flow<PagingData<TimelineMedia>> = runtime.filterNotNull()
         .flatMapLatest { it.archive.media() }
         .cachedIn(viewModelScope)
+    val memoryExclusionRepository = runtime.map { active ->
+        active?.let { com.ugallery.core.data.MemoryExclusionRepository(it.database) }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    val smartAlbumRepository = runtime.map { active ->
+        active?.let { com.ugallery.core.data.GallerySmartAlbumRepository(it.database) }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    val photoStackRepository = runtime.map { active ->
+        active?.let { com.ugallery.core.data.GalleryPhotoStackRepository(it.database) }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    suspend fun createSelectedPhotoStack(): String? {
+        val selected = mutableSelection.value as? SelectionSpec.Explicit ?: return null
+        if (selected.keys.size < 2 || selectedPdfSources().isEmpty()) return null
+        val repo = photoStackRepository.value ?: return null
+        return try {
+            val id = repo.create(selected.keys.toList())
+            if (mutableSelection.value == selected) clearSelection()
+            id
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (_: Exception) { null }
+    }
+
+    val documentRepository = runtime.map { active ->
+        active?.let { com.ugallery.core.data.GalleryDocumentRepository(it.database) }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    val documentCount = runtime.filterNotNull().flatMapLatest {
+        com.ugallery.core.data.GalleryDocumentRepository(it.database).count()
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, 0L)
+
+    suspend fun organizeSelectedDocuments(): Boolean {
+        val selected = mutableSelection.value as? SelectionSpec.Explicit ?: return false
+        if (selectedPdfSources().isEmpty()) return false
+        val repository = documentRepository.value ?: return false
+        return try {
+            repository.classify(selected.keys.toList(), com.ugallery.core.data.DocumentCategory.Other)
+            if (mutableSelection.value == selected) clearSelection()
+            true
+        } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+        catch (_: Exception) { false }
+    }
+
     val archiveCount = runtime.filterNotNull().flatMapLatest { it.archive.count() }
         .stateIn(viewModelScope, SharingStarted.Eagerly, 0L)
     val activity = runtime.filterNotNull().flatMapLatest { it.activity.latest() }
@@ -471,11 +584,24 @@ class GalleryViewModel @Inject constructor(
     private var viewerWindowJob: Job? = null
     private val mutableSelectedAlbum = MutableStateFlow<AlbumSummary?>(null)
     val selectedAlbum = mutableSelectedAlbum.asStateFlow()
-    private val mutableSelection = MutableStateFlow<SelectionSpec>(SelectionSpec.explicit())
+    private val restoredCreationState = CreationRestoreSnapshot.validatedOrNull(savedStateHandle.get<Any>(CreationStateKey))
+    private val mutableSelection = MutableStateFlow<SelectionSpec>(restoredCreationState?.selection?.selection ?: SelectionSpec.explicit())
     val selection = mutableSelection.asStateFlow()
-    private val mutableSelectionCount = MutableStateFlow(0L)
+    private var selectionRevision = 0L
+    private val mutableSelectionCount = MutableStateFlow(restoredCreationState?.selection?.count ?: 0L)
     val selectionCount = mutableSelectionCount.asStateFlow()
-    private val explicitTargets = linkedMapOf<com.ugallery.core.model.MediaKey, MediaActionTarget>()
+    private val explicitTargets = linkedMapOf<com.ugallery.core.model.MediaKey, MediaActionTarget>().apply {
+        restoredCreationState?.selection?.targets?.forEach { put(it.key, it) }
+    }
+    private var pendingRestoredViewer = restoredCreationState?.viewer
+    private val mutableViewerRestoreSnapshot = MutableStateFlow(pendingRestoredViewer)
+    val viewerRestoreSnapshot = mutableViewerRestoreSnapshot.asStateFlow()
+    private val mutableViewerSourceChecking = MutableStateFlow(pendingRestoredViewer != null)
+    val viewerSourceChecking = mutableViewerSourceChecking.asStateFlow()
+    private val mutableViewerRecovered = MutableStateFlow(false)
+    val viewerRecovered = mutableViewerRecovered.asStateFlow()
+    private val viewerRestoreEpoch = MemoryVideoRequestEpoch()
+    private var viewerSnapshotJob: Job? = null
     private val mutablePhotoState = MutableStateFlow<PhotoLoadState?>(null)
     val photoState = mutablePhotoState.asStateFlow()
     private val mutableAdjacentPhotoStates =
@@ -498,9 +624,11 @@ class GalleryViewModel @Inject constructor(
     private var photoJob: Job? = null
     private var adjacentPhotoJob: Job? = null
     private var photoEditorJob: Job? = null
+    private var photoEditorOpenGeneration = 0L
     private var photoAutoEnhancementJob: Job? = null
     private var photoAutoEnhancementGeneration = 0L
     private var photoRecipeJob: Job? = null
+    private var photoRecipeDiscardJob: Job? = null
     private var rawPreviewJob: Job? = null
     private var rawPreviewSession: RawPreviewSession? = null
     private var rawPreviewRequests: Channel<RawPreviewRequest>? = null
@@ -511,12 +639,17 @@ class GalleryViewModel @Inject constructor(
     private var videoRecipeDiscardJob: Job? = null
     private var videoEditorOpenGeneration = 0L
     private var videoAnnotationTrackingJob: Job? = null
+    private val videoAnnotationTrackingEpoch = MemoryVideoRequestEpoch()
     private val videoAnnotationUndo = ArrayDeque<List<VideoAnnotationLayer>>()
     private val videoAnnotationRedo = ArrayDeque<List<VideoAnnotationLayer>>()
     private var slowMotionSaveJob: Job? = null
     private var bulkCursor: BulkCursor? = savedStateHandle[BulkStateKey]
     private var favoriteImportCursor: FavoriteImportCursor? = savedStateHandle[FavoriteImportStateKey]
-    private val mutableExternalMedia = MutableStateFlow<ExternalMedia?>(null)
+    private var externalOpenGeneration = 0L
+    private var pendingRestoredExternalVideoEditor = restoredCreationState?.externalVideoEditor
+    private var externalVideoEditorSnapshot = pendingRestoredExternalVideoEditor
+    private var externalVideoAccessJob: Job? = null
+    private val mutableExternalMedia = MutableStateFlow<ExternalMedia?>(pendingRestoredExternalVideoEditor?.source?.toExternalMedia())
     val externalMedia = mutableExternalMedia.asStateFlow()
     private val mutableExternalPhotoState = MutableStateFlow<PhotoLoadState?>(null)
     val externalPhotoState = mutableExternalPhotoState.asStateFlow()
@@ -524,9 +657,15 @@ class GalleryViewModel @Inject constructor(
     val externalSaved = mutableExternalSaved.asSharedFlow()
     private val mutablePhotoEditor = MutableStateFlow<PhotoEditorSession?>(null)
     val photoEditor = mutablePhotoEditor.asStateFlow()
+    private val mutablePhotoEditorOpening = MutableStateFlow(false)
+    val photoEditorOpening = mutablePhotoEditorOpening.asStateFlow()
     private val mutableVideoEditor = MutableStateFlow<VideoEditorSession?>(null)
     val videoEditor = mutableVideoEditor.asStateFlow()
-    private val mutableVideoEditorOpening = MutableStateFlow(false)
+    private var pendingRestoredVideoEditor = restoredCreationState?.videoEditor
+    private var videoEditorSnapshot = pendingRestoredVideoEditor
+    private val mutableVideoEditorSessionId = MutableStateFlow(pendingRestoredVideoEditor?.id ?: pendingRestoredExternalVideoEditor?.id)
+    val videoEditorSessionId = mutableVideoEditorSessionId.asStateFlow()
+    private val mutableVideoEditorOpening = MutableStateFlow(pendingRestoredVideoEditor != null || pendingRestoredExternalVideoEditor != null)
     val videoEditorOpening = mutableVideoEditorOpening.asStateFlow()
     private val mutableEditorCopyOpened = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val editorCopyOpened = mutableEditorCopyOpened.asSharedFlow()
@@ -536,12 +675,844 @@ class GalleryViewModel @Inject constructor(
     val sanitizedShare = mutableSanitizedShare.asSharedFlow()
     private val mutableShareError = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val shareError = mutableShareError.asSharedFlow()
-    private val mutableSelectedMoment = MutableStateFlow<MomentEntity?>(null)
-    val selectedMoment = mutableSelectedMoment.asStateFlow()
+    val backupTaskController = GalleryBackupTaskWorker.controller(application)
+    private val mutableRemoteBackupController = MutableStateFlow<com.ugallery.feature.remotebackup.RemoteBackupController?>(null)
+    val remoteBackupController = mutableRemoteBackupController.asStateFlow()
+    private val mutableLocalSharingController = MutableStateFlow<com.ugallery.feature.localsharing.LocalSharingController?>(null)
+    val localSharingController = mutableLocalSharingController.asStateFlow()
+    private val mutablePetIdentityRepository = MutableStateFlow<com.ugallery.feature.petrecognition.PetIdentityRepository?>(null)
+    val petIdentityRepository = mutablePetIdentityRepository.asStateFlow()
+    val ownSyncController = GalleryOwnSyncWorker.controller(application)
+    val offlinePlacesController = GalleryOfflinePlacesWorker.controller(application)
+    private val mutablePlacesSource = MutableStateFlow<GalleryPlacesSource?>(null)
+    internal val placesSource = mutablePlacesSource.asStateFlow()
+
+    fun openPlacePhoto(key: MediaKey) {
+        viewModelScope.launch {
+            val active=runtime.value ?: return@launch
+            if (mutablePlacesSource.value?.hasLocationAccess()!=true) return@launch
+            val row=active.database.libraryDao().media(key.volumeName,key.mediaStoreId) ?: return@launch
+            if (!row.isAccessible || row.isTrashed || row.mediaType !in listOf(1,3)) return@launch
+            openMedia(TimelineMedia(key,if(row.mediaType==3) MediaKind.Video else MediaKind.Image,
+                row.generationModified,row.timelineSortMillis,row.width,row.height,row.durationMillis,
+                row.dateExpiresSeconds?.times(1000),row.isFavorite,row.isTrashed))
+        }
+    }
+    suspend fun placeThumbnail(key: MediaKey): android.graphics.Bitmap? {
+        val active=runtime.value ?: return null
+        if(mutablePlacesSource.value?.hasLocationAccess()!=true) return null
+        val row=active.database.libraryDao().media(key.volumeName,key.mediaStoreId) ?: return null
+        if(!row.isAccessible || row.isTrashed) return null
+        return try { active.thumbnails.load(com.ugallery.core.thumbnail.ThumbnailRequest(key,row.generationModified,160,160)) }
+        catch(cancelled: CancellationException) { throw cancelled }
+        catch(_: Exception) { null }
+    }
+
+
+    val momentRepository = runtime.map { it?.moments }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    private val momentTitleGazetteer by lazy {
+        com.ugallery.feature.places.OfflineGazetteer(com.ugallery.feature.places.BundledGazetteer.load())
+    }
+
+    /** No new GPS reads: only current, permission-authorized cached EXIF from visible members. */
+    fun momentPlaceLabel(momentId: String): kotlinx.coroutines.flow.Flow<String?> =
+        combine(runtime, access) { current, permission -> current to permission.unredactedLocation }
+            .flatMapLatest { (current, allowed) ->
+                if (current == null || !allowed) kotlinx.coroutines.flow.flowOf(null)
+                else current.database.momentDao().observeLocation(momentId).map { location ->
+                    location?.let { momentTitleGazetteer.reverseGeocode(it.latitude, it.longitude) }
+                        // The bundled catalogue is sparse. A distant nearest city is not a place label.
+                        ?.takeIf { it.distanceKm <= 25.0 }?.city?.name
+                }
+            }.distinctUntilChanged()
+
+    private var pendingRestoredGif = restoredCreationState?.gif
+    private val mutableCreationGifRestoring = MutableStateFlow(pendingRestoredGif != null)
+    val creationGifRestoring = mutableCreationGifRestoring.asStateFlow()
+    private val mutableCreationGifSessionId = MutableStateFlow(pendingRestoredGif?.id)
+    val creationGifSessionId = mutableCreationGifSessionId.asStateFlow()
+    private val gifRequestEpoch = MemoryVideoRequestEpoch()
+    private val mutableCreationGifSession = MutableStateFlow<CreationGifPreparedSession?>(null)
+    val creationGifSession = mutableCreationGifSession.asStateFlow()
+
+    fun canCreateGif(): Boolean {
+        val selected = mutableSelection.value as? SelectionSpec.Explicit ?: return false
+        return selected.keys.size in 2..60 && selected.keys.all { explicitTargets[it]?.kind == MediaKind.Image }
+    }
+
+    suspend fun prepareCreationGif(): Boolean {
+        if (mutableCreationGifSession.value != null) return true
+        if (pendingRestoredGif != null || mutableCreationGifRestoring.value) return false
+        val epoch = gifRequestEpoch.begin()
+        pendingRestoredGif = null
+        mutableCreationGifRestoring.value = false
+        saveCreationState()
+        val selected = mutableSelection.value as? SelectionSpec.Explicit ?: return false
+        if (!canCreateGif()) return false
+        val targets = selected.keys.map { explicitTargets[it] ?: return false }
+        val active = runtime.value ?: return false
+        val permission = access.value
+        val selectedRevision = selectionRevision
+        val sources = withContext(Dispatchers.IO) {
+            val reader = com.ugallery.core.mediastore.MediaStoreReader(getApplication<Application>().contentResolver)
+            targets.map { target ->
+                val row = active.database.libraryDao().media(target.key.volumeName, target.key.mediaStoreId)
+                    ?: return@withContext null
+                val actual = reader.readOne(target.key) ?: return@withContext null
+                if (!row.isAccessible || row.isTrashed || actual.isTrashed || actual.kind != MediaKind.Image ||
+                    actual.generationModified != row.generationModified || actual.generationAdded != row.generationAdded
+                ) return@withContext null
+                com.ugallery.feature.collage.CreationGifSource(target.uri(), actual.generationModified, actual.generationAdded)
+            }
+        } ?: return false
+        if (!gifRequestEpoch.isCurrent(epoch) || selectionRevision != selectedRevision || mutableSelection.value != selected || runtime.value !== active || access.value != permission) return false
+        mutableCreationGifSession.value = CreationGifPreparedSession(java.util.UUID.randomUUID().toString(), sources)
+        mutableCreationGifSessionId.value = mutableCreationGifSession.value?.id
+        saveCreationState()
+        return true
+    }
+
+    fun clearCreationGif() {
+        gifRequestEpoch.cancel()
+        pendingRestoredGif = null
+        mutableCreationGifRestoring.value = false
+        mutableCreationGifSession.value = null
+        mutableCreationGifSessionId.value = null
+        saveCreationState()
+    }
+
+    private suspend fun restorePendingCreationGif(active: GalleryRuntime) {
+        val snapshot = pendingRestoredGif ?: return
+        val permission = access.value
+        // These DTOs are already bounded and validated by CreationRestoreSnapshot. Passing
+        // them to the feature does not grant permission to prepare or render their sources.
+        val detachedSources = snapshot.sources.map { source ->
+            com.ugallery.feature.collage.CreationGifSource(
+                Uri.parse(source.uri), source.generationModified, source.generationAdded,
+            )
+        }
+        try {
+            val available = try {
+                withContext(Dispatchers.IO) {
+                    val reader = com.ugallery.core.mediastore.MediaStoreReader(getApplication<Application>().contentResolver)
+                    snapshot.sources.all { source ->
+                        val uri = Uri.parse(source.uri)
+                        val key = MediaKey(uri.pathSegments.first(), android.content.ContentUris.parseId(uri))
+                        val row = active.database.libraryDao().media(key.volumeName, key.mediaStoreId)
+                        val actual = reader.readOne(key)
+                        row != null && actual != null &&
+                            SelectionMemoryVideoPreparation.matchesCurrentPhoto(key, row, actual) &&
+                            actual.generationModified == source.generationModified && actual.generationAdded == source.generationAdded
+                    }
+                }
+            } catch (cancelled: CancellationException) { throw cancelled
+            } catch (_: Exception) { false }
+            if (pendingRestoredGif !== snapshot || runtime.value !== active || permission != access.value) return
+            // A published GIF is independent of its originals. The feature checks its durable
+            // receipt and bytes before Open/Share, while unavailable inputs prohibit a new render.
+            mutableCreationGifSession.value = CreationGifPreparedSession(snapshot.id, detachedSources, available)
+        } catch (cancelled: CancellationException) { throw cancelled
+        } finally {
+            if (pendingRestoredGif === snapshot) {
+                pendingRestoredGif = null
+                mutableCreationGifRestoring.value = false
+                saveCreationState()
+            }
+        }
+    }
+
+    fun creationGifExported() {
+        viewModelScope.launch { refreshLibrary() }
+    }
+
+    private var pendingRestoredCollage = restoredCreationState?.collage
+    private val mutableCreationCollageRestoring = MutableStateFlow(pendingRestoredCollage != null)
+    val creationCollageRestoring = mutableCreationCollageRestoring.asStateFlow()
+    private val mutableCreationCollageSessionId = MutableStateFlow(pendingRestoredCollage?.id)
+    val creationCollageSessionId = mutableCreationCollageSessionId.asStateFlow()
+    private val collageRequestEpoch = MemoryVideoRequestEpoch()
+    private val mutableCreationCollageSession = MutableStateFlow<CreationCollagePreparedSession?>(null)
+    val creationCollageSession = mutableCreationCollageSession.asStateFlow()
+
+    fun canCreateCollage(): Boolean = evaluateCollageSelection() is CollagePreparation.Ready
+
+    /**
+     * Reports exactly why a collage cannot be started so the caller can explain it to the user
+     * instead of collapsing every cause into one generic snackbar.
+     */
+    internal fun evaluateCollageSelection(): CollagePreparation {
+        if (mutableCreationCollageSession.value != null) return CollagePreparation.Ready
+        if (pendingRestoredCollage != null) {
+            return CollagePreparation.Rejected(CollageRejection.DraftPending, 0)
+        }
+        val selected = mutableSelection.value as? SelectionSpec.Explicit
+            ?: return CollagePreparation.Rejected(CollageRejection.NothingSelected, 0)
+        val count = selected.keys.size
+        return when {
+            count == 0 -> CollagePreparation.Rejected(CollageRejection.NothingSelected, 0)
+            count == 1 -> CollagePreparation.Rejected(CollageRejection.NotEnoughSelection, count)
+            count > 4 -> CollagePreparation.Rejected(CollageRejection.TooMany, count)
+            !selected.keys.all { explicitTargets[it]?.kind == MediaKind.Image } ->
+                CollagePreparation.Rejected(CollageRejection.NonImageSelected, count)
+            else -> CollagePreparation.Ready
+        }
+    }
+
+    internal suspend fun prepareCreationCollage(): CollagePreparation {
+        // Back from an unresolved publication retains this exact session. The next Collage
+        // action resumes it rather than silently replacing its receipt with a new request.
+        if (mutableCreationCollageSession.value != null) return CollagePreparation.Ready
+        val preflight = evaluateCollageSelection()
+        if (preflight is CollagePreparation.Rejected) return preflight
+        val epoch = collageRequestEpoch.begin()
+        pendingRestoredCollage = null
+        mutableCreationCollageRestoring.value = false
+        saveCreationState()
+        val selected = mutableSelection.value as? SelectionSpec.Explicit
+            ?: return CollagePreparation.Rejected(CollageRejection.NothingSelected, 0)
+        val unavailable = CollagePreparation.Rejected(CollageRejection.SourceUnavailable, selected.keys.size)
+        val targets = selected.keys.map { explicitTargets[it] ?: return unavailable }
+        val active = runtime.value ?: return unavailable
+        val permission = access.value
+        val selectedRevision = selectionRevision
+        val sources = withContext(Dispatchers.IO) {
+            val reader = com.ugallery.core.mediastore.MediaStoreReader(getApplication<Application>().contentResolver)
+            targets.map { target ->
+                val row = active.database.libraryDao().media(target.key.volumeName, target.key.mediaStoreId)
+                    ?: return@withContext null
+                val actual = reader.readOne(target.key) ?: return@withContext null
+                if (!row.isAccessible || row.isTrashed || actual.isTrashed || actual.kind != MediaKind.Image ||
+                    actual.generationModified != row.generationModified || actual.generationAdded != row.generationAdded
+                ) {
+                    return@withContext null
+                }
+                com.ugallery.feature.collage.CreationCollageSource(target.uri(), actual.generationModified, actual.generationAdded)
+            }
+        } ?: return unavailable
+        if (!collageRequestEpoch.isCurrent(epoch) || selectionRevision != selectedRevision || mutableSelection.value != selected || runtime.value !== active || access.value != permission) return unavailable
+        mutableCreationCollageSession.value = CreationCollagePreparedSession(java.util.UUID.randomUUID().toString(), sources)
+        mutableCreationCollageSessionId.value = mutableCreationCollageSession.value?.id
+        saveCreationState()
+        return CollagePreparation.Ready
+    }
+
+    fun clearCreationCollage() {
+        collageRequestEpoch.cancel()
+        pendingRestoredCollage = null
+        mutableCreationCollageRestoring.value = false
+        mutableCreationCollageSession.value = null
+        mutableCreationCollageSessionId.value = null
+        saveCreationState()
+    }
+
+    private suspend fun restorePendingCreationCollage(active: GalleryRuntime) {
+        val snapshot = pendingRestoredCollage ?: return
+        val permission = access.value
+        // These DTOs are already bounded and validated by CreationRestoreSnapshot. Passing
+        // them to the feature does not grant permission to prepare or render their sources.
+        val detachedSources = snapshot.sources.map { source ->
+            com.ugallery.feature.collage.CreationCollageSource(
+                Uri.parse(source.uri), source.generationModified, source.generationAdded,
+            )
+        }
+        try {
+            val available = try {
+                withContext(Dispatchers.IO) {
+                    val reader = com.ugallery.core.mediastore.MediaStoreReader(getApplication<Application>().contentResolver)
+                    snapshot.sources.all { source ->
+                        val uri = Uri.parse(source.uri)
+                        val key = MediaKey(uri.pathSegments.first(), android.content.ContentUris.parseId(uri))
+                        val row = active.database.libraryDao().media(key.volumeName, key.mediaStoreId)
+                        val actual = reader.readOne(key)
+                        row != null && actual != null &&
+                            SelectionMemoryVideoPreparation.matchesCurrentPhoto(key, row, actual) &&
+                            actual.generationModified == source.generationModified && actual.generationAdded == source.generationAdded
+                    }
+                }
+            } catch (cancelled: CancellationException) { throw cancelled
+            } catch (_: Exception) { false }
+            if (pendingRestoredCollage !== snapshot || runtime.value !== active || permission != access.value) return
+            // A published PNG is independent of its originals. The feature checks its durable
+            // receipt and bytes before Open/Share, while unavailable inputs prohibit a new render.
+            mutableCreationCollageSession.value = CreationCollagePreparedSession(snapshot.id, detachedSources, available)
+        } catch (cancelled: CancellationException) { throw cancelled
+        } finally {
+            if (pendingRestoredCollage === snapshot) {
+                pendingRestoredCollage = null
+                mutableCreationCollageRestoring.value = false
+                saveCreationState()
+            }
+        }
+    }
+
+    fun creationCollageExported() {
+        viewModelScope.launch { refreshLibrary() }
+    }
+
+    data class ManualMomentSession(
+        val draft: com.ugallery.core.data.ManualMomentDraft,
+        val sources: List<TimelineMedia>,
+        val originSelection: CreationSelectionSnapshot?,
+        val originSelectionRevision: Long?,
+    )
+    private var pendingRestoredManualMoment = restoredCreationState?.manualMoment
+    private val restoredManualOriginRevision = selectionRevision
+    private val mutableManualMomentSessionId = MutableStateFlow(pendingRestoredManualMoment?.id)
+    val manualMomentSessionId = mutableManualMomentSessionId.asStateFlow()
+    private val mutableManualMomentRestoring = MutableStateFlow(pendingRestoredManualMoment != null)
+    val manualMomentRestoring = mutableManualMomentRestoring.asStateFlow()
+    private val mutableManualMomentSession = MutableStateFlow<ManualMomentSession?>(null)
+    val manualMomentSession = mutableManualMomentSession.asStateFlow()
+    private val mutableManualMomentBusy = MutableStateFlow(false)
+    val manualMomentBusy = mutableManualMomentBusy.asStateFlow()
+    private val mutableManualMomentError = MutableStateFlow(false)
+    val manualMomentError = mutableManualMomentError.asStateFlow()
+    enum class ManualMomentRecoveryStatus { Committed, Missing, Conflict, Unavailable }
+    data class ManualMomentRecovery(val request: ManualMomentCreateRequest?, val status: ManualMomentRecoveryStatus)
+    private val manualMomentPendingStore by lazy {
+        ManualMomentPendingCreateStore(java.io.File(getApplication<Application>().noBackupFilesDir.canonicalFile, "manual-memory-pending"))
+    }
+    private val mutableManualMomentPendingCreate = MutableStateFlow<ManualMomentCreateRequest?>(null)
+    val manualMomentPendingCreate = mutableManualMomentPendingCreate.asStateFlow()
+    private val mutableManualMomentAcknowledgementToken = MutableStateFlow<String?>(null)
+    val manualMomentAcknowledgementToken = mutableManualMomentAcknowledgementToken.asStateFlow()
+    private val mutableManualMomentRecovery = MutableStateFlow<ManualMomentRecovery?>(null)
+    val manualMomentRecovery = mutableManualMomentRecovery.asStateFlow()
+    private var manualMomentRecoveryChecking = true
+    private var manualMomentJournalUnavailable = false
+
+    private fun clearManualDraftForPending(request: ManualMomentCreateRequest) {
+        val id = request.draft.id
+        if (pendingRestoredManualMoment?.id == id) pendingRestoredManualMoment = null
+        if (mutableManualMomentSession.value?.draft?.id == id) mutableManualMomentSession.value = null
+        if (mutableManualMomentSessionId.value == id) mutableManualMomentSessionId.value = null
+        if (pendingRestoredManualMoment == null) mutableManualMomentRestoring.value = false
+    }
+
+    private suspend fun reconcilePendingManualMomentCreate(active: GalleryRuntime) {
+        mutableManualMomentAcknowledgementToken.value = null
+        manualMomentRecoveryChecking = true
+        var request: ManualMomentCreateRequest? = null
+        try {
+            request = withContext(Dispatchers.IO) { manualMomentPendingStore.read() }
+            val status = request?.let { value -> withContext(Dispatchers.IO) {
+                com.ugallery.core.data.ManualMomentRepository(active.database).committedStatus(
+                    value.draft.toDraft(), value.orderedKeys, value.title, value.includeSpecialMedia,
+                )
+            } }
+            if (runtime.value !== active) return
+            mutableManualMomentPendingCreate.value = request
+            manualMomentJournalUnavailable = false
+            mutableManualMomentRecovery.value = request?.let { value -> ManualMomentRecovery(value, when (status) {
+                com.ugallery.core.data.ManualMomentCommitStatus.Committed -> ManualMomentRecoveryStatus.Committed
+                com.ugallery.core.data.ManualMomentCommitStatus.Missing -> ManualMomentRecoveryStatus.Missing
+                else -> ManualMomentRecoveryStatus.Conflict
+            }) }
+            if (request != null) {
+                // The durable reviewed request, not possibly older SavedState, owns pending Save recovery.
+                if (pendingRestoredManualMoment?.id == request.draft.id) pendingRestoredManualMoment = null
+                if (mutableManualMomentSession.value?.draft?.id == request.draft.id) mutableManualMomentSession.value = null
+                if (pendingRestoredManualMoment == null) mutableManualMomentRestoring.value = false
+                saveCreationState()
+            }
+        } catch (cancelled: CancellationException) { throw cancelled
+        } catch (_: Exception) {
+            manualMomentJournalUnavailable = true
+            mutableManualMomentPendingCreate.value = request
+            mutableManualMomentRecovery.value = ManualMomentRecovery(request, ManualMomentRecoveryStatus.Unavailable)
+        } finally { manualMomentRecoveryChecking = false }
+    }
+
+    fun checkManualMomentRecovery() {
+        if (mutableManualMomentBusy.value || manualMomentRecoveryChecking) return
+        val active = runtime.value ?: return
+        viewModelScope.launch {
+            mutableManualMomentBusy.value = true
+            try { reconcilePendingManualMomentCreate(active) } finally { mutableManualMomentBusy.value = false }
+        }
+    }
+
+    /** Closing this notice does not acknowledge or discard the durable Save request. */
+    fun hideManualMomentRecovery() { if (!mutableManualMomentBusy.value) mutableManualMomentRecovery.value = null }
+
+    private fun verifyManualMomentProviderSources(request: ManualMomentCreateRequest) {
+        val reader = com.ugallery.core.mediastore.MediaStoreReader(getApplication<Application>().contentResolver)
+        val sources = request.draft.sources.associateBy { it.key }
+        for (key in request.orderedKeys) {
+            val expected = sources.getValue(key)
+            val actual = checkNotNull(reader.readOne(key))
+            check(actual.kind == MediaKind.Image && !actual.isTrashed &&
+                actual.generationAdded == expected.generationAdded && actual.generationModified == expected.generationModified)
+        }
+    }
+
+    /** User-triggered Retry/Open: recheck receipt before provider access; never replay on initialization. */
+    suspend fun resumePendingManualMomentCreate(): String? {
+        if (mutableManualMomentBusy.value || manualMomentRecoveryChecking) return null
+        val request = mutableManualMomentPendingCreate.value ?: return null
+        val active = runtime.value ?: return null
+        val permission = access.value
+        mutableManualMomentBusy.value = true
+        mutableManualMomentError.value = false
+        return try {
+            val id = withContext(Dispatchers.IO) {
+                check(manualMomentPendingStore.read() == request)
+                val repo = com.ugallery.core.data.ManualMomentRepository(active.database)
+                when (repo.committedStatus(request.draft.toDraft(), request.orderedKeys, request.title, request.includeSpecialMedia)) {
+                    com.ugallery.core.data.ManualMomentCommitStatus.Committed -> request.draft.id
+                    com.ugallery.core.data.ManualMomentCommitStatus.Conflict -> error("Conflicting pending manual request")
+                    com.ugallery.core.data.ManualMomentCommitStatus.Missing -> {
+                        verifyManualMomentProviderSources(request)
+                        check(runtime.value === active && permission == access.value)
+                        manualMomentPendingStore.put(request) // Re-fsync a previous publication whose acknowledgement failed.
+                        repo.create(request.draft.toDraft(), request.orderedKeys, request.title, request.includeSpecialMedia)
+                            .also { ManualMomentCommitProbe.afterCommit(getApplication(), request) }
+                    }
+                }
+            }
+            if (runtime.value !== active || mutableManualMomentPendingCreate.value != request) return null
+            openMoment(id)
+            mutableManualMomentAcknowledgementToken.value = request.token
+            // Recovery never consumes a selection that may belong to a newer task/user action.
+            clearManualDraftForPending(request)
+            mutableManualMomentRecovery.value = null
+            saveCreationState()
+            id
+        } catch (cancelled: CancellationException) { throw cancelled
+        } catch (_: Exception) {
+            mutableManualMomentError.value = true
+            reconcilePendingManualMomentCreate(active)
+            null
+        } finally { mutableManualMomentBusy.value = false }
+    }
+
+    /** Called only after the expected loaded Moment has been displayed, never at Room commit time. */
+    suspend fun acknowledgeManualMomentCreate(momentId: String) {
+        val request = mutableManualMomentPendingCreate.value?.takeIf { it.draft.id == momentId } ?: return
+        if (mutableManualMomentRecovery.value != null || selectedMoment.value?.momentId != momentId ||
+            mutableManualMomentAcknowledgementToken.value != request.token) return
+        val active = runtime.value ?: return
+        try {
+            withContext(Dispatchers.IO) {
+                val status = com.ugallery.core.data.ManualMomentRepository(active.database).committedStatus(
+                    request.draft.toDraft(), request.orderedKeys, request.title, request.includeSpecialMedia,
+                )
+                check(manualMomentMayAcknowledge(request, mutableManualMomentAcknowledgementToken.value,
+                    selectedMoment.value?.momentId, status))
+                val cleared = manualMomentPendingStore.clear(request)
+                check(cleared || manualMomentPendingStore.read() == null)
+            }
+            if (mutableManualMomentPendingCreate.value == request) {
+                mutableManualMomentPendingCreate.value = null
+                mutableManualMomentAcknowledgementToken.value = null
+            }
+        } catch (cancelled: CancellationException) { throw cancelled
+        } catch (_: Exception) {
+            // Keep the marker and an explicit retry instead of silently accepting a failed durable acknowledgement.
+            mutableManualMomentAcknowledgementToken.value = null
+            mutableManualMomentRecovery.value = ManualMomentRecovery(request, ManualMomentRecoveryStatus.Unavailable)
+        }
+    }
+
+    /** Explicitly dismisses only this recovery record; never deletes a saved memory or any source. */
+    suspend fun dismissManualMomentRecovery(): Boolean {
+        if (mutableManualMomentBusy.value || manualMomentRecoveryChecking) return false
+        val request = mutableManualMomentPendingCreate.value ?: return false
+        mutableManualMomentBusy.value = true
+        return try {
+            withContext(Dispatchers.IO) { check(manualMomentPendingStore.clear(request)) }
+            mutableManualMomentPendingCreate.value = null
+            mutableManualMomentAcknowledgementToken.value = null
+            mutableManualMomentRecovery.value = null
+            manualMomentJournalUnavailable = false
+            clearManualDraftForPending(request)
+            saveCreationState()
+            true
+        } catch (cancelled: CancellationException) { throw cancelled
+        } catch (_: Exception) {
+            mutableManualMomentRecovery.value = ManualMomentRecovery(request, ManualMomentRecoveryStatus.Unavailable)
+            false
+        } finally { mutableManualMomentBusy.value = false }
+    }
+
+    private val manualMomentEpoch = MemoryVideoRequestEpoch()
+    fun cancelPendingManualMomentPreparation() { manualMomentEpoch.cancel() }
+    fun clearManualMoment() {
+        if (mutableManualMomentBusy.value) return
+        manualMomentEpoch.cancel()
+        pendingRestoredManualMoment = null
+        mutableManualMomentRestoring.value = false
+        mutableManualMomentSessionId.value = null
+        mutableManualMomentSession.value = null
+        mutableManualMomentError.value = false
+        saveCreationState()
+    }
+
+    suspend fun prepareManualMoment(documentKeys: List<MediaKey>? = null): Boolean {
+        if (mutableManualMomentBusy.value || manualMomentRecoveryChecking) return false
+        if (mutableManualMomentPendingCreate.value != null || manualMomentJournalUnavailable) {
+            checkManualMomentRecovery()
+            return false
+        }
+        val epoch = manualMomentEpoch.begin()
+        pendingRestoredManualMoment = null
+        mutableManualMomentRestoring.value = false
+        saveCreationState()
+        val selected = mutableSelection.value
+        val revision = selectionRevision
+        val origin = if (documentKeys == null) CreationRestoreSnapshot.capture(
+            selected, explicitTargets.values, mutableSelectionCount.value,
+        )?.selection ?: return false else null
+        val keys = documentKeys?.toList() ?: (selected as? SelectionSpec.Explicit)?.keys?.toList() ?: return false
+        if (!SelectionMemoryVideoPreparation.acceptsSelection(keys)) return false
+        val active = runtime.value ?: return false
+        val permission = access.value
+        val prepared = withContext(Dispatchers.IO) {
+            val repository = com.ugallery.core.data.ManualMomentRepository(active.database)
+            val draft = repository.prepare(keys)
+            val reader = com.ugallery.core.mediastore.MediaStoreReader(getApplication<Application>().contentResolver)
+            val sources = draft.sources.map { snapshot ->
+                val row = active.database.libraryDao().media(snapshot.key.volumeName, snapshot.key.mediaStoreId)
+                    ?: return@withContext null
+                val actual = reader.readOne(snapshot.key) ?: return@withContext null
+                if (!SelectionMemoryVideoPreparation.matchesCurrentPhoto(snapshot.key, row, actual) ||
+                    row.generationAdded != snapshot.generationAdded || row.generationModified != snapshot.generationModified)
+                    return@withContext null
+                TimelineMedia(snapshot.key, MediaKind.Image, row.generationModified, row.timelineSortMillis,
+                    row.width, row.height, row.durationMillis, isFavorite = row.isFavorite,
+                    displayName = row.displayName, sizeBytes = row.sizeBytes)
+            }
+            ManualMomentSession(draft, sources, origin, if (origin != null) revision else null)
+        } ?: return false
+        if (!manualMomentEpoch.isCurrent(epoch) || runtime.value !== active || permission != access.value ||
+            (documentKeys == null && (selected != mutableSelection.value || revision != selectionRevision))) return false
+        mutableManualMomentError.value = false
+        mutableManualMomentSession.value = prepared
+        mutableManualMomentSessionId.value = prepared.draft.id
+        saveCreationState()
+        return true
+    }
+
+    private fun ownsManualOrigin(origin: CreationSelectionSnapshot?, revision: Long?): Boolean =
+        manualMomentOwnsSelection(origin, revision, mutableSelection.value,
+            explicitTargets.values.toList(), mutableSelectionCount.value, selectionRevision)
+
+    /** Rehydrate the original UUID only. Restoring a review never calls prepare/create. */
+    private suspend fun restorePendingManualMoment(active: GalleryRuntime) {
+        val snapshot = pendingRestoredManualMoment ?: return
+        val permission = access.value
+        try {
+            val sources = withContext(Dispatchers.IO) {
+                val reader = com.ugallery.core.mediastore.MediaStoreReader(getApplication<Application>().contentResolver)
+                snapshot.sources.map { source ->
+                    val row = active.database.momentDao().manualSource(source.key.volumeName, source.key.mediaStoreId)
+                        ?: return@withContext null
+                    val actual = reader.readOne(source.key) ?: return@withContext null
+                    if (!SelectionMemoryVideoPreparation.matchesCurrentPhoto(source.key, row, actual) ||
+                        row.generationAdded != source.generationAdded || row.generationModified != source.generationModified)
+                        return@withContext null
+                    TimelineMedia(source.key, MediaKind.Image, row.generationModified, row.timelineSortMillis,
+                        row.width, row.height, row.durationMillis, isFavorite = row.isFavorite,
+                        displayName = row.displayName, sizeBytes = row.sizeBytes)
+                }
+            }
+            if (pendingRestoredManualMoment !== snapshot || runtime.value !== active || permission != access.value) return
+            if (sources != null) mutableManualMomentSession.value = ManualMomentSession(
+                snapshot.toDraft(), sources, snapshot.originSelection,
+                restoredManualOriginRevision.takeIf { ownsManualOrigin(snapshot.originSelection, it) },
+            )
+        } catch (cancelled: CancellationException) { throw cancelled
+        } catch (_: Exception) {
+            // Retain an explicit unavailable/Back route; never substitute fewer sources or save automatically.
+        } finally {
+            if (pendingRestoredManualMoment === snapshot) {
+                pendingRestoredManualMoment = null
+                mutableManualMomentRestoring.value = false
+                saveCreationState()
+            }
+        }
+    }
+
+    suspend fun createManualMoment(title: String, orderedKeys: List<MediaKey>, includeSpecialMedia: Boolean): String? {
+        if (mutableManualMomentBusy.value || manualMomentRecoveryChecking) return null
+        if (mutableManualMomentPendingCreate.value != null || manualMomentJournalUnavailable) {
+            checkManualMomentRecovery()
+            return null
+        }
+        val session = mutableManualMomentSession.value ?: return null
+        val active = runtime.value ?: return null
+        val permission = access.value
+        mutableManualMomentBusy.value = true
+        mutableManualMomentError.value = false
+        return try {
+            val request = ManualMomentCreateRequest.capture(session.draft, title, orderedKeys, includeSpecialMedia)
+            // Publish in-memory ownership before suspension: cancellation cannot hide a durable intent and admit a new draft.
+            mutableManualMomentPendingCreate.value = request
+            val id = withContext(Dispatchers.IO) {
+                check(manualMomentPendingStore.read() == null) { "Resolve the existing pending Save first" }
+                val repo = com.ugallery.core.data.ManualMomentRepository(active.database)
+                val status = repo.committedStatus(request.draft.toDraft(), request.orderedKeys, request.title, request.includeSpecialMedia)
+                check(status != com.ugallery.core.data.ManualMomentCommitStatus.Conflict)
+                if (status == com.ugallery.core.data.ManualMomentCommitStatus.Missing) verifyManualMomentProviderSources(request)
+                check(runtime.value === active && permission == access.value && mutableManualMomentSession.value === session)
+                manualMomentPendingStore.put(request) // Durably publish the reviewed intent BEFORE any Room write.
+                if (status == com.ugallery.core.data.ManualMomentCommitStatus.Committed) request.draft.id
+                else repo.create(request.draft.toDraft(), request.orderedKeys, request.title, request.includeSpecialMedia)
+                    .also { ManualMomentCommitProbe.afterCommit(getApplication(), request) }
+            }
+            mutableManualMomentPendingCreate.value = request
+            if (runtime.value !== active || permission != access.value || mutableManualMomentSession.value !== session) {
+                reconcilePendingManualMomentCreate(active)
+                return null
+            }
+            openMoment(id)
+            mutableManualMomentAcknowledgementToken.value = request.token
+            val consumeSelection = ownsManualOrigin(session.originSelection, session.originSelectionRevision)
+            mutableManualMomentSession.value = null
+            mutableManualMomentSessionId.value = null
+            pendingRestoredManualMoment = null
+            if (consumeSelection) clearSelection() else saveCreationState()
+            id
+        } catch (cancelled: CancellationException) {
+            mutableManualMomentPendingCreate.value?.let {
+                mutableManualMomentRecovery.value = ManualMomentRecovery(it, ManualMomentRecoveryStatus.Unavailable)
+            }
+            throw cancelled
+        } catch (_: Exception) {
+            mutableManualMomentError.value = true
+            reconcilePendingManualMomentCreate(active)
+            null
+        } finally { mutableManualMomentBusy.value = false }
+    }
+
+    private var pendingRestoredVideo = restoredCreationState?.video
+    private val mutableMemoryVideoRestoring = MutableStateFlow(pendingRestoredVideo != null)
+    val memoryVideoRestoring = mutableMemoryVideoRestoring.asStateFlow()
+    private val mutableMemoryVideoSources = MutableStateFlow<List<com.ugallery.core.editing.video.MemoryVideoSource>>(emptyList())
+    val memoryVideoSources = mutableMemoryVideoSources.asStateFlow()
+    private val mutableMemoryVideoTitle = MutableStateFlow(pendingRestoredVideo?.title)
+    val memoryVideoTitle = mutableMemoryVideoTitle.asStateFlow()
+
+    private val memoryVideoRequestEpoch = MemoryVideoRequestEpoch()
+    fun cancelPendingMemoryVideoPreparation() { memoryVideoRequestEpoch.cancel() }
+
+    private val mutableMemoryVideoSessionId = MutableStateFlow(pendingRestoredVideo?.id)
+    val memoryVideoSessionId = mutableMemoryVideoSessionId.asStateFlow()
+
+    fun canCreateSelectionVideo(): Boolean {
+        val selected = mutableSelection.value as? SelectionSpec.Explicit ?: return false
+        return SelectionMemoryVideoPreparation.acceptsSelection(selected.keys.toList()) &&
+            selected.keys.all { explicitTargets[it]?.kind == MediaKind.Image }
+    }
+
+    suspend fun prepareSelectionVideo(): Boolean {
+        val requestEpoch = memoryVideoRequestEpoch.begin()
+        // An explicit new request owns this route even when preparation later fails.
+        pendingRestoredVideo = null
+        mutableMemoryVideoRestoring.value = false
+        saveCreationState()
+        val selected = mutableSelection.value as? SelectionSpec.Explicit ?: return false
+        if (!canCreateSelectionVideo()) return false
+        val active = runtime.value ?: return false
+        val permission = access.value
+        val prepared = withContext(Dispatchers.IO) {
+            val reader = com.ugallery.core.mediastore.MediaStoreReader(getApplication<Application>().contentResolver)
+            SelectionMemoryVideoPreparation.prepare(selected.keys.toList(),
+                indexed = { active.database.libraryDao().media(it.volumeName, it.mediaStoreId) },
+                current = reader::readOne)
+        } ?: return false
+        if (!memoryVideoRequestEpoch.isCurrent(requestEpoch) || mutableSelection.value != selected || runtime.value !== active || access.value != permission) return false
+        mutableMemoryVideoTitle.value = null
+        mutableMemoryVideoSources.value = prepared.sources
+        mutableMemoryVideoSessionId.value = prepared.id
+        pendingRestoredVideo = null
+        mutableMemoryVideoRestoring.value = false
+        saveCreationState()
+        return true
+    }
+
+    suspend fun prepareSelectedMemoryVideo(): Boolean {
+        val requestEpoch = memoryVideoRequestEpoch.begin()
+        // An explicit new request owns this route even when preparation later fails.
+        pendingRestoredVideo = null
+        mutableMemoryVideoRestoring.value = false
+        saveCreationState()
+        val id = selectedMoment.value?.momentId ?: return false
+        val active = runtime.value ?: return false
+        val permission = access.value
+        val repository = active.moments
+        val detail = repository.observeMoment(id).first() ?: return false
+        val rows = repository.members(id)
+        if (!memoryVideoRequestEpoch.isCurrent(requestEpoch) || rows.isEmpty() || rows.size > 120 || mutableSelectedMomentId.value != id || runtime.value !== active || access.value != permission) return false
+        mutableMemoryVideoTitle.value = detail.title
+        mutableMemoryVideoSources.value = rows.map { row ->
+            com.ugallery.core.editing.video.MemoryVideoSource(
+                android.content.ContentUris.withAppendedId(
+                    android.provider.MediaStore.Images.Media.getContentUri(row.media.volumeName), row.media.mediaStoreId
+                ), row.media.generationModified, row.media.generationAdded
+            )
+        }
+        mutableMemoryVideoSessionId.value = java.util.UUID.randomUUID().toString()
+        pendingRestoredVideo = null
+        mutableMemoryVideoRestoring.value = false
+        saveCreationState()
+        return true
+    }
+
+    fun clearMemoryVideo() {
+        memoryVideoRequestEpoch.cancel()
+        pendingRestoredVideo = null
+        mutableMemoryVideoRestoring.value = false
+        mutableMemoryVideoSessionId.value = null
+        mutableMemoryVideoSources.value = emptyList()
+        mutableMemoryVideoTitle.value = null
+        saveCreationState()
+    }
+
+    /** Small task state only: no media bytes, cryptographic keys, passwords, exports or background replay. */
+    private fun saveCreationState() {
+        val video = pendingRestoredVideo ?: mutableMemoryVideoSessionId.value?.let { id ->
+            val sources = mutableMemoryVideoSources.value
+            if (sources.isEmpty() || sources.any { it.expectedGeneration == null || it.expectedGenerationAdded == null }) null
+            else CreationVideoSnapshot(id, mutableMemoryVideoTitle.value, sources.map {
+                CreationVideoSourceSnapshot(it.uri.toString(), requireNotNull(it.expectedGeneration), requireNotNull(it.expectedGenerationAdded))
+            })
+        }
+        val collage = pendingRestoredCollage ?: mutableCreationCollageSession.value?.let { session ->
+            if (session.sources.any { it.expectedGeneration == null || it.expectedGenerationAdded == null }) null
+            else CreationCollageSnapshot(session.id, session.sources.map {
+                CreationVideoSourceSnapshot(it.uri.toString(), requireNotNull(it.expectedGeneration), requireNotNull(it.expectedGenerationAdded))
+            })
+        }
+        val gif = pendingRestoredGif ?: mutableCreationGifSession.value?.let { session ->
+            if (session.sources.any { it.expectedGeneration == null || it.expectedGenerationAdded == null }) null
+            else CreationGifSnapshot(session.id, session.sources.map {
+                CreationVideoSourceSnapshot(it.uri.toString(), requireNotNull(it.expectedGeneration), requireNotNull(it.expectedGenerationAdded))
+            })
+        }
+        savedStateHandle[CreationStateKey] = CreationRestoreSnapshot.capture(
+            mutableSelection.value, explicitTargets.values, mutableSelectionCount.value, video, collage, gif,
+            pendingRestoredViewer ?: mutableViewerRestoreSnapshot.value,
+            pendingRestoredVideoEditor ?: videoEditorSnapshot,
+            pendingRestoredManualMoment?.let { snapshot ->
+                snapshot.copy(originSelection = snapshot.originSelection?.takeIf {
+                    ownsManualOrigin(it, restoredManualOriginRevision)
+                })
+            } ?: mutableManualMomentSession.value?.let { session ->
+                ManualMomentRestoreSnapshot.capture(session.draft, session.originSelection?.takeIf {
+                    ownsManualOrigin(it, session.originSelectionRevision)
+                })
+            },
+            pendingRestoredExternalVideoEditor ?: externalVideoEditorSnapshot,
+        )
+    }
+
+    /** Never render a restored URI before its current access, identity and both generations agree. */
+    private suspend fun restorePendingCreationVideo(active: GalleryRuntime) {
+        val snapshot = pendingRestoredVideo ?: return
+        val permission = access.value
+        try {
+            val restored = withContext(Dispatchers.IO) {
+                val reader = com.ugallery.core.mediastore.MediaStoreReader(getApplication<Application>().contentResolver)
+                snapshot.sources.map { source ->
+                    val uri = Uri.parse(source.uri)
+                    val key = MediaKey(uri.pathSegments.first(), android.content.ContentUris.parseId(uri))
+                    val row = active.database.libraryDao().media(key.volumeName, key.mediaStoreId) ?: return@withContext null
+                    val actual = reader.readOne(key) ?: return@withContext null
+                    if (!SelectionMemoryVideoPreparation.matchesCurrentPhoto(key, row, actual) ||
+                        actual.generationModified != source.generationModified || actual.generationAdded != source.generationAdded)
+                        return@withContext null
+                    com.ugallery.core.editing.video.MemoryVideoSource(uri, source.generationModified, source.generationAdded)
+                }
+            }
+            if (pendingRestoredVideo !== snapshot || runtime.value !== active || permission != access.value) return
+            if (restored != null) {
+                mutableMemoryVideoSources.value = restored
+                mutableMemoryVideoTitle.value = snapshot.title
+                mutableMemoryVideoSessionId.value = snapshot.id
+            }
+        } catch (cancelled: CancellationException) { throw cancelled
+        } catch (_: Exception) {
+            // The ordinary unavailable route offers Back; never silently substitute fewer sources.
+        } finally {
+            if (pendingRestoredVideo === snapshot) {
+                pendingRestoredVideo = null
+                mutableMemoryVideoRestoring.value = false
+                saveCreationState()
+            }
+        }
+    }
+
+    private val mutableSelectedMomentId = MutableStateFlow(savedStateHandle.get<String>(SelectedMomentStateKey))
+    val selectedMoment = combine(runtime, mutableSelectedMomentId) { current, id -> current to id }
+        .flatMapLatest { (current, id) ->
+            if (current == null || id == null) flowOf<MomentEntity?>(null)
+            else current.moments.observeMoment(id).map { it?.takeUnless { row -> row.state == "DISMISSED" } }.onStart { emit(null) }
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    private val participantsReload = MutableStateFlow(0L)
+    private val mutableParticipantsLoadFailed = MutableStateFlow(false)
+    val participantsLoadFailed = mutableParticipantsLoadFailed.asStateFlow()
+    val momentParticipants = combine(runtime, mutableSelectedMomentId, participantsReload) { current, id, _ -> current to id }
+        .flatMapLatest { (current, id) ->
+            mutableParticipantsLoadFailed.value = false
+            if (current == null || id == null) flowOf<com.ugallery.feature.collections.MomentParticipantsSnapshot?>(null)
+            else com.ugallery.core.data.MomentParticipantsRepository(current.database, com.ugallery.core.ml.PersonClusteringMlEngine.AlgorithmVersion)
+                .observe(id).map { state ->
+                    if (state == null) { mutableParticipantsLoadFailed.value = true; null }
+                    else com.ugallery.feature.collections.MomentParticipantsSnapshot(state.momentId, state.revision,
+                        if (state.manual) com.ugallery.feature.collections.MomentParticipantsMode.Manual else com.ugallery.feature.collections.MomentParticipantsMode.Automatic,
+                        state.selectedIds, state.people.map { person -> PersonCardUi(person.clusterId, person.displayName, person.memberCount,
+                            MediaKey(person.coverVolumeName, person.coverMediaStoreId)) }, state.automaticIds,
+                        coverGenerations = state.people.associate { it.clusterId to it.coverGenerationModified })
+                }.onStart { emit(null) }.catch { error ->
+                    if (error is CancellationException) throw error
+                    mutableParticipantsLoadFailed.value = true; emit(null)
+                }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun reloadMomentParticipants() { participantsReload.value++ }
+
+    suspend fun applyMomentParticipants(request: com.ugallery.feature.collections.MomentParticipantsApplyRequest): com.ugallery.feature.collections.MomentParticipantsApplyResult {
+        val active = runtime.value ?: return com.ugallery.feature.collections.MomentParticipantsApplyResult.Unavailable
+        if (mutableSelectedMomentId.value != request.momentId) return com.ugallery.feature.collections.MomentParticipantsApplyResult.Unavailable
+        val result = com.ugallery.core.data.MomentParticipantsRepository(active.database, com.ugallery.core.ml.PersonClusteringMlEngine.AlgorithmVersion)
+            .apply(request.momentId, request.expectedRevision, request.mode == com.ugallery.feature.collections.MomentParticipantsMode.Manual, request.selectedIds)
+        return when (result) {
+            com.ugallery.core.data.MomentParticipantsWrite.Saved -> com.ugallery.feature.collections.MomentParticipantsApplyResult.Saved
+            com.ugallery.core.data.MomentParticipantsWrite.Conflict -> com.ugallery.feature.collections.MomentParticipantsApplyResult.Conflict
+            com.ugallery.core.data.MomentParticipantsWrite.Unavailable -> com.ugallery.feature.collections.MomentParticipantsApplyResult.Unavailable
+        }
+    }
+
     private val refreshMutex = Mutex()
 
     fun onHardwareVolumeKey() {
         mutableHardwareVolumeKeys.tryEmit(Unit)
+    }
+
+    private val mutableCollectionLayoutWorking = MutableStateFlow(false)
+    val collectionLayoutWorking = mutableCollectionLayoutWorking.asStateFlow()
+    private val mutableCollectionLayoutFailed = MutableStateFlow(false)
+    val collectionLayoutFailed = mutableCollectionLayoutFailed.asStateFlow()
+    private val mutableCollectionLayoutRevision = MutableStateFlow(0)
+    val collectionLayoutRevision = mutableCollectionLayoutRevision.asStateFlow()
+
+    fun saveCollectionLayout(order: List<String>, hidden: Set<String>) {
+        if (mutableCollectionLayoutWorking.value) return
+        val ordered = order.toList()
+        val invisible = hidden.toSet()
+        mutableCollectionLayoutWorking.value = true
+        mutableCollectionLayoutFailed.value = false
+        viewModelScope.launch {
+            try {
+                gallerySettingsRepository.update { it.copy(library = it.library.copy(collectionOrder = ordered, hiddenCollections = invisible)) }
+                mutableCollectionLayoutRevision.value += 1
+            } catch (cancelled: CancellationException) { throw cancelled
+            } catch (_: Exception) { mutableCollectionLayoutFailed.value = true
+            } finally { mutableCollectionLayoutWorking.value = false }
+        }
     }
 
     fun updateGallerySettings(transform: (GallerySettings) -> GallerySettings) {
@@ -595,12 +1566,27 @@ class GalleryViewModel @Inject constructor(
                         knownExportStatuses[job.id] != VideoExportJobStatus.Completed
                     ) {
                         mutableVideoExportCompleted.emit(job)
+                        val editor = mutableVideoEditor.value
+                        val external = mutableExternalMedia.value
+                        if (external != null && editor?.exportJobId == job.id) {
+                            val output = Uri.parse(job.outputUri)
+                            if (external.editMode) {
+                                mutableExternalSaved.emit(output)
+                            } else {
+                                mutableExternalMedia.value = null
+                                mutableExternalPhotoState.value = null
+                                mutableVideoEditor.value = null
+                                publishedTimelineMedia(output, MediaKind.Video)?.let(::openMedia)
+                                mutableEditorCopyOpened.emit(Unit)
+                            }
+                        }
                         viewModelScope.launch { refreshLibrary() }
                     }
                 }
                 knownExportStatuses = jobs.associate { it.id to it.status }
                 val session = mutableVideoEditor.value ?: return@collect
                 mutableVideoEditor.value = session.withVideoExportState(jobs)
+                captureVideoEditorRecovery()
             }
         }
         if (mlScheduler.hasConsent(MlTaskType.FaceDetection)) monitorFaceProgress()
@@ -613,15 +1599,63 @@ class GalleryViewModel @Inject constructor(
                 throw cancelled
             } catch (_: Throwable) {
                 mutableEngineState.value = LibraryEngineState.Error
+                pendingRestoredViewer = null
+                mutableViewerSourceChecking.value = false
+                pendingRestoredVideoEditor = null
+                mutableVideoEditorOpening.value = false
+                pendingRestoredGif = null
+                mutableCreationGifRestoring.value = false
+                pendingRestoredCollage = null
+                mutableCreationCollageRestoring.value = false
+                pendingRestoredVideo = null
+                mutableMemoryVideoRestoring.value = false
+                pendingRestoredManualMoment = null
+                mutableManualMomentRestoring.value = false
+                saveCreationState()
                 return@launch
             }
             runtime.value = created
+            mutablePetIdentityRepository.value = GalleryPetIdentityRepository(created.database,application.contentResolver)
+            mutableLocalSharingController.value = GalleryLocalSharingWorker.controller(application,created.database)
+            mutableLocalSharingController.value?.reconcile()
+            mutablePlacesSource.value = GalleryPlacesSource(application,created.database)
+            GalleryOfflinePlacesWorker.reconcile(application,offlinePlacesController)
+            mutableRemoteBackupController.value = GalleryRemoteBackupWorker.controller(application, created.database)
+            mutableRemoteBackupController.value?.reconcile()
+            backupTaskController.reconcile()
+            recoverIncompleteBackups()
+            viewModelScope.launch(Dispatchers.IO) {
+                created.database.momentDiscoveryDao().observeRevision().distinctUntilChanged()
+                    .debounce(750L).collect {
+                        // Database mutations also cover portable restores and local analysis;
+                        // they need not wait for a later foreground MediaStore refresh.
+                        try { created.moments.generateIfNeeded() }
+                        catch (cancelled: CancellationException) { throw cancelled }
+                        catch (_: Exception) {
+                            // The durable checkpoint remains resumable; make the retry path visible.
+                            mutableShareError.emit(getApplication<Application>().getString(R.string.memory_discovery_failed))
+                        }
+                    }
+            }
+
+            viewModelScope.launch(Dispatchers.IO) { runCatching { created.motionKeyFrames.pruneOrphans() } }
             viewModelScope.launch {
-                created.thumbnails.memoryPressureGeneration.collect { generation ->
+                thumbnailLoader.filterNotNull().flatMapLatest { it.memoryPressureGeneration }.collect { generation ->
                     if (generation > 0) {
                         adjacentPhotoJob?.cancel()
                         mutableAdjacentPhotoStates.value = emptyMap()
                     }
+                }
+            }
+            viewModelScope.launch {
+                created.motionKeyFrames.versions().distinctUntilChanged().collect {
+                    val previous = created.thumbnails
+                    created.thumbnails = created.thumbnailFactory()
+                    thumbnailEpoch.value++
+                    adjacentPhotoJob?.cancel()
+                    mutableAdjacentPhotoStates.value = emptyMap()
+                    mutableCurrentMedia.value?.takeIf { it.kind == MediaKind.Image }?.let { renderViewerMedia(it) }
+                    previous.close()
                 }
             }
             semanticModelManager = SemanticModelManager(application, created.database).also { manager ->
@@ -643,12 +1677,23 @@ class GalleryViewModel @Inject constructor(
                     forceFullReconciliation = batch.requiresFullVolumeReconciliation,
                 )
             }.also { it.start() }
-            refreshLibrary()
+            reconcilePendingManualMomentCreate(created)
+            refreshLibrary(reconcileUnobservedChanges = true)
+            restorePendingCreationVideo(created)
+            restorePendingCreationCollage(created)
+            restorePendingCreationGif(created)
+            restorePendingManualMoment(created)
+            restorePendingViewer(created)
+            restorePendingVideoEditor(created)
+            restorePendingExternalVideoEditor()
+            if (mutableEngineState.value == LibraryEngineState.Ready) refreshSelectionCount()
             semanticModelManager?.scheduleActiveIndexUpdate()
         }
     }
 
     fun onForeground() {
+        mutablePlacesSource.value?.refreshPermission()
+        ownSyncController.reconcile()
         mlScheduler.onAppForegrounded()
         semanticModelManager?.onAppForegrounded()
         if (mlScheduler.hasConsent(MlTaskType.FaceDetection)) monitorFaceProgress()
@@ -1280,19 +2325,73 @@ class GalleryViewModel @Inject constructor(
         val action = intent.action
         val uri = intent.data ?: return false
         if (action != Intent.ACTION_VIEW && action != Intent.ACTION_EDIT) return false
-        val mime = getApplication<Application>().contentResolver.getType(uri) ?: intent.type
+        // Activity recreation replays its original Intent before runtime initialization.
+        // Keep the restored draft authoritative until an explicit checked recovery.
+        if (externalVideoDraftIsRestoring(pendingRestoredExternalVideoEditor ?: externalVideoEditorSnapshot,
+                mutableVideoEditorSessionId.value, mutableVideoEditorOpening.value, uri.toString())) return true
+        // A repeated edit request must not discard a draft whose grant has expired.
+        val currentEditor = mutableVideoEditor.value
+        if (currentEditor?.source?.libraryMedia == null && currentEditor?.source?.uri == uri &&
+            mutableExternalMedia.value?.uri == uri) {
+            revalidateExternalGrant()
+            return true
+        }
+        val mime = runCatching { getApplication<Application>().contentResolver.getType(uri) }.getOrNull() ?: intent.type
         val kind = when {
             mime?.startsWith("image/") == true -> MediaKind.Image
             mime?.startsWith("video/") == true -> MediaKind.Video
             else -> return false
         }
         val available = canOpen(uri)
-        mutableExternalMedia.value = ExternalMedia(uri, mime, kind, action == Intent.ACTION_EDIT, available)
+        closePhotoEditor()
+        closeVideoEditor()
+        val generation = ++externalOpenGeneration
+        val request = ExternalMedia(
+            uri = uri,
+            mimeType = mime,
+            kind = kind,
+            editMode = action == Intent.ACTION_EDIT,
+            available = available,
+        )
+        mutableExternalMedia.value = request
         if (available && kind == MediaKind.Image) loadExternalPhoto(uri)
+        if (available) viewModelScope.launch(Dispatchers.IO) {
+            val probed = probeExternalMedia(request)
+            withContext(Dispatchers.Main) {
+                if (externalOpenGeneration == generation && mutableExternalMedia.value?.uri == uri) {
+                    mutableExternalMedia.value = probed
+                    // Never let a stale successful metadata probe undo a foreground revocation.
+                    revalidateExternalGrant()
+                }
+            }
+        }
         return true
     }
 
+    fun openExternalEditor() {
+        if (externalVideoDraftIsRestoring(pendingRestoredExternalVideoEditor ?: externalVideoEditorSnapshot,
+                mutableVideoEditorSessionId.value, mutableVideoEditorOpening.value)) return
+        val external = mutableExternalMedia.value?.takeIf { it.available && it.metadataReady } ?: return
+        val stableId = external.uri.toString()
+        if (mutablePhotoEditor.value?.source?.uriString == stableId ||
+            mutableVideoEditor.value?.source?.uriString == stableId
+        ) return
+        val source = EditorMediaSource(
+            uriString = external.uri.toString(),
+            kind = external.kind,
+            mimeType = external.mimeType,
+            displayName = external.displayName,
+            width = external.width,
+            height = external.height,
+            durationMillis = external.durationMillis,
+        )
+        if (external.kind == MediaKind.Image) openPhotoEditor(source) else openVideoEditor(source)
+    }
+
     fun clearExternal() {
+        externalOpenGeneration++
+        closePhotoEditor()
+        closeVideoEditor()
         mutableExternalMedia.value = null
         mutableExternalPhotoState.value = null
     }
@@ -1337,10 +2436,15 @@ class GalleryViewModel @Inject constructor(
 
     /** Idempotent selection mutation used by drag gestures and accessibility actions. */
     fun setMediaSelected(media: TimelineMedia, selected: Boolean) {
+        if (media.stack != null && selected) {
+            selectTimelineStack(media)
+            return
+        }
         val before = mutableSelection.value
         val wasSelected = SelectionReducer.isSelected(before, media.key)
         if (wasSelected == selected) return
         val updated = SelectionReducer.setSelected(before, media.key, selected)
+        selectionRevision++
         mutableSelection.value = updated
         when (updated) {
             is SelectionSpec.Explicit -> {
@@ -1356,21 +2460,68 @@ class GalleryViewModel @Inject constructor(
                 ).coerceAtLeast(0)
             }
         }
+        saveCreationState()
+        if (updated is SelectionSpec.QueryAll) refreshSelectionCount()
+    }
+
+    /** A late count cannot revive Clear or overwrite a new selection of the same query (ABA). */
+    private fun refreshSelectionCount() {
+        val selected = mutableSelection.value as? SelectionSpec.QueryAll ?: return
+        val revision = selectionRevision
+        val active = runtime.value ?: return
+        viewModelScope.launch {
+            try {
+                val count = active.selectionTargets.count(selected.querySnapshot)
+                if (selectionRevision == revision && mutableSelection.value == selected && runtime.value === active) {
+                    mutableSelectionCount.value = SelectionReducer.count(selected, count)
+                    saveCreationState()
+                }
+            } catch (cancelled: CancellationException) { throw cancelled
+            } catch (_: Exception) { /* Retain query; unavailable storage must not crash task restoration. */ }
+        }
+    }
+
+    private var timelineStackSelectionJob: Job? = null
+
+    private fun selectTimelineStack(media: TimelineMedia) {
+        val stack = media.stack ?: return
+        val active = runtime.value ?: return
+        val before = mutableSelection.value
+        val library = gallerySettings.value.library
+        timelineStackSelectionJob?.cancel()
+        timelineStackSelectionJob = viewModelScope.launch {
+            try {
+                val members = active.timeline.selectStack(stack, library)
+                // Never resurrect selection after Clear, a different selection, or changed filters.
+                if (mutableSelection.value != before || gallerySettings.value.library != library) return@launch
+                members.forEach { setMediaSelected(it, true) }
+            } catch (cancelled: CancellationException) { throw cancelled
+            } catch (_: Exception) {
+                mutableShareError.emit(getApplication<Application>().getString(
+                    com.ugallery.feature.photos.R.string.timeline_stack_changed))
+            }
+        }
     }
 
     fun clearSelection() {
+        timelineStackSelectionJob?.cancel()
+        selectionRevision++
         mutableSelection.value = SelectionReducer.clear()
         explicitTargets.clear()
         mutableSelectionCount.value = 0
+        saveCreationState()
     }
 
     fun selectAllAlbum(album: AlbumSummary, filter: AlbumMediaFilter, sort: AlbumSort) {
+        timelineStackSelectionJob?.cancel()
         val query = albumQuery(album.key, filter, sort)
-        mutableSelection.value = SelectionSpec.queryAll(query)
+        val selected = SelectionSpec.queryAll(query)
+        selectionRevision++
+        mutableSelection.value = selected
         explicitTargets.clear()
-        viewModelScope.launch {
-            mutableSelectionCount.value = runtime.value?.selectionTargets?.count(query) ?: 0
-        }
+        mutableSelectionCount.value = 0
+        saveCreationState()
+        refreshSelectionCount()
     }
 
     fun selectAllTimeline() = selectAll(currentLibraryQuery())
@@ -1384,11 +2535,14 @@ class GalleryViewModel @Inject constructor(
     )
 
     private fun selectAll(query: MediaQuery) {
-        mutableSelection.value = SelectionSpec.queryAll(query)
+        timelineStackSelectionJob?.cancel()
+        val selected = SelectionSpec.queryAll(query)
+        selectionRevision++
+        mutableSelection.value = selected
         explicitTargets.clear()
-        viewModelScope.launch {
-            mutableSelectionCount.value = runtime.value?.selectionTargets?.count(query) ?: 0
-        }
+        mutableSelectionCount.value = 0
+        saveCreationState()
+        refreshSelectionCount()
     }
 
     fun beginSelectionSystemAction(action: MediaAction) {
@@ -1473,6 +2627,78 @@ class GalleryViewModel @Inject constructor(
     fun isArchived(media: TimelineMedia): Flow<Boolean> = runtime.filterNotNull()
         .flatMapLatest { it.archive.isArchived(media.key) }
 
+    private val mutableAlbumRename = MutableStateFlow<AlbumRenameState?>(null)
+    val albumRename = mutableAlbumRename.asStateFlow()
+
+    fun beginAlbumRename(album: AlbumSummary) {
+        val key = album.key as? AlbumKey.Virtual ?: return
+        if (mutableAlbumRename.value?.working == true) return
+        mutableAlbumRename.value = AlbumRenameState(key.albumId, album.name.orEmpty())
+    }
+
+    fun updateAlbumRename(name: String) {
+        val state = mutableAlbumRename.value?.takeUnless { it.working } ?: return
+        mutableAlbumRename.value = state.copy(name = name, saveFailed = false)
+    }
+
+    fun dismissAlbumRename() {
+        if (mutableAlbumRename.value?.working != true) mutableAlbumRename.value = null
+    }
+
+    fun confirmAlbumRename(name: String) {
+        val state = mutableAlbumRename.value?.takeUnless { it.working } ?: return
+        val normalized = name.trim().replace(Regex("\\s+"), " ")
+        if (normalized.isEmpty() || normalized.length > com.ugallery.core.data.GalleryAlbumRepository.MaxAlbumNameLength) return
+        mutableAlbumRename.value = state.copy(name = name, working = true, saveFailed = false)
+        viewModelScope.launch {
+            try {
+                val active = runtime.value
+                val renamed = active != null && active.albums.renameVirtualAlbum(state.albumId, normalized)
+                if (renamed) {
+                    // Keep the route, paging request and selection intact; update only this title.
+                    val selected = mutableSelectedAlbum.value
+                    if (selected?.key == AlbumKey.Virtual(state.albumId)) {
+                        mutableSelectedAlbum.value = selected.copy(name = normalized)
+                    }
+                    mutableAlbumRename.value = null
+                } else {
+                    mutableAlbumRename.value = state.copy(name = name, saveFailed = true)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                mutableAlbumRename.value = state.copy(name = name, saveFailed = true)
+            }
+        }
+    }
+
+    private val mutableAlbumCoverWorking = MutableStateFlow(false)
+    val albumCoverWorking = mutableAlbumCoverWorking.asStateFlow()
+    private val mutableAlbumCoverFailed = MutableStateFlow(false)
+    val albumCoverFailed = mutableAlbumCoverFailed.asStateFlow()
+    private val mutableAlbumCoverRevision = MutableStateFlow(0)
+    val albumCoverRevision = mutableAlbumCoverRevision.asStateFlow()
+
+    fun setAlbumCover(album: AlbumSummary, media: TimelineMedia?) {
+        val key = album.key as? AlbumKey.Virtual ?: return
+        if (mutableAlbumCoverWorking.value) return
+        mutableAlbumCoverWorking.value = true
+        mutableAlbumCoverFailed.value = false
+        viewModelScope.launch {
+            try {
+                val saved = runtime.value?.albums?.setVirtualAlbumCover(key.albumId, media?.key) == true
+                mutableAlbumCoverFailed.value = !saved
+                if (saved) mutableAlbumCoverRevision.value += 1
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                mutableAlbumCoverFailed.value = true
+            } finally {
+                mutableAlbumCoverWorking.value = false
+            }
+        }
+    }
+
     fun createVirtualAlbum(name: String) {
         viewModelScope.launch { runtime.value?.albums?.createVirtualAlbum(name) }
     }
@@ -1499,6 +2725,13 @@ class GalleryViewModel @Inject constructor(
             }
             withContext(Dispatchers.Main) { clearSelection() }
         }
+    }
+
+    fun selectedPdfSources(): List<Uri> {
+        val selected = mutableSelection.value as? SelectionSpec.Explicit ?: return emptyList()
+        val targets = selected.keys.mapNotNull(explicitTargets::get)
+        if (targets.size != selected.keys.size || targets.size !in 1..100 || targets.any { it.kind != MediaKind.Image }) return emptyList()
+        return targets.map { it.uri() }
     }
 
     fun selectionShareIntent(): Intent? {
@@ -1561,6 +2794,111 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
+    fun motionKeyFrame(media: TimelineMedia) = runtime.filterNotNull().flatMapLatest {
+        it.motionKeyFrames.observe(media.key)
+    }.map { it?.takeIf { row -> row.generationModified == media.generationModified } }
+
+    suspend fun setMotionKeyFrame(media: TimelineMedia, timeUs: Long, file: java.io.File, revision: String?): Boolean {
+        val active = runtime.value ?: return false
+        active.motionKeyFrames.set(media.key, media.generationModified, timeUs, file, revision)
+        return true
+    }
+
+    suspend fun resetMotionKeyFrame(media: TimelineMedia, revision: String): Boolean =
+        runtime.value?.motionKeyFrames?.reset(media.key, revision) ?: false
+
+    private fun motionDisplayUri(active: GalleryRuntime, media: TimelineMedia): Uri =
+        runCatching { active.motionKeyFrames.displayUri(media.key, media.generationModified) }.getOrNull() ?: media.uri()
+
+    /** Closing the viewer invalidates pending reads; a late callback cannot resurrect its route. */
+    fun clearViewerRecovery() {
+        viewerRestoreEpoch.cancel()
+        viewerSnapshotJob?.cancel()
+        pendingRestoredViewer = null
+        mutableViewerRestoreSnapshot.value = null
+        mutableViewerSourceChecking.value = false
+        mutableViewerRecovered.value = false
+        saveCreationState()
+    }
+
+    private fun captureViewerRecovery(media: TimelineMedia) {
+        val epoch = viewerRestoreEpoch.begin()
+        viewerSnapshotJob?.cancel()
+        pendingRestoredViewer = null
+        mutableViewerRestoreSnapshot.value = null
+        mutableViewerRecovered.value = false
+        mutableViewerSourceChecking.value = true
+        saveCreationState()
+        val active = runtime.value
+        val permission = access.value
+        val query = viewerQuery
+        if (active == null) { mutableViewerSourceChecking.value = false; return }
+        viewerSnapshotJob = viewModelScope.launch {
+            try {
+                val snapshot = withContext(Dispatchers.IO) {
+                    val row = active.database.libraryDao().media(media.key.volumeName, media.key.mediaStoreId)
+                        ?: return@withContext null
+                    val actual = com.ugallery.core.mediastore.MediaStoreReader(getApplication<Application>().contentResolver)
+                        .readOne(media.key) ?: return@withContext null
+                    if (!row.isAccessible || row.generationModified != media.generationModified ||
+                        row.generationModified != actual.generationModified || row.generationAdded != actual.generationAdded ||
+                        actual.key != media.key || actual.kind != media.kind || row.mediaType != (if (media.kind == MediaKind.Image) 1 else 3) ||
+                        row.isTrashed != media.isTrashed || actual.isTrashed != media.isTrashed) return@withContext null
+                    ViewerRestoreSnapshot(media.key, media.kind, actual.generationModified, actual.generationAdded, actual.isTrashed, query)
+                }
+                if (!viewerRestoreEpoch.isCurrent(epoch) || runtime.value !== active || permission != access.value ||
+                    mutableCurrentMedia.value?.let { it.key == media.key && it.generationModified == media.generationModified } != true) return@launch
+                mutableViewerRestoreSnapshot.value = snapshot
+            } catch (cancelled: CancellationException) { throw cancelled
+            } catch (_: Exception) {
+                // Viewing can report its ordinary source error; never persist an unvalidated identity.
+            } finally {
+                if (viewerRestoreEpoch.isCurrent(epoch)) {
+                    mutableViewerSourceChecking.value = false
+                    saveCreationState()
+                }
+            }
+        }
+    }
+
+    private suspend fun restorePendingViewer(active: GalleryRuntime) {
+        val snapshot = pendingRestoredViewer ?: return
+        val permission = access.value
+        try {
+            val media = withContext(Dispatchers.IO) {
+                val row = active.database.libraryDao().media(snapshot.key.volumeName, snapshot.key.mediaStoreId)
+                    ?: return@withContext null
+                val actual = com.ugallery.core.mediastore.MediaStoreReader(getApplication<Application>().contentResolver)
+                    .readOne(snapshot.key) ?: return@withContext null
+                if (!row.isAccessible || row.mediaType != (if (snapshot.kind == MediaKind.Image) 1 else 3) ||
+                    row.generationModified != actual.generationModified || row.generationAdded != actual.generationAdded ||
+                    row.isTrashed != actual.isTrashed ||
+                    !snapshot.matchesSource(actual.key, actual.kind, actual.generationModified, actual.generationAdded, actual.isTrashed))
+                    return@withContext null
+                TimelineMedia(snapshot.key, snapshot.kind, actual.generationModified, row.timelineSortMillis,
+                    row.width, row.height, row.durationMillis, row.dateExpiresSeconds?.times(1_000), row.isFavorite,
+                    row.isTrashed, row.displayName, row.sizeBytes)
+            }
+            if (pendingRestoredViewer !== snapshot || runtime.value !== active || permission != access.value) return
+            if (media != null) {
+                viewerQuery = snapshot.query
+                mutableCurrentMedia.value = media
+                mutableViewerRestoreSnapshot.value = snapshot
+                mutableViewerRecovered.value = true
+                renderViewerMedia(media, forceWindowReload = true)
+            }
+        } catch (cancelled: CancellationException) { throw cancelled
+        } catch (_: Exception) {
+            // Keep the source-bound unavailable route with Back, never substitute another item.
+        } finally {
+            if (pendingRestoredViewer === snapshot) {
+                pendingRestoredViewer = null
+                mutableViewerSourceChecking.value = false
+                saveCreationState()
+            }
+        }
+    }
+
     fun openMedia(media: TimelineMedia, sourceQuery: MediaQuery = MediaQuery()) {
         viewerQuery = sourceQuery
         selectViewerMedia(media, forceWindowReload = true)
@@ -1577,6 +2915,12 @@ class GalleryViewModel @Inject constructor(
 
     fun selectViewerMedia(media: TimelineMedia, forceWindowReload: Boolean = false) {
         mutableCurrentMedia.value = media
+        captureViewerRecovery(media)
+        renderViewerMedia(media, forceWindowReload)
+    }
+
+    /** Rendering a new cover does not open a closed viewer or replace process recovery ownership. */
+    private fun renderViewerMedia(media: TimelineMedia, forceWindowReload: Boolean = false) {
         val previousViewer = mutableViewerState.value
         val existingIndex = previousViewer.items.indexOfFirst { it.key == media.key }
         val nearPreviousEdge = existingIndex in 0 until ViewerWindowRefreshThreshold && previousViewer.hasPrevious
@@ -1587,7 +2931,8 @@ class GalleryViewModel @Inject constructor(
         } else {
             ViewerUiState(listOf(media), 0, isLoading = true)
         }
-        mutableSelectedMoment.value = null
+        mutableSelectedMomentId.value = null
+        savedStateHandle[SelectedMomentStateKey] = null
         mutableCheapDetails.value = null
         mutableExifDetails.value = null
         mutableDetectedText.value = null
@@ -1600,7 +2945,7 @@ class GalleryViewModel @Inject constructor(
                 ?: active.thumbnails.bestCached(media.key, media.generationModified)
             photoJob = viewModelScope.launch {
                 PhotoViewerPipeline(active.decoder).load(
-                    media.uri(),
+                    withContext(Dispatchers.IO) { motionDisplayUri(active, media) },
                     1_440,
                     3_120,
                     cachedThumbnail = cachedThumbnail,
@@ -1694,7 +3039,7 @@ class GalleryViewModel @Inject constructor(
                     async(Dispatchers.IO) {
                         try {
                             val drawable = active.decoder.screenDrawable(
-                                neighbor.uri(),
+                                motionDisplayUri(active, neighbor),
                                 ViewerAdjacentPreloadPlanner.PreviewWidthPx,
                                 ViewerAdjacentPreloadPlanner.PreviewHeightPx,
                             )
@@ -1720,34 +3065,55 @@ class GalleryViewModel @Inject constructor(
     fun openPhotoEditor(media: TimelineMedia) {
         if (media.kind != MediaKind.Image) return
         mutableCurrentMedia.value = media
+        captureViewerRecovery(media)
+        openPhotoEditor(EditorMediaSource(
+            uriString = mediaUri(media).toString(), kind = media.kind, libraryMedia = media,
+            displayName = media.displayName, width = media.width, height = media.height,
+        ))
+    }
+
+    private fun openPhotoEditor(source: EditorMediaSource) {
         photoEditorJob?.cancel()
         photoAutoEnhancementJob?.cancel()
         photoAutoEnhancementGeneration++
         closeRawPreviewSession()
+        val generation = ++photoEditorOpenGeneration
+        mutablePhotoEditorOpening.value = true
         photoEditorJob = viewModelScope.launch {
+            try {
             val active = runtime.value ?: return@launch
-            val initial = withContext(Dispatchers.IO) {
-                active.database.editRecipeDao().load(
-                    EditRecipe.forSource(media.key, media.generationModified).recipeId,
-                )
-            } ?: EditRecipe.forSource(media.key, media.generationModified)
-            val storedMedia = withContext(Dispatchers.IO) {
+            photoRecipeDiscardJob?.join()
+            if (generation != photoEditorOpenGeneration) return@launch
+            val libraryMedia = source.libraryMedia
+            val entry = if (libraryMedia != null) withContext(Dispatchers.IO) {
+                active.database.withTransaction {
+                    val dao = active.database.editRecipeDao()
+                    val id = EditRecipe.forSource(libraryMedia.key, libraryMedia.generationModified).recipeId
+                    dao.load(id)?.let { it to requireNotNull(dao.recipe(id)).updatedAtMillis }
+                }
+            } else null
+            val initial = entry?.first ?: if (libraryMedia != null)
+                EditRecipe.forSource(libraryMedia.key, libraryMedia.generationModified)
+            else EditRecipe.ephemeral(source.stableId.hashCode().toUInt().toString(16))
+            val storedMedia = libraryMedia?.let { media -> withContext(Dispatchers.IO) {
                 active.database.libraryDao().media(media.key.volumeName, media.key.mediaStoreId)
-            }
-            val isRaw = isRawMimeOrName(storedMedia?.mimeType, storedMedia?.displayName)
+            } }
+            val isRaw = isRawMimeOrName(storedMedia?.mimeType ?: source.mimeType, storedMedia?.displayName ?: source.displayName)
             val rawSettings = initial.operations.filterIsInstance<EditOperation.RawDevelop>()
                 .lastOrNull()?.settings ?: RawDevelopmentSettings()
             val stagedRaw = if (isRaw) runCatching {
                 RawDeveloper(
                     getApplication<Application>().contentResolver,
                     java.io.File(getApplication<Application>().cacheDir, "raw-scratch"),
-                ).openPreviewSession(mediaUri(media))
+                ).openPreviewSession(source.uri)
             }.getOrNull() else null
             rawPreviewSession = stagedRaw
             val rawMetadata = stagedRaw?.let { runCatching { it.inspect() }.getOrNull() }
             mutablePhotoEditor.value = PhotoEditorSession(
-                media = media,
+                source = source,
                 history = EditHistory.initial(initial),
+                entryRecipe = entry?.first,
+                entryRecipeUpdatedAtMillis = entry?.second ?: 0,
                 content = PhotoEditorContentState(
                     isRendering = true,
                     isAutoEnhancementAnalyzing = !isRaw,
@@ -1762,12 +3128,15 @@ class GalleryViewModel @Inject constructor(
                     rawSettings = rawSettings,
                 ),
             )
-            renderPhotoEditorPreview(active, media, initial)
+            renderPhotoEditorPreview(active, source, initial)
             if (isRaw && stagedRaw != null) {
-                startRawPreviewWorker(media, stagedRaw)
+                startRawPreviewWorker(source, stagedRaw)
                 mutablePhotoEditor.value?.content?.rawSettings?.takeIf { it != rawSettings }?.let {
                     enqueueRawPreview(it, initial, final = true)
                 }
+            }
+            } finally {
+                if (generation == photoEditorOpenGeneration) mutablePhotoEditorOpening.value = false
             }
         }
     }
@@ -1886,12 +3255,13 @@ class GalleryViewModel @Inject constructor(
             photoEditorJob?.cancel()
             photoEditorJob = viewModelScope.launch {
                 val active = runtime.value ?: return@launch
-                renderPhotoEditorPreview(active, session.media, updated.present)
+                renderPhotoEditorPreview(active, session.source, updated.present)
             }
         }
     }
 
     private fun persistPhotoRecipe(recipe: EditRecipe) {
+        if (recipe.source == null) return
         photoRecipeJob?.cancel()
         photoRecipeJob = viewModelScope.launch(Dispatchers.IO) {
             delay(80)
@@ -1930,7 +3300,7 @@ class GalleryViewModel @Inject constructor(
             photoEditorJob?.cancel()
             photoEditorJob = viewModelScope.launch {
                 val active = runtime.value ?: return@launch
-                renderPhotoEditorPreview(active, session.media, updated.present)
+                renderPhotoEditorPreview(active, session.source, updated.present)
             }
         }
     }
@@ -1943,7 +3313,9 @@ class GalleryViewModel @Inject constructor(
         photoEditorJob = viewModelScope.launch {
             val active = runtime.value ?: return@launch
             val storedMime = withContext(Dispatchers.IO) {
-                active.database.libraryDao().media(session.media.key.volumeName, session.media.key.mediaStoreId)?.mimeType
+                session.source.libraryMedia?.let { media ->
+                    active.database.libraryDao().media(media.key.volumeName, media.key.mediaStoreId)?.mimeType
+                } ?: session.source.mimeType
             }
             val outputMime = if (session.content.isRaw) {
                 if (session.content.rawOutputFormat == RawOutputFormat.JpegSrgb) "image/jpeg" else "image/tiff"
@@ -1966,7 +3338,7 @@ class GalleryViewModel @Inject constructor(
                     when (val result = RawDeveloper(
                         getApplication<Application>().contentResolver,
                         java.io.File(getApplication<Application>().cacheDir, "raw-scratch"),
-                    ).export(mediaUri(session.media), session.content.rawSettings, session.content.rawOutputFormat, temp)) {
+                    ).export(session.source.uri, session.content.rawSettings, session.content.rawOutputFormat, temp)) {
                         is RawExportOutcome.Completed -> if (geometryRecipe.isIdentity) {
                             publishPhotoResult(result.file, result.mimeType, extension, result.warnings)
                         } else when (val transformed = PhotoImageRenderer(getApplication<Application>().contentResolver).export(
@@ -1981,7 +3353,7 @@ class GalleryViewModel @Inject constructor(
                         is RawExportOutcome.Failure -> updatePhotoExportFailure(result.reason)
                     }
                 } else when (val result = PhotoImageRenderer(getApplication<Application>().contentResolver).export(
-                    mediaUri(session.media), session.history.present, temp,
+                    session.source.uri, session.history.present, temp,
                 )) {
                     is PhotoExportOutcome.Completed -> publishPhotoResult(
                         result.file, result.mimeType ?: outputMime, extension, result.warnings,
@@ -2025,15 +3397,21 @@ class GalleryViewModel @Inject constructor(
 
     fun closePhotoEditor() {
         val session = mutablePhotoEditor.value
+        photoEditorOpenGeneration++
+        mutablePhotoEditorOpening.value = false
         photoEditorJob?.cancel()
         photoAutoEnhancementJob?.cancel()
         photoAutoEnhancementGeneration++
-        photoRecipeJob?.cancel()
+        val pendingRecipeWrite = photoRecipeJob
+        photoRecipeJob = null
+        pendingRecipeWrite?.cancel()
         closeRawPreviewSession()
-        if (session != null) viewModelScope.launch {
-            val active = runtime.value ?: return@launch
-            withContext(Dispatchers.IO) {
-                active.database.editRecipeDao().deleteRecipe(session.history.present.recipeId)
+        if (session?.source?.libraryMedia != null) {
+            val previousDiscard = photoRecipeDiscardJob
+            photoRecipeDiscardJob = viewModelScope.launch {
+                previousDiscard?.join()
+                pendingRecipeWrite?.join()
+                restorePhotoRecipeEntry(session)
             }
         }
         session?.content?.preview?.recycle()
@@ -2042,6 +3420,22 @@ class GalleryViewModel @Inject constructor(
             it !== session.content.preview && it !== session.content.originalPreview
         }?.recycle()
         mutablePhotoEditor.value = null
+    }
+
+    private suspend fun restorePhotoRecipeEntry(session: PhotoEditorSession) {
+        val media = session.source.libraryMedia ?: return
+        val active = runtime.value ?: return
+        withContext(Dispatchers.IO) {
+            active.database.withTransaction {
+                val row = active.database.libraryDao().media(media.key.volumeName, media.key.mediaStoreId)
+                // A deleted/replaced source is not resurrected by editor cleanup.
+                if (row == null || row.generationModified != media.generationModified) return@withTransaction
+                val dao = active.database.editRecipeDao()
+                val entry = session.entryRecipe
+                if (entry == null) dao.deleteRecipe(session.history.present.recipeId)
+                else if (dao.load(entry.recipeId) != entry) dao.replace(entry, session.entryRecipeUpdatedAtMillis)
+            }
+        }
     }
 
     private fun closeRawPreviewSession() {
@@ -2056,7 +3450,7 @@ class GalleryViewModel @Inject constructor(
     }
 
     private fun startRawPreviewWorker(
-        media: TimelineMedia,
+        source: EditorMediaSource,
         stagedRaw: RawPreviewSession,
     ) {
         rawPreviewRequests?.close()
@@ -2109,7 +3503,7 @@ class GalleryViewModel @Inject constructor(
                 val current = mutablePhotoEditor.value
                 if (
                     request.generation == rawPreviewGeneration &&
-                    current?.media?.key == media.key
+                    current?.source?.stableId == source.stableId
                 ) {
                     current.content.preview?.takeIf { old ->
                         old !== rendered && old !== current.content.originalPreview &&
@@ -2158,7 +3552,7 @@ class GalleryViewModel @Inject constructor(
 
     private suspend fun renderPhotoEditorPreview(
         active: GalleryRuntime,
-        media: TimelineMedia,
+        source: EditorMediaSource,
         recipe: EditRecipe,
     ) {
         val currentBeforeRender = mutablePhotoEditor.value
@@ -2171,13 +3565,13 @@ class GalleryViewModel @Inject constructor(
                 ) ?: RawDeveloper(
                     getApplication<Application>().contentResolver,
                     java.io.File(getApplication<Application>().cacheDir, "raw-scratch"),
-                ).renderPreview(mediaUri(media), currentBeforeRender.content.rawSettings, 1_600)
+                ).renderPreview(source.uri, currentBeforeRender.content.rawSettings, 1_600)
                 PhotoImageRenderer(getApplication<Application>().contentResolver).renderDecoded(
                     developed,
                     baseRecipe.copy(operations = baseRecipe.operations.filterNot { it is EditOperation.RawDevelop }),
                 )
             } else PhotoImageRenderer(getApplication<Application>().contentResolver)
-                .renderPreview(mediaUri(media), baseRecipe, 1_600)
+                .renderPreview(source.uri, baseRecipe, 1_600)
         } catch (failure: Throwable) {
             val current = mutablePhotoEditor.value
             if (current?.history?.present?.revision == recipe.revision) {
@@ -2194,11 +3588,11 @@ class GalleryViewModel @Inject constructor(
                         ?: RawDeveloper(
                             getApplication<Application>().contentResolver,
                             java.io.File(getApplication<Application>().cacheDir, "raw-scratch"),
-                        ).renderPreview(mediaUri(media), RawDevelopmentSettings(), 1_600)
+                        ).renderPreview(source.uri, RawDevelopmentSettings(), 1_600)
                 } else {
                     PhotoImageRenderer(getApplication<Application>().contentResolver).renderPreview(
-                        mediaUri(media),
-                        EditRecipe.forSource(media.key, media.generationModified),
+                        source.uri,
+                        recipe.copy(operations = emptyList(), revision = 0),
                         1_600,
                     )
                 }
@@ -2217,13 +3611,13 @@ class GalleryViewModel @Inject constructor(
                 ) ?: RawDeveloper(
                     getApplication<Application>().contentResolver,
                     java.io.File(getApplication<Application>().cacheDir, "raw-scratch"),
-                ).renderPreview(mediaUri(media), currentBeforeRender.content.rawSettings, 1_600)
+                ).renderPreview(source.uri, currentBeforeRender.content.rawSettings, 1_600)
                 PhotoImageRenderer(getApplication<Application>().contentResolver).renderDecoded(
                     developed,
                     cropSourceRecipe,
                 )
             } else PhotoImageRenderer(getApplication<Application>().contentResolver).renderPreview(
-                mediaUri(media), cropSourceRecipe, 1_600,
+                source.uri, cropSourceRecipe, 1_600,
             )
         }.getOrNull()
         val current = mutablePhotoEditor.value
@@ -2241,7 +3635,7 @@ class GalleryViewModel @Inject constructor(
                 ),
             )
             if (!current.content.isRaw && current.content.autoEnhancementSuggestions == null) {
-                startPhotoAutoEnhancementAnalysis(current.media, originalPreview ?: preview)
+                startPhotoAutoEnhancementAnalysis(current.source.stableId, originalPreview ?: preview)
             }
         } else {
             preview.recycle()
@@ -2252,13 +3646,13 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
-    private fun startPhotoAutoEnhancementAnalysis(media: TimelineMedia, source: Bitmap) {
+    private fun startPhotoAutoEnhancementAnalysis(sourceId: String, source: Bitmap) {
         photoAutoEnhancementJob?.cancel()
         val generation = ++photoAutoEnhancementGeneration
         photoAutoEnhancementJob = viewModelScope.launch(Dispatchers.Default) {
             val suggestions = runCatching { PhotoAutoEnhancementAnalyzer.analyze(source) }.getOrNull()
             val current = mutablePhotoEditor.value
-            if (generation != photoAutoEnhancementGeneration || current?.media?.key != media.key) return@launch
+            if (generation != photoAutoEnhancementGeneration || current?.source?.stableId != sourceId) return@launch
             mutablePhotoEditor.value = current.copy(
                 content = current.content.copy(
                     autoEnhancementSuggestions = suggestions,
@@ -2271,15 +3665,13 @@ class GalleryViewModel @Inject constructor(
     private fun VideoEditorSession.withVideoExportState(
         jobs: List<VideoExportJob>,
     ): VideoEditorSession {
-        val job = trackedVideoExport(
-            jobs = jobs,
-            exportJobId = exportJobId,
-            inputUri = mediaUri(media).toString(),
-        ) ?: return this
+        val job = if (recovered) jobs.firstOrNull { it.id == exportJobId && it.inputUri == source.uriString }
+            else trackedVideoExport(jobs, exportJobId, source.uriString)
+        if (job == null) return this
         val exportedRecipe = pendingExportRecipe
             ?.takeIf { exportJobId == null || exportJobId == job.id }
-            ?: runCatching { VideoEditRecipeCodec.decode(job.encodedRecipe) }
-                .getOrNull()
+            ?: if (recovered) runCatching { VideoEditorRestoreSnapshot.decodeRecipeExact(job.encodedRecipe) }.getOrNull()
+            else runCatching { VideoEditRecipeCodec.decode(job.encodedRecipe) }.getOrNull()
                 ?.normalizedForEditor(content.durationMillis, content.isHevcMain10Available)
         val nextBaseline = if (job.status == VideoExportJobStatus.Completed) {
             exportedRecipe ?: baselineRecipe
@@ -2317,31 +3709,82 @@ class GalleryViewModel @Inject constructor(
     fun openVideoEditor(media: TimelineMedia) {
         if (media.kind != MediaKind.Video) return
         mutableCurrentMedia.value = media
+        captureViewerRecovery(media)
+        openVideoEditor(EditorMediaSource(
+            uriString = mediaUri(media).toString(), kind = media.kind, libraryMedia = media,
+            displayName = media.displayName, width = media.width, height = media.height,
+            durationMillis = media.durationMillis,
+        ))
+    }
+
+    private fun openVideoEditor(source: EditorMediaSource, restoring: VideoEditorDraftRestore? = null) {
+        val externalRestoring = restoring as? ExternalVideoEditorRestoreSnapshot
+        val libraryRestoring = restoring as? VideoEditorRestoreSnapshot
+        externalVideoAccessJob?.cancel()
+        pendingRestoredExternalVideoEditor = null
+        externalVideoEditorSnapshot = externalRestoring
         videoEditorJob?.cancel()
+        videoAnnotationTrackingEpoch.cancel()
         videoAnnotationTrackingJob?.cancel()
         videoAnnotationUndo.clear()
         videoAnnotationRedo.clear()
         val generation = ++videoEditorOpenGeneration
+        val sessionId = restoring?.id ?: java.util.UUID.randomUUID().toString()
+        pendingRestoredVideoEditor = null
+        videoEditorSnapshot = libraryRestoring
+        mutableVideoEditorSessionId.value = sessionId
+        mutableVideoEditor.value = null
+        saveCreationState()
         val pendingDiscard = videoRecipeDiscardJob
+        val sourceQuery = libraryRestoring?.source?.query ?: viewerQuery
         mutableVideoEditorOpening.value = true
         videoEditorJob = viewModelScope.launch {
             try {
                 pendingDiscard?.join()
                 if (generation != videoEditorOpenGeneration) return@launch
                 val active = runtime.value ?: return@launch
-                val storedEntity = withContext(Dispatchers.IO) {
+                val permission = access.value
+                val recoverySource = source.libraryMedia?.let { media -> withContext(Dispatchers.IO) {
+                    val row = active.database.libraryDao().media(media.key.volumeName, media.key.mediaStoreId)
+                        ?: return@withContext null
+                    val actual = com.ugallery.core.mediastore.MediaStoreReader(getApplication<Application>().contentResolver)
+                        .readOne(media.key) ?: return@withContext null
+                    if (!row.isAccessible || row.mediaType != 3 || actual.kind != MediaKind.Video || actual.isTrashed ||
+                        row.isTrashed || actual.key != media.key || row.generationModified != media.generationModified ||
+                        row.generationModified != actual.generationModified || row.generationAdded != actual.generationAdded ||
+                        actual.durationMillis != source.durationMillis || source.durationMillis <= 0) return@withContext null
+                    ViewerRestoreSnapshot(media.key, MediaKind.Video, actual.generationModified, actual.generationAdded, false, sourceQuery)
+                } }
+                if (source.libraryMedia != null && recoverySource == null) return@launch
+                if (libraryRestoring != null && (recoverySource != libraryRestoring.source || source.durationMillis != libraryRestoring.durationMillis)) return@launch
+                val externalProof = if (source.libraryMedia != null) null else externalRestoring?.source
+                    ?: withContext(Dispatchers.IO) {
+                        val fingerprint = externalVideoFingerprint {
+                            requireNotNull(getApplication<Application>().contentResolver.openInputStream(source.uri))
+                        }
+                        ExternalVideoSourceSnapshot.validatedCopy(ExternalVideoSourceSnapshot(
+                            source.uriString, source.mimeType ?: "video/*", source.displayName ?: source.uriString,
+                            source.width, source.height, source.durationMillis, fingerprint.sizeBytes, fingerprint.sha256,
+                        ))
+                    }
+                val storedEntity = if (restoring != null) null else source.libraryMedia?.let { media -> withContext(Dispatchers.IO) {
                     active.database.colorEditDao().videoRecipe(
                         media.key.volumeName, media.key.mediaStoreId, media.generationModified,
                     )
-                }
+                } }
                 val stored = storedEntity
                     ?.let { runCatching { VideoEditRecipeCodec.decode(it.encodedRecipe) }.getOrNull() }
-                val inputUri = mediaUri(media).toString()
-                val activeExport = activeVideoExportForInput(videoExportStore.jobs.value, inputUri)
+                val inputUri = source.uriString
+                val activeExport = if (restoring != null) videoExportStore.jobs.value.firstOrNull {
+                    it.id == restoring.exportJobId && it.inputUri == inputUri
+                } else activeVideoExportForInput(videoExportStore.jobs.value, inputUri)
                 val exportedRecipe = activeExport?.let { job ->
                     runCatching { VideoEditRecipeCodec.decode(job.encodedRecipe) }.getOrNull()
                 }
-                val detection = LogProfileDetector(getApplication<Application>()).detect(mediaUri(media))
+                val detection = if (restoring == null) LogProfileDetector(getApplication<Application>()).detect(source.uri)
+                    else com.ugallery.core.editing.video.LogProfileDetection(
+                        VideoEditorRestoreSnapshot.decodeRecipeExact(restoring.recipe).colorGrade.inputProfile, 0f, "",
+                    )
                 val initialRecipe = VideoEditRecipe(
                     colorGrade = VideoColorGrade(
                         inputProfile = detection.profile,
@@ -2350,21 +3793,21 @@ class GalleryViewModel @Inject constructor(
                 )
                 val supportsMain10 = VideoOutputCapabilities.supportsHevcMain10()
                 val hdrCapabilities = VideoOutputCapabilities.hdr(getApplication<Application>())
-                val loadedRecipe = (preferredVideoEditorRecipe(
+                val loadedRecipe = restoring?.let { VideoEditorRestoreSnapshot.decodeRecipeExact(it.recipe) } ?: (preferredVideoEditorRecipe(
                     storedRecipe = stored,
                     storedUpdatedAtMillis = storedEntity?.updatedAtMillis,
                     activeExportRecipe = exportedRecipe,
                     activeExportCreatedAtMillis = activeExport?.createdAtMillis,
                 ) ?: initialRecipe)
                     .normalizedForEditor(
-                        media.durationMillis,
+                        source.durationMillis,
                         supportsMain10,
                         hdrCapabilities.hlg,
                         hdrCapabilities.hdr10,
                     )
-                val pendingExportRecipe = exportedRecipe
-                    ?.normalizedForEditor(
-                        media.durationMillis,
+                val pendingExportRecipe = if (restoring != null) restoring.pendingExportRecipe?.let(VideoEditorRestoreSnapshot::decodeRecipeExact)
+                    else exportedRecipe?.normalizedForEditor(
+                        source.durationMillis,
                         supportsMain10,
                         hdrCapabilities.hlg,
                         hdrCapabilities.hdr10,
@@ -2375,27 +3818,45 @@ class GalleryViewModel @Inject constructor(
                     runCatching { lutRepository.load(customId) }.getOrNull()
                 }
                 val customLutUnavailable = requestedCustomLutId != null && customLut == null
-                val recipe = if (customLutUnavailable) {
+                if (libraryRestoring != null) {
+                    if (customLutUnavailable) return@launch
+                    val musicAvailable = withContext(Dispatchers.IO) {
+                        loadedRecipe.musicUri?.let { uri -> runCatching {
+                            getApplication<Application>().contentResolver.openFileDescriptor(uri, "r")?.use { true } ?: false
+                        }.getOrDefault(false) } ?: true
+                    }
+                    if (!musicAvailable) return@launch
+                }
+                val recipe = if (customLutUnavailable && externalRestoring == null) {
                     loadedRecipe.copy(colorGrade = loadedRecipe.colorGrade.copy(lut = LutReference()))
                 } else {
                     loadedRecipe
                 }
-                val baselineRecipe = when {
+                val baselineRecipe = restoring?.let { VideoEditorRestoreSnapshot.decodeRecipeExact(it.baselineRecipe) } ?: when {
                     activeExport != null -> initialRecipe
                     stored == null -> recipe
                     else -> VideoEditRecipe()
                 }
                 val session = VideoEditorSession(
-                    media = media,
+                    id = sessionId,
+                    recoverySource = recoverySource,
+                    recovered = restoring != null,
+                    externalRecoverySource = externalProof,
+                    externalAccessBlocked = externalRestoring != null,
+                    source = source,
                     baselineRecipe = baselineRecipe,
                     recipe = recipe,
                     pendingExportRecipe = pendingExportRecipe,
-                    exportJobId = activeExport?.id,
+                    exportJobId = restoring?.exportJobId ?: activeExport?.id,
                     content = VideoEditorContentState(
-                        currentMillis = recipe.startMillis,
-                        durationMillis = media.durationMillis,
+                        currentMillis = restoring?.positionMillis ?: recipe.startMillis,
+                        selectedAnnotationId = restoring?.selectedAnnotationId,
+                        selectedSlowMotionSegmentId = restoring?.selectedSlowMotionSegmentId,
+                        slowMotionMarkInMillis = restoring?.slowMotionMarkInMillis,
+                        annotationTrackingCorrectionMillis = restoring?.annotationTrackingCorrectionMillis,
+                        durationMillis = source.durationMillis,
                         trimStartMillis = recipe.startMillis,
-                        trimEndMillis = recipe.endMillis ?: media.durationMillis,
+                        trimEndMillis = recipe.endMillis ?: source.durationMillis,
                         speed = recipe.speed,
                         originalAudioVolume = recipe.originalAudioVolume,
                         selectedMusicName = recipe.musicUri?.lastPathSegment,
@@ -2428,9 +3889,16 @@ class GalleryViewModel @Inject constructor(
                         ),
                     ),
                 )
-                if (generation == videoEditorOpenGeneration) {
+                if (generation == videoEditorOpenGeneration && runtime.value === active && permission == access.value) {
+                    restoring?.undoAnnotations?.forEach { videoAnnotationUndo.addLast(VideoEditorRestoreSnapshot.decodeAnnotationsExact(it)) }
+                    restoring?.redoAnnotations?.forEach { videoAnnotationRedo.addLast(VideoEditorRestoreSnapshot.decodeAnnotationsExact(it)) }
                     mutableVideoEditor.value = session.withVideoExportState(videoExportStore.jobs.value)
+                    canUseExternalVideoSource(requireNotNull(mutableVideoEditor.value))
+                    captureVideoEditorRecovery()
                 }
+            } catch (cancelled: CancellationException) { throw cancelled
+            } catch (_: Exception) {
+                // Preserve a source-bound unavailable draft and Back; never substitute a default recipe.
             } finally {
                 if (generation == videoEditorOpenGeneration) {
                     mutableVideoEditorOpening.value = false
@@ -2447,6 +3915,7 @@ class GalleryViewModel @Inject constructor(
         if (start == session.recipe.startMillis &&
             end == (session.recipe.endMillis ?: duration)
         ) return
+        videoAnnotationTrackingEpoch.cancel()
         videoAnnotationTrackingJob?.cancel()
         videoAnnotationUndo.clear()
         videoAnnotationRedo.clear()
@@ -2498,6 +3967,7 @@ class GalleryViewModel @Inject constructor(
         mutableVideoEditor.value = session.copy(
             content = session.content.copy(slowMotionMarkInMillis = position, statusMessage = null),
         )
+        captureVideoEditorRecovery()
     }
 
     fun markVideoSlowMotionOut(positionMillis: Long) {
@@ -2542,6 +4012,7 @@ class GalleryViewModel @Inject constructor(
         mutableVideoEditor.value = session.copy(
             content = session.content.copy(selectedSlowMotionSegmentId = id),
         )
+        captureVideoEditorRecovery()
     }
 
     fun updateVideoSlowMotionSegment(segment: SlowMotionSegment) {
@@ -2854,6 +4325,7 @@ class GalleryViewModel @Inject constructor(
         val session = mutableVideoEditor.value ?: return
         if (id != null && session.recipe.annotations.none { it.id == id }) return
         mutableVideoEditor.value = session.copy(content = session.content.copy(selectedAnnotationId = id))
+        captureVideoEditorRecovery()
     }
 
     fun deleteVideoAnnotation(id: String) {
@@ -2907,40 +4379,66 @@ class GalleryViewModel @Inject constructor(
         ))
     }
 
-    fun startVideoAnnotationTracking(id: String, seedTimeMillis: Long) {
+    fun startVideoAnnotationTracking(id: String, seedTimeMillis: Long) =
+        startVideoAnnotationTracking(id, seedTimeMillis, onTrackingProgress = {})
+
+    /** Observer runs on the tracker IO thread, after real frame processing; it never supplies results. */
+    internal fun startVideoAnnotationTracking(
+        id: String,
+        seedTimeMillis: Long,
+        onTrackingProgress: (Float) -> Unit,
+    ) {
         val session = mutableVideoEditor.value ?: return
+        if (!canUseExternalVideoSource(session)) return
         val layer = session.recipe.annotations.firstOrNull { it.id == id } ?: return
+        videoAnnotationTrackingEpoch.cancel()
         videoAnnotationTrackingJob?.cancel()
         mutableVideoEditor.value = session.copy(content = session.content.copy(
             annotationTrackingProgress = 0f,
             annotationTrackingCorrectionMillis = null,
             statusMessage = null,
         ))
+        captureVideoEditorRecovery()
+        val request = videoAnnotationTrackingEpoch.begin()
+        fun isCurrent() = videoAnnotationTrackingEpoch.isCurrent(request) && mutableVideoEditor.value?.id == session.id
+        fun canApplyTrackingResult(): Boolean {
+            // A descriptor opened before READ revocation may still decode successfully. Recheck
+            // ownership first, then current access immediately before any recipe/history mutation.
+            if (!isCurrent()) return false
+            val current = mutableVideoEditor.value ?: return false
+            return canUseExternalVideoSource(current)
+        }
         videoAnnotationTrackingJob = viewModelScope.launch {
             try {
                 val trackedLayer = layer.copy(trackingMode = VideoAnnotationTrackingMode.Automatic)
                 when (val result = VideoAnnotationTracker(getApplication<Application>()).track(
-                    mediaUri(session.media),
+                    session.source.uri,
                     trackedLayer,
                     seedTimeMillis.coerceIn(layer.startMillis, layer.endMillis - 1),
                     onProgress = { progress ->
-                        mutableVideoEditor.value = mutableVideoEditor.value?.let { current ->
-                            current.copy(content = current.content.copy(annotationTrackingProgress = progress))
+                        viewModelScope.launch {
+                            if (isCurrent() && videoAnnotationTrackingJob?.isActive == true) mutableVideoEditor.value = mutableVideoEditor.value?.let { current ->
+                                current.copy(content = current.content.copy(annotationTrackingProgress = progress))
+                            }
                         }
+                        onTrackingProgress(progress)
                     },
                 )) {
                     is VideoAnnotationTrackingResult.Complete -> {
+                        if (!canApplyTrackingResult()) return@launch
                         updateVideoAnnotation(trackedLayer.copy(keyframes = result.keyframes))
                         mutableVideoEditor.value = mutableVideoEditor.value?.let { current ->
                             current.copy(content = current.content.copy(annotationTrackingProgress = null))
                         }
                     }
                     is VideoAnnotationTrackingResult.NeedsCorrection -> {
+                        if (!canApplyTrackingResult()) return@launch
                         updateVideoAnnotation(trackedLayer.copy(keyframes = result.completedKeyframes))
                         mutableVideoEditor.value = mutableVideoEditor.value?.let { current ->
                             current.copy(content = current.content.copy(
                                 annotationTrackingProgress = null,
-                                annotationTrackingCorrectionMillis = result.timeMillis,
+                                currentMillis = clampVideoPosition(result.timeMillis, current.content.trimStartMillis, current.content.trimEndMillis),
+                                annotationTrackingCorrectionMillis = clampVideoPosition(result.timeMillis, current.content.trimStartMillis, current.content.trimEndMillis),
                                 statusMessage = getApplication<Application>().getString(
                                     com.ugallery.feature.videoeditor.R.string.video_editor_tracking_needs_correction,
                                 ),
@@ -2948,9 +4446,11 @@ class GalleryViewModel @Inject constructor(
                         }
                     }
                 }
+                captureVideoEditorRecovery()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Throwable) {
+                if (!canApplyTrackingResult()) return@launch
                 mutableVideoEditor.value = mutableVideoEditor.value?.let { current ->
                     current.copy(content = current.content.copy(
                         annotationTrackingProgress = null,
@@ -2964,6 +4464,7 @@ class GalleryViewModel @Inject constructor(
     }
 
     fun cancelVideoAnnotationTracking() {
+        videoAnnotationTrackingEpoch.cancel()
         videoAnnotationTrackingJob?.cancel()
         mutableVideoEditor.value = mutableVideoEditor.value?.let { session ->
             session.copy(content = session.content.copy(annotationTrackingProgress = null))
@@ -3030,8 +4531,86 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
-    private fun persistVideoRecipe(recipe: VideoEditRecipe) {
+    private fun captureVideoEditorRecovery() {
         val session = mutableVideoEditor.value ?: return
+        if (session.id != mutableVideoEditorSessionId.value) return
+        val source = session.recoverySource
+        externalVideoEditorSnapshot = session.externalRecoverySource?.let { externalSource -> runCatching {
+            ExternalVideoEditorRestoreSnapshot.validatedCopy(ExternalVideoEditorRestoreSnapshot(
+                id = session.id, source = externalSource, durationMillis = session.content.durationMillis,
+                recipe = VideoEditorRestoreSnapshot.encodeRecipeExact(session.recipe),
+                baselineRecipe = VideoEditorRestoreSnapshot.encodeRecipeExact(session.baselineRecipe),
+                positionMillis = clampVideoPosition(session.content.currentMillis, session.content.trimStartMillis, session.content.trimEndMillis),
+                pendingExportRecipe = session.pendingExportRecipe?.let(VideoEditorRestoreSnapshot::encodeRecipeExact),
+                exportJobId = session.exportJobId, selectedAnnotationId = session.content.selectedAnnotationId,
+                selectedSlowMotionSegmentId = session.content.selectedSlowMotionSegmentId,
+                slowMotionMarkInMillis = session.content.slowMotionMarkInMillis,
+                annotationTrackingCorrectionMillis = session.content.annotationTrackingCorrectionMillis,
+                undoAnnotations = videoAnnotationUndo.map(VideoEditorRestoreSnapshot::encodeAnnotationsExact),
+                redoAnnotations = videoAnnotationRedo.map(VideoEditorRestoreSnapshot::encodeAnnotationsExact),
+            ))
+        }.getOrNull() }
+        videoEditorSnapshot = if (source == null) null else runCatching {
+            VideoEditorRestoreSnapshot.validatedCopy(VideoEditorRestoreSnapshot(
+                id = session.id, source = source, durationMillis = session.content.durationMillis,
+                recipe = VideoEditorRestoreSnapshot.encodeRecipeExact(session.recipe),
+                baselineRecipe = VideoEditorRestoreSnapshot.encodeRecipeExact(session.baselineRecipe),
+                positionMillis = clampVideoPosition(session.content.currentMillis, session.content.trimStartMillis, session.content.trimEndMillis),
+                pendingExportRecipe = session.pendingExportRecipe?.let(VideoEditorRestoreSnapshot::encodeRecipeExact),
+                exportJobId = session.exportJobId,
+                selectedAnnotationId = session.content.selectedAnnotationId,
+                selectedSlowMotionSegmentId = session.content.selectedSlowMotionSegmentId,
+                slowMotionMarkInMillis = session.content.slowMotionMarkInMillis,
+                annotationTrackingCorrectionMillis = session.content.annotationTrackingCorrectionMillis,
+                undoAnnotations = videoAnnotationUndo.map(VideoEditorRestoreSnapshot::encodeAnnotationsExact),
+                redoAnnotations = videoAnnotationRedo.map(VideoEditorRestoreSnapshot::encodeAnnotationsExact),
+            ))
+        }.getOrNull()
+        saveCreationState()
+    }
+
+    /** The UI may checkpoint while an old controller is disposing. It cannot mutate another session. */
+    fun checkpointVideoPosition(sessionId: String, positionMillis: Long) {
+        if (mutableVideoEditor.value?.id != sessionId || mutableVideoEditorSessionId.value != sessionId) return
+        seekVideo(positionMillis)
+    }
+
+    private fun restorePendingExternalVideoEditor() {
+        val snapshot = pendingRestoredExternalVideoEditor ?: return
+        val source = snapshot.source
+        // Construct review state without opening the revoked original. Retry checks bytes before playback.
+        openVideoEditor(EditorMediaSource(source.uriString, MediaKind.Video,
+            mimeType = source.mimeType, displayName = source.displayName, width = source.width,
+            height = source.height, durationMillis = source.durationMillis), restoring = snapshot)
+    }
+
+    private fun ExternalVideoSourceSnapshot.toExternalMedia() = ExternalMedia(
+        uri = Uri.parse(uriString), mimeType = mimeType, kind = MediaKind.Video, editMode = true,
+        available = false, displayName = displayName, sizeBytes = sizeBytes,
+        width = width, height = height, durationMillis = durationMillis, metadataReady = true,
+    )
+
+    private fun restorePendingVideoEditor(active: GalleryRuntime) {
+        val snapshot = pendingRestoredVideoEditor ?: return
+        val media = mutableCurrentMedia.value
+        if (runtime.value !== active || media == null || mutableViewerRestoreSnapshot.value != snapshot.source ||
+            media.key != snapshot.source.key || media.kind != MediaKind.Video) {
+            pendingRestoredVideoEditor = null
+            mutableVideoEditorOpening.value = false
+            saveCreationState()
+            return
+        }
+        openVideoEditor(EditorMediaSource(
+            uriString = mediaUri(media).toString(), kind = media.kind, libraryMedia = media,
+            displayName = media.displayName, width = media.width, height = media.height,
+            durationMillis = media.durationMillis,
+        ), restoring = snapshot)
+    }
+
+    private fun persistVideoRecipe(recipe: VideoEditRecipe) {
+        captureVideoEditorRecovery()
+        val session = mutableVideoEditor.value ?: return
+        val media = session.source.libraryMedia ?: return
         videoRecipeJob?.cancel()
         videoRecipeJob = viewModelScope.launch {
             delay(100)
@@ -3039,9 +4618,9 @@ class GalleryViewModel @Inject constructor(
             withContext(Dispatchers.IO) {
                 active.database.colorEditDao().saveVideoRecipe(
                     VideoEditRecipeEntity(
-                        session.media.key.volumeName,
-                        session.media.key.mediaStoreId,
-                        session.media.generationModified,
+                        media.key.volumeName,
+                        media.key.mediaStoreId,
+                        media.generationModified,
                         VideoEditRecipeCodec.encode(recipe),
                         System.currentTimeMillis(),
                     ),
@@ -3063,14 +4642,15 @@ class GalleryViewModel @Inject constructor(
             session.content.trimStartMillis,
             session.content.trimEndMillis,
         )
-        mutableVideoEditor.value = session.copy(content = session.content.copy(currentMillis = position))
+        mutableVideoEditor.value = session.copy(content = session.content.copy(currentMillis = position, annotationTrackingCorrectionMillis = null))
+        captureVideoEditorRecovery()
         return position
     }
 
     fun saveVideoEditorCopy() {
         val session = mutableVideoEditor.value ?: return
-        if (session.content.isExporting) return
-        val job = videoExportStore.enqueue(mediaUri(session.media), session.recipe)
+        if (session.content.isExporting || !canUseExternalVideoSource(session)) return
+        val job = videoExportStore.enqueue(session.source.uri, session.recipe)
         mutableVideoEditor.value = session.copy(
             pendingExportRecipe = session.recipe,
             exportJobId = job.id,
@@ -3082,6 +4662,7 @@ class GalleryViewModel @Inject constructor(
                 usedSoftwareCodec = false,
                 statusMessage = getApplication<Application>().getString(R.string.video_export_queued),
             ))
+        captureVideoEditorRecovery()
     }
 
     fun cancelVideoEditorExport() {
@@ -3089,7 +4670,7 @@ class GalleryViewModel @Inject constructor(
         val jobs = videoExportStore.jobs.value
         val tracked = session.exportJobId
             ?.let { id -> jobs.firstOrNull { it.id == id && it.isActive } }
-        val active = tracked ?: activeVideoExportForInput(jobs, mediaUri(session.media).toString())
+        val active = tracked ?: activeVideoExportForInput(jobs, session.source.uri.toString())
         active?.let(videoExportStore::cancel)
     }
 
@@ -3118,17 +4699,26 @@ class GalleryViewModel @Inject constructor(
     }
 
     fun closeVideoEditor() {
+        externalVideoAccessJob?.cancel()
+        pendingRestoredExternalVideoEditor = null
+        externalVideoEditorSnapshot = null
         val session = mutableVideoEditor.value
+        pendingRestoredVideoEditor = null
+        videoEditorSnapshot = null
+        mutableVideoEditorSessionId.value = null
+        saveCreationState()
         videoEditorOpenGeneration++
         mutableVideoEditorOpening.value = false
         videoEditorJob?.cancel()
         val pendingRecipeWrite = videoRecipeJob
         videoRecipeJob = null
         pendingRecipeWrite?.cancel()
+        videoAnnotationTrackingEpoch.cancel()
         videoAnnotationTrackingJob?.cancel()
         videoAnnotationUndo.clear()
         videoAnnotationRedo.clear()
-        if (session != null) {
+        val libraryMedia = session?.source?.libraryMedia
+        if (libraryMedia != null) {
             val previousDiscard = videoRecipeDiscardJob
             videoRecipeDiscardJob = viewModelScope.launch {
                 previousDiscard?.join()
@@ -3136,8 +4726,8 @@ class GalleryViewModel @Inject constructor(
                 val active = runtime.value ?: return@launch
                 withContext(Dispatchers.IO) {
                     active.database.colorEditDao().deleteVideoRecipes(
-                        session.media.key.volumeName,
-                        session.media.key.mediaStoreId,
+                        libraryMedia.key.volumeName,
+                        libraryMedia.key.mediaStoreId,
                     )
                 }
             }
@@ -3149,11 +4739,15 @@ class GalleryViewModel @Inject constructor(
         val photoSession = mutablePhotoEditor.value
         val videoSession = mutableVideoEditor.value
         val active = runtime.value
+        val pendingPhotoRecipe = photoRecipeJob
+        photoRecipeJob = null
+        pendingPhotoRecipe?.cancel()
+        pendingPhotoRecipe?.join()
+        photoRecipeDiscardJob?.join()
+        if (photoSession != null) restorePhotoRecipeEntry(photoSession)
         withContext(Dispatchers.IO) {
-            if (photoSession != null) active?.database?.editRecipeDao()
-                ?.deleteRecipe(photoSession.history.present.recipeId)
-            if (videoSession != null) active?.database?.colorEditDao()
-                ?.deleteVideoRecipes(videoSession.media.key.volumeName, videoSession.media.key.mediaStoreId)
+            videoSession?.source?.libraryMedia?.let { media -> active?.database?.colorEditDao()
+                ?.deleteVideoRecipes(media.key.volumeName, media.key.mediaStoreId) }
         }
         photoSession?.content?.preview?.recycle()
         photoSession?.content?.originalPreview
@@ -3164,7 +4758,22 @@ class GalleryViewModel @Inject constructor(
             ?.recycle()
         mutablePhotoEditor.value = null
         mutableVideoEditor.value = null
+        externalVideoAccessJob?.cancel()
+        pendingRestoredExternalVideoEditor = null
+        externalVideoEditorSnapshot = null
+        pendingRestoredVideoEditor = null
+        videoEditorSnapshot = null
+        mutableVideoEditorSessionId.value = null
+        saveCreationState()
         refreshLibrary()
+        mutableExternalMedia.value?.let { external ->
+            if (external.editMode) {
+                mutableExternalSaved.emit(copy.uri)
+                return
+            }
+            mutableExternalMedia.value = null
+            mutableExternalPhotoState.value = null
+        }
         val media = publishedTimelineMedia(copy.uri, kind)
         if (media != null) openMedia(media)
         mutableEditorCopyOpened.emit(Unit)
@@ -3311,32 +4920,36 @@ class GalleryViewModel @Inject constructor(
         beginSystemAction(media, MediaAction.Write)
     }
 
-    suspend fun copyMediaToTree(media: TimelineMedia, treeUri: Uri, move: Boolean): Result<Uri> = try {
-        val resolver = getApplication<Application>().contentResolver
-        val target = MediaActionTarget(media.key, media.kind)
-        val destination = ScopedMediaOperations.copyToTree(
-            resolver = resolver,
-            target = target,
-            treeUri = treeUri,
-            displayName = media.displayName ?: "UGallery-${media.key.mediaStoreId}.${if (media.kind == MediaKind.Video) "mp4" else "jpg"}",
-            mimeType = mediaMime(media.kind),
-            lastModifiedMillis = media.dateModifiedSeconds.takeIf {
-                gallerySettings.value.operations.keepLastModifiedWhenPossible
-            }?.times(1_000L),
+    internal val verifiedMove = VerifiedMoveController(getApplication<Application>(), viewModelScope)
+    internal val pendingTreeOperation: PendingTreeOperation?
+        get() = savedStateHandle["pending_tree_operation_v1"]
+
+    internal fun prepareTreeOperation(media: TimelineMedia, move: Boolean): Boolean {
+        if (pendingTreeOperation != null) return false
+        if (move && (verifiedMove.state.value.busy || verifiedMove.state.value.entry != null || verifiedMove.state.value.copyDraft != null || verifiedMove.state.value.unreadable)) return false
+        savedStateHandle["pending_tree_operation_v1"] = PendingTreeOperation(
+            MediaActionTarget(media.key, media.kind),
+            media.displayName ?: "UGallery-${media.key.mediaStoreId}.${if (media.kind == MediaKind.Video) "mp4" else "jpg"}",
+            mediaMime(media.kind),
+            media.dateModifiedSeconds.takeIf { gallerySettings.value.operations.keepLastModifiedWhenPossible }?.times(1_000L),
+            move,
         )
-        if (move) beginSystemAction(media, MediaAction.Delete)
-        Result.success(destination)
-    } catch (cancelled: CancellationException) {
-        throw cancelled
-    } catch (failure: Throwable) {
-        Result.failure(failure)
+        return true
     }
 
+    internal fun clearTreeOperation() { savedStateHandle["pending_tree_operation_v1"] = null }
+
+    internal suspend fun copyMediaToTree(input: PendingTreeOperation, treeUri: Uri): Result<Uri> = try {
+        val result = if (input.move) verifiedMove.copy(input, treeUri) else ScopedMediaOperations.copyToTree(
+            getApplication<Application>().contentResolver, input.target, treeUri, input.name, input.mime, input.lastModifiedMillis,
+        )
+        Result.success(result)
+    } catch (cancelled: CancellationException) { throw cancelled
+    } catch (failure: Exception) { Result.failure(failure) }
+
     fun openMoment(momentId: String) {
-        val repo = runtime.value?.moments ?: return
-        viewModelScope.launch {
-            mutableSelectedMoment.value = repo.summaries().first().firstOrNull { it.moment.momentId == momentId }?.moment
-        }
+        mutableSelectedMomentId.value = momentId
+        savedStateHandle[SelectedMomentStateKey] = momentId
     }
 
     suspend fun saveMoment() {
@@ -3344,7 +4957,18 @@ class GalleryViewModel @Inject constructor(
     }
 
     fun deleteSelectedMoment() {
-        selectedMoment.value?.let { viewModelScope.launch { runtime.value?.moments?.delete(it.momentId) } }
+        val moment = selectedMoment.value ?: return
+        val active = runtime.value ?: return
+        viewModelScope.launch {
+            // Automatic stories need a durable dismissal so later imports do not recreate
+            // the same deleted suggestion. User/manual memories keep true deletion semantics.
+            val removed = if (moment.origin == "AUTO") active.moments.dismiss(moment.momentId)
+                else active.moments.delete(moment.momentId)
+            if (removed && mutableSelectedMomentId.value == moment.momentId) {
+                mutableSelectedMomentId.value = null
+                savedStateHandle[SelectedMomentStateKey] = null
+            }
+        }
     }
 
     suspend fun renameMoment(title: String) {
@@ -3352,7 +4976,7 @@ class GalleryViewModel @Inject constructor(
     }
 
     suspend fun reorderMoment(orderedKeys: List<MediaKey>) {
-        selectedMoment.value?.let { runtime.value?.moments?.reorder(it.momentId, orderedKeys) }
+        selectedMoment.value?.let { runtime.value?.moments?.reorderVisible(it.momentId, orderedKeys) }
     }
 
     suspend fun setMomentCover(ordinal: Int) {
@@ -3361,11 +4985,14 @@ class GalleryViewModel @Inject constructor(
         runtime.value?.moments?.setCover(moment.momentId, target.key)
     }
 
-    val momentMembers = selectedMoment.filterNotNull().flatMapLatest { moment ->
-        runtime.value?.moments?.members(moment.momentId)?.let { rows: List<MomentMemberRow> ->
-            flowOf(rows.map { row: MomentMemberRow -> MomentMemberUi(row.member, MediaKey(row.media.volumeName, row.media.mediaStoreId)) })
-        } ?: flowOf(emptyList())
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val momentMembers = combine(runtime, mutableSelectedMomentId) { current, id -> current to id }
+        .flatMapLatest { (current, id) ->
+            if (current == null || id == null) flowOf(emptyList<MomentMemberUi>())
+            else current.moments.observeMembers(id).map { rows ->
+                rows.map { row -> MomentMemberUi(row.member,
+                    MediaKey(row.media.volumeName, row.media.mediaStoreId), row.media.generationModified) }
+            }.onStart { emit(emptyList()) }
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private fun beginTargetsAction(targets: List<MediaActionTarget>, action: MediaAction) {
         require(targets.size <= MediaActionReducer.MaxChunkSize)
@@ -3454,11 +5081,10 @@ class GalleryViewModel @Inject constructor(
                 val resolver = getApplication<Application>().contentResolver
                 when (mutation) {
                     is PendingWriteMutation.Rename -> ScopedMediaOperations.rename(resolver, authorizedTarget, mutation.displayName)
-                    is PendingWriteMutation.DateTaken -> ScopedMediaOperations.repairDateTaken(
-                        resolver,
-                        authorizedTarget,
-                        mutation.dateTakenMillis,
-                    )
+                    is PendingWriteMutation.DateTaken -> {
+                        ScopedMediaOperations.repairDateTaken(resolver, authorizedTarget, mutation.dateTakenMillis)
+                        runtime.value?.database?.portableTimelineOverrideDao()?.remove(mutation.key.volumeName, mutation.key.mediaStoreId)
+                    }
                 }
             }
         }.onFailure { mutableShareError.emit(it.message ?: "The media change could not be applied") }
@@ -3469,6 +5095,7 @@ class GalleryViewModel @Inject constructor(
     private suspend fun refreshLibrary(
         indexedHintCount: Int = 0,
         forceFullReconciliation: Boolean = false,
+        reconcileUnobservedChanges: Boolean = false,
     ): Unit = refreshMutex.withLock {
         val active = runtime.value ?: return@withLock
         if (access.value.images == com.ugallery.core.model.GrantLevel.None &&
@@ -3488,7 +5115,7 @@ class GalleryViewModel @Inject constructor(
                         requiresSearchRebuild = true
                         continue
                     }
-                    when (val result = active.synchronizer.sync(volume)) {
+                    when (val result = active.synchronizer.sync(volume, reconcileUnobservedChanges)) {
                         IncrementalSyncResult.NeedsInitialScan,
                         IncrementalSyncResult.NeedsFullVolumeReconciliation,
                         -> { active.scanner.scan(volume); requiresSearchRebuild = true }
@@ -3507,8 +5134,8 @@ class GalleryViewModel @Inject constructor(
                     prefs.edit().putLong("schema", com.ugallery.core.search.MediaSearchSchema.Version).commit()
                 }
                 // Moment generation is a resumable Room keyset pass, not a MediaStore scan.
-                // Run it once after the initial index; the completed checkpoint prevents
-                // repeating the bounded pass on every foreground/startup.
+                // Its durable input revision resumes or regenerates after actual candidate
+                // changes, including old-dated imports; identical reindexing is a no-op.
                 active.moments.generateIfNeeded()
                 mutableSearchIndexReady.value = true
             }
@@ -3529,6 +5156,11 @@ class GalleryViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        mutableLocalSharingController.value?.close()
+        ownSyncController.close()
+        offlinePlacesController.close()
+        mutableRemoteBackupController.value?.close()
+        backupTaskController.close()
         userHardwareLease?.let(UserHardwareWorkloadGate::release)
         semanticSearchEngine?.close()
         semanticModelManager?.close()
@@ -3548,13 +5180,18 @@ class GalleryViewModel @Inject constructor(
             .toLong().times(1024 * 1024).div(8)
             .coerceIn(16L * 1024 * 1024, 64L * 1024 * 1024)
         val decoder = NativeImageDecoder(context.contentResolver)
+        val motionKeyFrames = com.ugallery.core.data.MotionKeyFrameRepository(context, database)
+        val thumbnailFactory = { motionThumbnailLoader(context, decoder, maxCache, motionKeyFrames) }
         return GalleryRuntime(
             database = database,
             timeline = GalleryTimelineRepository(database),
             scanner = InitialMediaScanner(reader, store, { permissions.access.value }),
             synchronizer = IncrementalMediaSynchronizer(reader, store, { permissions.access.value }),
             generations = MediaStoreGenerationProbe(context),
-            thumbnails = ThumbnailLoader.native(context, decoder, maxCache),
+            thumbnails = thumbnailFactory(),
+            motionKeyFrames = motionKeyFrames,
+            thumbnailFactory = thumbnailFactory,
+            organizationBackup = GalleryOrganizationBackupAdapter(context, database),
             decoder = decoder,
             albums = GalleryAlbumRepository(database),
             trash = GalleryTrashRepository(database),
@@ -3607,7 +5244,14 @@ class GalleryViewModel @Inject constructor(
             AlbumMediaFilter.Images -> MediaQuery.KindFilter.Images
             AlbumMediaFilter.Videos -> MediaQuery.KindFilter.Videos
         },
-        sort = if (sort == AlbumSort.NewestFirst) MediaQuery.Sort.NewestFirst else MediaQuery.Sort.OldestFirst,
+        sort = if (sort.ascending) MediaQuery.Sort.OldestFirst else MediaQuery.Sort.NewestFirst,
+        sortField = when (sort) {
+            AlbumSort.NameAscending, AlbumSort.NameDescending -> MediaQuery.SortField.Name
+            AlbumSort.SizeAscending, AlbumSort.SizeDescending -> MediaQuery.SortField.Size
+            AlbumSort.NewestFirst, AlbumSort.OldestFirst -> MediaQuery.SortField.DateTaken
+        },
+        grouping = MediaQuery.Grouping.None,
+        archiveMode = MediaQuery.ArchiveMode.Include,
     )
 
     private fun currentLibraryQuery(): MediaQuery {
@@ -3713,11 +5357,138 @@ class GalleryViewModel @Inject constructor(
 
     private fun revalidateExternalGrant() {
         val current = mutableExternalMedia.value ?: return
+        val restoring = externalVideoDraftIsRestoring(pendingRestoredExternalVideoEditor ?: externalVideoEditorSnapshot,
+            mutableVideoEditorSessionId.value, mutableVideoEditorOpening.value, current.uri.toString())
+        if (restoring || mutableVideoEditor.value?.let { it.source.uri == current.uri && it.externalAccessBlocked } == true) {
+            // A blocked/restoring editor only checks the original after explicit Retry.
+            mutableExternalMedia.value = current.copy(available = false)
+            return
+        }
         val available = canOpen(current.uri)
         mutableExternalMedia.value = current.copy(available = available)
+        mutableVideoEditor.value?.takeIf { it.source.libraryMedia == null && it.source.uri == current.uri }
+            ?.let { session ->
+                if (externalVideoAccessBlocked(session.externalAccessBlocked, available, explicitRetry = false)) {
+                    blockExternalVideoAccess(session.id)
+                }
+            }
         if (available && current.kind == MediaKind.Image && mutableExternalPhotoState.value == null) {
             loadExternalPhoto(current.uri)
         }
+    }
+
+    /** Fresh preflight before enqueuing work; restored grants never implicitly resume a blocked editor. */
+    private fun canUseExternalVideoSource(session: VideoEditorSession): Boolean {
+        if (session.source.libraryMedia != null) return true
+        val readable = !session.externalAccessBlocked && canOpen(session.source.uri)
+        if (!externalVideoAccessBlocked(session.externalAccessBlocked, readable, explicitRetry = false)) return true
+        blockExternalVideoAccess(session.id)
+        return false
+    }
+
+    private fun blockExternalVideoAccess(sessionId: String) {
+        val session = mutableVideoEditor.value?.takeIf { it.id == sessionId } ?: return
+        mutableVideoEditor.value = session.copy(externalAccessBlocked = true)
+        // Keep recipe, identity and undo/redo. Disposing the gated UI releases video and music players.
+        cancelVideoAnnotationTracking()
+        cancelVideoEditorExport()
+    }
+
+    fun retryExternalVideoAccess() {
+        val session = mutableVideoEditor.value?.takeIf {
+            it.externalAccessBlocked && !it.externalAccessChecking && it.source.libraryMedia == null
+        } ?: return
+        mutableVideoEditor.value = session.copy(externalAccessChecking = true)
+        externalVideoAccessJob = viewModelScope.launch {
+            try {
+                val proof = withContext(Dispatchers.IO) {
+                    externalVideoFingerprint {
+                        requireNotNull(getApplication<Application>().contentResolver.openInputStream(session.source.uri))
+                    }
+                }
+                val current = mutableVideoEditor.value?.takeIf { it.id == session.id } ?: return@launch
+                val expected = current.externalRecoverySource
+                val matches = expected == null || (expected.sha256 == proof.sha256 && expected.sizeBytes == proof.sizeBytes)
+                val assetsAvailable = withContext(Dispatchers.IO) {
+                    val music = current.recipe.musicUri
+                    (music == null || canOpen(music)) && canOpen(current.source.uri)
+                }
+                val lutId = current.recipe.colorGrade.lut.customId
+                val lut = lutId?.let { id -> runtime.value?.let { active ->
+                    withContext(Dispatchers.IO) { runCatching { lutRepository(active).load(id) }.getOrNull() }
+                } }
+                val latest = mutableVideoEditor.value?.takeIf { it.id == session.id } ?: return@launch
+                if (latest.recipe != current.recipe) {
+                    mutableVideoEditor.value = latest.copy(externalAccessChecking = false)
+                    return@launch
+                }
+                val available = matches && assetsAvailable && (lutId == null || lut != null)
+                mutableVideoEditor.value = latest.copy(
+                    externalAccessChecking = false, externalAccessBlocked = !available, externalSourceChanged = !matches,
+                    content = latest.content.copy(activeCustomLut = if (available) lut else latest.content.activeCustomLut),
+                )
+                mutableExternalMedia.value?.takeIf { it.uri == current.source.uri }?.let {
+                    mutableExternalMedia.value = it.copy(available = available)
+                }
+                captureVideoEditorRecovery()
+            } catch (cancelled: CancellationException) { throw cancelled
+            } catch (_: Exception) {
+                mutableVideoEditor.value?.takeIf { it.id == session.id }?.let {
+                    mutableVideoEditor.value = it.copy(externalAccessChecking = false, externalAccessBlocked = true)
+                }
+            }
+        }
+    }
+
+    private fun probeExternalMedia(media: ExternalMedia): ExternalMedia {
+        val resolver = getApplication<Application>().contentResolver
+        var displayName: String? = media.displayName
+        var sizeBytes = media.sizeBytes
+        runCatching {
+            resolver.query(media.uri, arrayOf(OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE), null, null, null)
+                ?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        displayName = cursor.getString(0)
+                        if (!cursor.isNull(1)) sizeBytes = cursor.getLong(1)
+                    }
+                }
+        }
+        var width = media.width
+        var height = media.height
+        var duration = media.durationMillis
+        if (media.kind == MediaKind.Image) {
+            runCatching {
+                resolver.openInputStream(media.uri)?.use { input ->
+                    val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeStream(input, null, options)
+                    width = options.outWidth.coerceAtLeast(0)
+                    height = options.outHeight.coerceAtLeast(0)
+                }
+            }
+        } else {
+            runCatching {
+                MediaMetadataRetriever().use { retriever ->
+                    retriever.setDataSource(getApplication<Application>(), media.uri)
+                    width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
+                    height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
+                    duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+                    val rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
+                    if (rotation % 180 != 0) {
+                        val unrotatedWidth = width
+                        width = height
+                        height = unrotatedWidth
+                    }
+                }
+            }
+        }
+        return media.copy(
+            displayName = displayName,
+            sizeBytes = sizeBytes,
+            width = width,
+            height = height,
+            durationMillis = duration,
+            metadataReady = true,
+        )
     }
 
     private fun canOpen(uri: Uri): Boolean = runCatching {
@@ -3789,12 +5560,26 @@ class GalleryViewModel @Inject constructor(
     data class ExternalMedia(
         val uri: Uri,
         val mimeType: String?,
-        val kind: MediaKind,
+        override val kind: MediaKind,
         val editMode: Boolean,
         val available: Boolean,
-    )
+        override val displayName: String? = null,
+        val sizeBytes: Long = 0L,
+        override val width: Int = 0,
+        override val height: Int = 0,
+        override val durationMillis: Long = 0,
+        override val timelineSortMillis: Long = System.currentTimeMillis(),
+        val metadataReady: Boolean = false,
+    ) : ViewerMedia {
+        override val viewerId: String get() = "external:$uri"
+        override val mediaKey: MediaKey? get() = null
+        override val generationModified: Long get() = 0
+        override val isFavorite: Boolean get() = false
+    }
 
     private companion object {
+        const val CreationStateKey = "local_creation_ui_v1"
+        const val SelectedMomentStateKey = "selected_moment_id"
         const val ActionStateKey = "media_action_state"
         const val BulkStateKey = "bulk_action_state"
         const val FavoriteImportStateKey = "favorite_import_state"

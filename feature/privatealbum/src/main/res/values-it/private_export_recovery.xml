@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="private_export_recovery_title">Recupero esportazioni</string>
+    <string name="private_export_recovery_review">Verifica esportazione</string>
+    <string name="private_export_recovery_back">Indietro</string>
+    <string name="private_export_recovery_refresh">Aggiorna</string>
+    <string name="private_export_recovery_working">Verifica dell’esportazione…</string>
+    <string name="private_export_recovery_cancel">Annulla</string>
+    <string name="private_export_recovery_open">Apri copia esportata</string>
+    <string name="private_export_recovery_complete">Completa esportazione</string>
+    <string name="private_export_recovery_close_result">Chiudi risultato</string>
+    <string name="private_export_recovery_remove">Elimina copia parziale</string>
+    <string name="private_export_recovery_forget">Dimentica registrazione</string>
+    <string name="private_export_recovery_confirm">Conferma</string>
+    <string name="private_export_recovery_intro">Verifica le esportazioni interrotte e le copie fuori dall’album privato. Queste azioni non eliminano mai gli originali privati.</string>
+    <string name="private_export_recovery_empty">Nessuna registrazione di recupero. Le esportazioni completate o interrotte appariranno qui quando sarà disponibile una registrazione da verificare.</string>
+    <string name="private_export_recovery_export_failed">La precedente esportazione è terminata senza un risultato confermato. Verifica la registrazione prima di esportare di nuovo.</string>
+    <string name="private_export_recovery_error">Il risultato non è confermato. Aggiorna per verificare lo stato attuale prima di riprovare.</string>
+    <string name="private_export_recovery_cancelled">L’attesa è stata interrotta. Aggiorna per verificare lo stato attuale prima di un’altra azione.</string>
+    <string name="private_export_recovery_completed">Esportazione completata. Verifica il risultato pubblicato per aprirlo.</string>
+    <string name="private_export_recovery_removed">La copia parziale verificata è stata eliminata. Gli originali privati non sono stati eliminati.</string>
+    <string name="private_export_recovery_forgotten">Registrazione chiusa. Nessun file esportato è stato eliminato.</string>
+    <string name="private_export_recovery_ready">Pronta da completare</string>
+    <string name="private_export_recovery_published">Copia pubblicata</string>
+    <string name="private_export_recovery_partial">Copia parziale</string>
+    <string name="private_export_recovery_missing">File di destinazione assente</string>
+    <string name="private_export_recovery_conflict">File modificato</string>
+    <string name="private_export_recovery_unknown">Identità del file sconosciuta</string>
+    <string name="private_export_recovery_ready_body">Una copia completa non cifrata è pronta. Completa la verifica nuovamente prima di renderla visibile fuori dall’album privato.</string>
+    <string name="private_export_recovery_published_body">Questa copia esportata si trova fuori dall’album privato. Apri la verifica nuovamente. Chiudere il risultato rimuove solo la registrazione, non il file.</string>
+    <string name="private_export_recovery_partial_body">L’esportazione non è terminata. Puoi richiedere l’eliminazione solo della copia esatta in sospeso di questa registrazione verificata; prima vengono controllati identità e contenuto attuali.</string>
+    <string name="private_export_recovery_missing_body">Il file registrato è assente. Dimentica rimuove solo la registrazione. Esportare di nuovo può creare un duplicato se una copia precedente esiste ancora altrove.</string>
+    <string name="private_export_recovery_conflict_body">L’identità o il contenuto del file non corrisponde più alla registrazione. L’eliminazione del file non è proposta. Dimentica rimuove solo la registrazione; può rimanere una copia non cifrata.</string>
+    <string name="private_export_recovery_unknown_body">L’identità del file non è confermata dopo l’interruzione. Nessun file viene adottato o eliminato in base al nome. Dimentica rimuove solo la registrazione; può rimanere una copia non cifrata.</string>
+    <string name="private_export_recovery_confirm_remove">Eliminare solo il file in sospeso identificato da questa registrazione verificata? Identità e contenuto saranno ricontrollati prima dell’eliminazione. Gli originali privati non vengono eliminati.</string>
+    <string name="private_export_recovery_confirm_forget">Chiudere questa registrazione senza eliminare file esportati? Una copia non cifrata può ancora esistere fuori dall’album privato. Esportare di nuovo può creare duplicati.</string>
+</resources>

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="publication_recoveries_title">Publications to recover</string>
+    <string name="publication_recoveries_back">Back</string>
+    <string name="publication_recoveries_refresh">Refresh</string>
+    <string name="publication_recoveries_result">Saved result</string>
+    <string name="publication_recoveries_loading">Checking publications…</string>
+    <string name="publication_recoveries_error">Some records or files could not be read. Refresh to check again; no missing result is assumed.</string>
+    <string name="publication_recoveries_changed">The reviewed state changed. Review the refreshed record before trying again.</string>
+    <string name="publication_recoveries_failed">The operation could not be confirmed. Check the refreshed state before another action.</string>
+    <string name="publication_recoveries_completed">Operation completed.</string>
+    <string name="publication_recoveries_empty">No publications to recover.</string>
+    <string name="publication_recoveries_review">Review this publication</string>
+    <string name="publication_recoveries_id">ID: %1$s</string>
+    <string name="publication_recoveries_no_destination">No destination recorded</string>
+    <string name="publication_recoveries_hash">Verified SHA-256: %1$s</string>
+    <string name="publication_recoveries_bytes">Bytes: %1$d</string>
+    <string name="publication_recoveries_preview">Verified static preview of the saved result</string>
+    <string name="publication_recoveries_open">Open</string>
+    <string name="publication_recoveries_share">Share</string>
+    <string name="publication_recoveries_confirm_complete">Make the reviewed, verified file visible without rendering another copy. Originals are not changed.</string>
+    <string name="publication_recoveries_confirm_remove">Delete only the reviewed pending file and its recovery record. Published files and originals are kept. This cannot be undone.</string>
+    <string name="publication_recoveries_confirm_forget">Remove only this recovery record. Existing files are kept; an unfinished file may no longer be discoverable from this screen.</string>
+    <string name="publication_recoveries_confirm">Confirm</string>
+    <string name="publication_recoveries_dismiss">Cancel</string>
+    <string name="publication_recoveries_kind_collage">Collage</string>
+    <string name="publication_recoveries_kind_gif">GIF</string>
+    <string name="publication_recoveries_kind_frame">Motion Photo frame (JPEG)</string>
+    <string name="publication_recoveries_kind_clip">Motion Photo clip (MP4)</string>
+    <string name="publication_recoveries_kind_motion_unknown">Motion Photo — output type unknown</string>
+    <string name="publication_recoveries_phase_intent">Publication intent recorded</string>
+    <string name="publication_recoveries_phase_inserted">Pending file recorded</string>
+    <string name="publication_recoveries_phase_ready">Verified file ready</string>
+    <string name="publication_recoveries_phase_published">Published</string>
+    <string name="publication_recoveries_phase_incomplete">Publication incomplete</string>
+    <string name="publication_recoveries_phase_conflict">Result missing or changed</string>
+    <string name="publication_recoveries_phase_unreadable">Unreadable record — actions blocked</string>
+    <string name="publication_recoveries_phase_missing">Pending file data is missing</string>
+    <string name="publication_recoveries_phase_busy">Publication is busy — refresh later</string>
+    <string name="publication_recoveries_phase_unknown">State not verified</string>
+    <string name="publication_recoveries_complete">Complete publication</string>
+    <string name="publication_recoveries_remove">Remove pending file</string>
+    <string name="publication_recoveries_forget">Forget record (keep files)</string>
+</resources>

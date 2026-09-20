@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="external_video_access_title">Source vidéo indisponible</string>
+    <string name="external_video_access_body">Avant de reprendre la modification, vérifiez qu’il s’agit toujours de la vidéo d’origine et que l’accès est disponible. Si l’autorisation a expiré, rouvrez la vidéo dans son application d’origine et confirmez l’accès, puis revenez ici.</string>
+    <string name="external_video_access_draft">Votre brouillon est conservé. Revenir ici ou rétablir l’autorisation ne rouvre pas automatiquement l’éditeur. Choisissez Vérifier l’accès pour vérifier le fichier d’origine.</string>
+    <string name="external_video_access_retry">Vérifier l’accès</string>
+    <string name="external_video_access_back">Retour</string>
+    <string name="external_video_access_checking">Vérification de la source…</string>
+    <string name="external_video_access_source_changed">Cette URI pointe désormais vers un autre fichier. Votre brouillon est conservé. Restaurez la vidéo d’origine à cette URI, puis choisissez Vérifier l’accès, ou revenez en arrière.</string>
+</resources>

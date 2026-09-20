@@ -1,0 +1,21 @@
+<resources>
+    <string name="private_portable_title">Encrypted backup</string>
+    <string name="private_portable_body">Keep a password-protected copy of your private album. Only encrypted files leave the app. Keep the password separately; it cannot be recovered.</string>
+    <string name="private_portable_export">Back up private album</string>
+    <string name="private_portable_import">Restore encrypted backup</string>
+    <string name="private_portable_password_note">Use at least 12 characters. The password is not saved.</string>
+    <string name="private_portable_password">Password</string>
+    <string name="private_portable_confirm_password">Confirm password</string>
+    <string name="private_portable_prepare">Prepare and verify</string>
+    <string name="private_portable_progress">Verifying %1$d of %2$d…</string>
+    <string name="private_portable_review">%1$d verified items are ready. Originals stay unchanged. Restore adds encrypted copies to this private album.</string>
+    <string name="private_portable_commit">Restore private copies</string>
+    <string name="private_portable_restored">%1$d private copies restored.</string>
+    <string name="private_portable_previous">This backup was restored previously (%1$d items). This is a historical receipt; items you deleted are not restored again.</string>
+    <string name="private_portable_saved">Encrypted backup saved and readback verified.</string>
+    <string name="private_portable_share">Share encrypted backup</string>
+    <string name="private_portable_error">The backup could not be verified. Check the password, document access and free space. No unverified items were added.</string>
+    <string name="private_portable_cancel_title">Cancel this operation?</string>
+    <string name="private_portable_cancel_body">Uncommitted encrypted staging files will be removed. Your originals and previously restored items stay unchanged.</string>
+    <string name="private_portable_continue">Continue</string>
+</resources>

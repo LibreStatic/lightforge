@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="creation_collage_publication_uncertain">A exportação continua sem resolução. As informações de recuperação estão preservadas. Verifique novamente ou volte; criar outra cópia permanece bloqueado.</string>
+    <string name="creation_collage_keep_editing">Continuar editando</string>
+    <string name="creation_collage_publication_not_started">Nenhuma cópia publicada foi encontrada para esta tentativa. Escolha Continuar editando para voltar ao rascunho sem exportar.</string>
+    <string name="creation_collage_publication_conflict">O registro de exportação ou a cópia salva não corresponde a esta colagem. As informações de recuperação estão preservadas; nenhuma nova cópia será criada.</string>
+    <string name="creation_collage_publication_unreadable">A exportação anterior não pôde ser verificada. As informações de recuperação estão preservadas. Verifique novamente ou volte depois.</string>
+    <string name="creation_collage_check_export">Verificar exportação</string>
+    <string name="creation_collage_sources_unavailable">As fotos originais estão indisponíveis ou mudaram. As cópias salvas podem ser verificadas, mas criar outra cópia está bloqueado.</string>
+    <string name="creation_collage_published_new_draft">Para editar outra cópia, volte e crie uma nova colagem. Este PNG salvo será preservado.</string>
+</resources>

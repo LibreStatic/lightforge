@@ -1,0 +1,21 @@
+<resources>
+    <string name="private_portable_title">Verschlüsselte Sicherung</string>
+    <string name="private_portable_body">Bewahre eine passwortgeschützte Kopie deines privaten Albums auf. Nur verschlüsselte Dateien verlassen die App. Bewahre das Passwort separat auf; es kann nicht wiederhergestellt werden.</string>
+    <string name="private_portable_export">Privates Album sichern</string>
+    <string name="private_portable_import">Verschlüsselte Sicherung wiederherstellen</string>
+    <string name="private_portable_password_note">Verwende mindestens 12 Zeichen. Das Passwort wird nicht gespeichert.</string>
+    <string name="private_portable_password">Passwort</string>
+    <string name="private_portable_confirm_password">Passwort bestätigen</string>
+    <string name="private_portable_prepare">Vorbereiten und prüfen</string>
+    <string name="private_portable_progress">%1$d von %2$d wird geprüft…</string>
+    <string name="private_portable_review">%1$d geprüfte Elemente sind bereit. Die Originale bleiben unverändert. Verschlüsselte Kopien werden diesem privaten Album hinzugefügt.</string>
+    <string name="private_portable_commit">Private Kopien wiederherstellen</string>
+    <string name="private_portable_restored">%1$d private Kopien wiederhergestellt.</string>
+    <string name="private_portable_previous">Diese Sicherung wurde bereits wiederhergestellt (%1$d Elemente). Dies ist ein historischer Beleg; gelöschte Elemente werden nicht erneut wiederhergestellt.</string>
+    <string name="private_portable_saved">Verschlüsselte Sicherung gespeichert und durch erneutes Lesen geprüft.</string>
+    <string name="private_portable_share">Verschlüsselte Sicherung teilen</string>
+    <string name="private_portable_error">Die Sicherung konnte nicht geprüft werden. Prüfe Passwort, Dokumentzugriff und freien Speicher. Es wurden keine ungeprüften Elemente hinzugefügt.</string>
+    <string name="private_portable_cancel_title">Diesen Vorgang abbrechen?</string>
+    <string name="private_portable_cancel_body">Nicht bestätigte verschlüsselte Zwischendateien werden entfernt. Deine Originale und zuvor wiederhergestellten Elemente bleiben unverändert.</string>
+    <string name="private_portable_continue">Fortsetzen</string>
+</resources>

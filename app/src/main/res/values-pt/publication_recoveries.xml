@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="publication_recoveries_title">Publicações para recuperar</string>
+    <string name="publication_recoveries_back">Voltar</string>
+    <string name="publication_recoveries_refresh">Atualizar</string>
+    <string name="publication_recoveries_result">Resultado salvo</string>
+    <string name="publication_recoveries_loading">Verificando publicações…</string>
+    <string name="publication_recoveries_error">Alguns registros ou arquivos não puderam ser lidos. Atualize para verificar novamente; nenhum resultado é considerado ausente.</string>
+    <string name="publication_recoveries_changed">O estado revisado mudou. Revise o registro atualizado antes de tentar novamente.</string>
+    <string name="publication_recoveries_failed">Não foi possível confirmar a operação. Verifique o estado atualizado antes de outra ação.</string>
+    <string name="publication_recoveries_completed">Operação concluída.</string>
+    <string name="publication_recoveries_empty">Nenhuma publicação para recuperar.</string>
+    <string name="publication_recoveries_review">Revisar esta publicação</string>
+    <string name="publication_recoveries_id">ID: %1$s</string>
+    <string name="publication_recoveries_no_destination">Nenhum destino registrado</string>
+    <string name="publication_recoveries_hash">SHA-256 verificado: %1$s</string>
+    <string name="publication_recoveries_bytes">Bytes: %1$d</string>
+    <string name="publication_recoveries_preview">Prévia estática verificada do resultado salvo</string>
+    <string name="publication_recoveries_open">Abrir</string>
+    <string name="publication_recoveries_share">Compartilhar</string>
+    <string name="publication_recoveries_confirm_complete">Tornar visível o arquivo revisado e verificado sem gerar outra cópia. Os originais não são alterados.</string>
+    <string name="publication_recoveries_confirm_remove">Excluir somente o arquivo pendente revisado e seu registro de recuperação. Arquivos publicados e originais são preservados. Esta ação não pode ser desfeita.</string>
+    <string name="publication_recoveries_confirm_forget">Remover somente este registro de recuperação. Os arquivos existentes são preservados; um arquivo incompleto pode deixar de ser encontrado nesta tela.</string>
+    <string name="publication_recoveries_confirm">Confirmar</string>
+    <string name="publication_recoveries_dismiss">Cancelar</string>
+    <string name="publication_recoveries_kind_collage">Colagem</string>
+    <string name="publication_recoveries_kind_gif">GIF</string>
+    <string name="publication_recoveries_kind_frame">Quadro de foto em movimento (JPEG)</string>
+    <string name="publication_recoveries_kind_clip">Clipe de foto em movimento (MP4)</string>
+    <string name="publication_recoveries_kind_motion_unknown">Foto em movimento — tipo de saída desconhecido</string>
+    <string name="publication_recoveries_phase_intent">Intenção de publicação registrada</string>
+    <string name="publication_recoveries_phase_inserted">Arquivo pendente registrado</string>
+    <string name="publication_recoveries_phase_ready">Arquivo verificado pronto</string>
+    <string name="publication_recoveries_phase_published">Publicado</string>
+    <string name="publication_recoveries_phase_incomplete">Publicação incompleta</string>
+    <string name="publication_recoveries_phase_conflict">Resultado ausente ou alterado</string>
+    <string name="publication_recoveries_phase_unreadable">Registro ilegível — ações bloqueadas</string>
+    <string name="publication_recoveries_phase_missing">Os dados do arquivo pendente estão ausentes</string>
+    <string name="publication_recoveries_phase_busy">Publicação ocupada — atualize depois</string>
+    <string name="publication_recoveries_phase_unknown">Estado não verificado</string>
+    <string name="publication_recoveries_complete">Concluir publicação</string>
+    <string name="publication_recoveries_remove">Remover arquivo pendente</string>
+    <string name="publication_recoveries_forget">Esquecer registro (manter arquivos)</string>
+</resources>

@@ -135,8 +135,9 @@ class VideoEditorFlowStateTest {
     @Test
     fun pendingExportIsTheDirtyBaselineUntilItReachesATerminalState() {
         val exported = VideoEditRecipe(speed = 2f)
+        val media = media()
         val session = VideoEditorSession(
-            media = media(),
+            source = EditorMediaSource(InputA, MediaKind.Video, libraryMedia = media),
             baselineRecipe = VideoEditRecipe(),
             recipe = exported,
             pendingExportRecipe = exported,

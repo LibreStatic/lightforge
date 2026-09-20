@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="private_export_recovery_title">Export recovery</string>
+    <string name="private_export_recovery_review">Review export</string>
+    <string name="private_export_recovery_back">Back</string>
+    <string name="private_export_recovery_refresh">Refresh</string>
+    <string name="private_export_recovery_working">Checking export…</string>
+    <string name="private_export_recovery_cancel">Cancel</string>
+    <string name="private_export_recovery_open">Open exported copy</string>
+    <string name="private_export_recovery_complete">Complete export</string>
+    <string name="private_export_recovery_close_result">Close result</string>
+    <string name="private_export_recovery_remove">Remove partial copy</string>
+    <string name="private_export_recovery_forget">Forget recovery record</string>
+    <string name="private_export_recovery_confirm">Confirm</string>
+    <string name="private_export_recovery_intro">Review unfinished exports and copies outside your private album. These actions never delete private originals.</string>
+    <string name="private_export_recovery_empty">No export recovery records. Completed or interrupted exports will appear here when there is a record to review.</string>
+    <string name="private_export_recovery_export_failed">The previous export ended without a confirmed result. Review its recovery record before exporting again.</string>
+    <string name="private_export_recovery_error">The result is unconfirmed. Refresh to review the current status before trying again.</string>
+    <string name="private_export_recovery_cancelled">Stopped waiting. Refresh to check the current status before another action.</string>
+    <string name="private_export_recovery_completed">Export completed. Review the published result to open it.</string>
+    <string name="private_export_recovery_removed">The reviewed partial copy was removed. Private originals were not deleted.</string>
+    <string name="private_export_recovery_forgotten">Recovery record closed. No exported file was deleted.</string>
+    <string name="private_export_recovery_ready">Ready to complete</string>
+    <string name="private_export_recovery_published">Published copy</string>
+    <string name="private_export_recovery_partial">Partial copy</string>
+    <string name="private_export_recovery_missing">Output missing</string>
+    <string name="private_export_recovery_conflict">Output changed</string>
+    <string name="private_export_recovery_unknown">Output identity unknown</string>
+    <string name="private_export_recovery_ready_body">A complete unencrypted copy is staged. Complete checks it again before making it visible outside your private album.</string>
+    <string name="private_export_recovery_published_body">This exported copy is outside your private album. Open checks it again. Closing this result removes only its recovery record, not the file.</string>
+    <string name="private_export_recovery_partial_body">The export did not finish. You can request removal of only the exact pending copy in this reviewed record; its current identity and contents are checked first.</string>
+    <string name="private_export_recovery_missing_body">The recorded output is missing. Forget removes its recovery record only. Exporting again may create a duplicate if an earlier copy still exists elsewhere.</string>
+    <string name="private_export_recovery_conflict_body">The output no longer matches the recorded identity or contents. No file deletion is offered. Forget removes tracking only; an unencrypted copy may remain.</string>
+    <string name="private_export_recovery_unknown_body">The output identity is unconfirmed after interruption. No file is adopted or deleted by name. Forget removes tracking only; an unencrypted copy may remain.</string>
+    <string name="private_export_recovery_confirm_remove">Remove only the pending output identified by this reviewed record? Its identity and contents will be checked again before deletion. Private originals are not deleted.</string>
+    <string name="private_export_recovery_confirm_forget">Close this recovery record without deleting any exported file? An unencrypted copy may still exist outside the private album. Exporting again may create duplicates.</string>
+</resources>

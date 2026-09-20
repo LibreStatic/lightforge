@@ -1,0 +1,27 @@
+<resources>
+    <string name="creation_gif_title">Créer un GIF</string>
+    <string name="creation_gif_back">Retour</string>
+    <string name="creation_gif_preview">Aperçu de l’animation</string>
+    <string name="creation_gif_position">Image %1$d sur %2$d</string>
+    <string name="creation_gif_play">Lire</string>
+    <string name="creation_gif_pause">Pause</string>
+    <string name="creation_gif_previous">Précédente</string>
+    <string name="creation_gif_next">Suivante</string>
+    <string name="creation_gif_earlier">Avancer</string>
+    <string name="creation_gif_later">Reculer</string>
+    <string name="creation_gif_remove">Retirer l’image</string>
+    <string name="creation_gif_duration">Durée par image</string>
+    <string name="creation_gif_seconds">%1$d s</string>
+    <string name="creation_gif_note">GIF local : 512 × 512 pixels, 256 couleurs, silencieux et en boucle. Sélectionnez 2–60 photos. Les originaux restent intacts.</string>
+    <string name="creation_gif_error">Une photo a changé ou est indisponible, ou l’opération a échoué. Vérifiez la sélection et réessayez.</string>
+    <string name="creation_gif_cancelled">Exportation annulée ; aucune copie incomplète conservée.</string>
+    <string name="creation_gif_cancel">Annuler l’exportation</string>
+    <string name="creation_gif_export">Exporter le GIF</string>
+    <string name="creation_gif_saved">GIF enregistré sur cet appareil</string>
+    <string name="creation_gif_open">Ouvrir</string>
+    <string name="creation_gif_share">Partager</string>
+    <string name="creation_gif_leave">Quitter cette exportation ?</string>
+    <string name="creation_gif_leave_hint">L’exportation sera annulée. Les photos originales restent intactes.</string>
+    <string name="creation_gif_keep">Continuer</string>
+    <string name="creation_gif_no_selection">Sélectionnez 2–60 photos dans Photos, puis choisissez Créer un GIF.</string>
+</resources>

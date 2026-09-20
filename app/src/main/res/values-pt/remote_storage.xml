@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="remote_storage_title">Backup no seu servidor</string>
+    <string name="remote_storage_working">Transferindo um backup verificado</string>
+    <string name="remote_storage_permission_explanation">Permita o acesso à rede local para conectar ao seu servidor SFTP ou SMB. Nenhum serviço ou conta na nuvem é usado.</string>
+    <string name="remote_storage_permission_allow">Permitir rede local</string>
+    <string name="remote_storage_permission_settings">Abrir configurações do app</string>
+    <string name="remote_storage_back">Voltar</string>
+</resources>

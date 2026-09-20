@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="publication_recoveries_title">Publications à récupérer</string>
+    <string name="publication_recoveries_back">Retour</string>
+    <string name="publication_recoveries_refresh">Actualiser</string>
+    <string name="publication_recoveries_result">Résultat enregistré</string>
+    <string name="publication_recoveries_loading">Vérification des publications…</string>
+    <string name="publication_recoveries_error">Certains enregistrements ou fichiers n’ont pas pu être lus. Actualisez pour vérifier à nouveau ; aucun résultat n’est présumé absent.</string>
+    <string name="publication_recoveries_changed">L’état examiné a changé. Examinez l’enregistrement actualisé avant de réessayer.</string>
+    <string name="publication_recoveries_failed">L’opération n’a pas pu être confirmée. Vérifiez l’état actualisé avant une autre action.</string>
+    <string name="publication_recoveries_completed">Opération terminée.</string>
+    <string name="publication_recoveries_empty">Aucune publication à récupérer.</string>
+    <string name="publication_recoveries_review">Examiner cette publication</string>
+    <string name="publication_recoveries_id">ID : %1$s</string>
+    <string name="publication_recoveries_no_destination">Aucune destination enregistrée</string>
+    <string name="publication_recoveries_hash">SHA-256 vérifié : %1$s</string>
+    <string name="publication_recoveries_bytes">Octets : %1$d</string>
+    <string name="publication_recoveries_preview">Aperçu statique vérifié du résultat enregistré</string>
+    <string name="publication_recoveries_open">Ouvrir</string>
+    <string name="publication_recoveries_share">Partager</string>
+    <string name="publication_recoveries_confirm_complete">Rendre visible le fichier examiné et vérifié sans créer une autre copie. Les originaux ne sont pas modifiés.</string>
+    <string name="publication_recoveries_confirm_remove">Supprimer uniquement le fichier en attente examiné et son enregistrement de récupération. Les fichiers publiés et les originaux sont conservés. Cette action est irréversible.</string>
+    <string name="publication_recoveries_confirm_forget">Supprimer uniquement cet enregistrement de récupération. Les fichiers existants sont conservés ; un fichier inachevé pourrait ne plus être accessible depuis cet écran.</string>
+    <string name="publication_recoveries_confirm">Confirmer</string>
+    <string name="publication_recoveries_dismiss">Annuler</string>
+    <string name="publication_recoveries_kind_collage">Collage</string>
+    <string name="publication_recoveries_kind_gif">GIF</string>
+    <string name="publication_recoveries_kind_frame">Image de photo animée (JPEG)</string>
+    <string name="publication_recoveries_kind_clip">Clip de photo animée (MP4)</string>
+    <string name="publication_recoveries_kind_motion_unknown">Photo animée — type de résultat inconnu</string>
+    <string name="publication_recoveries_phase_intent">Intention de publication enregistrée</string>
+    <string name="publication_recoveries_phase_inserted">Fichier en attente enregistré</string>
+    <string name="publication_recoveries_phase_ready">Fichier vérifié prêt</string>
+    <string name="publication_recoveries_phase_published">Publié</string>
+    <string name="publication_recoveries_phase_incomplete">Publication incomplète</string>
+    <string name="publication_recoveries_phase_conflict">Résultat absent ou modifié</string>
+    <string name="publication_recoveries_phase_unreadable">Enregistrement illisible — actions bloquées</string>
+    <string name="publication_recoveries_phase_missing">Les données du fichier en attente sont absentes</string>
+    <string name="publication_recoveries_phase_busy">Publication occupée — actualisez plus tard</string>
+    <string name="publication_recoveries_phase_unknown">État non vérifié</string>
+    <string name="publication_recoveries_complete">Terminer la publication</string>
+    <string name="publication_recoveries_remove">Supprimer le fichier en attente</string>
+    <string name="publication_recoveries_forget">Oublier l’enregistrement (garder les fichiers)</string>
+</resources>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="gif_publication_checking">Gespeichertes GIF wird geprüft…</string>
+    <string name="gif_publication_not_started">Das GIF wurde nicht veröffentlicht. Prüfe erneut oder kehre ausdrücklich zur Bearbeitung zurück. Es wird keine Kopie automatisch erstellt.</string>
+    <string name="gif_publication_incomplete">Die Veröffentlichung ist unvollständig. Der Wiederherstellungseintrag bleibt erhalten. Prüfe erneut oder gehe zurück; weitere Kopien sind gesperrt.</string>
+    <string name="gif_publication_conflict">Das gespeicherte GIF fehlt oder wurde verändert. Öffnen, Teilen und erneuter Export sind gesperrt. Der Wiederherstellungseintrag bleibt erhalten.</string>
+    <string name="gif_publication_unreadable">Das gespeicherte GIF konnte nicht geprüft werden. Prüfe erneut oder gehe zurück; der Wiederherstellungseintrag bleibt erhalten.</string>
+    <string name="gif_publication_unverified">Das GIF wurde gespeichert, die Prüfung wurde jedoch nicht rechtzeitig abgeschlossen. Prüfe erneut, bevor du es öffnest oder teilst.</string>
+    <string name="gif_publication_new_draft">Dieses GIF ist gespeichert. Schließe diesen Entwurf und beginne einen neuen, um eine weitere Kopie zu erstellen.</string>
+    <string name="gif_publication_sources_unavailable">Die Originalfotos sind nicht verfügbar. Ein geprüftes gespeichertes GIF kann weiterhin geöffnet oder geteilt werden; Bearbeitung und Export sind gesperrt.</string>
+    <string name="gif_publication_check">Gespeichertes GIF prüfen</string>
+    <string name="gif_publication_keep_editing">Zur Bearbeitung zurück</string>
+</resources>

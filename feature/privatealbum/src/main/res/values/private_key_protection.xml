@@ -1,0 +1,21 @@
+<resources>
+    <string name="private_key_protection_action">Protect keys with device authentication</string>
+    <string name="private_key_protection_title">Protect media and index keys</string>
+    <string name="private_key_protection_body">Require device authentication to use the encryption keys for private photos and videos and the independent key for the private index.</string>
+    <string name="private_key_protection_index_scope">The private index closes when you lock or leave the album, or put the app in the background. Closing the index keeps an already-prepared encrypted backup intact.</string>
+    <string name="private_key_protection_risk">Removing or resetting your device screen lock can make these keys unusable and permanently block access. Export an encrypted backup before continuing.</string>
+    <string name="private_key_protection_working">Protecting media encryption keys and the independent index key. Please wait for the operation to finish.</string>
+    <string name="private_key_protection_authentication_required">Authenticate with your device again to continue protecting the media and index keys.</string>
+    <string name="private_key_protection_failed">Protection could not be completed. Authenticate again and retry.</string>
+    <string name="private_key_protection_complete_title">Media and index keys protected</string>
+    <string name="private_key_protection_complete">The media encryption keys and the independent index key now require device authentication.</string>
+    <string name="private_key_protection_protect">Protect</string>
+    <string name="private_key_protection_working_button">Protecting…</string>
+    <string name="private_key_protection_cancel">Cancel</string>
+    <string name="private_key_protection_continue">Continue authentication</string>
+    <string name="private_key_protection_retry">Retry</string>
+    <string name="private_key_protection_done">Done</string>
+    <string name="private_key_protection_credentials_required">Set up a PIN, pattern, or password screen lock in system Settings. Then return here and tap Retry to protect the media and index keys.</string>
+    <string name="private_key_unlock_body">Unlock with biometrics or your device screen lock.</string>
+    <string name="private_key_auth_unavailable">Device authentication is unavailable. Configure a screen lock in system Settings, then return and try again.</string>
+</resources>

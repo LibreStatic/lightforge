@@ -1,5 +1,14 @@
 package com.ugallery.app
 
+import androidx.compose.runtime.key
+
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
+import androidx.compose.ui.platform.testTag
+import kotlinx.coroutines.CancellationException
 import android.Manifest
 import android.app.Activity
 import android.content.pm.PackageManager
@@ -12,6 +21,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -59,6 +69,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.runtime.saveable.listSaver
@@ -81,9 +92,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.viewinterop.AndroidView
-import android.graphics.drawable.AnimatedImageDrawable
-import android.widget.ImageView
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.LoadState
 import androidx.window.layout.FoldingFeature
@@ -99,6 +107,7 @@ import com.ugallery.core.mediastore.MediaAction
 import com.ugallery.core.mediastore.MediaActionPhase
 import com.ugallery.core.mediastore.MediaActionTarget
 import com.ugallery.core.mediastore.ScopedMediaOperations
+import com.ugallery.core.mediastore.LocalShareSanitizer
 import com.ugallery.core.designsystem.GalleryIcons
 import com.ugallery.core.designsystem.GallerySpacing
 import com.ugallery.core.designsystem.GalleryExpressiveIconButton
@@ -130,12 +139,14 @@ import com.ugallery.core.search.SearchConcept
 import com.ugallery.core.search.SearchVocabulary
 import com.ugallery.feature.album.AlbumContent
 import com.ugallery.feature.collections.CollectionsContent
+import com.ugallery.feature.collections.MomentUnavailableContent
 import com.ugallery.feature.collections.MomentContent
 import com.ugallery.feature.collections.PeopleContent
 import com.ugallery.feature.collections.PeopleUiState
 import com.ugallery.feature.collections.formatMomentDateRange
 import com.ugallery.feature.details.DetailsContent
 import com.ugallery.feature.permissions.PermissionCoordinator
+import com.ugallery.feature.photos.TimelineFocusReturn
 import com.ugallery.feature.photos.LibraryPhotosRoute
 import com.ugallery.feature.photos.PhotoHighlightUi
 import com.ugallery.feature.photos.AdaptivePagedPhotosTimeline
@@ -156,31 +167,46 @@ import com.ugallery.feature.privatealbum.PrivateAlbumContent
 import com.ugallery.feature.privatealbum.PrivateAlbumRepository
 import com.ugallery.feature.privatealbum.PrivateAlbumDatabase
 import com.ugallery.feature.privatealbum.BiometricGate
-import com.ugallery.feature.collage.CollageTemplate
-import com.ugallery.feature.collage.CollageTemplates
-import com.ugallery.feature.collage.CollageTemplatePicker
-import com.ugallery.feature.motionphotos.MotionPhotoParser
 import com.ugallery.feature.places.OfflineGazetteer
 import com.ugallery.feature.places.BundledGazetteer
-import com.ugallery.feature.subjectclip.SubjectClipper
-import com.ugallery.feature.objecteraser.ObjectEraser
 
 internal enum class RootTab { Photos, Collections, Search }
+/** Maps only the exact public-image identity used by a saved Motion provider. */
+internal fun publicationRecoveryMotionProviderKey(sourceIdentity: String?): String? {
+    val fields = Regex("content://media/([A-Za-z0-9_-]{1,128})/images/media/(0|[1-9][0-9]*)@(0|[1-9][0-9]*)/(0|[1-9][0-9]*)")
+        .matchEntire(sourceIdentity ?: return null)?.groupValues ?: return null
+    return "motion:${fields[1]}:${fields[2]}:Image:${fields[3]}:${fields[4]}:false"
+}
+
 internal enum class SurfaceRoute {
     Root, Updates, DeviceFolders, Album, HighlightCollection, Viewer, PhotoEditor, VideoEditor,
-    Archive, Trash, Settings, About, Moment, People, PrivateAlbum, PrivateAlbumPicker, Collage,
+    Archive, Trash, Settings, About, Moment, MomentParticipants, MemoryControls, MemoriesBrowser, ManualMoment, MemoryVideo, MotionPhoto, CreationGif, LocalBackup, LocalBackupTasks, RemoteBackup, OwnSync, OfflinePlaces, LocalSharing, PetIdentity, People, PrivateAlbum, PrivateAlbumPicker, Collage, PdfStudio, Documents, Stacks, SmartAlbums, PublicationRecoveries,
 }
+internal fun retainsPhotosViewerWindow(
+    requested: Boolean, route: SurfaceRoute, fromPhotos: Boolean, external: Boolean,
+): Boolean = requested && fromPhotos && !external &&
+    route in setOf(SurfaceRoute.Viewer, SurfaceRoute.PhotoEditor, SurfaceRoute.VideoEditor, SurfaceRoute.MotionPhoto)
 private data class PrivateImportProgress(val completed: Int, val total: Int)
 private data class PrivateImportOutcome(val successful: List<TimelineMedia>, val total: Int)
 internal data class ScreenMotionKey(
     val route: SurfaceRoute,
     val rootTab: RootTab,
     val saveableStateKey: String? = null,
-)
+) {
+    // AnimatedContent folds contentKey.hashCode into nested rememberSaveable identities.
+    // Enum.hashCode is process-local, even when wrapped in a data class. Use stable names
+    // so the same restored route/draft consumes its saved child state in a new process.
+    override fun hashCode(): Int {
+        var result = route.name.hashCode()
+        result = 31 * result + rootTab.name.hashCode()
+        return 31 * result + (saveableStateKey?.hashCode() ?: 0)
+    }
+}
 
 private sealed interface ViewerReturnDestination {
     data class Root(val tab: RootTab) : ViewerReturnDestination
     data class Album(val key: AlbumKey) : ViewerReturnDestination
+    data object Places : ViewerReturnDestination
     data object Highlight : ViewerReturnDestination
     data object Archive : ViewerReturnDestination
     data object Trash : ViewerReturnDestination
@@ -197,6 +223,7 @@ private val ViewerReturnDestinationSaver = listSaver<ViewerReturnDestination?, S
             }
             ViewerReturnDestination.Trash -> listOf("trash")
             ViewerReturnDestination.Archive -> listOf("archive")
+            ViewerReturnDestination.Places -> listOf("places")
             ViewerReturnDestination.Highlight -> listOf("highlight")
         }
     },
@@ -215,6 +242,7 @@ private val ViewerReturnDestinationSaver = listSaver<ViewerReturnDestination?, S
             }
             "trash" -> ViewerReturnDestination.Trash
             "archive" -> ViewerReturnDestination.Archive
+            "places" -> ViewerReturnDestination.Places
             "highlight" -> ViewerReturnDestination.Highlight
             else -> null
         }
@@ -237,14 +265,47 @@ internal fun surfaceStateKey(
     rootTab: RootTab,
     selectedAlbum: AlbumSummary?,
     selectedHighlightId: String? = null,
+    creationGifSessionId: String? = null,
+    creationCollageSessionId: String? = null,
+    memoryVideoSessionId: String? = null,
+    manualMomentSessionId: String? = null,
+    viewerIdentity: String? = null,
+    videoEditorSessionId: String? = null,
 ): String? = when (route) {
     SurfaceRoute.Root -> rootStateKey(rootTab)
     SurfaceRoute.Album -> selectedAlbum?.key?.let(::albumStateKey)
+    SurfaceRoute.Documents -> "documents"
     SurfaceRoute.Archive -> "archive"
     SurfaceRoute.Trash -> "trash"
+    SurfaceRoute.VideoEditor -> videoEditorSessionId?.let { "video-editor:$it" }
+    SurfaceRoute.Viewer -> viewerIdentity?.let { "viewer:$it" }
+    SurfaceRoute.MotionPhoto -> viewerIdentity?.let { "motion:$it" }
+    SurfaceRoute.MemoryControls -> "memory-controls"
+    SurfaceRoute.ManualMoment -> manualMomentSessionId?.let { "manual-moment:$it" }
+    SurfaceRoute.MemoryVideo -> memoryVideoSessionId?.let { "memory-video:$it" }
+    SurfaceRoute.MemoriesBrowser -> "memories-browser"
+    SurfaceRoute.Collage -> creationCollageSessionId?.let { "creation-collage:$it" }
+    SurfaceRoute.CreationGif -> creationGifSessionId?.let { "creation-gif:$it" }
+    SurfaceRoute.PublicationRecoveries -> "publication-recoveries"
+    SurfaceRoute.LocalBackupTasks -> "local-backup-tasks"
+    SurfaceRoute.RemoteBackup -> "remote-backup"
+    SurfaceRoute.LocalSharing -> "local-sharing"
+    SurfaceRoute.PetIdentity -> "pet-identity"
+    SurfaceRoute.OwnSync -> "own-sync"
+    SurfaceRoute.OfflinePlaces -> "offline-places"
     SurfaceRoute.HighlightCollection -> selectedHighlightId?.let { "highlight:$it" }
     else -> null
 }
+
+internal data class SurfaceReturn(val route: SurfaceRoute, val rootTab: RootTab)
+
+/**
+ * Places is reachable from Settings and from the Search root tab. Back must return to the
+ * surface the user actually came from instead of stranding them in Settings.
+ */
+internal fun placesReturnTarget(requestedRoute: SurfaceRoute, requestedTab: RootTab): SurfaceReturn =
+    if (requestedRoute == SurfaceRoute.Root) SurfaceReturn(SurfaceRoute.Root, requestedTab)
+    else SurfaceReturn(SurfaceRoute.Settings, requestedTab)
 
 internal fun availableSurfaceRoute(
     requested: SurfaceRoute,
@@ -253,11 +314,20 @@ internal fun availableSurfaceRoute(
     hasSelectedHighlight: Boolean,
     hasPhotoEditor: Boolean = hasCurrentMedia,
     hasVideoEditor: Boolean = hasCurrentMedia,
+    hasCreationGifSources: Boolean = false,
+    isPhotoEditorOpening: Boolean = false,
+    hasCreationCollageSources: Boolean = false,
+    hasCreationCollageDraft: Boolean = false,
+    hasCreationGifDraft: Boolean = false,
+    hasViewerDraft: Boolean = false,
+    hasVideoEditorDraft: Boolean = false,
 ): SurfaceRoute = when (requested) {
-    SurfaceRoute.Viewer -> requested.takeIf { hasCurrentMedia } ?: SurfaceRoute.Root
-    SurfaceRoute.PhotoEditor -> requested.takeIf { hasCurrentMedia && hasPhotoEditor }
+    SurfaceRoute.Collage -> requested.takeIf { hasCreationCollageSources || hasCreationCollageDraft } ?: SurfaceRoute.Root
+    SurfaceRoute.CreationGif -> requested.takeIf { hasCreationGifSources || hasCreationGifDraft } ?: SurfaceRoute.Root
+    SurfaceRoute.Viewer, SurfaceRoute.MotionPhoto -> requested.takeIf { hasCurrentMedia || hasViewerDraft } ?: SurfaceRoute.Root
+    SurfaceRoute.PhotoEditor -> requested.takeIf { hasCurrentMedia && (hasPhotoEditor || isPhotoEditorOpening) }
         ?: if (hasCurrentMedia) SurfaceRoute.Viewer else SurfaceRoute.Root
-    SurfaceRoute.VideoEditor -> requested.takeIf { hasCurrentMedia && hasVideoEditor }
+    SurfaceRoute.VideoEditor -> requested.takeIf { hasVideoEditorDraft || (hasCurrentMedia && hasVideoEditor) }
         ?: if (hasCurrentMedia) SurfaceRoute.Viewer else SurfaceRoute.Root
     SurfaceRoute.Album -> requested.takeIf { hasSelectedAlbum } ?: SurfaceRoute.Root
     SurfaceRoute.HighlightCollection -> requested.takeIf { hasSelectedHighlight } ?: SurfaceRoute.Root
@@ -274,9 +344,9 @@ internal fun ProductionGalleryApp(
     val appScope = rememberCoroutineScope()
     val density = LocalDensity.current
     val voiceSearchUnavailable = stringResource(com.ugallery.feature.search.R.string.search_voice_unavailable)
-    val privateBiometricUnavailable = stringResource(com.ugallery.feature.privatealbum.R.string.private_biometric_unavailable)
+    val privateBiometricUnavailable = stringResource(com.ugallery.feature.privatealbum.R.string.private_key_auth_unavailable)
     val privateLockedTitle = stringResource(com.ugallery.feature.privatealbum.R.string.private_locked)
-    val privateUnlockSubtitle = stringResource(com.ugallery.feature.privatealbum.R.string.private_unlock_body)
+    val privateUnlockSubtitle = stringResource(com.ugallery.feature.privatealbum.R.string.private_key_unlock_body)
     val privateBiometricFailed = stringResource(com.ugallery.feature.privatealbum.R.string.private_biometric_failed)
     val privateExportFailed = stringResource(com.ugallery.feature.privatealbum.R.string.private_export_failed)
     val appLockTitle = stringResource(R.string.app_lock_title)
@@ -287,13 +357,54 @@ internal fun ProductionGalleryApp(
     val engineState by viewModel.engineState.collectAsState()
     val thumbnails by viewModel.thumbnailLoader.collectAsState()
     val currentMedia by viewModel.currentMedia.collectAsState()
+    val viewerRestoreSnapshot by viewModel.viewerRestoreSnapshot.collectAsState()
+    val viewerSourceChecking by viewModel.viewerSourceChecking.collectAsState()
     val viewerState by viewModel.viewerState.collectAsState()
     val selectedAlbum by viewModel.selectedAlbum.collectAsState()
+    val collectionLayoutWorking by viewModel.collectionLayoutWorking.collectAsState()
+    val collectionLayoutFailed by viewModel.collectionLayoutFailed.collectAsState()
+    val collectionLayoutRevision by viewModel.collectionLayoutRevision.collectAsState()
+    val albumCoverWorking by viewModel.albumCoverWorking.collectAsState()
+    val albumCoverFailed by viewModel.albumCoverFailed.collectAsState()
+    val albumCoverRevision by viewModel.albumCoverRevision.collectAsState()
+    val albumRename by viewModel.albumRename.collectAsState()
     val selection by viewModel.selection.collectAsState()
+    var pdfReturnToDocuments by rememberSaveable { mutableStateOf(false) }
+    var pendingPdfSources by rememberSaveable { mutableStateOf(arrayListOf<String>()) }
+    var pendingPdfRequestId by rememberSaveable { mutableStateOf(java.util.UUID.randomUUID().toString()) }
     val selectionCount by viewModel.selectionCount.collectAsState()
     val photoState by viewModel.photoState.collectAsState()
     val adjacentPhotoStates by viewModel.adjacentPhotoStates.collectAsState()
     val trashCount by viewModel.trashCount.collectAsState()
+    var initialStackId by rememberSaveable { mutableStateOf<String?>(null) }
+    val smartAlbumRepository by viewModel.smartAlbumRepository.collectAsState()
+    val memoryExclusionRepository by viewModel.memoryExclusionRepository.collectAsState()
+    val memoryVideoSessionId by viewModel.memoryVideoSessionId.collectAsState()
+    val manualMomentSession by viewModel.manualMomentSession.collectAsState()
+    val manualMomentSessionId by viewModel.manualMomentSessionId.collectAsState()
+    val manualMomentRestoring by viewModel.manualMomentRestoring.collectAsState()
+    val manualMomentBusy by viewModel.manualMomentBusy.collectAsState()
+    val manualMomentError by viewModel.manualMomentError.collectAsState()
+    val manualMomentRecovery by viewModel.manualMomentRecovery.collectAsState()
+    val manualMomentPendingCreate by viewModel.manualMomentPendingCreate.collectAsState()
+    val manualMomentAcknowledgementToken by viewModel.manualMomentAcknowledgementToken.collectAsState()
+    val memoryVideoSources by viewModel.memoryVideoSources.collectAsState()
+    val memoryVideoRestoring by viewModel.memoryVideoRestoring.collectAsState()
+    val memoryVideoTitle by viewModel.memoryVideoTitle.collectAsState()
+    val memoryVideoError = stringResource(com.ugallery.feature.videoeditor.R.string.memory_video_failure)
+    val manualCreationErrorText by rememberUpdatedState(stringResource(com.ugallery.feature.collections.R.string.manual_moment_error))
+    val manualSelectionHint by rememberUpdatedState(stringResource(com.ugallery.feature.collections.R.string.manual_moment_select_photos))
+    val videoSelectionHint by rememberUpdatedState(stringResource(R.string.selection_video_photos))
+    val gifCreationErrorText by rememberUpdatedState(stringResource(com.ugallery.feature.collage.R.string.creation_gif_error))
+    val gifSelectionHint by rememberUpdatedState(stringResource(com.ugallery.feature.collage.R.string.creation_gif_no_selection))
+    val resultActionUnavailable by rememberUpdatedState(stringResource(R.string.viewer_action_unavailable))
+
+    var memoryControlsReturnToMoment by rememberSaveable { mutableStateOf(false) }
+    val photoStackRepository by viewModel.photoStackRepository.collectAsState()
+    val stackError = stringResource(com.ugallery.feature.collections.R.string.stacks_error)
+    val documentRepository by viewModel.documentRepository.collectAsState()
+    val documentCount by viewModel.documentCount.collectAsState()
+    val documentError = stringResource(com.ugallery.feature.collections.R.string.documents_error)
     val archiveCount by viewModel.archiveCount.collectAsState()
     val activityEvents by viewModel.activity.collectAsState()
     val highlights by viewModel.highlights.collectAsState()
@@ -313,6 +424,16 @@ internal fun ProductionGalleryApp(
     val petSummary by viewModel.petSummary.collectAsState()
     val selectedMoment by viewModel.selectedMoment.collectAsState()
     val momentSummaries by viewModel.momentSummaries.collectAsState()
+    val momentRepository by viewModel.momentRepository.collectAsState()
+    val creationGifSession by viewModel.creationGifSession.collectAsState()
+    val creationGifSources = creationGifSession?.sources.orEmpty()
+    val creationGifSessionId by viewModel.creationGifSessionId.collectAsState()
+    val creationGifRestoring by viewModel.creationGifRestoring.collectAsState()
+    val creationCollageSession by viewModel.creationCollageSession.collectAsState()
+    val creationCollageSessionId by viewModel.creationCollageSessionId.collectAsState()
+    val creationCollageRestoring by viewModel.creationCollageRestoring.collectAsState()
+    val creationCollageSources = creationCollageSession?.sources.orEmpty()
+    val momentPlaceLabels = remember(viewModel) { viewModel::momentPlaceLabel }
     val momentMembers by viewModel.momentMembers.collectAsState(initial = emptyList())
     val people by viewModel.peopleSummaries.collectAsState()
     val selectedPerson by viewModel.selectedPerson.collectAsState()
@@ -322,8 +443,10 @@ internal fun ProductionGalleryApp(
     val external by viewModel.externalMedia.collectAsState()
     val externalPhoto by viewModel.externalPhotoState.collectAsState()
     val photoEditor by viewModel.photoEditor.collectAsState()
+    val photoEditorOpening by viewModel.photoEditorOpening.collectAsState()
     val videoEditor by viewModel.videoEditor.collectAsState()
     val videoEditorOpening by viewModel.videoEditorOpening.collectAsState()
+    val videoEditorSessionId by viewModel.videoEditorSessionId.collectAsState()
     val videoExports by viewModel.videoExports.collectAsState()
     val activeVideoExports = remember(videoExports) { activeVideoExportQueue(videoExports) }
     val globalExportProgress = remember(activeVideoExports) {
@@ -333,6 +456,18 @@ internal fun ProductionGalleryApp(
         pluralStringResource(R.plurals.video_exports_active, it.size, it.size)
     }
     val snackbarHostState = remember { SnackbarHostState() }
+    val selectionClearedMessage = stringResource(R.string.selection_count, 0L)
+    var previousSelectionCount by remember { mutableStateOf(selectionCount) }
+    LaunchedEffect(selectionCount) {
+        val previous = previousSelectionCount
+        previousSelectionCount = selectionCount
+        // The live count leaves composition at zero. A visible, polite Snackbar covers that
+        // terminal transition without a hidden focus target or an initial "0 selected" announcement.
+        // A new selection cancels a queued clear message through this effect's count key.
+        if (previous > 0L && selectionCount == 0L) {
+            snackbarHostState.showSnackbar(selectionClearedMessage)
+        }
+    }
     val timeline = viewModel.timeline.collectAsLazyPagingItems()
     val physicalAlbums = viewModel.physicalAlbums.collectAsLazyPagingItems()
     val virtualAlbums = viewModel.virtualAlbums.collectAsLazyPagingItems()
@@ -394,6 +529,42 @@ internal fun ProductionGalleryApp(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
+    var route by rememberSaveable { mutableStateOf(SurfaceRoute.Root) }
+    val privateAlbumRepo = remember {
+        PrivateAlbumRepository.sessionBacked(context.applicationContext)
+    }
+    val privateFlowVisible = route == SurfaceRoute.PrivateAlbum || route == SurfaceRoute.PrivateAlbumPicker
+    val privateSession = com.ugallery.feature.privatealbum.rememberPrivateAlbumSession(
+        active = privateFlowVisible,
+        lifecycleOwner = lifecycleOwner,
+        onRevoke = { privateAlbumRepo.revokeSession() },
+    )
+    DisposableEffect(privateAlbumRepo) { onDispose { privateAlbumRepo.disposeSession() } }
+    val privateAlbumUnlocked = privateSession.isUnlocked
+    DisposableEffect(privateFlowVisible) {
+        if (!privateFlowVisible) return@DisposableEffect onDispose { }
+        val window = (context as? Activity)?.window
+        window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
+    }
+    // Keep only the headless-capable portable host stable when the global lock removes gallery UI.
+    var showPrivatePortable by remember { mutableStateOf(false) }
+    var privatePortableHasItems by remember { mutableStateOf(false) }
+    LaunchedEffect(privateFlowVisible) {
+        if (!privateFlowVisible) showPrivatePortable = false
+    }
+    LaunchedEffect(gallerySettings.security.appLockEnabled, appUnlocked) {
+        if (gallerySettings.security.appLockEnabled && !appUnlocked) privateSession.revoke()
+    }
+    if (showPrivatePortable && privateFlowVisible) {
+        com.ugallery.feature.privatealbum.PrivatePortableContent(
+            repository = privateAlbumRepo,
+            hasItems = privatePortableHasItems,
+            onClose = { showPrivatePortable = false },
+            isUnlocked = privateAlbumUnlocked && (!gallerySettings.security.appLockEnabled || appUnlocked),
+            onAuthenticationRequired = { privateSession.revoke() },
+        )
+    }
     if (gallerySettings.security.appLockEnabled && !appUnlocked) {
         Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
             Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
@@ -427,7 +598,25 @@ internal fun ProductionGalleryApp(
         remember { kotlinx.coroutines.flow.flowOf<GalleryFoldInfo?>(null) }.collectAsState(initial = null)
     }
     var rootTab by rememberSaveable { mutableStateOf(RootTab.Photos) }
-    var route by rememberSaveable { mutableStateOf(SurfaceRoute.Root) }
+    val photosInputMode = androidx.compose.ui.platform.LocalInputModeManager.current
+    val photosAccessibility = remember(context) {
+        context.getSystemService(android.view.accessibility.AccessibilityManager::class.java)
+    }
+    // Input-focus return is transient; it is not persisted authorization or a TalkBack receipt.
+    var photosViewerOrigin by remember { mutableStateOf<MediaKey?>(null) }
+    var photosViewerUsesWindow by remember { mutableStateOf(false) }
+    var photosFocusReturn by remember { mutableStateOf<TimelineFocusReturn?>(null) }
+    var photosFocusSequence by remember { mutableStateOf(0L) }
+    LaunchedEffect(route, rootTab) {
+        if (route != SurfaceRoute.Root || rootTab != RootTab.Photos) photosFocusReturn = null
+    }
+    LaunchedEffect(route, external) {
+        if (external != null || route !in setOf(SurfaceRoute.Root, SurfaceRoute.Viewer,
+                SurfaceRoute.PhotoEditor, SurfaceRoute.VideoEditor, SurfaceRoute.MotionPhoto)) {
+            photosViewerUsesWindow = false
+            photosViewerOrigin = null
+        }
+    }
     val surfaceStateHolder = rememberSaveableStateHolder()
     var viewerReturnDestination by rememberSaveable(stateSaver = ViewerReturnDestinationSaver) {
         mutableStateOf<ViewerReturnDestination?>(null)
@@ -441,39 +630,202 @@ internal fun ProductionGalleryApp(
     var archiveSelectionMode by rememberSaveable { mutableStateOf(false) }
     var trashMenuExpanded by rememberSaveable { mutableStateOf(false) }
     var showAddToAlbum by rememberSaveable { mutableStateOf(false) }
+    var reopenAddToAlbum by rememberSaveable { mutableStateOf(false) }
     var showEmptyTrashConfirmation by rememberSaveable { mutableStateOf(false) }
     var showDiscardEditorConfirmation by rememberSaveable { mutableStateOf(false) }
     var showVideoExportQueue by rememberSaveable { mutableStateOf(false) }
     var dismissedVideoExportIds by rememberSaveable { mutableStateOf("") }
     var newAlbumName by rememberSaveable { mutableStateOf("") }
     var pendingRequestId by rememberSaveable { mutableStateOf<Long?>(null) }
-    var selectedCollageTemplateIndex by rememberSaveable { mutableStateOf(0) }
-    var collageRendering by rememberSaveable { mutableStateOf(false) }
-    var collageStatus by rememberSaveable { mutableStateOf<Int?>(null) }
-    val collageTemplates = remember { CollageTemplate.entries.toList() }
-    val privateAlbumRepo = remember {
-        PrivateAlbumRepository(
-            context.applicationContext,
-            PrivateAlbumDatabase.open(context.applicationContext),
-        )
+    var gifReturnRoute by rememberSaveable { mutableStateOf(SurfaceRoute.Root) }
+    var gifReturnRootTab by rememberSaveable { mutableStateOf(RootTab.Photos) }
+    var gifPreparing by remember { mutableStateOf(false) }
+    var backupReviewTaskId by rememberSaveable { mutableStateOf<String?>(null) }
+    var backupTasksReturnRemote by rememberSaveable { mutableStateOf(false) }
+    var momentReturnToBrowser by rememberSaveable { mutableStateOf(false) }
+    var placesReturnRoute by rememberSaveable { mutableStateOf(SurfaceRoute.Settings) }
+    var placesReturnRootTab by rememberSaveable { mutableStateOf(RootTab.Photos) }
+    fun openOfflinePlaces() {
+        val target = placesReturnTarget(route, rootTab)
+        placesReturnRoute = target.route
+        placesReturnRootTab = target.rootTab
+        route = SurfaceRoute.OfflinePlaces
     }
-    var privateAlbumUnlocked by rememberSaveable { mutableStateOf(false) }
+    fun leaveOfflinePlaces() { rootTab = placesReturnRootTab; route = placesReturnRoute }
+    var collageReturnRoute by rememberSaveable { mutableStateOf(SurfaceRoute.Root) }
+    var collageReturnRootTab by rememberSaveable { mutableStateOf(RootTab.Photos) }
+    var collagePreparing by remember { mutableStateOf(false) }
+    var videoReturnRoute by rememberSaveable { mutableStateOf(SurfaceRoute.Root) }
+    var videoReturnRootTab by rememberSaveable { mutableStateOf(RootTab.Photos) }
+    var videoPreparing by remember { mutableStateOf(false) }
+    LaunchedEffect(route, rootTab) { viewModel.cancelPendingMemoryVideoPreparation() }
+    fun closeMemoryVideo() { viewModel.clearMemoryVideo(); rootTab = videoReturnRootTab; route = videoReturnRoute }
+    var manualReturnRoute by rememberSaveable { mutableStateOf(SurfaceRoute.Root) }
+    var manualReturnTab by rememberSaveable { mutableStateOf(RootTab.Photos) }
+    var manualPreparing by remember { mutableStateOf(false) }
+    LaunchedEffect(route, rootTab) { viewModel.cancelPendingManualMomentPreparation() }
+    fun closeManualMoment() {
+        if (!manualMomentBusy) {
+            val closedId = viewModel.manualMomentSessionId.value
+            viewModel.clearManualMoment()
+            closedId?.let { surfaceStateHolder.removeState("manual-moment:$it") }
+            rootTab = manualReturnTab; route = manualReturnRoute
+        }
+    }
+    fun openManualMoment(keys: List<com.ugallery.core.model.MediaKey>? = null) {
+        if (manualPreparing) return
+        manualPreparing = true
+        val requestedRoute = route
+        val requestedTab = rootTab
+        val hasSelection = keys != null || viewModel.canCreateSelectionVideo()
+        appScope.launch {
+            try {
+                val ready = try { viewModel.prepareManualMoment(keys) }
+                    catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: Exception) { false }
+                if (route != requestedRoute || rootTab != requestedTab) return@launch
+                if (ready) {
+                    manualReturnRoute = requestedRoute; manualReturnTab = requestedTab
+                    route = SurfaceRoute.ManualMoment
+                } else {
+                    if (!hasSelection) { rootTab = RootTab.Photos; route = SurfaceRoute.Root }
+                    snackbarHostState.showSnackbar(if (hasSelection) manualCreationErrorText else manualSelectionHint)
+                }
+            } finally { manualPreparing = false }
+        }
+    }
+    fun openSelectionVideo() {
+        if (videoPreparing) return
+        videoPreparing = true
+        val requestedRoute = route
+        val requestedTab = rootTab
+        val hadSelection = viewModel.canCreateSelectionVideo()
+        appScope.launch {
+            try {
+                val ready = try { viewModel.prepareSelectionVideo() }
+                    catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: Exception) { false }
+                if (route != requestedRoute || rootTab != requestedTab) return@launch
+                if (ready) {
+                    videoReturnRoute = requestedRoute; videoReturnRootTab = requestedTab
+                    route = SurfaceRoute.MemoryVideo
+                } else {
+                    if (!hadSelection) { rootTab = RootTab.Photos; route = SurfaceRoute.Root }
+                    snackbarHostState.showSnackbar(if (hadSelection) memoryVideoError else videoSelectionHint)
+                }
+            } finally { videoPreparing = false }
+        }
+    }
+    fun backKeepingCreationGif() {
+        rootTab = gifReturnRootTab
+        route = gifReturnRoute
+    }
+    fun closeCreationGif() {
+        creationGifSessionId?.let { surfaceStateHolder.removeState("creation-gif:$it") }
+        viewModel.clearCreationGif()
+        rootTab = gifReturnRootTab
+        route = gifReturnRoute
+    }
+    fun openCreationGif() {
+        if (gifPreparing) return
+        gifPreparing = true
+        val requestedRoute = route
+        val requestedTab = rootTab
+        val hadSelection = viewModel.canCreateGif()
+        val retainedSessionId = viewModel.creationGifSessionId.value
+        appScope.launch {
+            try {
+                val ready = try { viewModel.prepareCreationGif() }
+                    catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: Exception) { false }
+                if (route != requestedRoute || rootTab != requestedTab) {
+                    if (viewModel.creationGifSessionId.value != retainedSessionId) viewModel.clearCreationGif()
+                    return@launch
+                }
+                if (ready) {
+                    gifReturnRoute = requestedRoute
+                    gifReturnRootTab = requestedTab
+                    route = SurfaceRoute.CreationGif
+                } else {
+                    if (!hadSelection) { rootTab = RootTab.Photos; route = SurfaceRoute.Root }
+                    snackbarHostState.showSnackbar(if (hadSelection) gifCreationErrorText else gifSelectionHint)
+                }
+            } finally { gifPreparing = false }
+        }
+    }
+
+    fun openCreationCollage() {
+        if (collagePreparing) return
+        collagePreparing = true
+        val requestedRoute = route
+        val requestedTab = rootTab
+        val retainedSessionId = viewModel.creationCollageSessionId.value
+        appScope.launch {
+            try {
+                val outcome = try { viewModel.prepareCreationCollage() }
+                    catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: Exception) {
+                        CollagePreparation.Rejected(CollageRejection.SourceUnavailable)
+                    }
+                if (route != requestedRoute || rootTab != requestedTab) {
+                    if (viewModel.creationCollageSessionId.value != retainedSessionId) viewModel.clearCreationCollage()
+                    return@launch
+                }
+                when (outcome) {
+                    CollagePreparation.Ready -> {
+                        collageReturnRoute = requestedRoute
+                        collageReturnRootTab = requestedTab
+                        route = SurfaceRoute.Collage
+                    }
+                    is CollagePreparation.Rejected -> {
+                        // Nothing selected is the only case that still needs the user taken to the
+                        // grid; every other rejection is explained where the user already is.
+                        if (outcome.reason == CollageRejection.NothingSelected) {
+                            rootTab = RootTab.Photos
+                            route = SurfaceRoute.Root
+                        }
+                        val message = collageRejectionMessage(outcome.reason, outcome.selectedCount)
+                        snackbarHostState.showSnackbar(
+                            message.formatArg?.let { context.getString(message.stringRes, it) }
+                                ?: context.getString(message.stringRes),
+                        )
+                    }
+                }
+            } finally { collagePreparing = false }
+        }
+    }
+
     val privateImportSelection = remember { mutableStateMapOf<MediaKey, TimelineMedia>() }
     var privateImportProgress by remember { mutableStateOf<PrivateImportProgress?>(null) }
     var privateImportOutcome by remember { mutableStateOf<PrivateImportOutcome?>(null) }
 
+    LaunchedEffect(privateAlbumUnlocked) {
+        if (!privateAlbumUnlocked) {
+            privateImportSelection.clear()
+            privateImportOutcome = null
+            if (route == SurfaceRoute.PrivateAlbumPicker) route = SurfaceRoute.PrivateAlbum
+        }
+    }
+
     val renderedRoute = availableSurfaceRoute(
-        requested = route,
-        hasCurrentMedia = currentMedia != null,
+        requested = if (route == SurfaceRoute.PrivateAlbumPicker && !privateAlbumUnlocked) SurfaceRoute.PrivateAlbum else route,
+        hasCurrentMedia = currentMedia != null || external != null,
         hasSelectedAlbum = selectedAlbum != null,
         hasSelectedHighlight = selectedHighlight != null,
         hasPhotoEditor = photoEditor != null,
+        isPhotoEditorOpening = photoEditorOpening,
         hasVideoEditor = videoEditor != null || videoEditorOpening,
+        hasVideoEditorDraft = videoEditorSessionId != null,
+        hasCreationGifSources = creationGifSources.size in 2..60,
+        hasCreationGifDraft = creationGifSessionId != null,
+        hasViewerDraft = viewerRestoreSnapshot != null,
+        hasCreationCollageSources = creationCollageSources.size in 2..4,
+        hasCreationCollageDraft = creationCollageSessionId != null,
     )
     val userHardwareWorkload = when {
-        renderedRoute == SurfaceRoute.VideoEditor -> UserHardwareWorkload.VideoEditor
+        renderedRoute == SurfaceRoute.VideoEditor && videoEditor?.externalAccessBlocked != true -> UserHardwareWorkload.VideoEditor
         renderedRoute == SurfaceRoute.PhotoEditor -> UserHardwareWorkload.PhotoEditor
-        external?.kind == MediaKind.Video -> UserHardwareWorkload.VideoViewer
+        renderedRoute == SurfaceRoute.Viewer && external?.kind == MediaKind.Video -> UserHardwareWorkload.VideoViewer
         renderedRoute == SurfaceRoute.Viewer && currentMedia?.kind == MediaKind.Video ->
             UserHardwareWorkload.VideoViewer
         else -> null
@@ -491,41 +843,67 @@ internal fun ProductionGalleryApp(
             route = renderedRoute
         }
     }
+    LaunchedEffect(external?.uri, external?.metadataReady) {
+        val item = external ?: return@LaunchedEffect
+        if (!item.available && !(item.kind == MediaKind.Video && videoEditorSessionId != null)) {
+            route = SurfaceRoute.Viewer
+            return@LaunchedEffect
+        }
+        if (!item.metadataReady) return@LaunchedEffect
+        if (item.editMode) {
+            viewModel.openExternalEditor()
+            route = if (item.kind == MediaKind.Image) SurfaceRoute.PhotoEditor else SurfaceRoute.VideoEditor
+        } else if (route == SurfaceRoute.Root) {
+            route = SurfaceRoute.Viewer
+        }
+    }
 
     fun leavePrivateAlbum() {
+        showPrivatePortable = false
         privateImportSelection.clear()
-        privateAlbumUnlocked = false
+        privateSession.revoke()
         route = SurfaceRoute.Root
     }
 
     fun startPrivateImport() {
         val batch = privateImportSelection.values.toList()
-        if (batch.isEmpty() || privateImportProgress != null) return
+        val access = privateSession.accessToken() ?: return
+        if (route != SurfaceRoute.PrivateAlbumPicker || batch.isEmpty() || privateImportProgress != null) return
         privateImportProgress = PrivateImportProgress(0, batch.size)
         appScope.launch {
+            if (!privateSession.hasAccess(access) || route != SurfaceRoute.PrivateAlbumPicker) {
+                privateImportProgress = null
+                return@launch
+            }
             val successful = mutableListOf<TimelineMedia>()
-            val masterKey = com.ugallery.core.security.PrivateAlbumCrypto.getOrCreateMasterKey()
+            val masterKey = try { privateAlbumRepo.requireMasterKeyBinding() }
+                catch (cancelled: CancellationException) { privateImportProgress = null; throw cancelled }
+                catch (failure: Exception) {
+                    val stillOwned = privateSession.hasAccess(access)
+                    if (stillOwned && com.ugallery.core.security.PrivateAlbumCrypto.requiresAuthentication(failure)) privateSession.revoke()
+                    privateImportProgress = null
+                    if (stillOwned && route == SurfaceRoute.PrivateAlbumPicker) {
+                        privateImportSelection.clear()
+                        privateImportOutcome = PrivateImportOutcome(emptyList(), batch.size)
+                        route = SurfaceRoute.PrivateAlbum
+                    }
+                    return@launch
+                }
             batch.forEachIndexed { index, media ->
                 privateImportProgress = PrivateImportProgress(index + 1, batch.size)
                 if (privateAlbumRepo.importFromMedia(media, masterKey).success) successful += media
             }
             privateImportSelection.clear()
             privateImportProgress = null
-            privateImportOutcome = PrivateImportOutcome(successful, batch.size)
-            route = SurfaceRoute.PrivateAlbum
+            // A previously authorized import may finish, but must not reopen a route after exit/lock.
+            if (privateSession.hasAccess(access) && route == SurfaceRoute.PrivateAlbumPicker) {
+                privateImportOutcome = PrivateImportOutcome(successful, batch.size)
+                route = SurfaceRoute.PrivateAlbum
+            }
         }
     }
 
-    val privateFlowVisible = route == SurfaceRoute.PrivateAlbum || route == SurfaceRoute.PrivateAlbumPicker
-    DisposableEffect(privateFlowVisible) {
-        if (!privateFlowVisible) return@DisposableEffect onDispose { }
-        val window = (context as? Activity)?.window
-        window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE) }
-    }
     val gazetteer = remember { OfflineGazetteer(BundledGazetteer.load()) }
-    val subjectClipper = remember { SubjectClipper() }
-    val objectEraser = remember { ObjectEraser() }
     val exportSettingsLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
     ) { uri -> uri?.let(viewModel::exportGallerySettings) }
@@ -534,25 +912,73 @@ internal fun ProductionGalleryApp(
     ) { uri -> uri?.let(viewModel::importGallerySettings) }
 
     fun openViewer(destination: ViewerReturnDestination, openMedia: () -> Unit) {
+        photosFocusReturn = null
+        photosViewerOrigin = null
+        photosViewerUsesWindow = false
         viewerReturnDestination = destination
         openMedia()
         route = SurfaceRoute.Viewer
     }
 
+    fun backKeepingMotionPhoto() {
+        route = SurfaceRoute.Viewer
+    }
+
+    fun publicationTrackingRemoved(family: String, id: String, sourceIdentity: String?) {
+        // Only an explicit, durably resolved global action closes the matching feature draft.
+        when (family) {
+            "collage" -> if (viewModel.creationCollageSessionId.value == id) {
+                surfaceStateHolder.removeState("creation-collage:$id")
+                viewModel.clearCreationCollage()
+            }
+            "gif" -> if (viewModel.creationGifSessionId.value == id) {
+                surfaceStateHolder.removeState("creation-gif:$id")
+                viewModel.clearCreationGif()
+            }
+            "motion" -> publicationRecoveryMotionProviderKey(sourceIdentity)?.let(surfaceStateHolder::removeState)
+        }
+    }
+
+    fun closeMotionPhoto() {
+        viewerRestoreSnapshot?.identity?.let { surfaceStateHolder.removeState("motion:$it") }
+        route = SurfaceRoute.Viewer
+    }
+
     fun restoreViewerReturnDestination() {
+        viewerRestoreSnapshot?.identity?.let {
+            // A Viewer exit does not acknowledge an unresolved Motion publication.
+            // Its source-keyed provider is retired only by the feature's explicit close.
+            surfaceStateHolder.removeState("viewer:$it")
+        }
+        viewModel.clearViewerRecovery()
         val destination = viewerReturnDestination
         viewerReturnDestination = null
         when (destination) {
             is ViewerReturnDestination.Root -> {
                 rootTab = destination.tab
                 route = SurfaceRoute.Root
+                if (destination.tab == RootTab.Photos) {
+                    photosViewerOrigin?.takeUnless { photosViewerUsesWindow }?.let { origin ->
+                        photosFocusSequence += 1
+                        photosFocusReturn = TimelineFocusReturn(origin, photosFocusSequence)
+                    }
+                }
+                photosViewerOrigin = null
+                photosViewerUsesWindow = false
             }
             is ViewerReturnDestination.Album -> route = SurfaceRoute.Album
             ViewerReturnDestination.Archive -> route = SurfaceRoute.Archive
             ViewerReturnDestination.Trash -> route = SurfaceRoute.Trash
+            ViewerReturnDestination.Places -> route = SurfaceRoute.OfflinePlaces
             ViewerReturnDestination.Highlight -> route = SurfaceRoute.HighlightCollection
             null -> route = SurfaceRoute.Root
         }
+    }
+
+    fun closeVideoEditor() {
+        val closedId = videoEditorSessionId
+        viewModel.closeVideoEditor()
+        closedId?.let { surfaceStateHolder.removeState("video-editor:$it") }
     }
 
     fun handleBack() {
@@ -562,14 +988,22 @@ internal fun ProductionGalleryApp(
                 if (photoEditor?.content?.isDirty == true) showDiscardEditorConfirmation = true
                 else {
                     viewModel.closePhotoEditor()
-                    route = SurfaceRoute.Viewer
+                    if (external?.editMode == true) {
+                        viewModel.clearExternal()
+                        activity?.setResult(Activity.RESULT_CANCELED)
+                        activity?.finish()
+                    } else route = SurfaceRoute.Viewer
                 }
             }
             route == SurfaceRoute.VideoEditor -> {
                 if (videoEditor?.content?.isDirty == true) showDiscardEditorConfirmation = true
                 else {
-                    viewModel.closeVideoEditor()
-                    route = SurfaceRoute.Viewer
+                    closeVideoEditor()
+                    if (external?.editMode == true) {
+                        viewModel.clearExternal()
+                        activity?.setResult(Activity.RESULT_CANCELED)
+                        activity?.finish()
+                    } else route = SurfaceRoute.Viewer
                 }
             }
             route == SurfaceRoute.People && selectedPerson != null -> viewModel.closePerson()
@@ -578,13 +1012,38 @@ internal fun ProductionGalleryApp(
                 route = SurfaceRoute.PrivateAlbum
             }
             route == SurfaceRoute.PrivateAlbum -> leavePrivateAlbum()
+            route == SurfaceRoute.Viewer && external != null -> {
+                viewModel.clearExternal()
+                activity?.finish()
+            }
             route == SurfaceRoute.Viewer -> restoreViewerReturnDestination()
+            route == SurfaceRoute.Moment && momentReturnToBrowser -> route = SurfaceRoute.MemoriesBrowser
+            route == SurfaceRoute.MemoriesBrowser -> { rootTab = RootTab.Collections; route = SurfaceRoute.Root }
+            route == SurfaceRoute.PublicationRecoveries -> { route = SurfaceRoute.Root }
+            route == SurfaceRoute.LocalBackupTasks -> { backupReviewTaskId = null; route = if (backupTasksReturnRemote) SurfaceRoute.RemoteBackup else SurfaceRoute.LocalBackup }
+            route == SurfaceRoute.OfflinePlaces -> leaveOfflinePlaces()
+            route == SurfaceRoute.OwnSync || route == SurfaceRoute.LocalSharing || route == SurfaceRoute.PetIdentity -> { route = SurfaceRoute.Settings }
+            route == SurfaceRoute.RemoteBackup -> { route = SurfaceRoute.Settings }
+            route == SurfaceRoute.LocalBackup -> { backupReviewTaskId = null; route = if (backupTasksReturnRemote) SurfaceRoute.RemoteBackup else SurfaceRoute.Settings }
+            // The feature owns confirmed disposal. A Back during restoration must retain
+            // the exact session until its publication receipt has been inspected.
+            route == SurfaceRoute.Collage -> { rootTab = collageReturnRootTab; route = collageReturnRoute }
+            route == SurfaceRoute.CreationGif -> backKeepingCreationGif()
+            route == SurfaceRoute.MotionPhoto -> backKeepingMotionPhoto()
+            route == SurfaceRoute.ManualMoment -> closeManualMoment()
+            route == SurfaceRoute.MemoryVideo -> closeMemoryVideo()
+            route == SurfaceRoute.MomentParticipants -> route = SurfaceRoute.Moment
             route == SurfaceRoute.About -> route = SurfaceRoute.Settings
             else -> route = SurfaceRoute.Root
         }
     }
 
-    BackHandler(enabled = renderedRoute != SurfaceRoute.Root || showDetails, onBack = ::handleBack)
+    BackHandler(enabled = renderedRoute != SurfaceRoute.Root || showDetails || selectionCount > 0) {
+        // Back from a root selection returns to browsing, not to the previous Android task.
+        if (renderedRoute == SurfaceRoute.Root && !showDetails && selectionCount > 0) {
+            viewModel.clearSelection()
+        } else handleBack()
+    }
 
     val musicPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -646,6 +1105,63 @@ internal fun ProductionGalleryApp(
             actionLauncher.launch(IntentSenderRequest.Builder(launch.intentSender).build())
         }
     }
+    val treeCopyComplete = stringResource(R.string.viewer_copy_complete)
+    val treeMoveCopyComplete = stringResource(R.string.viewer_move_copy_complete)
+    val treeActionUnavailable = stringResource(R.string.viewer_action_unavailable)
+    // Keep the result key outside viewer-specific SaveableStateProvider scopes.
+    val treeLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { treeUri ->
+        val captured = viewModel.pendingTreeOperation
+        viewModel.clearTreeOperation()
+        if (treeUri != null && captured != null) appScope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) {
+            viewModel.copyMediaToTree(captured, treeUri)
+                .onSuccess {
+                    Toast.makeText(context, if (captured.move) treeMoveCopyComplete else treeCopyComplete, Toast.LENGTH_SHORT).show()
+                }
+                .onFailure { Toast.makeText(context, treeActionUnavailable, Toast.LENGTH_SHORT).show() }
+        }
+    }
+    val moveState by viewModel.verifiedMove.state.collectAsState()
+    var showEndCopyTracking by remember { mutableStateOf(false) }
+    var pendingMoveRequestId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val moveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+        pendingMoveRequestId?.let { viewModel.verifiedMove.onSystemResult(it, result.resultCode == Activity.RESULT_OK) }
+        pendingMoveRequestId = null
+    }
+    val moveTreeLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { tree ->
+        tree?.let { viewModel.verifiedMove.reauthorize(it) }
+    }
+    LaunchedEffect(viewModel) {
+        viewModel.verifiedMove.launches.collect { launch ->
+            try {
+                if (!lifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
+                    viewModel.verifiedMove.deferLaunch(launch.requestId)
+                } else if (viewModel.verifiedMove.confirmLaunch(launch.requestId)) {
+                    if (lifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
+                        pendingMoveRequestId = launch.requestId
+                        moveLauncher.launch(IntentSenderRequest.Builder(launch.intentSender).build())
+                    } else viewModel.verifiedMove.deferLaunch(launch.requestId)
+                }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                viewModel.verifiedMove.deferLaunch(launch.requestId); throw cancelled
+            } catch (_: Exception) {
+                pendingMoveRequestId = null; viewModel.verifiedMove.onSystemResult(launch.requestId, false)
+            }
+        }
+    }
+    LaunchedEffect(moveState.authorization) {
+        val token = moveState.authorization ?: return@LaunchedEffect
+        if (viewModel.verifiedMove.claimAuthorization(token)) {
+            if (!gallerySettings.security.destructiveActionLockEnabled) viewModel.verifiedMove.finishAuthorization(token, true)
+            else {
+                val activity = context as? FragmentActivity
+                if (activity == null) viewModel.verifiedMove.finishAuthorization(token, false)
+                else BiometricGate.authenticate(activity, destructiveAuthTitle, destructiveAuthBody,
+                    onSuccess = { viewModel.verifiedMove.finishAuthorization(token, true) },
+                    onError = { viewModel.verifiedMove.finishAuthorization(token, false) },
+                    onFail = { /* A failed scan is non-terminal; the same prompt may still succeed. */ })
+            }
+        }
+    }
     LaunchedEffect(Unit) { viewModel.resumePendingSystemAction() }
     LaunchedEffect(Unit) {
         viewModel.externalSaved.collect { uri ->
@@ -668,6 +1184,26 @@ internal fun ProductionGalleryApp(
     LaunchedEffect(Unit) {
         viewModel.editorCopyOpened.collect {
             route = SurfaceRoute.Viewer
+        }
+    }
+    val exportFailedMessage = stringResource(R.string.video_export_failed)
+    val exportCancelledMessage = stringResource(R.string.video_export_cancelled)
+    LaunchedEffect(viewModel, exportFailedMessage, exportCancelledMessage) {
+        var previous = viewModel.videoExports.value.associateBy(VideoExportJob::id)
+        viewModel.videoExports.collect { jobs ->
+            jobs.forEach { job ->
+                val message = when (videoExportTerminalAnnouncement(previous[job.id], job)) {
+                    VideoExportJobStatus.Failed -> exportFailedMessage
+                    VideoExportJobStatus.Cancelled -> exportCancelledMessage
+                    else -> null // Completion already has its own actionable Snackbar below.
+                }
+                if (message != null) {
+                    val contextualMessage = "${job.displayName}: $message"
+                    // Keep collecting other jobs while SnackbarHost serializes visible results.
+                    appScope.launch { snackbarHostState.showSnackbar(contextualMessage) }
+                }
+            }
+            previous = jobs.associateBy(VideoExportJob::id)
         }
     }
     val exportCompleteMessage = stringResource(R.string.video_export_complete)
@@ -693,19 +1229,6 @@ internal fun ProductionGalleryApp(
         }
     }
 
-    if (external != null) {
-        ExternalViewer(
-            requireNotNull(external),
-            externalPhoto,
-            onClose = {
-                viewModel.clearExternal()
-                (context as? Activity)?.finish()
-            },
-            onSaveCopy = viewModel::saveExternalCopy,
-        )
-        return
-    }
-
     fun requestAccess() {
         val plan = if (Build.VERSION.SDK_INT >= 34 && access.isLimited) {
             permissions.reselectionRequest()
@@ -719,6 +1242,13 @@ internal fun ProductionGalleryApp(
             when (activeKey.route) {
                 SurfaceRoute.Root -> when (activeKey.rootTab) {
                     RootTab.Photos -> LibraryPhotosRoute(
+                        focusReturn = photosFocusReturn.takeIf {
+                            route == SurfaceRoute.Root && rootTab == RootTab.Photos && LocalSurfaceFocusReady.current
+                        },
+                        onFocusReturnConsumed = { request ->
+                            if (photosFocusReturn == request) photosFocusReturn = null
+                        },
+                        selectionMode = selectionCount > 0,
                         access = access,
                         engineState = engineState.toUiState(),
                         entries = timeline,
@@ -752,7 +1282,15 @@ internal fun ProductionGalleryApp(
                         },
                         onMediaClick = { media ->
                             if (selectionCount > 0) viewModel.toggleSelection(media)
-                            else openViewer(ViewerReturnDestination.Root(RootTab.Photos)) {
+                            else if (media.stack != null) {
+                                initialStackId = requireNotNull(media.stack).id
+                                route = SurfaceRoute.Stacks
+                            } else openViewer(ViewerReturnDestination.Root(RootTab.Photos)) {
+                                photosViewerUsesWindow = photosAccessibility?.isTouchExplorationEnabled == true
+                                photosViewerOrigin = media.key.takeIf {
+                                    photosInputMode.inputMode == androidx.compose.ui.input.InputMode.Keyboard ||
+                                        photosAccessibility?.isTouchExplorationEnabled == true
+                                }
                                 viewModel.openTimelineMedia(media)
                             }
                         },
@@ -774,11 +1312,18 @@ internal fun ProductionGalleryApp(
                         trashCount,
                         archiveCount,
                         momentSummaries,
-                        onMomentClick = { viewModel.openMoment(it.momentId); route = SurfaceRoute.Moment },
+                        onMomentClick = { momentReturnToBrowser = false; viewModel.openMoment(it.momentId); route = SurfaceRoute.Moment },
+                        onAllMemoriesClick = { route = SurfaceRoute.MemoriesBrowser },
                         onAlbumClick = { album ->
                             viewModel.selectAlbum(album, filter, sort)
                             route = SurfaceRoute.Album
                         },
+                        layoutOrder = gallerySettings.library.collectionOrder,
+                        hiddenCollections = gallerySettings.library.hiddenCollections,
+                        layoutWorking = collectionLayoutWorking,
+                        layoutFailed = collectionLayoutFailed,
+                        layoutRevision = collectionLayoutRevision,
+                        onSaveLayout = viewModel::saveCollectionLayout,
                         onCreateAlbum = { showCreateAlbum = true },
                         onTrashClick = { route = SurfaceRoute.Trash },
                         onArchiveClick = { route = SurfaceRoute.Archive },
@@ -800,8 +1345,17 @@ internal fun ProductionGalleryApp(
                         thumbnailLoader = thumbnails,
                         privateAlbumLabel = stringResource(R.string.m6_private_album),
                         onPrivateAlbumClick = { route = SurfaceRoute.PrivateAlbum },
+                        pdfStudioLabel = stringResource(com.ugallery.feature.pdfstudio.R.string.pdf_studio),
+                        pdfStudioBody = stringResource(com.ugallery.feature.pdfstudio.R.string.pdf_local),
+                        documentCount = documentCount,
+                        onSmartAlbumsClick = { route = SurfaceRoute.SmartAlbums },
+                        onMemoryControlsClick = { memoryControlsReturnToMoment = false; route = SurfaceRoute.MemoryControls },
+                        onDocumentsClick = { route = SurfaceRoute.Documents },
+                        onStacksClick = { initialStackId = null; route = SurfaceRoute.Stacks },
+                        onPdfStudioClick = { pdfReturnToDocuments = false; route = SurfaceRoute.PdfStudio },
                         collageLabel = stringResource(R.string.m6_collage),
-                        onCollageClick = { route = SurfaceRoute.Collage },
+                        onCollageClick = ::openCreationCollage,
+                        momentPlaceLabels = momentPlaceLabels,
                     )
                     RootTab.Search -> SearchContent(
                             query = search.query,
@@ -822,6 +1376,7 @@ internal fun ProductionGalleryApp(
                                 viewModel.search(label)
                                 rootTab = RootTab.Collections
                             },
+                            onOpenPlaces = ::openOfflinePlaces,
                             onQueryChange = viewModel::setSearchQuery,
                             onSearch = { viewModel.search() },
                             onVoiceSearch = {
@@ -843,7 +1398,10 @@ internal fun ProductionGalleryApp(
                                     ).show()
                                 }
                             },
-                            onPresetSearch = viewModel::search,
+                            onPresetSearch = { preset ->
+                                if (SearchVocabulary.resolve(preset) == SearchConcept.Document) route = SurfaceRoute.Documents
+                                else viewModel.search(preset)
+                            },
                             onLoadMore = viewModel::loadMoreSearch,
                             onHit = { hit ->
                                 openViewer(ViewerReturnDestination.Root(RootTab.Search)) {
@@ -882,11 +1440,26 @@ internal fun ProductionGalleryApp(
                                 }
                             },
                             onMediaSelectionChange = viewModel::setMediaSelected,
+                            onRenameAlbum = { viewModel.beginAlbumRename(album) },
+                            onSetCover = { viewModel.setAlbumCover(album, it) },
+                            coverWorking = albumCoverWorking,
+                            coverFailed = albumCoverFailed,
+                            coverRevision = albumCoverRevision,
                             showHeader = false,
                         )
                     }
                 }
-                SurfaceRoute.Viewer -> currentMedia?.let { media ->
+                SurfaceRoute.Viewer -> external?.let { externalMedia ->
+                    ExternalViewer(
+                        media = externalMedia,
+                        photo = externalPhoto,
+                        onClose = ::handleBack,
+                        onEdit = {
+                            viewModel.openExternalEditor()
+                            route = if (externalMedia.kind == MediaKind.Image) SurfaceRoute.PhotoEditor else SurfaceRoute.VideoEditor
+                        },
+                    )
+                } ?: currentMedia?.let { media ->
                     ViewerRoute(
                         media,
                         viewerState.items,
@@ -896,6 +1469,10 @@ internal fun ProductionGalleryApp(
                         viewModel,
                         showDetails,
                         adaptiveInfo,
+                        onTreeOperation = { move ->
+                            if (viewModel.prepareTreeOperation(media, move)) treeLauncher.launch(null)
+                            else Toast.makeText(context, treeActionUnavailable, Toast.LENGTH_SHORT).show()
+                        },
                         onShowDetails = { showDetails = true; viewModel.loadDetails() },
                         onHideDetails = { showDetails = false },
                         onBack = ::handleBack,
@@ -908,14 +1485,26 @@ internal fun ProductionGalleryApp(
                                 route = SurfaceRoute.VideoEditor
                             }
                         },
+                        onMotionPhoto = { route = SurfaceRoute.MotionPhoto },
                         onShareSanitized = { viewModel.sanitizedShare(media) },
                         gazetteer = gazetteer,
                         sessionVideoMuted = sessionVideoMuted,
                         onSessionVideoMutedChange = { sessionVideoMuted = it },
                         trashContext = viewerReturnDestination == ViewerReturnDestination.Trash,
                     )
-                }
-                SurfaceRoute.PhotoEditor -> photoEditor?.let { session ->
+                } ?: PublicMediaRecoveryContent(
+                    title = stringResource(R.string.external_unavailable),
+                    body = stringResource(if (viewerSourceChecking) com.ugallery.feature.photos.R.string.library_loading_body else R.string.external_unavailable),
+                    loading = viewerSourceChecking,
+                    onBack = ::restoreViewerReturnDestination,
+                )
+                SurfaceRoute.PhotoEditor -> {
+                    if (photoEditor == null && photoEditorOpening) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                            GalleryLoadingIndicator()
+                        }
+                    }
+                    photoEditor?.let { session ->
                     PhotoEditorContent(
                         state = session.content,
                         onBack = ::handleBack,
@@ -930,26 +1519,36 @@ internal fun ProductionGalleryApp(
                         onApplyAutoSuggestion = viewModel::applyPhotoAutoSuggestion,
                         onRawOutputFormatChange = viewModel::setRawOutputFormat,
                     )
+                    }
                 }
                 SurfaceRoute.VideoEditor -> {
-                    if (videoEditor == null && videoEditorOpening) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
-                            GalleryLoadingIndicator()
-                        }
+                    if (videoEditor == null) {
+                        PublicMediaRecoveryContent(
+                            title = stringResource(com.ugallery.feature.videoeditor.R.string.video_editor_title),
+                            body = stringResource(if (videoEditorOpening) com.ugallery.feature.photos.R.string.library_loading_body else R.string.external_unavailable),
+                            loading = videoEditorOpening, onBack = ::handleBack,
+                        )
                     }
                     videoEditor?.let { session ->
-                        val controller = remember(session.media.key) {
+                        val editorState = rememberSaveableStateHolder()
+                        if (session.externalAccessBlocked) {
+                            ExternalVideoAccessContent(onBack = ::handleBack, onRetry = viewModel::retryExternalVideoAccess,
+                                checking = session.externalAccessChecking, sourceChanged = session.externalSourceChanged)
+                        } else editorState.SaveableStateProvider(session.id) {
+                        val controller = remember(session.id) {
                         VideoViewerController(
                             context,
                             enableVideoEffects = true,
                             initialLooping = true,
                         ).also {
-                            it.select(viewModel.mediaUri(session.media), autoplay = true)
+                            it.select(session.source.uri, autoplay = false)
                         }
                     }
                     DisposableEffect(controller) { onDispose { controller.close() } }
                     VideoEditorContent(
+                        sessionId = session.id,
                         state = session.content,
+                        onPositionCheckpoint = { viewModel.checkpointVideoPosition(session.id, it) },
                         controller = controller,
                         onBack = ::handleBack,
                         onSaveCopy = ::startVideoExport,
@@ -985,24 +1584,290 @@ internal fun ProductionGalleryApp(
                         onCancelExport = viewModel::cancelVideoExport,
                         foldInfo = adaptiveInfo.foldInfo,
                     )
+                        }
                     }
                 }
+                SurfaceRoute.MemoriesBrowser -> momentRepository?.let { repository ->
+                    com.ugallery.feature.collections.MemoriesBrowserContent(
+                        repository = repository,
+                        thumbnailLoader = thumbnails,
+                        momentPlaceLabels = momentPlaceLabels,
+                        onBack = { rootTab = RootTab.Collections; route = SurfaceRoute.Root },
+                        onMomentClick = { momentReturnToBrowser = true; viewModel.openMoment(it.momentId); route = SurfaceRoute.Moment },
+                    )
+                }
+                SurfaceRoute.CreationGif -> {
+                    if (creationGifRestoring) Column(Modifier.fillMaxSize()) {
+                        GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
+                        GalleryTopAppBar(
+                            title = stringResource(com.ugallery.feature.collage.R.string.creation_gif_title),
+                            onBack = ::backKeepingCreationGif,
+                            navigationContentDescription = stringResource(com.ugallery.feature.collage.R.string.creation_gif_back),
+                        )
+                        GalleryStateContent(
+                            title = stringResource(com.ugallery.feature.photos.R.string.library_loading_title),
+                            body = stringResource(com.ugallery.feature.photos.R.string.library_loading_body),
+                            illustrationDescription = stringResource(com.ugallery.feature.photos.R.string.library_loading_title),
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else creationGifSession?.let { session ->
+                        fun launchGifResult(intent: Intent) {
+                            val chooser = Intent.createChooser(intent, null)
+                            context.startActivity(chooser)
+                            com.ugallery.feature.collage.CreationGifCommitProbe.afterHandoff(context, session.id, intent, chooser)
+                        }
+                        com.ugallery.feature.collage.CreationGifContent(
+                            sessionId = session.id,
+                            title = stringResource(com.ugallery.feature.collage.R.string.creation_gif_title),
+                            sources = session.sources,
+                            sourcesAvailable = session.sourcesAvailable,
+                            onBackKeepingRecovery = ::backKeepingCreationGif,
+                            onOpen = { uri -> launchGifResult(ScopedMediaOperations.viewIntent(uri, "image/gif").apply {
+                                clipData = android.content.ClipData.newUri(context.contentResolver, "GIF", uri)
+                            }) },
+                            onShare = { uri -> launchGifResult(Intent(Intent.ACTION_SEND).apply {
+                                type = "image/gif"
+                                putExtra(Intent.EXTRA_STREAM, uri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                clipData = android.content.ClipData.newUri(context.contentResolver, "GIF", uri)
+                            }) },
+                            onBack = ::closeCreationGif,
+                            onExported = { viewModel.creationGifExported() },
+                        )
+                    } ?: Surface(color = MaterialTheme.colorScheme.background, contentColor = MaterialTheme.colorScheme.onBackground) {
+                        Column(Modifier.fillMaxSize()) {
+                            GalleryTopAppBar(
+                                title = stringResource(com.ugallery.feature.collage.R.string.creation_gif_title),
+                                onBack = ::closeCreationGif,
+                                navigationContentDescription = stringResource(com.ugallery.feature.collage.R.string.creation_gif_back),
+                            )
+                            Text(stringResource(com.ugallery.feature.collage.R.string.creation_gif_error), Modifier.padding(24.dp))
+                        }
+                    }
+                }
+                SurfaceRoute.PublicationRecoveries -> PublicationRecoveriesContent(
+                    onBack = { route = SurfaceRoute.Root },
+                    onTrackingRemoved = ::publicationTrackingRemoved,
+                )
+                SurfaceRoute.MotionPhoto -> {
+                    val motionMedia = currentMedia
+                    val snapshot = viewerRestoreSnapshot
+                    if (!viewerSourceChecking && snapshot != null && snapshot.kind == MediaKind.Image && !snapshot.isTrashed) {
+                        // The saved source DTO also identifies a committed result after its original disappears.
+                        // Only a current, revalidated source enables rendering or Room key-frame changes.
+                        val sourceAvailable = motionMedia != null && snapshot.key == motionMedia.key &&
+                            snapshot.generationModified == motionMedia.generationModified &&
+                            snapshot.kind == motionMedia.kind && snapshot.isTrashed == motionMedia.isTrashed
+                        val coverFlow = remember(snapshot.identity, motionMedia, sourceAvailable) {
+                            if (sourceAvailable) viewModel.motionKeyFrame(motionMedia)
+                            else kotlinx.coroutines.flow.flowOf(null)
+                        }
+                        val cover by coverFlow.collectAsState(initial = null)
+                        fun launchMotionResult(publicationId: String, intent: Intent) {
+                            val chooser = Intent.createChooser(intent, null)
+                            context.startActivity(chooser)
+                            com.ugallery.feature.motionphotos.MotionPhotoCommitProbe.afterHandoff(context, publicationId, intent, chooser)
+                        }
+                        com.ugallery.feature.motionphotos.MotionPhotoContent(
+                            input = com.ugallery.feature.motionphotos.MotionPhotoInput(
+                                android.content.ContentUris.withAppendedId(
+                                    android.provider.MediaStore.Images.Media.getContentUri(snapshot.key.volumeName), snapshot.key.mediaStoreId),
+                                snapshot.generationModified, snapshot.generationAdded),
+                            sourceAvailable = sourceAvailable,
+                            keyFrameTimeUs = cover?.timeUs,
+                            onSetKeyFrame = { time, file ->
+                                sourceAvailable && viewModel.setMotionKeyFrame(motionMedia, time, file, cover?.revision)
+                            },
+                            onResetKeyFrame = cover?.takeIf { sourceAvailable }?.let { row ->
+                                { viewModel.resetMotionKeyFrame(checkNotNull(motionMedia), row.revision) }
+                            },
+                            onBackKeepingRecovery = ::backKeepingMotionPhoto,
+                            onOpen = { publicationId, uri, kind ->
+                                val mime = if (kind == com.ugallery.feature.motionphotos.MotionPhotoPublicationKind.Clip) "video/mp4" else "image/jpeg"
+                                launchMotionResult(publicationId, ScopedMediaOperations.viewIntent(uri, mime).apply {
+                                    clipData = android.content.ClipData.newUri(context.contentResolver, "Motion Photo", uri)
+                                })
+                            },
+                            onShare = { publicationId, uri, kind ->
+                                launchMotionResult(publicationId, Intent(Intent.ACTION_SEND).apply {
+                                    type = if (kind == com.ugallery.feature.motionphotos.MotionPhotoPublicationKind.Clip) "video/mp4" else "image/jpeg"
+                                    putExtra(Intent.EXTRA_STREAM, uri)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    clipData = android.content.ClipData.newUri(context.contentResolver, "Motion Photo", uri)
+                                })
+                            },
+                            onBack = ::closeMotionPhoto,
+                        )
+                    } else PublicMediaRecoveryContent(
+                        title = stringResource(com.ugallery.feature.motionphotos.R.string.motion_title),
+                        body = stringResource(if (viewerSourceChecking) com.ugallery.feature.motionphotos.R.string.motion_loading
+                            else com.ugallery.feature.motionphotos.R.string.motion_error),
+                        loading = viewerSourceChecking,
+                        onBack = ::backKeepingMotionPhoto,
+                    )
+                }
+                SurfaceRoute.ManualMoment -> {
+                    val session = manualMomentSession
+                    if (session != null) key(session.draft.id) {
+                        com.ugallery.feature.collections.ManualMomentContent(
+                            draftId = session.draft.id, sources = session.sources,
+                            busy = manualMomentBusy, error = manualMomentError,
+                            onCreate = { title, keys, include -> appScope.launch {
+                                if (viewModel.manualMomentSessionId.value != session.draft.id) return@launch
+                                val savedId = viewModel.createManualMoment(title, keys, include)
+                                if (savedId == session.draft.id) surfaceStateHolder.removeState("manual-moment:$savedId")
+                                if (savedId == session.draft.id && route == SurfaceRoute.ManualMoment &&
+                                    viewModel.manualMomentSessionId.value == null) {
+                                    momentReturnToBrowser = true
+                                    route = SurfaceRoute.Moment
+                                }
+                            } }, onCancel = ::closeManualMoment,
+                        )
+                    } else if (manualMomentRestoring) PublicMediaRecoveryContent(
+                        title = stringResource(com.ugallery.feature.photos.R.string.library_loading_title),
+                        body = stringResource(com.ugallery.feature.photos.R.string.library_loading_body),
+                        loading = true, onBack = ::closeManualMoment,
+                    ) else MomentUnavailableContent(onBack = ::closeManualMoment)
+                }
+                SurfaceRoute.MemoryVideo -> {
+                    if (memoryVideoRestoring) Column(Modifier.fillMaxSize()) {
+                        GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
+                        GalleryStateContent(
+                            title = stringResource(com.ugallery.feature.photos.R.string.library_loading_title),
+                            body = stringResource(com.ugallery.feature.photos.R.string.library_loading_body),
+                            illustrationDescription = stringResource(com.ugallery.feature.photos.R.string.library_loading_title),
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else if (memoryVideoSources.isNotEmpty()) com.ugallery.feature.videoeditor.MemoryVideoContent(
+                        title = memoryVideoTitle?.takeIf { it.isNotBlank() } ?: selectedMoment?.takeIf { videoReturnRoute == SurfaceRoute.Moment }?.let {
+                            com.ugallery.feature.collections.momentDisplayTitle(it, momentPlaceLabels)
+                        } ?: stringResource(com.ugallery.feature.videoeditor.R.string.memory_video_title),
+                        sources = memoryVideoSources,
+                        onBack = ::closeMemoryVideo,
+                    ) else MomentUnavailableContent(onBack = ::closeMemoryVideo)
+                }
+                SurfaceRoute.MomentParticipants -> {
+                    val momentParticipants by viewModel.momentParticipants.collectAsState()
+                    val participantsLoadFailed by viewModel.participantsLoadFailed.collectAsState()
+                    key(selectedMoment?.momentId) {
+                        com.ugallery.feature.collections.MomentParticipantsContent(
+                            snapshot = momentParticipants?.takeIf { it.momentId == selectedMoment?.momentId },
+                            onBack = { route = SurfaceRoute.Moment },
+                            onApply = viewModel::applyMomentParticipants,
+                            onApplied = { if (route == SurfaceRoute.MomentParticipants) route = SurfaceRoute.Moment },
+                            onReload = { if (participantsLoadFailed || momentParticipants == null) viewModel.reloadMomentParticipants() },
+                            loadFailed = participantsLoadFailed || selectedMoment == null,
+                            thumbnailLoader = thumbnails,
+                        )
+                    }
+                }
+                SurfaceRoute.LocalSharing -> {
+                    val controller by viewModel.localSharingController.collectAsState()
+                    OwnStorageNetworkGate(onBack = { route = SurfaceRoute.Settings }) {
+                        controller?.let { com.ugallery.feature.localsharing.LocalSharingContent(it,
+                            onBack = { route = SurfaceRoute.Settings },
+                            onOpenLocalTasks = { rootTab = RootTab.Photos; route = SurfaceRoute.Root }) }
+                            ?: MomentUnavailableContent(onBack = { route = SurfaceRoute.Settings })
+                    }
+                }
+                SurfaceRoute.PetIdentity -> {
+                    val repository by viewModel.petIdentityRepository.collectAsState()
+                    repository?.let { com.ugallery.feature.petrecognition.PetIdentityContent(it,
+                        onBack = { route = SurfaceRoute.Settings }) }
+                        ?: MomentUnavailableContent(onBack = { route = SurfaceRoute.Settings })
+                }
+                SurfaceRoute.OwnSync -> {
+                    OwnStorageNetworkGate(onBack = { route = SurfaceRoute.Settings }) {
+                        com.ugallery.feature.ownsync.OwnSyncContent(viewModel.ownSyncController,
+                            onBack = { route = SurfaceRoute.Settings },onManageServers = { route = SurfaceRoute.RemoteBackup })
+                    }
+                }
+                SurfaceRoute.OfflinePlaces -> {
+                    val source by viewModel.placesSource.collectAsState()
+                    source?.let { OfflinePlacesScreen(viewModel.offlinePlacesController,it,
+                        onBack = ::leaveOfflinePlaces,onPhotoClick = { key -> openViewer(ViewerReturnDestination.Places) { viewModel.openPlacePhoto(key) } },
+                        thumbnail = viewModel::placeThumbnail) }
+                }
+                SurfaceRoute.RemoteBackup -> {
+                    val controller by viewModel.remoteBackupController.collectAsState()
+                    controller?.let { RemoteBackupScreen(it, onBack = { route = SurfaceRoute.Settings }, onOpenLocalTask = { backupTasksReturnRemote = true; backupReviewTaskId = null; route = SurfaceRoute.LocalBackupTasks }) }
+                        ?: MomentUnavailableContent(onBack = { route = SurfaceRoute.Settings })
+                }
+                SurfaceRoute.LocalBackupTasks -> com.ugallery.feature.settings.LocalBackupTasksContent(
+                    controller = viewModel.backupTaskController,
+                    onReviewTask = { backupReviewTaskId = it; route = SurfaceRoute.LocalBackup },
+                    onBack = { backupReviewTaskId = null; route = if (backupTasksReturnRemote) SurfaceRoute.RemoteBackup else SurfaceRoute.LocalBackup },
+                )
+                SurfaceRoute.LocalBackup -> {
+                    val organizationPort by viewModel.organizationBackup.collectAsState()
+                    val recovery by viewModel.backupRecovery.collectAsState()
+                    Column(Modifier.fillMaxSize()) {
+                        com.ugallery.feature.settings.LocalBackupRecoveryBanner(
+                            working = recovery.working, removed = recovery.removed,
+                            retained = recovery.retained, failed = recovery.failed,
+                            onRetry = viewModel::recoverIncompleteBackups,
+                        )
+                        Box(Modifier.weight(1f)) {
+                            com.ugallery.feature.settings.LocalBackupContent(
+                                organizationPort = organizationPort,
+                                preferencesPort = remember(context) { com.ugallery.core.preferences.GallerySettingsRepository(context) },
+                                taskController = viewModel.backupTaskController,
+                                onOpenTasks = { backupReviewTaskId = null; route = SurfaceRoute.LocalBackupTasks },
+                                reviewTaskId = backupReviewTaskId,
+                                onBack = { backupReviewTaskId = null; route = if (backupTasksReturnRemote) SurfaceRoute.RemoteBackup else SurfaceRoute.Settings },
+                            )
+                        }
+                    }
+                }
+                SurfaceRoute.MemoryControls -> {
+                    val rules = memoryExclusionRepository
+                    val peopleRules = smartAlbumRepository
+                    if (rules != null && peopleRules != null) com.ugallery.feature.collections.MemoryControlsContent(
+                        repository = rules, peopleRepository = peopleRules, thumbnailLoader = thumbnails,
+                        onBack = { route = if (memoryControlsReturnToMoment) SurfaceRoute.Moment else SurfaceRoute.Root },
+                        onAnalysis = { route = SurfaceRoute.Settings },
+                    ) else MomentUnavailableContent(onBack = { route = SurfaceRoute.Root })
+                }
                 SurfaceRoute.Moment -> selectedMoment?.let { moment ->
+                    LaunchedEffect(moment.momentId, manualMomentPendingCreate?.token, manualMomentAcknowledgementToken) {
+                        if (manualMomentPendingCreate?.draft?.id == moment.momentId &&
+                            manualMomentAcknowledgementToken == manualMomentPendingCreate?.token) {
+                            // A loaded result must have a display frame before removing durable recovery.
+                            androidx.compose.runtime.withFrameNanos { }
+                            androidx.compose.runtime.withFrameNanos { }
+                            if (route == SurfaceRoute.Moment && viewModel.selectedMoment.value?.momentId == moment.momentId) {
+                                viewModel.acknowledgeManualMomentCreate(moment.momentId)
+                            }
+                        }
+                    }
                     val scope = rememberCoroutineScope()
                     MomentContent(
                         moment = moment,
+                        momentPlaceLabels = momentPlaceLabels,
+                        onParticipants = { route = SurfaceRoute.MomentParticipants },
                         members = momentMembers,
                         thumbnailLoader = thumbnails,
                         dateLabel = formatMomentDateRange(moment.startMillis, moment.endMillis),
                         stateLabel = stringResource(R.string.moment_state_label),
-                        onBack = { route = SurfaceRoute.Root },
+                        onBack = { route = if (momentReturnToBrowser) SurfaceRoute.MemoriesBrowser else SurfaceRoute.Root },
                         onSave = { scope.launch { viewModel.saveMoment() } },
-                        onDelete = { viewModel.deleteSelectedMoment(); route = SurfaceRoute.Root },
+                        onDelete = { viewModel.deleteSelectedMoment(); route = if (momentReturnToBrowser) SurfaceRoute.MemoriesBrowser else SurfaceRoute.Root },
                         onRename = { scope.launch { viewModel.renameMoment(it) } },
                         onSetCover = { scope.launch { viewModel.setMomentCover(it) } },
                         onReorder = { scope.launch { viewModel.reorderMoment(it) } },
+                        onMemoryControls = { memoryControlsReturnToMoment = true; route = SurfaceRoute.MemoryControls },
+                        makeVideoLabel = stringResource(com.ugallery.feature.videoeditor.R.string.memory_video_title),
+                        onMakeVideo = { scope.launch {
+                            val prepared = try { viewModel.prepareSelectedMemoryVideo() }
+                            catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+                            catch (_: Exception) { false }
+                            // A delayed repository result must not pull the user back from another route.
+                            if (route != SurfaceRoute.Moment) return@launch
+                            if (prepared) { videoReturnRoute = SurfaceRoute.Moment; videoReturnRootTab = rootTab; route = SurfaceRoute.MemoryVideo }
+                            else snackbarHostState.showSnackbar(memoryVideoError)
+                        } },
                     )
-                }
+                } ?: MomentUnavailableContent(onBack = { route = if (momentReturnToBrowser) SurfaceRoute.MemoriesBrowser else SurfaceRoute.Root })
                 SurfaceRoute.People -> PeopleContent(
                     state = PeopleUiState(
                         consentGranted = peopleAnalysis.consentGranted || people.isNotEmpty(),
@@ -1141,6 +2006,12 @@ internal fun ProductionGalleryApp(
                     folderOptions = galleryFolderOptions,
                     onSettingsChange = viewModel::updateGallerySettings,
                     onExportSettings = { exportSettingsLauncher.launch("ugallery-backup.json") },
+                    onLocalBackup = { backupTasksReturnRemote = false; route = SurfaceRoute.LocalBackup },
+                    onRemoteBackup = { route = SurfaceRoute.RemoteBackup },
+                    onLocalSharing = { route = SurfaceRoute.LocalSharing },
+                    onPetIdentity = { route = SurfaceRoute.PetIdentity },
+                    onOwnSync = { route = SurfaceRoute.OwnSync },
+                    onOfflinePlaces = ::openOfflinePlaces,
                     onImportSettings = { importSettingsLauncher.launch("application/json") },
                     onResetSettings = viewModel::resetGallerySettings,
                     onBack = { route = SurfaceRoute.Root },
@@ -1200,37 +2071,66 @@ internal fun ProductionGalleryApp(
                         val fragmentActivity = context as? FragmentActivity
                         if (fragmentActivity == null || !BiometricGate.canAuthenticate(context)) {
                             onError(privateBiometricUnavailable)
-                        } else {
-                            BiometricGate.authenticate(
+                        } else if (route == SurfaceRoute.PrivateAlbum) {
+                            val token = privateSession.beginAuthentication()
+                            if (token != null) BiometricGate.authenticate(
                                 activity = fragmentActivity,
                                 title = privateLockedTitle,
                                 subtitle = privateUnlockSubtitle,
-                                onSuccess = onSuccess,
-                                onError = onError,
+                                onSuccess = {
+                                    appScope.launch {
+                                        if (route != SurfaceRoute.PrivateAlbum || !privateSession.isPending(token)) return@launch
+                                        try {
+                                            privateAlbumRepo.openSession()
+                                            if (route == SurfaceRoute.PrivateAlbum && privateSession.completeAuthentication(token)) onSuccess()
+                                        } catch (cancelled: CancellationException) { throw cancelled }
+                                        catch (_: Exception) {
+                                            if (route == SurfaceRoute.PrivateAlbum && privateSession.cancelAuthentication(token)) onError(privateBiometricFailed)
+                                        }
+                                    }
+                                },
+                                onError = { message ->
+                                    if (route == SurfaceRoute.PrivateAlbum && privateSession.cancelAuthentication(token)) onError(message)
+                                },
                                 onFail = {
-                                    onError(privateBiometricFailed)
+                                    if (route == SurfaceRoute.PrivateAlbum && privateSession.isPending(token)) onError(privateBiometricFailed)
                                 },
                             )
                         }
                     },
-                    onExport = { mediaId, onSuccess, onError ->
+                    onExport = export@{ mediaId, onSuccess, onError ->
+                        val access = privateSession.accessToken() ?: return@export
+                        if (route != SurfaceRoute.PrivateAlbum) return@export
                         appScope.launch {
+                            if (!privateSession.hasAccess(access) || route != SurfaceRoute.PrivateAlbum) return@launch
                             runCatching {
                                 privateAlbumRepo.exportToMediaStore(
                                     mediaId,
-                                    com.ugallery.core.security.PrivateAlbumCrypto.getOrCreateMasterKey(),
+                                    privateAlbumRepo.requireMasterKeyBinding(),
                                 ) ?: error(privateExportFailed)
-                            }.onSuccess { onSuccess() }
-                                .onFailure {
-                                    onError(it.message ?: privateExportFailed)
-                                }
+                            }.onSuccess {
+                                if (route == SurfaceRoute.PrivateAlbum && privateSession.hasAccess(access)) onSuccess()
+                            }.onFailure {
+                                if (it is CancellationException) throw it
+                                if (route == SurfaceRoute.PrivateAlbum && privateSession.hasAccess(access) && com.ugallery.core.security.PrivateAlbumCrypto.requiresAuthentication(it)) privateSession.revoke()
+                                else if (route == SurfaceRoute.PrivateAlbum && privateSession.hasAccess(access)) onError(privateExportFailed)
+                            }
                         }
                     },
                     isUnlocked = privateAlbumUnlocked,
-                    onUnlocked = { privateAlbumUnlocked = true },
+                    onPortableRequest = { hasItems ->
+                        if (route == SurfaceRoute.PrivateAlbum && privateSession.accessToken() != null) {
+                            privatePortableHasItems = hasItems
+                            showPrivatePortable = true
+                        }
+                    },
+                    // Authorization is granted only by the generation-checked platform callback above.
+                    onUnlocked = {},
                     onAddRequest = {
-                        privateImportSelection.clear()
-                        route = SurfaceRoute.PrivateAlbumPicker
+                        if (privateSession.accessToken() != null && route == SurfaceRoute.PrivateAlbum) {
+                            privateImportSelection.clear()
+                            route = SurfaceRoute.PrivateAlbumPicker
+                        }
                     },
                 )
                 SurfaceRoute.PrivateAlbumPicker -> {
@@ -1238,6 +2138,7 @@ internal fun ProductionGalleryApp(
                         com.ugallery.feature.privatealbum.R.string.private_picker_limit,
                     )
                     fun updatePrivateImportSelection(media: TimelineMedia, selected: Boolean) {
+                        if (privateSession.accessToken() == null) return
                         if (!selected) {
                             privateImportSelection.remove(media.key)
                         } else if (!privateImportSelection.containsKey(media.key)) {
@@ -1292,67 +2193,99 @@ internal fun ProductionGalleryApp(
                     }
                     }
                 }
-                SurfaceRoute.Collage -> {
-                    val template = collageTemplates.getOrElse(selectedCollageTemplateIndex) { collageTemplates[0] }
-                    Column(Modifier.fillMaxSize().padding(16.dp)) {
-                        Text(
-                            stringResource(R.string.m6_collage_select_template),
-                            style = MaterialTheme.typography.titleMedium,
+                SurfaceRoute.SmartAlbums -> smartAlbumRepository?.let { repository ->
+                    com.ugallery.feature.collections.SmartAlbumsContent(
+                        repository = repository, thumbnailLoader = thumbnails,
+                        onBack = { route = SurfaceRoute.Root }, onAnalysis = { route = SurfaceRoute.Settings },
+                    )
+                }
+                SurfaceRoute.Stacks -> photoStackRepository?.let { repository ->
+                    com.ugallery.feature.collections.PhotoStacksContent(
+                        repository = repository, thumbnailLoader = thumbnails, initialStackId = initialStackId,
+                        onBack = { initialStackId = null; route = SurfaceRoute.Root },
+                        onAnalysis = { route = SurfaceRoute.Settings },
+                    )
+                }
+                SurfaceRoute.Documents -> documentRepository?.let { repository ->
+                    com.ugallery.feature.collections.DocumentsContent(
+                        repository = repository,
+                        thumbnailLoader = thumbnails,
+                        onBack = { route = SurfaceRoute.Root },
+                        onCreateMemory = { keys -> openManualMoment(keys) },
+                        onPdfStudio = {
+                            pendingPdfSources = arrayListOf()
+                            pdfReturnToDocuments = true
+                            route = SurfaceRoute.PdfStudio
+                        },
+                        onPdf = { keys ->
+                            pendingPdfRequestId = java.util.UUID.randomUUID().toString()
+                            pendingPdfSources = ArrayList(keys.map { key ->
+                                android.content.ContentUris.withAppendedId(android.provider.MediaStore.Images.Media.getContentUri(key.volumeName), key.mediaStoreId).toString()
+                            })
+                            pdfReturnToDocuments = true
+                            route = SurfaceRoute.PdfStudio
+                        },
+                    )
+                }
+                SurfaceRoute.PdfStudio -> com.ugallery.feature.pdfstudio.PdfStudioScreen(
+                onExit = { route = if (pdfReturnToDocuments) SurfaceRoute.Documents else SurfaceRoute.Root },
+                initialUris = pendingPdfSources.map(android.net.Uri::parse),
+                initialRequestId = pendingPdfRequestId,
+                onInitialUrisConsumed = { pendingPdfSources = arrayListOf() },
+            )
+            SurfaceRoute.Collage -> {
+                fun closeCollage() { viewModel.clearCreationCollage(); rootTab = collageReturnRootTab; route = collageReturnRoute }
+                if (creationCollageRestoring) Column(Modifier.fillMaxSize()) {
+                    GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
+                    GalleryStateContent(
+                        title = stringResource(com.ugallery.feature.photos.R.string.library_loading_title),
+                        body = stringResource(com.ugallery.feature.photos.R.string.library_loading_body),
+                        illustrationDescription = stringResource(com.ugallery.feature.photos.R.string.library_loading_title),
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else creationCollageSession?.let { session ->
+                fun launchResult(intent: Intent) {
+                    runCatching {
+                        val chooser = Intent.createChooser(intent, null)
+                        context.startActivity(chooser)
+                        com.ugallery.feature.collage.CreationCollageCommitProbe.afterHandoff(context, session.id, intent, chooser)
+                    }
+                        .onFailure { Toast.makeText(context, resultActionUnavailable, Toast.LENGTH_SHORT).show() }
+                }
+                com.ugallery.feature.collage.CreationCollageContent(
+                    sessionId = session.id,
+                    sources = session.sources,
+                    sourcesAvailable = session.sourcesAvailable,
+                    onBack = ::closeCollage,
+                    onBackKeepingRecovery = { rootTab = collageReturnRootTab; route = collageReturnRoute },
+                    onExported = { viewModel.creationCollageExported() },
+                    onOpen = { uri -> launchResult(ScopedMediaOperations.viewIntent(uri, "image/png").apply {
+                        clipData = android.content.ClipData.newUri(context.contentResolver, null, uri)
+                    }) },
+                    onShare = { uri -> launchResult(Intent(Intent.ACTION_SEND).apply {
+                        type = "image/png"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        clipData = android.content.ClipData.newUri(context.contentResolver, null, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }) },
+                )
+                } ?: Surface(color = MaterialTheme.colorScheme.background, contentColor = MaterialTheme.colorScheme.onBackground) {
+                    Column(Modifier.fillMaxSize()) {
+                        GalleryTopAppBar(
+                            title = stringResource(com.ugallery.feature.collage.R.string.creation_collage_title),
+                            onBack = ::closeCollage,
+                            navigationContentDescription = stringResource(com.ugallery.feature.collage.R.string.creation_collage_back),
                         )
-                        CollageTemplatePicker(
-                            selectedTemplate = template,
-                            onTemplateSelected = { selectedCollageTemplateIndex = collageTemplates.indexOf(it) },
-                            modifier = Modifier.weight(1f).padding(vertical = 16.dp),
-                        )
-                        Text(
-                            stringResource(R.string.m6_collage_select_photos, template.slotCount),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        Text(
-                            stringResource(R.string.m6_collage_description),
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(top = 8.dp),
-                        )
-                        collageStatus?.let {
-                            Text(
-                                stringResource(it),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (it == R.string.m6_collage_failed) MaterialTheme.colorScheme.error
-                                else MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(top = 8.dp),
-                            )
-                        }
-                        GalleryExpressiveButton(
-                            onClick = {
-                                collageRendering = true
-                                collageStatus = null
-                                appScope.launch {
-                                    runCatching { viewModel.createCollage(template) }
-                                        .onSuccess {
-                                            collageRendering = false
-                                            collageStatus = R.string.m6_collage_saved
-                                        }
-                                        .onFailure {
-                                            collageRendering = false
-                                            collageStatus = R.string.m6_collage_failed
-                                        }
-                                }
-                            },
-                            enabled = !collageRendering && viewModel.canCreateCollage(template),
-                            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                        ) {
-                            if (collageRendering) {
-                                GalleryLoadingIndicator(modifier = Modifier.size(24.dp))
-                            }
-                            else Text(stringResource(R.string.m6_collage_render))
-                        }
+                        Text(stringResource(com.ugallery.feature.collage.R.string.creation_collage_error), Modifier.padding(24.dp))
                     }
                 }
+            }
             }
         }
         val controls: @Composable (SurfaceRoute) -> Unit = { activeRoute ->
             GalleryAnimatedVisibility(
-                visible = selectionCount > 0,
+                // Moment keeps library selection for Back, but owns its chrome and top inset.
+                visible = selectionCount > 0 && activeRoute !in setOf(SurfaceRoute.PublicationRecoveries, SurfaceRoute.PdfStudio, SurfaceRoute.Documents, SurfaceRoute.Stacks, SurfaceRoute.SmartAlbums, SurfaceRoute.MemoryControls, SurfaceRoute.Moment, SurfaceRoute.MomentParticipants, SurfaceRoute.ManualMoment, SurfaceRoute.MemoryVideo, SurfaceRoute.MotionPhoto, SurfaceRoute.CreationGif, SurfaceRoute.Collage, SurfaceRoute.MemoriesBrowser, SurfaceRoute.LocalBackup, SurfaceRoute.LocalBackupTasks, SurfaceRoute.RemoteBackup, SurfaceRoute.OwnSync, SurfaceRoute.OfflinePlaces, SurfaceRoute.LocalSharing, SurfaceRoute.PetIdentity),
                 edge = GalleryMotionEdge.Top,
             ) {
                 when (activeRoute) {
@@ -1404,14 +2337,142 @@ internal fun ProductionGalleryApp(
                         onTrash = { runDestructive { viewModel.beginSelectionSystemAction(MediaAction.Trash(true)) } },
                         onDelete = { runDestructive { viewModel.beginSelectionSystemAction(MediaAction.Delete) } },
                         onAddToAlbum = { showAddToAlbum = true },
+                        onArchive = { viewModel.setSelectionArchived(true) },
                         onShare = {
                             viewModel.selectionShareIntent()?.let {
                                 context.startActivity(Intent.createChooser(it, null))
                             }
                         },
+                        onStack = {
+                            appScope.launch {
+                                val id = viewModel.createSelectedPhotoStack()
+                                if (id == null) snackbarHostState.showSnackbar(stackError)
+                                else { initialStackId = id; route = SurfaceRoute.Stacks }
+                            }
+                        },
+                        onDocuments = {
+                            appScope.launch {
+                                if (viewModel.organizeSelectedDocuments()) route = SurfaceRoute.Documents
+                                else snackbarHostState.showSnackbar(documentError)
+                            }
+                        },
+                        onPdfStudio = {
+                            pdfReturnToDocuments = false
+                            pendingPdfRequestId = java.util.UUID.randomUUID().toString()
+                            pendingPdfSources = ArrayList(viewModel.selectedPdfSources().map { it.toString() })
+                            route = SurfaceRoute.PdfStudio
+                        },
+                        canCreatePdf = viewModel.selectedPdfSources().isNotEmpty(),
+                        canCreateMemory = viewModel.canCreateSelectionVideo(),
+                        onCreateMemory = { openManualMoment() },
+                        canCreateGif = viewModel.canCreateGif(),
+                        onCreateGif = ::openCreationGif,
                         onClear = viewModel::clearSelection,
                     )
                 }
+            }
+            moveState.copyDraft?.let { draft ->
+                Surface(color = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer) {
+                    Column(Modifier.fillMaxWidth().padding(12.dp).testTag("move-copy-panel")) {
+                        Text(stringResource(R.string.move_copy_title))
+                        Text(draft.name)
+                        Text(stringResource(if (draft.destinationUri == null) R.string.move_copy_unknown else R.string.move_copy_body))
+                        if (moveState.failed) Text(stringResource(R.string.move_verified_failed))
+                        if (moveState.busy) Text(stringResource(R.string.move_verified_working))
+                        val colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                            contentColor = androidx.compose.material3.LocalContentColor.current,
+                            disabledContentColor = androidx.compose.material3.LocalContentColor.current.copy(alpha = 0.38f))
+                        TextButton(colors = colors, onClick = { viewModel.verifiedMove.reviewInterruptedCopy() },
+                            enabled = !moveState.busy && draft.destinationUri != null, modifier = Modifier.testTag("move-copy-review")) {
+                            Text(stringResource(R.string.move_copy_review))
+                        }
+                        TextButton(colors = colors, onClick = { moveTreeLauncher.launch(android.net.Uri.parse(draft.treeUri)) },
+                            enabled = !moveState.busy) { Text(stringResource(R.string.move_verified_access)) }
+                        TextButton(colors = colors, onClick = { showEndCopyTracking = true }, enabled = !moveState.busy,
+                            modifier = Modifier.testTag("move-copy-end-tracking")) { Text(stringResource(R.string.move_verified_forget)) }
+                    }
+                }
+                if (showEndCopyTracking) AlertDialog(
+                    onDismissRequest = { if (!moveState.busy) showEndCopyTracking = false },
+                    title = { Text(stringResource(R.string.move_verified_forget)) },
+                    text = { Text(stringResource(R.string.move_copy_forget_body)) },
+                    confirmButton = { TextButton(onClick = { viewModel.verifiedMove.forgetInterruptedCopy(); showEndCopyTracking = false },
+                        enabled = !moveState.busy, modifier = Modifier.testTag("move-copy-confirm-end")) { Text(stringResource(R.string.move_verified_forget)) } },
+                    dismissButton = { TextButton(onClick = { showEndCopyTracking = false }, enabled = !moveState.busy) { Text(stringResource(android.R.string.cancel)) } },
+                )
+                moveState.copyReview?.let { review ->
+                    AlertDialog(
+                        onDismissRequest = { viewModel.verifiedMove.dismissCopyReview() },
+                        title = { Text(stringResource(R.string.move_copy_review)) },
+                        text = { Column {
+                            Text(stringResource(R.string.move_copy_review_body))
+                            Text(review.displayName ?: draft.name)
+                            Text(review.destinationUri)
+                            Text(stringResource(R.string.move_verified_review_identity, review.bytes, review.sha256))
+                        } },
+                        confirmButton = { Column {
+                            TextButton(onClick = { viewModel.verifiedMove.retryReviewedCopy() }, enabled = !moveState.busy,
+                                modifier = Modifier.testTag("move-copy-retry")) { Text(stringResource(R.string.move_copy_retry)) }
+                            TextButton(onClick = { viewModel.verifiedMove.discardReviewedCopy() }, enabled = !moveState.busy,
+                                modifier = Modifier.testTag("move-copy-discard")) { Text(stringResource(R.string.move_copy_discard)) }
+                        } },
+                        dismissButton = { TextButton(onClick = { viewModel.verifiedMove.dismissCopyReview() }, enabled = !moveState.busy) { Text(stringResource(android.R.string.cancel)) } },
+                    )
+                }
+            }
+            if (moveState.entry != null || moveState.unreadable) {
+                Surface(color = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer) {
+                    Column(Modifier.fillMaxWidth().padding(12.dp).testTag("verified-move-panel")) {
+                        val completed = moveState.entry?.phase == VerifiedMovePhase.Completed
+                        Text(stringResource(if (completed) R.string.move_verified_complete else R.string.move_verified_pending))
+                        Text(stringResource(if (moveState.failed || moveState.unreadable) R.string.move_verified_failed else R.string.move_verified_body))
+                        if (moveState.busy) Text(stringResource(R.string.move_verified_working))
+                        val moveButtonColors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                            contentColor = androidx.compose.material3.LocalContentColor.current,
+                            disabledContentColor = androidx.compose.material3.LocalContentColor.current.copy(alpha = 0.38f),
+                        )
+                        Column {
+                            if (moveState.unreadable) {
+                                TextButton(colors = moveButtonColors, onClick = { viewModel.verifiedMove.reviewUnreadable() },
+                                    enabled = !moveState.busy, modifier = Modifier.testTag("verified-move-review")) {
+                                    Text(stringResource(R.string.move_verified_review))
+                                }
+                            }
+                            TextButton(colors = moveButtonColors, onClick = { viewModel.verifiedMove.requestAttempt() },
+                                enabled = !moveState.busy && moveState.entry != null && !completed,
+                                modifier = Modifier.testTag("verified-move-retry")) { Text(stringResource(R.string.action_retry)) }
+                            TextButton(colors = moveButtonColors, onClick = { moveState.entry?.proof?.treeUri?.let { moveTreeLauncher.launch(android.net.Uri.parse(it)) } },
+                                enabled = !moveState.busy && moveState.entry != null && !completed,
+                                modifier = Modifier.testTag("verified-move-access")) { Text(stringResource(R.string.move_verified_access)) }
+                            TextButton(colors = moveButtonColors, onClick = { viewModel.verifiedMove.forget() }, enabled = !moveState.busy && moveState.entry != null,
+                                modifier = Modifier.testTag("verified-move-forget")) { Text(stringResource(R.string.move_verified_forget)) }
+                        }
+                    }
+                }
+            }
+            moveState.corruptReview?.let { review ->
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { viewModel.verifiedMove.dismissCorruptReview() },
+                    title = { Text(stringResource(R.string.move_verified_review)) },
+                    text = { Column {
+                        Text(stringResource(R.string.move_verified_review_body))
+                        Text(stringResource(R.string.move_verified_review_identity, review.bytes, review.sha256))
+                    } },
+                    confirmButton = {
+                        TextButton(onClick = { viewModel.verifiedMove.preserveReviewedCorruption() },
+                            enabled = !moveState.busy, modifier = Modifier.testTag("verified-move-preserve")) {
+                            Text(stringResource(R.string.move_verified_preserve))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { viewModel.verifiedMove.dismissCorruptReview() },
+                            enabled = !moveState.busy, modifier = Modifier.testTag("verified-move-review-cancel")) {
+                            Text(stringResource(android.R.string.cancel))
+                        }
+                    },
+                )
             }
             actionState?.let { state ->
                 if (state.phase is MediaActionPhase.Cancelled) {
@@ -1421,28 +2482,43 @@ internal fun ProductionGalleryApp(
                 }
             }
         }
-        val internalTopBarRoute = renderedRoute == SurfaceRoute.Settings ||
-            renderedRoute == SurfaceRoute.About ||
-            renderedRoute == SurfaceRoute.People ||
-            renderedRoute == SurfaceRoute.Moment
+        // Retain the originating Photos nodes in their real window. TalkBack owns
+        // accessibility-focus restoration when the modal viewer window closes.
+        val accessibleViewerWindow = retainsPhotosViewerWindow(
+            photosViewerUsesWindow, renderedRoute,
+            viewerReturnDestination == ViewerReturnDestination.Root(RootTab.Photos), external != null,
+        )
+        val scaffoldRoute = if (accessibleViewerWindow) SurfaceRoute.Root else renderedRoute
+        val internalTopBarRoute = scaffoldRoute == SurfaceRoute.PublicationRecoveries ||
+            scaffoldRoute == SurfaceRoute.Settings ||
+            scaffoldRoute == SurfaceRoute.About ||
+            scaffoldRoute == SurfaceRoute.People ||
+            scaffoldRoute == SurfaceRoute.Moment ||
+            scaffoldRoute == SurfaceRoute.ManualMoment ||
+            scaffoldRoute == SurfaceRoute.MemoryVideo ||
+            scaffoldRoute == SurfaceRoute.MomentParticipants ||
+            scaffoldRoute == SurfaceRoute.MotionPhoto ||
+            scaffoldRoute == SurfaceRoute.CreationGif ||
+            scaffoldRoute == SurfaceRoute.Collage ||
+            scaffoldRoute == SurfaceRoute.MemoriesBrowser
         val contentInsets = when {
-            renderedRoute == SurfaceRoute.Viewer ||
-                renderedRoute == SurfaceRoute.PhotoEditor ||
-                renderedRoute == SurfaceRoute.VideoEditor ||
-                renderedRoute == SurfaceRoute.PrivateAlbum ||
-                renderedRoute == SurfaceRoute.PrivateAlbumPicker -> WindowInsets(0, 0, 0, 0)
+            scaffoldRoute == SurfaceRoute.Viewer ||
+                scaffoldRoute == SurfaceRoute.PhotoEditor ||
+                scaffoldRoute == SurfaceRoute.VideoEditor ||
+                scaffoldRoute == SurfaceRoute.PrivateAlbum ||
+                scaffoldRoute == SurfaceRoute.PrivateAlbumPicker -> WindowInsets(0, 0, 0, 0)
             internalTopBarRoute -> ScaffoldDefaults.contentWindowInsets.only(
                 WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal,
             )
             else -> ScaffoldDefaults.contentWindowInsets
         }
-        val showsLibraryNavigation = renderedRoute == SurfaceRoute.Root ||
-            renderedRoute == SurfaceRoute.Updates ||
-            renderedRoute == SurfaceRoute.DeviceFolders ||
-            renderedRoute == SurfaceRoute.Archive ||
-            renderedRoute == SurfaceRoute.Trash ||
-            renderedRoute == SurfaceRoute.Album ||
-            renderedRoute == SurfaceRoute.HighlightCollection
+        val showsLibraryNavigation = scaffoldRoute == SurfaceRoute.Root ||
+            scaffoldRoute == SurfaceRoute.Updates ||
+            scaffoldRoute == SurfaceRoute.DeviceFolders ||
+            scaffoldRoute == SurfaceRoute.Archive ||
+            scaffoldRoute == SurfaceRoute.Trash ||
+            scaffoldRoute == SurfaceRoute.Album ||
+            scaffoldRoute == SurfaceRoute.HighlightCollection
         fun selectRoot(destination: RootTab) {
             viewModel.clearSelection()
             archiveSelectionMode = false
@@ -1457,8 +2533,7 @@ internal fun ProductionGalleryApp(
         LaunchedEffect(activeVideoExports.isEmpty()) {
             if (activeVideoExports.isEmpty()) dismissedVideoExportIds = ""
         }
-        Scaffold(
-            snackbarHost = {
+        val globalStatus: @Composable () -> Unit = {
                 Column(
                     Modifier.fillMaxWidth().padding(
                         horizontal = GallerySpacing.Lg,
@@ -1489,12 +2564,14 @@ internal fun ProductionGalleryApp(
                         }
                     }
                 }
-            },
+        }
+        Scaffold(
+            snackbarHost = { if (!accessibleViewerWindow) globalStatus() },
             contentWindowInsets = contentInsets,
-            containerColor = if (renderedRoute == SurfaceRoute.Viewer) Color.Black
+            containerColor = if (scaffoldRoute == SurfaceRoute.Viewer) Color.Black
             else MaterialTheme.colorScheme.background,
             topBar = {
-                when (renderedRoute) {
+                when (scaffoldRoute) {
                     SurfaceRoute.Root -> Unit
                     SurfaceRoute.Album -> GalleryTopAppBar(
                         title = selectedAlbum?.name ?: stringResource(com.ugallery.feature.album.R.string.album_untitled),
@@ -1599,16 +2676,11 @@ internal fun ProductionGalleryApp(
                             }
                         },
                     )
-                    SurfaceRoute.Collage -> GalleryTopAppBar(
-                        title = stringResource(R.string.m6_collage),
-                        onBack = { route = SurfaceRoute.Root },
-                        navigationContentDescription = stringResource(R.string.nav_back),
-                    )
                     else -> Unit
                 }
             },
             bottomBar = {
-                if (adaptiveInfo.navigationType == GalleryNavigationType.BottomBar && renderedRoute == SurfaceRoute.Root) {
+                if (adaptiveInfo.navigationType == GalleryNavigationType.BottomBar && scaffoldRoute == SurfaceRoute.Root) {
                     GalleryBottomDock(
                         selected = rootTab,
                         onSelect = ::selectRoot,
@@ -1620,7 +2692,7 @@ internal fun ProductionGalleryApp(
                 Row(Modifier.fillMaxSize().padding(padding)) {
                     if (showsLibraryNavigation) {
                         GalleryExpandedRail(
-                            route = renderedRoute,
+                            route = scaffoldRoute,
                             selectedRoot = rootTab,
                             onRoot = ::selectRoot,
                             onCreate = { showCreateMenu = true },
@@ -1629,6 +2701,9 @@ internal fun ProductionGalleryApp(
                             activeExportDescription = activeExportDescription,
                             onOpenExportQueue = { showVideoExportQueue = true },
                             onRoute = { destination ->
+                                if (destination == SurfaceRoute.MemoryControls) memoryControlsReturnToMoment = false
+                                if (destination == SurfaceRoute.Stacks) initialStackId = null
+                                pdfReturnToDocuments = false
                                 viewModel.clearSelection()
                                 archiveSelectionMode = false
                                 trashSelectionMode = false
@@ -1638,31 +2713,63 @@ internal fun ProductionGalleryApp(
                     }
                     AnimatedSurfaceBody(
                         key = ScreenMotionKey(
-                            renderedRoute,
+                            scaffoldRoute,
                             rootTab,
-                            surfaceStateKey(renderedRoute, rootTab, selectedAlbum, selectedHighlight?.id),
+                            surfaceStateKey(scaffoldRoute, rootTab, selectedAlbum, selectedHighlight?.id, creationGifSessionId, creationCollageSessionId, memoryVideoSessionId, manualMomentSessionId, viewerRestoreSnapshot?.identity, videoEditorSessionId),
                         ),
                         modifier = Modifier.weight(1f),
                         stateHolder = surfaceStateHolder,
-                        controls = controls,
+                        controls = { activeRoute -> if (!accessibleViewerWindow) controls(activeRoute) },
                         content = content,
                     )
                 }
             } else {
                 AnimatedSurfaceBody(
                     key = ScreenMotionKey(
-                        renderedRoute,
+                        scaffoldRoute,
                         rootTab,
-                        surfaceStateKey(renderedRoute, rootTab, selectedAlbum, selectedHighlight?.id),
+                        surfaceStateKey(scaffoldRoute, rootTab, selectedAlbum, selectedHighlight?.id, creationGifSessionId, creationCollageSessionId, memoryVideoSessionId, manualMomentSessionId, viewerRestoreSnapshot?.identity, videoEditorSessionId),
                     ),
                     modifier = Modifier.fillMaxSize().padding(padding).then(
-                        if (renderedRoute == SurfaceRoute.Root) Modifier.rootTabSwipe(rootTab, ::selectRoot)
+                        if (scaffoldRoute == SurfaceRoute.Root) Modifier.rootTabSwipe(rootTab, ::selectRoot)
                         else Modifier,
                     ),
                     stateHolder = surfaceStateHolder,
-                    controls = controls,
+                    controls = { activeRoute -> if (!accessibleViewerWindow) controls(activeRoute) },
                     content = content,
                 )
+            }
+        }
+        if (accessibleViewerWindow) {
+            androidx.compose.ui.window.Dialog(
+                onDismissRequest = ::handleBack,
+                properties = androidx.compose.ui.window.DialogProperties(
+                    usePlatformDefaultWidth = false,
+                    decorFitsSystemWindows = false,
+                    dismissOnClickOutside = false,
+                ),
+            ) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background,
+                    contentColor = MaterialTheme.colorScheme.onBackground,
+                ) {
+                    Box(Modifier.fillMaxSize()) {
+                    AnimatedSurfaceBody(
+                        key = ScreenMotionKey(
+                            renderedRoute, rootTab,
+                            surfaceStateKey(renderedRoute, rootTab, selectedAlbum, selectedHighlight?.id,
+                                creationGifSessionId, creationCollageSessionId, memoryVideoSessionId,
+                                manualMomentSessionId, viewerRestoreSnapshot?.identity, videoEditorSessionId),
+                        ),
+                        modifier = Modifier.fillMaxSize(),
+                        stateHolder = surfaceStateHolder,
+                        controls = controls,
+                        content = content,
+                    )
+                    Box(Modifier.align(Alignment.BottomCenter).navigationBarsPadding()) { globalStatus() }
+                    }
+                }
             }
         }
     }
@@ -1679,12 +2786,38 @@ internal fun ProductionGalleryApp(
     }
 
     if (showCreateMenu) {
-        ModalBottomSheet(onDismissRequest = { showCreateMenu = false }) {
+        ModalBottomSheet(
+            onDismissRequest = { showCreateMenu = false },
+            sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        ) {
             Column(
-                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+                Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(stringResource(R.string.create_sheet_title), style = MaterialTheme.typography.headlineSmall)
+                TextButton(onClick = { showCreateMenu = false; route = SurfaceRoute.PublicationRecoveries },
+                    modifier = Modifier.fillMaxWidth().semantics { testTagsAsResourceId = true }.testTag("publication-recoveries-entry")) {
+                    Text(stringResource(R.string.publication_recoveries_title))
+                }
+
+                TextButton(onClick = { showCreateMenu = false; openManualMoment() },
+                    modifier = Modifier.fillMaxWidth().semantics { testTagsAsResourceId = true }.testTag("create-memory")) {
+                    Text(stringResource(com.ugallery.feature.collections.R.string.manual_moment_title))
+                }
+                TextButton(onClick = { showCreateMenu = false; openSelectionVideo() },
+                    modifier = Modifier.fillMaxWidth().semantics { testTagsAsResourceId = true }.testTag("create-memory-video")) {
+                    Text(stringResource(com.ugallery.feature.videoeditor.R.string.memory_video_title))
+                }
+                TextButton(
+                    onClick = {
+                        showCreateMenu = false
+                        openCreationGif()
+                    }, modifier = Modifier.fillMaxWidth().semantics { testTagsAsResourceId = true }.testTag("create-gif"),
+                ) { Text(stringResource(com.ugallery.feature.collage.R.string.creation_gif_title)) }
+                TextButton(onClick = { showCreateMenu = false; pdfReturnToDocuments = false; route = SurfaceRoute.PdfStudio }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(GalleryIcons.Collections, contentDescription = null)
+                    Text(stringResource(com.ugallery.feature.pdfstudio.R.string.pdf_studio), Modifier.padding(start = 12.dp))
+                }
                 TextButton(
                     onClick = {
                         showCreateMenu = false
@@ -1698,9 +2831,9 @@ internal fun ProductionGalleryApp(
                 TextButton(
                     onClick = {
                         showCreateMenu = false
-                        route = SurfaceRoute.Collage
+                        openCreationCollage()
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().semantics { testTagsAsResourceId = true }.testTag("create-collage"),
                 ) {
                     Icon(GalleryIcons.Collections, contentDescription = null)
                     Text(stringResource(R.string.m6_collage), Modifier.padding(start = 12.dp))
@@ -1708,27 +2841,117 @@ internal fun ProductionGalleryApp(
             }
         }
     }
+    BackHandler(enabled = albumCoverWorking) { /* The pending write owns its album until completion. */ }
+    albumRename?.let { rename ->
+        com.ugallery.feature.album.RenameAlbumDialog(
+            name = rename.name,
+            onNameChange = viewModel::updateAlbumRename,
+            working = rename.working,
+            saveFailed = rename.saveFailed,
+            onConfirm = viewModel::confirmAlbumRename,
+            onDismiss = viewModel::dismissAlbumRename,
+        )
+    }
     if (showCreateAlbum) {
         AlbumNameDialog(
             value = newAlbumName,
             onValue = { newAlbumName = it },
-            onDismiss = { showCreateAlbum = false },
+            onDismiss = { showCreateAlbum = false; reopenAddToAlbum = false },
             onConfirm = {
                 viewModel.createVirtualAlbum(newAlbumName)
                 newAlbumName = ""
                 showCreateAlbum = false
+                if (reopenAddToAlbum) { reopenAddToAlbum = false; showAddToAlbum = true }
             },
         )
     }
     if (showAddToAlbum) {
         ChooseAlbumDialog(
             albums = virtualAlbums.itemSnapshotList.items,
+            onCreateAlbum = {
+                showAddToAlbum = false
+                reopenAddToAlbum = true
+                newAlbumName = ""
+                showCreateAlbum = true
+            },
             onDismiss = { showAddToAlbum = false },
             onSelect = { album ->
                 (album.key as? com.ugallery.core.model.AlbumKey.Virtual)?.let {
                     viewModel.addSelectionToVirtualAlbum(it.albumId)
                 }
                 showAddToAlbum = false
+            },
+        )
+    }
+    manualMomentRecovery?.let { recovery ->
+        val status = recovery.status
+        AlertDialog(
+            modifier = Modifier.semantics { testTagsAsResourceId = true }.testTag(
+                "manual-memory-recovery-${status.name.lowercase(java.util.Locale.ROOT)}"),
+            onDismissRequest = viewModel::hideManualMomentRecovery,
+            title = { Text(stringResource(R.string.manual_recovery_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(when (status) {
+                        GalleryViewModel.ManualMomentRecoveryStatus.Committed -> R.string.manual_recovery_committed
+                        GalleryViewModel.ManualMomentRecoveryStatus.Missing -> R.string.manual_recovery_missing
+                        GalleryViewModel.ManualMomentRecoveryStatus.Conflict -> R.string.manual_recovery_conflict
+                        GalleryViewModel.ManualMomentRecoveryStatus.Unavailable -> R.string.manual_recovery_unavailable
+                    }))
+                    if (status == GalleryViewModel.ManualMomentRecoveryStatus.Missing) recovery.request?.let { request ->
+                        if (request.title.isNotBlank()) Text(request.title)
+                        Text(androidx.compose.ui.res.pluralStringResource(R.plurals.manual_recovery_photo_count,
+                            request.orderedKeys.size, request.orderedKeys.size))
+                    }
+                    if (recovery.request != null) Text(stringResource(R.string.manual_recovery_dismiss_info))
+                    if (manualMomentError) Text(manualCreationErrorText)
+                    if (manualMomentBusy) GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
+                }
+            },
+            confirmButton = {
+                if (status != GalleryViewModel.ManualMomentRecoveryStatus.Conflict) TextButton(
+                    enabled = !manualMomentBusy,
+                    modifier = Modifier.testTag(if (status == GalleryViewModel.ManualMomentRecoveryStatus.Committed)
+                        "manual-memory-recovery-open" else "manual-memory-recovery-retry"),
+                    onClick = {
+                        if (status == GalleryViewModel.ManualMomentRecoveryStatus.Unavailable) viewModel.checkManualMomentRecovery()
+                        else {
+                            val fromRoute = route; val fromTab = rootTab
+                            val closedId = viewModel.manualMomentSessionId.value
+                            appScope.launch {
+                                val id = viewModel.resumePendingManualMomentCreate()
+                                if (id != null && id == recovery.request?.draft?.id) {
+                                    closedId?.takeIf { it == recovery.request?.draft?.id }?.let { surfaceStateHolder.removeState("manual-moment:$it") }
+                                    if (route == fromRoute && rootTab == fromTab &&
+                                        viewModel.manualMomentPendingCreate.value?.token == recovery.request.token) {
+                                        momentReturnToBrowser = true
+                                        route = SurfaceRoute.Moment
+                                    }
+                                }
+                            }
+                        }
+                    },
+                ) { Text(stringResource(when (status) {
+                    GalleryViewModel.ManualMomentRecoveryStatus.Committed -> R.string.manual_recovery_open
+                    GalleryViewModel.ManualMomentRecoveryStatus.Missing -> R.string.manual_recovery_retry
+                    else -> R.string.manual_recovery_check
+                })) }
+            },
+            dismissButton = {
+                Column(horizontalAlignment = Alignment.End) {
+                    if (recovery.request != null) TextButton(enabled = !manualMomentBusy, onClick = {
+                        val closedId = viewModel.manualMomentSessionId.value
+                        appScope.launch {
+                            if (viewModel.dismissManualMomentRecovery()) {
+                                closedId?.takeIf { it == recovery.request?.draft?.id }?.let { surfaceStateHolder.removeState("manual-moment:$it") }
+                                if (route == SurfaceRoute.ManualMoment && closedId == recovery.request.draft.id) { rootTab = manualReturnTab; route = manualReturnRoute }
+                            }
+                        }
+                    }) { Text(stringResource(R.string.manual_recovery_dismiss)) }
+                    TextButton(enabled = !manualMomentBusy, onClick = viewModel::hideManualMomentRecovery) {
+                        Text(stringResource(R.string.manual_recovery_later))
+                    }
+                }
             },
         )
     }
@@ -1741,8 +2964,12 @@ internal fun ProductionGalleryApp(
                 TextButton(onClick = {
                     showDiscardEditorConfirmation = false
                     if (route == SurfaceRoute.PhotoEditor) viewModel.closePhotoEditor()
-                    else if (route == SurfaceRoute.VideoEditor) viewModel.closeVideoEditor()
-                    route = SurfaceRoute.Viewer
+                    else if (route == SurfaceRoute.VideoEditor) closeVideoEditor()
+                    if (external?.editMode == true) {
+                        viewModel.clearExternal()
+                        activity?.setResult(Activity.RESULT_CANCELED)
+                        activity?.finish()
+                    } else route = SurfaceRoute.Viewer
                 }) { Text(stringResource(R.string.editor_discard_confirm)) }
             },
             dismissButton = {
@@ -1770,7 +2997,7 @@ internal fun ProductionGalleryApp(
             },
         )
     }
-    privateImportProgress?.let { progress ->
+    privateImportProgress?.takeIf { privateAlbumUnlocked && privateFlowVisible }?.let { progress ->
         AlertDialog(
             onDismissRequest = {},
             title = { Text(stringResource(com.ugallery.feature.privatealbum.R.string.private_picker_title)) },
@@ -1792,7 +3019,7 @@ internal fun ProductionGalleryApp(
             confirmButton = {},
         )
     }
-    privateImportOutcome?.let { outcome ->
+    privateImportOutcome?.takeIf { privateAlbumUnlocked && privateFlowVisible }?.let { outcome ->
         val importedCount = outcome.successful.size
         AlertDialog(
             onDismissRequest = { privateImportOutcome = null },
@@ -1819,10 +3046,15 @@ internal fun ProductionGalleryApp(
             },
             confirmButton = {
                 if (importedCount > 0) {
-                    TextButton(onClick = {
+                    TextButton(onClick = deleteOriginals@{
+                        val access = privateSession.accessToken() ?: return@deleteOriginals
                         val imported = outcome.successful
                         privateImportOutcome = null
-                        runDestructive { viewModel.beginSystemAction(imported, MediaAction.Delete) }
+                        runDestructive {
+                            if (route == SurfaceRoute.PrivateAlbum && privateSession.hasAccess(access)) {
+                                viewModel.beginSystemAction(imported, MediaAction.Delete)
+                            }
+                        }
                     }) {
                         Text(stringResource(com.ugallery.feature.privatealbum.R.string.private_delete_originals))
                     }
@@ -1869,18 +3101,22 @@ internal fun ProductionGalleryApp(
 }
 
 @Composable
-private fun VideoExportGlobalStatusCard(
+internal fun VideoExportGlobalStatusCard(
     job: VideoExportJob,
     activeCount: Int,
     onOpen: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val phaseLabel = if (job.status == VideoExportJobStatus.Queued) {
-        stringResource(R.string.video_export_waiting)
-    } else {
-        stringResource(job.phase.queueLabelResource())
-    }
+    val announcement = videoExportAccessibilityState(job.status, job.phase, job.progressPermille)
+    val spokenProgress = announcement.percent?.let { stringResource(R.string.video_export_progress_percent, it) }
+    val phaseLabel = stringResource(when (job.status) {
+        VideoExportJobStatus.Queued -> R.string.video_export_waiting
+        VideoExportJobStatus.Completed -> R.string.video_export_complete
+        VideoExportJobStatus.Failed -> R.string.video_export_failed
+        VideoExportJobStatus.Cancelled -> R.string.video_export_cancelled
+        VideoExportJobStatus.Running -> job.phase.queueLabelResource()
+    })
     val progress = job.takeIf { it.status == VideoExportJobStatus.Running }
         ?.progressPermille
         ?.coerceIn(0, 1000)
@@ -1918,6 +3154,12 @@ private fun VideoExportGlobalStatusCard(
                     )
                     Text(
                         phaseLabel,
+                        // Own semantic node: do not make the clickable card (and its exact
+                        // percentage/range updates) an endlessly changing live region.
+                        modifier = Modifier.semantics(mergeDescendants = true) {
+                            liveRegion = LiveRegionMode.Polite
+                            if (spokenProgress != null) stateDescription = spokenProgress
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -2010,13 +3252,18 @@ private fun VideoExportQueueDialog(
                             } else {
                                 stringResource(job.phase.queueLabelResource())
                             }
+                            val spokenProgress = videoExportAccessibilityState(job.status, job.phase, job.progressPermille)
+                                .percent?.let { stringResource(R.string.video_export_progress_percent, it) }
                             Row(
                                 Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                             ) {
                                 Text(
                                     phaseLabel,
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier.weight(1f).semantics(mergeDescendants = true) {
+                                        liveRegion = LiveRegionMode.Polite
+                                        if (spokenProgress != null) stateDescription = spokenProgress
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
@@ -2068,6 +3315,8 @@ private fun VideoExportPhase.queueLabelResource(): Int = when (this) {
     VideoExportPhase.Completed -> R.string.video_export_complete
 }
 
+private val LocalSurfaceFocusReady = androidx.compose.runtime.staticCompositionLocalOf { true }
+
 @Composable
 internal fun AnimatedSurfaceBody(
     key: ScreenMotionKey,
@@ -2081,6 +3330,12 @@ internal fun AnimatedSurfaceBody(
         modifier = modifier,
         contentKey = { it },
     ) { activeKey ->
+        androidx.compose.runtime.CompositionLocalProvider(
+            LocalSurfaceFocusReady provides (
+                transition.currentState == androidx.compose.animation.EnterExitState.Visible &&
+                    transition.targetState == androidx.compose.animation.EnterExitState.Visible
+                ),
+        ) {
         Column(Modifier.fillMaxSize()) {
             controls(activeKey.route)
             if (activeKey.saveableStateKey != null) {
@@ -2090,6 +3345,7 @@ internal fun AnimatedSurfaceBody(
             } else {
                 content(activeKey)
             }
+        }
         }
     }
 }
@@ -2113,7 +3369,11 @@ private fun ContextSelectionActions(
             GalleryExpressiveIconButton(onClick = onClear) {
                 Icon(GalleryIcons.Close, contentDescription = stringResource(R.string.selection_clear))
             }
-            Text(stringResource(R.string.selection_count, count), style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(R.string.selection_count, count),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
         },
         trailingContent = {
             TextButton(onClick = onSelectAll) { Text(stringResource(R.string.selection_select_all)) }
@@ -2138,21 +3398,49 @@ private fun SelectionActions(
     onTrash: () -> Unit,
     onDelete: () -> Unit,
     onAddToAlbum: () -> Unit,
+    onArchive: () -> Unit,
     onShare: () -> Unit,
     onClear: () -> Unit,
+    onDocuments: () -> Unit,
+    onStack: () -> Unit,
+    onPdfStudio: () -> Unit,
+    canCreatePdf: Boolean,
+    canCreateMemory: Boolean,
+    onCreateMemory: () -> Unit,
+    canCreateGif: Boolean,
+    onCreateGif: () -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+    // The count must not compete with five touch targets on compact/large-text layouts.
+    val separateCount = maxWidth < 600.dp || LocalDensity.current.fontScale > 1.3f
     Column(
         Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
     ) {
+        if (separateCount) {
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                shape = MaterialTheme.shapes.large,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    stringResource(R.string.selection_count, count),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        .semantics { liveRegion = LiveRegionMode.Polite },
+                )
+            }
+        }
         HorizontalFloatingToolbar(
             expanded = true,
             leadingContent = {
-            Text(
+            if (!separateCount) Text(
                 stringResource(R.string.selection_count, count),
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 12.dp),
+                modifier = Modifier.padding(horizontal = 12.dp)
+                    .semantics { liveRegion = LiveRegionMode.Polite },
             )
             },
             trailingContent = {
@@ -2161,6 +3449,40 @@ private fun SelectionActions(
                     Icon(GalleryIcons.More, contentDescription = stringResource(com.ugallery.feature.viewer.R.string.viewer_more))
                 }
                 DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(com.ugallery.feature.collections.R.string.manual_moment_title)) },
+                        onClick = { menuExpanded = false; onCreateMemory() }, enabled = canCreateMemory,
+                        modifier = Modifier.semantics { testTagsAsResourceId = true }.testTag("selection-create-memory"),
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(com.ugallery.feature.collections.R.string.stacks_create)) },
+                        onClick = { menuExpanded = false; onStack() },
+                        enabled = canCreatePdf && count >= 2,
+                        leadingIcon = { Icon(GalleryIcons.Collections, contentDescription = null) },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(com.ugallery.feature.collections.R.string.documents_organize)) },
+                        onClick = { menuExpanded = false; onDocuments() },
+                        enabled = canCreatePdf,
+                        leadingIcon = { Icon(GalleryIcons.Collections, contentDescription = null) },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(com.ugallery.feature.collage.R.string.creation_gif_title)) },
+                        onClick = { menuExpanded = false; onCreateGif() },
+                        enabled = canCreateGif,
+                        modifier = Modifier.semantics { testTagsAsResourceId = true }.testTag("selection-create-gif"),
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(com.ugallery.feature.pdfstudio.R.string.pdf_studio)) },
+                        onClick = { menuExpanded = false; onPdfStudio() },
+                        enabled = canCreatePdf,
+                        leadingIcon = { Icon(GalleryIcons.Collections, contentDescription = null) },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.archive_move)) },
+                        onClick = { menuExpanded = false; onArchive() },
+                        leadingIcon = { Icon(GalleryIcons.Archive, contentDescription = null) },
+                    )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.selection_select_all)) },
                         onClick = { menuExpanded = false; onSelectAll() },
@@ -2203,12 +3525,14 @@ private fun SelectionActions(
         }
     }
 }
+    }
 
 @Composable
 private fun ChooseAlbumDialog(
     albums: List<com.ugallery.core.model.AlbumSummary>,
     onDismiss: () -> Unit,
     onSelect: (com.ugallery.core.model.AlbumSummary) -> Unit,
+    onCreateAlbum: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -2223,7 +3547,11 @@ private fun ChooseAlbumDialog(
                 }
             }
         },
-        confirmButton = {},
+        confirmButton = {
+            if (albums.isEmpty()) {
+                TextButton(onClick = onCreateAlbum) { Text(stringResource(R.string.album_create)) }
+            }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.album_cancel)) } },
     )
 }
@@ -2233,7 +3561,7 @@ private fun ExternalViewer(
     media: GalleryViewModel.ExternalMedia,
     photo: com.ugallery.feature.viewer.PhotoLoadState?,
     onClose: () -> Unit,
-    onSaveCopy: () -> Unit,
+    onEdit: () -> Unit,
 ) {
     val context = LocalContext.current
     if (!media.available) {
@@ -2244,48 +3572,104 @@ private fun ExternalViewer(
         return
     }
     val video = if (media.kind == MediaKind.Video) remember(media.uri) {
-        VideoViewerController(context).also { it.select(media.uri) }
+        VideoViewerController(context).also { it.select(media.uri, autoplay = true) }
     } else null
-    val videoState = video?.state?.collectAsState()
     DisposableEffect(video) { onDispose { video?.close() } }
-    Column(Modifier.fillMaxSize()) {
-        Surface(Modifier.weight(1f).fillMaxSize()) {
-            when {
-                video != null -> AndroidView(
-                    factory = { android.view.SurfaceView(it).also(video::attachSurface) },
-                    modifier = Modifier.fillMaxSize(),
+    val scope = rememberCoroutineScope()
+    val copyComplete = stringResource(R.string.viewer_copy_complete)
+    val actionUnavailable = stringResource(R.string.viewer_action_unavailable)
+    var showDetails by rememberSaveable(media.viewerId) { mutableStateOf(false) }
+    val copyLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { treeUri ->
+        if (treeUri != null) scope.launch {
+            runCatching {
+                ScopedMediaOperations.copyToTree(
+                    context.contentResolver,
+                    media.uri,
+                    treeUri,
+                    media.displayName ?: "UGallery-media",
+                    media.mimeType ?: if (media.kind == MediaKind.Image) "image/*" else "video/*",
                 )
-                photo is com.ugallery.feature.viewer.PhotoLoadState.Ready -> AndroidView(
-                    factory = { ImageView(it).apply { scaleType = ImageView.ScaleType.FIT_CENTER } },
-                    update = { image -> image.setImageDrawable(photo.drawable) },
-                    modifier = Modifier.fillMaxSize(),
-                )
-                photo is com.ugallery.feature.viewer.PhotoLoadState.Error -> Text(
-                    stringResource(R.string.external_unavailable),
-                    Modifier.padding(24.dp),
-                )
-                else -> GalleryLoadingIndicator(Modifier.padding(24.dp))
-            }
-        }
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            item { GalleryExpressiveButton(onClick = onClose) { Text(stringResource(R.string.details_close)) } }
-            if (video != null) {
-                val playing = (videoState?.value as? com.ugallery.feature.viewer.VideoViewerState.Ready)?.isPlaying == true
-                item { GalleryExpressiveButton(onClick = { if (playing) video.pause() else video.play() }) {
-                    Text(stringResource(if (playing) R.string.external_pause else R.string.external_play))
-                } }
-            }
-            if (media.editMode) item { GalleryExpressiveButton(onClick = onSaveCopy) { Text(stringResource(R.string.external_save_copy)) } }
+            }.onSuccess { Toast.makeText(context, copyComplete, Toast.LENGTH_SHORT).show() }
+                .onFailure { Toast.makeText(context, it.message ?: actionUnavailable, Toast.LENGTH_LONG).show() }
         }
     }
-    DisposableEffect(photo) {
-        val animated = (photo as? com.ugallery.feature.viewer.PhotoLoadState.Ready)?.drawable as? AnimatedImageDrawable
-        animated?.start()
-        onDispose { animated?.stop() }
+    fun launchExternal(intent: Intent) {
+        runCatching { context.startActivity(Intent.createChooser(intent, null)) }
+            .onFailure { Toast.makeText(context, actionUnavailable, Toast.LENGTH_SHORT).show() }
+    }
+    val mime = media.mimeType ?: if (media.kind == MediaKind.Image) "image/*" else "video/*"
+    ViewerContent(
+        media = media,
+        mediaItems = listOf(media),
+        photoState = photo,
+        videoController = video,
+        thumbnailLoader = null,
+        isFavorite = false,
+        onBack = onClose,
+        onToggleFavorite = null,
+        onShare = {
+            launchExternal(Intent(Intent.ACTION_SEND).apply {
+                type = mime
+                putExtra(Intent.EXTRA_STREAM, media.uri)
+                clipData = android.content.ClipData.newUri(context.contentResolver, media.displayName, media.uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            })
+        },
+        onShareSanitized = {
+            scope.launch {
+                runCatching { LocalShareSanitizer(context).prepare(media.uri, media.kind) }
+                    .onSuccess { asset ->
+                        launchExternal(Intent(Intent.ACTION_SEND).apply {
+                            type = asset.mimeType
+                            putExtra(Intent.EXTRA_STREAM, asset.uri)
+                            clipData = android.content.ClipData.newUri(context.contentResolver, media.displayName, asset.uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        })
+                    }
+                    .onFailure { Toast.makeText(context, it.message ?: actionUnavailable, Toast.LENGTH_LONG).show() }
+            }
+        },
+        onDetails = { showDetails = true },
+        onEdit = onEdit,
+        onRename = null,
+        onCopy = { copyLauncher.launch(null) },
+        onMove = null,
+        onOpenWith = { launchExternal(ScopedMediaOperations.viewIntent(media.uri, mime)) },
+        onSetAs = if (media.kind == MediaKind.Image) ({ launchExternal(ScopedMediaOperations.setAsIntent(media.uri, mime)) }) else null,
+        onPrint = if (media.kind == MediaKind.Image) ({ ScopedMediaOperations.printImage(context, media.uri, media.displayName ?: "UGallery") }) else null,
+        onRepairDate = null,
+        onTrash = null,
+        onSelectMedia = {},
+        modifier = Modifier.fillMaxSize(),
+    )
+    if (showDetails) AlertDialog(
+        onDismissRequest = { showDetails = false },
+        title = { Text(media.displayName ?: stringResource(R.string.external_unavailable)) },
+        text = {
+            Text(buildString {
+                append(mime)
+                if (media.width > 0 && media.height > 0) append("\n${media.width} × ${media.height}")
+                if (media.durationMillis > 0) {
+                    append("\n${android.text.format.DateUtils.formatElapsedTime(media.durationMillis / 1_000)}")
+                }
+                if (media.sizeBytes > 0) {
+                    append("\n${android.text.format.Formatter.formatFileSize(context, media.sizeBytes)}")
+                }
+            })
+        },
+        confirmButton = { TextButton(onClick = { showDetails = false }) { Text(stringResource(R.string.details_close)) } },
+    )
+}
+
+@Composable
+private fun PublicMediaRecoveryContent(title: String, body: String, loading: Boolean, onBack: () -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.background, contentColor = MaterialTheme.colorScheme.onBackground) {
+        Column(Modifier.fillMaxSize()) {
+            GalleryTopAppBar(title = title, onBack = onBack,
+                navigationContentDescription = stringResource(com.ugallery.feature.viewer.R.string.viewer_back))
+            if (loading) GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
+            Text(body, Modifier.padding(24.dp))
+        }
     }
 }
 
@@ -2300,10 +3684,12 @@ private fun ViewerRoute(
     viewModel: GalleryViewModel,
     showDetails: Boolean,
     adaptiveInfo: GalleryAdaptiveLayoutInfo,
+    onTreeOperation: (Boolean) -> Unit,
     onShowDetails: () -> Unit,
     onHideDetails: () -> Unit,
     onBack: () -> Unit,
     onEdit: () -> Unit,
+    onMotionPhoto: () -> Unit,
     onShareSanitized: () -> Unit,
     gazetteer: OfflineGazetteer? = null,
     sessionVideoMuted: Boolean? = null,
@@ -2311,6 +3697,15 @@ private fun ViewerRoute(
     trashContext: Boolean = false,
 ) {
     val context = LocalContext.current
+    val viewerSnapshot by viewModel.viewerRestoreSnapshot.collectAsState()
+    val recoveredViewer by viewModel.viewerRecovered.collectAsState()
+    val currentSnapshot = viewerSnapshot?.takeIf { it.key == media.key && it.generationModified == media.generationModified }
+    var hasMotion by remember(media.key, media.generationModified) { mutableStateOf(false) }
+    LaunchedEffect(media.key, media.generationModified, trashContext, currentSnapshot?.generationAdded) {
+        hasMotion = !trashContext && media.kind == MediaKind.Image && currentSnapshot != null &&
+            com.ugallery.feature.motionphotos.MotionPhotoSession.inspect(context,
+                com.ugallery.feature.motionphotos.MotionPhotoInput(viewModel.mediaUri(media), media.generationModified, currentSnapshot.generationAdded))
+    }
     val coroutineScope = rememberCoroutineScope()
     val cheap by viewModel.cheapDetails.collectAsState()
     val exif by viewModel.exifDetails.collectAsState()
@@ -2320,21 +3715,9 @@ private fun ViewerRoute(
     val destructiveAuthTitle = stringResource(R.string.destructive_auth_title)
     val destructiveAuthBody = stringResource(R.string.destructive_auth_body)
     val chooserTitle = stringResource(R.string.viewer_choose_app)
-    val copyComplete = stringResource(R.string.viewer_copy_complete)
-    val moveCopyComplete = stringResource(R.string.viewer_move_copy_complete)
     val actionUnavailable = stringResource(R.string.viewer_action_unavailable)
     var renameDialogVisible by rememberSaveable(media.key) { mutableStateOf(false) }
     var renameValue by rememberSaveable(media.key) { mutableStateOf(media.displayName.orEmpty()) }
-    var treeMoveRequested by remember { mutableStateOf(false) }
-    val treeLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { treeUri ->
-        if (treeUri != null) coroutineScope.launch {
-            viewModel.copyMediaToTree(media, treeUri, treeMoveRequested)
-                .onSuccess {
-                    Toast.makeText(context, if (treeMoveRequested) moveCopyComplete else copyComplete, Toast.LENGTH_SHORT).show()
-                }
-                .onFailure { Toast.makeText(context, it.message ?: actionUnavailable, Toast.LENGTH_LONG).show() }
-        }
-    }
     val target = remember(media.key, media.kind) { MediaActionTarget(media.key, media.kind) }
     val wildcardMime = if (media.kind == MediaKind.Video) "video/*" else "image/*"
     fun launchExternal(intent: Intent) {
@@ -2371,8 +3754,11 @@ private fun ViewerRoute(
             onFail = {},
         )
     }
-    DisposableEffect(context, gallerySettings.playback.maximumBrightness) {
-        val window = (context as? Activity)?.window
+    val viewerHostView = androidx.compose.ui.platform.LocalView.current
+    val viewerWindow = (viewerHostView.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
+        ?: (context as? Activity)?.window
+    DisposableEffect(viewerWindow, gallerySettings.playback.maximumBrightness) {
+        val window = viewerWindow
         val previous = window?.attributes?.screenBrightness
         if (gallerySettings.playback.maximumBrightness) {
             window?.attributes = window?.attributes?.apply { screenBrightness = 1f }
@@ -2391,7 +3777,7 @@ private fun ViewerRoute(
         VideoViewerController(context, initialLooping = gallerySettings.playback.loopVideos).also {
             it.select(
                 viewModel.mediaUri(media),
-                autoplay = gallerySettings.playback.autoplayVideos,
+                autoplay = gallerySettings.playback.autoplayVideos && !recoveredViewer,
                 startMuted = sessionVideoMuted ?: gallerySettings.playback.startVideosMuted,
             )
         }
@@ -2436,6 +3822,9 @@ private fun ViewerRoute(
     LaunchedEffect(videoController) {
         viewModel.hardwareVolumeKeys.collect { videoController?.unmute(); onSessionVideoMutedChange(false) }
     }
+    val mediaArchived by remember(media.key) { viewModel.isArchived(media) }
+        .collectAsState(initial = false)
+    val archiveLabel = stringResource(if (mediaArchived) R.string.archive_unarchive else R.string.archive_move)
     val viewer: @Composable () -> Unit = {
         ViewerContent(
             media = media,
@@ -2456,18 +3845,14 @@ private fun ViewerRoute(
             },
             onDetails = onShowDetails,
             onEdit = onEdit,
+            onMotionPhoto = onMotionPhoto.takeIf { hasMotion },
+            motionPhotoLabel = stringResource(com.ugallery.feature.motionphotos.R.string.motion_title),
             onRename = {
                 renameValue = media.displayName.orEmpty()
                 renameDialogVisible = true
             },
-            onCopy = {
-                treeMoveRequested = false
-                treeLauncher.launch(null)
-            },
-            onMove = {
-                treeMoveRequested = true
-                treeLauncher.launch(null)
-            },
+            onCopy = { onTreeOperation(false) },
+            onMove = { onTreeOperation(true) },
             onOpenWith = { launchExternal(ScopedMediaOperations.viewIntent(target, wildcardMime)) },
             onSetAs = { launchExternal(ScopedMediaOperations.setAsIntent(target, wildcardMime)) },
             onPrint = {
@@ -2481,7 +3866,14 @@ private fun ViewerRoute(
                     viewModel.beginSystemAction(media, MediaAction.Trash(!trashContext))
                 }
             },
-            onSelectMedia = viewModel::selectViewerMedia,
+            onArchive = if (trashContext) null else ({
+                viewModel.setMediaArchived(media, !mediaArchived)
+                onBack()
+            }),
+            archiveActionLabel = if (trashContext) null else archiveLabel,
+            onSelectMedia = { selected ->
+                mediaItems.firstOrNull { it.viewerId == selected.viewerId }?.let(viewModel::selectViewerMedia)
+            },
             trashActionLabel = if (trashContext) {
                 stringResource(com.ugallery.feature.trash.R.string.trash_restore)
             } else null,
@@ -2497,8 +3889,6 @@ private fun ViewerRoute(
             videoScrubbingMode = gallerySettings.playback.videoScrubbingMode,
             modifier = Modifier.fillMaxSize(),
         )
-        // Motion photo badge - detection requires file access, shown when available
-        // MotionPhotoParser.parseXmp() is called from the viewer pipeline when XMP metadata is available
     }
     if (adaptiveInfo.supportsTwoPane && showDetails && cheap != null) {
         val verticalFold = adaptiveInfo.foldInfo?.takeIf { it.enablesSideBySide }

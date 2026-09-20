@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="private_index_unavailable_title">Album privé indisponible</string>
+    <string name="private_index_unavailable_body">L’index privé n’a pas pu être ouvert. Les fichiers existants sont conservés. Réessayez ou revenez en arrière ; aucun album ne sera réinitialisé ou créé.</string>
+    <string name="private_index_retry">Réessayer</string>
+    <string name="private_index_loading">Ouverture de l’album privé…</string>
+</resources>

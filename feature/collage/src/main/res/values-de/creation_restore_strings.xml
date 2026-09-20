@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="creation_collage_publication_uncertain">Der Export ist noch ungeklärt. Die Wiederherstellungsdaten bleiben erhalten. Erneut prüfen oder zurückgehen; eine weitere Kopie bleibt gesperrt.</string>
+    <string name="creation_collage_keep_editing">Weiter bearbeiten</string>
+    <string name="creation_collage_publication_not_started">Für diesen Versuch wurde keine veröffentlichte Kopie gefunden. Wähle Weiter bearbeiten, um ohne Export zum Entwurf zurückzukehren.</string>
+    <string name="creation_collage_publication_conflict">Der Exporteintrag oder die gespeicherte Kopie passt nicht zu dieser Collage. Die Wiederherstellungsdaten bleiben erhalten; es wird keine weitere Kopie erstellt.</string>
+    <string name="creation_collage_publication_unreadable">Der vorherige Export konnte nicht geprüft werden. Die Wiederherstellungsdaten bleiben erhalten. Erneut prüfen oder später zurückkehren.</string>
+    <string name="creation_collage_check_export">Export prüfen</string>
+    <string name="creation_collage_sources_unavailable">Die Originalfotos sind nicht verfügbar oder wurden geändert. Gespeicherte Kopien lassen sich prüfen, aber eine weitere Kopie bleibt gesperrt.</string>
+    <string name="creation_collage_published_new_draft">Um eine weitere Kopie zu bearbeiten, gehe zurück und starte eine neue Collage. Diese gespeicherte PNG-Datei bleibt erhalten.</string>
+</resources>

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="creation_collage_title">Collage</string>
+    <string name="creation_collage_back">Retour</string>
+    <string name="creation_collage_originals">Ajustez la disposition sans modifier les originaux. Le PNG exporté correspond à cet aperçu.</string>
+    <string name="creation_collage_preview">Aperçu du collage</string>
+    <string name="creation_collage_template">Disposition</string>
+    <string name="creation_collage_order">Ordre des photos</string>
+    <string name="creation_collage_photo">Photo %1$d</string>
+    <string name="creation_collage_earlier">Déplacer avant</string>
+    <string name="creation_collage_later">Déplacer après</string>
+    <string name="creation_collage_crop">Ajuster la photo %1$d</string>
+    <string name="creation_collage_zoom">Zoom</string>
+    <string name="creation_collage_horizontal">Position horizontale</string>
+    <string name="creation_collage_vertical">Position verticale</string>
+    <string name="creation_collage_reset">Réinitialiser le recadrage</string>
+    <string name="creation_collage_error">Le collage n’a pas pu être préparé ou enregistré. Vérifiez l’accès aux photos originales et réessayez.</string>
+    <string name="creation_collage_retry">Réessayer</string>
+    <string name="creation_collage_cancelled">Exportation annulée. Les originaux restent inchangés.</string>
+    <string name="creation_collage_publishing">Enregistrement et vérification de la copie…</string>
+    <string name="creation_collage_cancel">Annuler</string>
+    <string name="creation_collage_export">Enregistrer une copie</string>
+    <string name="creation_collage_saved">Copie enregistrée et vérifiée</string>
+    <string name="creation_collage_open">Ouvrir</string>
+    <string name="creation_collage_share">Partager</string>
+    <string name="creation_collage_leave">Quitter ce collage ?</string>
+    <string name="creation_collage_leave_hint">Annuler l’opération en cours et revenir ? Vos originaux resteront inchangés.</string>
+    <string name="creation_collage_keep">Continuer à modifier</string>
+    <string name="creation_collage_grid2">Grille · 2</string>
+    <string name="creation_collage_grid3">Grille · 3</string>
+    <string name="creation_collage_grid4">Grille · 4</string>
+    <string name="creation_collage_stack3">Pile · 3</string>
+    <string name="creation_collage_strip3">Bande · 3</string>
+    <string name="creation_collage_polaroid3">Polaroid · 3</string>
+    <string name="creation_collage_strip4">Bande · 4</string>
+    <string name="creation_collage_no_selection">Sélectionnez 2 à 4 photos, puis choisissez Collage.</string>
+</resources>

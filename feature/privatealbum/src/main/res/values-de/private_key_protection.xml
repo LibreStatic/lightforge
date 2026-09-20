@@ -1,0 +1,21 @@
+<resources>
+    <string name="private_key_protection_action">Schlüssel mit Geräteauthentifizierung schützen</string>
+    <string name="private_key_protection_title">Medien- und Indexschlüssel schützen</string>
+    <string name="private_key_protection_body">Geräteauthentifizierung zur Verwendung der Verschlüsselungsschlüssel für private Fotos und Videos sowie des unabhängigen Schlüssels für den privaten Index verlangen.</string>
+    <string name="private_key_protection_index_scope">Der private Index wird geschlossen, wenn du das Album sperrst oder verlässt oder die App in den Hintergrund wechselst. Beim Schließen des Index bleibt eine bereits vorbereitete verschlüsselte Sicherung erhalten.</string>
+    <string name="private_key_protection_risk">Das Entfernen oder Zurücksetzen der Gerätesperre kann diese Schlüssel unbrauchbar machen und den Zugriff dauerhaft sperren. Exportiere vor dem Fortfahren eine verschlüsselte Sicherung.</string>
+    <string name="private_key_protection_working">Die Medienschlüssel und der unabhängige Indexschlüssel werden geschützt. Warte, bis der Vorgang abgeschlossen ist.</string>
+    <string name="private_key_protection_authentication_required">Authentifiziere dich erneut am Gerät, um den Schutz der Medien- und Indexschlüssel fortzusetzen.</string>
+    <string name="private_key_protection_failed">Der Schutz konnte nicht abgeschlossen werden. Authentifiziere dich erneut und versuche es noch einmal.</string>
+    <string name="private_key_protection_complete_title">Medien- und Indexschlüssel geschützt</string>
+    <string name="private_key_protection_complete">Die Medienschlüssel und der unabhängige Indexschlüssel erfordern jetzt eine Geräteauthentifizierung.</string>
+    <string name="private_key_protection_protect">Schützen</string>
+    <string name="private_key_protection_working_button">Wird geschützt…</string>
+    <string name="private_key_protection_cancel">Abbrechen</string>
+    <string name="private_key_protection_continue">Authentifizierung fortsetzen</string>
+    <string name="private_key_protection_retry">Erneut versuchen</string>
+    <string name="private_key_protection_done">Fertig</string>
+    <string name="private_key_protection_credentials_required">Richte in den Systemeinstellungen eine Displaysperre mit PIN, Muster oder Passwort ein. Kehre dann hierher zurück und tippe auf Erneut versuchen, um die Medien- und Indexschlüssel zu schützen.</string>
+    <string name="private_key_unlock_body">Entsperre mit Biometrie oder der Displaysperre deines Geräts.</string>
+    <string name="private_key_auth_unavailable">Die Geräteauthentifizierung ist nicht verfügbar. Richte in den Systemeinstellungen eine Displaysperre ein, kehre dann zurück und versuche es erneut.</string>
+</resources>

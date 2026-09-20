@@ -5,6 +5,31 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class SurfaceStateKeyTest {
+    @Test fun photoEditorKeepsItsRouteDuringAsynchronousRecipeLoading() {
+        assertEquals(
+            SurfaceRoute.PhotoEditor,
+            availableSurfaceRoute(SurfaceRoute.PhotoEditor, true, false, false,
+                hasPhotoEditor = false, isPhotoEditorOpening = true),
+        )
+        assertEquals(
+            SurfaceRoute.Viewer,
+            availableSurfaceRoute(SurfaceRoute.PhotoEditor, true, false, false,
+                hasPhotoEditor = false, isPhotoEditorOpening = false),
+        )
+        assertEquals(
+            SurfaceRoute.Root,
+            availableSurfaceRoute(SurfaceRoute.PhotoEditor, false, false, false,
+                hasPhotoEditor = false, isPhotoEditorOpening = true),
+        )
+    }
+    @Test fun offlineToolsHaveIndependentRestorableRoutes() {
+        assertEquals("own-sync",surfaceStateKey(SurfaceRoute.OwnSync,RootTab.Photos,null))
+        assertEquals("offline-places",surfaceStateKey(SurfaceRoute.OfflinePlaces,RootTab.Photos,null))
+        listOf(SurfaceRoute.OwnSync,SurfaceRoute.OfflinePlaces).forEach { route ->
+            assertEquals(route,availableSurfaceRoute(route,false,false,false))
+        }
+    }
+
     @Test
     fun viewerOriginsReceiveStableSaveableStateKeys() {
         assertEquals(
@@ -86,6 +111,8 @@ class SurfaceStateKeyTest {
                     hasCurrentMedia = true,
                     hasSelectedAlbum = true,
                     hasSelectedHighlight = true,
+                    hasCreationGifSources = true,
+                    hasCreationCollageSources = true,
                 ),
             )
         }

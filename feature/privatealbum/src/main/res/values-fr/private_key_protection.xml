@@ -1,0 +1,21 @@
+<resources>
+    <string name="private_key_protection_action">Protéger les clés avec l’authentification de l’appareil</string>
+    <string name="private_key_protection_title">Protéger les clés des médias et de l’index</string>
+    <string name="private_key_protection_body">Exiger l’authentification de l’appareil pour utiliser les clés de chiffrement des photos et vidéos privées et la clé indépendante de l’index privé.</string>
+    <string name="private_key_protection_index_scope">L’index privé se ferme lorsque vous verrouillez ou quittez l’album, ou passez l’application en arrière-plan. Fermer l’index conserve intacte une sauvegarde chiffrée déjà préparée.</string>
+    <string name="private_key_protection_risk">Supprimer ou réinitialiser le verrouillage de l’écran peut rendre ces clés inutilisables et bloquer définitivement l’accès. Exportez une sauvegarde chiffrée avant de continuer.</string>
+    <string name="private_key_protection_working">Protection des clés de chiffrement des médias et de la clé indépendante de l’index. Attendez la fin de l’opération.</string>
+    <string name="private_key_protection_authentication_required">Authentifiez-vous de nouveau sur l’appareil pour poursuivre la protection des clés des médias et de l’index.</string>
+    <string name="private_key_protection_failed">La protection n’a pas pu être terminée. Authentifiez-vous de nouveau et réessayez.</string>
+    <string name="private_key_protection_complete_title">Clés des médias et de l’index protégées</string>
+    <string name="private_key_protection_complete">Les clés de chiffrement des médias et la clé indépendante de l’index nécessitent désormais l’authentification de l’appareil.</string>
+    <string name="private_key_protection_protect">Protéger</string>
+    <string name="private_key_protection_working_button">Protection…</string>
+    <string name="private_key_protection_cancel">Annuler</string>
+    <string name="private_key_protection_continue">Continuer l’authentification</string>
+    <string name="private_key_protection_retry">Réessayer</string>
+    <string name="private_key_protection_done">Terminé</string>
+    <string name="private_key_protection_credentials_required">Configurez un verrouillage de l’écran par code PIN, schéma ou mot de passe dans les paramètres du système. Revenez ensuite ici et appuyez sur Réessayer pour protéger les clés des médias et de l’index.</string>
+    <string name="private_key_unlock_body">Déverrouillez avec la biométrie ou le verrouillage de l’écran de votre appareil.</string>
+    <string name="private_key_auth_unavailable">L’authentification de l’appareil est indisponible. Configurez un verrouillage de l’écran dans les paramètres du système, puis revenez et réessayez.</string>
+</resources>

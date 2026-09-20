@@ -100,6 +100,7 @@ fun SearchContent(
     detectedContentEnabled: Boolean,
     petCollection: Pair<String, Long>? = null,
     onOpenPetCollection: ((String) -> Unit)? = null,
+    onOpenPlaces: (() -> Unit)? = null,
     thumbnailLoader: ThumbnailLoader?,
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
@@ -187,6 +188,7 @@ fun SearchContent(
                         onPresetSearch(label)
                         coroutineScope.launch { searchBarState.animateToCollapsed() }
                     },
+                    onOpenPlaces = onOpenPlaces,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = GallerySpacing.Lg),
                     headingModifier = Modifier.testTag(SEARCH_EXPANDED_DISCOVERY_HEADING_TEST_TAG),
@@ -213,7 +215,7 @@ fun SearchContent(
         }
         Text(stringResource(R.string.search_privacy), style = MaterialTheme.typography.bodySmall)
         if (query.isBlank()) {
-            SearchDiscovery(onPresetSearch = onPresetSearch, modifier = Modifier.weight(1f))
+            SearchDiscovery(onPresetSearch = onPresetSearch, onOpenPlaces = onOpenPlaces, modifier = Modifier.weight(1f))
         }
         if (query.isNotBlank() || hits.isNotEmpty()) when {
             error -> Row(
@@ -369,6 +371,7 @@ private fun SearchLoadingIndicatorRow(modifier: Modifier = Modifier) {
 @Composable
 private fun SearchDiscovery(
     onPresetSearch: (String) -> Unit,
+    onOpenPlaces: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(),
     headingModifier: Modifier = Modifier,
@@ -414,7 +417,18 @@ private fun SearchDiscovery(
                 }
             }
         } }
-        item { Text(stringResource(R.string.search_places), style = MaterialTheme.typography.titleMedium) }
+        item {
+            if (onOpenPlaces != null) {
+                TextButton(
+                    onClick = onOpenPlaces,
+                    modifier = Modifier.semantics { heading() }.testTag("search-open-places"),
+                ) {
+                    Text(stringResource(R.string.search_places), style = MaterialTheme.typography.titleMedium)
+                }
+            } else {
+                Text(stringResource(R.string.search_places), style = MaterialTheme.typography.titleMedium)
+            }
+        }
         item { LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 16.dp)) {
             items(listOf(R.string.search_coast, R.string.search_mountain, R.string.search_city, R.string.search_rain)) { labelResource ->
                 val label = stringResource(labelResource)

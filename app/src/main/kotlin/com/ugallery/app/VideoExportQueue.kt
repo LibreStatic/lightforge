@@ -41,6 +41,8 @@ import com.ugallery.feature.semanticsearch.SemanticAnalysisPriority
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -265,6 +267,8 @@ class VideoExportWorker(context: Context, parameters: WorkerParameters) : Corout
                     update(id, VideoExportJobStatus.Running, progress.phase, permille)
                 },
             )
+            publicationObservers[original.inputUri]?.invoke(original, output)
+            requirePublicationAccess(id, original)
             update(id, VideoExportJobStatus.Running, VideoExportPhase.Publishing, 850)
             val size = output.length().coerceAtLeast(1L)
             val published = PendingMediaWriter(
@@ -287,6 +291,7 @@ class VideoExportWorker(context: Context, parameters: WorkerParameters) : Corout
                 onVerifying = {
                     update(id, VideoExportJobStatus.Running, VideoExportPhase.Verifying, 970)
                 },
+                beforePublish = { requirePublicationAccess(id, original) },
             )
             val completed = store.update(id) {
                 it.copy(
@@ -329,6 +334,21 @@ class VideoExportWorker(context: Context, parameters: WorkerParameters) : Corout
                 MlScheduler(applicationContext).resumeAfterUserWork()
                 SemanticAnalysisPriority.resumeAfterUserWork(applicationContext)
             }
+        }
+    }
+
+    private suspend fun requirePublicationAccess(id: String, original: VideoExportJob) {
+        currentCoroutineContext().ensureActive()
+        if (store.get(id)?.status == VideoExportJobStatus.Cancelled) {
+            throw CancellationException("Video export cancelled by user")
+        }
+        // Existing renderer descriptors may outlive a revoked READ grant. Opening afresh is
+        // required both before inserting a destination and after its complete verification.
+        applicationContext.contentResolver.openFileDescriptor(original.inputUri.toUri(), "r")?.use { }
+            ?: throw java.io.FileNotFoundException()
+        currentCoroutineContext().ensureActive()
+        if (store.get(id)?.status == VideoExportJobStatus.Cancelled) {
+            throw CancellationException("Video export cancelled by user")
         }
     }
 
@@ -414,6 +434,20 @@ class VideoExportWorker(context: Context, parameters: WorkerParameters) : Corout
     private fun notificationId(id: String) = id.hashCode() and Int.MAX_VALUE
 
     companion object {
+        private val publicationObservers = java.util.concurrent.ConcurrentHashMap<
+            String, suspend (VideoExportJob, File) -> Unit,
+        >()
+
+        /** Observes a real rendered file; it does not replace rendering or publication results. */
+        internal fun observeBeforePublication(
+            inputUri: String,
+            observer: suspend (VideoExportJob, File) -> Unit,
+        ): AutoCloseable {
+            require(inputUri.isNotBlank())
+            check(publicationObservers.putIfAbsent(inputUri, observer) == null)
+            return AutoCloseable { publicationObservers.remove(inputUri, observer) }
+        }
+
         const val JobIdKey = "video-export-job-id"
         const val OutputUriKey = "video-export-output-uri"
         const val ExportTag = "video-export"

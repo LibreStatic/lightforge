@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="remote_storage_title">Backup auf eigenem Server</string>
+    <string name="remote_storage_working">Verifiziertes Backup wird übertragen</string>
+    <string name="remote_storage_permission_explanation">Erlaube den lokalen Netzwerkzugriff auf deinen SFTP- oder SMB-Server. Es wird kein Cloud-Dienst oder Konto verwendet.</string>
+    <string name="remote_storage_permission_allow">Lokales Netzwerk erlauben</string>
+    <string name="remote_storage_permission_settings">App-Einstellungen öffnen</string>
+    <string name="remote_storage_back">Zurück</string>
+</resources>

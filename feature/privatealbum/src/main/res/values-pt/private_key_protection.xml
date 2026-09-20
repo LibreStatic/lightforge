@@ -1,0 +1,21 @@
+<resources>
+    <string name="private_key_protection_action">Proteger chaves com autenticação do dispositivo</string>
+    <string name="private_key_protection_title">Proteger chaves de mídia e do índice</string>
+    <string name="private_key_protection_body">Exigir autenticação do dispositivo para usar as chaves de criptografia de fotos e vídeos privados e a chave independente do índice privado.</string>
+    <string name="private_key_protection_index_scope">O índice privado é fechado ao bloquear ou sair do álbum, ou colocar o app em segundo plano. Fechar o índice mantém intacto um backup criptografado já preparado.</string>
+    <string name="private_key_protection_risk">Remover ou redefinir o bloqueio de tela do dispositivo pode inutilizar estas chaves e bloquear o acesso permanentemente. Exporte um backup criptografado antes de continuar.</string>
+    <string name="private_key_protection_working">Protegendo as chaves de criptografia de mídia e a chave independente do índice. Aguarde o término da operação.</string>
+    <string name="private_key_protection_authentication_required">Autentique-se novamente no dispositivo para continuar protegendo as chaves de mídia e do índice.</string>
+    <string name="private_key_protection_failed">Não foi possível concluir a proteção. Autentique-se novamente e tente outra vez.</string>
+    <string name="private_key_protection_complete_title">Chaves de mídia e do índice protegidas</string>
+    <string name="private_key_protection_complete">As chaves de criptografia de mídia e a chave independente do índice agora exigem autenticação do dispositivo.</string>
+    <string name="private_key_protection_protect">Proteger</string>
+    <string name="private_key_protection_working_button">Protegendo…</string>
+    <string name="private_key_protection_cancel">Cancelar</string>
+    <string name="private_key_protection_continue">Continuar autenticação</string>
+    <string name="private_key_protection_retry">Tentar novamente</string>
+    <string name="private_key_protection_done">Concluído</string>
+    <string name="private_key_protection_credentials_required">Configure um bloqueio de tela com PIN, padrão ou senha nas Configurações do sistema. Depois volte aqui e toque em Tentar novamente para proteger as chaves de mídia e do índice.</string>
+    <string name="private_key_unlock_body">Desbloqueie com biometria ou com o bloqueio de tela do dispositivo.</string>
+    <string name="private_key_auth_unavailable">A autenticação do dispositivo está indisponível. Configure um bloqueio de tela nas Configurações do sistema, depois volte e tente novamente.</string>
+</resources>

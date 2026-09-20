@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="creation_collage_publication_uncertain">L’esportazione non è ancora risolta. Le informazioni di recupero sono conservate. Controlla di nuovo o torna indietro; creare un’altra copia resta bloccato.</string>
+    <string name="creation_collage_keep_editing">Continua a modificare</string>
+    <string name="creation_collage_publication_not_started">Nessuna copia pubblicata è stata trovata per questo tentativo. Scegli Continua a modificare per tornare alla bozza senza esportare.</string>
+    <string name="creation_collage_publication_conflict">Il registro di esportazione o la copia salvata non corrisponde a questo collage. Le informazioni di recupero sono conservate; non verrà creata un’altra copia.</string>
+    <string name="creation_collage_publication_unreadable">Non è stato possibile verificare l’esportazione precedente. Le informazioni di recupero sono conservate. Controlla di nuovo o torna più tardi.</string>
+    <string name="creation_collage_check_export">Verifica esportazione</string>
+    <string name="creation_collage_sources_unavailable">Le foto originali non sono disponibili o sono cambiate. Le copie salvate possono essere verificate, ma creare un’altra copia è bloccato.</string>
+    <string name="creation_collage_published_new_draft">Per modificare un’altra copia, torna indietro e crea un nuovo collage. Questo PNG salvato verrà conservato.</string>
+</resources>

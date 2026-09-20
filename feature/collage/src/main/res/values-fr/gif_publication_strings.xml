@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="gif_publication_checking">Vérification du GIF enregistré…</string>
+    <string name="gif_publication_not_started">Le GIF n’a pas été publié. Vérifiez à nouveau ou revenez explicitement à la modification. Aucune copie ne sera créée automatiquement.</string>
+    <string name="gif_publication_incomplete">La publication est incomplète. Son état de récupération est conservé. Vérifiez à nouveau ou revenez ; toute nouvelle copie est bloquée.</string>
+    <string name="gif_publication_conflict">Le GIF enregistré est absent ou a changé. L’ouverture, le partage et une nouvelle exportation sont bloqués. Son état de récupération est conservé.</string>
+    <string name="gif_publication_unreadable">Le GIF enregistré n’a pas pu être vérifié. Vérifiez à nouveau ou revenez ; son état de récupération est conservé.</string>
+    <string name="gif_publication_unverified">Le GIF a été enregistré, mais la vérification n’a pas abouti à temps. Vérifiez à nouveau avant de l’ouvrir ou de le partager.</string>
+    <string name="gif_publication_new_draft">Ce GIF est enregistré. Fermez ce brouillon et créez-en un nouveau pour produire une autre copie.</string>
+    <string name="gif_publication_sources_unavailable">Les photos originales sont indisponibles. Un GIF enregistré vérifié reste accessible pour ouverture ou partage ; modification et exportation sont bloquées.</string>
+    <string name="gif_publication_check">Vérifier le GIF enregistré</string>
+    <string name="gif_publication_keep_editing">Revenir à la modification</string>
+</resources>

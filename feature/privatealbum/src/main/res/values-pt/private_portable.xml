@@ -1,0 +1,21 @@
+<resources>
+    <string name="private_portable_title">Backup criptografado</string>
+    <string name="private_portable_body">Guarde uma cópia do álbum privado protegida por senha. Apenas arquivos criptografados saem do aplicativo. Guarde a senha separadamente; ela não pode ser recuperada.</string>
+    <string name="private_portable_export">Fazer backup do álbum privado</string>
+    <string name="private_portable_import">Restaurar backup criptografado</string>
+    <string name="private_portable_password_note">Use pelo menos 12 caracteres. A senha não é salva.</string>
+    <string name="private_portable_password">Senha</string>
+    <string name="private_portable_confirm_password">Confirmar senha</string>
+    <string name="private_portable_prepare">Preparar e verificar</string>
+    <string name="private_portable_progress">Verificando %1$d de %2$d…</string>
+    <string name="private_portable_review">%1$d itens verificados estão prontos. Os originais permanecem intactos. Cópias criptografadas serão adicionadas a este álbum privado.</string>
+    <string name="private_portable_commit">Restaurar cópias privadas</string>
+    <string name="private_portable_restored">%1$d cópias privadas restauradas.</string>
+    <string name="private_portable_previous">Este backup já foi restaurado (%1$d itens). Este é um recibo histórico; os itens excluídos não são restaurados novamente.</string>
+    <string name="private_portable_saved">Backup criptografado salvo e verificado por leitura.</string>
+    <string name="private_portable_share">Compartilhar backup criptografado</string>
+    <string name="private_portable_error">O backup não pôde ser verificado. Confira a senha, o acesso ao documento e o espaço livre. Nenhum item não verificado foi adicionado.</string>
+    <string name="private_portable_cancel_title">Cancelar esta operação?</string>
+    <string name="private_portable_cancel_body">Os arquivos criptografados temporários não confirmados serão removidos. Seus originais e os itens já restaurados permanecem intactos.</string>
+    <string name="private_portable_continue">Continuar</string>
+</resources>

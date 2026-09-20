@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="gif_publication_checking">Checking the saved GIF…</string>
+    <string name="gif_publication_not_started">The GIF was not published. Check again or explicitly return to editing. No copy will be created automatically.</string>
+    <string name="gif_publication_incomplete">Publication is incomplete. Its recovery record is preserved. Check again or go back; creating another copy is blocked.</string>
+    <string name="gif_publication_conflict">The saved GIF is missing or changed. Opening, sharing, and another export are blocked. Its recovery record is preserved.</string>
+    <string name="gif_publication_unreadable">The saved GIF could not be verified. Check again or go back; its recovery record is preserved.</string>
+    <string name="gif_publication_unverified">The GIF was saved, but verification did not finish in time. Check again to confirm it before opening or sharing.</string>
+    <string name="gif_publication_new_draft">This GIF is saved. Close this draft and start a new one to create another copy.</string>
+    <string name="gif_publication_sources_unavailable">The original photos are unavailable. A verified saved GIF can still be opened or shared; editing and export are blocked.</string>
+    <string name="gif_publication_check">Check saved GIF</string>
+    <string name="gif_publication_keep_editing">Return to editing</string>
+</resources>

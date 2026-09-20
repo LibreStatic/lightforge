@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="private_viewer_title">Private viewer</string>
+    <string name="private_viewer_back">Back</string>
+    <string name="private_viewer_locked">Private viewing is locked. Unlock the album to continue.</string>
+    <string name="private_viewer_unlock">Unlock album</string>
+    <string name="private_viewer_error">This private item could not be read or verified.</string>
+    <string name="private_viewer_retry">Try again</string>
+    <string name="private_viewer_export">Export a copy</string>
+    <string name="private_viewer_photo">Private photo</string>
+    <string name="private_viewer_zoom">Zoom</string>
+    <string name="private_viewer_zoom_value">Zoom: %1$.1f×</string>
+    <string name="private_viewer_reset">Reset view</string>
+    <string name="private_viewer_seek">Video position</string>
+    <string name="private_viewer_time">%1$s / %2$s</string>
+    <string name="private_viewer_play">Play</string>
+    <string name="private_viewer_pause">Pause</string>
+</resources>

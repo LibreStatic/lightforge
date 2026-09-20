@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="creation_collage_title">Colagem</string>
+    <string name="creation_collage_back">Voltar</string>
+    <string name="creation_collage_originals">Ajuste o layout sem alterar os originais. O PNG exportado corresponde a esta prévia.</string>
+    <string name="creation_collage_preview">Prévia da colagem</string>
+    <string name="creation_collage_template">Layout</string>
+    <string name="creation_collage_order">Ordem das fotos</string>
+    <string name="creation_collage_photo">Foto %1$d</string>
+    <string name="creation_collage_earlier">Mover antes</string>
+    <string name="creation_collage_later">Mover depois</string>
+    <string name="creation_collage_crop">Ajustar foto %1$d</string>
+    <string name="creation_collage_zoom">Zoom</string>
+    <string name="creation_collage_horizontal">Posição horizontal</string>
+    <string name="creation_collage_vertical">Posição vertical</string>
+    <string name="creation_collage_reset">Redefinir recorte</string>
+    <string name="creation_collage_error">Não foi possível preparar ou salvar a colagem. Verifique o acesso às fotos originais e tente novamente.</string>
+    <string name="creation_collage_retry">Tentar novamente</string>
+    <string name="creation_collage_cancelled">Exportação cancelada. Os originais não foram alterados.</string>
+    <string name="creation_collage_publishing">Salvando e verificando a cópia…</string>
+    <string name="creation_collage_cancel">Cancelar</string>
+    <string name="creation_collage_export">Salvar uma cópia</string>
+    <string name="creation_collage_saved">Cópia salva e verificada</string>
+    <string name="creation_collage_open">Abrir</string>
+    <string name="creation_collage_share">Compartilhar</string>
+    <string name="creation_collage_leave">Sair desta colagem?</string>
+    <string name="creation_collage_leave_hint">Cancelar a operação pendente e voltar? Os originais não serão alterados.</string>
+    <string name="creation_collage_keep">Continuar editando</string>
+    <string name="creation_collage_grid2">Grade · 2</string>
+    <string name="creation_collage_grid3">Grade · 3</string>
+    <string name="creation_collage_grid4">Grade · 4</string>
+    <string name="creation_collage_stack3">Pilha · 3</string>
+    <string name="creation_collage_strip3">Faixa · 3</string>
+    <string name="creation_collage_polaroid3">Polaroid · 3</string>
+    <string name="creation_collage_strip4">Faixa · 4</string>
+    <string name="creation_collage_no_selection">Selecione de 2 a 4 fotos e escolha Colagem.</string>
+</resources>
