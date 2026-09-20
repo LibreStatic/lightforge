@@ -167,6 +167,21 @@ class FaceDetectionMlEngine(
                     emptyList(),
                 )
                 continue
+            } catch (_: android.graphics.ImageDecoder.DecodeException) {
+                // The backing file is present but undecodable (truncated, corrupt, or written with
+                // a codec this device does not implement). This is permanent for these bytes, so a
+                // retry can only spin forever and starve every remaining candidate. Record a
+                // zero-face result for this generation + model version to drop the item from the
+                // pending query; a later edit to the file yields a new generationModified, which
+                // re-admits it without any migration or manual reset.
+                dao.replaceFaceDetection(
+                    FaceDetectionRunEntity(
+                        candidate.volumeName, candidate.mediaStoreId, candidate.generationModified,
+                        modelVersion, 0, nowMillis(),
+                    ),
+                    emptyList(),
+                )
+                continue
             }
             val inferenceBitmap = if (bitmap.config == Config.HARDWARE) {
                 bitmap.copy(Config.ARGB_8888, false)
@@ -194,6 +209,20 @@ class FaceDetectionMlEngine(
                         val quality = FaceQualityFilter.evaluate(face, inferenceBitmap.width, inferenceBitmap.height)
                         if (!quality.accepted) null else face to quality
                     }
+            } catch (_: android.graphics.ImageDecoder.DecodeException) {
+                // A hardware-backed thumbnail can defer its decode until the detector reads the
+                // pixels, so the same permanently-undecodable file can surface here instead of at
+                // loadThumbnail. Treat it identically: suppressing this one generation costs a
+                // single broken file's faces, whereas retrying costs the entire library's
+                // analysis. A later edit bumps generationModified and re-admits the item.
+                dao.replaceFaceDetection(
+                    FaceDetectionRunEntity(
+                        candidate.volumeName, candidate.mediaStoreId, candidate.generationModified,
+                        modelVersion, 0, nowMillis(),
+                    ),
+                    emptyList(),
+                )
+                continue
             } finally {
                 if (inferenceBitmap !== bitmap) inferenceBitmap.recycle()
                 bitmap.recycle()

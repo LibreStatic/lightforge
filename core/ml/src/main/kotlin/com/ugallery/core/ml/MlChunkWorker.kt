@@ -45,7 +45,13 @@ class MlChunkWorker(
                 setProgress(workDataOf(Output.Completed to result.checkpoint.completedItems))
                 Result.success(workDataOf(Output.Completed to result.checkpoint.completedItems))
             }
-            is MlRunnerResult.Retry -> {
+            is MlRunnerResult.Retry -> if (shouldGiveUp(runAttemptCount)) {
+                // Belt and braces for a poison item no engine managed to suppress: succeed rather
+                // than fail so the chained ML work is not cancelled, and let the next scheduling
+                // pass (or a library change) start a fresh attempt series.
+                Log.w(LogTag, "Giving up on ${task.name} after $runAttemptCount attempts: ${result.reason}")
+                Result.success()
+            } else {
                 Log.w(LogTag, "Backing off ${task.name}: ${result.reason}")
                 Result.retry()
             }
@@ -77,3 +83,11 @@ class MlChunkWorker(
     private object Input { const val Task = "task"; const val Mode = "mode" }
     private object Output { const val Completed = "completed" }
 }
+
+/**
+ * A chunk that keeps failing is almost always a single undecodable item the engine could not
+ * suppress. Stop after [MaxChunkRunAttempts] so one bad file cannot retry forever.
+ */
+internal fun shouldGiveUp(runAttemptCount: Int): Boolean = runAttemptCount >= MaxChunkRunAttempts
+
+internal const val MaxChunkRunAttempts = 5

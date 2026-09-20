@@ -90,6 +90,22 @@ class ImageLabelMlEngine(
                 // the entire ML chunk forever on an item that no longer exists.
                 dao.deleteMedia(candidate.volumeName, candidate.mediaStoreId)
                 continue
+            } catch (_: android.graphics.ImageDecoder.DecodeException) {
+                // The file exists but the platform decoder cannot produce a bitmap from it
+                // (truncated download, unsupported vendor codec, corrupt sector). Retrying is
+                // pointless: nothing about this generation of the file will ever decode, and a
+                // retry loop here starves every later item in the library forever. Record an
+                // empty result for this generation + model version so the candidate query stops
+                // selecting it. If the user later re-edits or re-downloads the file, MediaStore
+                // assigns a new generationModified and the item is re-admitted automatically.
+                dao.replaceLabelResult(
+                    MediaLabelRunEntity(
+                        candidate.volumeName, candidate.mediaStoreId, candidate.generationModified,
+                        modelVersion, nowMillis(),
+                    ),
+                    emptyList(),
+                )
+                continue
             } catch (_: SecurityException) {
                 return@withContext MlChunkOutcome.PermissionLost
             }
@@ -180,6 +196,14 @@ class OcrMlEngine(
             } catch (_: FileNotFoundException) {
                 dao.deleteMedia(candidate.volumeName, candidate.mediaStoreId)
                 continue
+            } catch (_: android.graphics.ImageDecoder.DecodeException) {
+                // Undecodable bytes, not a transient failure: no amount of retrying turns a
+                // truncated or codec-unsupported file into a bitmap, and retrying blocks the whole
+                // chunk (and therefore the rest of the library) indefinitely. An empty recognition
+                // is already a legitimate outcome here, so persist one for this generation +
+                // model version; a later edit to the file bumps generationModified and the item
+                // is re-admitted to the candidate set on its own.
+                OcrDetected("", "[]")
             } catch (_: SecurityException) {
                 return@withContext MlChunkOutcome.PermissionLost
             }
