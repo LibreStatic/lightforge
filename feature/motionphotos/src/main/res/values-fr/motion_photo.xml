@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="motion_title">Motion Photo</string>
+    <string name="motion_back">Retour</string>
+    <string name="motion_loading">Lecture du mouvement local…</string>
+    <string name="motion_unavailable">Partie animée indisponible</string>
+    <string name="motion_unavailable_hint">La photo originale reste intacte. Ce fichier ne contient pas de section JPEG + MP4 compatible et lisible. Aucune image inventée.</string>
+    <string name="motion_original">Retour à l’original</string>
+    <string name="motion_frame">Image vidéo réelle sélectionnée</string>
+    <string name="motion_frame_number">Image %1$d</string>
+    <string name="motion_time">%1$d / %2$d ms</string>
+    <string name="motion_play">Lire le mouvement</string>
+    <string name="motion_pause">Pause</string>
+    <string name="motion_set_key">Définir l’image clé</string>
+    <string name="motion_reset_key">Restaurer la couverture originale</string>
+    <string name="motion_original_key">Couverture : photo originale</string>
+    <string name="motion_selected_key">Image clé enregistrée : %1$d ms</string>
+    <string name="motion_note">Tout reste sur cet appareil. La couverture est une modification locale réversible ; l’original reste intact. JPEG et MP4 sont des copies séparées. Fichiers JPEG animés jusqu’à 512 Mo, clips jusqu’à 60 secondes ; JPEG extrait limité à 4096 pixels par côté.</string>
+    <string name="motion_save_jpeg">Enregistrer l’image JPEG</string>
+    <string name="motion_save_mp4">Enregistrer le clip MP4</string>
+    <string name="motion_cancel">Annuler</string>
+    <string name="motion_saved">Couverture enregistrée localement</string>
+    <string name="motion_error">L’action n’a pas abouti. Vérifiez l’accès à la source et l’espace libre, puis réessayez. L’original reste intact.</string>
+    <string name="motion_exported">Copie vérifiée enregistrée</string>
+    <string name="motion_open">Ouvrir la copie</string>
+    <string name="motion_share">Partager la copie</string>
+    <string name="motion_cancel_title">Annuler l’action en cours ?</string>
+    <string name="motion_continue">Continuer</string>
+</resources>

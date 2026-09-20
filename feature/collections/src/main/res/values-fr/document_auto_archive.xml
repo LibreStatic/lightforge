@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="document_auto_title">Archivage automatique</string>
+    <string name="document_auto_explanation">Les documents correspondants quittent Photos, mais restent dans Documents et les albums. Les originaux restent sur cet appareil. Favoris et photos exclues sont ignorés. Conserver et annuler concernent la version actuelle.</string>
+    <string name="document_auto_enabled">Archivage automatique actif</string>
+    <string name="document_auto_paused">Archivage automatique en pause</string>
+    <string name="document_auto_last_run">Dernier lot : %1$d archivés</string>
+    <string name="document_auto_age">Ancienneté de la photo</string>
+    <string name="document_auto_any_age">Toute ancienneté</string>
+    <string name="document_auto_days">Au moins %1$d jours</string>
+    <string name="document_auto_review">Examiner les correspondances</string>
+    <string name="document_auto_pause">Suspendre l’archivage automatique</string>
+    <string name="document_auto_undo">Annuler le dernier lot et suspendre</string>
+    <string name="document_auto_preview">Photos à archiver : %1$d</string>
+    <string name="document_auto_future">Confirmez ce lot et les correspondances futures. Les contrôles locaux ont lieu environ toutes les 15 minutes, selon Android et la batterie. Aucun cloud ni nouvelle analyse.</string>
+    <string name="document_auto_more">Cet aperçu montre les 100 premières correspondances. Les suivantes seront traitées par lots ultérieurs.</string>
+    <string name="document_auto_empty">Aucune correspondance actuelle. Vous pouvez activer cette règle pour les photos futures.</string>
+    <string name="document_auto_keep">Conserver dans Photos</string>
+    <string name="document_auto_confirm">Archiver et activer la règle</string>
+    <string name="document_auto_cancel">Annuler l’aperçu</string>
+    <string name="document_auto_stale">Les correspondances ou les réglages ont changé. Examinez-les à nouveau avant de confirmer.</string>
+    <string name="document_auto_active_rule">Règle enregistrée : %1$s · %2$d jours</string>
+    <string name="document_auto_keep_named">Conserver dans Photos : %1$s</string>
+    <string name="document_auto_preview_rule">Règle à activer : %1$s · %2$d jours</string>
+</resources>

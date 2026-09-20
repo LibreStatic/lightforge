@@ -4,8 +4,8 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.After
-import org.junit.Before
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -16,8 +16,11 @@ class LocalAnalysisOnboardingStoreDeviceTest {
     @Before
     @After
     fun clearState() {
-        context.getSharedPreferences("local-analysis-onboarding", Context.MODE_PRIVATE)
-            .edit().clear().commit()
+        context
+            .getSharedPreferences("local-analysis-onboarding", Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .commit()
         context.deleteDatabase(com.ugallery.core.database.GalleryDatabaseFactory.DatabaseName)
     }
 
@@ -51,14 +54,29 @@ class LocalAnalysisOnboardingStoreDeviceTest {
 
     @Test
     fun existingGalleryDatabaseMarksAnUpgradeAsResolved() {
-        val database = context.getDatabasePath(
-            com.ugallery.core.database.GalleryDatabaseFactory.DatabaseName,
-        )
+        val database =
+            context.getDatabasePath(com.ugallery.core.database.GalleryDatabaseFactory.DatabaseName)
         database.parentFile?.mkdirs()
         database.createNewFile()
 
         assertEquals(
             LocalAnalysisOnboardingDecision.Accepted,
+            LocalAnalysisOnboardingStore(context).decision(),
+        )
+    }
+
+    @Test
+    fun unansweredNoticeStaysPendingAfterRuntimeCreatesDatabase() {
+        assertEquals(
+            LocalAnalysisOnboardingDecision.Pending,
+            LocalAnalysisOnboardingStore(context).decision(),
+        )
+        val database =
+            context.getDatabasePath(com.ugallery.core.database.GalleryDatabaseFactory.DatabaseName)
+        database.parentFile?.mkdirs()
+        database.createNewFile()
+        assertEquals(
+            LocalAnalysisOnboardingDecision.Pending,
             LocalAnalysisOnboardingStore(context).decision(),
         )
     }

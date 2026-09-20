@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="stacks_title">Fotostapel</string>
+    <string name="stacks_local">Auf diesem Gerät · Originale unverändert</string>
+    <string name="stacks_saved">Gespeichert</string>
+    <string name="stacks_suggested">Vorgeschlagen</string>
+    <string name="stacks_separated">Getrennt</string>
+    <string name="stacks_create_hint">Wähle 2 bis 100 Bilder in Fotos und dann Stapel erstellen. Jedes Foto gehört zu einem gespeicherten Stapel.</string>
+    <string name="stacks_suggestions_hint">Prüfe Gruppen aus der vorhandenen lokalen Ähnlichkeitsanalyse. Ein gespeicherter Stapel bewahrt deine Auswahl unabhängig von der Analyse.</string>
+    <string name="stacks_separated_hint">Getrennte Fotos bleiben von Stapelvorschlägen ausgeschlossen, bis du sie wieder zulässt.</string>
+    <string name="stacks_analysis">Einstellungen der lokalen Analyse</string>
+    <string name="stacks_empty">Hier gibt es noch keine Stapel.</string>
+    <string name="stacks_retry">Erneut versuchen</string>
+    <string name="stacks_default_title">Fotostapel</string>
+    <string name="stacks_available">%1$d von %2$d Fotos verfügbar</string>
+    <string name="stacks_suggestion_count">Vorgeschlagene Gruppe · %1$d Fotos</string>
+    <string name="stacks_review">Stapel prüfen</string>
+    <string name="stacks_allow">Stapelvorschläge zulassen</string>
+    <string name="stacks_back">Zurück</string>
+    <string name="stacks_photo">Foto</string>
+    <string name="stacks_unavailable">Fotos sind nicht verfügbar. Gespeicherte Verweise bleiben erhalten.</string>
+    <string name="stacks_cover">Titelbild</string>
+    <string name="stacks_selected">Ausgewähltes Foto</string>
+    <string name="stacks_dimensions">%1$d × %2$d · %3$s</string>
+    <string name="stacks_detail_score">Lokales Kantendetail: %1$.1f</string>
+    <string name="stacks_zoom">Zoom: %1$d%%</string>
+    <string name="stacks_close_compare">Vergleich schließen</string>
+    <string name="stacks_save">Mit ausgewähltem Titelbild speichern</string>
+    <string name="stacks_choose_cover">Als Titelbild wählen</string>
+    <string name="stacks_compare">Fotos vergleichen</string>
+    <string name="stacks_separate">Ausgewähltes Foto trennen</string>
+    <string name="stacks_unstack">Alle Fotos trennen</string>
+    <string name="stacks_unstack_hint">Diese Gruppe entfernen und ihre Fotos von neuen Stapelvorschlägen ausschließen. Originale, Alben und Favoriten bleiben unverändert.</string>
+    <string name="stacks_cancel">Abbrechen</string>
+    <string name="stacks_name">Stapelname</string>
+    <string name="stacks_save_name">Namen speichern</string>
+    <string name="stacks_rename">Umbenennen</string>
+    <string name="stacks_changed">Diese Gruppe hat sich geändert. Erneut öffnen und versuchen.</string>
+    <string name="stacks_error">Die Aktion wurde nicht abgeschlossen. Prüfe, ob die Fotos verfügbar sind und nicht bereits zu einem anderen Stapel gehören.</string>
+    <string name="stacks_create">Stapel erstellen</string>
+    <string name="stacks_collection_hint">Ähnliche Fotos prüfen, ein Titelbild wählen und Gruppen auf diesem Gerät behalten.</string>
+</resources>

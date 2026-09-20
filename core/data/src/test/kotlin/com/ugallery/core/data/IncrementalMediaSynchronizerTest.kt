@@ -17,6 +17,33 @@ import org.junit.Test
 
 class IncrementalMediaSynchronizerTest {
     @Test
+    fun newObserverReconcilesMissedChangesButDoesNotScanUnchangedVolumes() = runTest {
+        val source = FakeDeltaSource(emptyList())
+        val store = FakeStore(checkpoint())
+        val sync = IncrementalMediaSynchronizer(source, store, ::fullAccess)
+        assertEquals(IncrementalSyncResult.NeedsFullVolumeReconciliation,
+            sync.sync(volume(11), reconcileUnobservedChanges = true))
+        assertEquals(10L, store.checkpoint!!.generation)
+        assertEquals(0, source.pageQueries)
+        assertEquals(IncrementalSyncResult.NoChange,
+            sync.sync(volume(10), reconcileUnobservedChanges = true))
+        assertEquals(0, source.pageQueries)
+    }
+
+    @Test
+    fun absentRowUnderPartialAccessDoesNotEraseSavedIdentity() = runTest {
+        val store = FakeStore(checkpoint()).apply {
+            items["external_primary" to 42] = record(42, 10).toEntity(1)
+        }
+        val result = IncrementalMediaSynchronizer(FakeDeltaSource(emptyList()), store,
+            { LibraryAccess(GrantLevel.Full, GrantLevel.None, false) })
+            .applyRowHint(MediaKey("external_primary", 42))
+        assertEquals(RowHintResult.PermissionLost, result)
+        assertEquals(0, store.deleteCount)
+        assertEquals(1, store.items.size)
+    }
+
+    @Test
     fun sameGenerationRowsResumeByIdAndKeepOriginalTarget() = runTest {
         var access = fullAccess()
         val source = FakeDeltaSource(

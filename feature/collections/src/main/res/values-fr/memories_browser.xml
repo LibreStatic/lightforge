@@ -1,0 +1,16 @@
+<resources>
+    <string name="memories_browser_title">Souvenirs</string>
+    <string name="memories_browser_open">Voir tous les souvenirs</string>
+    <string name="memories_browser_body">Parcourez toutes les histoires enregistrées et suggérées. Les nouvelles photos locales sont incluses après actualisation de la bibliothèque.</string>
+    <string name="memories_browser_back">Retour</string>
+    <string name="memories_browser_all">Tous</string>
+    <string name="memories_browser_saved">Enregistrés</string>
+    <string name="memories_browser_suggested">Suggestions</string>
+    <string name="memories_browser_loading">Chargement des souvenirs…</string>
+    <string name="memories_browser_empty">Aucun souvenir dans cette vue</string>
+    <string name="memories_browser_empty_body">Essayez un autre filtre. Les histoires apparaissent lorsque suffisamment de photos locales appartiennent au même événement.</string>
+    <string name="memories_browser_error">Le chargement des souvenirs a échoué.</string>
+    <string name="memories_browser_retry">Réessayer</string>
+    <string name="memories_browser_photo_count">%1$d photos visibles</string>
+    <string name="memories_browser_hidden">Aucune photo visible. Votre histoire enregistrée et son organisation sont conservées.</string>
+</resources>

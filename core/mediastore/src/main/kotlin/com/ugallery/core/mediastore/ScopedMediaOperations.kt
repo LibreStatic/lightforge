@@ -22,10 +22,17 @@ import android.provider.MediaStore
 import com.ugallery.core.model.MediaKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.ensureActive
+import kotlin.coroutines.coroutineContext
 import java.io.FileOutputStream
 import kotlin.math.max
 
 object ScopedMediaOperations {
+    fun viewIntent(uri: Uri, mimeType: String): Intent = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(uri, mimeType)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+
     fun viewIntent(target: MediaActionTarget, mimeType: String): Intent = Intent(Intent.ACTION_VIEW).apply {
         setDataAndType(target.mediaUri(), mimeType)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -33,6 +40,12 @@ object ScopedMediaOperations {
 
     fun setAsIntent(target: MediaActionTarget, mimeType: String): Intent = Intent(Intent.ACTION_ATTACH_DATA).apply {
         setDataAndType(target.mediaUri(), mimeType)
+        putExtra("mimeType", mimeType)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+
+    fun setAsIntent(uri: Uri, mimeType: String): Intent = Intent(Intent.ACTION_ATTACH_DATA).apply {
+        setDataAndType(uri, mimeType)
         putExtra("mimeType", mimeType)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
@@ -45,22 +58,58 @@ object ScopedMediaOperations {
         mimeType: String,
         lastModifiedMillis: Long? = null,
     ): Uri = withContext(Dispatchers.IO) {
+        copyUriToTree(resolver, target.mediaUri(), treeUri, displayName, mimeType, lastModifiedMillis).uri
+    }
+
+    suspend fun copyToTree(
+        resolver: ContentResolver,
+        sourceUri: Uri,
+        treeUri: Uri,
+        displayName: String,
+        mimeType: String,
+        lastModifiedMillis: Long? = null,
+    ): Uri = withContext(Dispatchers.IO) {
+        copyUriToTree(resolver, sourceUri, treeUri, displayName, mimeType, lastModifiedMillis).uri
+    }
+
+    suspend fun copyToTreeVerified(
+        resolver: ContentResolver, target: MediaActionTarget, treeUri: Uri,
+        displayName: String, mimeType: String, lastModifiedMillis: Long? = null,
+    ): VerifiedTreeCopy = withContext(Dispatchers.IO) {
+        copyUriToTree(resolver, target.mediaUri(), treeUri, displayName, mimeType, lastModifiedMillis)
+    }
+
+    private suspend fun copyUriToTree(
+        resolver: ContentResolver,
+        sourceUri: Uri,
+        treeUri: Uri,
+        displayName: String,
+        mimeType: String,
+        lastModifiedMillis: Long?,
+    ): VerifiedTreeCopy {
         val safeName = validateDisplayName(displayName)
         val directory = DocumentsContract.buildDocumentUriUsingTree(
             treeUri,
             DocumentsContract.getTreeDocumentId(treeUri),
         )
-        val resolvedMimeType = resolver.getType(target.mediaUri())
+        val resolvedMimeType = resolver.getType(sourceUri)
             ?: mimeType.takeUnless { it.endsWith("/*") }
             ?: "application/octet-stream"
         val destination = DocumentsContract.createDocument(resolver, directory, resolvedMimeType, safeName)
             ?: error("The selected folder did not create the copy")
-        try {
-            resolver.openInputStream(target.mediaUri()).use { input ->
+        // A provider must never make the newly created destination alias the original.
+        check(destination != sourceUri && !(destination.authority == sourceUri.authority &&
+            runCatching { DocumentsContract.getDocumentId(destination) == DocumentsContract.getDocumentId(sourceUri) }.getOrDefault(false))) {
+            "The selected folder returned the original document"
+        }
+        val context = coroutineContext
+        return try {
+            context.ensureActive()
+            val fingerprint = resolver.openInputStream(sourceUri).use { input ->
                 requireNotNull(input) { "Could not open the source media" }
                 resolver.openOutputStream(destination, "w").use { output ->
                     requireNotNull(output) { "Could not open the destination folder" }
-                    input.copyTo(output)
+                    VerifiedStreamCopy.copy(input, output) { context.ensureActive() }
                 }
             }
             lastModifiedMillis?.takeIf { it > 0L }?.let { timestamp ->
@@ -73,7 +122,15 @@ object ScopedMediaOperations {
                     )
                 }
             }
-            destination
+            // Verify after close and metadata changes; never trust provider-reported size.
+            resolver.openInputStream(destination).use { input ->
+                VerifiedStreamCopy.verify(requireNotNull(input) { "Could not reopen the copy" }, fingerprint) { context.ensureActive() }
+            }
+            resolver.openInputStream(sourceUri).use { input ->
+                VerifiedStreamCopy.verify(requireNotNull(input) { "Could not recheck the original" }, fingerprint) { context.ensureActive() }
+            }
+            coroutineContext.ensureActive()
+            VerifiedTreeCopy(destination, fingerprint.bytes, fingerprint.sha256)
         } catch (failure: Throwable) {
             runCatching { DocumentsContract.deleteDocument(resolver, destination) }
             throw failure
@@ -105,6 +162,11 @@ object ScopedMediaOperations {
         require(target.kind == MediaKind.Image) { "Only images can be printed" }
         val manager = context.getSystemService(Context.PRINT_SERVICE) as PrintManager
         manager.print(title, ImagePrintAdapter(context.contentResolver, target.mediaUri(), title), null)
+    }
+
+    fun printImage(context: Context, uri: Uri, title: String) {
+        val manager = context.getSystemService(Context.PRINT_SERVICE) as PrintManager
+        manager.print(title, ImagePrintAdapter(context.contentResolver, uri, title), null)
     }
 
     fun validateDisplayName(value: String): String {

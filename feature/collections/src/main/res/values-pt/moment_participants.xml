@@ -1,0 +1,21 @@
+<resources>
+    <string name="moment_participants_title">Participantes</string>
+    <string name="moment_participants_local_only">Escolha pessoas locais existentes. Os nomes e as fotos originais não mudam.</string>
+    <string name="moment_participants_automatic">Automático</string>
+    <string name="moment_participants_manual">Manual</string>
+    <string name="moment_participants_automatic_hint">Usa as identidades locais atuais das pessoas desta lembrança.</string>
+    <string name="moment_participants_manual_hint">Só esta lembrança muda. Uma seleção vazia significa nenhum participante.</string>
+    <string name="moment_participants_unavailable">Esta lembrança ou suas pessoas estão indisponíveis. Recarregue antes de aplicar.</string>
+    <string name="moment_participants_changed">As pessoas ou as escolhas salvas mudaram durante a edição. Revise as escolhas atuais antes de aplicar.</string>
+    <string name="moment_participants_review">Revisar escolhas atuais</string>
+    <string name="moment_participants_count">%1$d selecionados</string>
+    <string name="moment_participants_clear">Limpar seleção</string>
+    <string name="moment_participants_search">Buscar pessoas</string>
+    <string name="moment_participants_no_matches">Nenhuma pessoa correspondente.</string>
+    <string name="moment_participants_empty">Não há pessoas para mostrar. Você pode manter esta lembrança sem participantes.</string>
+    <string name="moment_participants_unnamed">Pessoa %1$d</string>
+    <string name="moment_participants_cancel">Cancelar</string>
+    <string name="moment_participants_error">As alterações não foram salvas. Tente novamente.</string>
+    <string name="moment_participants_retry">Tentar novamente</string>
+    <string name="moment_participants_apply">Aplicar</string>
+</resources>

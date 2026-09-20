@@ -1,0 +1,16 @@
+<resources>
+    <string name="memories_browser_title">Memórias</string>
+    <string name="memories_browser_open">Ver todas as memórias</string>
+    <string name="memories_browser_body">Explore todas as histórias salvas e sugeridas. Novas fotos locais são incluídas após atualizar a biblioteca.</string>
+    <string name="memories_browser_back">Voltar</string>
+    <string name="memories_browser_all">Todas</string>
+    <string name="memories_browser_saved">Salvas</string>
+    <string name="memories_browser_suggested">Sugeridas</string>
+    <string name="memories_browser_loading">Carregando memórias…</string>
+    <string name="memories_browser_empty">Nenhuma memória nesta visualização</string>
+    <string name="memories_browser_empty_body">Experimente outro filtro. Histórias aparecem quando há fotos locais suficientes do mesmo evento.</string>
+    <string name="memories_browser_error">Não foi possível carregar as memórias.</string>
+    <string name="memories_browser_retry">Tentar novamente</string>
+    <string name="memories_browser_photo_count">%1$d fotos visíveis</string>
+    <string name="memories_browser_hidden">Nenhuma foto visível. A história salva e sua organização são preservadas.</string>
+</resources>

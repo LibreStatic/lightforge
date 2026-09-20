@@ -1,6 +1,5 @@
 package com.ugallery.core.data
 
-import android.Manifest
 import android.content.ContentValues
 import android.graphics.Bitmap
 import android.net.Uri
@@ -28,14 +27,7 @@ class IncrementalMediaSyncDeviceTest {
     fun cameraBurstAndExternalDeleteApplyWithoutFullRescan() = runBlocking {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
-        instrumentation.uiAutomation.grantRuntimePermission(
-            context.packageName,
-            Manifest.permission.READ_MEDIA_IMAGES,
-        )
-        instrumentation.uiAutomation.grantRuntimePermission(
-            context.packageName,
-            Manifest.permission.READ_MEDIA_VIDEO,
-        )
+        grantMediaStoreTestPermissions()
         val probe = MediaStoreGenerationProbe(context)
         val initialVolume = probe.snapshot().first { it.volumeName == MediaStore.VOLUME_EXTERNAL_PRIMARY }
         val database = Room.inMemoryDatabaseBuilder(context, GalleryDatabase::class.java).build()

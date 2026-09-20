@@ -40,6 +40,7 @@ class VideoEditorContentDeviceTest {
         compose.setContent {
             UGalleryTheme {
                 VideoEditorContent(
+                    sessionId = "device-video-editor",
                     state = VideoEditorContentState(durationMillis = 18_000, trimEndMillis = 18_000),
                     controller = null,
                     onBack = {},
@@ -65,6 +66,7 @@ class VideoEditorContentDeviceTest {
         compose.setContent {
             UGalleryTheme {
                 VideoEditorContent(
+                    sessionId = "device-video-editor",
                     state = VideoEditorContentState(durationMillis = 18_000, trimEndMillis = 18_000),
                     controller = null,
                     onBack = {},
@@ -125,6 +127,7 @@ class VideoEditorContentDeviceTest {
         compose.setContent {
             UGalleryTheme {
                 VideoEditorContent(
+                    sessionId = "device-video-editor",
                     state = VideoEditorContentState(
                         durationMillis = 18_000,
                         trimEndMillis = 18_000,
@@ -161,6 +164,7 @@ class VideoEditorContentDeviceTest {
         compose.setContent {
             UGalleryTheme {
                 VideoEditorContent(
+                    sessionId = "device-video-editor",
                     state = state,
                     controller = null,
                     onBack = {},
@@ -202,6 +206,7 @@ class VideoEditorContentDeviceTest {
         compose.setContent {
             UGalleryTheme {
                 VideoEditorContent(
+                    sessionId = "device-video-editor",
                     state = VideoEditorContentState(durationMillis = 18_000, trimEndMillis = 18_000),
                     controller = null,
                     onBack = {},
@@ -244,6 +249,7 @@ class VideoEditorContentDeviceTest {
         compose.setContent {
             UGalleryTheme {
                 VideoEditorContent(
+                    sessionId = "device-video-editor",
                     state = VideoEditorContentState(durationMillis = 18_000, trimEndMillis = 18_000),
                     controller = null,
                     onBack = {},
@@ -282,6 +288,7 @@ class VideoEditorContentDeviceTest {
         compose.setContent {
             UGalleryTheme {
                 VideoEditorContent(
+                    sessionId = "device-video-editor",
                     state = VideoEditorContentState(durationMillis = 18_000, trimEndMillis = 18_000),
                     controller = null,
                     onBack = {},
@@ -320,6 +327,7 @@ class VideoEditorContentDeviceTest {
         compose.setContent {
             UGalleryTheme {
                 VideoEditorContent(
+                    sessionId = "device-video-editor",
                     state = VideoEditorContentState(durationMillis = 18_000, trimEndMillis = 18_000),
                     controller = null,
                     onBack = {},
@@ -358,6 +366,7 @@ class VideoEditorContentDeviceTest {
         restoration.setContent {
             UGalleryTheme {
                 VideoEditorContent(
+                    sessionId = "device-video-editor",
                     state = VideoEditorContentState(durationMillis = 18_000, trimEndMillis = 18_000),
                     controller = null,
                     onBack = {},
@@ -377,6 +386,55 @@ class VideoEditorContentDeviceTest {
         restoration.emulateSavedInstanceStateRestore()
 
         compose.onNode(hasText(text(R.string.video_editor_shadows))).assertExists()
+    }
+
+    @Test
+    fun draftPositionAndTabRestoreButAnotherSessionStartsClean() {
+        var sessionId by mutableStateOf("video-draft-a")
+        var checkpoint = -1L
+        val restoration = StateRestorationTester(compose)
+        restoration.setContent {
+            UGalleryTheme {
+                VideoEditorContent(
+                    sessionId = sessionId,
+                    state = VideoEditorContentState(
+                        currentMillis = 1_000,
+                        durationMillis = 18_000,
+                        trimStartMillis = 500,
+                        trimEndMillis = 15_000,
+                    ),
+                    controller = null,
+                    onBack = {},
+                    onSaveCopy = {},
+                    onSpeedChange = {},
+                    onOriginalVolumeChange = {},
+                    onChooseMusic = {},
+                    onRemoveMusic = {},
+                    onSeek = {},
+                    onTrimChange = { _, _ -> },
+                    onPositionCheckpoint = { checkpoint = it },
+                )
+            }
+        }
+        compose.onNode(hasTestTag("video-editor-position")).performSemanticsAction(
+            SemanticsActions.SetProgress,
+        ) { it(4_000f) }
+        compose.onNode(hasText(text(R.string.video_editor_audio))).performClick()
+        compose.runOnIdle { assertEquals(4_000L, checkpoint) }
+        restoration.emulateSavedInstanceStateRestore()
+        compose.onNode(hasContentDescription(text(R.string.video_editor_audio_description))).assertExists()
+        val restoredPosition = compose.onNode(hasTestTag("video-editor-position"))
+            .fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.ProgressBarRangeInfo]
+        assertEquals(4_000f, restoredPosition.current, 0f)
+        compose.onNode(hasTestTag("video-editor-position-value").and(hasText("0:04.000", substring = true)))
+            .assertExists()
+        compose.onNode(hasTestTag("video-editor-trim-value").and(hasText("0:00.500", substring = true)))
+            .assertExists()
+        compose.runOnIdle { sessionId = "video-draft-b" }
+        compose.onNode(hasContentDescription(text(R.string.video_editor_audio_description))).assertDoesNotExist()
+        val freshPosition = compose.onNode(hasTestTag("video-editor-position"))
+            .fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.ProgressBarRangeInfo]
+        assertEquals(1_000f, freshPosition.current, 0f)
     }
 
     private fun text(id: Int): String =

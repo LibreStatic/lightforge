@@ -1,5 +1,7 @@
 package com.ugallery.feature.settings
 
+import androidx.compose.ui.semantics.testTagsAsResourceId
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
@@ -134,6 +136,12 @@ fun RecognitionSettingsContent(
     folderOptions: List<GalleryFolderOption> = emptyList(),
     onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit = {},
     onExportSettings: () -> Unit = {},
+    onLocalBackup: (() -> Unit)? = null,
+    onRemoteBackup: (() -> Unit)? = null,
+    onLocalSharing: (() -> Unit)? = null,
+    onPetIdentity: (() -> Unit)? = null,
+    onOwnSync: (() -> Unit)? = null,
+    onOfflinePlaces: (() -> Unit)? = null,
     onImportSettings: () -> Unit = {},
     onResetSettings: () -> Unit = {},
     onOpenAbout: () -> Unit = {},
@@ -183,7 +191,7 @@ fun RecognitionSettingsContent(
         }
     }
 
-    Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+    Box(modifier.fillMaxSize().semantics { testTagsAsResourceId = true }, contentAlignment = Alignment.TopCenter) {
         Column(
             Modifier.fillMaxSize().widthIn(max = 720.dp),
         ) {
@@ -228,9 +236,10 @@ fun RecognitionSettingsContent(
                     SecuritySection(settings, onSettingsChange)
                 }
                 SettingsPage.Backup -> SettingsSubPage(title = stringResource(R.string.settings_backup), onBack = { page = SettingsPage.Root }) {
-                    BackupSection(onExportSettings, onImportSettings, onResetSettings)
+                    BackupSection(onExportSettings, onImportSettings, onResetSettings, onLocalBackup, onRemoteBackup, onOwnSync, onOfflinePlaces, onLocalSharing)
                 }
                 SettingsPage.AiAnalysis -> SettingsSubPage(title = stringResource(R.string.settings_page_ai), onBack = { page = SettingsPage.Root }) {
+                    if (onPetIdentity != null) OutlinedButton(onClick = onPetIdentity, modifier = Modifier.fillMaxWidth().testTag("settings-pet-identity")) { Text(stringResource(R.string.pet_identity_entry)) }
                     AiAnalysisSection(
                         settings = settings,
                         onSettingsChange = onSettingsChange,
@@ -1142,7 +1151,21 @@ private fun BackupSection(
     onExportSettings: () -> Unit,
     onImportSettings: () -> Unit,
     onResetSettings: () -> Unit,
+    onLocalBackup: (() -> Unit)?,
+    onRemoteBackup: (() -> Unit)?,
+    onOwnSync: (() -> Unit)?,
+    onOfflinePlaces: (() -> Unit)?,
+    onLocalSharing: (() -> Unit)?,
 ) {
+    if (onLocalSharing != null) OutlinedButton(onClick = onLocalSharing, modifier = Modifier.fillMaxWidth().testTag("settings-local-sharing")) { Text(stringResource(R.string.local_sharing_entry)) }
+    if (onOwnSync != null) OutlinedButton(onClick = onOwnSync, modifier = Modifier.fillMaxWidth().testTag("settings-own-sync")) { Text(stringResource(R.string.own_sync_entry)) }
+    if (onOfflinePlaces != null) OutlinedButton(onClick = onOfflinePlaces, modifier = Modifier.fillMaxWidth().testTag("settings-offline-places")) { Text(stringResource(R.string.offline_places_entry)) }
+    if (onRemoteBackup != null) OutlinedButton(onClick = onRemoteBackup, modifier = Modifier.fillMaxWidth().testTag("settings-remote-backup")) {
+        Text(stringResource(R.string.remote_backup_entry))
+    }
+    if (onLocalBackup != null) OutlinedButton(onClick = onLocalBackup, modifier = Modifier.fillMaxWidth().testTag("settings-local-backup")) {
+        Text(stringResource(R.string.local_backup_title))
+    }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
         OutlinedButton(onClick = onExportSettings, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.settings_export)) }
         OutlinedButton(onClick = onImportSettings, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.settings_import)) }
@@ -1352,6 +1375,7 @@ private fun SemanticModelsSection(
     state.models.forEach { model ->
         Surface(
             color = if (model.active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+            contentColor = if (model.active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
             shape = MaterialTheme.shapes.large,
             modifier = Modifier.fillMaxWidth().testTag("semantic_model_${model.id}"),
         ) {
@@ -1366,7 +1390,7 @@ private fun SemanticModelsSection(
                             model.compatibility == SemanticModelCompatibilityUi.Unsupported -> stringResource(R.string.semantic_model_unsupported)
                             else -> stringResource(R.string.semantic_model_supported)
                         },
-                        color = if (model.active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary,
+                        color = androidx.compose.material3.LocalContentColor.current,
                         style = MaterialTheme.typography.labelMedium,
                     )
                 }
@@ -1380,7 +1404,7 @@ private fun SemanticModelsSection(
                     ),
                     style = MaterialTheme.typography.bodySmall,
                 )
-                model.error?.let { Text(stringResource(R.string.semantic_model_error, it), color = MaterialTheme.colorScheme.error) }
+                model.error?.let { Text(stringResource(R.string.semantic_index_error)) }
                 if (state.buildingModelId == model.id) {
                     Text(
                         stringResource(
@@ -1393,9 +1417,9 @@ private fun SemanticModelsSection(
                 when {
                     model.downloading -> {
                         Text(stringResource(R.string.semantic_model_downloading, model.downloadedBytes / (1024 * 1024)))
-                        TextButton(onClick = { onCancelDownload(model.id) }) { Text(stringResource(R.string.semantic_model_cancel)) }
+                        TextButton(colors = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = androidx.compose.material3.LocalContentColor.current), modifier = Modifier.testTag("semantic_model_cancel_${model.id}"), onClick = { onCancelDownload(model.id) }) { Text(stringResource(R.string.semantic_model_cancel)) }
                     }
-                    !model.installed -> GalleryExpressiveButton(onClick = { downloadModel = model.id }) {
+                    !model.installed -> GalleryExpressiveButton(modifier = Modifier.testTag("semantic_model_download_${model.id}"), onClick = { downloadModel = model.id }) {
                         Text(stringResource(R.string.semantic_model_download))
                     }
                     else -> Row(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
@@ -1404,13 +1428,13 @@ private fun SemanticModelsSection(
                             state.buildingModelId != model.id &&
                             model.compatibility != SemanticModelCompatibilityUi.Unsupported
                         ) {
-                            OutlinedButton(onClick = {
+                            OutlinedButton(colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(contentColor = androidx.compose.material3.LocalContentColor.current), modifier = Modifier.testTag("semantic_model_use_${model.id}"), onClick = {
                                 if (model.compatibility == SemanticModelCompatibilityUi.Recommended) onActivate(model.id, false)
                                 else activateModel = model.id
                             }) { Text(stringResource(R.string.semantic_model_use)) }
                         }
-                        TextButton(onClick = { deleteModel = model.id }) {
-                            Text(stringResource(R.string.semantic_model_delete), color = MaterialTheme.colorScheme.error)
+                        TextButton(colors = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = androidx.compose.material3.LocalContentColor.current), modifier = Modifier.testTag("semantic_model_delete_${model.id}"), onClick = { deleteModel = model.id }) {
+                            Text(stringResource(R.string.semantic_model_delete))
                         }
                     }
                 }
@@ -1424,6 +1448,7 @@ private fun SemanticModelsSection(
     }
     downloadModel?.let { id ->
         AlertDialog(
+            modifier = Modifier.semantics { testTagsAsResourceId = true },
             onDismissRequest = { downloadModel = null },
             title = { Text(stringResource(R.string.semantic_download_title)) },
             text = { Text(stringResource(R.string.semantic_download_body)) },
@@ -1441,11 +1466,12 @@ private fun SemanticModelsSection(
     }
     activateModel?.let { id ->
         AlertDialog(
+            modifier = Modifier.semantics { testTagsAsResourceId = true },
             onDismissRequest = { activateModel = null },
             title = { Text(stringResource(R.string.semantic_override_title)) },
             text = { Text(stringResource(R.string.semantic_override_body)) },
             confirmButton = {
-                TextButton(onClick = { activateModel = null; onActivate(id, true) }) {
+                TextButton(modifier = Modifier.testTag("semantic_model_override_confirm"), onClick = { activateModel = null; onActivate(id, true) }) {
                     Text(stringResource(R.string.semantic_override_confirm))
                 }
             },
@@ -1454,16 +1480,18 @@ private fun SemanticModelsSection(
     }
     deleteModel?.let { id ->
         AlertDialog(
+            modifier = Modifier.semantics { testTagsAsResourceId = true },
             onDismissRequest = { deleteModel = null },
             title = { Text(stringResource(R.string.semantic_delete_title)) },
             text = { Text(stringResource(R.string.semantic_delete_body)) },
             confirmButton = {
-                TextButton(onClick = { deleteModel = null; onDelete(id) }) { Text(stringResource(R.string.semantic_model_delete)) }
+                TextButton(modifier = Modifier.testTag("semantic_model_delete_confirm"), onClick = { deleteModel = null; onDelete(id) }) { Text(stringResource(R.string.semantic_model_delete)) }
             },
             dismissButton = { TextButton(onClick = { deleteModel = null }) { Text(stringResource(R.string.face_analysis_cancel)) } },
         )
     }
     if (confirmDeleteAll) AlertDialog(
+            modifier = Modifier.semantics { testTagsAsResourceId = true },
         onDismissRequest = { confirmDeleteAll = false },
         title = { Text(stringResource(R.string.semantic_delete_all_title)) },
         text = { Text(stringResource(R.string.semantic_delete_all_body)) },

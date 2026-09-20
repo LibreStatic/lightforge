@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="stacks_title">Piles de photos</string>
+    <string name="stacks_local">Sur cet appareil · originaux inchangés</string>
+    <string name="stacks_saved">Enregistrées</string>
+    <string name="stacks_suggested">Suggérées</string>
+    <string name="stacks_separated">Séparées</string>
+    <string name="stacks_create_hint">Sélectionnez 2 à 100 photos dans Photos, puis Créer une pile. Chaque photo appartient à une seule pile enregistrée.</string>
+    <string name="stacks_suggestions_hint">Examinez les groupes de l’analyse locale de similarité existante. Enregistrer une pile conserve vos choix indépendamment de l’analyse.</string>
+    <string name="stacks_separated_hint">Les photos séparées sont exclues des suggestions jusqu’à votre nouvelle autorisation.</string>
+    <string name="stacks_analysis">Réglages de l’analyse locale</string>
+    <string name="stacks_empty">Aucune pile ici pour le moment.</string>
+    <string name="stacks_retry">Réessayer</string>
+    <string name="stacks_default_title">Pile de photos</string>
+    <string name="stacks_available">%1$d photos disponibles sur %2$d</string>
+    <string name="stacks_suggestion_count">Groupe suggéré · %1$d photos</string>
+    <string name="stacks_review">Examiner la pile</string>
+    <string name="stacks_allow">Autoriser les suggestions de piles</string>
+    <string name="stacks_back">Retour</string>
+    <string name="stacks_photo">Photo</string>
+    <string name="stacks_unavailable">Photos indisponibles. Les références enregistrées sont conservées.</string>
+    <string name="stacks_cover">Couverture</string>
+    <string name="stacks_selected">Photo sélectionnée</string>
+    <string name="stacks_dimensions">%1$d × %2$d · %3$s</string>
+    <string name="stacks_detail_score">Détail local des contours : %1$.1f</string>
+    <string name="stacks_zoom">Zoom : %1$d%%</string>
+    <string name="stacks_close_compare">Fermer la comparaison</string>
+    <string name="stacks_save">Enregistrer avec la couverture sélectionnée</string>
+    <string name="stacks_choose_cover">Choisir comme couverture</string>
+    <string name="stacks_compare">Comparer les photos</string>
+    <string name="stacks_separate">Séparer la photo sélectionnée</string>
+    <string name="stacks_unstack">Séparer toutes les photos</string>
+    <string name="stacks_unstack_hint">Supprimez ce groupe et excluez ses photos des nouvelles suggestions. Les originaux, albums et favoris restent inchangés.</string>
+    <string name="stacks_cancel">Annuler</string>
+    <string name="stacks_name">Nom de la pile</string>
+    <string name="stacks_save_name">Enregistrer le nom</string>
+    <string name="stacks_rename">Renommer</string>
+    <string name="stacks_changed">Ce groupe a changé. Rouvrez-le et réessayez.</string>
+    <string name="stacks_error">L’action n’a pas abouti. Vérifiez que les photos sont disponibles et ne font pas déjà partie d’une autre pile.</string>
+    <string name="stacks_create">Créer une pile</string>
+    <string name="stacks_collection_hint">Examinez les photos similaires, choisissez une couverture et conservez les groupes sur cet appareil.</string>
+</resources>

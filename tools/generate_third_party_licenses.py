@@ -66,6 +66,8 @@ def parse_release_runtime(lockfile: Path) -> list[tuple[str, str, str]]:
 
 
 def license_for(group: str, name: str) -> dict[str, str]:
+    if group == "net.zetetic" and name == "sqlcipher-android":
+        return {"licenseId": "BSD-3-Clause AND Apache-2.0 AND WTFPL", "licenseName": "SQLCipher Android and bundled LibTomCrypt notices", "licenseTextAsset": "licenses/SQLCipher-Android-Notices.txt"}
     if f"{group}:{name}" in {
         "androidx.appsearch:appsearch-external-protobuf",
         "androidx.datastore:datastore-preferences-external-protobuf",
@@ -77,7 +79,33 @@ def license_for(group: str, name: str) -> dict[str, str]:
         return ML_KIT
     if group in ("com.google.android.gms", "com.google.android.odml"):
         return ANDROID_SDK
-    if group.startswith(APACHE_PREFIXES):
+    if group == "org.maplibre.gl" and name == "android-sdk-opengl":
+        return {"licenseId": "BSD-2-Clause", "licenseName": "MapLibre Native and bundled notices", "licenseTextAsset": "licenses/MapLibre-Android-Notices.txt"}
+    if group == "org.maplibre.gl" and name == "maplibre-android-gestures":
+        return {"licenseId": "BSD-2-Clause", "licenseName": "MapLibre Gestures BSD 2-Clause", "licenseTextAsset": "licenses/MapLibre-Gestures-BSD-2-Clause.txt"}
+    if f"{group}:{name}" in {"org.maplibre.gl:android-sdk-geojson", "org.maplibre.gl:android-sdk-turf", "com.google.code.gson:gson", "com.jakewharton.timber:timber"}:
+        return APACHE
+    if group == "com.microsoft.onnxruntime" and name == "onnxruntime-android":
+        return {"licenseId": "MIT", "licenseName": "ONNX Runtime MIT and bundled third-party notices", "licenseTextAsset": "licenses/ONNX-Runtime-Notices.txt"}
+    if group == "com.google.zxing" and name == "core":
+        return {"licenseId": "Apache-2.0", "licenseName": "ZXing Apache License and bundled notices", "licenseTextAsset": "licenses/ZXing-Notices.txt"}
+    if group == "com.google.crypto.tink" and name == "tink-android":
+        return {"licenseId": "Apache-2.0 AND BSD-3-Clause", "licenseName": "Tink Apache License and bundled Protocol Buffers notices", "licenseTextAsset": "licenses/Tink-Android-Notices.txt"}
+    if group == "com.tom-roush" and name == "pdfbox-android":
+        return {
+            "licenseId": "LicenseRef-PDFBox-Android-Bundled",
+            "licenseName": "PDFBox-Android Apache license, bundled component terms and notices",
+            "licenseTextAsset": "licenses/PDFBox-Android-Notices.txt",
+        }
+    if group == "org.bouncycastle":
+        return {"licenseId": "MIT", "licenseName": "Bouncy Castle License (MIT)", "licenseTextAsset": "licenses/Bouncy-Castle.txt"}
+    if group == "org.slf4j" and name == "slf4j-api":
+        return {"licenseId": "MIT", "licenseName": "SLF4J License (MIT)", "licenseTextAsset": "licenses/SLF4J.txt"}
+    if group == "net.engio" and name == "mbassador":
+        return {"licenseId": "MIT", "licenseName": "MBassador License (MIT)", "licenseTextAsset": "licenses/MBassador.txt"}
+    if f"{group}:{name}" in {"com.hierynomus:sshj", "com.hierynomus:smbj", "com.hierynomus:asn-one"}:
+        return APACHE
+    if group == "com.tom-roush" or group.startswith(APACHE_PREFIXES):
         return APACHE
     raise ValueError(f"No reviewed license rule for dependency: {group}:{name}")
 

@@ -1,0 +1,19 @@
+<resources>
+    <string name="manual_moment_title">Créer un souvenir</string>
+    <string name="manual_moment_explanation">Vérifiez les photos et leur ordre. Les originaux et les classifications globales restent inchangés.</string>
+    <string name="manual_moment_title_label">Titre</string>
+    <string name="manual_moment_title_hint">Titre facultatif</string>
+    <string name="manual_moment_include_special">Inclure les captures d’écran et documents dans ce souvenir</string>
+    <string name="manual_moment_include_special_body">Ce choix concerne uniquement ce souvenir. Il ne contourne pas les personnes ou dates masquées, les éléments archivés ou dans la corbeille, ni les autorisations d’accès aux photos.</string>
+    <string name="manual_moment_error">Vérifiez les photos sélectionnées et l’option captures/documents, puis réessayez d’enregistrer. Une source a peut-être changé ou est devenue indisponible.</string>
+    <string name="manual_moment_save">Enregistrer le souvenir</string>
+    <string name="manual_moment_cancel">Annuler</string>
+    <string name="manual_moment_working">Enregistrement…</string>
+    <string name="manual_moment_up">Monter</string>
+    <string name="manual_moment_down">Descendre</string>
+    <string name="manual_moment_remove">Retirer</string>
+    <string name="manual_moment_photo">Photo %1$d sur %2$d</string>
+    <string name="manual_moment_unavailable">Photo indisponible</string>
+    <string name="manual_moment_empty">Sélectionnez de 1 à 120 photos pour créer un souvenir.</string>
+    <string name="manual_moment_select_photos">Sélectionnez de 1 à 120 photos pour créer un souvenir.</string>
+</resources>

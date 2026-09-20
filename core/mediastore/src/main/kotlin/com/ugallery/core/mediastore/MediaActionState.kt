@@ -9,6 +9,9 @@ sealed interface MediaAction : Serializable {
     data class Favorite(val enabled: Boolean) : MediaAction
     data class Trash(val enabled: Boolean) : MediaAction
     data object Delete : MediaAction
+    data class MoveDelete(val proofId: String) : MediaAction {
+        init { require(java.util.UUID.fromString(proofId).toString() == proofId) }
+    }
 }
 
 data class MediaActionTarget(val key: MediaKey, val kind: MediaKind) : Serializable
@@ -25,6 +28,7 @@ data class MediaActionProgress(
 
     init {
         require(totalSelected >= 0)
+        if (action is MediaAction.MoveDelete) require(totalSelected == 1L)
         require(listOf(completed, authorized, failed, skipped).all { it >= 0 })
         require(accounted <= totalSelected)
     }
@@ -147,6 +151,12 @@ object MediaActionReducer {
             else -> 0
         }
         require(pending <= MaxChunkSize)
+        if (snapshot.progress.action is MediaAction.MoveDelete) {
+            val proofId = snapshot.progress.action.proofId
+            require(java.util.UUID.fromString(proofId).toString() == proofId)
+            require(snapshot.progress.totalSelected == 1L)
+            if (pending > 0) require(pending == 1)
+        }
         require(snapshot.progress.accounted + pending <= snapshot.progress.totalSelected)
     }
 

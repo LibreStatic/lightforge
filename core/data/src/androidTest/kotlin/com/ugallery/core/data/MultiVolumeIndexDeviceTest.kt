@@ -1,6 +1,5 @@
 package com.ugallery.core.data
 
-import android.Manifest
 import android.content.ContentValues
 import android.graphics.Bitmap
 import android.net.Uri
@@ -28,10 +27,7 @@ class MultiVolumeIndexDeviceTest {
     fun indexesSameMediaStoreIdNamespaceWithoutCrossVolumeCollision() = runBlocking {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
-        instrumentation.uiAutomation.grantRuntimePermission(
-            context.packageName,
-            Manifest.permission.READ_MEDIA_IMAGES,
-        )
+        grantMediaStoreTestPermissions()
         val volumes = MediaStore.getExternalVolumeNames(context).sorted()
         assumeTrue("requires primary and removable volumes; found $volumes", volumes.size >= 2)
 

@@ -1,0 +1,12 @@
+<resources>
+    <string name="memory_back">Sammlungen</string>
+    <string name="memory_previous">Zurück</string>
+    <string name="memory_next">Weiter</string>
+    <string name="memory_empty">Keine Fotos in dieser Erinnerung verfügbar. Gespeicherte Verweise bleiben erhalten.</string>
+    <string name="memory_order_hint">Umordnen ändert die gespeicherte Geschichte. Zurück und Weiter ändern nur die Wiedergabe.</string>
+    <string name="memory_set_cover">Als Titelbild verwenden</string>
+    <string name="memory_select_photo">Foto %1$d anzeigen</string>
+    <string name="memory_delete_title">Diese Erinnerung löschen?</string>
+    <string name="memory_delete_body">Nur diese Erinnerung wird gelöscht. Die Originalfotos bleiben unverändert.</string>
+    <string name="memory_unavailable">Die Erinnerung wird geladen oder ist nicht mehr verfügbar.</string>
+</resources>

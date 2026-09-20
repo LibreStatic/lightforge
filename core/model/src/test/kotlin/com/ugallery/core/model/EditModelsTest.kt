@@ -1,6 +1,7 @@
 package com.ugallery.core.model
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -115,5 +116,14 @@ class EditModelsTest {
     fun recipeIdIncludesStableMediaStoreIdentityAndGeneration() {
         assertEquals("external_primary:42:7", EditRecipeIds.forSource(source, 7))
         assertTrue(EditRecipe.forSource(source, 7).isIdentity)
+    }
+
+    @Test
+    fun externalRecipesHaveNoMediaStoreIdentityAndRemainEditable() {
+        val recipe = EditRecipe.ephemeral("grant-42").append(EditOperation.Rotate(90))
+
+        assertNull(recipe.source)
+        assertEquals("external:grant-42", recipe.recipeId)
+        assertEquals(listOf(EditOperation.Rotate(90)), recipe.operations)
     }
 }

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+    <application>
+        <!-- ORT 1.29's eager provider initializes telemetry before application/engine opt-out.
+             Remove it for every consumer, including standalone native test applications. -->
+        <provider android:name="ai.onnxruntime.TelemetryInitializer" tools:node="remove" />
+    </application>
+</manifest>

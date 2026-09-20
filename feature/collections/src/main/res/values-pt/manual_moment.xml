@@ -1,0 +1,19 @@
+<resources>
+    <string name="manual_moment_title">Criar lembrança</string>
+    <string name="manual_moment_explanation">Revise as fotos e a ordem delas. Os originais e as classificações globais permanecem intactos.</string>
+    <string name="manual_moment_title_label">Título</string>
+    <string name="manual_moment_title_hint">Título opcional</string>
+    <string name="manual_moment_include_special">Incluir capturas de tela e documentos nesta lembrança</string>
+    <string name="manual_moment_include_special_body">Esta escolha se aplica apenas a esta lembrança. Ela não ignora pessoas ou datas ocultas, itens arquivados ou na lixeira, nem permissões de acesso às fotos.</string>
+    <string name="manual_moment_error">Revise as fotos selecionadas e a opção de capturas/documentos e tente salvar novamente. Uma fonte pode ter mudado ou ficado indisponível.</string>
+    <string name="manual_moment_save">Salvar lembrança</string>
+    <string name="manual_moment_cancel">Cancelar</string>
+    <string name="manual_moment_working">Salvando…</string>
+    <string name="manual_moment_up">Mover para cima</string>
+    <string name="manual_moment_down">Mover para baixo</string>
+    <string name="manual_moment_remove">Remover</string>
+    <string name="manual_moment_photo">Foto %1$d de %2$d</string>
+    <string name="manual_moment_unavailable">Foto indisponível</string>
+    <string name="manual_moment_empty">Selecione de 1 a 120 fotos para criar uma lembrança.</string>
+    <string name="manual_moment_select_photos">Selecione de 1 a 120 fotos para criar uma lembrança.</string>
+</resources>

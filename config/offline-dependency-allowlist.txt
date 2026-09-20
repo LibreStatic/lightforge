@@ -44,3 +44,34 @@ com.google.mlkit:vision-internal-vkp
 com.squareup.okhttp3:okhttp
 com.squareup.okio:okio
 com.squareup.okio:okio-jvm
+
+# Local PDF page processing and its bundled cryptographic parser dependencies.
+com.tom-roush:pdfbox-android
+org.bouncycastle:bcpkix-jdk15to18
+org.bouncycastle:bcprov-jdk15to18
+org.bouncycastle:bcutil-jdk15to18
+
+# User-configured own-server SFTP/SMB, never hosted/cloud SDKs.
+com.hierynomus:sshj
+com.hierynomus:smbj
+com.hierynomus:asn-one
+net.engio:mbassador
+org.slf4j:slf4j-api
+
+# Offline map renderer and its exact geometry/gesture/JSON helpers. No remote styles.
+org.maplibre.gl:android-sdk-opengl
+org.maplibre.gl:android-sdk-geojson
+org.maplibre.gl:android-sdk-turf
+org.maplibre.gl:maplibre-android-gestures
+com.google.code.gson:gson
+com.jakewharton.timber:timber
+
+# Explicit local identity inference and offline pairing QR generation only.
+com.microsoft.onnxruntime:onnxruntime-android
+com.google.zxing:core
+
+# Local streaming authenticated encryption for private media and portable encrypted archives.
+com.google.crypto.tink:tink-android
+
+# Local encrypted private index, pinned and exercised by the private-index acceptance.
+net.zetetic:sqlcipher-android

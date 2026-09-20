@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="motion_title">Motion Photo</string>
+    <string name="motion_back">Volver</string>
+    <string name="motion_loading">Leyendo movimiento local…</string>
+    <string name="motion_unavailable">Sección de movimiento no disponible</string>
+    <string name="motion_unavailable_hint">La foto original no cambia. Este archivo no tiene una sección JPEG + MP4 compatible y legible. No se inventan fotogramas.</string>
+    <string name="motion_original">Volver al original</string>
+    <string name="motion_frame">Fotograma real seleccionado</string>
+    <string name="motion_frame_number">Fotograma %1$d</string>
+    <string name="motion_time">%1$d / %2$d ms</string>
+    <string name="motion_play">Reproducir movimiento</string>
+    <string name="motion_pause">Pausar</string>
+    <string name="motion_set_key">Elegir fotograma clave</string>
+    <string name="motion_reset_key">Restaurar portada original</string>
+    <string name="motion_original_key">Portada: foto original</string>
+    <string name="motion_selected_key">Fotograma clave guardado: %1$d ms</string>
+    <string name="motion_note">Todo queda en este dispositivo. La portada elegida es una edición local reversible; los bytes originales quedan intactos. Las exportaciones JPEG y MP4 son copias separadas. Archivos JPEG con movimiento de hasta 512 MB y clips de hasta 60 segundos; JPEG extraído de hasta 4096 píxeles por lado.</string>
+    <string name="motion_save_jpeg">Guardar fotograma JPEG</string>
+    <string name="motion_save_mp4">Guardar clip MP4</string>
+    <string name="motion_cancel">Cancelar</string>
+    <string name="motion_saved">Portada guardada localmente</string>
+    <string name="motion_error">La acción no terminó. Revisá el acceso al original y el espacio libre; luego reintentá. El original no cambia.</string>
+    <string name="motion_exported">Copia verificada guardada</string>
+    <string name="motion_open">Abrir copia</string>
+    <string name="motion_share">Compartir copia</string>
+    <string name="motion_cancel_title">¿Cancelar la acción actual?</string>
+    <string name="motion_continue">Continuar</string>
+</resources>

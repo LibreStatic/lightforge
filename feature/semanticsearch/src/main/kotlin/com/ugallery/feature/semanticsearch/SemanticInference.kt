@@ -7,6 +7,7 @@ import com.google.ai.edge.litert.CompiledModel
 import com.google.ai.edge.litert.Environment
 import com.google.ai.edge.litert.TensorBuffer
 import java.io.Closeable
+import com.google.ai.edge.litert.TensorType
 
 interface SemanticEmbeddingInference : Closeable {
     fun embedImage(bitmap: Bitmap): FloatArray
@@ -18,17 +19,49 @@ class LiteRtSemanticEmbeddingInference(
     model: InstalledSemanticModel,
     accelerator: Accelerator = Accelerator.CPU,
 ) : SemanticEmbeddingInference {
-    private val environment = Environment.create(context.applicationContext)
-    private val imageModel = CompiledModel.create(model.imageModel.absolutePath, CompiledModel.Options(accelerator), environment)
-    private val textModel = CompiledModel.create(model.textModel.absolutePath, CompiledModel.Options(accelerator), environment)
-    private val imageInput = imageModel.createInputBuffers().single()
-    private val imageOutput = imageModel.createOutputBuffers().single()
-    private val textInput = textModel.createInputBuffers().single()
-    private val textOutput = textModel.createOutputBuffers().single()
-    private val tokenizer = ClipTokenizer(model.vocabulary, model.merges)
+    private val lease = SemanticModelAccess.acquire(model.directory)
+    private var closed = false
+    private val resources = mutableListOf<AutoCloseable>()
+    private val environment: Environment
+    private val imageModel: CompiledModel
+    private val textModel: CompiledModel
+    private val imageInput: TensorBuffer
+    private val imageOutput: TensorBuffer
+    private val textInput: TensorBuffer
+    private val textOutput: TensorBuffer
+    private val tokenizer: ClipTokenizer
+    init {
+        try {
+            SemanticModelIntegrity.verify(model)
+            environment = Environment.create(context.applicationContext).also { resources += it }
+            imageModel = CompiledModel.create(model.imageModel.absolutePath, CompiledModel.Options(accelerator), environment).also { resources += it }
+            textModel = CompiledModel.create(model.textModel.absolutePath, CompiledModel.Options(accelerator), environment).also { resources += it }
+            fun validate(compiled: CompiledModel, dimensions: List<Int>, type: TensorType.ElementType) {
+                val input = compiled.getInputTensorType("args_0", "serving_default")
+                val output = compiled.getOutputTensorType("output_0", "serving_default")
+                require(requireNotNull(input.layout).dimensions == dimensions && input.elementType == type) { "Incompatible semantic input tensor" }
+                require(requireNotNull(output.layout).dimensions == listOf(1, 512) && output.elementType == TensorType.ElementType.FLOAT) { "Incompatible semantic output tensor" }
+            }
+            validate(imageModel, listOf(1, 224, 224, 3), TensorType.ElementType.FLOAT)
+            validate(textModel, listOf(1, 77), TensorType.ElementType.INT)
+            fun input(compiled: CompiledModel) = compiled.createInputBuffers().also { resources.addAll(it) }.single()
+            fun output(compiled: CompiledModel) = compiled.createOutputBuffers().also { resources.addAll(it) }.single()
+            imageInput = input(imageModel); imageOutput = output(imageModel)
+            textInput = input(textModel); textOutput = output(textModel)
+            tokenizer = ClipTokenizer(model.vocabulary, model.merges)
+            lease.onRevoked { close() }
+            lease.checkCurrent()
+        } catch (error: Throwable) {
+            resources.asReversed().forEach { runCatching { it.close() } }
+            lease.close()
+            throw error
+        }
+    }
 
     @Synchronized
     override fun embedImage(bitmap: Bitmap): FloatArray {
+        lease.checkCurrent()
+        check(!closed)
         val scaled = centerCrop(bitmap)
         try {
             val pixels = IntArray(ImagePixels * ImagePixels)
@@ -68,6 +101,8 @@ class LiteRtSemanticEmbeddingInference(
 
     @Synchronized
     override fun embedText(text: String): FloatArray {
+        lease.checkCurrent()
+        check(!closed)
         textInput.writeInt(tokenizer.encode(text))
         textModel.run(listOf(textInput), listOf(textOutput))
         return textOutput.readFloat().validated()
@@ -76,13 +111,17 @@ class LiteRtSemanticEmbeddingInference(
     private fun FloatArray.validated() = also {
         require(size == CompactSemanticEmbedding.Dimensions)
         require(all(Float::isFinite))
+        require(any { kotlin.math.abs(it) > 1e-8f })
+        lease.checkCurrent()
     }
 
+    @Synchronized
     override fun close() {
-        listOf<TensorBuffer>(imageOutput, imageInput, textOutput, textInput).forEach(TensorBuffer::close)
-        imageModel.close()
-        textModel.close()
-        environment.close()
+        if (closed) return
+        closed = true
+        resources.asReversed().forEach { runCatching { it.close() } }
+        resources.clear()
+        lease.close()
     }
 
     private companion object {

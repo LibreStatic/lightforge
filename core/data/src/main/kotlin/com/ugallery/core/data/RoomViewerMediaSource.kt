@@ -113,7 +113,7 @@ class RoomViewerMediaSource(database: GalleryDatabase) {
         val sortAnchor: Any = when (query.sortField) {
             MediaQuery.SortField.DateTaken -> anchor.timelineSortMillis
             MediaQuery.SortField.DateModified -> anchor.dateModifiedSeconds
-            MediaQuery.SortField.Name -> anchor.displayName.orEmpty().lowercase()
+            MediaQuery.SortField.Name -> anchor.displayName.orEmpty()
             MediaQuery.SortField.Size -> anchor.sizeBytes
         }
         val components = buildList<Pair<String, Any>> {
@@ -122,16 +122,17 @@ class RoomViewerMediaSource(database: GalleryDatabase) {
             add("m.mediaStoreId" to anchor.key.mediaStoreId)
             add("m.volumeName" to anchor.key.volumeName)
         }
+        fun placeholder(index: Int) = if (components[index].first == "LOWER(COALESCE(m.displayName,''))") "LOWER(?)" else "?"
         where += components.indices.joinToString(prefix = "(", postfix = ")", separator = " OR ") { index ->
             buildString {
                 append('(')
                 for (prefix in 0 until index) {
                     if (prefix > 0) append(" AND ")
-                    append(components[prefix].first).append("=?")
+                    append(components[prefix].first).append("=").append(placeholder(prefix))
                     args += components[prefix].second
                 }
                 if (index > 0) append(" AND ")
-                append(components[index].first).append(' ').append(comparison).append(" ?)")
+                append(components[index].first).append(' ').append(comparison).append(' ').append(placeholder(index)).append(')')
                 args += components[index].second
             }
         }

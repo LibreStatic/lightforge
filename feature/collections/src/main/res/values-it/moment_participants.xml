@@ -1,0 +1,21 @@
+<resources>
+    <string name="moment_participants_title">Partecipanti</string>
+    <string name="moment_participants_local_only">Scegli persone locali esistenti. I nomi e le foto originali restano invariati.</string>
+    <string name="moment_participants_automatic">Automatico</string>
+    <string name="moment_participants_manual">Manuale</string>
+    <string name="moment_participants_automatic_hint">Usa le identità locali attuali delle persone di questo ricordo.</string>
+    <string name="moment_participants_manual_hint">Cambia solo questo ricordo. Una selezione vuota significa nessun partecipante.</string>
+    <string name="moment_participants_unavailable">Questo ricordo o le sue persone non sono disponibili. Ricarica prima di applicare.</string>
+    <string name="moment_participants_changed">Le persone o le scelte salvate sono cambiate durante la modifica. Rivedi le scelte attuali prima di applicare.</string>
+    <string name="moment_participants_review">Rivedi le scelte attuali</string>
+    <string name="moment_participants_count">%1$d selezionati</string>
+    <string name="moment_participants_clear">Svuota selezione</string>
+    <string name="moment_participants_search">Cerca persone</string>
+    <string name="moment_participants_no_matches">Nessuna persona corrispondente.</string>
+    <string name="moment_participants_empty">Nessuna persona da mostrare. Puoi conservare questo ricordo senza partecipanti.</string>
+    <string name="moment_participants_unnamed">Persona %1$d</string>
+    <string name="moment_participants_cancel">Annulla</string>
+    <string name="moment_participants_error">Le modifiche non sono state salvate. Riprova.</string>
+    <string name="moment_participants_retry">Riprova</string>
+    <string name="moment_participants_apply">Applica</string>
+</resources>

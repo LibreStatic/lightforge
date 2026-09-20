@@ -1,0 +1,21 @@
+<resources>
+    <string name="moment_participants_title">Participants</string>
+    <string name="moment_participants_local_only">Choose existing local people. Names and original photos stay unchanged.</string>
+    <string name="moment_participants_automatic">Automatic</string>
+    <string name="moment_participants_manual">Manual</string>
+    <string name="moment_participants_automatic_hint">Uses current local person memberships in this memory.</string>
+    <string name="moment_participants_manual_hint">Only this memory changes. An empty selection means no participants.</string>
+    <string name="moment_participants_unavailable">This memory or its people are unavailable. Reload before applying.</string>
+    <string name="moment_participants_changed">People or saved choices changed while editing. Review the current choices before applying.</string>
+    <string name="moment_participants_review">Review current choices</string>
+    <string name="moment_participants_count">%1$d selected</string>
+    <string name="moment_participants_clear">Clear selection</string>
+    <string name="moment_participants_search">Search people</string>
+    <string name="moment_participants_no_matches">No matching people.</string>
+    <string name="moment_participants_empty">No people to show. You can keep this memory without participants.</string>
+    <string name="moment_participants_unnamed">Person %1$d</string>
+    <string name="moment_participants_cancel">Cancel</string>
+    <string name="moment_participants_error">Changes were not saved. Try again.</string>
+    <string name="moment_participants_retry">Retry</string>
+    <string name="moment_participants_apply">Apply</string>
+</resources>

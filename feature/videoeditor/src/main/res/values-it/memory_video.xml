@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="memory_video_title">Crea video del ricordo</string>
+    <string name="memory_video_back">Indietro</string>
+    <string name="memory_video_position">Foto %1$d di %2$d</string>
+    <string name="memory_video_previous">Precedente</string>
+    <string name="memory_video_next">Successiva</string>
+    <string name="memory_video_play">Riproduci anteprima</string>
+    <string name="memory_video_pause">Pausa</string>
+    <string name="memory_video_order">Ordine delle foto nel video</string>
+    <string name="memory_video_earlier">Sposta prima</string>
+    <string name="memory_video_later">Sposta dopo</string>
+    <string name="memory_video_reset_order">Ripristina ordine</string>
+    <string name="memory_video_duration">Tempo per foto</string>
+    <string name="memory_video_seconds">%1$d s</string>
+    <string name="memory_video_summary">%1$d secondi · 720p · MP4</string>
+    <string name="memory_video_music">Musica locale</string>
+    <string name="memory_video_no_music">Senza musica — video muto</string>
+    <string name="memory_video_music_selected">Audio locale selezionato. Ripetuto o tagliato alla durata del video.</string>
+    <string name="memory_video_choose_music">Scegli file audio</string>
+    <string name="memory_video_remove_music">Rimuovi musica</string>
+    <string name="memory_video_local_note">Creato su questo dispositivo. Originali e ordine salvato del ricordo restano invariati. Foto adattate a un riquadro 16:9. Musica: massimo 128 MB. Chiudere questa schermata annulla l’esportazione.</string>
+    <string name="memory_video_limit">Scegli un ricordo con 1–120 foto disponibili.</string>
+    <string name="memory_video_failure">Il video non è stato completato. Verifica accesso a foto e musica e spazio libero, poi riprova. Nessun video parziale pubblicato.</string>
+    <string name="memory_video_cancelled">Esportazione annullata. Nessun video parziale pubblicato.</string>
+    <string name="memory_video_preparing">Preparazione delle foto…</string>
+    <string name="memory_video_encoding">Creazione del video…</string>
+    <string name="memory_video_publishing">Salvataggio del video verificato…</string>
+    <string name="memory_video_cancel">Annulla esportazione</string>
+    <string name="memory_video_export">Crea e salva MP4</string>
+    <string name="memory_video_saved">Video salvato in Movies/UGallery/Memories.</string>
+    <string name="memory_video_open">Apri video</string>
+    <string name="memory_video_share">Condividi video</string>
+    <string name="memory_video_cancel_title">Annullare questa esportazione?</string>
+    <string name="memory_video_cancel_hint">Il video incompleto verrà eliminato. Le foto restano invariate.</string>
+    <string name="memory_video_continue">Continua esportazione</string>
+    <string name="memory_video_preview">Anteprima della foto</string>
+    <string name="memory_video_unavailable">Foto non disponibile</string>
+</resources>

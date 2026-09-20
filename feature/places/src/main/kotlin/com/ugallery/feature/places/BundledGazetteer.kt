@@ -2,8 +2,8 @@ package com.ugallery.feature.places
 
 /**
  * Bundled gazetteer dataset of major world cities.
- * Sourced from public domain GeoNames (geonames.org) — selected major cities.
- * ~150 cities covering major world population centers.
+ * Sourced from GeoNames (geonames.org), CC BY 4.0 — selected major cities.
+ * 73 cities covering major world population centers.
  * Storage: ~15KB compiled — well within the accepted storage budget.
  *
  * License: GeoNames data is available under Creative Commons Attribution 4.0.

@@ -1,1 +1,23 @@
-<resources><string name="album_untitled">Unbenanntes Album</string><string name="album_volume_unavailable">Speicher nicht verfügbar</string><string name="album_volume_unavailable_body">Speicher erneut verbinden, um das Album anzuzeigen.</string><string name="album_all">Alle</string><string name="album_photos">Fotos</string><string name="album_videos">Videos</string><string name="album_newest">Neueste zuerst</string><string name="album_oldest">Älteste zuerst</string><string name="album_selected_count">%1$d ausgewählt</string><string name="album_empty">Album ist leer</string><string name="album_empty_body">Hinzugefügte Medien erscheinen hier.</string><string name="album_photo">Foto</string><string name="album_video">Video</string></resources>
+<resources><string name="album_untitled">Unbenanntes Album</string><string name="album_volume_unavailable">Speicher nicht verfügbar</string><string name="album_volume_unavailable_body">Speicher erneut verbinden, um das Album anzuzeigen.</string><string name="album_all">Alle</string><string name="album_photos">Fotos</string><string name="album_videos">Videos</string><string name="album_newest">Neueste zuerst</string><string name="album_oldest">Älteste zuerst</string><string name="album_selected_count">%1$d ausgewählt</string><string name="album_empty">Album ist leer</string><string name="album_empty_body">Hinzugefügte Medien erscheinen hier.</string><string name="album_photo">Foto</string><string name="album_video">Video</string>
+    <string name="album_rename">Album umbenennen</string>
+    <string name="album_rename_title">Album umbenennen</string>
+    <string name="album_rename_body">Nur der Albumname wird geändert. Deine Fotos und Videos bleiben an ihrem Speicherort.</string>
+    <string name="album_name_label">Albumname</string>
+    <string name="album_rename_empty">Gib einen Albumnamen ein.</string>
+    <string name="album_rename_too_long">Verwende höchstens 200 Zeichen.</string>
+    <string name="album_rename_failed">Das Album konnte nicht umbenannt werden. Deine Dateien wurden nicht geändert. Versuche es erneut.</string>
+    <string name="album_rename_save">Speichern</string>
+    <string name="album_rename_saving">Wird gespeichert…</string>
+    <string name="album_rename_cancel">Abbrechen</string>
+    <string name="album_sort_current">Sortierung: %1$s</string>
+    <string name="album_sort_name_ascending">Name (aufsteigend)</string>
+    <string name="album_sort_name_descending">Name (absteigend)</string>
+    <string name="album_sort_size_ascending">Größe (kleinste zuerst)</string>
+    <string name="album_sort_size_descending">Größe (größte zuerst)</string>
+    <string name="album_cover_title">Albumcover auswählen</string>
+    <string name="album_cover_hint">Tippe auf ein Albumelement, um es als Cover zu prüfen. Deine Dateien werden nicht geändert.</string>
+    <string name="album_cover_automatic">Automatisches Cover</string>
+    <string name="album_cover_auto_confirm">Das neueste verfügbare Albumelement als Cover verwenden?</string>
+    <string name="album_cover_confirm">„%1$s“ als Albumcover verwenden?</string>
+    <string name="album_cover_failed">Das Cover konnte nicht gespeichert werden. Deine Dateien wurden nicht geändert. Versuche es erneut.</string>
+</resources>

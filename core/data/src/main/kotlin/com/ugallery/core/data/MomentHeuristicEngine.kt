@@ -24,19 +24,35 @@ class MomentAccumulator(
     lastMillis: Long? = null,
     itemCount: Int = 0,
     staged: List<MomentRunCandidateEntity> = emptyList(),
+    lastLatitude: Double? = null,
+    lastLongitude: Double? = null,
 ) {
-    var startMillis: Long? = startMillis; private set
-    var endMillis: Long? = endMillis; private set
-    var lastMillis: Long? = lastMillis; private set
-    var itemCount: Int = itemCount; private set
-    private var lastLatitude: Double? = null
-    private var lastLongitude: Double? = null
+    var startMillis: Long? = startMillis
+        private set
+
+    var endMillis: Long? = endMillis
+        private set
+
+    var lastMillis: Long? = lastMillis
+        private set
+
+    var itemCount: Int = itemCount
+        private set
+
+    var lastLatitude: Double? = lastLatitude
+        private set
+
+    var lastLongitude: Double? = lastLongitude
+        private set
+
     private val candidates = staged.toMutableList()
 
     fun offer(row: MomentCandidateRow): MomentEvent? {
         val media = row.media
         val timestamp = media.timelineSortMillis
-        val closed = if (startMillis != null && shouldSplit(timestamp, row.latitude, row.longitude)) close() else null
+        val closed =
+            if (startMillis != null && shouldSplit(timestamp, row.latitude, row.longitude)) close()
+            else null
         if (startMillis == null) startMillis = timestamp
         endMillis = timestamp
         lastMillis = timestamp
@@ -55,31 +71,40 @@ class MomentAccumulator(
         val start = checkNotNull(startMillis)
         val last = checkNotNull(lastMillis)
         val gap = (timestamp - last).coerceAtLeast(0)
-        if (timestamp - start > MaximumEventDurationMillis || itemCount >= MaximumEventItems) return true
-        val closeLocation = lastLatitude != null && lastLongitude != null && latitude != null && longitude != null &&
-            distanceKm(lastLatitude!!, lastLongitude!!, latitude, longitude) <= NearbyKm
+        if (timestamp - start > MaximumEventDurationMillis || itemCount >= MaximumEventItems)
+            return true
+        val closeLocation =
+            lastLatitude != null &&
+                lastLongitude != null &&
+                latitude != null &&
+                longitude != null &&
+                distanceKm(lastLatitude!!, lastLongitude!!, latitude, longitude) <= NearbyKm
         return if (closeLocation) gap > NearbyMaximumGapMillis else gap > DefaultMaximumGapMillis
     }
 
     private fun addCandidate(row: MomentCandidateRow) {
         val media = row.media
         val timeBucket = media.timelineSortMillis / DiversityWindowMillis
-        val visualBucket = row.similarityClusterId ?: row.pHash?.ushr(48)?.toString(16) ?:
-            "media-${media.volumeName}-${media.mediaStoreId % 31}"
-        val candidate = MomentRunCandidateEntity(
-            algorithmVersion = algorithmVersion,
-            rank = 0,
-            volumeName = media.volumeName,
-            mediaStoreId = media.mediaStoreId,
-            generationModified = media.generationModified,
-            timelineSortMillis = media.timelineSortMillis,
-            score = qualityScore(media, row.blurScore),
-            timeBucket = timeBucket,
-            visualBucket = visualBucket,
-        )
-        val sameBucket = candidates.indexOfFirst {
-            it.timeBucket == candidate.timeBucket && it.visualBucket == candidate.visualBucket
-        }
+        val visualBucket =
+            row.similarityClusterId
+                ?: row.pHash?.ushr(48)?.toString(16)
+                ?: "media-${media.volumeName}-${media.mediaStoreId % 31}"
+        val candidate =
+            MomentRunCandidateEntity(
+                algorithmVersion = algorithmVersion,
+                rank = 0,
+                volumeName = media.volumeName,
+                mediaStoreId = media.mediaStoreId,
+                generationModified = media.generationModified,
+                timelineSortMillis = media.timelineSortMillis,
+                score = qualityScore(media, row.blurScore),
+                timeBucket = timeBucket,
+                visualBucket = visualBucket,
+            )
+        val sameBucket =
+            candidates.indexOfFirst {
+                it.timeBucket == candidate.timeBucket && it.visualBucket == candidate.visualBucket
+            }
         if (sameBucket >= 0) {
             if (candidate.score > candidates[sameBucket].score) candidates[sameBucket] = candidate
         } else candidates += candidate
@@ -92,12 +117,20 @@ class MomentAccumulator(
     }
 
     private fun close(): MomentEvent {
-        val result = MomentEvent(
-            checkNotNull(startMillis), checkNotNull(endMillis), itemCount,
-            candidates.sortedByDescending { it.score },
-        )
-        startMillis = null; endMillis = null; lastMillis = null; itemCount = 0
-        lastLatitude = null; lastLongitude = null; candidates.clear()
+        val result =
+            MomentEvent(
+                checkNotNull(startMillis),
+                checkNotNull(endMillis),
+                itemCount,
+                candidates.sortedByDescending { it.score },
+            )
+        startMillis = null
+        endMillis = null
+        lastMillis = null
+        itemCount = 0
+        lastLatitude = null
+        lastLongitude = null
+        candidates.clear()
         return result
     }
 
@@ -113,19 +146,24 @@ class MomentAccumulator(
         private const val NearbyKm = 10.0
 
         fun selectMembers(event: MomentEvent): List<MomentRunCandidateEntity> {
-            if (event.itemCount < MinimumMomentItems || event.candidates.size < 3) return emptyList()
+            if (event.itemCount < MinimumMomentItems || event.candidates.size < 3)
+                return emptyList()
             val diverse = linkedMapOf<Pair<Long, String>, MomentRunCandidateEntity>()
-            event.candidates.sortedByDescending { it.score }.forEach { candidate ->
-                diverse.putIfAbsent(candidate.timeBucket to candidate.visualBucket, candidate)
-            }
+            event.candidates
+                .sortedByDescending { it.score }
+                .forEach { candidate ->
+                    diverse.putIfAbsent(candidate.timeBucket to candidate.visualBucket, candidate)
+                }
             return diverse.values.take(MaximumMomentMembers).sortedBy { it.timelineSortMillis }
         }
 
         fun stableMomentId(event: MomentEvent, members: List<MomentRunCandidateEntity>): String {
             val first = members.first()
             val raw = "${event.startMillis}:${first.volumeName}:${first.mediaStoreId}"
-            return MessageDigest.getInstance("SHA-256").digest(raw.toByteArray())
-                .take(12).joinToString("") { "%02x".format(it.toInt() and 0xff) }
+            return MessageDigest.getInstance("SHA-256")
+                .digest(raw.toByteArray())
+                .take(12)
+                .joinToString("") { "%02x".format(it.toInt() and 0xff) }
         }
 
         private fun qualityScore(media: MediaItemEntity, blurScore: Float?): Float {
@@ -140,16 +178,25 @@ class MomentAccumulator(
             val radius = 6_371.0
             val dLat = Math.toRadians(bLat - aLat)
             val dLon = Math.toRadians(bLon - aLon)
-            val x = sin(dLat / 2) * sin(dLat / 2) + cos(Math.toRadians(aLat)) *
-                cos(Math.toRadians(bLat)) * sin(dLon / 2) * sin(dLon / 2)
+            val x =
+                sin(dLat / 2) * sin(dLat / 2) +
+                    cos(Math.toRadians(aLat)) *
+                        cos(Math.toRadians(bLat)) *
+                        sin(dLon / 2) *
+                        sin(dLon / 2)
             return radius * 2 * atan2(sqrt(x), sqrt(1 - x))
         }
     }
 }
 
-private fun MediaItemEntity.isScreenshotLike(): Boolean = sequenceOf(
-    bucketDisplayName, relativePath, displayName,
-).filterNotNull().any {
-    it.contains("screenshot", ignoreCase = true) || it.contains("screen shot", ignoreCase = true) ||
-        it.contains("scan", ignoreCase = true)
-}
+// Match a capture/scan token, not letters inside place names such as Scandinavia or Tuscany.
+// Digits may immediately follow the token for scanner-generated names such as Scan123.jpg.
+private val ScreenshotOrScanToken = Regex(
+    """(?<![\p{L}\p{N}])(?:screen[\s_-]*(?:shots?|captures?)|scans?)(?!\p{L})""",
+    RegexOption.IGNORE_CASE,
+)
+
+internal fun MediaItemEntity.isScreenshotLike(): Boolean =
+    sequenceOf(bucketDisplayName, relativePath, displayName).filterNotNull().any {
+        ScreenshotOrScanToken.containsMatchIn(it)
+    }

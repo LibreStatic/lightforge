@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="motion_publication_checking">Checking the saved result…</string>
+    <string name="motion_publication_not_started">No result was published. Check again or explicitly return to editing. Nothing will be exported automatically.</string>
+    <string name="motion_publication_incomplete">Publication is incomplete. Recovery is preserved. Check again or go back; another export is blocked.</string>
+    <string name="motion_publication_conflict">The saved result is missing or changed. Opening, sharing, and another export are blocked. Recovery is preserved.</string>
+    <string name="motion_publication_unreadable">The saved result could not be verified. Check again or go back; recovery is preserved.</string>
+    <string name="motion_publication_saved">The result is saved. Close this screen or explicitly create another result; the saved file will be kept.</string>
+    <string name="motion_publication_source_unavailable">The original Motion Photo is unavailable. A verified saved result can still be opened or shared; new exports are blocked.</string>
+    <string name="motion_publication_check">Check saved result</string>
+    <string name="motion_publication_keep_editing">Return to editing</string>
+    <string name="motion_publication_create_another">Create another result</string>
+    <string name="motion_publication_preview">Verified saved result, static preview</string>
+</resources>

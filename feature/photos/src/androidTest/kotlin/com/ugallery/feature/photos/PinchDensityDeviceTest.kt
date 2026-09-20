@@ -91,13 +91,16 @@ class PinchDensityDeviceTest {
         val thumbnails = loader()
         val items = List(80) { TimelineEntry.Media(media(it)) }
         val reported = mutableListOf<Int>()
+        val entries = entriesFlow(items)
+        // Start away from both adaptive limits on phone and tablet. A no-op is not success.
+        val density = TimelineDensityState(densityIndex = 2, anchorIndex = 0, anchorOffset = 0)
         compose.setContent {
             UGalleryTheme {
-                val lazyItems = entriesFlow(items).collectAsLazyPagingItems()
+                val lazyItems = entries.collectAsLazyPagingItems()
                 AdaptivePagedPhotosTimeline(
                     entries = lazyItems,
                     thumbnailLoader = thumbnails,
-                    preferredColumns = 3,
+                    densityState = density,
                     onDensityChange = { reported.add(it) },
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -108,18 +111,11 @@ class PinchDensityDeviceTest {
         val baseline = reported.last()
 
         pinchOutOnce()
-        assertTrue(
-            "pinch-out must increase columns: reported=$reported",
-            reported.last() == baseline + 1 || reported.last() == baseline,
-        )
-        val afterOut = reported.last()
-        if (afterOut == baseline + 1) {
-            pinchInOnce()
-            assertEquals(
-                "pinch-in must restore the baseline columns: reported=$reported",
-                baseline, reported.last(),
-            )
-        }
+        compose.waitUntil(10_000) { reported.last() < baseline }
+        assertTrue("pinch-out enlarges photos and must reduce columns: reported=$reported", reported.last() < baseline)
+        pinchInOnce()
+        compose.waitUntil(10_000) { reported.last() == baseline }
+        assertEquals("pinch-in restores baseline columns: reported=$reported", baseline, reported.last())
         thumbnails.close()
     }
 }

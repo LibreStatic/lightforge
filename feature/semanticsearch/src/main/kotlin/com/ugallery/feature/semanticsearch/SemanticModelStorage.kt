@@ -15,21 +15,31 @@ import java.util.Base64
 import java.util.zip.ZipInputStream
 
 internal class SemanticModelStorage(context: Context) {
+    private val appContext = context.applicationContext
     private val root = context.filesDir.resolve("semantic-models").apply { mkdirs() }
 
     fun directory(model: SemanticModelDescriptor) = root.resolve("${model.id}-${model.version}")
     fun partial(model: SemanticModelDescriptor) = root.resolve("${model.id}-${model.version}.partial")
-    fun installed(model: SemanticModelDescriptor) = directory(model).resolve("complete.marker").isFile
+    fun installed(model: SemanticModelDescriptor) = runCatching {
+        directory(model).resolve("complete.marker").readText() == model.packageSha256 &&
+            SemanticModelIntegrity.pins(model).all { (name, pin) -> directory(model).resolve(name).let { it.isFile && it.length() == pin.bytes } }
+    }.getOrDefault(false)
 
     fun installedModel(model: SemanticModelDescriptor): InstalledSemanticModel? =
         directory(model).takeIf { installed(model) }?.let { InstalledSemanticModel(model, it) }
 
+    fun supersedesDownloadFailure(model: SemanticModelDescriptor, workId: String): Boolean = runCatching {
+        if (!installed(model)) return@runCatching false
+        val receipt = directory(model).resolve("installation-receipt.txt").readLines()
+        receipt.firstOrNull() == model.packageSha256 && workId in receipt.drop(1)
+    }.getOrDefault(false)
+
     fun delete(model: SemanticModelDescriptor) {
         partial(model).delete()
-        directory(model).deleteRecursively()
+        SemanticModelAccess.revoke(directory(model))
     }
 
-    fun download(model: SemanticModelDescriptor, onProgress: (Long) -> Unit) {
+    fun download(model: SemanticModelDescriptor, cancellation: SemanticDownloadCancellation = SemanticDownloadCancellation(), onProgress: (Long) -> Unit) {
         val partial = partial(model)
         var downloaded = partial.takeIf(File::isFile)?.length() ?: 0L
         if (downloaded > model.packageBytes) {
@@ -39,12 +49,14 @@ internal class SemanticModelStorage(context: Context) {
         require(StatFs(root.absolutePath).availableBytes >= model.packageBytes * 4 - downloaded) {
             "Not enough free storage for model installation"
         }
-        val connection = open(model.packageUrl, downloaded)
+        cancellation.checkCurrent()
+        val connection = open(model.packageUrl, downloaded, cancellation)
+        try {
         if (downloaded > 0L && connection.responseCode != HttpURLConnection.HTTP_PARTIAL) {
             partial.delete()
             downloaded = 0L
             connection.disconnect()
-            return download(model, onProgress)
+            return download(model, cancellation, onProgress)
         }
         require(connection.responseCode in 200..299) { "Model download failed: HTTP ${connection.responseCode}" }
         partial.parentFile?.mkdirs()
@@ -52,6 +64,7 @@ internal class SemanticModelStorage(context: Context) {
             FileOutputStream(partial, downloaded > 0L).buffered().use { output ->
                 val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                 while (true) {
+                    cancellation.checkCurrent()
                     val count = input.read(buffer)
                     if (count < 0) break
                     output.write(buffer, 0, count)
@@ -61,11 +74,14 @@ internal class SemanticModelStorage(context: Context) {
                 }
             }
         }
-        connection.disconnect()
+        cancellation.checkCurrent()
+        } finally { cancellation.unregister(connection); connection.disconnect() }
         if (downloaded != model.packageBytes) errorAfterDeleting(partial, "Incomplete model package")
         if (partial.sha256() != model.packageSha256) errorAfterDeleting(partial, "Model package digest mismatch")
         if (!SemanticPackageSignature.verify(partial, model.signatureBase64)) errorAfterDeleting(partial, "Model package signature mismatch")
-        install(model, partial)
+        cancellation.checkCurrent()
+        installVerified(model, partial, cancellation)
+        partial.delete()
     }
 
     private fun errorAfterDeleting(file: File, message: String): Nothing {
@@ -73,19 +89,35 @@ internal class SemanticModelStorage(context: Context) {
         error(message)
     }
 
-    private fun install(model: SemanticModelDescriptor, archive: File) {
+    internal fun installVerified(model: SemanticModelDescriptor, archive: File, cancellation: SemanticDownloadCancellation = SemanticDownloadCancellation()) {
+        cancellation.checkCurrent()
         val destination = directory(model)
-        val staging = File(destination.path + ".staging").apply { deleteRecursively(); mkdirs() }
+        val expectedEpoch = SemanticModelAccess.epoch(destination)
+        // A receipt acknowledges only requests that existed before this successful installation.
+        // A later failed download has a new UUID and remains visible; no unavailable WorkInfo clock API.
+        val supersededDownloads = runCatching {
+            androidx.work.WorkManager.getInstance(appContext)
+                .getWorkInfosForUniqueWork(SemanticModelDownloadWorker.uniqueName(model.id)).get().map { it.id.toString() }
+        }.getOrDefault(emptyList())
+        require(archive.length() == model.packageBytes && archive.sha256() == model.packageSha256 &&
+            SemanticPackageSignature.verify(archive, model.signatureBase64)) { "Unverified semantic package" }
+        cancellation.checkCurrent()
+        check(SemanticModelAccess.canReplace(destination)) { "Semantic model is currently in use" }
+        val staging = File(destination.path + ".staging-" + java.util.UUID.randomUUID()).apply { check(mkdirs()) }
         var expandedBytes = 0L
+        val names = mutableSetOf<String>()
+        try {
         ZipInputStream(BufferedInputStream(archive.inputStream())).use { zip ->
             while (true) {
+                cancellation.checkCurrent()
                 val entry = zip.nextEntry ?: break
-                require(!entry.isDirectory && entry.name in RequiredFiles) { "Unexpected model package entry" }
+                require(!entry.isDirectory && entry.name in RequiredFiles && names.add(entry.name)) { "Unexpected model package entry" }
                 val output = staging.resolve(entry.name)
                 require(output.canonicalPath.startsWith(staging.canonicalPath + File.separator))
                 FileOutputStream(output).buffered().use { stream ->
                     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                     while (true) {
+                        cancellation.checkCurrent()
                         val count = zip.read(buffer)
                         if (count < 0) break
                         expandedBytes += count
@@ -97,12 +129,19 @@ internal class SemanticModelStorage(context: Context) {
         }
         require(RequiredFiles.all { staging.resolve(it).isFile }) { "Incomplete model package contents" }
         staging.resolve("complete.marker").writeText(model.packageSha256)
-        destination.deleteRecursively()
-        require(staging.renameTo(destination)) { "Unable to activate downloaded model" }
-        archive.delete()
+        LiteRtSemanticEmbeddingInference(appContext, InstalledSemanticModel(model, staging)).use { inference ->
+            inference.embedText("a photo")
+        }
+        staging.resolve("installation-receipt.txt").writeText(
+            (listOf(model.packageSha256) + supersededDownloads).joinToString("\n"),
+        )
+        cancellation.checkCurrent()
+        check(!Thread.currentThread().isInterrupted) { "Semantic installation interrupted" }
+        SemanticModelAccess.publish(destination, staging, expectedEpoch)
+        } finally { staging.deleteRecursively() }
     }
 
-    private fun open(rawUrl: String, offset: Long): HttpURLConnection {
+    private fun open(rawUrl: String, offset: Long, cancellation: SemanticDownloadCancellation): HttpURLConnection {
         var url = URL(rawUrl)
         repeat(MaxRedirects + 1) {
             require(url.protocol == "https" && url.host in AllowedHosts) { "Unapproved model host" }
@@ -112,10 +151,15 @@ internal class SemanticModelStorage(context: Context) {
                 readTimeout = 60_000
                 if (offset > 0L) setRequestProperty("Range", "bytes=$offset-")
             }
-            if (connection.responseCode !in RedirectCodes) return connection
-            val location = connection.getHeaderField("Location") ?: error("Redirect without location")
-            connection.disconnect()
-            url = URL(url, location)
+            cancellation.register(connection)
+            try {
+                if (connection.responseCode !in RedirectCodes) return connection
+                val location = connection.getHeaderField("Location") ?: error("Redirect without location")
+                url = URL(url, location)
+            } catch (error: Throwable) {
+                cancellation.unregister(connection); connection.disconnect(); throw error
+            }
+            cancellation.unregister(connection); connection.disconnect()
         }
         error("Too many model download redirects")
     }

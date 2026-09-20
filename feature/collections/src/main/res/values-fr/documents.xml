@@ -1,0 +1,37 @@
+<resources>
+    <string name="documents_title">Documents</string>
+    <string name="documents_hint">Vérifiez les photos avec du texte détecté sur cet appareil. Classez-les vous-même ; les originaux restent en place.</string>
+    <string name="documents_all">Tous</string>
+    <string name="documents_suggested">À vérifier</string>
+    <string name="documents_receipts">Reçus</string>
+    <string name="documents_tickets">Billets</string>
+    <string name="documents_notes">Notes</string>
+    <string name="documents_other">Autres documents</string>
+    <string name="documents_excluded">Exclus</string>
+    <string name="documents_search">Rechercher un nom ou du texte reconnu</string>
+    <string name="documents_prepare_pdf">Préparer le PDF (%1$d)</string>
+    <string name="documents_studio">Ouvrir PDF Studio</string>
+    <string name="documents_clear_selection">Effacer la sélection</string>
+    <string name="documents_selection_hint">Sélectionnez jusqu’à 24 photos dans l’ordre des pages. Pour en ajouter, sélectionnez-les dans Photos puis choisissez Documents.</string>
+    <string name="documents_empty">Aucun document correspondant. Classez des photos manuellement ou consultez les résultats de l’analyse locale facultative.</string>
+    <string name="documents_back">Retour</string>
+    <string name="documents_retry">Réessayer</string>
+    <string name="documents_error">Le document a changé ou est indisponible. Actualisez et réessayez.</string>
+    <string name="documents_changed">Archive mise à jour</string>
+    <string name="documents_undo">Annuler</string>
+    <string name="documents_copied">Texte copié</string>
+    <string name="documents_untitled">Photo sans titre</string>
+    <string name="documents_archived">Archivé</string>
+    <string name="documents_unavailable">Chargement du document. Si l’accès a été retiré, revenez à la liste.</string>
+    <string name="documents_category">Catégorie</string>
+    <string name="documents_text">Texte reconnu · jusqu’à 20 000 caractères</string>
+    <string name="documents_no_text">Aucun texte local à jour. Le classement manuel et la création PDF restent disponibles.</string>
+    <string name="documents_copy">Copier le texte</string>
+    <string name="documents_archive">Archiver la photo</string>
+    <string name="documents_unarchive">Désarchiver la photo</string>
+    <string name="documents_exclude">Exclure des Documents</string>
+    <string name="documents_reset">Réinitialiser mon classement</string>
+    <string name="documents_photo">Photo</string>
+    <string name="documents_organize">Ajouter aux Documents</string>
+    <string name="documents_collection_count">%1$d photos · catégories et texte locaux</string>
+</resources>

@@ -33,11 +33,20 @@ class LocalShareSanitizer(
         }
     }
 
+    suspend fun prepare(source: Uri, kind: MediaKind): PreparedShareAsset = withContext(Dispatchers.IO) {
+        when (kind) {
+            MediaKind.Image -> prepareImage(source, key = null)
+            MediaKind.Video -> prepareVideo(source)
+        }
+    }
+
     fun cleanupExpired(): Int = registry.cleanupExpired()
 
-    private suspend fun prepareImage(source: Uri, key: MediaKey): PreparedShareAsset {
+    private suspend fun prepareImage(source: Uri, key: MediaKey?): PreparedShareAsset {
         val destination = registry.allocate("out")
-        val recipe = EditRecipe(
+        val recipe = if (key == null) EditRecipe.ephemeral(source.toString().hashCode().toUInt().toString(16)).copy(
+            operations = listOf(EditOperation.Filter("none")),
+        ) else EditRecipe(
             recipeId = "share:${key.volumeName}:${key.mediaStoreId}",
             source = key,
             sourceGenerationModified = 0,

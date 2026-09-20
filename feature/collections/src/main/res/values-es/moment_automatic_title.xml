@@ -1,0 +1,5 @@
+<resources>
+    <!-- Dates are formatted with the current locale; keep positional arguments translatable. -->
+    <string name="moment_automatic_title_range">%1$s – %2$s</string>
+    <string name="moment_automatic_title_place">%1$s · %2$s</string>
+</resources>

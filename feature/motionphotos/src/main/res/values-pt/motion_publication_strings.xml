@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="motion_publication_checking">Verificando o resultado salvo…</string>
+    <string name="motion_publication_not_started">Nenhum resultado foi publicado. Verifique novamente ou volte explicitamente à edição. Nada será exportado automaticamente.</string>
+    <string name="motion_publication_incomplete">A publicação está incompleta. A recuperação foi preservada. Verifique novamente ou volte; outra exportação está bloqueada.</string>
+    <string name="motion_publication_conflict">O resultado salvo está ausente ou foi alterado. Abrir, compartilhar e exportar novamente estão bloqueados. A recuperação foi preservada.</string>
+    <string name="motion_publication_unreadable">Não foi possível verificar o resultado salvo. Verifique novamente ou volte; a recuperação foi preservada.</string>
+    <string name="motion_publication_saved">O resultado está salvo. Feche esta tela ou crie outro resultado explicitamente; o arquivo salvo será preservado.</string>
+    <string name="motion_publication_source_unavailable">A foto em movimento original está indisponível. Um resultado salvo verificado ainda pode ser aberto ou compartilhado; novas exportações estão bloqueadas.</string>
+    <string name="motion_publication_check">Verificar resultado salvo</string>
+    <string name="motion_publication_keep_editing">Voltar à edição</string>
+    <string name="motion_publication_create_another">Criar outro resultado</string>
+    <string name="motion_publication_preview">Resultado salvo verificado, prévia estática</string>
+</resources>

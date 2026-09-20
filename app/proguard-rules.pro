@@ -4,3 +4,15 @@
 -keep class com.google.mlkit.**.*Registrar {
     public <init>();
 }
+
+# ONNX Runtime JNI binding names; the 1.29 AAR consumer rules cover only telemetry.
+# Official Android R8 integration: https://onnxruntime.ai/docs/build/android.html
+-keep class ai.onnxruntime.** { *; }
+
+# LiteRT 2.2 JNI looks up these concrete types, enum constants and constructors by name.
+# The AAR's UsedByReflection rules omit TensorType's nested Kotlin classes; R8 otherwise
+# removes ElementType and nativeGetInputTensorType aborts the entire process.
+-keep class com.google.ai.edge.litert.TensorType { *; }
+-keep class com.google.ai.edge.litert.TensorType$* { *; }
+-keep class com.google.ai.edge.litert.TensorBufferRequirements { *; }
+-keep class com.google.ai.edge.litert.LiteRtException { *; }

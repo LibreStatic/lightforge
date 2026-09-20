@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="stacks_title">Pilas de fotos</string>
+    <string name="stacks_local">En este dispositivo · originales sin cambios</string>
+    <string name="stacks_saved">Guardadas</string>
+    <string name="stacks_suggested">Sugeridas</string>
+    <string name="stacks_separated">Separadas</string>
+    <string name="stacks_create_hint">Seleccioná entre 2 y 100 fotos en Fotos y elegí Crear pila. Cada foto pertenece a una sola pila guardada.</string>
+    <string name="stacks_suggestions_hint">Revisá grupos del análisis local de similitud existente. Al guardar una pila, tus decisiones se conservan independientemente del análisis.</string>
+    <string name="stacks_separated_hint">Las fotos separadas quedan fuera de las sugerencias hasta que vuelvas a permitirlas.</string>
+    <string name="stacks_analysis">Configuración del análisis local</string>
+    <string name="stacks_empty">Todavía no hay pilas aquí.</string>
+    <string name="stacks_retry">Reintentar</string>
+    <string name="stacks_default_title">Pila de fotos</string>
+    <string name="stacks_available">%1$d de %2$d fotos disponibles</string>
+    <string name="stacks_suggestion_count">Grupo sugerido · %1$d fotos</string>
+    <string name="stacks_review">Revisar pila</string>
+    <string name="stacks_allow">Permitir sugerencias de pilas</string>
+    <string name="stacks_back">Volver</string>
+    <string name="stacks_photo">Foto</string>
+    <string name="stacks_unavailable">Las fotos no están disponibles. Las referencias guardadas se conservan.</string>
+    <string name="stacks_cover">Portada</string>
+    <string name="stacks_selected">Foto seleccionada</string>
+    <string name="stacks_dimensions">%1$d × %2$d · %3$s</string>
+    <string name="stacks_detail_score">Detalle de bordes local: %1$.1f</string>
+    <string name="stacks_zoom">Zoom: %1$d%%</string>
+    <string name="stacks_close_compare">Cerrar comparación</string>
+    <string name="stacks_save">Guardar con la portada seleccionada</string>
+    <string name="stacks_choose_cover">Elegir como portada</string>
+    <string name="stacks_compare">Comparar fotos</string>
+    <string name="stacks_separate">Separar foto seleccionada</string>
+    <string name="stacks_unstack">Separar todas las fotos</string>
+    <string name="stacks_unstack_hint">Quitá este grupo y excluí sus fotos de nuevas sugerencias de pilas. Los originales, álbumes y favoritos permanecen sin cambios.</string>
+    <string name="stacks_cancel">Cancelar</string>
+    <string name="stacks_name">Nombre de la pila</string>
+    <string name="stacks_save_name">Guardar nombre</string>
+    <string name="stacks_rename">Renombrar</string>
+    <string name="stacks_changed">Este grupo cambió. Abrilo de nuevo y reintentá.</string>
+    <string name="stacks_error">La acción no se completó. Revisá que las fotos estén disponibles y no pertenezcan a otra pila.</string>
+    <string name="stacks_create">Crear pila</string>
+    <string name="stacks_collection_hint">Revisá fotos similares, elegí una portada y conservá los grupos en este dispositivo.</string>
+</resources>

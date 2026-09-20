@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- This provider exists only in the isolated test APK. The separate process
+             remains alive when the acceptance target is force-stopped by the probe. -->
+        <provider
+            android:name="com.ugallery.app.GalleryBackupTaskProbeProvider"
+            android:authorities="${applicationId}.backuptasks"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.MANAGE_DOCUMENTS"
+            android:process=":backupfixture">
+            <intent-filter>
+                <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
+            </intent-filter>
+        </provider>
+        <receiver
+            android:name="com.ugallery.app.GalleryBackupTaskProbeReceiver"
+            android:exported="true" />
+<provider android:name="com.ugallery.app.SafCopyDocumentsProvider" android:process=":safcopyfixture"
+ android:authorities="${applicationId}.safcopyfixture" android:exported="true"
+ android:permission="android.permission.MANAGE_DOCUMENTS"
+ android:grantUriPermissions="true">
+ <intent-filter><action android:name="android.content.action.DOCUMENTS_PROVIDER" /></intent-filter>
+</provider>
+
+        <receiver android:name="com.ugallery.app.SafCopyFixtureGrantReceiver" android:process=":safcopyfixture" android:exported="true" />
+    </application>
+</manifest>

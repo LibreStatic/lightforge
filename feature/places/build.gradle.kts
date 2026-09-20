@@ -21,6 +21,14 @@ android {
 }
 
 dependencies {
+    implementation("org.maplibre.gl:android-sdk-opengl:13.6.0")
+    implementation("org.bouncycastle:bcprov-jdk15to18:1.85.2")
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.kotlinx.coroutines.android)
+    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
     implementation(project(":core:model"))
     implementation(project(":core:database"))
     implementation(project(":core:designsystem"))

@@ -130,6 +130,8 @@ data class VirtualAlbumEntity(
     val normalizedName: String,
     val createdAtMillis: Long,
     val updatedAtMillis: Long,
+    val chosenCoverVolumeName: String? = null,
+    val chosenCoverMediaStoreId: Long? = null,
 )
 
 @Entity(

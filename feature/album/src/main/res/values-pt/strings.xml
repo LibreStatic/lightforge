@@ -1,1 +1,23 @@
-<resources><string name="album_untitled">Álbum sem título</string><string name="album_volume_unavailable">Armazenamento indisponível</string><string name="album_volume_unavailable_body">Reconecte o armazenamento para ver o álbum.</string><string name="album_all">Todos</string><string name="album_photos">Fotos</string><string name="album_videos">Vídeos</string><string name="album_newest">Mais recentes</string><string name="album_oldest">Mais antigos</string><string name="album_selected_count">%1$d selecionados</string><string name="album_empty">Álbum vazio</string><string name="album_empty_body">Mídias adicionadas aparecerão aqui.</string><string name="album_photo">Foto</string><string name="album_video">Vídeo</string></resources>
+<resources><string name="album_untitled">Álbum sem título</string><string name="album_volume_unavailable">Armazenamento indisponível</string><string name="album_volume_unavailable_body">Reconecte o armazenamento para ver o álbum.</string><string name="album_all">Todos</string><string name="album_photos">Fotos</string><string name="album_videos">Vídeos</string><string name="album_newest">Mais recentes</string><string name="album_oldest">Mais antigos</string><string name="album_selected_count">%1$d selecionados</string><string name="album_empty">Álbum vazio</string><string name="album_empty_body">Mídias adicionadas aparecerão aqui.</string><string name="album_photo">Foto</string><string name="album_video">Vídeo</string>
+    <string name="album_rename">Renomear álbum</string>
+    <string name="album_rename_title">Renomear álbum</string>
+    <string name="album_rename_body">Somente o nome do álbum muda. Suas fotos e vídeos permanecem no mesmo local.</string>
+    <string name="album_name_label">Nome do álbum</string>
+    <string name="album_rename_empty">Digite um nome para o álbum.</string>
+    <string name="album_rename_too_long">Use até 200 caracteres.</string>
+    <string name="album_rename_failed">Não foi possível renomear o álbum. Seus arquivos não foram alterados. Tente novamente.</string>
+    <string name="album_rename_save">Salvar</string>
+    <string name="album_rename_saving">Salvando…</string>
+    <string name="album_rename_cancel">Cancelar</string>
+    <string name="album_sort_current">Ordem: %1$s</string>
+    <string name="album_sort_name_ascending">Nome (crescente)</string>
+    <string name="album_sort_name_descending">Nome (decrescente)</string>
+    <string name="album_sort_size_ascending">Tamanho (menor primeiro)</string>
+    <string name="album_sort_size_descending">Tamanho (maior primeiro)</string>
+    <string name="album_cover_title">Escolher capa do álbum</string>
+    <string name="album_cover_hint">Toque em um item do álbum para revisá-lo como capa. Seus arquivos não serão alterados.</string>
+    <string name="album_cover_automatic">Capa automática</string>
+    <string name="album_cover_auto_confirm">Usar o item disponível mais recente do álbum como capa?</string>
+    <string name="album_cover_confirm">Usar “%1$s” como capa do álbum?</string>
+    <string name="album_cover_failed">Não foi possível salvar a capa. Seus arquivos não foram alterados. Tente novamente.</string>
+</resources>

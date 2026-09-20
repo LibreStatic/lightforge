@@ -1,0 +1,21 @@
+<resources>
+    <string name="moment_participants_title">Participants</string>
+    <string name="moment_participants_local_only">Choisissez des personnes locales existantes. Les noms et les photos originales restent inchangés.</string>
+    <string name="moment_participants_automatic">Automatique</string>
+    <string name="moment_participants_manual">Manuel</string>
+    <string name="moment_participants_automatic_hint">Utilise les identités locales actuelles des personnes de ce souvenir.</string>
+    <string name="moment_participants_manual_hint">Seul ce souvenir change. Une sélection vide signifie aucun participant.</string>
+    <string name="moment_participants_unavailable">Ce souvenir ou ses personnes sont indisponibles. Rechargez avant d’appliquer.</string>
+    <string name="moment_participants_changed">Les personnes ou les choix enregistrés ont changé pendant la modification. Vérifiez les choix actuels avant d’appliquer.</string>
+    <string name="moment_participants_review">Vérifier les choix actuels</string>
+    <string name="moment_participants_count">%1$d sélectionnés</string>
+    <string name="moment_participants_clear">Vider la sélection</string>
+    <string name="moment_participants_search">Rechercher des personnes</string>
+    <string name="moment_participants_no_matches">Aucune personne correspondante.</string>
+    <string name="moment_participants_empty">Aucune personne à afficher. Vous pouvez conserver ce souvenir sans participants.</string>
+    <string name="moment_participants_unnamed">Personne %1$d</string>
+    <string name="moment_participants_cancel">Annuler</string>
+    <string name="moment_participants_error">Les modifications n’ont pas été enregistrées. Réessayez.</string>
+    <string name="moment_participants_retry">Réessayer</string>
+    <string name="moment_participants_apply">Appliquer</string>
+</resources>

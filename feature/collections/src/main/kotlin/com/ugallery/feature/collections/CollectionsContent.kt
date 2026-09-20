@@ -1,66 +1,72 @@
 package com.ugallery.feature.collections
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.layout.size
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.Alignment
-import androidx.paging.LoadState
-import androidx.paging.compose.LazyPagingItems
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.paging.LoadState
+import androidx.paging.compose.LazyPagingItems
 import com.ugallery.core.database.MomentEntity
 import com.ugallery.core.database.MomentSummaryRow
-import com.ugallery.core.designsystem.GalleryStateContent
 import com.ugallery.core.designsystem.GalleryIcons
 import com.ugallery.core.designsystem.GallerySpacing
+import com.ugallery.core.designsystem.GalleryStateContent
 import com.ugallery.core.model.AlbumAvailability
 import com.ugallery.core.model.AlbumSummary
 import com.ugallery.core.model.MediaKey
 import com.ugallery.core.thumbnail.ThumbnailLoader
 import com.ugallery.core.thumbnail.ThumbnailRequest
 
-internal fun collectionGridColumns(availableWidth: Dp): Int = when {
-    availableWidth < 292.dp -> 1
-    availableWidth < 840.dp -> 2
-    else -> 4
-}
+internal fun collectionGridColumns(availableWidth: Dp): Int =
+    when {
+        availableWidth < 292.dp -> 1
+        availableWidth < 840.dp -> 2
+        else -> 4
+    }
 
 internal fun collectionRowCount(itemCount: Int, columns: Int): Int {
     require(itemCount >= 0)
@@ -78,9 +84,12 @@ private data class CollectionCardSpec(
     val icon: ImageVector? = null,
     val cover: MediaKey? = null,
     val circular: Boolean = false,
+    val wide: Boolean = false,
+    val tag: String? = null,
 )
 
 @Composable
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 fun CollectionsContent(
     physicalAlbums: LazyPagingItems<AlbumSummary>,
     virtualAlbums: LazyPagingItems<AlbumSummary>,
@@ -106,214 +115,221 @@ fun CollectionsContent(
     thumbnailLoader: ThumbnailLoader? = null,
     privateAlbumLabel: String? = null,
     onPrivateAlbumClick: (() -> Unit)? = null,
+    documentCount: Long = 0,
+    onDocumentsClick: (() -> Unit)? = null,
+    onStacksClick: (() -> Unit)? = null,
+    onSmartAlbumsClick: (() -> Unit)? = null,
+    onMemoryControlsClick: (() -> Unit)? = null,
+    onAllMemoriesClick: (() -> Unit)? = null,
+    pdfStudioLabel: String? = null,
+    pdfStudioBody: String? = null,
+    onPdfStudioClick: (() -> Unit)? = null,
     collageLabel: String? = null,
     onCollageClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    momentPlaceLabels: ((String) -> kotlinx.coroutines.flow.Flow<String?>)? = null,
+    layoutOrder: List<String> = emptyList(),
+    hiddenCollections: Set<String> = emptySet(),
+    layoutWorking: Boolean = false,
+    layoutFailed: Boolean = false,
+    layoutRevision: Int = 0,
+    onSaveLayout: ((List<String>, Set<String>) -> Unit)? = null,
 ) {
     val dogsTitle = stringResource(R.string.collections_dogs)
     val catsTitle = stringResource(R.string.collections_cats)
-    val petCards = if (petCollectionsEnabled) listOf(
-        CollectionCardSpec(
-            key = "dogs",
-            title = dogsTitle,
-            body = stringResource(R.string.collections_item_count, dogCount),
-            icon = GalleryIcons.Pet,
-            cover = dogCover,
-            circular = true,
-            onClick = { onPetCollectionClick(dogsTitle) },
-        ),
-        CollectionCardSpec(
-            key = "cats",
-            title = catsTitle,
-            body = stringResource(R.string.collections_item_count, catCount),
-            icon = GalleryIcons.Pet,
-            cover = catCover,
-            circular = true,
-            onClick = { onPetCollectionClick(catsTitle) },
-        ),
-    ) else emptyList()
-    val momentCards = momentSummaries.map { summary ->
-        CollectionCardSpec(
-            key = "moment:${summary.moment.momentId}",
-            title = summary.moment.title ?: stringResource(R.string.moment_untitled),
-            body = stringResource(R.string.collections_item_count, summary.memberCount),
-            icon = GalleryIcons.Image,
-            onClick = { onMomentClick(summary.moment) },
-        )
-    }
+    val petCards =
+        if (petCollectionsEnabled)
+            listOf(
+                CollectionCardSpec(
+                    key = "dogs",
+                    title = dogsTitle,
+                    body = stringResource(R.string.collections_item_count, dogCount),
+                    icon = GalleryIcons.Pet,
+                    cover = dogCover,
+                    circular = true,
+                    onClick = { onPetCollectionClick(dogsTitle) },
+                ),
+                CollectionCardSpec(
+                    key = "cats",
+                    title = catsTitle,
+                    body = stringResource(R.string.collections_item_count, catCount),
+                    icon = GalleryIcons.Pet,
+                    cover = catCover,
+                    circular = true,
+                    onClick = { onPetCollectionClick(catsTitle) },
+                ),
+            )
+        else emptyList()
+    val momentCards =
+        momentSummaries.map { summary ->
+            CollectionCardSpec(
+                key = "moment:${summary.moment.momentId}",
+                title = momentDisplayTitle(summary.moment, momentPlaceLabels),
+                body = stringResource(R.string.collections_item_count, summary.memberCount),
+                icon = GalleryIcons.Image,
+                onClick = { onMomentClick(summary.moment) },
+            )
+        }
     val libraryCards = buildList {
-        if (peopleEnabled) add(CollectionCardSpec(
-            key = "people",
-            title = stringResource(R.string.collections_people),
-            body = stringResource(R.string.collections_item_count, peopleCount),
-            icon = GalleryIcons.User,
-            cover = peopleCover,
-            circular = true,
-            onClick = onPeopleClick,
-        ))
-        add(CollectionCardSpec(
-            key = "archive",
-            title = stringResource(R.string.collections_archive),
-            body = stringResource(R.string.collections_item_count, archiveCount),
-            icon = GalleryIcons.Archive,
-            onClick = onArchiveClick,
-        ))
-        add(CollectionCardSpec(
-            key = "trash",
-            title = stringResource(R.string.collections_trash),
-            body = stringResource(R.string.collections_item_count, trashCount),
-            icon = GalleryIcons.Trash,
-            onClick = onTrashClick,
-        ))
-    }
-    Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-      Column(Modifier.fillMaxSize().widthIn(max = 1_200.dp).padding(horizontal = GallerySpacing.Lg), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(
-            stringResource(R.string.collections_title),
-            style = MaterialTheme.typography.headlineLarge,
-            modifier = Modifier.padding(top = GallerySpacing.Xl, bottom = GallerySpacing.Sm).semantics { heading() },
-        )
-        BoxWithConstraints(Modifier.fillMaxSize()) {
-            val columns = collectionGridColumns(maxWidth)
-            LazyColumn(
-                contentPadding = PaddingValues(bottom = GallerySpacing.Lg),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                item(key = "library-header") {
-                    Text(
-                        stringResource(R.string.collections_section_library),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(vertical = 4.dp),
-                    )
-                }
-                pagedLibraryCardRows(
-                    cards = libraryCards,
-                    virtualAlbums = virtualAlbums,
-                    physicalAlbums = physicalAlbums,
-                    columns = columns,
-                    thumbnailLoader = thumbnailLoader,
-                    onAlbumClick = onAlbumClick,
+        onDocumentsClick?.let { action ->
+            add(
+                CollectionCardSpec(
+                    key = "documents",
+                    title = stringResource(R.string.documents_title),
+                    body = stringResource(R.string.documents_collection_count, documentCount),
+                    icon = GalleryIcons.Collections,
+                    onClick = action,
                 )
-                if (virtualAlbums.itemCount == 0 && physicalAlbums.itemCount == 0 &&
-                    physicalAlbums.loadState.refresh !is LoadState.Loading &&
-                    virtualAlbums.loadState.refresh !is LoadState.Loading
-                ) {
-                    item(key = "empty-albums") {
-                        GalleryStateContent(
-                            stringResource(R.string.collections_empty),
-                            stringResource(R.string.collections_empty_body),
-                            stringResource(R.string.collections_empty),
-                            Modifier.fillMaxWidth(),
-                        )
+            )
+        }
+
+        if (peopleEnabled)
+            add(
+                CollectionCardSpec(
+                    key = "people",
+                    title = stringResource(R.string.collections_people),
+                    body = stringResource(R.string.collections_item_count, peopleCount),
+                    icon = GalleryIcons.User,
+                    cover = peopleCover,
+                    circular = true,
+                    onClick = onPeopleClick,
+                )
+            )
+        add(
+            CollectionCardSpec(
+                key = "archive",
+                title = stringResource(R.string.collections_archive),
+                body = stringResource(R.string.collections_item_count, archiveCount),
+                icon = GalleryIcons.Archive,
+                onClick = onArchiveClick,
+            )
+        )
+        add(
+            CollectionCardSpec(
+                key = "trash",
+                title = stringResource(R.string.collections_trash),
+                body = stringResource(R.string.collections_item_count, trashCount),
+                icon = GalleryIcons.Trash,
+                onClick = onTrashClick,
+            )
+        )
+    }
+    val cards = (libraryCards + petCards).associateBy { it.key }.toMutableMap()
+    fun action(id: String, title: String, body: String, icon: ImageVector, callback: (() -> Unit)?, tag: String? = null) {
+        if (callback != null) cards[id] = CollectionCardSpec(id, title, body, callback, icon = icon, wide = true, tag = tag)
+    }
+    action("all-memories", stringResource(R.string.memories_browser_open), stringResource(R.string.memories_browser_body),
+        GalleryIcons.Image, onAllMemoriesClick, "collections-all-memories")
+    action("create-album", stringResource(R.string.collections_create_album), stringResource(R.string.collections_virtual_album_body), GalleryIcons.Plus, onCreateAlbum)
+    action("private-album", privateAlbumLabel ?: stringResource(R.string.collection_layout_private), stringResource(R.string.collections_private_album_body),
+        GalleryIcons.Lock, onPrivateAlbumClick.takeIf { privateAlbumLabel != null })
+    action("memory-controls", stringResource(R.string.memory_controls_title), stringResource(R.string.memory_controls_scope),
+        GalleryIcons.Collections, onMemoryControlsClick, "collections-memory-controls")
+    action("smart-albums", stringResource(R.string.smart_title), stringResource(R.string.smart_local),
+        GalleryIcons.Collections, onSmartAlbumsClick, "collections-smart-albums")
+    action("photo-stacks", stringResource(R.string.stacks_title), stringResource(R.string.stacks_collection_hint), GalleryIcons.Collections, onStacksClick)
+    action("pdf-studio", pdfStudioLabel ?: stringResource(R.string.collection_layout_pdf), pdfStudioBody.orEmpty(),
+        GalleryIcons.Collections, onPdfStudioClick.takeIf { pdfStudioLabel != null })
+    action("collage", collageLabel ?: stringResource(R.string.collection_layout_collage), stringResource(R.string.collections_collage_body),
+        GalleryIcons.Collections, onCollageClick.takeIf { collageLabel != null })
+    action("local-analysis", stringResource(R.string.collections_local_analysis), stringResource(R.string.collections_local_analysis_body), GalleryIcons.Analyze, onLocalAnalysisClick)
+    val labels = mapOf(
+        "documents" to stringResource(R.string.documents_title), "people" to stringResource(R.string.collections_people),
+        "archive" to stringResource(R.string.collections_archive), "trash" to stringResource(R.string.collections_trash),
+        "virtual-albums" to stringResource(R.string.collection_layout_virtual), "physical-albums" to stringResource(R.string.collection_layout_physical),
+        "dogs" to dogsTitle, "cats" to catsTitle, "memories" to stringResource(R.string.collections_moments),
+        "all-memories" to stringResource(R.string.memories_browser_open), "create-album" to stringResource(R.string.collections_create_album),
+        "private-album" to (privateAlbumLabel ?: stringResource(R.string.collection_layout_private)),
+        "memory-controls" to stringResource(R.string.memory_controls_title), "smart-albums" to stringResource(R.string.smart_title),
+        "photo-stacks" to stringResource(R.string.stacks_title), "pdf-studio" to (pdfStudioLabel ?: stringResource(R.string.collection_layout_pdf)),
+        "collage" to (collageLabel ?: stringResource(R.string.collection_layout_collage)), "local-analysis" to stringResource(R.string.collections_local_analysis),
+    )
+    val available = cards.keys + setOf("virtual-albums", "physical-albums", "memories")
+    val ordered = normalizedCollectionLayoutOrder(layoutOrder)
+    var manageLayout by remember(layoutRevision) { mutableStateOf(false) }
+    if (manageLayout && onSaveLayout != null) CollectionLayoutDialog(
+        order = layoutOrder, hidden = hiddenCollections, labels = labels, available = available,
+        working = layoutWorking, failed = layoutFailed,
+        onSave = onSaveLayout, onDismiss = { if (!layoutWorking) manageLayout = false },
+    )
+    Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Column(Modifier.fillMaxSize().widthIn(max = 1_200.dp).padding(horizontal = GallerySpacing.Lg),
+            verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(stringResource(R.string.collections_title), style = MaterialTheme.typography.headlineLarge,
+                modifier = Modifier.padding(top = GallerySpacing.Xl, bottom = GallerySpacing.Sm).semantics { heading() })
+            if (onSaveLayout != null) TextButton(onClick = { manageLayout = true }, enabled = !layoutWorking,
+                modifier = Modifier.semantics { testTagsAsResourceId = true }.testTag("collections-manage")) {
+                Text(stringResource(R.string.collection_layout_manage))
+            }
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                val columns = collectionGridColumns(maxWidth)
+                LazyColumn(contentPadding = PaddingValues(bottom = GallerySpacing.Lg), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    val pendingCards = mutableListOf<CollectionCardSpec>()
+                    fun flushCards() {
+                        if (pendingCards.isNotEmpty()) {
+                            collectionCardRows(pendingCards.toList(), columns, thumbnailLoader)
+                            pendingCards.clear()
+                        }
                     }
-                }
-                item(key = "auto-header") {
-                    Text(
-                        stringResource(R.string.collections_section_auto),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(vertical = 4.dp),
-                    )
-                }
-                collectionCardRows(petCards + momentCards, columns, thumbnailLoader)
-                item(key = "actions-header") {
-                    Text(
-                        stringResource(R.string.collections_section_actions),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(vertical = 4.dp),
-                    )
-                }
-                item(key = "create-album") {
-                    CollectionCard(
-                        title = stringResource(R.string.collections_create_album),
-                        body = stringResource(R.string.collections_virtual_album_body),
-                        icon = GalleryIcons.Plus,
-                        onClick = onCreateAlbum,
-                        wide = true,
-                    )
-                }
-                if (privateAlbumLabel != null && onPrivateAlbumClick != null) item(key = "private-album") {
-                    CollectionCard(
-                        title = privateAlbumLabel,
-                        body = stringResource(R.string.collections_private_album_body),
-                        icon = GalleryIcons.Lock,
-                        onClick = onPrivateAlbumClick,
-                        wide = true,
-                    )
-                }
-                if (collageLabel != null && onCollageClick != null) item(key = "collage") {
-                    CollectionCard(
-                        title = collageLabel,
-                        body = stringResource(R.string.collections_collage_body),
-                        icon = GalleryIcons.Collections,
-                        onClick = onCollageClick,
-                        wide = true,
-                    )
-                }
-                item(key = "local-analysis") {
-                    CollectionCard(
-                        title = stringResource(R.string.collections_local_analysis),
-                        body = stringResource(R.string.collections_local_analysis_body),
-                        icon = GalleryIcons.Analyze,
-                        onClick = onLocalAnalysisClick,
-                        wide = true,
-                    )
+                    for (id in ordered) {
+                        if (id in hiddenCollections || id !in available) continue
+                        when (id) {
+                            "virtual-albums", "physical-albums" -> {
+                                flushCards()
+                                item(key = "$id-header") { Text(labels.getValue(id), style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.semantics { heading() }) }
+                                pagedAlbumCardRows(id, if (id == "virtual-albums") virtualAlbums else physicalAlbums,
+                                    columns, thumbnailLoader, onAlbumClick)
+                            }
+                            "memories" -> {
+                                flushCards()
+                                item(key = "auto-header") { Text(labels.getValue(id), style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.semantics { heading() }) }
+                                collectionCardRows(momentCards, columns, thumbnailLoader)
+                            }
+                            else -> {
+                                val card = cards.getValue(id)
+                                if (card.wide) {
+                                    flushCards()
+                                    item(key = id) { CollectionCard(title = card.title, body = card.body,
+                                        onClick = card.onClick, icon = card.icon, cover = card.cover, circular = card.circular,
+                                        thumbnailLoader = thumbnailLoader, wide = true,
+                                        modifier = Modifier.fillMaxWidth().then(card.tag?.let {
+                                            Modifier.semantics { testTagsAsResourceId = true }.testTag(it)
+                                        } ?: Modifier)) }
+                                } else pendingCards += card
+                            }
+                        }
+                    }
+                    flushCards()
                 }
             }
         }
-      }
     }
 }
 
-private fun LazyListScope.pagedLibraryCardRows(
-    cards: List<CollectionCardSpec>,
-    virtualAlbums: LazyPagingItems<AlbumSummary>,
-    physicalAlbums: LazyPagingItems<AlbumSummary>,
+private fun LazyListScope.pagedAlbumCardRows(
+    id: String,
+    albums: LazyPagingItems<AlbumSummary>,
     columns: Int,
     thumbnailLoader: ThumbnailLoader?,
     onAlbumClick: (AlbumSummary) -> Unit,
 ) {
-    val virtualAlbumCount = virtualAlbums.itemCount
-    val totalItemCount = cards.size + virtualAlbumCount + physicalAlbums.itemCount
-    // Access LazyPagingItems only from composed rows. Reading every index while building this
-    // section defeats Paging, continuously invalidates rows, and restarts visible cover loads.
-    repeat(collectionRowCount(totalItemCount, columns)) { rowIndex ->
-        item(key = "library-row:$rowIndex") {
-            Row(
-                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                val rowStart = rowIndex * columns
+    if (albums.itemCount == 0 && albums.loadState.refresh !is LoadState.Loading) {
+        item(key = "$id-empty") { GalleryStateContent(stringResource(R.string.collections_empty),
+            stringResource(R.string.collections_empty_body), stringResource(R.string.collections_empty), Modifier.fillMaxWidth()) }
+    }
+    // Never access every Paging item to build/sort a block. Only composed rows request media.
+    repeat(collectionRowCount(albums.itemCount, columns)) { rowIndex ->
+        item(key = "$id-row:$rowIndex") {
+            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 repeat(columns) { columnIndex ->
-                    val itemIndex = rowStart + columnIndex
-                    val card = when {
-                        itemIndex >= totalItemCount -> null
-                        itemIndex < cards.size -> cards[itemIndex]
-                        itemIndex < cards.size + virtualAlbumCount -> {
-                            virtualAlbums[itemIndex - cards.size]?.asCollectionCard(
-                                onClick = onAlbumClick,
-                            )
-                        }
-                        else -> {
-                            physicalAlbums[itemIndex - cards.size - virtualAlbumCount]?.asCollectionCard(
-                                onClick = onAlbumClick,
-                            )
-                        }
-                    }
-                    if (card == null) {
-                        Spacer(Modifier.weight(1f))
-                    } else {
-                        key(card.key) {
-                            CollectionCard(
-                                title = card.title,
-                                body = card.body,
-                                onClick = card.onClick,
-                                icon = card.icon,
-                                cover = card.cover,
-                                circular = card.circular,
-                                thumbnailLoader = thumbnailLoader,
-                                modifier = Modifier.weight(1f).fillMaxHeight(),
-                            )
-                        }
+                    val index = rowIndex * columns + columnIndex
+                    val card = if (index < albums.itemCount) albums[index]?.asCollectionCard(onAlbumClick) else null
+                    if (card == null) Spacer(Modifier.weight(1f)) else key(card.key) {
+                        CollectionCard(card.title, card.body, card.onClick, icon = card.icon, cover = card.cover,
+                            circular = card.circular, thumbnailLoader = thumbnailLoader,
+                            modifier = Modifier.weight(1f).fillMaxHeight())
                     }
                 }
             }
@@ -322,19 +338,19 @@ private fun LazyListScope.pagedLibraryCardRows(
 }
 
 @Composable
-private fun AlbumSummary.asCollectionCard(
-    onClick: (AlbumSummary) -> Unit,
-) = CollectionCardSpec(
-    key = "album:$key",
-    title = name ?: stringResource(R.string.collections_untitled),
-    body = if (availability == AlbumAvailability.VolumeUnavailable) {
-        stringResource(R.string.collections_volume_unavailable)
-    } else {
-        stringResource(R.string.collections_item_count, itemCount)
-    },
-    cover = cover,
-    onClick = { onClick(this) },
-)
+private fun AlbumSummary.asCollectionCard(onClick: (AlbumSummary) -> Unit) =
+    CollectionCardSpec(
+        key = "album:$key",
+        title = name ?: stringResource(R.string.collections_untitled),
+        body =
+            if (availability == AlbumAvailability.VolumeUnavailable) {
+                stringResource(R.string.collections_volume_unavailable)
+            } else {
+                stringResource(R.string.collections_item_count, itemCount)
+            },
+        cover = cover,
+        onClick = { onClick(this) },
+    )
 
 private fun LazyListScope.collectionCardRows(
     cards: List<CollectionCardSpec>,
@@ -359,9 +375,7 @@ private fun LazyListScope.collectionCardRows(
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                     )
                 }
-                repeat(columns - rowCards.size) {
-                    Spacer(Modifier.weight(1f))
-                }
+                repeat(columns - rowCards.size) { Spacer(Modifier.weight(1f)) }
             }
         }
     }
@@ -380,42 +394,39 @@ private fun CollectionCard(
     modifier: Modifier = Modifier,
 ) {
     val thumbnailRequest = cover?.let { ThumbnailRequest(it, 0, 512, 320) }
-    val cachedBitmap = remember(thumbnailRequest, thumbnailLoader) {
-        thumbnailRequest?.let { request ->
-            thumbnailLoader?.cached(request)
-                ?: thumbnailLoader?.bestCached(request.mediaKey, request.generationModified)
+    val cachedBitmap =
+        remember(thumbnailRequest, thumbnailLoader) {
+            thumbnailRequest?.let { request ->
+                thumbnailLoader?.cached(request)
+                    ?: thumbnailLoader?.bestCached(request.mediaKey, request.generationModified)
+            }
         }
-    }
-    val bitmap by produceState<android.graphics.Bitmap?>(
-        initialValue = cachedBitmap,
-        thumbnailRequest,
-        thumbnailLoader,
-    ) {
-        if (thumbnailRequest == null || thumbnailLoader == null) {
-            value = null
-        } else {
-            runCatching { thumbnailLoader.load(thumbnailRequest) }
-                .getOrNull()
-                ?.let { value = it }
+    val bitmap by
+        produceState<android.graphics.Bitmap?>(
+            initialValue = cachedBitmap,
+            thumbnailRequest,
+            thumbnailLoader,
+        ) {
+            if (thumbnailRequest == null || thumbnailLoader == null) {
+                value = null
+            } else {
+                runCatching { thumbnailLoader.load(thumbnailRequest) }
+                    .getOrNull()
+                    ?.let { value = it }
+            }
         }
-    }
     Card(
-        modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .semantics {
+        modifier.fillMaxWidth().clickable(onClick = onClick).semantics {
             contentDescription = "$title. $body"
-        },
+        }
     ) {
         if (bitmap != null && circular) {
             Image(
                 bitmap = requireNotNull(bitmap).asImageBitmap(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .padding(start = 16.dp, top = 16.dp)
-                    .size(56.dp)
-                    .clip(CircleShape),
+                modifier =
+                    Modifier.padding(start = 16.dp, top = 16.dp).size(56.dp).clip(CircleShape),
             )
         } else if (bitmap != null) {
             Image(
@@ -450,10 +461,13 @@ private fun CollectionCardIcon(icon: ImageVector) {
     Icon(
         imageVector = icon,
         contentDescription = null,
-        tint = MaterialTheme.colorScheme.primary,
-        modifier = Modifier
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.shapes.medium)
-            .padding(10.dp),
+        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+        modifier =
+            Modifier.background(
+                    MaterialTheme.colorScheme.secondaryContainer,
+                    MaterialTheme.shapes.medium,
+                )
+                .padding(10.dp),
     )
 }
 

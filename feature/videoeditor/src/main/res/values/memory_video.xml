@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="memory_video_title">Make a memory video</string>
+    <string name="memory_video_back">Back</string>
+    <string name="memory_video_position">Photo %1$d of %2$d</string>
+    <string name="memory_video_previous">Previous</string>
+    <string name="memory_video_next">Next</string>
+    <string name="memory_video_play">Play preview</string>
+    <string name="memory_video_pause">Pause</string>
+    <string name="memory_video_order">Video photo order</string>
+    <string name="memory_video_earlier">Move earlier</string>
+    <string name="memory_video_later">Move later</string>
+    <string name="memory_video_reset_order">Reset order</string>
+    <string name="memory_video_duration">Time per photo</string>
+    <string name="memory_video_seconds">%1$d s</string>
+    <string name="memory_video_summary">%1$d seconds · 720p · MP4</string>
+    <string name="memory_video_music">Local music</string>
+    <string name="memory_video_no_music">No music — silent video</string>
+    <string name="memory_video_music_selected">Local audio selected. Repeats or trims to fit the video.</string>
+    <string name="memory_video_choose_music">Choose audio file</string>
+    <string name="memory_video_remove_music">Remove music</string>
+    <string name="memory_video_local_note">Created on this device. Originals and the saved memory order stay unchanged. Photos fit inside a 16:9 frame. Music limit: 128 MB. Export cancels when this screen closes.</string>
+    <string name="memory_video_limit">Choose a memory with 1–120 available photos.</string>
+    <string name="memory_video_failure">The video could not be completed. Check photo and music access, available storage, then retry. No partial video was published.</string>
+    <string name="memory_video_cancelled">Export cancelled. No partial video was published.</string>
+    <string name="memory_video_preparing">Preparing photos…</string>
+    <string name="memory_video_encoding">Creating video…</string>
+    <string name="memory_video_publishing">Saving validated video…</string>
+    <string name="memory_video_cancel">Cancel export</string>
+    <string name="memory_video_export">Create and save MP4</string>
+    <string name="memory_video_saved">Video saved to Movies/UGallery/Memories.</string>
+    <string name="memory_video_open">Open video</string>
+    <string name="memory_video_share">Share video</string>
+    <string name="memory_video_cancel_title">Cancel this export?</string>
+    <string name="memory_video_cancel_hint">The unfinished video will be discarded. Your photos stay unchanged.</string>
+    <string name="memory_video_continue">Continue export</string>
+    <string name="memory_video_preview">Video photo preview</string>
+    <string name="memory_video_unavailable">Photo unavailable</string>
+</resources>

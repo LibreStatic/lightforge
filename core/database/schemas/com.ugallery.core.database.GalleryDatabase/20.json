@@ -1,0 +1,3605 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 20,
+    "identityHash": "0ed6c30a59ac557c6ac7cf53b66743c5",
+    "entities": [
+      {
+        "tableName": "media_items",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `mediaType` INTEGER NOT NULL, `mimeType` TEXT, `displayName` TEXT, `sizeBytes` INTEGER NOT NULL, `width` INTEGER NOT NULL, `height` INTEGER NOT NULL, `durationMillis` INTEGER NOT NULL, `orientationDegrees` INTEGER NOT NULL, `dateTakenMillis` INTEGER, `dateAddedSeconds` INTEGER NOT NULL, `dateModifiedSeconds` INTEGER NOT NULL, `timelineSortMillis` INTEGER NOT NULL, `generationAdded` INTEGER NOT NULL, `generationModified` INTEGER NOT NULL, `bucketId` INTEGER, `bucketDisplayName` TEXT, `relativePath` TEXT, `isFavorite` INTEGER NOT NULL, `isTrashed` INTEGER NOT NULL, `isAccessible` INTEGER NOT NULL, `lastSeenScanId` INTEGER NOT NULL, `dateExpiresSeconds` INTEGER, PRIMARY KEY(`volumeName`, `mediaStoreId`))",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaType",
+            "columnName": "mediaType",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mimeType",
+            "columnName": "mimeType",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "displayName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sizeBytes",
+            "columnName": "sizeBytes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "width",
+            "columnName": "width",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "height",
+            "columnName": "height",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationMillis",
+            "columnName": "durationMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "orientationDegrees",
+            "columnName": "orientationDegrees",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dateTakenMillis",
+            "columnName": "dateTakenMillis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "dateAddedSeconds",
+            "columnName": "dateAddedSeconds",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dateModifiedSeconds",
+            "columnName": "dateModifiedSeconds",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timelineSortMillis",
+            "columnName": "timelineSortMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generationAdded",
+            "columnName": "generationAdded",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generationModified",
+            "columnName": "generationModified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bucketId",
+            "columnName": "bucketId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "bucketDisplayName",
+            "columnName": "bucketDisplayName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "relativePath",
+            "columnName": "relativePath",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isFavorite",
+            "columnName": "isFavorite",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isTrashed",
+            "columnName": "isTrashed",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isAccessible",
+            "columnName": "isAccessible",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastSeenScanId",
+            "columnName": "lastSeenScanId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dateExpiresSeconds",
+            "columnName": "dateExpiresSeconds",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName",
+            "mediaStoreId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_media_timeline_keyset",
+            "unique": false,
+            "columnNames": [
+              "timelineSortMillis",
+              "mediaStoreId",
+              "volumeName"
+            ],
+            "orders": [
+              "DESC",
+              "DESC",
+              "DESC"
+            ],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_media_timeline_keyset` ON `${TABLE_NAME}` (`timelineSortMillis` DESC, `mediaStoreId` DESC, `volumeName` DESC)"
+          },
+          {
+            "name": "index_media_volume_generation",
+            "unique": false,
+            "columnNames": [
+              "volumeName",
+              "generationModified"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_media_volume_generation` ON `${TABLE_NAME}` (`volumeName`, `generationModified`)"
+          },
+          {
+            "name": "index_media_volume_bucket",
+            "unique": false,
+            "columnNames": [
+              "volumeName",
+              "bucketId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_media_volume_bucket` ON `${TABLE_NAME}` (`volumeName`, `bucketId`)"
+          },
+          {
+            "name": "index_media_moment_scan",
+            "unique": false,
+            "columnNames": [
+              "isAccessible",
+              "isTrashed",
+              "timelineSortMillis",
+              "mediaStoreId",
+              "volumeName"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_media_moment_scan` ON `${TABLE_NAME}` (`isAccessible`, `isTrashed`, `timelineSortMillis`, `mediaStoreId`, `volumeName`)"
+          }
+        ]
+      },
+      {
+        "tableName": "document_annotations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `category` TEXT NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`), FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `media_items`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "category",
+            "columnName": "category",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtMillis",
+            "columnName": "updatedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName",
+            "mediaStoreId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "media_items",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "document_archive_rule",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `enabled` INTEGER NOT NULL, `category` TEXT NOT NULL, `minimumAgeDays` INTEGER NOT NULL, `revision` TEXT NOT NULL, `lastRunId` TEXT, `lastRunMillis` INTEGER, `lastRunCount` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "enabled",
+            "columnName": "enabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "category",
+            "columnName": "category",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "minimumAgeDays",
+            "columnName": "minimumAgeDays",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastRunId",
+            "columnName": "lastRunId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lastRunMillis",
+            "columnName": "lastRunMillis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "lastRunCount",
+            "columnName": "lastRunCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "document_archive_history",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `generationModified` INTEGER NOT NULL, `runId` TEXT NOT NULL, `writtenAtMillis` INTEGER, PRIMARY KEY(`volumeName`, `mediaStoreId`), FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `media_items`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generationModified",
+            "columnName": "generationModified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "runId",
+            "columnName": "runId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "writtenAtMillis",
+            "columnName": "writtenAtMillis",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName",
+            "mediaStoreId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_document_archive_history_runId",
+            "unique": false,
+            "columnNames": [
+              "runId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_document_archive_history_runId` ON `${TABLE_NAME}` (`runId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "media_items",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "archived_media",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `archivedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`), FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `media_items`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "archivedAtMillis",
+            "columnName": "archivedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName",
+            "mediaStoreId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_archived_media_archivedAtMillis",
+            "unique": false,
+            "columnNames": [
+              "archivedAtMillis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_archived_media_archivedAtMillis` ON `${TABLE_NAME}` (`archivedAtMillis`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "media_items",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "activity_events",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`eventId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `type` TEXT NOT NULL, `occurredAtMillis` INTEGER NOT NULL, `itemCount` INTEGER NOT NULL, `detail` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "eventId",
+            "columnName": "eventId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "type",
+            "columnName": "type",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "occurredAtMillis",
+            "columnName": "occurredAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "itemCount",
+            "columnName": "itemCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "detail",
+            "columnName": "detail",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "eventId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_activity_events_occurredAtMillis",
+            "unique": false,
+            "columnNames": [
+              "occurredAtMillis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_activity_events_occurredAtMillis` ON `${TABLE_NAME}` (`occurredAtMillis`)"
+          }
+        ]
+      },
+      {
+        "tableName": "media_store_checkpoints",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `providerVersion` TEXT NOT NULL, `generation` INTEGER NOT NULL, `lastScannedId` INTEGER NOT NULL, `activeScanId` INTEGER, `scanState` TEXT NOT NULL, `lastSuccessfulSyncMillis` INTEGER, `deltaTargetGeneration` INTEGER, `deltaGenerationCursor` INTEGER NOT NULL, `deltaMediaStoreIdCursor` INTEGER NOT NULL, PRIMARY KEY(`volumeName`))",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "providerVersion",
+            "columnName": "providerVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generation",
+            "columnName": "generation",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastScannedId",
+            "columnName": "lastScannedId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activeScanId",
+            "columnName": "activeScanId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "scanState",
+            "columnName": "scanState",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastSuccessfulSyncMillis",
+            "columnName": "lastSuccessfulSyncMillis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "deltaTargetGeneration",
+            "columnName": "deltaTargetGeneration",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "deltaGenerationCursor",
+            "columnName": "deltaGenerationCursor",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deltaMediaStoreIdCursor",
+            "columnName": "deltaMediaStoreIdCursor",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName"
+          ]
+        }
+      },
+      {
+        "tableName": "album_aggregates",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `bucketId` INTEGER NOT NULL, `displayName` TEXT, `itemCount` INTEGER NOT NULL, `latestSortMillis` INTEGER NOT NULL, `coverMediaStoreId` INTEGER, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `bucketId`))",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bucketId",
+            "columnName": "bucketId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "displayName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "itemCount",
+            "columnName": "itemCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "latestSortMillis",
+            "columnName": "latestSortMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "coverMediaStoreId",
+            "columnName": "coverMediaStoreId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "updatedAtMillis",
+            "columnName": "updatedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName",
+            "bucketId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_album_latest",
+            "unique": false,
+            "columnNames": [
+              "latestSortMillis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_album_latest` ON `${TABLE_NAME}` (`latestSortMillis`)"
+          }
+        ]
+      },
+      {
+        "tableName": "virtual_albums",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`albumId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `normalizedName` TEXT NOT NULL, `createdAtMillis` INTEGER NOT NULL, `updatedAtMillis` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "albumId",
+            "columnName": "albumId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "normalizedName",
+            "columnName": "normalizedName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtMillis",
+            "columnName": "createdAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtMillis",
+            "columnName": "updatedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "albumId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_virtual_album_name",
+            "unique": true,
+            "columnNames": [
+              "normalizedName"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_virtual_album_name` ON `${TABLE_NAME}` (`normalizedName`)"
+          }
+        ]
+      },
+      {
+        "tableName": "virtual_album_media",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`albumId` INTEGER NOT NULL, `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `addedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`albumId`, `volumeName`, `mediaStoreId`), FOREIGN KEY(`albumId`) REFERENCES `virtual_albums`(`albumId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "albumId",
+            "columnName": "albumId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "addedAtMillis",
+            "columnName": "addedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "albumId",
+            "volumeName",
+            "mediaStoreId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_virtual_album_media_key",
+            "unique": false,
+            "columnNames": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_virtual_album_media_key` ON `${TABLE_NAME}` (`volumeName`, `mediaStoreId`)"
+          },
+          {
+            "name": "index_virtual_album_added",
+            "unique": false,
+            "columnNames": [
+              "albumId",
+              "addedAtMillis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_virtual_album_added` ON `${TABLE_NAME}` (`albumId`, `addedAtMillis`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "virtual_albums",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "albumId"
+            ],
+            "referencedColumns": [
+              "albumId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "media_exif_cache",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `generationModified` INTEGER NOT NULL, `orientation` INTEGER NOT NULL, `dateTimeOriginal` TEXT, `offsetTimeOriginal` TEXT, `make` TEXT, `model` TEXT, `lensModel` TEXT, `focalLength` TEXT, `aperture` TEXT, `exposureTime` TEXT, `iso` INTEGER, `latitude` REAL, `longitude` REAL, `locationReadWithPermission` INTEGER NOT NULL, `cachedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`))",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generationModified",
+            "columnName": "generationModified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "orientation",
+            "columnName": "orientation",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dateTimeOriginal",
+            "columnName": "dateTimeOriginal",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "offsetTimeOriginal",
+            "columnName": "offsetTimeOriginal",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "make",
+            "columnName": "make",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "model",
+            "columnName": "model",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lensModel",
+            "columnName": "lensModel",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "focalLength",
+            "columnName": "focalLength",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "aperture",
+            "columnName": "aperture",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "exposureTime",
+            "columnName": "exposureTime",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "iso",
+            "columnName": "iso",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "latitude",
+            "columnName": "latitude",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "longitude",
+            "columnName": "longitude",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "locationReadWithPermission",
+            "columnName": "locationReadWithPermission",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cachedAtMillis",
+            "columnName": "cachedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName",
+            "mediaStoreId"
+          ]
+        }
+      },
+      {
+        "tableName": "media_label_runs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `generationModified` INTEGER NOT NULL, `modelVersion` TEXT NOT NULL, `completedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`))",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generationModified",
+            "columnName": "generationModified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modelVersion",
+            "columnName": "modelVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "completedAtMillis",
+            "columnName": "completedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName",
+            "mediaStoreId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_label_run_version",
+            "unique": false,
+            "columnNames": [
+              "modelVersion",
+              "generationModified"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_label_run_version` ON `${TABLE_NAME}` (`modelVersion`, `generationModified`)"
+          }
+        ]
+      },
+      {
+        "tableName": "media_labels",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `canonicalLabel` TEXT NOT NULL, `rawLabel` TEXT NOT NULL, `confidence` REAL NOT NULL, `modelVersion` TEXT NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`, `canonicalLabel`))",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "canonicalLabel",
+            "columnName": "canonicalLabel",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawLabel",
+            "columnName": "rawLabel",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "confidence",
+            "columnName": "confidence",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modelVersion",
+            "columnName": "modelVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName",
+            "mediaStoreId",
+            "canonicalLabel"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_media_label_canonical",
+            "unique": false,
+            "columnNames": [
+              "canonicalLabel",
+              "confidence"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_media_label_canonical` ON `${TABLE_NAME}` (`canonicalLabel`, `confidence`)"
+          }
+        ]
+      },
+      {
+        "tableName": "label_suppressions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`canonicalLabel` TEXT NOT NULL, `suppressedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`canonicalLabel`))",
+        "fields": [
+          {
+            "fieldPath": "canonicalLabel",
+            "columnName": "canonicalLabel",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "suppressedAtMillis",
+            "columnName": "suppressedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "canonicalLabel"
+          ]
+        }
+      },
+      {
+        "tableName": "media_ocr",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `generationModified` INTEGER NOT NULL, `modelVersion` TEXT NOT NULL, `rawText` TEXT NOT NULL, `normalizedText` TEXT NOT NULL, `blocksJson` TEXT NOT NULL, `completedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`))",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generationModified",
+            "columnName": "generationModified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modelVersion",
+            "columnName": "modelVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawText",
+            "columnName": "rawText",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "normalizedText",
+            "columnName": "normalizedText",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "blocksJson",
+            "columnName": "blocksJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "completedAtMillis",
+            "columnName": "completedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName",
+            "mediaStoreId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_media_ocr_version",
+            "unique": false,
+            "columnNames": [
+              "modelVersion",
+              "generationModified"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_media_ocr_version` ON `${TABLE_NAME}` (`modelVersion`, `generationModified`)"
+          }
+        ]
+      },
+      {
+        "tableName": "duplicate_hashes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `generationModified` INTEGER NOT NULL, `sizeBytes` INTEGER NOT NULL, `hashVersion` TEXT NOT NULL, `sampleSha256` TEXT NOT NULL, `sha256` TEXT, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`), FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `media_items`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generationModified",
+            "columnName": "generationModified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sizeBytes",
+            "columnName": "sizeBytes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hashVersion",
+            "columnName": "hashVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sampleSha256",
+            "columnName": "sampleSha256",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sha256",
+            "columnName": "sha256",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "updatedAtMillis",
+            "columnName": "updatedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName",
+            "mediaStoreId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_duplicate_sample",
+            "unique": false,
+            "columnNames": [
+              "hashVersion",
+              "sizeBytes",
+              "sampleSha256"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_duplicate_sample` ON `${TABLE_NAME}` (`hashVersion`, `sizeBytes`, `sampleSha256`)"
+          },
+          {
+            "name": "index_duplicate_full",
+            "unique": false,
+            "columnNames": [
+              "hashVersion",
+              "sizeBytes",
+              "sha256"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_duplicate_full` ON `${TABLE_NAME}` (`hashVersion`, `sizeBytes`, `sha256`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "media_items",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "similarity_features",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `generationModified` INTEGER NOT NULL, `algorithmVersion` TEXT NOT NULL, `pHash` INTEGER NOT NULL, `compactEmbedding` BLOB NOT NULL, `lsh0` INTEGER NOT NULL, `lsh1` INTEGER NOT NULL, `lsh2` INTEGER NOT NULL, `lsh3` INTEGER NOT NULL, `blurScore` REAL NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`), FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `media_items`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generationModified",
+            "columnName": "generationModified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "algorithmVersion",
+            "columnName": "algorithmVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pHash",
+            "columnName": "pHash",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "compactEmbedding",
+            "columnName": "compactEmbedding",
+            "affinity": "BLOB",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lsh0",
+            "columnName": "lsh0",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lsh1",
+            "columnName": "lsh1",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lsh2",
+            "columnName": "lsh2",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lsh3",
+            "columnName": "lsh3",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "blurScore",
+            "columnName": "blurScore",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtMillis",
+            "columnName": "updatedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName",
+            "mediaStoreId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_similarity_lsh0",
+            "unique": false,
+            "columnNames": [
+              "algorithmVersion",
+              "lsh0"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_similarity_lsh0` ON `${TABLE_NAME}` (`algorithmVersion`, `lsh0`)"
+          },
+          {
+            "name": "index_similarity_lsh1",
+            "unique": false,
+            "columnNames": [
+              "algorithmVersion",
+              "lsh1"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_similarity_lsh1` ON `${TABLE_NAME}` (`algorithmVersion`, `lsh1`)"
+          },
+          {
+            "name": "index_similarity_lsh2",
+            "unique": false,
+            "columnNames": [
+              "algorithmVersion",
+              "lsh2"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_similarity_lsh2` ON `${TABLE_NAME}` (`algorithmVersion`, `lsh2`)"
+          },
+          {
+            "name": "index_similarity_lsh3",
+            "unique": false,
+            "columnNames": [
+              "algorithmVersion",
+              "lsh3"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_similarity_lsh3` ON `${TABLE_NAME}` (`algorithmVersion`, `lsh3`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "media_items",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "similarity_edges",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`aVolumeName` TEXT NOT NULL, `aMediaStoreId` INTEGER NOT NULL, `bVolumeName` TEXT NOT NULL, `bMediaStoreId` INTEGER NOT NULL, `score` REAL NOT NULL, PRIMARY KEY(`aVolumeName`, `aMediaStoreId`, `bVolumeName`, `bMediaStoreId`), FOREIGN KEY(`aVolumeName`, `aMediaStoreId`) REFERENCES `similarity_features`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`bVolumeName`, `bMediaStoreId`) REFERENCES `similarity_features`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "aVolumeName",
+            "columnName": "aVolumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "aMediaStoreId",
+            "columnName": "aMediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bVolumeName",
+            "columnName": "bVolumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bMediaStoreId",
+            "columnName": "bMediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "score",
+            "columnName": "score",
+            "affinity": "REAL",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "aVolumeName",
+            "aMediaStoreId",
+            "bVolumeName",
+            "bMediaStoreId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_similarity_edge_b",
+            "unique": false,
+            "columnNames": [
+              "bVolumeName",
+              "bMediaStoreId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_similarity_edge_b` ON `${TABLE_NAME}` (`bVolumeName`, `bMediaStoreId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "similarity_features",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "aVolumeName",
+              "aMediaStoreId"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId"
+            ]
+          },
+          {
+            "table": "similarity_features",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "bVolumeName",
+              "bMediaStoreId"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "similarity_memberships",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `clusterId` TEXT NOT NULL, `bestScore` REAL NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`), FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `similarity_features`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "clusterId",
+            "columnName": "clusterId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bestScore",
+            "columnName": "bestScore",
+            "affinity": "REAL",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName",
+            "mediaStoreId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_similarity_cluster",
+            "unique": false,
+            "columnNames": [
+              "clusterId",
+              "bestScore"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_similarity_cluster` ON `${TABLE_NAME}` (`clusterId`, `bestScore`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "similarity_features",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "similarity_exclusions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `excludedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`), FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `media_items`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "excludedAtMillis",
+            "columnName": "excludedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName",
+            "mediaStoreId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "media_items",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "face_detection_runs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `generationModified` INTEGER NOT NULL, `modelVersion` TEXT NOT NULL, `acceptedFaceCount` INTEGER NOT NULL, `completedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`), FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `media_items`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generationModified",
+            "columnName": "generationModified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modelVersion",
+            "columnName": "modelVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "acceptedFaceCount",
+            "columnName": "acceptedFaceCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "completedAtMillis",
+            "columnName": "completedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName",
+            "mediaStoreId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_face_run_version",
+            "unique": false,
+            "columnNames": [
+              "modelVersion",
+              "generationModified"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_face_run_version` ON `${TABLE_NAME}` (`modelVersion`, `generationModified`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "media_items",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "detected_faces",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `faceOrdinal` INTEGER NOT NULL, `modelVersion` TEXT NOT NULL, `leftPermille` INTEGER NOT NULL, `topPermille` INTEGER NOT NULL, `rightPermille` INTEGER NOT NULL, `bottomPermille` INTEGER NOT NULL, `cropLeftPermille` INTEGER NOT NULL, `cropTopPermille` INTEGER NOT NULL, `cropRightPermille` INTEGER NOT NULL, `cropBottomPermille` INTEGER NOT NULL, `eulerX` REAL NOT NULL, `eulerY` REAL NOT NULL, `eulerZ` REAL NOT NULL, `qualityScore` REAL NOT NULL, `landmarksJson` TEXT NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`), FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `face_detection_runs`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "faceOrdinal",
+            "columnName": "faceOrdinal",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modelVersion",
+            "columnName": "modelVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "leftPermille",
+            "columnName": "leftPermille",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "topPermille",
+            "columnName": "topPermille",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rightPermille",
+            "columnName": "rightPermille",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bottomPermille",
+            "columnName": "bottomPermille",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cropLeftPermille",
+            "columnName": "cropLeftPermille",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cropTopPermille",
+            "columnName": "cropTopPermille",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cropRightPermille",
+            "columnName": "cropRightPermille",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cropBottomPermille",
+            "columnName": "cropBottomPermille",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "eulerX",
+            "columnName": "eulerX",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "eulerY",
+            "columnName": "eulerY",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "eulerZ",
+            "columnName": "eulerZ",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "qualityScore",
+            "columnName": "qualityScore",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "landmarksJson",
+            "columnName": "landmarksJson",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName",
+            "mediaStoreId",
+            "faceOrdinal"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_detected_face_media",
+            "unique": false,
+            "columnNames": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_detected_face_media` ON `${TABLE_NAME}` (`volumeName`, `mediaStoreId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "face_detection_runs",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "face_embeddings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `faceOrdinal` INTEGER NOT NULL, `detectionModelVersion` TEXT NOT NULL, `embeddingModelVersion` TEXT NOT NULL, `quantizedVector` BLOB NOT NULL, `completedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`), FOREIGN KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`) REFERENCES `detected_faces`(`volumeName`, `mediaStoreId`, `faceOrdinal`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "faceOrdinal",
+            "columnName": "faceOrdinal",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "detectionModelVersion",
+            "columnName": "detectionModelVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "embeddingModelVersion",
+            "columnName": "embeddingModelVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quantizedVector",
+            "columnName": "quantizedVector",
+            "affinity": "BLOB",
+            "notNull": true
+          },
+          {
+            "fieldPath": "completedAtMillis",
+            "columnName": "completedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName",
+            "mediaStoreId",
+            "faceOrdinal"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_face_embedding_version",
+            "unique": false,
+            "columnNames": [
+              "embeddingModelVersion"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_face_embedding_version` ON `${TABLE_NAME}` (`embeddingModelVersion`)"
+          },
+          {
+            "name": "index_face_embedding_media",
+            "unique": false,
+            "columnNames": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_face_embedding_media` ON `${TABLE_NAME}` (`volumeName`, `mediaStoreId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "detected_faces",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "volumeName",
+              "mediaStoreId",
+              "faceOrdinal"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId",
+              "faceOrdinal"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "person_clusters",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`clusterId` TEXT NOT NULL, `algorithmVersion` TEXT NOT NULL, `centroidVector` BLOB NOT NULL, `memberCount` INTEGER NOT NULL, `displayName` TEXT, `isHidden` INTEGER NOT NULL, `isUserEdited` INTEGER NOT NULL, `createdAtMillis` INTEGER NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`clusterId`))",
+        "fields": [
+          {
+            "fieldPath": "clusterId",
+            "columnName": "clusterId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "algorithmVersion",
+            "columnName": "algorithmVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "centroidVector",
+            "columnName": "centroidVector",
+            "affinity": "BLOB",
+            "notNull": true
+          },
+          {
+            "fieldPath": "memberCount",
+            "columnName": "memberCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "displayName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isHidden",
+            "columnName": "isHidden",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isUserEdited",
+            "columnName": "isUserEdited",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtMillis",
+            "columnName": "createdAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtMillis",
+            "columnName": "updatedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "clusterId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_person_cluster_visible",
+            "unique": false,
+            "columnNames": [
+              "algorithmVersion",
+              "isHidden",
+              "updatedAtMillis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_person_cluster_visible` ON `${TABLE_NAME}` (`algorithmVersion`, `isHidden`, `updatedAtMillis`)"
+          }
+        ]
+      },
+      {
+        "tableName": "person_memberships",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `faceOrdinal` INTEGER NOT NULL, `clusterId` TEXT NOT NULL, `algorithmVersion` TEXT NOT NULL, `assignmentSource` TEXT NOT NULL, `similarity` REAL NOT NULL, `assignedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`), FOREIGN KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`) REFERENCES `face_embeddings`(`volumeName`, `mediaStoreId`, `faceOrdinal`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`clusterId`) REFERENCES `person_clusters`(`clusterId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "faceOrdinal",
+            "columnName": "faceOrdinal",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "clusterId",
+            "columnName": "clusterId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "algorithmVersion",
+            "columnName": "algorithmVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "assignmentSource",
+            "columnName": "assignmentSource",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "similarity",
+            "columnName": "similarity",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "assignedAtMillis",
+            "columnName": "assignedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName",
+            "mediaStoreId",
+            "faceOrdinal"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_person_membership_cluster",
+            "unique": false,
+            "columnNames": [
+              "clusterId",
+              "similarity"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_person_membership_cluster` ON `${TABLE_NAME}` (`clusterId`, `similarity`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "face_embeddings",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "volumeName",
+              "mediaStoreId",
+              "faceOrdinal"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId",
+              "faceOrdinal"
+            ]
+          },
+          {
+            "table": "person_clusters",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "clusterId"
+            ],
+            "referencedColumns": [
+              "clusterId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "person_cluster_projections",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`clusterId` TEXT NOT NULL, `band` INTEGER NOT NULL, `q0` INTEGER NOT NULL, `q1` INTEGER NOT NULL, `q2` INTEGER NOT NULL, `q3` INTEGER NOT NULL, `q4` INTEGER NOT NULL, `q5` INTEGER NOT NULL, PRIMARY KEY(`clusterId`, `band`), FOREIGN KEY(`clusterId`) REFERENCES `person_clusters`(`clusterId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "clusterId",
+            "columnName": "clusterId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "band",
+            "columnName": "band",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "q0",
+            "columnName": "q0",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "q1",
+            "columnName": "q1",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "q2",
+            "columnName": "q2",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "q3",
+            "columnName": "q3",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "q4",
+            "columnName": "q4",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "q5",
+            "columnName": "q5",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "clusterId",
+            "band"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_person_projection_lookup",
+            "unique": false,
+            "columnNames": [
+              "band",
+              "q0",
+              "q1"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_person_projection_lookup` ON `${TABLE_NAME}` (`band`, `q0`, `q1`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "person_clusters",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "clusterId"
+            ],
+            "referencedColumns": [
+              "clusterId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "person_constraints",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`leftVolumeName` TEXT NOT NULL, `leftMediaStoreId` INTEGER NOT NULL, `leftFaceOrdinal` INTEGER NOT NULL, `rightVolumeName` TEXT NOT NULL, `rightMediaStoreId` INTEGER NOT NULL, `rightFaceOrdinal` INTEGER NOT NULL, `relation` TEXT NOT NULL, `preferredClusterId` TEXT, `createdAtMillis` INTEGER NOT NULL, PRIMARY KEY(`leftVolumeName`, `leftMediaStoreId`, `leftFaceOrdinal`, `rightVolumeName`, `rightMediaStoreId`, `rightFaceOrdinal`), FOREIGN KEY(`leftVolumeName`, `leftMediaStoreId`, `leftFaceOrdinal`) REFERENCES `detected_faces`(`volumeName`, `mediaStoreId`, `faceOrdinal`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`rightVolumeName`, `rightMediaStoreId`, `rightFaceOrdinal`) REFERENCES `detected_faces`(`volumeName`, `mediaStoreId`, `faceOrdinal`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "leftVolumeName",
+            "columnName": "leftVolumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "leftMediaStoreId",
+            "columnName": "leftMediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "leftFaceOrdinal",
+            "columnName": "leftFaceOrdinal",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rightVolumeName",
+            "columnName": "rightVolumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rightMediaStoreId",
+            "columnName": "rightMediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rightFaceOrdinal",
+            "columnName": "rightFaceOrdinal",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "relation",
+            "columnName": "relation",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "preferredClusterId",
+            "columnName": "preferredClusterId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAtMillis",
+            "columnName": "createdAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "leftVolumeName",
+            "leftMediaStoreId",
+            "leftFaceOrdinal",
+            "rightVolumeName",
+            "rightMediaStoreId",
+            "rightFaceOrdinal"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_person_constraint_right",
+            "unique": false,
+            "columnNames": [
+              "rightVolumeName",
+              "rightMediaStoreId",
+              "rightFaceOrdinal"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_person_constraint_right` ON `${TABLE_NAME}` (`rightVolumeName`, `rightMediaStoreId`, `rightFaceOrdinal`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "detected_faces",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "leftVolumeName",
+              "leftMediaStoreId",
+              "leftFaceOrdinal"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId",
+              "faceOrdinal"
+            ]
+          },
+          {
+            "table": "detected_faces",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "rightVolumeName",
+              "rightMediaStoreId",
+              "rightFaceOrdinal"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId",
+              "faceOrdinal"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "person_face_overrides",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `faceOrdinal` INTEGER NOT NULL, `clusterId` TEXT NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`), FOREIGN KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`) REFERENCES `detected_faces`(`volumeName`, `mediaStoreId`, `faceOrdinal`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`clusterId`) REFERENCES `person_clusters`(`clusterId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "faceOrdinal",
+            "columnName": "faceOrdinal",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "clusterId",
+            "columnName": "clusterId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtMillis",
+            "columnName": "updatedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName",
+            "mediaStoreId",
+            "faceOrdinal"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_person_face_override_cluster",
+            "unique": false,
+            "columnNames": [
+              "clusterId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_person_face_override_cluster` ON `${TABLE_NAME}` (`clusterId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "detected_faces",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "volumeName",
+              "mediaStoreId",
+              "faceOrdinal"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId",
+              "faceOrdinal"
+            ]
+          },
+          {
+            "table": "person_clusters",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "clusterId"
+            ],
+            "referencedColumns": [
+              "clusterId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "me_profiles",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`profileId` INTEGER NOT NULL, `embeddingModelVersion` TEXT NOT NULL, `centroidVector` BLOB NOT NULL, `matchThreshold` REAL NOT NULL, `referenceCount` INTEGER NOT NULL, `state` TEXT NOT NULL, `afterVolumeName` TEXT, `afterMediaStoreId` INTEGER, `afterFaceOrdinal` INTEGER, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`profileId`))",
+        "fields": [
+          {
+            "fieldPath": "profileId",
+            "columnName": "profileId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "embeddingModelVersion",
+            "columnName": "embeddingModelVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "centroidVector",
+            "columnName": "centroidVector",
+            "affinity": "BLOB",
+            "notNull": true
+          },
+          {
+            "fieldPath": "matchThreshold",
+            "columnName": "matchThreshold",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "referenceCount",
+            "columnName": "referenceCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "afterVolumeName",
+            "columnName": "afterVolumeName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "afterMediaStoreId",
+            "columnName": "afterMediaStoreId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "afterFaceOrdinal",
+            "columnName": "afterFaceOrdinal",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "updatedAtMillis",
+            "columnName": "updatedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "profileId"
+          ]
+        }
+      },
+      {
+        "tableName": "me_references",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`profileId` INTEGER NOT NULL, `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `faceOrdinal` INTEGER NOT NULL, `addedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`profileId`, `volumeName`, `mediaStoreId`, `faceOrdinal`), FOREIGN KEY(`profileId`) REFERENCES `me_profiles`(`profileId`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`) REFERENCES `face_embeddings`(`volumeName`, `mediaStoreId`, `faceOrdinal`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "profileId",
+            "columnName": "profileId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "faceOrdinal",
+            "columnName": "faceOrdinal",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "addedAtMillis",
+            "columnName": "addedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "profileId",
+            "volumeName",
+            "mediaStoreId",
+            "faceOrdinal"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_me_reference_face",
+            "unique": false,
+            "columnNames": [
+              "volumeName",
+              "mediaStoreId",
+              "faceOrdinal"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_me_reference_face` ON `${TABLE_NAME}` (`volumeName`, `mediaStoreId`, `faceOrdinal`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "me_profiles",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "profileId"
+            ],
+            "referencedColumns": [
+              "profileId"
+            ]
+          },
+          {
+            "table": "face_embeddings",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "volumeName",
+              "mediaStoreId",
+              "faceOrdinal"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId",
+              "faceOrdinal"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "me_matches",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`profileId` INTEGER NOT NULL, `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `faceOrdinal` INTEGER NOT NULL, `similarity` REAL NOT NULL, `matchedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`profileId`, `volumeName`, `mediaStoreId`, `faceOrdinal`), FOREIGN KEY(`profileId`) REFERENCES `me_profiles`(`profileId`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`) REFERENCES `face_embeddings`(`volumeName`, `mediaStoreId`, `faceOrdinal`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "profileId",
+            "columnName": "profileId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "faceOrdinal",
+            "columnName": "faceOrdinal",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "similarity",
+            "columnName": "similarity",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "matchedAtMillis",
+            "columnName": "matchedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "profileId",
+            "volumeName",
+            "mediaStoreId",
+            "faceOrdinal"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_me_match_score",
+            "unique": false,
+            "columnNames": [
+              "profileId",
+              "similarity"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_me_match_score` ON `${TABLE_NAME}` (`profileId`, `similarity`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "me_profiles",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "profileId"
+            ],
+            "referencedColumns": [
+              "profileId"
+            ]
+          },
+          {
+            "table": "face_embeddings",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "volumeName",
+              "mediaStoreId",
+              "faceOrdinal"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId",
+              "faceOrdinal"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "moments",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`momentId` TEXT NOT NULL, `origin` TEXT NOT NULL, `state` TEXT NOT NULL, `algorithmVersion` TEXT NOT NULL, `startMillis` INTEGER NOT NULL, `endMillis` INTEGER NOT NULL, `title` TEXT, `titleMode` TEXT NOT NULL, `isUserEdited` INTEGER NOT NULL, `createdAtMillis` INTEGER NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`momentId`))",
+        "fields": [
+          {
+            "fieldPath": "momentId",
+            "columnName": "momentId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "algorithmVersion",
+            "columnName": "algorithmVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startMillis",
+            "columnName": "startMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endMillis",
+            "columnName": "endMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "titleMode",
+            "columnName": "titleMode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isUserEdited",
+            "columnName": "isUserEdited",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtMillis",
+            "columnName": "createdAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtMillis",
+            "columnName": "updatedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "momentId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_moment_state_updated",
+            "unique": false,
+            "columnNames": [
+              "state",
+              "updatedAtMillis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_moment_state_updated` ON `${TABLE_NAME}` (`state`, `updatedAtMillis`)"
+          },
+          {
+            "name": "index_moment_state_start",
+            "unique": false,
+            "columnNames": [
+              "state",
+              "startMillis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_moment_state_start` ON `${TABLE_NAME}` (`state`, `startMillis`)"
+          }
+        ]
+      },
+      {
+        "tableName": "moment_members",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`momentId` TEXT NOT NULL, `ordinal` INTEGER NOT NULL, `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `generationModifiedAtSelection` INTEGER NOT NULL, `origin` TEXT NOT NULL, `score` REAL NOT NULL, PRIMARY KEY(`momentId`, `ordinal`), FOREIGN KEY(`momentId`) REFERENCES `moments`(`momentId`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `media_items`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "momentId",
+            "columnName": "momentId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ordinal",
+            "columnName": "ordinal",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generationModifiedAtSelection",
+            "columnName": "generationModifiedAtSelection",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "score",
+            "columnName": "score",
+            "affinity": "REAL",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "momentId",
+            "ordinal"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_moment_member_key",
+            "unique": false,
+            "columnNames": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_moment_member_key` ON `${TABLE_NAME}` (`volumeName`, `mediaStoreId`)"
+          },
+          {
+            "name": "index_moment_member_order",
+            "unique": false,
+            "columnNames": [
+              "momentId",
+              "ordinal"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_moment_member_order` ON `${TABLE_NAME}` (`momentId`, `ordinal`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "moments",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "momentId"
+            ],
+            "referencedColumns": [
+              "momentId"
+            ]
+          },
+          {
+            "table": "media_items",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "moment_covers",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`momentId` TEXT NOT NULL, `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `isUserSelected` INTEGER NOT NULL, PRIMARY KEY(`momentId`), FOREIGN KEY(`momentId`) REFERENCES `moments`(`momentId`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `media_items`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "momentId",
+            "columnName": "momentId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isUserSelected",
+            "columnName": "isUserSelected",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "momentId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_moment_cover_key",
+            "unique": false,
+            "columnNames": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_moment_cover_key` ON `${TABLE_NAME}` (`volumeName`, `mediaStoreId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "moments",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "momentId"
+            ],
+            "referencedColumns": [
+              "momentId"
+            ]
+          },
+          {
+            "table": "media_items",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "moment_runs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`algorithmVersion` TEXT NOT NULL, `runId` TEXT NOT NULL, `status` TEXT NOT NULL, `afterTimelineSortMillis` INTEGER, `afterMediaStoreId` INTEGER, `afterVolumeName` TEXT, `openStartMillis` INTEGER, `openEndMillis` INTEGER, `openLastMillis` INTEGER, `openItemCount` INTEGER NOT NULL, `processedItems` INTEGER NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`algorithmVersion`))",
+        "fields": [
+          {
+            "fieldPath": "algorithmVersion",
+            "columnName": "algorithmVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "runId",
+            "columnName": "runId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "afterTimelineSortMillis",
+            "columnName": "afterTimelineSortMillis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "afterMediaStoreId",
+            "columnName": "afterMediaStoreId",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "afterVolumeName",
+            "columnName": "afterVolumeName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "openStartMillis",
+            "columnName": "openStartMillis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "openEndMillis",
+            "columnName": "openEndMillis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "openLastMillis",
+            "columnName": "openLastMillis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "openItemCount",
+            "columnName": "openItemCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "processedItems",
+            "columnName": "processedItems",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtMillis",
+            "columnName": "updatedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "algorithmVersion"
+          ]
+        }
+      },
+      {
+        "tableName": "moment_run_candidates",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`algorithmVersion` TEXT NOT NULL, `rank` INTEGER NOT NULL, `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `generationModified` INTEGER NOT NULL, `timelineSortMillis` INTEGER NOT NULL, `score` REAL NOT NULL, `timeBucket` INTEGER NOT NULL, `visualBucket` TEXT NOT NULL, PRIMARY KEY(`algorithmVersion`, `rank`), FOREIGN KEY(`algorithmVersion`) REFERENCES `moment_runs`(`algorithmVersion`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `media_items`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "algorithmVersion",
+            "columnName": "algorithmVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rank",
+            "columnName": "rank",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generationModified",
+            "columnName": "generationModified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timelineSortMillis",
+            "columnName": "timelineSortMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "score",
+            "columnName": "score",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timeBucket",
+            "columnName": "timeBucket",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "visualBucket",
+            "columnName": "visualBucket",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "algorithmVersion",
+            "rank"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_moment_run_candidate_key",
+            "unique": false,
+            "columnNames": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_moment_run_candidate_key` ON `${TABLE_NAME}` (`volumeName`, `mediaStoreId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "moment_runs",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "algorithmVersion"
+            ],
+            "referencedColumns": [
+              "algorithmVersion"
+            ]
+          },
+          {
+            "table": "media_items",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "edit_recipes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`recipeId` TEXT NOT NULL, `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `sourceGenerationModified` INTEGER NOT NULL, `revision` INTEGER NOT NULL, `createdAtMillis` INTEGER NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`recipeId`), FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `media_items`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "recipeId",
+            "columnName": "recipeId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceGenerationModified",
+            "columnName": "sourceGenerationModified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtMillis",
+            "columnName": "createdAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtMillis",
+            "columnName": "updatedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "recipeId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_edit_recipe_source",
+            "unique": false,
+            "columnNames": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_edit_recipe_source` ON `${TABLE_NAME}` (`volumeName`, `mediaStoreId`)"
+          },
+          {
+            "name": "index_edit_recipe_updated",
+            "unique": false,
+            "columnNames": [
+              "updatedAtMillis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_edit_recipe_updated` ON `${TABLE_NAME}` (`updatedAtMillis`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "media_items",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "edit_operations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`recipeId` TEXT NOT NULL, `ordinal` INTEGER NOT NULL, `encodedOperation` TEXT NOT NULL, PRIMARY KEY(`recipeId`, `ordinal`), FOREIGN KEY(`recipeId`) REFERENCES `edit_recipes`(`recipeId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "recipeId",
+            "columnName": "recipeId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ordinal",
+            "columnName": "ordinal",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "encodedOperation",
+            "columnName": "encodedOperation",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "recipeId",
+            "ordinal"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_edit_operation_recipe",
+            "unique": false,
+            "columnNames": [
+              "recipeId",
+              "ordinal"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_edit_operation_recipe` ON `${TABLE_NAME}` (`recipeId`, `ordinal`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "edit_recipes",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "recipeId"
+            ],
+            "referencedColumns": [
+              "recipeId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "video_edit_recipes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `sourceGenerationModified` INTEGER NOT NULL, `encodedRecipe` TEXT NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`, `sourceGenerationModified`), FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `media_items`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceGenerationModified",
+            "columnName": "sourceGenerationModified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "encodedRecipe",
+            "columnName": "encodedRecipe",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtMillis",
+            "columnName": "updatedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName",
+            "mediaStoreId",
+            "sourceGenerationModified"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_video_edit_recipe_updated",
+            "unique": false,
+            "columnNames": [
+              "updatedAtMillis"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_video_edit_recipe_updated` ON `${TABLE_NAME}` (`updatedAtMillis`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "media_items",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "custom_luts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`lutId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `displayName` TEXT NOT NULL, `fileName` TEXT NOT NULL, `cubeSize` INTEGER NOT NULL, `sha256` TEXT NOT NULL, `importedAtMillis` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "lutId",
+            "columnName": "lutId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "displayName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fileName",
+            "columnName": "fileName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cubeSize",
+            "columnName": "cubeSize",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sha256",
+            "columnName": "sha256",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "importedAtMillis",
+            "columnName": "importedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "lutId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_custom_luts_displayName",
+            "unique": true,
+            "columnNames": [
+              "displayName"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_custom_luts_displayName` ON `${TABLE_NAME}` (`displayName`)"
+          }
+        ]
+      },
+      {
+        "tableName": "video_playback_positions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `positionMillis` INTEGER NOT NULL, `durationMillis` INTEGER NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`), FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `media_items`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "positionMillis",
+            "columnName": "positionMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "durationMillis",
+            "columnName": "durationMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtMillis",
+            "columnName": "updatedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "volumeName",
+            "mediaStoreId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "media_items",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "semantic_indexes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`indexId` TEXT NOT NULL, `modelId` TEXT NOT NULL, `modelVersion` TEXT NOT NULL, `status` TEXT NOT NULL, `embeddedCount` INTEGER NOT NULL, `createdAtMillis` INTEGER NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`indexId`))",
+        "fields": [
+          {
+            "fieldPath": "indexId",
+            "columnName": "indexId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modelId",
+            "columnName": "modelId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modelVersion",
+            "columnName": "modelVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "embeddedCount",
+            "columnName": "embeddedCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtMillis",
+            "columnName": "createdAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtMillis",
+            "columnName": "updatedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "indexId"
+          ]
+        }
+      },
+      {
+        "tableName": "semantic_embeddings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`indexId` TEXT NOT NULL, `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `generationModified` INTEGER NOT NULL, `modelVersion` TEXT NOT NULL, `quantizedVector` BLOB NOT NULL, `lsh0` INTEGER NOT NULL, `lsh1` INTEGER NOT NULL, `lsh2` INTEGER NOT NULL, `lsh3` INTEGER NOT NULL, `lsh4` INTEGER NOT NULL, `lsh5` INTEGER NOT NULL, `lsh6` INTEGER NOT NULL, `lsh7` INTEGER NOT NULL, `completedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`indexId`, `volumeName`, `mediaStoreId`), FOREIGN KEY(`indexId`) REFERENCES `semantic_indexes`(`indexId`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `media_items`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "indexId",
+            "columnName": "indexId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "volumeName",
+            "columnName": "volumeName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mediaStoreId",
+            "columnName": "mediaStoreId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generationModified",
+            "columnName": "generationModified",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "modelVersion",
+            "columnName": "modelVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quantizedVector",
+            "columnName": "quantizedVector",
+            "affinity": "BLOB",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lsh0",
+            "columnName": "lsh0",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lsh1",
+            "columnName": "lsh1",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lsh2",
+            "columnName": "lsh2",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lsh3",
+            "columnName": "lsh3",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lsh4",
+            "columnName": "lsh4",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lsh5",
+            "columnName": "lsh5",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lsh6",
+            "columnName": "lsh6",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lsh7",
+            "columnName": "lsh7",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "completedAtMillis",
+            "columnName": "completedAtMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "indexId",
+            "volumeName",
+            "mediaStoreId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_semantic_embeddings_volumeName_mediaStoreId",
+            "unique": false,
+            "columnNames": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_semantic_embeddings_volumeName_mediaStoreId` ON `${TABLE_NAME}` (`volumeName`, `mediaStoreId`)"
+          },
+          {
+            "name": "index_semantic_embeddings_indexId_lsh0",
+            "unique": false,
+            "columnNames": [
+              "indexId",
+              "lsh0"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_semantic_embeddings_indexId_lsh0` ON `${TABLE_NAME}` (`indexId`, `lsh0`)"
+          },
+          {
+            "name": "index_semantic_embeddings_indexId_lsh1",
+            "unique": false,
+            "columnNames": [
+              "indexId",
+              "lsh1"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_semantic_embeddings_indexId_lsh1` ON `${TABLE_NAME}` (`indexId`, `lsh1`)"
+          },
+          {
+            "name": "index_semantic_embeddings_indexId_lsh2",
+            "unique": false,
+            "columnNames": [
+              "indexId",
+              "lsh2"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_semantic_embeddings_indexId_lsh2` ON `${TABLE_NAME}` (`indexId`, `lsh2`)"
+          },
+          {
+            "name": "index_semantic_embeddings_indexId_lsh3",
+            "unique": false,
+            "columnNames": [
+              "indexId",
+              "lsh3"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_semantic_embeddings_indexId_lsh3` ON `${TABLE_NAME}` (`indexId`, `lsh3`)"
+          },
+          {
+            "name": "index_semantic_embeddings_indexId_lsh4",
+            "unique": false,
+            "columnNames": [
+              "indexId",
+              "lsh4"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_semantic_embeddings_indexId_lsh4` ON `${TABLE_NAME}` (`indexId`, `lsh4`)"
+          },
+          {
+            "name": "index_semantic_embeddings_indexId_lsh5",
+            "unique": false,
+            "columnNames": [
+              "indexId",
+              "lsh5"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_semantic_embeddings_indexId_lsh5` ON `${TABLE_NAME}` (`indexId`, `lsh5`)"
+          },
+          {
+            "name": "index_semantic_embeddings_indexId_lsh6",
+            "unique": false,
+            "columnNames": [
+              "indexId",
+              "lsh6"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_semantic_embeddings_indexId_lsh6` ON `${TABLE_NAME}` (`indexId`, `lsh6`)"
+          },
+          {
+            "name": "index_semantic_embeddings_indexId_lsh7",
+            "unique": false,
+            "columnNames": [
+              "indexId",
+              "lsh7"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_semantic_embeddings_indexId_lsh7` ON `${TABLE_NAME}` (`indexId`, `lsh7`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "semantic_indexes",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "indexId"
+            ],
+            "referencedColumns": [
+              "indexId"
+            ]
+          },
+          {
+            "table": "media_items",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "volumeName",
+              "mediaStoreId"
+            ],
+            "referencedColumns": [
+              "volumeName",
+              "mediaStoreId"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '0ed6c30a59ac557c6ac7cf53b66743c5')"
+    ]
+  }
+}

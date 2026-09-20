@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="motion_title">Motion Photo</string>
+    <string name="motion_back">Indietro</string>
+    <string name="motion_loading">Lettura del movimento locale…</string>
+    <string name="motion_unavailable">Sezione movimento non disponibile</string>
+    <string name="motion_unavailable_hint">La foto originale resta invariata. Il file non contiene una sezione JPEG + MP4 compatibile e leggibile. Nessun fotogramma inventato.</string>
+    <string name="motion_original">Torna all’originale</string>
+    <string name="motion_frame">Fotogramma reale selezionato</string>
+    <string name="motion_frame_number">Fotogramma %1$d</string>
+    <string name="motion_time">%1$d / %2$d ms</string>
+    <string name="motion_play">Riproduci movimento</string>
+    <string name="motion_pause">Pausa</string>
+    <string name="motion_set_key">Imposta fotogramma chiave</string>
+    <string name="motion_reset_key">Ripristina copertina originale</string>
+    <string name="motion_original_key">Copertina: foto originale</string>
+    <string name="motion_selected_key">Fotogramma chiave salvato: %1$d ms</string>
+    <string name="motion_note">Tutto resta sul dispositivo. La copertina è una modifica locale reversibile; l’originale resta intatto. JPEG e MP4 sono copie separate. JPEG animati fino a 512 MB, clip fino a 60 secondi; JPEG estratti limitati a 4096 pixel per lato.</string>
+    <string name="motion_save_jpeg">Salva fotogramma JPEG</string>
+    <string name="motion_save_mp4">Salva clip MP4</string>
+    <string name="motion_cancel">Annulla</string>
+    <string name="motion_saved">Copertina salvata localmente</string>
+    <string name="motion_error">L’azione non è terminata. Verifica accesso all’origine e spazio libero, poi riprova. L’originale resta invariato.</string>
+    <string name="motion_exported">Copia verificata salvata</string>
+    <string name="motion_open">Apri copia</string>
+    <string name="motion_share">Condividi copia</string>
+    <string name="motion_cancel_title">Annullare l’azione corrente?</string>
+    <string name="motion_continue">Continua</string>
+</resources>

@@ -32,7 +32,7 @@ fun RetainGridThumbnailViewport(
     itemAtIndex: (Int) -> ThumbnailPrefetchCandidate?,
 ) {
     if (columns <= 0 || itemCount <= 0 || loader.prefetchPolicy == null) return
-    val currentItemAtIndex = rememberUpdatedState(itemAtIndex)
+    val currentItems = rememberUpdatedState(itemCount to itemAtIndex)
     val retained = remember(loader) { mutableStateMapOf<ThumbnailRequest, Bitmap>() }
     val owner = remember(loader) { Any() }
     DisposableEffect(loader, owner) {
@@ -66,22 +66,29 @@ fun RetainGridThumbnailViewport(
                         (anchor.first == previous.first && anchor.second >= previous.second)
                 }
                 previousAnchor = anchor
-                val visibleIndices = viewport.visibleIndices.distinct().sorted()
-                if (visibleIndices.isEmpty()) return@collectLatest
+                // The old layout may outlive a Paging refresh. Read count and accessor from
+                // the same composition; never feed stale viewport indices to the new dataset.
+                val (currentCount, currentItemAtIndex) = currentItems.value
+                val visibleIndices = boundedViewportIndices(viewport.visibleIndices, currentCount)
+                if (visibleIndices.isEmpty()) {
+                    retained.clear()
+                    loader.retainWindow(owner, emptyMap())
+                    return@collectLatest
+                }
                 val center = (visibleIndices.first() + visibleIndices.last()) / 2
                 val visible = visibleIndices.mapNotNull { index ->
-                    currentItemAtIndex.value(index)?.copy(
+                    currentItemAtIndex(index)?.copy(
                         distanceFromViewportCenter = abs(index - center),
                     )
                 }
                 val extra = ArrayList<ThumbnailPrefetchCandidate>(columns)
                 val range = if (forward) {
-                    (visibleIndices.last() + 1) until itemCount
+                    (visibleIndices.last() + 1) until currentCount
                 } else {
                     (visibleIndices.first() - 1 downTo 0)
                 }
                 for (index in range) {
-                    currentItemAtIndex.value(index)?.let { candidate ->
+                    currentItemAtIndex(index)?.let { candidate ->
                         extra += candidate.copy(distanceFromViewportCenter = abs(index - center))
                     }
                     if (extra.size >= columns) break
@@ -113,3 +120,6 @@ private data class GridViewportSnapshot(
     val anchorIndex: Int,
     val anchorOffset: Int,
 )
+
+internal fun boundedViewportIndices(indices: List<Int>, itemCount: Int): List<Int> =
+    indices.filter { it >= 0 && it < itemCount }.distinct().sorted()

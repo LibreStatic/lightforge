@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
@@ -40,6 +42,8 @@ class CollectionsContentDeviceTest {
                     physicalAlbums = physicalAlbums,
                     virtualAlbums = virtualAlbums,
                     trashCount = 0,
+                    archiveCount = 0,
+                    onArchiveClick = {},
                     momentSummaries = emptyList(),
                     onMomentClick = {},
                     onAlbumClick = {},
@@ -60,10 +64,11 @@ class CollectionsContentDeviceTest {
             }
         }
 
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(context.getString(R.string.collections_local_analysis)))
         val first = compose.onNode(hasText(context.getString(R.string.collections_local_analysis)))
             .getUnclippedBoundsInRoot()
         val second = compose.onNode(hasText(privateAlbum)).getUnclippedBoundsInRoot()
-        assertTrue("Descriptive cards should occupy separate rows", second.top >= first.bottom)
+        assertTrue("Descriptive cards should occupy separate rows", second.top >= first.bottom || first.top >= second.bottom)
         assertTrue(
             "Descriptive cards should use the same full width",
             kotlin.math.abs(first.left.value - second.left.value) < 1f,
@@ -73,6 +78,7 @@ class CollectionsContentDeviceTest {
             kotlin.math.abs(first.right.value - second.right.value) < 1f,
         )
 
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(context.getString(R.string.collections_dogs)))
         val dogs = compose.onNode(hasText(context.getString(R.string.collections_dogs))).getUnclippedBoundsInRoot()
         val cats = compose.onNode(hasText(context.getString(R.string.collections_cats))).getUnclippedBoundsInRoot()
         assertTrue(

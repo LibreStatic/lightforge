@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="motion_publication_checking">Comprobando el resultado guardado…</string>
+    <string name="motion_publication_not_started">No se publicó ningún resultado. Comprobá otra vez o volvé explícitamente a editar. No se exportará nada automáticamente.</string>
+    <string name="motion_publication_incomplete">La publicación está incompleta. Se conserva la recuperación. Comprobá otra vez o volvé; otra exportación está bloqueada.</string>
+    <string name="motion_publication_conflict">El resultado guardado falta o cambió. Abrir, compartir y volver a exportar están bloqueados. Se conserva la recuperación.</string>
+    <string name="motion_publication_unreadable">No se pudo verificar el resultado guardado. Comprobá otra vez o volvé; se conserva la recuperación.</string>
+    <string name="motion_publication_saved">El resultado está guardado. Cerrá esta pantalla o creá otro resultado explícitamente; se conservará el archivo guardado.</string>
+    <string name="motion_publication_source_unavailable">La foto con movimiento original no está disponible. Un resultado guardado verificado se puede abrir o compartir; las nuevas exportaciones están bloqueadas.</string>
+    <string name="motion_publication_check">Comprobar resultado guardado</string>
+    <string name="motion_publication_keep_editing">Volver a editar</string>
+    <string name="motion_publication_create_another">Crear otro resultado</string>
+    <string name="motion_publication_preview">Resultado guardado verificado, vista previa estática</string>
+</resources>

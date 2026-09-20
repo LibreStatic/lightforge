@@ -4,6 +4,7 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
+import androidx.room.withTransaction
 import com.ugallery.core.database.ArchivePagingSource
 import com.ugallery.core.database.ArchivedMediaEntity
 import com.ugallery.core.database.GalleryDatabase
@@ -18,20 +19,37 @@ class GalleryArchiveRepository(
 ) {
     private val dao = database.libraryDao()
 
-    fun media(): Flow<PagingData<TimelineMedia>> = Pager(
-        config = PagingConfig(120, initialLoadSize = 180, prefetchDistance = 120, enablePlaceholders = false, maxSize = 600),
-        pagingSourceFactory = { ArchivePagingSource(database) },
-    ).flow.map { page -> page.map { it.toTimelineMedia() } }
+    fun media(): Flow<PagingData<TimelineMedia>> =
+        Pager(
+                config =
+                    PagingConfig(
+                        120,
+                        initialLoadSize = 180,
+                        prefetchDistance = 120,
+                        enablePlaceholders = false,
+                        maxSize = 600,
+                    ),
+                pagingSourceFactory = { ArchivePagingSource(database) },
+            )
+            .flow
+            .map { page -> page.map { it.toTimelineMedia() } }
 
     fun count(): Flow<Long> = dao.observeArchiveCount()
 
-    fun isArchived(key: MediaKey): Flow<Boolean> = dao.observeArchived(key.volumeName, key.mediaStoreId)
+    fun isArchived(key: MediaKey): Flow<Boolean> =
+        dao.observeArchived(key.volumeName, key.mediaStoreId)
 
     suspend fun setArchived(keys: Collection<MediaKey>, archived: Boolean) {
         keys.distinct().chunked(500).forEach { chunk ->
-            chunk.forEach { key ->
-                if (archived) dao.upsertArchived(ArchivedMediaEntity(key.volumeName, key.mediaStoreId, nowMillis()))
-                else dao.deleteArchived(key.volumeName, key.mediaStoreId)
+            database.withTransaction {
+                chunk.forEach { key ->
+                    database.documentArchiveDao().relinquish(key.volumeName, key.mediaStoreId)
+                    if (archived)
+                        dao.upsertArchived(
+                            ArchivedMediaEntity(key.volumeName, key.mediaStoreId, nowMillis())
+                        )
+                    else dao.deleteArchived(key.volumeName, key.mediaStoreId)
+                }
             }
         }
     }

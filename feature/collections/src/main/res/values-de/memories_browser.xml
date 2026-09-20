@@ -1,0 +1,16 @@
+<resources>
+    <string name="memories_browser_title">Erinnerungen</string>
+    <string name="memories_browser_open">Alle Erinnerungen ansehen</string>
+    <string name="memories_browser_body">Alle gespeicherten und vorgeschlagenen Geschichten durchsuchen. Neue lokale Fotos werden nach Aktualisierung der Mediathek berücksichtigt.</string>
+    <string name="memories_browser_back">Zurück</string>
+    <string name="memories_browser_all">Alle</string>
+    <string name="memories_browser_saved">Gespeichert</string>
+    <string name="memories_browser_suggested">Vorschläge</string>
+    <string name="memories_browser_loading">Erinnerungen werden geladen…</string>
+    <string name="memories_browser_empty">Keine Erinnerungen in dieser Ansicht</string>
+    <string name="memories_browser_empty_body">Versuche einen anderen Filter. Geschichten entstehen, wenn genügend lokale Fotos zum selben Ereignis gehören.</string>
+    <string name="memories_browser_error">Erinnerungen konnten nicht geladen werden.</string>
+    <string name="memories_browser_retry">Erneut versuchen</string>
+    <string name="memories_browser_photo_count">%1$d sichtbare Fotos</string>
+    <string name="memories_browser_hidden">Keine sichtbaren Fotos. Die gespeicherte Geschichte und ihre Anordnung bleiben erhalten.</string>
+</resources>

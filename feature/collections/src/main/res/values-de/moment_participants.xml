@@ -1,0 +1,21 @@
+<resources>
+    <string name="moment_participants_title">Teilnehmer</string>
+    <string name="moment_participants_local_only">Wähle vorhandene lokale Personen. Namen und Originalfotos bleiben unverändert.</string>
+    <string name="moment_participants_automatic">Automatisch</string>
+    <string name="moment_participants_manual">Manuell</string>
+    <string name="moment_participants_automatic_hint">Verwendet aktuelle lokale Personenzuordnungen in dieser Erinnerung.</string>
+    <string name="moment_participants_manual_hint">Nur diese Erinnerung ändert sich. Eine leere Auswahl bedeutet keine Teilnehmer.</string>
+    <string name="moment_participants_unavailable">Diese Erinnerung oder ihre Personen sind nicht verfügbar. Lade vor dem Anwenden neu.</string>
+    <string name="moment_participants_changed">Personen oder gespeicherte Optionen wurden während der Bearbeitung geändert. Prüfe vor dem Anwenden die aktuelle Auswahl.</string>
+    <string name="moment_participants_review">Aktuelle Auswahl prüfen</string>
+    <string name="moment_participants_count">%1$d ausgewählt</string>
+    <string name="moment_participants_clear">Auswahl leeren</string>
+    <string name="moment_participants_search">Personen suchen</string>
+    <string name="moment_participants_no_matches">Keine passenden Personen.</string>
+    <string name="moment_participants_empty">Keine Personen vorhanden. Du kannst diese Erinnerung ohne Teilnehmer behalten.</string>
+    <string name="moment_participants_unnamed">Person %1$d</string>
+    <string name="moment_participants_cancel">Abbrechen</string>
+    <string name="moment_participants_error">Die Änderungen wurden nicht gespeichert. Versuche es erneut.</string>
+    <string name="moment_participants_retry">Erneut versuchen</string>
+    <string name="moment_participants_apply">Anwenden</string>
+</resources>

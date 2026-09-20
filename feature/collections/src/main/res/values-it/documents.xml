@@ -1,0 +1,37 @@
+<resources>
+    <string name="documents_title">Documenti</string>
+    <string name="documents_hint">Controlla le foto con testo rilevato su questo dispositivo. Scegli le categorie; gli originali restano al loro posto.</string>
+    <string name="documents_all">Tutti</string>
+    <string name="documents_suggested">Da controllare</string>
+    <string name="documents_receipts">Ricevute</string>
+    <string name="documents_tickets">Biglietti</string>
+    <string name="documents_notes">Note</string>
+    <string name="documents_other">Altri documenti</string>
+    <string name="documents_excluded">Esclusi</string>
+    <string name="documents_search">Cerca nomi o testo riconosciuto</string>
+    <string name="documents_prepare_pdf">Prepara PDF (%1$d)</string>
+    <string name="documents_studio">Apri PDF Studio</string>
+    <string name="documents_clear_selection">Cancella selezione</string>
+    <string name="documents_selection_hint">Seleziona fino a 24 foto in ordine di pagina. Per aggiungerne, selezionale in Foto e scegli Documenti.</string>
+    <string name="documents_empty">Nessun documento corrispondente. Classifica le foto manualmente o consulta l’analisi del testo locale facoltativa.</string>
+    <string name="documents_back">Indietro</string>
+    <string name="documents_retry">Riprova</string>
+    <string name="documents_error">Il documento è cambiato o non è disponibile. Aggiorna e riprova.</string>
+    <string name="documents_changed">Archivio aggiornato</string>
+    <string name="documents_undo">Annulla</string>
+    <string name="documents_copied">Testo copiato</string>
+    <string name="documents_untitled">Foto senza titolo</string>
+    <string name="documents_archived">Archiviato</string>
+    <string name="documents_unavailable">Caricamento del documento. Se l’accesso è stato rimosso, torna all’elenco.</string>
+    <string name="documents_category">Categoria</string>
+    <string name="documents_text">Testo riconosciuto · fino a 20.000 caratteri</string>
+    <string name="documents_no_text">Nessun testo locale aggiornato. Classificazione manuale e creazione PDF restano disponibili.</string>
+    <string name="documents_copy">Copia testo</string>
+    <string name="documents_archive">Archivia foto</string>
+    <string name="documents_unarchive">Ripristina foto</string>
+    <string name="documents_exclude">Escludi da Documenti</string>
+    <string name="documents_reset">Reimposta la mia classificazione</string>
+    <string name="documents_photo">Foto</string>
+    <string name="documents_organize">Aggiungi a Documenti</string>
+    <string name="documents_collection_count">%1$d foto · categorie e testo locali</string>
+</resources>

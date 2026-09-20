@@ -1,5 +1,6 @@
 package com.ugallery.core.database
 
+import androidx.room.ColumnInfo
 import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -25,6 +26,7 @@ data class MomentEntity(
     val isUserEdited: Boolean,
     val createdAtMillis: Long,
     val updatedAtMillis: Long,
+    @ColumnInfo(defaultValue = "0") val includeSpecialMedia: Boolean = false,
 )
 
 @Entity(
@@ -96,6 +98,9 @@ data class MomentRunEntity(
     val openItemCount: Int,
     val processedItems: Long,
     val updatedAtMillis: Long,
+    @ColumnInfo(defaultValue = "-1") val inputRevision: Long = -1,
+    val openLastLatitude: Double? = null,
+    val openLastLongitude: Double? = null,
 )
 
 @Entity(

@@ -1,0 +1,37 @@
+<resources>
+    <string name="documents_title">Documentos</string>
+    <string name="documents_hint">Revise fotos com texto detectado neste dispositivo. Escolha as categorias; os originais ficam no lugar.</string>
+    <string name="documents_all">Todos</string>
+    <string name="documents_suggested">Para revisar</string>
+    <string name="documents_receipts">Recibos</string>
+    <string name="documents_tickets">Ingressos</string>
+    <string name="documents_notes">Notas</string>
+    <string name="documents_other">Outros documentos</string>
+    <string name="documents_excluded">Excluídos</string>
+    <string name="documents_search">Buscar nomes ou texto reconhecido</string>
+    <string name="documents_prepare_pdf">Preparar PDF (%1$d)</string>
+    <string name="documents_studio">Abrir PDF Studio</string>
+    <string name="documents_clear_selection">Limpar seleção</string>
+    <string name="documents_selection_hint">Selecione até 24 fotos na ordem das páginas. Para adicionar, selecione em Fotos e escolha Documentos.</string>
+    <string name="documents_empty">Nenhum documento correspondente. Classifique fotos manualmente ou revise a análise de texto local opcional.</string>
+    <string name="documents_back">Voltar</string>
+    <string name="documents_retry">Tentar novamente</string>
+    <string name="documents_error">O documento mudou ou está indisponível. Atualize e tente novamente.</string>
+    <string name="documents_changed">Arquivo atualizado</string>
+    <string name="documents_undo">Desfazer</string>
+    <string name="documents_copied">Texto copiado</string>
+    <string name="documents_untitled">Foto sem título</string>
+    <string name="documents_archived">Arquivado</string>
+    <string name="documents_unavailable">Carregando documento. Se o acesso foi removido, volte à lista.</string>
+    <string name="documents_category">Categoria</string>
+    <string name="documents_text">Texto reconhecido · até 20.000 caracteres</string>
+    <string name="documents_no_text">Nenhum texto local atualizado. A classificação manual e a criação de PDF continuam disponíveis.</string>
+    <string name="documents_copy">Copiar texto</string>
+    <string name="documents_archive">Arquivar foto</string>
+    <string name="documents_unarchive">Desarquivar foto</string>
+    <string name="documents_exclude">Excluir de Documentos</string>
+    <string name="documents_reset">Redefinir minha classificação</string>
+    <string name="documents_photo">Foto</string>
+    <string name="documents_organize">Adicionar a Documentos</string>
+    <string name="documents_collection_count">%1$d fotos · categorias e texto locais</string>
+</resources>

@@ -1,6 +1,5 @@
 package com.ugallery.core.data
 
-import android.Manifest
 import android.os.Debug
 import android.provider.MediaStore
 import androidx.room.Room
@@ -25,14 +24,7 @@ class InitialMediaScannerDeviceTest {
     fun scansPhysicalHundredThousandLibraryWithBoundedPages() = runBlocking {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
-        instrumentation.uiAutomation.grantRuntimePermission(
-            context.packageName,
-            Manifest.permission.READ_MEDIA_IMAGES,
-        )
-        instrumentation.uiAutomation.grantRuntimePermission(
-            context.packageName,
-            Manifest.permission.READ_MEDIA_VIDEO,
-        )
+        grantMediaStoreTestPermissions()
         val volume = MediaStoreGenerationProbe(context).snapshot().first {
             it.volumeName == MediaStore.VOLUME_EXTERNAL_PRIMARY
         }

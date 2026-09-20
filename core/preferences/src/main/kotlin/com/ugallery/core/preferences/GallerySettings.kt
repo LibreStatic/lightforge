@@ -29,6 +29,8 @@ data class LibrarySettings(
     val grouping: LibraryGrouping = LibraryGrouping.Day,
     val folderSelectionMode: FolderSelectionMode = FolderSelectionMode.AllExceptExcluded,
     val folderRules: Map<FolderSelectionTarget, Boolean> = emptyMap(),
+    val collectionOrder: List<String> = emptyList(),
+    val hiddenCollections: Set<String> = emptySet(),
 )
 
 sealed interface FolderSelectionTarget : Serializable {
@@ -159,3 +161,13 @@ data class SecuritySettings(
 data class AnalysisSettings(
     val fullAnalysisMinimumBatteryPercent: Int = 20,
 )
+
+
+/** Bounded stable identifiers, never translated titles or device album IDs. */
+object CollectionLayoutPolicy {
+    fun decode(value: String): List<String> = if (value.isEmpty()) emptyList() else value.split(',').also { validate(it) }
+    fun validate(values: Collection<String>) {
+        require(values.size <= 64 && values.size == values.distinct().size)
+        require(values.all { it.matches(Regex("[a-z][a-z0-9-]{0,63}")) })
+    }
+}

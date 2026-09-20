@@ -1,0 +1,16 @@
+<resources>
+    <string name="memories_browser_title">Memories</string>
+    <string name="memories_browser_open">See all memories</string>
+    <string name="memories_browser_body">Browse every saved and suggested story. New local photos are included after the library refreshes.</string>
+    <string name="memories_browser_back">Back</string>
+    <string name="memories_browser_all">All</string>
+    <string name="memories_browser_saved">Saved</string>
+    <string name="memories_browser_suggested">Suggested</string>
+    <string name="memories_browser_loading">Loading memories…</string>
+    <string name="memories_browser_empty">No memories in this view</string>
+    <string name="memories_browser_empty_body">Try another filter. Stories appear when enough local photos belong to the same event.</string>
+    <string name="memories_browser_error">Memories could not be loaded.</string>
+    <string name="memories_browser_retry">Retry</string>
+    <string name="memories_browser_photo_count">%1$d visible photos</string>
+    <string name="memories_browser_hidden">No visible photos. Your saved story and its organization are preserved.</string>
+</resources>

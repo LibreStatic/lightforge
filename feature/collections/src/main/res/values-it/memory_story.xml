@@ -1,0 +1,12 @@
+<resources>
+    <string name="memory_back">Raccolte</string>
+    <string name="memory_previous">Precedente</string>
+    <string name="memory_next">Successivo</string>
+    <string name="memory_empty">Nessuna foto disponibile in questo ricordo. I riferimenti salvati vengono conservati.</string>
+    <string name="memory_order_hint">Riordinare modifica la storia salvata. Precedente e Successivo cambiano solo la riproduzione.</string>
+    <string name="memory_set_cover">Usa come copertina</string>
+    <string name="memory_select_photo">Mostra foto %1$d</string>
+    <string name="memory_delete_title">Eliminare questo ricordo?</string>
+    <string name="memory_delete_body">Viene eliminato solo questo ricordo. Le foto originali restano invariate.</string>
+    <string name="memory_unavailable">Il ricordo si sta caricando o non è più disponibile.</string>
+</resources>

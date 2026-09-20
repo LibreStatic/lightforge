@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="motion_publication_checking">Gespeichertes Ergebnis wird geprüft…</string>
+    <string name="motion_publication_not_started">Es wurde kein Ergebnis veröffentlicht. Prüfe erneut oder kehre ausdrücklich zur Bearbeitung zurück. Nichts wird automatisch exportiert.</string>
+    <string name="motion_publication_incomplete">Die Veröffentlichung ist unvollständig. Die Wiederherstellung bleibt erhalten. Prüfe erneut oder gehe zurück; ein weiterer Export ist gesperrt.</string>
+    <string name="motion_publication_conflict">Das gespeicherte Ergebnis fehlt oder wurde verändert. Öffnen, Teilen und erneuter Export sind gesperrt. Die Wiederherstellung bleibt erhalten.</string>
+    <string name="motion_publication_unreadable">Das gespeicherte Ergebnis konnte nicht geprüft werden. Prüfe erneut oder gehe zurück; die Wiederherstellung bleibt erhalten.</string>
+    <string name="motion_publication_saved">Das Ergebnis ist gespeichert. Schließe diesen Bildschirm oder erstelle ausdrücklich ein weiteres Ergebnis; die gespeicherte Datei bleibt erhalten.</string>
+    <string name="motion_publication_source_unavailable">Das ursprüngliche Bewegungsfoto ist nicht verfügbar. Ein geprüftes gespeichertes Ergebnis kann weiterhin geöffnet oder geteilt werden; neue Exporte sind gesperrt.</string>
+    <string name="motion_publication_check">Gespeichertes Ergebnis prüfen</string>
+    <string name="motion_publication_keep_editing">Zur Bearbeitung zurück</string>
+    <string name="motion_publication_create_another">Weiteres Ergebnis erstellen</string>
+    <string name="motion_publication_preview">Geprüftes gespeichertes Ergebnis, statische Vorschau</string>
+</resources>

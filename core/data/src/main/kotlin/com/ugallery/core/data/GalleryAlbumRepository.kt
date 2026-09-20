@@ -74,6 +74,11 @@ class GalleryAlbumRepository(
         return dao.renameVirtualAlbum(albumId, displayName, displayName.normalized(), nowMillis()) == 1
     }
 
+    suspend fun setVirtualAlbumCover(albumId: Long, key: MediaKey?): Boolean {
+        require(albumId > 0)
+        return dao.setVirtualAlbumCover(albumId, key?.volumeName, key?.mediaStoreId, nowMillis()) == 1
+    }
+
     suspend fun deleteVirtualAlbum(albumId: Long): Boolean {
         require(albumId > 0)
         return dao.deleteVirtualAlbum(albumId) == 1

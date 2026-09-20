@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="local_backup_automatic_rules_review_only">Les règles automatiques sont affichées uniquement pour vérification ; elles ne sont pas appliquées.</string>
+</resources>

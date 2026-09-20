@@ -18,4 +18,5 @@
     <string name="open_settings">Open settings</string>
     <string name="change_grid_density">Change grid density</string>
     <string name="photos_create">Create</string><string name="photos_updates">Updates</string>
+    <string name="library_ready_status">Library ready</string>
 </resources>

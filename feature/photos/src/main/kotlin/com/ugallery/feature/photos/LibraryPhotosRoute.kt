@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.paging.LoadState
@@ -83,8 +84,24 @@ fun LibraryPhotosRoute(
     cropThumbnails: Boolean = true,
     onDensityChange: ((Int) -> Unit)? = null,
     modifier: Modifier = Modifier,
+    selectionMode: Boolean = false,
+    focusReturn: TimelineFocusReturn? = null,
+    onFocusReturnConsumed: (TimelineFocusReturn) -> Unit = {},
 ) {
     val densityState = rememberTimelineDensityState()
+    val pagingError = entries.loadState.refresh as? LoadState.Error
+    // Announce the state actually displayed, not Ready while paging/thumbnail startup fails.
+    val presentationState = when {
+        engineState == LibraryUiState.PermissionRequired -> LibraryUiState.PermissionRequired
+        engineState == LibraryUiState.Error || pagingError != null -> LibraryUiState.Error
+        thumbnailLoader == null || engineState == LibraryUiState.Starting ||
+            entries.loadState.refresh is LoadState.Loading && entries.itemCount == 0 -> LibraryUiState.Starting
+        else -> engineState
+    }
+    val loadingDescription = stringResource(R.string.library_loading_title)
+    androidx.compose.runtime.CompositionLocalProvider(
+        androidx.compose.material3.LocalContentColor provides MaterialTheme.colorScheme.onBackground,
+    ) {
     Column(
         modifier
             .fillMaxSize()
@@ -122,6 +139,10 @@ fun LibraryPhotosRoute(
                 style = MaterialTheme.typography.labelMedium,
             )
         }
+        LibraryIndexStatus(
+            state = presentationState,
+            modifier = Modifier.padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Sm),
+        )
         if (highlights.isNotEmpty() && thumbnailLoader != null) {
             LazyRow(
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = GallerySpacing.Lg),
@@ -143,7 +164,17 @@ fun LibraryPhotosRoute(
             }
         }
 
-        val pagingError = entries.loadState.refresh as? LoadState.Error
+        if (selectionMode) {
+            androidx.compose.material3.Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.timeline_stack_selection_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Sm))
+            }
+        }
         when {
             engineState == LibraryUiState.PermissionRequired -> PermissionRequired(onRequestAccess)
             engineState == LibraryUiState.Error || pagingError != null -> GalleryStateContent(
@@ -155,7 +186,7 @@ fun LibraryPhotosRoute(
             thumbnailLoader == null ||
                 engineState == LibraryUiState.Starting ||
                 entries.loadState.refresh is LoadState.Loading && entries.itemCount == 0 -> {
-                GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
+                GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth().semantics { contentDescription = loadingDescription })
                 GalleryStateContent(
                     title = stringResource(R.string.library_loading_title),
                     body = stringResource(R.string.library_loading_body),
@@ -167,11 +198,13 @@ fun LibraryPhotosRoute(
             else -> {
                 androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().height(4.dp)) {
                     if (engineState == LibraryUiState.Indexing) {
-                        GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
+                        GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth().semantics { contentDescription = loadingDescription })
                     }
                 }
                 AdaptivePagedPhotosTimeline(
                     entries = entries,
+                    focusReturn = focusReturn,
+                    onFocusReturnConsumed = onFocusReturnConsumed,
                     thumbnailLoader = thumbnailLoader,
                     onMediaClick = onMediaClick,
                     isMediaSelected = isMediaSelected,
@@ -184,6 +217,7 @@ fun LibraryPhotosRoute(
                 )
             }
         }
+    }
     }
 }
 

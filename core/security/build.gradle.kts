@@ -21,6 +21,7 @@ android {
 
 dependencies {
     implementation(project(":core:model"))
+    implementation("com.google.crypto.tink:tink-android:1.23.0")
     implementation(libs.androidx.biometric)
     implementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.junit4)

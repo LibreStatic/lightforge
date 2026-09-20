@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="motion_title">Motion Photo</string>
+    <string name="motion_back">Voltar</string>
+    <string name="motion_loading">Lendo movimento local…</string>
+    <string name="motion_unavailable">Parte animada indisponível</string>
+    <string name="motion_unavailable_hint">A foto original não muda. Este arquivo não contém uma seção JPEG + MP4 compatível e legível. Nenhum quadro é inventado.</string>
+    <string name="motion_original">Voltar ao original</string>
+    <string name="motion_frame">Quadro real selecionado</string>
+    <string name="motion_frame_number">Quadro %1$d</string>
+    <string name="motion_time">%1$d / %2$d ms</string>
+    <string name="motion_play">Reproduzir movimento</string>
+    <string name="motion_pause">Pausar</string>
+    <string name="motion_set_key">Definir quadro-chave</string>
+    <string name="motion_reset_key">Restaurar capa original</string>
+    <string name="motion_original_key">Capa: foto original</string>
+    <string name="motion_selected_key">Quadro-chave salvo: %1$d ms</string>
+    <string name="motion_note">Tudo fica neste dispositivo. A capa é uma edição local reversível; o original fica intacto. JPEG e MP4 são cópias separadas. JPEGs animados de até 512 MB e clipes de até 60 segundos; JPEG extraído limitado a 4096 pixels por lado.</string>
+    <string name="motion_save_jpeg">Salvar quadro JPEG</string>
+    <string name="motion_save_mp4">Salvar clipe MP4</string>
+    <string name="motion_cancel">Cancelar</string>
+    <string name="motion_saved">Capa salva localmente</string>
+    <string name="motion_error">A ação não terminou. Verifique acesso à origem e espaço livre; tente novamente. O original não muda.</string>
+    <string name="motion_exported">Cópia verificada salva</string>
+    <string name="motion_open">Abrir cópia</string>
+    <string name="motion_share">Compartilhar cópia</string>
+    <string name="motion_cancel_title">Cancelar a ação atual?</string>
+    <string name="motion_continue">Continuar</string>
+</resources>

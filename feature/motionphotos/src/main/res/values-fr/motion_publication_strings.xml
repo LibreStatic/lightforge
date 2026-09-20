@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="motion_publication_checking">Vérification du résultat enregistré…</string>
+    <string name="motion_publication_not_started">Aucun résultat n’a été publié. Vérifiez à nouveau ou revenez explicitement à la modification. Rien ne sera exporté automatiquement.</string>
+    <string name="motion_publication_incomplete">La publication est incomplète. La récupération est conservée. Vérifiez à nouveau ou revenez ; une nouvelle exportation est bloquée.</string>
+    <string name="motion_publication_conflict">Le résultat enregistré est absent ou a changé. L’ouverture, le partage et une nouvelle exportation sont bloqués. La récupération est conservée.</string>
+    <string name="motion_publication_unreadable">Le résultat enregistré n’a pas pu être vérifié. Vérifiez à nouveau ou revenez ; la récupération est conservée.</string>
+    <string name="motion_publication_saved">Le résultat est enregistré. Fermez cet écran ou créez explicitement un autre résultat ; le fichier enregistré sera conservé.</string>
+    <string name="motion_publication_source_unavailable">La photo animée originale est indisponible. Un résultat enregistré vérifié peut toujours être ouvert ou partagé ; les nouvelles exportations sont bloquées.</string>
+    <string name="motion_publication_check">Vérifier le résultat enregistré</string>
+    <string name="motion_publication_keep_editing">Revenir à la modification</string>
+    <string name="motion_publication_create_another">Créer un autre résultat</string>
+    <string name="motion_publication_preview">Résultat enregistré vérifié, aperçu statique</string>
+</resources>

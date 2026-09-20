@@ -1,0 +1,22 @@
+<resources>
+    <string name="local_backup_tasks_title">Tâches de sauvegarde</string>
+    <string name="local_backup_task_queued">En attente</string>
+    <string name="local_backup_task_durable_hint">Les tâches continuent hors de cet écran. La pause conserve les phases terminées et les fichiers restaurés vérifiés. La préparation recommence la création de l’archive ; un fichier de destination interrompu recommence après vérification. Les archives privées restent jusqu’à la suppression de leur historique.</string>
+    <string name="local_backup_tasks_empty">Aucune tâche de sauvegarde.</string>
+    <string name="local_backup_task_action_failed">Échec de l’action. Vérifiez l’accès et choisissez la destination d’origine.</string>
+    <string name="local_backup_task_review_hint">Les fichiers et journaux modifiés ou ambigus sont conservés pour examen. Aucun fichier existant n’est remplacé.</string>
+    <string name="local_backup_task_permission_hint">Rétablissez l’accès à la même destination, puis reprenez. Un fichier absent ou inaccessible ne justifie jamais sa suppression.</string>
+    <string name="local_backup_task_pause">Pause</string>
+    <string name="local_backup_task_resume">Reprendre / réessayer</string>
+    <string name="local_backup_task_regrant">Rétablir l’accès</string>
+    <string name="local_backup_task_inspect">Examiner l’archive</string>
+    <string name="local_backup_task_forget">Supprimer l’historique et l’archive privée</string>
+    <string name="local_backup_task_cancel_hint">Annuler cette tâche et retirer uniquement ses fichiers inchangés ? Les fichiers modifiés restent disponibles pour examen.</string>
+    <string name="local_backup_task_keep">Conserver la tâche</string>
+    <string name="local_backup_task_paused">En pause</string>
+    <string name="local_backup_task_waiting_permission">Accès requis</string>
+    <string name="local_backup_task_needs_review">Examen requis</string>
+    <string name="local_backup_task_cancelling">Annulation / nettoyage</string>
+    <string name="local_backup_task_completed">Terminée et vérifiée</string>
+    <string name="local_backup_task_corrupt">Tâche illisible — conservée pour examen</string>
+</resources>

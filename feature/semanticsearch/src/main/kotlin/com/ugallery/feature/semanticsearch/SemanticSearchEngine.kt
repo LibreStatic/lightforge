@@ -27,7 +27,7 @@ class SemanticSearchEngine(
         val installed = manager.activeModel() ?: return@withContext emptyList()
         val indexId = manager.activeIndexId() ?: return@withContext emptyList()
         val index = database.semanticDao().index(indexId)?.takeIf { it.status == "active" } ?: return@withContext emptyList()
-        val encodedQuery = CompactSemanticEmbedding.quantize(activeInference(installed).embedText(query))
+        val encodedQuery = CompactSemanticEmbedding.quantize(queryEmbedding(installed, query))
         val candidates = candidates(indexId, encodedQuery, installed.descriptor.version)
         val ranked = candidates.asSequence()
             .filterNot { candidate -> candidate.quantizedVector.all { it == 0.toByte() } }
@@ -41,8 +41,10 @@ class SemanticSearchEngine(
         val mediaByKey = database.semanticDao().mediaForEncodedKeys(
             ranked.map { (candidate, _) -> key(candidate.volumeName, candidate.mediaStoreId) },
         ).associateBy { media -> key(media.volumeName, media.mediaStoreId) }
+        if (manager.activeIndexId() != indexId || !manager.isEnabled()) return@withContext emptyList()
         ranked.mapNotNull { (candidate, score) ->
-            mediaByKey[key(candidate.volumeName, candidate.mediaStoreId)]?.let { media ->
+            mediaByKey[key(candidate.volumeName, candidate.mediaStoreId)]
+                ?.takeIf { it.generationModified == candidate.generationModified }?.let { media ->
                 MediaSearchHit(
                     key = MediaKey(media.volumeName, media.mediaStoreId),
                     kind = if (media.mediaType == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO) MediaKind.Video else MediaKind.Image,
@@ -96,15 +98,17 @@ class SemanticSearchEngine(
     }
 
     @Synchronized
-    private fun activeInference(model: InstalledSemanticModel): SemanticEmbeddingInference {
-        if (inferenceModelId != model.descriptor.id) {
+    private fun queryEmbedding(model: InstalledSemanticModel, query: String): FloatArray {
+        val identity = "${model.descriptor.id}:${model.descriptor.version}:${model.descriptor.packageSha256}:${model.directory.canonicalPath}:${SemanticModelAccess.epoch(model.directory)}"
+        if (inferenceModelId != identity) {
             inference?.close()
             inference = LiteRtSemanticEmbeddingInference(context, model)
-            inferenceModelId = model.descriptor.id
+            inferenceModelId = identity
         }
-        return requireNotNull(inference)
+        return requireNotNull(inference).embedText(query)
     }
 
+    @Synchronized
     override fun close() {
         inference?.close()
         inference = null

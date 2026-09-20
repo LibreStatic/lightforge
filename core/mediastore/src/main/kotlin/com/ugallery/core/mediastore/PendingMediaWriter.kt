@@ -65,12 +65,82 @@ class PendingMediaWriter(
     private val nowMillis: () -> Long = System::currentTimeMillis,
     private val persistPending: (PendingWriteSnapshot?) -> Unit = {},
 ) {
+    /**
+     * Streams into a pending item without a named plaintext staging file. The caller must persist
+     * intent before calling and persist the exact inserted URI in onInserted before any bytes.
+     * Only a fully verified pending item is returned. Publication and failure cleanup deliberately
+     * remain with the caller's durable, reviewed recovery protocol, including callback failures.
+     */
+    suspend fun stageStream(
+        spec: MediaWriteSpec,
+        expectedSha256: String,
+        onInserted: suspend (Uri) -> Unit,
+        write: suspend (java.io.OutputStream) -> Unit,
+        beforeOpen: suspend (Uri) -> Unit = {},
+    ): PublishedCopy = withContext(ioDispatcher) {
+        require(expectedSha256.matches(Regex("[0-9a-f]{64}")))
+        coroutineContext.ensureActive()
+        val pending = resolver.insert(spec.collection(), ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, spec.displayName)
+            put(MediaStore.MediaColumns.MIME_TYPE, spec.mimeType)
+            put(MediaStore.MediaColumns.RELATIVE_PATH, spec.relativePath)
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }) ?: throw IOException("MediaStore rejected pending output")
+        // If admission/receipt persistence fails, no plaintext has been written. Never adopt or
+        // unconditionally delete the new row: the caller retains its durable uncertain intent.
+        onInserted(pending)
+        coroutineContext.ensureActive()
+        val context = coroutineContext
+        val digest = MessageDigest.getInstance("SHA-256")
+        var bytes = 0L
+        beforeOpen(pending)
+        coroutineContext.ensureActive()
+        val descriptor = resolver.openFileDescriptor(pending, "w")
+            ?: throw IOException("Could not open pending output")
+        android.os.ParcelFileDescriptor.AutoCloseOutputStream(descriptor).use { output ->
+            val counted = object : java.io.OutputStream() {
+                override fun write(value: Int) {
+                    context.ensureActive()
+                    output.write(value); digest.update(value.toByte()); bytes = Math.addExact(bytes, 1L)
+                }
+                override fun write(buffer: ByteArray, offset: Int, length: Int) {
+                    context.ensureActive()
+                    output.write(buffer, offset, length); digest.update(buffer, offset, length)
+                    bytes = Math.addExact(bytes, length.toLong())
+                }
+                override fun flush() = output.flush()
+            }
+            write(counted) // PrivateAlbumCrypto must reach authenticated EOF before returning.
+            context.ensureActive()
+            output.flush()
+            output.fd.sync()
+        }
+        check(bytes > 0 && digest.digest().hex() == expectedSha256) { "Stream source authentication failed" }
+        check(resolver.openFileDescriptor(pending, "r")?.use { it.statSize } == bytes) { "Stream destination size mismatch" }
+        val actual = resolver.openInputStream(pending)?.use { input ->
+            val verify = MessageDigest.getInstance("SHA-256")
+            val buffer = ByteArray(BufferBytes)
+            while (true) {
+                context.ensureActive()
+                val count = input.read(buffer)
+                if (count < 0) break
+                if (count > 0) verify.update(buffer, 0, count)
+            }
+            verify.digest().hex()
+        } ?: throw IOException("Could not verify streamed output")
+        check(actual == expectedSha256) { "Stream destination digest mismatch" }
+        context.ensureActive()
+        check(pendingFlag(pending) == 1) { "Stream output changed before verification" }
+        PublishedCopy(pending, bytes, expectedSha256)
+    }
+
     /** Publishes an already-rendered local file through the same pending/verify protocol as a URI copy. */
     suspend fun publishFile(
         source: File,
         spec: MediaWriteSpec,
         onProgress: suspend (Long) -> Unit = {},
         onVerifying: suspend () -> Unit = {},
+        beforePublish: suspend () -> Unit = {},
     ): PublishedCopy = withContext(ioDispatcher) {
         require(source.isFile && source.length() > 0) { "Rendered source is empty" }
         val expectedSize = source.length()
@@ -107,7 +177,7 @@ class PendingMediaWriter(
             check(copied == expectedSize) { "Rendered source changed while publishing" }
             val expectedDigest = sourceDigest.digest().hex()
             onVerifying()
-            verifyAndPublish(pending, copied, expectedDigest)
+            verifyAndPublish(pending, copied, expectedDigest, beforePublish)
             persistPending(null)
             PublishedCopy(pending, copied, expectedDigest)
         } catch (cancelled: CancellationException) {
@@ -261,7 +331,12 @@ class PendingMediaWriter(
         }
     }
 
-    private fun verifyAndPublish(pending: Uri, copied: Long, expectedDigest: String) {
+    private suspend fun verifyAndPublish(
+        pending: Uri,
+        copied: Long,
+        expectedDigest: String,
+        beforePublish: suspend () -> Unit,
+    ) {
         check(resolver.openFileDescriptor(pending, "r")?.use { it.statSize } == copied) {
             "Destination size verification failed"
         }
@@ -269,6 +344,7 @@ class PendingMediaWriter(
             val digest = MessageDigest.getInstance("SHA-256")
             val buffer = ByteArray(BufferBytes)
             while (true) {
+                coroutineContext.ensureActive()
                 val read = input.read(buffer)
                 if (read < 0) break
                 if (read > 0) digest.update(buffer, 0, read)
@@ -276,6 +352,10 @@ class PendingMediaWriter(
             digest.digest().hex()
         } ?: throw IOException("Could not verify destination")
         check(destinationDigest == expectedDigest) { "Destination digest verification failed" }
+        // Long verification must finish before the caller's final source/authorization check.
+        coroutineContext.ensureActive()
+        beforePublish()
+        coroutineContext.ensureActive()
         check(
             resolver.update(
                 pending,

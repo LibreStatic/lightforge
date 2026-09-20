@@ -47,7 +47,7 @@ sealed interface EditOperation : java.io.Serializable {
 
 data class EditRecipe(
     val recipeId: String,
-    val source: MediaKey,
+    val source: MediaKey?,
     val sourceGenerationModified: Long,
     val operations: List<EditOperation> = emptyList(),
     val revision: Int = 0,
@@ -76,6 +76,12 @@ data class EditRecipe(
             recipeId = EditRecipeIds.forSource(source, generationModified),
             source = source,
             sourceGenerationModified = generationModified,
+        )
+
+        fun ephemeral(sourceId: String): EditRecipe = EditRecipe(
+            recipeId = "external:$sourceId",
+            source = null,
+            sourceGenerationModified = 0,
         )
     }
 }

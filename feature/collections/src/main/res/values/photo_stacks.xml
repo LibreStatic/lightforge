@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="stacks_title">Photo stacks</string>
+    <string name="stacks_local">On this device · original files unchanged</string>
+    <string name="stacks_saved">Saved</string>
+    <string name="stacks_suggested">Suggested</string>
+    <string name="stacks_separated">Separated</string>
+    <string name="stacks_create_hint">Select 2–100 photos in Photos, then choose Create stack. Each photo belongs to one saved stack.</string>
+    <string name="stacks_suggestions_hint">Review groups from existing local similarity analysis. Saving a stack preserves your choices independently of analysis.</string>
+    <string name="stacks_separated_hint">Separated photos stay out of stack suggestions until you allow them again.</string>
+    <string name="stacks_analysis">Local analysis settings</string>
+    <string name="stacks_empty">No stacks here yet.</string>
+    <string name="stacks_retry">Retry</string>
+    <string name="stacks_default_title">Photo stack</string>
+    <string name="stacks_available">%1$d of %2$d photos available</string>
+    <string name="stacks_suggestion_count">Suggested group · %1$d photos</string>
+    <string name="stacks_review">Review stack</string>
+    <string name="stacks_allow">Allow stack suggestions</string>
+    <string name="stacks_back">Back</string>
+    <string name="stacks_photo">Photo</string>
+    <string name="stacks_unavailable">Photos are unavailable. Saved references remain.</string>
+    <string name="stacks_cover">Cover</string>
+    <string name="stacks_selected">Selected photo</string>
+    <string name="stacks_dimensions">%1$d × %2$d · %3$s</string>
+    <string name="stacks_detail_score">Local edge detail: %1$.1f</string>
+    <string name="stacks_zoom">Zoom: %1$d%%</string>
+    <string name="stacks_close_compare">Close comparison</string>
+    <string name="stacks_save">Save with selected cover</string>
+    <string name="stacks_choose_cover">Choose as cover</string>
+    <string name="stacks_compare">Compare photos</string>
+    <string name="stacks_separate">Separate selected photo</string>
+    <string name="stacks_unstack">Unstack all photos</string>
+    <string name="stacks_unstack_hint">Remove this group and keep its photos out of new stack suggestions. Original files, albums and favorites stay unchanged.</string>
+    <string name="stacks_cancel">Cancel</string>
+    <string name="stacks_name">Stack name</string>
+    <string name="stacks_save_name">Save name</string>
+    <string name="stacks_rename">Rename</string>
+    <string name="stacks_changed">This group changed. Reopen it and try again.</string>
+    <string name="stacks_error">The stack action did not finish. Check that the photos are available and not already in another stack.</string>
+    <string name="stacks_create">Create stack</string>
+    <string name="stacks_collection_hint">Review similar photos, choose a cover and keep your groups on this device.</string>
+</resources>

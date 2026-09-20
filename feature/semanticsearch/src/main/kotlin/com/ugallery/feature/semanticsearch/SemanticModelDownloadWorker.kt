@@ -9,6 +9,10 @@ import androidx.work.WorkerParameters
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.suspendCancellableCoroutine
+import java.util.concurrent.Executors
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 class SemanticModelDownloadWorker(context: Context, parameters: WorkerParameters) : CoroutineWorker(context, parameters) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -16,9 +20,20 @@ class SemanticModelDownloadWorker(context: Context, parameters: WorkerParameters
         val model = SemanticModelCatalog.models.firstOrNull { it.id == modelId } ?: return@withContext Result.failure()
         if (inputData.getBoolean(KeyWifiOnly, false) && !isUnmeteredWifi()) return@withContext Result.retry()
         try {
-            SemanticModelStorage(applicationContext).download(model) { bytes ->
-                if (isStopped) throw CancellationException("Model download cancelled")
-                setProgressAsync(Data.Builder().putLong(KeyDownloadedBytes, bytes).build())
+            suspendCancellableCoroutine<Unit> { continuation ->
+                val cancellation = SemanticDownloadCancellation()
+                val future = Downloads.submit {
+                    try {
+                        SemanticModelStorage(applicationContext).download(model, cancellation) { bytes ->
+                            cancellation.checkCurrent()
+                            setProgressAsync(Data.Builder().putLong(KeyDownloadedBytes, bytes).build())
+                        }
+                        if (continuation.isActive) continuation.resume(Unit)
+                    } catch (failure: Throwable) {
+                        if (continuation.isActive) continuation.resumeWithException(failure)
+                    }
+                }
+                continuation.invokeOnCancellation { cancellation.cancel(); future.cancel(true) }
             }
             Result.success()
         } catch (cancelled: CancellationException) {
@@ -38,6 +53,7 @@ class SemanticModelDownloadWorker(context: Context, parameters: WorkerParameters
     }
 
     companion object {
+        private val Downloads = Executors.newFixedThreadPool(2) { task -> Thread(task, "semantic-package-download").apply { isDaemon = true } }
         const val KeyModelId = "model_id"
         const val KeyWifiOnly = "wifi_only"
         const val KeyDownloadedBytes = "downloaded_bytes"

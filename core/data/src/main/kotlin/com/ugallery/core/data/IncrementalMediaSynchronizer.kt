@@ -41,7 +41,10 @@ class IncrementalMediaSynchronizer(
 ) {
     init { require(pageSize in 1..1_000) }
 
-    suspend fun sync(volume: VolumeGeneration): IncrementalSyncResult = withContext(Dispatchers.IO) {
+    suspend fun sync(
+        volume: VolumeGeneration,
+        reconcileUnobservedChanges: Boolean = false,
+    ): IncrementalSyncResult = withContext(Dispatchers.IO) {
         var checkpoint = store.checkpoint(volume.volumeName)
             ?: return@withContext IncrementalSyncResult.NeedsInitialScan
         if (checkpoint.scanState != ScanState.Complete.name) {
@@ -51,6 +54,12 @@ class IncrementalMediaSynchronizer(
             return@withContext IncrementalSyncResult.NeedsFullVolumeReconciliation
         }
         if (!currentAccess().canReadAny()) return@withContext IncrementalSyncResult.PausedPermission(0)
+
+        // Generation deltas contain changed rows, not tombstones. A newly started observer
+        // may have missed removals while this process was absent; unchanged volumes stay cheap.
+        if (reconcileUnobservedChanges &&
+            (volume.generation != checkpoint.generation || checkpoint.deltaTargetGeneration != null)
+        ) return@withContext IncrementalSyncResult.NeedsFullVolumeReconciliation
 
         val target = checkpoint.deltaTargetGeneration ?: volume.generation
         if (checkpoint.deltaTargetGeneration == null) {
@@ -129,6 +138,10 @@ class IncrementalMediaSynchronizer(
             return@withContext RowHintResult.PermissionLost
         }
         if (record == null) {
+            // With partial permissions, an absent row can mean a revoked selection, not deletion.
+            val access = currentAccess()
+            if (access.images != GrantLevel.Full || access.videos != GrantLevel.Full)
+                return@withContext RowHintResult.PermissionLost
             store.deleteMedia(key.volumeName, key.mediaStoreId)
             RowHintResult.Deleted
         } else {

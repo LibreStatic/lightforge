@@ -1,1 +1,23 @@
-<resources><string name="album_untitled">Album senza titolo</string><string name="album_volume_unavailable">Archivio non disponibile</string><string name="album_volume_unavailable_body">Ricollega l’archivio per vedere l’album.</string><string name="album_all">Tutti</string><string name="album_photos">Foto</string><string name="album_videos">Video</string><string name="album_newest">Più recenti</string><string name="album_oldest">Più vecchi</string><string name="album_selected_count">%1$d selezionati</string><string name="album_empty">Album vuoto</string><string name="album_empty_body">I contenuti aggiunti appariranno qui.</string><string name="album_photo">Foto</string><string name="album_video">Video</string></resources>
+<resources><string name="album_untitled">Album senza titolo</string><string name="album_volume_unavailable">Archivio non disponibile</string><string name="album_volume_unavailable_body">Ricollega l’archivio per vedere l’album.</string><string name="album_all">Tutti</string><string name="album_photos">Foto</string><string name="album_videos">Video</string><string name="album_newest">Più recenti</string><string name="album_oldest">Più vecchi</string><string name="album_selected_count">%1$d selezionati</string><string name="album_empty">Album vuoto</string><string name="album_empty_body">I contenuti aggiunti appariranno qui.</string><string name="album_photo">Foto</string><string name="album_video">Video</string>
+    <string name="album_rename">Rinomina album</string>
+    <string name="album_rename_title">Rinomina album</string>
+    <string name="album_rename_body">Cambia solo il nome dell’album. Foto e video restano nella loro posizione.</string>
+    <string name="album_name_label">Nome dell’album</string>
+    <string name="album_rename_empty">Inserisci un nome per l’album.</string>
+    <string name="album_rename_too_long">Usa al massimo 200 caratteri.</string>
+    <string name="album_rename_failed">Impossibile rinominare l’album. I file non sono stati modificati. Riprova.</string>
+    <string name="album_rename_save">Salva</string>
+    <string name="album_rename_saving">Salvataggio…</string>
+    <string name="album_rename_cancel">Annulla</string>
+    <string name="album_sort_current">Ordine: %1$s</string>
+    <string name="album_sort_name_ascending">Nome (crescente)</string>
+    <string name="album_sort_name_descending">Nome (decrescente)</string>
+    <string name="album_sort_size_ascending">Dimensione (minore prima)</string>
+    <string name="album_sort_size_descending">Dimensione (maggiore prima)</string>
+    <string name="album_cover_title">Scegli copertina dell’album</string>
+    <string name="album_cover_hint">Tocca un elemento dell’album per confermarlo come copertina. I file non saranno modificati.</string>
+    <string name="album_cover_automatic">Copertina automatica</string>
+    <string name="album_cover_auto_confirm">Usare l’elemento disponibile più recente dell’album come copertina?</string>
+    <string name="album_cover_confirm">Usare «%1$s» come copertina dell’album?</string>
+    <string name="album_cover_failed">Impossibile salvare la copertina. I file non sono stati modificati. Riprova.</string>
+</resources>

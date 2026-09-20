@@ -1,0 +1,6 @@
+<resources>
+    <string name="timeline_stack_description">Photo stack, %1$d photos. Open stack.</string>
+    <string name="timeline_stack_select">Select all %1$d visible photos in this stack</string>
+    <string name="timeline_stack_selection_hint">Stacks are expanded while selecting. Actions affect only selected photos.</string>
+    <string name="timeline_stack_changed">This stack changed. Review it and select again.</string>
+</resources>

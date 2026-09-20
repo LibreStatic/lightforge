@@ -1,6 +1,7 @@
 package com.ugallery.core.designsystem
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,7 +11,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -23,8 +23,7 @@ import org.junit.Rule
 import org.junit.Test
 
 class MediaSelectionDeviceTest {
-    @get:Rule
-    val compose = createComposeRule()
+    @get:Rule val compose = createComposeRule()
 
     @Test
     fun longPressDragSelectsAndDeselectsTheCrossedRange() {
@@ -35,24 +34,24 @@ class MediaSelectionDeviceTest {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
                     state = state,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .testTag("selection_grid")
-                        .lazyGridDragSelection(
-                            state = state,
-                            itemAtIndex = { index -> index.takeIf { it in 0..8 } },
-                            itemKey = { it },
-                            isSelected = { selected[it] == true },
-                            onSelectionChange = { item, value -> selected[item] = value },
-                        ),
+                    modifier =
+                        Modifier.fillMaxSize()
+                            .testTag("selection_grid")
+                            .lazyGridDragSelection(
+                                state = state,
+                                itemAtIndex = { index -> index.takeIf { it in 0..8 } },
+                                itemKey = { it },
+                                isSelected = { selected[it] == true },
+                                onSelectionChange = { item, value -> selected[item] = value },
+                            ),
                 ) {
                     items((0..8).toList()) { index ->
                         Box(
-                            Modifier
-                                .fillMaxWidth()
+                            Modifier.fillMaxWidth()
                                 .aspectRatio(1f)
                                 .background(Color.Gray)
-                                .testTag("item_$index"),
+                                .clickable { selected[index] = selected[index] != true }
+                                .testTag("item_$index")
                         )
                     }
                 }
@@ -60,24 +59,82 @@ class MediaSelectionDeviceTest {
         }
 
         dragAcrossFirstRow()
-        compose.runOnIdle {
-            assertEquals(setOf(0, 1, 2), selected.filterValues { it }.keys)
-        }
+        compose.runOnIdle { assertEquals(setOf(0, 1, 2), selected.filterValues { it }.keys) }
 
         dragAcrossFirstRow()
+        compose.runOnIdle { assertEquals(emptySet<Int>(), selected.filterValues { it }.keys) }
+    }
+
+    @Test
+    fun stationaryLongPressSelectsWithoutInvokingChildClick() {
+        val selected = mutableStateMapOf<Int, Boolean>()
+        var clicks = 0
+        compose.setContent {
+            UGalleryTheme {
+                val state = rememberLazyGridState()
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    state = state,
+                    modifier =
+                        Modifier.fillMaxSize()
+                            .testTag("selection_grid")
+                            .lazyGridDragSelection(
+                                state,
+                                { it.takeIf { it in 0..8 } },
+                                { it },
+                                { selected[it] == true },
+                                { item, value -> selected[item] = value },
+                            ),
+                ) {
+                    items((0..8).toList()) { index ->
+                        Box(
+                            Modifier.fillMaxWidth()
+                                .aspectRatio(1f)
+                                .clickable {
+                                    clicks++
+                                    selected[index] = selected[index] != true
+                                }
+                                .testTag("item_$index")
+                        )
+                    }
+                }
+            }
+        }
+        val item = compose.onNodeWithTag("item_0")
+        // Moving before the long-press timeout is not a selection gesture.
+        item.performTouchInput {
+            down(center)
+            moveTo(Offset(center.x, center.y + 80f), delayMillis = 32L)
+            up()
+        }
         compose.runOnIdle {
             assertEquals(emptySet<Int>(), selected.filterValues { it }.keys)
+            assertEquals(0, clicks)
+        }
+        item.performTouchInput {
+            down(center)
+            advanceEventTime(900L)
+            up()
+        }
+        compose.runOnIdle {
+            assertEquals(setOf(0), selected.filterValues { it }.keys)
+            assertEquals(0, clicks)
+        }
+        // A normal tap still reaches the cell's click action.
+        item.performTouchInput {
+            down(center)
+            up()
+        }
+        compose.runOnIdle {
+            assertEquals(emptySet<Int>(), selected.filterValues { it }.keys)
+            assertEquals(1, clicks)
         }
     }
 
     @Test
     fun selectedOverlayIsVisiblyPresentOnlyWhenSelected() {
         compose.setContent {
-            UGalleryTheme {
-                Box(Modifier.fillMaxSize()) {
-                    MediaSelectionOverlay(selected = true)
-                }
-            }
+            UGalleryTheme { Box(Modifier.fillMaxSize()) { MediaSelectionOverlay(selected = true) } }
         }
 
         compose.onNodeWithTag("media_selection_indicator").assertExists()

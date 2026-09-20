@@ -1,0 +1,19 @@
+<resources>
+    <string name="manual_moment_title">Create a memory</string>
+    <string name="manual_moment_explanation">Review the photos and their order. Your originals and global classifications stay unchanged.</string>
+    <string name="manual_moment_title_label">Title</string>
+    <string name="manual_moment_title_hint">Optional title</string>
+    <string name="manual_moment_include_special">Include screenshots and documents in this memory</string>
+    <string name="manual_moment_include_special_body">This choice applies only to this memory. It does not override hidden people or dates, archived or trashed items, or photo access.</string>
+    <string name="manual_moment_error">Review the selected photos and the screenshot/document option, then try Save again. A source may have changed or become unavailable.</string>
+    <string name="manual_moment_save">Save memory</string>
+    <string name="manual_moment_cancel">Cancel</string>
+    <string name="manual_moment_working">Saving…</string>
+    <string name="manual_moment_up">Move up</string>
+    <string name="manual_moment_down">Move down</string>
+    <string name="manual_moment_remove">Remove</string>
+    <string name="manual_moment_photo">Photo %1$d of %2$d</string>
+    <string name="manual_moment_unavailable">Photo unavailable</string>
+    <string name="manual_moment_empty">Select 1 to 120 photos to create a memory.</string>
+    <string name="manual_moment_select_photos">Select 1–120 photos to create a memory.</string>
+</resources>

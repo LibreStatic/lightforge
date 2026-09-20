@@ -21,6 +21,9 @@ include(
     ":benchmark",
     ":baselineprofile",
     ":testdata",
+    ":core:remotestorage",
+    ":feature:remotebackup",
+    ":feature:ownsync",
     ":core:common",
     ":core:model",
     ":core:domain",
@@ -56,11 +59,12 @@ include(
     ":feature:cleanup",
    ":feature:privatealbum",
     ":feature:collage",
+    ":feature:pdfstudio",
     ":feature:widget",
     ":feature:places",
-    ":feature:subjectclip",
-    ":feature:objecteraser",
     ":feature:semanticsearch",
     ":feature:petrecognition",
    ":feature:motionphotos",
 )
+
+include(":feature:localsharing")

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_content_description">Foto da galeria</string>
+    <string name="widget_empty_text">Nenhuma foto disponível</string>
+    <string name="widget_description">Exibe uma foto da sua galeria que muda periodicamente</string>
+</resources>

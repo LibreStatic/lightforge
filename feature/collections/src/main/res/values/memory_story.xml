@@ -1,0 +1,12 @@
+<resources>
+    <string name="memory_back">Collections</string>
+    <string name="memory_previous">Previous</string>
+    <string name="memory_next">Next</string>
+    <string name="memory_empty">No available photos in this memory. Your saved references stay here.</string>
+    <string name="memory_order_hint">Reordering changes the saved story. Previous and Next only change playback.</string>
+    <string name="memory_set_cover">Set as cover</string>
+    <string name="memory_select_photo">Show photo %1$d</string>
+    <string name="memory_delete_title">Delete this memory?</string>
+    <string name="memory_delete_body">Only this memory is removed. Original photos stay unchanged.</string>
+    <string name="memory_unavailable">The memory is loading or is no longer available.</string>
+</resources>

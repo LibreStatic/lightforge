@@ -1,0 +1,22 @@
+<resources>
+    <string name="local_backup_tasks_title">Backup tasks</string>
+    <string name="local_backup_task_queued">Queued</string>
+    <string name="local_backup_task_durable_hint">Tasks continue outside this screen. Pause keeps completed phases and verified restored files. Preparing a backup restarts archive creation; an interrupted destination file restarts after verification. Private archives remain until you remove their history entry.</string>
+    <string name="local_backup_tasks_empty">No backup tasks yet.</string>
+    <string name="local_backup_task_action_failed">The action failed. Check access and choose the original destination.</string>
+    <string name="local_backup_task_review_hint">Changed or ambiguous files and journals are retained for review. Existing files are not replaced.</string>
+    <string name="local_backup_task_permission_hint">Restore access to the same destination, then resume. No missing or inaccessible file implies deletion.</string>
+    <string name="local_backup_task_pause">Pause</string>
+    <string name="local_backup_task_resume">Resume / retry</string>
+    <string name="local_backup_task_regrant">Restore access</string>
+    <string name="local_backup_task_inspect">Inspect archive</string>
+    <string name="local_backup_task_forget">Remove history and private archive</string>
+    <string name="local_backup_task_cancel_hint">Cancel this task and remove only its unchanged, operation-owned outputs? Changed files remain for review.</string>
+    <string name="local_backup_task_keep">Keep task</string>
+    <string name="local_backup_task_paused">Paused</string>
+    <string name="local_backup_task_waiting_permission">Waiting for access</string>
+    <string name="local_backup_task_needs_review">Review required</string>
+    <string name="local_backup_task_cancelling">Cancelling / cleaning up</string>
+    <string name="local_backup_task_completed">Completed and verified</string>
+    <string name="local_backup_task_corrupt">Unreadable task — retained for review</string>
+</resources>

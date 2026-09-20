@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="stacks_title">Pilhas de fotos</string>
+    <string name="stacks_local">Neste dispositivo · originais inalterados</string>
+    <string name="stacks_saved">Salvas</string>
+    <string name="stacks_suggested">Sugeridas</string>
+    <string name="stacks_separated">Separadas</string>
+    <string name="stacks_create_hint">Selecione de 2 a 100 fotos em Fotos e escolha Criar pilha. Cada foto pertence a uma única pilha salva.</string>
+    <string name="stacks_suggestions_hint">Revise grupos da análise local de similaridade existente. Salvar uma pilha preserva suas escolhas independentemente da análise.</string>
+    <string name="stacks_separated_hint">Fotos separadas ficam fora das sugestões até que você as permita novamente.</string>
+    <string name="stacks_analysis">Configurações da análise local</string>
+    <string name="stacks_empty">Ainda não há pilhas aqui.</string>
+    <string name="stacks_retry">Tentar novamente</string>
+    <string name="stacks_default_title">Pilha de fotos</string>
+    <string name="stacks_available">%1$d de %2$d fotos disponíveis</string>
+    <string name="stacks_suggestion_count">Grupo sugerido · %1$d fotos</string>
+    <string name="stacks_review">Revisar pilha</string>
+    <string name="stacks_allow">Permitir sugestões de pilhas</string>
+    <string name="stacks_back">Voltar</string>
+    <string name="stacks_photo">Foto</string>
+    <string name="stacks_unavailable">Fotos indisponíveis. As referências salvas são mantidas.</string>
+    <string name="stacks_cover">Capa</string>
+    <string name="stacks_selected">Foto selecionada</string>
+    <string name="stacks_dimensions">%1$d × %2$d · %3$s</string>
+    <string name="stacks_detail_score">Detalhe local de bordas: %1$.1f</string>
+    <string name="stacks_zoom">Zoom: %1$d%%</string>
+    <string name="stacks_close_compare">Fechar comparação</string>
+    <string name="stacks_save">Salvar com a capa selecionada</string>
+    <string name="stacks_choose_cover">Escolher como capa</string>
+    <string name="stacks_compare">Comparar fotos</string>
+    <string name="stacks_separate">Separar foto selecionada</string>
+    <string name="stacks_unstack">Separar todas as fotos</string>
+    <string name="stacks_unstack_hint">Remova este grupo e exclua suas fotos das novas sugestões de pilhas. Originais, álbuns e favoritos permanecem inalterados.</string>
+    <string name="stacks_cancel">Cancelar</string>
+    <string name="stacks_name">Nome da pilha</string>
+    <string name="stacks_save_name">Salvar nome</string>
+    <string name="stacks_rename">Renomear</string>
+    <string name="stacks_changed">Este grupo mudou. Abra novamente e tente outra vez.</string>
+    <string name="stacks_error">A ação não foi concluída. Verifique se as fotos estão disponíveis e não pertencem a outra pilha.</string>
+    <string name="stacks_create">Criar pilha</string>
+    <string name="stacks_collection_hint">Revise fotos semelhantes, escolha uma capa e mantenha os grupos neste dispositivo.</string>
+</resources>

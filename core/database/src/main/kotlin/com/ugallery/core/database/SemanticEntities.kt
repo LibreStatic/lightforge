@@ -66,5 +66,6 @@ data class SemanticEmbeddingCandidate(
     val volumeName: String,
     val mediaStoreId: Long,
     val quantizedVector: ByteArray,
+    val generationModified: Long,
 )
 

@@ -1,0 +1,19 @@
+<resources>
+    <string name="manual_moment_title">Crea un ricordo</string>
+    <string name="manual_moment_explanation">Controlla le foto e il loro ordine. Gli originali e le classificazioni globali restano invariati.</string>
+    <string name="manual_moment_title_label">Titolo</string>
+    <string name="manual_moment_title_hint">Titolo facoltativo</string>
+    <string name="manual_moment_include_special">Includi screenshot e documenti in questo ricordo</string>
+    <string name="manual_moment_include_special_body">Questa scelta vale solo per questo ricordo. Non ignora persone o date nascoste, elementi archiviati o nel cestino, né i permessi di accesso alle foto.</string>
+    <string name="manual_moment_error">Controlla le foto selezionate e l’opzione screenshot/documenti, poi riprova a salvare. Una fonte potrebbe essere cambiata o non essere più disponibile.</string>
+    <string name="manual_moment_save">Salva ricordo</string>
+    <string name="manual_moment_cancel">Annulla</string>
+    <string name="manual_moment_working">Salvataggio…</string>
+    <string name="manual_moment_up">Sposta su</string>
+    <string name="manual_moment_down">Sposta giù</string>
+    <string name="manual_moment_remove">Rimuovi</string>
+    <string name="manual_moment_photo">Foto %1$d di %2$d</string>
+    <string name="manual_moment_unavailable">Foto non disponibile</string>
+    <string name="manual_moment_empty">Seleziona da 1 a 120 foto per creare un ricordo.</string>
+    <string name="manual_moment_select_photos">Seleziona da 1 a 120 foto per creare un ricordo.</string>
+</resources>

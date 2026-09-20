@@ -1,0 +1,22 @@
+<resources>
+    <string name="local_backup_tasks_title">Tarefas de backup</string>
+    <string name="local_backup_task_queued">Na fila</string>
+    <string name="local_backup_task_durable_hint">As tarefas continuam fora desta tela. Pausar mantém fases completas e arquivos restaurados verificados. A preparação reinicia a criação do backup; um arquivo de destino interrompido reinicia após verificação. Arquivos privados ficam até remover o histórico.</string>
+    <string name="local_backup_tasks_empty">Nenhuma tarefa de backup.</string>
+    <string name="local_backup_task_action_failed">A ação falhou. Verifique o acesso e escolha o destino original.</string>
+    <string name="local_backup_task_review_hint">Arquivos e registros alterados ou ambíguos são mantidos para revisão. Arquivos existentes não são substituídos.</string>
+    <string name="local_backup_task_permission_hint">Restaure o acesso ao mesmo destino e retome. Um arquivo ausente ou inacessível nunca implica exclusão.</string>
+    <string name="local_backup_task_pause">Pausar</string>
+    <string name="local_backup_task_resume">Retomar / tentar novamente</string>
+    <string name="local_backup_task_regrant">Restaurar acesso</string>
+    <string name="local_backup_task_inspect">Inspecionar backup</string>
+    <string name="local_backup_task_forget">Remover histórico e arquivo privado</string>
+    <string name="local_backup_task_cancel_hint">Cancelar esta tarefa e remover apenas seus arquivos próprios sem alterações? Arquivos alterados ficam para revisão.</string>
+    <string name="local_backup_task_keep">Manter tarefa</string>
+    <string name="local_backup_task_paused">Pausada</string>
+    <string name="local_backup_task_waiting_permission">Aguardando acesso</string>
+    <string name="local_backup_task_needs_review">Revisão necessária</string>
+    <string name="local_backup_task_cancelling">Cancelando / limpando</string>
+    <string name="local_backup_task_completed">Concluída e verificada</string>
+    <string name="local_backup_task_corrupt">Tarefa ilegível — mantida para revisão</string>
+</resources>

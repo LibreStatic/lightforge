@@ -1,0 +1,37 @@
+<resources>
+    <string name="documents_title">Dokumente</string>
+    <string name="documents_hint">Prüfe Fotos mit lokal erkanntem Text. Ordne die Kategorien selbst zu; Originale bleiben unverändert.</string>
+    <string name="documents_all">Alle</string>
+    <string name="documents_suggested">Zu prüfen</string>
+    <string name="documents_receipts">Belege</string>
+    <string name="documents_tickets">Tickets</string>
+    <string name="documents_notes">Notizen</string>
+    <string name="documents_other">Andere Dokumente</string>
+    <string name="documents_excluded">Ausgeschlossen</string>
+    <string name="documents_search">Namen oder erkannten Text suchen</string>
+    <string name="documents_prepare_pdf">PDF vorbereiten (%1$d)</string>
+    <string name="documents_studio">PDF Studio öffnen</string>
+    <string name="documents_clear_selection">Auswahl aufheben</string>
+    <string name="documents_selection_hint">Wähle bis zu 24 Fotos in Seitenreihenfolge. Zum Hinzufügen Fotos auswählen und Dokumente wählen.</string>
+    <string name="documents_empty">Keine passenden Dokumente. Fotos manuell zuordnen oder Ergebnisse der optionalen lokalen Texterkennung prüfen.</string>
+    <string name="documents_back">Zurück</string>
+    <string name="documents_retry">Erneut versuchen</string>
+    <string name="documents_error">Das Dokument wurde geändert oder ist nicht verfügbar. Aktualisieren und erneut versuchen.</string>
+    <string name="documents_changed">Archiv aktualisiert</string>
+    <string name="documents_undo">Rückgängig</string>
+    <string name="documents_copied">Text kopiert</string>
+    <string name="documents_untitled">Unbenanntes Foto</string>
+    <string name="documents_archived">Archiviert</string>
+    <string name="documents_unavailable">Dokument wird geladen. Bei entzogenem Zugriff zur Liste zurückkehren.</string>
+    <string name="documents_category">Kategorie</string>
+    <string name="documents_text">Erkannter Text · bis zu 20.000 Zeichen</string>
+    <string name="documents_no_text">Kein aktueller lokal erkannter Text. Manuelles Zuordnen und PDF-Erstellung bleiben verfügbar.</string>
+    <string name="documents_copy">Text kopieren</string>
+    <string name="documents_archive">Foto archivieren</string>
+    <string name="documents_unarchive">Foto aus Archiv holen</string>
+    <string name="documents_exclude">Aus Dokumenten ausschließen</string>
+    <string name="documents_reset">Meine Zuordnung zurücksetzen</string>
+    <string name="documents_photo">Foto</string>
+    <string name="documents_organize">Zu Dokumenten hinzufügen</string>
+    <string name="documents_collection_count">%1$d Fotos · lokale Kategorien und Text</string>
+</resources>

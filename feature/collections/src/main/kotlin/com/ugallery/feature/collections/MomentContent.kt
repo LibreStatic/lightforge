@@ -1,72 +1,45 @@
 package com.ugallery.feature.collections
 
-import android.graphics.Bitmap
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.TextField
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import com.ugallery.core.database.MomentEntity
 import com.ugallery.core.database.MomentMemberEntity
+import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.GalleryTopAppBar
 import com.ugallery.core.model.MediaKey
 import com.ugallery.core.thumbnail.ThumbnailLoader
 import com.ugallery.core.thumbnail.ThumbnailRequest
-import com.ugallery.core.designsystem.GalleryIcons
-import com.ugallery.core.designsystem.GallerySpacing
-import com.ugallery.core.designsystem.GalleryTopAppBar
 import java.text.DateFormat
 import java.util.Date
-
-private const val ThumbnailSize = 256
-private const val StorySlotCount = 4
-private val StorySlideHeight = 280.dp
-private val TileHeight = 100.dp
-private val TileSpacing = 8.dp
+import kotlinx.coroutines.CancellationException
 
 data class MomentMemberUi(
     val member: MomentMemberEntity,
     val key: MediaKey,
+    val generationModified: Long = member.generationModifiedAtSelection,
 )
 
+/** Playback identity is independent from persistent ordinals, including when visibility changes. */
 @Composable
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 fun MomentContent(
     moment: MomentEntity,
     members: List<MomentMemberUi>,
@@ -79,159 +52,351 @@ fun MomentContent(
     onRename: (String) -> Unit,
     onSetCover: (Int) -> Unit,
     onReorder: (List<MediaKey>) -> Unit,
+    onMemoryControls: (() -> Unit)? = null,
+    onMakeVideo: (() -> Unit)? = null,
+    makeVideoLabel: String? = null,
     modifier: Modifier = Modifier,
+    momentPlaceLabels: ((String) -> kotlinx.coroutines.flow.Flow<String?>)? = null,
+    onParticipants: (() -> Unit)? = null,
 ) {
-    var storyIndex by remember { mutableIntStateOf(0) }
-    var renaming by remember { mutableStateOf(false) }
-    var editTitle by remember { mutableStateOf(moment.title ?: "") }
-
-    Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-      Column(Modifier.fillMaxSize().widthIn(max = 720.dp)) {
-        GalleryTopAppBar(
-            title = moment.title ?: stringResource(R.string.moment_untitled),
-            onBack = onBack,
-            navigationContentDescription = stringResource(R.string.moment_cancel),
-            actions = { TextButton(onClick = { renaming = true }) { Text(stringResource(R.string.moment_edit)) } },
+    // Old-route emissions must never display another moment's photos during navigation.
+    val visible = members.filter { it.member.momentId == moment.momentId }
+    var activeVolume by rememberSaveable(moment.momentId) { mutableStateOf<String?>(null) }
+    var activeId by rememberSaveable(moment.momentId) { mutableStateOf<Long?>(null) }
+    val index =
+        visible
+            .indexOfFirst { it.key.volumeName == activeVolume && it.key.mediaStoreId == activeId }
+            .coerceAtLeast(0)
+    val current = visible.getOrNull(index)
+    fun select(member: MomentMemberUi) {
+        activeVolume = member.key.volumeName
+        activeId = member.key.mediaStoreId
+    }
+    // Commit a fallback after a removal, so a later reappearance does not jump playback backwards.
+    LaunchedEffect(current?.key) { current?.let(::select) }
+    var renaming by rememberSaveable(moment.momentId) { mutableStateOf(false) }
+    var editTitle by rememberSaveable(moment.momentId) { mutableStateOf(moment.title.orEmpty()) }
+    var deleting by rememberSaveable(moment.momentId) { mutableStateOf(false) }
+    val listState = rememberLazyListState()
+    LaunchedEffect(renaming) { if (renaming) listState.animateScrollToItem(1) }
+    Surface(
+        modifier.fillMaxSize().testTag("moment-screen").semantics { testTagsAsResourceId = true },
+        color = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
+    ) {
+        Box(contentAlignment = Alignment.TopCenter) {
+            Column(Modifier.widthIn(max = 720.dp).fillMaxSize()) {
+                GalleryTopAppBar(
+                    title = momentDisplayTitle(moment, momentPlaceLabels),
+                    onBack = onBack,
+                    navigationContentDescription = stringResource(R.string.memory_back),
+                    actions = {
+                        TextButton(
+                            onClick = {
+                                editTitle = moment.title.orEmpty()
+                                renaming = true
+                            },
+                            modifier = Modifier.testTag("moment-edit"),
+                        ) {
+                            Text(stringResource(R.string.moment_edit))
+                        }
+                    },
+                )
+                LazyColumn(
+                    Modifier.fillMaxWidth().weight(1f).testTag("moment-list"),
+                    state = listState,
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    item("summary") {
+                        Column {
+                            Text(dateLabel)
+                            Text(stateLabel)
+                        }
+                    }
+                    if (renaming)
+                        item("rename") {
+                            Column {
+                                OutlinedTextField(
+                                    editTitle,
+                                    { editTitle = it.take(80) },
+                                    Modifier.fillMaxWidth().testTag("moment-title"),
+                                    label = { Text(stringResource(R.string.moment_edit_title)) },
+                                    singleLine = true,
+                                )
+                                Row {
+                                    TextButton(onClick = { renaming = false }) {
+                                        Text(stringResource(R.string.moment_cancel))
+                                    }
+                                    TextButton(
+                                        onClick = {
+                                            onRename(editTitle.trim())
+                                            renaming = false
+                                        },
+                                        enabled = editTitle.isNotBlank(),
+                                        modifier = Modifier.testTag("moment-title-save"),
+                                    ) {
+                                        Text(stringResource(R.string.moment_save_title))
+                                    }
+                                }
+                            }
+                        }
+                    if (onParticipants != null) item("participants") {
+                        TextButton(onClick = onParticipants, modifier = Modifier.testTag("moment-participants-edit")) {
+                            Text(stringResource(R.string.moment_participants_title))
+                        }
+                    }
+                    if (onMakeVideo != null && makeVideoLabel != null) item("make-video") {
+                        Button(onClick = onMakeVideo, enabled = current != null, modifier = Modifier.fillMaxWidth().testTag("moment-make-video")) {
+                            Text(makeVideoLabel)
+                        }
+                    }
+                    if (onMemoryControls != null) item("memory-controls") {
+                        TextButton(onClick = onMemoryControls, modifier = Modifier.testTag("moment-memory-controls")) {
+                            Text(stringResource(R.string.memory_controls_title))
+                        }
+                    }
+                    if (current != null) {
+                        item("slide") {
+                            Column {
+                                MemoryImage(
+                                    current,
+                                    thumbnailLoader,
+                                    Modifier.fillMaxWidth()
+                                        .aspectRatio(4f / 3f)
+                                        .testTag("moment-slide"),
+                                )
+                                Text(
+                                    stringResource(
+                                        R.string.moment_story_position,
+                                        index + 1,
+                                        visible.size,
+                                    ),
+                                    Modifier.testTag("moment-position"),
+                                )
+                                LinearProgressIndicator(
+                                    progress = { (index + 1f) / visible.size },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                )
+                            }
+                        }
+                    } else
+                        item("empty") {
+                            Text(
+                                stringResource(R.string.memory_empty),
+                                Modifier.testTag("moment-empty"),
+                            )
+                        }
+                    item("playback") {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            TextButton(
+                                onClick = { visible.getOrNull(index - 1)?.let(::select) },
+                                enabled = current != null && index > 0,
+                                modifier = Modifier.testTag("moment-previous"),
+                            ) {
+                                Text(stringResource(R.string.memory_previous))
+                            }
+                            TextButton(
+                                onClick = { visible.getOrNull(index + 1)?.let(::select) },
+                                enabled = current != null && index < visible.lastIndex,
+                                modifier = Modifier.testTag("moment-next"),
+                            ) {
+                                Text(stringResource(R.string.memory_next))
+                            }
+                        }
+                    }
+                    if (current != null)
+                        item("organize") {
+                            Column {
+                                Text(
+                                    stringResource(R.string.memory_order_hint),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                                Row(Modifier.fillMaxWidth()) {
+                                    for (delta in listOf(-1, 1)) TextButton(
+                                        onClick = {
+                                            val order = visible.map { it.key }.toMutableList()
+                                            order.add(index + delta, order.removeAt(index))
+                                            onReorder(order)
+                                        },
+                                        enabled =
+                                            if (delta < 0) index > 0 else index < visible.lastIndex,
+                                        modifier =
+                                            Modifier.weight(1f)
+                                                .testTag(
+                                                    if (delta < 0) "moment-move-earlier"
+                                                    else "moment-move-later"
+                                                ),
+                                    ) {
+                                        Text(
+                                            stringResource(
+                                                if (delta < 0) R.string.moment_move_previous
+                                                else R.string.moment_move_next
+                                            )
+                                        )
+                                    }
+                                }
+                                TextButton(
+                                    onClick = { onSetCover(current.member.ordinal) },
+                                    modifier = Modifier.testTag("moment-set-cover"),
+                                ) {
+                                    Text(stringResource(R.string.memory_set_cover))
+                                }
+                            }
+                        }
+                    itemsIndexed(visible.chunked(3), key = { row, _ -> "tiles:$row" }) { _, row ->
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            row.forEach { member ->
+                                val description =
+                                    stringResource(
+                                        R.string.memory_select_photo,
+                                        visible.indexOf(member) + 1,
+                                    )
+                                Surface(
+                                    Modifier.weight(1f)
+                                        .aspectRatio(1f)
+                                        .testTag("moment-photo-${member.member.ordinal}")
+                                        .semantics { contentDescription = description }
+                                        .clickable { select(member) },
+                                    color =
+                                        if (member.key == current?.key)
+                                            MaterialTheme.colorScheme.primaryContainer
+                                        else MaterialTheme.colorScheme.surfaceVariant,
+                                    contentColor =
+                                        if (member.key == current?.key)
+                                            MaterialTheme.colorScheme.onPrimaryContainer
+                                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    shape = MaterialTheme.shapes.small,
+                                ) {
+                                    MemoryImage(
+                                        member,
+                                        thumbnailLoader,
+                                        Modifier.padding(4.dp).fillMaxSize(),
+                                    )
+                                }
+                            }
+                            repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                        }
+                    }
+                    item("actions") {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            TextButton(
+                                onClick = { deleting = true },
+                                modifier = Modifier.testTag("moment-delete"),
+                            ) {
+                                Text(stringResource(R.string.moment_delete))
+                            }
+                            TextButton(
+                                onClick = onSave,
+                                enabled = current != null,
+                                modifier = Modifier.testTag("moment-save"),
+                            ) {
+                                Text(stringResource(R.string.moment_save))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (deleting)
+        AlertDialog(
+            onDismissRequest = { deleting = false },
+            modifier = Modifier.semantics { testTagsAsResourceId = true },
+            title = { Text(stringResource(R.string.memory_delete_title)) },
+            text = { Text(stringResource(R.string.memory_delete_body)) },
+            dismissButton = {
+                TextButton(onClick = { deleting = false }) {
+                    Text(stringResource(R.string.moment_cancel))
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        deleting = false
+                        onDelete()
+                    },
+                    modifier = Modifier.testTag("moment-delete-confirm"),
+                ) {
+                    Text(stringResource(R.string.moment_delete))
+                }
+            },
         )
-        LazyColumn(
-            Modifier.fillMaxWidth().weight(1f),
-            contentPadding = PaddingValues(bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(TileSpacing),
-        ) {
-        item { HorizontalScrollRow(dateLabel, stateLabel) }
-        if (renaming) {
-            item { RenameDialog(editTitle, { editTitle = it }, { onRename(editTitle); renaming = false }) { renaming = false } }
-        }
-        if (members.isNotEmpty()) {
-            val current = members[storyIndex]
-            item { StorySlide(current.key, thumbnailLoader, current.member.ordinal + 1, members.size) }
-            item { StoryProgress(current.member.ordinal + 1, members.size) }
-        }
-        item { StoryNav(storyIndex, members.size, onMove = { delta ->
-            val target = (storyIndex + delta).coerceIn(0, members.lastIndex)
-            if (target != storyIndex) {
-                val reordered = members.map { it.key }.toMutableList()
-                val moved = reordered.removeAt(storyIndex)
-                reordered.add(target, moved)
-                onReorder(reordered)
-                storyIndex = target
+}
+
+@Composable
+private fun MemoryImage(member: MomentMemberUi, loader: ThumbnailLoader?, modifier: Modifier) {
+    key(member.key, member.generationModified, loader) {
+        val bitmap by
+            produceState<ImageBitmap?>(null, member.key, member.generationModified, loader) {
+                if (loader != null)
+                    try {
+                        value =
+                            loader
+                                .load(
+                                    ThumbnailRequest(
+                                        member.key,
+                                        member.generationModified,
+                                        384,
+                                        384,
+                                    )
+                                )
+                                .asImageBitmap()
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        value = null
+                    }
             }
-        }) {
-            storyIndex = if (storyIndex >= members.lastIndex - StorySlotCount + 1) 0
-                else (storyIndex + StorySlotCount).coerceAtMost(members.lastIndex)
-        } }
-        itemsIndexed(
-            members.chunked(3),
-            key = { index, row -> "member-row:$index:${row.firstOrNull()?.key}" },
-        ) { _, rowMembers ->
-            ReorderRow(rowMembers, storyIndex, thumbnailLoader) { index ->
-                if (index == storyIndex) onSetCover(index) else storyIndex = index
-            }
-        }
-        item { BottomActions(onDelete, onSave) }
-        }
-      }
-    }
-}
-
-@Composable
-private fun HorizontalScrollRow(dateLabel: String, stateLabel: String) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
-        Text(dateLabel, style = MaterialTheme.typography.bodyLarge)
-        Text(stateLabel, style = MaterialTheme.typography.bodyMedium)
-    }
-}
-
-@Composable
-private fun RenameDialog(value: String, onValueChange: (String) -> Unit, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
-        TextField(value, onValueChange, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.moment_edit_title)) })
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.moment_cancel)) }
-            TextButton(onClick = onConfirm) { Text(stringResource(R.string.moment_save_title)) }
+        Box(modifier, contentAlignment = Alignment.Center) {
+            if (bitmap != null)
+                Image(
+                    bitmap!!,
+                    contentDescription = null,
+                    modifier =
+                        Modifier.fillMaxSize()
+                            .testTag(
+                                "moment-image-loaded-${member.key.volumeName}:${member.key.mediaStoreId}-${member.generationModified}"
+                            ),
+                    contentScale = ContentScale.Crop,
+                )
+            else
+                Icon(GalleryIcons.Image, contentDescription = null, modifier = Modifier.size(48.dp))
         }
     }
 }
 
 @Composable
-private fun StorySlide(key: MediaKey, loader: ThumbnailLoader?, current: Int, total: Int) {
-    Column(Modifier.fillMaxWidth().aspectRatio(4f / 3f), horizontalAlignment = Alignment.CenterHorizontally) {
-        MediaThumbnail(key, loader, Modifier.fillMaxWidth().weight(1f))
-        Text(stringResource(R.string.moment_story_position, current, total), Modifier.padding(top = GallerySpacing.Sm))
-    }
-}
-
-@Composable
-private fun StoryProgress(current: Int, total: Int) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg), horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
-        repeat(total) { index ->
-            Box(Modifier.height(4.dp).weight(1f).background(
-                if (index < current) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = .35f),
-            ))
+fun MomentUnavailableContent(onBack: () -> Unit) {
+    Surface(
+        color = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
+    ) {
+        Column(Modifier.fillMaxSize()) {
+            GalleryTopAppBar(
+                title = stringResource(R.string.collections_moments),
+                onBack = onBack,
+                navigationContentDescription = stringResource(R.string.memory_back),
+            )
+            Text(stringResource(R.string.memory_unavailable), Modifier.padding(24.dp))
         }
     }
 }
-
-@Composable
-private fun StoryNav(index: Int, size: Int, onMove: (Int) -> Unit, onAdvance: () -> Unit) {
-    val atEnd = index >= size - 1
-    Row(Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg), horizontalArrangement = Arrangement.SpaceEvenly) {
-        TextButton(onClick = { onMove(-1) }, enabled = index > 0, modifier = Modifier.weight(1f)) {
-            Text(stringResource(R.string.moment_move_previous), maxLines = 2)
-        }
-        TextButton(onClick = onAdvance, enabled = !atEnd || index > 0, modifier = Modifier.weight(1f)) {
-            Text(stringResource(if (atEnd) android.R.string.ok else android.R.string.search_go), maxLines = 2)
-        }
-        TextButton(onClick = { onMove(1) }, enabled = index < size - 1, modifier = Modifier.weight(1f)) {
-            Text(stringResource(R.string.moment_move_next), maxLines = 2)
-        }
-    }
-}
-
-@Composable
-@OptIn(ExperimentalFoundationApi::class)
-private fun ReorderRow(rowMembers: List<MomentMemberUi>, currentIndex: Int, loader: ThumbnailLoader?, onClick: (Int) -> Unit) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg), horizontalArrangement = Arrangement.spacedBy(TileSpacing)) {
-          rowMembers.forEach { member ->
-            val ordinal = member.member.ordinal
-            val isCurrent = ordinal == currentIndex
-            val border = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-            Box(Modifier.weight(1f)
-                .aspectRatio(1f)
-                .clip(MaterialTheme.shapes.small)
-                .combinedClickable(onClick = { onClick(ordinal) }, onLongClick = { onClick(ordinal) })
-                .padding(GallerySpacing.Xs)
-                .background(border, MaterialTheme.shapes.small),
-            ) { MediaThumbnail(member.key, loader, Modifier.fillMaxSize()) }
-          }
-          repeat(3 - rowMembers.size) { Box(Modifier.weight(1f).aspectRatio(1f)) }
-        }
-}
-
-@Composable
-private fun BottomActions(onDelete: () -> Unit, onSave: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(GallerySpacing.Lg), horizontalArrangement = Arrangement.SpaceEvenly) {
-        TextButton(onClick = onDelete) { Text(stringResource(R.string.moment_delete)) }
-        TextButton(onClick = onSave) { Text(stringResource(R.string.moment_save)) }
-    }
-}
-
-@Composable
-private fun MediaThumbnail(key: MediaKey, loader: ThumbnailLoader?, modifier: Modifier = Modifier) {
-    var bitmap by remember { mutableStateOf<ImageBitmap?>(null) }
-    LaunchedEffect(key) {
-        if (loader == null) return@LaunchedEffect
-        bitmap = runCatching {
-            loader.load(ThumbnailRequest(key, 0, ThumbnailSize, ThumbnailSize)).asImageBitmap()
-        }.getOrNull()
-    }
-    Image(bitmap ?: defaultPlaceholderImage(), contentDescription = null, modifier = modifier.clip(MaterialTheme.shapes.small), contentScale = ContentScale.Crop)
-}
-
-private val placeholderBitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
-private fun defaultPlaceholderImage(): ImageBitmap = placeholderBitmap.asImageBitmap()
 
 fun formatMomentDateRange(startMillis: Long, endMillis: Long): String =
-    DateFormat.getDateInstance().format(Date(startMillis)) + " · " + DateFormat.getDateInstance().format(Date(endMillis))
+    DateFormat.getDateInstance().format(Date(startMillis)) +
+        " · " +
+        DateFormat.getDateInstance().format(Date(endMillis))
 
 fun MomentContentPreviewData(): List<MomentMemberUi> = emptyList()

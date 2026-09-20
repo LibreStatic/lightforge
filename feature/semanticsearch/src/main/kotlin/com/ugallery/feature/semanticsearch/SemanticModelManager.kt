@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import java.io.Closeable
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.sync.withLock
 
 enum class SemanticSelectionMode { Automatic, Manual }
 
@@ -124,27 +125,25 @@ class SemanticModelManager(
         if (!allowUnsupported && !keepAutomatic) require(compatibility == SemanticModelCompatibility.Recommended) {
             "Model is supported but not recommended for this device"
         }
-        cancelPendingIndex()
         val indexId = "${model.id}-${model.version}-${UUID.randomUUID()}"
-        preferences.edit()
-            .putBoolean(KeyEnabled, true)
-            .putString(KeySelectionMode, if (keepAutomatic) SemanticSelectionMode.Automatic.name else SemanticSelectionMode.Manual.name)
-            .putString(KeyPendingModel, model.id)
-            .putString(KeyPendingIndex, indexId)
-            .remove(KeyIndexError)
-            .apply()
         scope.launch {
-            val now = System.currentTimeMillis()
-            database.semanticDao().upsertIndex(
-                com.ugallery.core.database.SemanticIndexEntity(indexId, model.id, model.version, "building", 0, now, now),
-            )
-            val request = SemanticIndexWorker.request(
-                model.id,
-                indexId,
-                SemanticIndexMode.FullLibrary,
-            )
-            work.enqueueUniqueWork(SemanticIndexWorker.uniqueName(indexId), ExistingWorkPolicy.REPLACE, request)
-            monitorIndexCompletion(indexId)
+            try {
+                SemanticIndexCommitGate.mutex.withLock {
+                    // Installation markers are status hints. Activation proves bytes and tensors.
+                    LiteRtSemanticEmbeddingInference(appContext, InstalledSemanticModel(model, storage.directory(model))).use { it.embedText("a photo") }
+                    cancelPendingIndex()
+                    check(preferences.edit().putBoolean(KeyEnabled, true)
+                        .putString(KeySelectionMode, if (keepAutomatic) SemanticSelectionMode.Automatic.name else SemanticSelectionMode.Manual.name)
+                        .putString(KeyPendingModel, model.id).putString(KeyPendingIndex, indexId)
+                        .remove(KeyIndexError).commit())
+                    val now = System.currentTimeMillis()
+                    database.semanticDao().upsertIndex(com.ugallery.core.database.SemanticIndexEntity(indexId, model.id, model.version, "building", 0, now, now))
+                    work.enqueueUniqueWork(SemanticIndexWorker.uniqueName(indexId), ExistingWorkPolicy.REPLACE,
+                        SemanticIndexWorker.request(modelId, indexId, SemanticIndexMode.FullLibrary))
+                }
+                monitorIndexCompletion(indexId)
+            } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (_: Throwable) { preferences.edit().putString(KeyIndexError, "model_validation_failed").apply() }
             refresh()
         }
     }
@@ -152,7 +151,9 @@ class SemanticModelManager(
     fun deleteModel(modelId: String) {
         val model = requireModel(modelId)
         cancelDownload(modelId)
-        scope.launch {
+        scope.launch { SemanticIndexCommitGate.mutex.withLock {
+            if (preferences.getString(KeyActiveModel, null) == modelId)
+                preferences.getString(KeyActiveIndex, null)?.let { work.cancelUniqueWork(SemanticIndexWorker.uniqueName(it)) }
             if (preferences.getString(KeyPendingModel, null) == modelId) cancelPendingIndex()
             if (preferences.getString(KeyActiveModel, null) == modelId) {
                 val activeIndex = preferences.getString(KeyActiveIndex, null)
@@ -163,24 +164,27 @@ class SemanticModelManager(
             database.semanticDao().deleteIndexesForModel(modelId)
             storage.delete(model)
             refresh()
-        }
+        } }
     }
 
     fun deleteAllModels() {
         setEnabled(false)
         SemanticModelCatalog.models.forEach { cancelDownload(it.id) }
-        scope.launch {
+        scope.launch { SemanticIndexCommitGate.mutex.withLock {
+            preferences.getString(KeyActiveIndex, null)?.let { work.cancelUniqueWork(SemanticIndexWorker.uniqueName(it)) }
             database.semanticDao().deleteAllIndexes()
             SemanticModelCatalog.models.forEach(storage::delete)
             preferences.edit().remove(KeyActiveModel).remove(KeyActiveIndex).apply()
             refresh()
-        }
+        } }
     }
 
     fun activeModel(): InstalledSemanticModel? {
         val id = preferences.getString(KeyActiveModel, null) ?: return null
         return SemanticModelCatalog.models.firstOrNull { it.id == id }?.let(storage::installedModel)
     }
+
+    fun isEnabled(): Boolean = preferences.getBoolean(KeyEnabled, false)
 
     fun activeIndexId(): String? = preferences.getString(KeyActiveIndex, null)
 
@@ -245,7 +249,7 @@ class SemanticModelManager(
                     active = active == model.id,
                     downloading = info?.state == WorkInfo.State.RUNNING || info?.state == WorkInfo.State.ENQUEUED,
                     downloadedBytes = info?.progress?.getLong(SemanticModelDownloadWorker.KeyDownloadedBytes, 0L) ?: 0L,
-                    error = info?.takeIf { it.state == WorkInfo.State.FAILED }?.outputData?.getString(SemanticModelDownloadWorker.KeyError),
+                    error = info?.takeIf { it.state == WorkInfo.State.FAILED && !storage.supersedesDownloadFailure(model, it.id.toString()) }?.outputData?.getString(SemanticModelDownloadWorker.KeyError),
                 )
             },
         )
@@ -282,7 +286,7 @@ class SemanticModelManager(
         val indexId = preferences.getString(KeyPendingIndex, null) ?: return
         work.cancelUniqueWork(SemanticIndexWorker.uniqueName(indexId))
         preferences.edit().remove(KeyPendingModel).remove(KeyPendingIndex).apply()
-        scope.launch { database.semanticDao().deleteIndex(indexId); refresh() }
+        scope.launch { SemanticIndexCommitGate.mutex.withLock { database.semanticDao().deleteIndex(indexId) }; refresh() }
     }
     private fun activateRecommendedIfReady() {
         if (!preferences.getBoolean(KeyEnabled, false) || selectionMode() != SemanticSelectionMode.Automatic) return

@@ -49,10 +49,14 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.key
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -68,6 +72,7 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -169,8 +174,10 @@ private data class VideoAnnotationActions(
     val cancelTracking: () -> Unit,
 )
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun VideoEditorContent(
+    sessionId: String,
     state: VideoEditorContentState,
     controller: VideoViewerController?,
     onBack: () -> Unit,
@@ -205,12 +212,15 @@ fun VideoEditorContent(
     onTrackAnnotation: (String, Long) -> Unit = { _, _ -> },
     onCancelAnnotationTracking: () -> Unit = {},
     onCancelExport: () -> Unit = {},
+    onPositionCheckpoint: (Long) -> Unit = {},
     foldInfo: GalleryFoldInfo? = null,
     modifier: Modifier = Modifier,
 ) {
-    var previewPositionMillis by remember(controller) { mutableLongStateOf(state.currentMillis) }
-    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
-    var annotationTool by rememberSaveable(stateSaver = VideoAnnotationToolStateSaver) {
+    require(sessionId.isNotBlank())
+    key(sessionId) {
+    var previewPositionMillis by rememberSaveable(sessionId) { mutableLongStateOf(state.currentMillis) }
+    var selectedTab by rememberSaveable(sessionId) { mutableIntStateOf(0) }
+    var annotationTool by rememberSaveable(sessionId, stateSaver = VideoAnnotationToolStateSaver) {
         mutableStateOf(VideoAnnotationToolState())
     }
     val annotationActions = VideoAnnotationActions(
@@ -228,17 +238,51 @@ fun VideoEditorContent(
         onCancelAnnotationTracking,
     )
     val context = LocalContext.current
-    val musicController = remember(state.selectedMusicUri) {
+    val musicController = remember(sessionId, state.selectedMusicUri) {
         state.selectedMusicUri?.let { uri ->
             VideoViewerController(context, initialLooping = true).also {
-                it.select(uri, autoplay = true)
+                it.select(uri, autoplay = false)
                 it.setVolume(state.musicVolume)
             }
         }
     }
     DisposableEffect(musicController) { onDispose { musicController?.close() } }
-    LaunchedEffect(controller) {
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val latestState by rememberUpdatedState(state)
+    val checkpoint by rememberUpdatedState(onPositionCheckpoint)
+    DisposableEffect(controller, lifecycle) {
+        controller?.pause()
         controller?.setLooping(true)
+        previewPositionMillis = videoEditorDraftPosition(
+            previewPositionMillis, state.trimStartMillis, state.trimEndMillis, state.durationMillis,
+        )
+        controller?.seekTo(previewPositionMillis)
+        onDispose { controller?.pause() }
+    }
+    DisposableEffect(controller, musicController, lifecycle) {
+        fun pauseAndCheckpoint() {
+            controller?.pause()
+            musicController?.pause()
+            val current = if (controller?.state?.value is VideoViewerState.Ready) {
+                controller.currentPositionMillis()
+            } else null
+            previewPositionMillis = videoEditorCheckpointPosition(
+                current, previewPositionMillis, latestState.trimStartMillis,
+                latestState.trimEndMillis, latestState.durationMillis,
+            )
+            checkpoint(previewPositionMillis)
+        }
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
+                pauseAndCheckpoint()
+            }
+        }
+        lifecycle.addObserver(observer)
+        if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) pauseAndCheckpoint()
+        onDispose {
+            lifecycle.removeObserver(observer)
+            pauseAndCheckpoint()
+        }
     }
     LaunchedEffect(controller, state.annotationTrackingCorrectionMillis) {
         state.annotationTrackingCorrectionMillis?.let { position ->
@@ -261,11 +305,13 @@ fun VideoEditorContent(
         var appliedSpeed = Float.NaN
         var appliedVolume = Float.NaN
         while (true) {
-            val position = controller?.currentPositionMillis() ?: state.currentMillis
+            val controllerReady = controller?.state?.value as? VideoViewerState.Ready
+            val position = if (controllerReady != null) controller?.currentPositionMillis() ?: previewPositionMillis
+                else previewPositionMillis
             val trimEnd = state.trimEndMillis.takeIf { it > state.trimStartMillis }
                 ?: state.durationMillis
-            if (controller != null && (position < state.trimStartMillis || position >= trimEnd)) {
-                controller.seekTo(state.trimStartMillis)
+            if (position < state.trimStartMillis || position >= trimEnd) {
+                controller?.seekTo(state.trimStartMillis)
                 previewPositionMillis = state.trimStartMillis
             } else {
                 previewPositionMillis = position
@@ -298,7 +344,9 @@ fun VideoEditorContent(
                     musicController.seekTo(desiredPosition)
                 }
                 val mainReady = controller?.state?.value as? VideoViewerState.Ready
-                if (mainReady?.isPlaying == true) musicController.play() else musicController.pause()
+                if (mainReady?.isPlaying == true && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                    musicController.play()
+                } else musicController.pause()
             }
             delay(100)
         }
@@ -362,7 +410,7 @@ fun VideoEditorContent(
         }
     }
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.testTag("video-editor-screen").semantics { testTagsAsResourceId = true },
         topBar = {
             VideoEditorTopBar(
                 foldInfo = foldInfo,
@@ -421,8 +469,11 @@ fun VideoEditorContent(
                         state = state,
                         currentMillis = previewPositionMillis,
                         onSeek = { position ->
-                            previewPositionMillis = position
-                            onSeek(position)
+                            previewPositionMillis = videoEditorDraftPosition(
+                                position, state.trimStartMillis, state.trimEndMillis, state.durationMillis,
+                            )
+                            checkpoint(previewPositionMillis)
+                            onSeek(previewPositionMillis)
                         },
                         onTrimChange = onTrimChange,
                         onSpeedChange = onSpeedChange,
@@ -582,6 +633,7 @@ fun VideoEditorContent(
             }
         }
     }
+}
 }
 
 @Composable
@@ -984,33 +1036,39 @@ private fun VideoTimeline(
         .coerceIn(trimStart + 1, duration)
     val position = currentMillis.coerceIn(trimStart, trimEnd)
     Column(Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Sm)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(formatMillis(position), style = GalleryMonoTypography)
-            Text(formatMillis(trimEnd), style = GalleryMonoTypography)
-        }
         val positionDescription = stringResource(
             R.string.video_editor_position_description,
-            formatMillis(position),
-            formatMillis(trimEnd),
+            formatVideoEditorDraftTime(position),
+            formatVideoEditorDraftTime(trimEnd),
+        )
+        Text(
+            positionDescription,
+            modifier = Modifier.testTag("video-editor-position-value"),
+            style = GalleryMonoTypography,
         )
         Slider(
             value = position.toFloat(),
             onValueChange = { onSeek(it.toLong()) },
             valueRange = trimStart.toFloat()..trimEnd.toFloat(),
-            modifier = Modifier.fillMaxWidth().semantics {
+            modifier = Modifier.fillMaxWidth().testTag("video-editor-position").semantics {
                 contentDescription = positionDescription
             },
         )
         val trimDescription = stringResource(
             R.string.video_editor_trim_description,
-            formatMillis(trimStart),
-            formatMillis(trimEnd),
+            formatVideoEditorDraftTime(trimStart),
+            formatVideoEditorDraftTime(trimEnd),
+        )
+        Text(
+            trimDescription,
+            modifier = Modifier.testTag("video-editor-trim-value"),
+            style = GalleryMonoTypography,
         )
         RangeSlider(
             value = trimStart.toFloat()..trimEnd.toFloat(),
             onValueChange = { range -> onTrimChange(range.start.toLong(), range.endInclusive.toLong()) },
             valueRange = 0f..duration.toFloat(),
-            modifier = Modifier.fillMaxWidth().semantics {
+            modifier = Modifier.fillMaxWidth().testTag("video-editor-trim").semantics {
                 contentDescription = trimDescription
             },
         )

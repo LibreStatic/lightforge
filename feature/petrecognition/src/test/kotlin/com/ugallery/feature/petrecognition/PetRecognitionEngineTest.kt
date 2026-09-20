@@ -1,39 +1,48 @@
 package com.ugallery.feature.petrecognition
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
+import org.junit.Assert.*
 import org.junit.Test
 
 class PetRecognitionEngineTest {
-
-    private val engine = PetRecognitionEngine()
-
-    @Test
-    fun isRecognitionAvailable_withoutModel_returnsFalse() {
-        assertFalse(engine.isRecognitionAvailable())
+    @Test fun pinnedDetectorAnchorsHaveExpectedShapeAndCenters() {
+        val a = PetDetectionDecoder.anchors
+        assertEquals(19206 * 4, a.size)
+        assertEquals(.0125f, a[0], .000001f)
+        assertEquals(.075f, a[2], .000001f)
+        assertEquals(5f / 6f, a[a.size - 4], .000001f)
+        assertTrue(a.all(Float::isFinite))
     }
-
-    @Test
-    fun recognitionMethod_petEmbedding_isDefined() {
-        assertEquals("PET_EMBEDDING", PetRecognitionEngine.RecognitionMethod.PET_EMBEDDING.name)
+    @Test fun nonFiniteAndLowConfidenceOutputNeverProducesAnAnimal() {
+        val scores = FloatArray(19206 * 90)
+        scores[16] = Float.NaN
+        assertTrue(PetDetectionDecoder.decode(FloatArray(19206 * 4), scores).isEmpty())
     }
-
-    @Test
-    fun recognitionMethod_labelOnlyFallback_isDefined() {
-        assertEquals("LABEL_ONLY_FALLBACK", PetRecognitionEngine.RecognitionMethod.LABEL_ONLY_FALLBACK.name)
+    @Test fun overlappingSpeciesCandidatesProduceOneBoxNotTwoIdentities() {
+        val scores = FloatArray(19206 * 90)
+        scores[16] = .8f; scores[17] = .7f
+        scores[90 + 16] = .75f
+        val found = PetDetectionDecoder.decode(FloatArray(19206 * 4), scores)
+        assertEquals(1, found.size)
+        assertEquals(PetSpecies.Cat, found.single().species)
     }
-
-    @Test
-    fun recognitionConfig_defaultsAreReasonable() {
-        val config = PetRecognitionEngine.RecognitionConfig()
-        assertEquals("unbundled", config.modelVersion)
-        assertEquals(128, config.embeddingDim)
-        assertEquals(0.5f, config.confidenceThreshold, 0.001f)
+    @Test fun spatiallyDifferentAnimalsKeepIndependentBoxes() {
+        val scores = FloatArray(19206 * 90)
+        scores[16] = .8f
+        scores[(40 * 9 * 25 + 9 * 25) * 90 + 17] = .85f
+        assertEquals(2, PetDetectionDecoder.decode(FloatArray(19206 * 4), scores).size)
     }
-
-    @Test
-    fun verifyNoCrossover_returnsTrue() {
-        assertTrue(engine.verifyNoCrossoverWithPersonData())
+    @Test fun boxesMustBeFiniteAndHavePositiveArea() {
+        assertThrows(IllegalArgumentException::class.java) { PetBox(0f, 0f, Float.NaN, 1f) }
+        assertThrows(IllegalArgumentException::class.java) { PetBox(.5f, 0f, .4f, 1f) }
+    }
+    @Test fun uncertainSpeciesCannotBecomeAnIdentityWithoutReview() {
+        assertThrows(IllegalArgumentException::class.java) {
+            PetIdentityCard("pet", PetSpecies.Uncertain, "Pet", 1, null)
+        }
+    }
+    @Test fun identityEmbeddingMustBeRealSizedFiniteAndUnitNormalized() {
+        assertThrows(IllegalArgumentException::class.java) {
+            PetAnalyzedObservation("id", PetBox(0f, 0f, 1f, 1f), PetSpecies.Cat, .9f, FloatArray(512))
+        }
     }
 }

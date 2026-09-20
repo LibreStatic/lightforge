@@ -110,7 +110,8 @@ class InitialMediaScanner(
                     lastSuccessfulSyncMillis = nowMillis(),
                 )
                 // Mark-and-sweep keeps unchanged rows (and their ML foreign-key children)
-                // throughout reconciliation, then removes only files absent from MediaStore.
+                // throughout reconciliation, then hides unavailable files without erasing
+                // decisions when a partial media permission hides a provider row.
                 store.completeScan(checkpoint, completedScanId)
                 return@withContext InitialScanResult.Complete(indexed)
             }

@@ -10,7 +10,7 @@ class TimelinePagingSource(
     private val database: GalleryDatabase,
     private val dao: LibraryDao = database.libraryDao(),
 ) : PagingSource<TimelineKeyset, MediaItemEntity>() {
-    private val observer = object : InvalidationTracker.Observer("media_items") {
+    private val observer = object : InvalidationTracker.Observer("media_items", "archived_media") {
         override fun onInvalidated(tables: Set<String>) = invalidate()
     }
 

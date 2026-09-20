@@ -13,4 +13,5 @@
     <string name="grant_access_action">Escolher acesso</string>
     <string name="photo_thumbnail_description">Foto</string>
     <string name="video_thumbnail_description">Vídeo</string>
-<string name="open_settings">Abrir configurações</string><string name="change_grid_density">Alterar densidade da grade</string><string name="photos_create">Criar</string><string name="photos_updates">Atualizações</string></resources>
+<string name="open_settings">Abrir configurações</string><string name="change_grid_density">Alterar densidade da grade</string><string name="photos_create">Criar</string><string name="photos_updates">Atualizações</string>    <string name="library_ready_status">Biblioteca pronta</string>
+</resources>

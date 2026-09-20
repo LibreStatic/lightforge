@@ -1,0 +1,22 @@
+<resources>
+    <string name="local_backup_tasks_title">Sicherungsaufgaben</string>
+    <string name="local_backup_task_queued">Eingereiht</string>
+    <string name="local_backup_task_durable_hint">Aufgaben laufen außerhalb dieser Ansicht weiter. Pausieren erhält abgeschlossene Phasen und verifizierte wiederhergestellte Dateien. Die Vorbereitung beginnt die Archiverstellung erneut; eine unterbrochene Zieldatei wird nach Prüfung neu geschrieben. Private Archive bleiben bis zum Entfernen des Verlaufseintrags.</string>
+    <string name="local_backup_tasks_empty">Noch keine Sicherungsaufgaben.</string>
+    <string name="local_backup_task_action_failed">Aktion fehlgeschlagen. Zugriff prüfen und das ursprüngliche Ziel wählen.</string>
+    <string name="local_backup_task_review_hint">Veränderte oder mehrdeutige Dateien und Journale bleiben zur Prüfung erhalten. Vorhandene Dateien werden nicht ersetzt.</string>
+    <string name="local_backup_task_permission_hint">Zugriff auf dasselbe Ziel wiederherstellen und fortsetzen. Fehlende oder unzugängliche Dateien führen niemals zur Löschung.</string>
+    <string name="local_backup_task_pause">Pausieren</string>
+    <string name="local_backup_task_resume">Fortsetzen / erneut versuchen</string>
+    <string name="local_backup_task_regrant">Zugriff wiederherstellen</string>
+    <string name="local_backup_task_inspect">Archiv prüfen</string>
+    <string name="local_backup_task_forget">Verlauf und privates Archiv entfernen</string>
+    <string name="local_backup_task_cancel_hint">Diese Aufgabe abbrechen und nur ihre unveränderten eigenen Dateien entfernen? Veränderte Dateien bleiben zur Prüfung erhalten.</string>
+    <string name="local_backup_task_keep">Aufgabe behalten</string>
+    <string name="local_backup_task_paused">Pausiert</string>
+    <string name="local_backup_task_waiting_permission">Zugriff erforderlich</string>
+    <string name="local_backup_task_needs_review">Prüfung erforderlich</string>
+    <string name="local_backup_task_cancelling">Abbruch / Bereinigung</string>
+    <string name="local_backup_task_completed">Abgeschlossen und verifiziert</string>
+    <string name="local_backup_task_corrupt">Unlesbare Aufgabe — zur Prüfung erhalten</string>
+</resources>

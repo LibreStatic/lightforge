@@ -169,4 +169,6 @@
     <string name="semantic_quality_higher">Höhere Qualität</string>
     <string name="semantic_language_english_focused">Vorwiegend Englisch</string>
     <string name="semantic_index_error">Der semantische Index konnte nicht erstellt werden. Prüfe Speicherplatz und Medienzugriff und wähle das Modell erneut aus.</string>
+    <string name="portable_preferences_field_collection_order">Reihenfolge der Sammlungen</string>
+    <string name="portable_preferences_field_hidden_collections">Ausgeblendete Sammlungen</string>
 </resources>

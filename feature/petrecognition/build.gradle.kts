@@ -21,6 +21,14 @@ android {
 }
 
 dependencies {
+    implementation("com.google.mlkit:image-labeling:17.0.9")
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.29.0")
+    implementation(libs.litert.api) {
+        exclude(group = "com.google.android.play", module = "ai-delivery")
+    }
+    implementation(libs.androidx.activity.compose)
+    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     implementation(project(":core:model"))
     implementation(project(":core:database"))
     implementation(project(":core:ml"))

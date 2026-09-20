@@ -1,1 +1,23 @@
-<resources><string name="album_untitled">Album sans titre</string><string name="album_volume_unavailable">Stockage indisponible</string><string name="album_volume_unavailable_body">Reconnectez le stockage pour afficher cet album.</string><string name="album_all">Tout</string><string name="album_photos">Photos</string><string name="album_videos">Vidéos</string><string name="album_newest">Plus récent</string><string name="album_oldest">Plus ancien</string><string name="album_selected_count">%1$d sélectionnés</string><string name="album_empty">Album vide</string><string name="album_empty_body">Les médias ajoutés apparaîtront ici.</string><string name="album_photo">Photo</string><string name="album_video">Vidéo</string></resources>
+<resources><string name="album_untitled">Album sans titre</string><string name="album_volume_unavailable">Stockage indisponible</string><string name="album_volume_unavailable_body">Reconnectez le stockage pour afficher cet album.</string><string name="album_all">Tout</string><string name="album_photos">Photos</string><string name="album_videos">Vidéos</string><string name="album_newest">Plus récent</string><string name="album_oldest">Plus ancien</string><string name="album_selected_count">%1$d sélectionnés</string><string name="album_empty">Album vide</string><string name="album_empty_body">Les médias ajoutés apparaîtront ici.</string><string name="album_photo">Photo</string><string name="album_video">Vidéo</string>
+    <string name="album_rename">Renommer l’album</string>
+    <string name="album_rename_title">Renommer l’album</string>
+    <string name="album_rename_body">Seul le nom de l’album change. Vos photos et vidéos restent à leur emplacement.</string>
+    <string name="album_name_label">Nom de l’album</string>
+    <string name="album_rename_empty">Saisissez un nom pour l’album.</string>
+    <string name="album_rename_too_long">Utilisez 200 caractères maximum.</string>
+    <string name="album_rename_failed">Le nom de l’album n’a pas pu être modifié. Vos fichiers sont inchangés. Réessayez.</string>
+    <string name="album_rename_save">Enregistrer</string>
+    <string name="album_rename_saving">Enregistrement…</string>
+    <string name="album_rename_cancel">Annuler</string>
+    <string name="album_sort_current">Tri : %1$s</string>
+    <string name="album_sort_name_ascending">Nom (croissant)</string>
+    <string name="album_sort_name_descending">Nom (décroissant)</string>
+    <string name="album_sort_size_ascending">Taille (plus petite en premier)</string>
+    <string name="album_sort_size_descending">Taille (plus grande en premier)</string>
+    <string name="album_cover_title">Choisir la couverture de l’album</string>
+    <string name="album_cover_hint">Touchez un élément de l’album pour le vérifier comme couverture. Vos fichiers resteront inchangés.</string>
+    <string name="album_cover_automatic">Couverture automatique</string>
+    <string name="album_cover_auto_confirm">Utiliser l’élément disponible le plus récent de l’album comme couverture ?</string>
+    <string name="album_cover_confirm">Utiliser « %1$s » comme couverture de l’album ?</string>
+    <string name="album_cover_failed">La couverture n’a pas pu être enregistrée. Vos fichiers sont inchangés. Réessayez.</string>
+</resources>

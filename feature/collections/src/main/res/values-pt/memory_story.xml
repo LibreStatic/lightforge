@@ -1,0 +1,12 @@
+<resources>
+    <string name="memory_back">Coleções</string>
+    <string name="memory_previous">Anterior</string>
+    <string name="memory_next">Seguinte</string>
+    <string name="memory_empty">Não há fotos disponíveis nesta memória. Suas referências salvas são mantidas.</string>
+    <string name="memory_order_hint">Reordenar altera a história salva. Anterior e Seguinte alteram apenas a reprodução.</string>
+    <string name="memory_set_cover">Usar como capa</string>
+    <string name="memory_select_photo">Mostrar foto %1$d</string>
+    <string name="memory_delete_title">Excluir esta memória?</string>
+    <string name="memory_delete_body">Apenas esta memória será excluída. As fotos originais permanecem intactas.</string>
+    <string name="memory_unavailable">A memória está carregando ou não está mais disponível.</string>
+</resources>

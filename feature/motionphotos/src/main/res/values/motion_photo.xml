@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="motion_title">Motion Photo</string>
+    <string name="motion_back">Back</string>
+    <string name="motion_loading">Reading local motion…</string>
+    <string name="motion_unavailable">Motion section unavailable</string>
+    <string name="motion_unavailable_hint">The original still photo is unchanged. This file has no supported, readable JPEG + MP4 motion section. No extra frames are invented.</string>
+    <string name="motion_original">Return to original</string>
+    <string name="motion_frame">Selected real video frame</string>
+    <string name="motion_frame_number">Frame %1$d</string>
+    <string name="motion_time">%1$d / %2$d ms</string>
+    <string name="motion_play">Play motion</string>
+    <string name="motion_pause">Pause</string>
+    <string name="motion_set_key">Set key frame</string>
+    <string name="motion_reset_key">Restore original cover</string>
+    <string name="motion_original_key">Cover: original photo</string>
+    <string name="motion_selected_key">Saved key frame: %1$d ms</string>
+    <string name="motion_note">Everything stays on this device. The selected cover is a reversible local edit; original bytes stay intact. JPEG and MP4 exports are separate copies. Supports JPEG motion files up to 512 MB and clips up to 60 seconds; extracted JPEGs are limited to 4096 pixels per side.</string>
+    <string name="motion_save_jpeg">Save frame as JPEG</string>
+    <string name="motion_save_mp4">Save clip as MP4</string>
+    <string name="motion_cancel">Cancel</string>
+    <string name="motion_saved">Cover saved locally</string>
+    <string name="motion_error">The action did not finish. Check source access and free storage, then retry. The original remains unchanged.</string>
+    <string name="motion_exported">Verified copy saved</string>
+    <string name="motion_open">Open copy</string>
+    <string name="motion_share">Share copy</string>
+    <string name="motion_cancel_title">Cancel the current action?</string>
+    <string name="motion_continue">Continue</string>
+</resources>

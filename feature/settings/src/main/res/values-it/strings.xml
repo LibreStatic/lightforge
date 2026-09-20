@@ -170,4 +170,6 @@
     <string name="semantic_quality_higher">Qualità superiore</string>
     <string name="semantic_language_english_focused">Principalmente inglese</string>
     <string name="semantic_index_error">Impossibile creare l’indice semantico. Controlla lo spazio disponibile e l’accesso ai contenuti, quindi scegli di nuovo il modello.</string>
+    <string name="portable_preferences_field_collection_order">Ordine delle raccolte</string>
+    <string name="portable_preferences_field_hidden_collections">Raccolte nascoste</string>
 </resources>

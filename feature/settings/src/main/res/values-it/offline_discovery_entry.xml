@@ -1,0 +1,6 @@
+<resources>
+    <string name="own_sync_entry">Sincronizzazione cartelle</string>
+    <string name="offline_places_entry">Luoghi offline</string>
+    <string name="local_sharing_entry">Trasferimento tra dispositivi Android</string>
+    <string name="pet_identity_entry">Animali individuali</string>
+</resources>

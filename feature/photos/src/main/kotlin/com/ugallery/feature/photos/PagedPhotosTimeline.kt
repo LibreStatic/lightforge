@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -20,7 +21,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInWindow
+import com.ugallery.core.model.MediaKey
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.asImageBitmap
@@ -54,6 +64,9 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 
+/** One-shot input-focus request. Real TalkBack focus requires separate device acceptance. */
+data class TimelineFocusReturn(val key: MediaKey, val token: Long)
+
 @Composable
 fun AdaptivePagedPhotosTimeline(
     entries: LazyPagingItems<TimelineEntry>,
@@ -67,6 +80,8 @@ fun AdaptivePagedPhotosTimeline(
     cropThumbnails: Boolean = true,
     onDensityChange: ((Int) -> Unit)? = null,
     isMediaSelected: (TimelineMedia) -> Boolean = { false },
+    focusReturn: TimelineFocusReturn? = null,
+    onFocusReturnConsumed: (TimelineFocusReturn) -> Unit = {},
 ) {
     BoxWithConstraints(modifier) {
         val widthDp = maxWidth.value.toInt()
@@ -85,7 +100,7 @@ fun AdaptivePagedPhotosTimeline(
             columns = columns,
             index = leadingIndex,
             stableKey = if (leadingIndex < entries.itemCount) {
-                entries.peek(leadingIndex)?.stableKey
+                entries.itemSnapshotList.getOrNull(leadingIndex)?.stableKey
             } else {
                 null
             },
@@ -105,6 +120,8 @@ fun AdaptivePagedPhotosTimeline(
             onMediaSelectionChange = onMediaSelectionChange,
             cropThumbnails = cropThumbnails,
             isMediaSelected = isMediaSelected,
+            focusReturn = focusReturn,
+            onFocusReturnConsumed = onFocusReturnConsumed,
         )
     }
 }
@@ -122,8 +139,21 @@ fun PagedPhotosTimeline(
     onMediaSelectionChange: (TimelineMedia, Boolean) -> Unit = { _, _ -> },
     cropThumbnails: Boolean = true,
     isMediaSelected: (TimelineMedia) -> Boolean = { false },
+    focusReturn: TimelineFocusReturn? = null,
+    onFocusReturnConsumed: (TimelineFocusReturn) -> Unit = {},
 ) {
     require(columns > 0 && thumbnailSizePx > 0)
+    val focusSnapshot = entries.itemSnapshotList
+    LaunchedEffect(focusReturn, state.isScrollInProgress, focusSnapshot, entries.loadState) {
+        val request = focusReturn ?: return@LaunchedEffect
+        // Never steal focus later after a user scroll or a fully loaded source disappears.
+        val sourceMissing = focusSnapshot.items.isNotEmpty() &&
+            entries.loadState.refresh is androidx.paging.LoadState.NotLoading &&
+            (entries.loadState.prepend as? androidx.paging.LoadState.NotLoading)?.endOfPaginationReached == true &&
+            (entries.loadState.append as? androidx.paging.LoadState.NotLoading)?.endOfPaginationReached == true &&
+            focusSnapshot.items.none { (it as? TimelineEntry.Media)?.value?.key == request.key }
+        if (state.isScrollInProgress || sourceMissing) onFocusReturnConsumed(request)
+    }
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
         state = state,
@@ -131,11 +161,11 @@ fun PagedPhotosTimeline(
         verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(GalleryGridMetrics.Gap),
         modifier = (if (densityState == null) modifier else
         modifier.timelinePinchDensity(densityState, state) { index ->
-            entries.peek(index)?.stableKey
+            entries.itemSnapshotList.getOrNull(index)?.stableKey
         })
             .lazyGridDragSelection(
                 state = state,
-                itemAtIndex = { index -> (entries.peek(index) as? TimelineEntry.Media)?.value },
+                itemAtIndex = { index -> (entries.itemSnapshotList.getOrNull(index) as? TimelineEntry.Media)?.value },
                 itemKey = { it.key },
                 isSelected = isMediaSelected,
                 onSelectionChange = onMediaSelectionChange,
@@ -145,14 +175,15 @@ fun PagedPhotosTimeline(
     ) {
         items(
             count = entries.itemCount,
-            key = { index -> entries.peek(index)?.stableKey ?: "unloaded:$index" },
+            key = { index -> entries.itemSnapshotList.getOrNull(index)?.stableKey ?: "unloaded:$index" },
             span = { index ->
-                if (entries.peek(index) is TimelineEntry.DayHeader) GridItemSpan(maxLineSpan)
+                if (entries.itemSnapshotList.getOrNull(index) is TimelineEntry.DayHeader) GridItemSpan(maxLineSpan)
                 else GridItemSpan(1)
             },
-            contentType = { index -> entries.peek(index)?.javaClass?.simpleName ?: "unloaded" },
+            contentType = { index -> entries.itemSnapshotList.getOrNull(index)?.javaClass?.simpleName ?: "unloaded" },
         ) { index ->
-            when (val entry = entries[index]) {
+            // A previous layout can still request an index after Paging publishes fewer rows.
+            when (val entry = if (index in 0 until entries.itemCount) entries[index] else null) {
                 is TimelineEntry.DayHeader -> TimelineDayHeader(entry.epochDay, entry.granularity)
                 is TimelineEntry.Media -> TimelineThumbnail(
                     entry = entry,
@@ -164,6 +195,11 @@ fun PagedPhotosTimeline(
                     },
                     cropToFill = cropThumbnails,
                     selected = isMediaSelected(entry.value),
+                    focusReturn = focusReturn?.takeIf { request ->
+                        !state.isScrollInProgress && request.key == entry.value.key &&
+                            state.layoutInfo.visibleItemsInfo.any { it.index == index }
+                    },
+                    onFocusReturnConsumed = onFocusReturnConsumed,
                 )
                 null -> Box(
                     Modifier
@@ -181,7 +217,7 @@ fun PagedPhotosTimeline(
         itemCount = entries.itemCount,
         contentKey = entries.itemSnapshotList,
         itemAtIndex = { index ->
-            val media = (entries.peek(index) as? TimelineEntry.Media)?.value ?: return@RetainGridThumbnailViewport null
+            val media = (entries.itemSnapshotList.getOrNull(index) as? TimelineEntry.Media)?.value ?: return@RetainGridThumbnailViewport null
             ThumbnailPrefetchCandidate(
                 request = media.thumbnailRequest(thumbnailSizePx),
                 sourceWidth = media.width,
@@ -236,17 +272,39 @@ private fun TimelineThumbnail(
     onLongClick: () -> Unit,
     cropToFill: Boolean = true,
     selected: Boolean = false,
+    focusReturn: TimelineFocusReturn? = null,
+    onFocusReturnConsumed: (TimelineFocusReturn) -> Unit = {},
 ) {
+    val inputFocusRequester = remember(entry.value.key) { FocusRequester() }
+    var placedVisible by remember(entry.value.key) { mutableStateOf(false) }
+    LaunchedEffect(focusReturn, placedVisible) {
+        val request = focusReturn ?: return@LaunchedEffect
+        if (placedVisible) {
+            // This drives the clickable's real input focus, never fabricated accessibility state.
+            if (inputFocusRequester.requestFocus()) onFocusReturnConsumed(request)
+        }
+    }
+    val stack = entry.value.stack
     val isVideo = entry.value.kind == MediaKind.Video
-    val contentDescription = if (isVideo) {
+    val longPressLabel = stack?.let { stringResource(R.string.timeline_stack_select, it.count) }
+    val contentDescription = if (stack != null) {
+        stringResource(R.string.timeline_stack_description, stack.count)
+    } else if (isVideo) {
         videoDurationDescription(entry.value.durationMillis)
     } else {
         stringResource(R.string.photo_thumbnail_description)
     }
     val request = entry.value.thumbnailRequest(sizePx)
-    val bitmap by produceState(loader.cached(request), request, loader) {
-        if (value == null) value = runCatching { loader.load(request) }.getOrNull()
-    }
+    val bitmap by key(request, loader) { produceState(loader.cached(request)) {
+        // A stack keeps its stable grid key when its cover changes. Reset the bitmap for
+        // the new source request instead of retaining a non-null previous cover forever.
+        value = loader.cached(request)
+        if (value == null) {
+            try { value = loader.load(request) }
+            catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+            catch (_: Exception) { value = null }
+        }
+    } }
     val loaded = bitmap
     val cellModifier = modifier
         .fillMaxWidth()
@@ -257,11 +315,15 @@ private fun TimelineThumbnail(
             this.selected = selected
         }
         .semantics {
-            onLongClick {
+            onLongClick(label = longPressLabel) {
                 onLongClick()
                 true
             }
         }
+        .onGloballyPositioned { coordinates ->
+            placedVisible = coordinates.isAttached && !coordinates.boundsInWindow().isEmpty
+        }
+        .focusRequester(inputFocusRequester)
         .clickable(onClick = onClick)
     Box(cellModifier) {
         if (loaded == null) {
@@ -275,7 +337,8 @@ private fun TimelineThumbnail(
                 bitmap = loaded.asImageBitmap(),
                 contentDescription = null,
                 contentScale = if (cropToFill) ContentScale.Crop else ContentScale.Fit,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().testTag(
+                    "timeline-image-loaded-${entry.value.key.volumeName}_${entry.value.key.mediaStoreId}"),
             )
         }
         if (isVideo) {
@@ -283,6 +346,25 @@ private fun TimelineThumbnail(
                 durationMillis = entry.value.durationMillis,
                 modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
             )
+        }
+        if (stack != null) {
+            androidx.compose.material3.Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                modifier = Modifier.align(Alignment.BottomStart).padding(6.dp)
+                    .testTag("timeline-stack-${stack.id}"),
+            ) {
+                androidx.compose.foundation.layout.Row(
+                    Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp),
+                ) {
+                    androidx.compose.material3.Icon(com.ugallery.core.designsystem.GalleryIcons.Album,
+                        null, Modifier.size(14.dp))
+                    Text(stack.count.toString(), style = MaterialTheme.typography.labelSmall)
+                }
+            }
         }
         MediaSelectionOverlay(selected)
     }

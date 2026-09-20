@@ -7,6 +7,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -80,8 +82,10 @@ class MomentContentDeviceTest {
         // The story position is below the hero on compact windows; it must remain in the
         // scrollable semantics tree rather than being clipped by the route viewport.
         compose.onNode(hasText(context.getString(R.string.moment_story_position, 1, 3))).assertExists()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(context.getString(R.string.moment_move_previous)))
         compose.onNode(hasText(context.getString(R.string.moment_move_previous))).assertExists()
         compose.onNode(hasText(context.getString(R.string.moment_move_next))).assertExists()
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(context.getString(R.string.moment_delete)))
         compose.onNode(hasText(context.getString(R.string.moment_delete))).assertExists()
         compose.onNode(hasText(context.getString(R.string.moment_save))).assertExists()
         compose.onNode(hasText(context.getString(R.string.moment_edit))).performClick()

@@ -1,0 +1,16 @@
+<resources>
+    <string name="memories_browser_title">Ricordi</string>
+    <string name="memories_browser_open">Vedi tutti i ricordi</string>
+    <string name="memories_browser_body">Esplora tutte le storie salvate e suggerite. Le nuove foto locali sono incluse dopo aver aggiornato la raccolta.</string>
+    <string name="memories_browser_back">Indietro</string>
+    <string name="memories_browser_all">Tutti</string>
+    <string name="memories_browser_saved">Salvati</string>
+    <string name="memories_browser_suggested">Suggeriti</string>
+    <string name="memories_browser_loading">Caricamento dei ricordi…</string>
+    <string name="memories_browser_empty">Nessun ricordo in questa vista</string>
+    <string name="memories_browser_empty_body">Prova un altro filtro. Le storie appaiono quando ci sono abbastanza foto locali dello stesso evento.</string>
+    <string name="memories_browser_error">Caricamento dei ricordi non riuscito.</string>
+    <string name="memories_browser_retry">Riprova</string>
+    <string name="memories_browser_photo_count">%1$d foto visibili</string>
+    <string name="memories_browser_hidden">Nessuna foto visibile. La storia salvata e la sua organizzazione vengono conservate.</string>
+</resources>

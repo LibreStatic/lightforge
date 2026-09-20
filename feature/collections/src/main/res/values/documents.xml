@@ -1,0 +1,37 @@
+<resources>
+    <string name="documents_title">Documents</string>
+    <string name="documents_hint">Review photos with text detected on this device. Assign categories yourself; originals stay in place.</string>
+    <string name="documents_all">All</string>
+    <string name="documents_suggested">To review</string>
+    <string name="documents_receipts">Receipts</string>
+    <string name="documents_tickets">Tickets</string>
+    <string name="documents_notes">Notes</string>
+    <string name="documents_other">Other documents</string>
+    <string name="documents_excluded">Excluded</string>
+    <string name="documents_search">Search names or recognized text</string>
+    <string name="documents_prepare_pdf">Prepare PDF (%1$d)</string>
+    <string name="documents_studio">Open PDF Studio</string>
+    <string name="documents_clear_selection">Clear selection</string>
+    <string name="documents_selection_hint">Select up to 24 photos in page order. More photos: select them in Photos, then choose Documents.</string>
+    <string name="documents_empty">No matching documents. Classify selected photos manually, or review results from optional on-device text analysis.</string>
+    <string name="documents_back">Back</string>
+    <string name="documents_retry">Retry</string>
+    <string name="documents_error">Document changed or is unavailable. Refresh and try again.</string>
+    <string name="documents_changed">Archive updated</string>
+    <string name="documents_undo">Undo</string>
+    <string name="documents_copied">Text copied</string>
+    <string name="documents_untitled">Untitled photo</string>
+    <string name="documents_archived">Archived</string>
+    <string name="documents_unavailable">Loading document. If access was removed, return to the list.</string>
+    <string name="documents_category">Category</string>
+    <string name="documents_text">Recognized text · up to 20,000 characters</string>
+    <string name="documents_no_text">No current on-device text result. Manual categories and PDF creation still work.</string>
+    <string name="documents_copy">Copy text</string>
+    <string name="documents_archive">Archive photo</string>
+    <string name="documents_unarchive">Unarchive photo</string>
+    <string name="documents_exclude">Exclude from Documents</string>
+    <string name="documents_reset">Reset my classification</string>
+    <string name="documents_photo">Photo</string>
+    <string name="documents_organize">Add to Documents</string>
+    <string name="documents_collection_count">%1$d photos · local categories and text</string>
+</resources>

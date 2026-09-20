@@ -164,7 +164,7 @@ class GalleryAlbumRepositoryDeviceTest {
         PagingSource.LoadParams.Refresh(key = null, loadSize = size, placeholdersEnabled = false),
     ) as PagingSource.LoadResult.Page
 
-    private suspend fun AlbumPagingSource.append(key: com.ugallery.core.database.TimelineKeyset, size: Int) = load(
+    private suspend fun AlbumPagingSource.append(key: com.ugallery.core.database.AlbumKeyset, size: Int) = load(
         PagingSource.LoadParams.Append(key = key, loadSize = size, placeholdersEnabled = false),
     ) as PagingSource.LoadResult.Page
 

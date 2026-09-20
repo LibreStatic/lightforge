@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail CI if the release gains network capabilities beyond signed model delivery."""
+"""Fail CI if the release gains network capabilities beyond signed model/opt-in map delivery and explicit own-server storage."""
 
 from __future__ import annotations
 
@@ -10,10 +10,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FORBIDDEN_PERMISSIONS = {
+    "android.permission.ACCESS_COARSE_LOCATION",
+    "android.permission.ACCESS_FINE_LOCATION",
     "android.permission.CHANGE_NETWORK_STATE",
     "android.permission.ACCESS_WIFI_STATE",
     "android.permission.CHANGE_WIFI_STATE",
-    "android.permission.ACCESS_LOCAL_NETWORK",
 }
 
 
@@ -32,7 +33,11 @@ def verify_manifest(path: Path) -> list[str]:
     # Keep this guard independent of host XML libraries so it also runs in minimal CI images.
     source = path.read_text(encoding="utf-8")
     declared = set(re.findall(r'<uses-permission(?:-sdk-23)?[^>]+android:name="([^"]+)"', source))
-    return sorted(permission for permission in FORBIDDEN_PERMISSIONS if permission in declared)
+    violations = sorted(permission for permission in FORBIDDEN_PERMISSIONS if permission in declared)
+    # Provider auto-start happens before Application.onCreate or the explicit model opt-in.
+    if re.search(r'<provider[^>]+android:name="ai\.onnxruntime\.TelemetryInitializer"', source):
+        violations.append("autoInitializer:ai.onnxruntime.TelemetryInitializer")
+    return violations
 
 
 def verify_dependencies() -> list[str]:
@@ -60,12 +65,25 @@ def verify_dependencies() -> list[str]:
 
 
 def verify_network_sources() -> list[str]:
-    """Keep network clients confined to the signed semantic package downloader."""
-    markers = ("HttpURLConnection", "java.net.URL", "okhttp3.", "retrofit2.")
+    """Keep network clients confined to signed model delivery and reviewed own-storage transports."""
+    markers = ("HttpURLConnection", "java.net.URL", "okhttp3.", "retrofit2.", "java.net.Socket", "javax.net.SocketFactory", "net.schmizz.sshj", "com.hierynomus.smbj", "javax.net.ssl.", "java.net.ServerSocket")
     violations: list[str] = []
     for root_name in ("app", "core", "feature"):
         for path in (ROOT / root_name).glob("**/src/main/**/*.kt"):
             if path.name == "SemanticModelStorage.kt" and "feature/semanticsearch/" in path.as_posix():
+                continue
+            if path.relative_to(ROOT).as_posix() in {
+                "feature/petrecognition/src/main/kotlin/com/ugallery/feature/petrecognition/PetModelStore.kt",
+                "feature/localsharing/src/main/kotlin/com/ugallery/feature/localsharing/LocalSharingTls.kt",
+                "feature/localsharing/src/main/kotlin/com/ugallery/feature/localsharing/LocalSharingClient.kt",
+                "feature/localsharing/src/main/kotlin/com/ugallery/feature/localsharing/LocalSharingReceiver.kt",
+                "feature/localsharing/src/main/kotlin/com/ugallery/feature/localsharing/LocalSharingRunner.kt",
+                "feature/semanticsearch/src/main/kotlin/com/ugallery/feature/semanticsearch/SemanticDownloadCancellation.kt",
+                "feature/places/src/main/kotlin/com/ugallery/feature/places/OfflinePlacesController.kt",
+                "core/remotestorage/src/main/kotlin/com/ugallery/core/remotestorage/sftp/SftpRemoteConnectionFactory.kt",
+                "core/remotestorage/src/main/kotlin/com/ugallery/core/remotestorage/sftp/SftpRemoteConnection.kt",
+                "core/remotestorage/src/main/kotlin/com/ugallery/core/remotestorage/smb/SmbRemoteConnectionFactory.kt",
+            }:
                 continue
             source = path.read_text(encoding="utf-8")
             if any(marker in source for marker in markers):
@@ -83,7 +101,7 @@ def main() -> int:
         print(f"unapprovedDependencies={dependencies}")
         print(f"unapprovedNetworkSources={network_sources}")
         return 1
-    print(f"privacy guard passed: {manifest.relative_to(ROOT)} (model delivery permissions only)")
+    print(f"privacy guard passed: {manifest.relative_to(ROOT)} (signed model delivery, opt-in pinned map packages and user-configured SFTP/SMB; renderer HTTP denied)")
     return 0
 
 

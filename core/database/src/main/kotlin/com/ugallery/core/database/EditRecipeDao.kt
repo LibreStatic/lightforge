@@ -38,11 +38,12 @@ interface EditRecipeDao {
 
     @Transaction
     suspend fun replace(recipe: EditRecipe, nowMillis: Long) {
+        val source = requireNotNull(recipe.source) { "Ephemeral recipes cannot be persisted" }
         upsertRecipe(
             EditRecipeEntity(
                 recipeId = recipe.recipeId,
-                volumeName = recipe.source.volumeName,
-                mediaStoreId = recipe.source.mediaStoreId,
+                volumeName = source.volumeName,
+                mediaStoreId = source.mediaStoreId,
                 sourceGenerationModified = recipe.sourceGenerationModified,
                 revision = recipe.revision,
                 createdAtMillis = recipeCreatedAt(recipe.recipeId, nowMillis),

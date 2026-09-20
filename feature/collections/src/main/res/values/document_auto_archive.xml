@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="document_auto_title">Automatic archive</string>
+    <string name="document_auto_explanation">Matching documents leave Photos but stay in Documents and albums. Originals stay on this device. Favorites and excluded photos are skipped. Keep and undo apply to the current photo version.</string>
+    <string name="document_auto_enabled">Automatic archive is on</string>
+    <string name="document_auto_paused">Automatic archive is paused</string>
+    <string name="document_auto_last_run">Last batch: %1$d archived</string>
+    <string name="document_auto_age">Photo age</string>
+    <string name="document_auto_any_age">Any age</string>
+    <string name="document_auto_days">At least %1$d days</string>
+    <string name="document_auto_review">Review matches</string>
+    <string name="document_auto_pause">Pause automatic archive</string>
+    <string name="document_auto_undo">Undo last batch and pause</string>
+    <string name="document_auto_preview">Photos to archive: %1$d</string>
+    <string name="document_auto_future">Confirm this batch and future matches. Local checks run about every 15 minutes when Android and battery allow. No cloud or new analysis.</string>
+    <string name="document_auto_more">This preview shows the first 100 matches. Later matches will be handled in subsequent batches.</string>
+    <string name="document_auto_empty">No matches now. You can still enable this rule for future photos.</string>
+    <string name="document_auto_keep">Keep in Photos</string>
+    <string name="document_auto_confirm">Archive and enable rule</string>
+    <string name="document_auto_cancel">Cancel preview</string>
+    <string name="document_auto_stale">Matches or settings changed. Review again before confirming.</string>
+    <string name="document_auto_active_rule">Saved rule: %1$s · %2$d days</string>
+    <string name="document_auto_keep_named">Keep in Photos: %1$s</string>
+    <string name="document_auto_preview_rule">Rule to enable: %1$s · %2$d days</string>
+</resources>

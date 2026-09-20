@@ -34,6 +34,12 @@ dependencies {
     testImplementation(libs.junit4)
     testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.room.runtime)
+    androidTestImplementation(libs.androidx.room.testing)
     androidTestImplementation(libs.androidx.test.ext)
     androidTestImplementation(libs.androidx.test.runner)
+}
+
+// Package canonical exported schemas for real historical migration fixtures, not current-schema relabels.
+androidComponents.onVariants(androidComponents.selector().withBuildType("debug")) { variant ->
+    variant.androidTest?.sources?.assets?.addStaticSourceDirectory("../database/schemas")
 }

@@ -20,6 +20,7 @@ import com.ugallery.core.ml.UserHardwareWorkloadGate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.withLock
 import java.io.FileNotFoundException
 
 class SemanticIndexWorker(context: Context, parameters: WorkerParameters) : CoroutineWorker(context, parameters) {
@@ -85,10 +86,15 @@ class SemanticIndexWorker(context: Context, parameters: WorkerParameters) : Coro
                             bitmap.recycle()
                         }
                     }
-                    if (embeddings.isNotEmpty()) dao.upsertEmbeddings(embeddings)
+                    if (embeddings.isNotEmpty()) SemanticIndexCommitGate.mutex.withLock {
+                        if (isStopped) throw CancellationException("Semantic index cancelled")
+                        dao.upsertCurrentEmbeddings(indexId, embeddings)
+                    }
                     processed += media.size
                     val count = dao.embeddingCount(indexId)
-                    dao.index(indexId)?.let { dao.upsertIndex(it.copy(embeddedCount = count, updatedAtMillis = System.currentTimeMillis())) }
+                    SemanticIndexCommitGate.mutex.withLock {
+                        dao.index(indexId)?.let { dao.upsertIndex(it.copy(embeddedCount = count, updatedAtMillis = System.currentTimeMillis())) }
+                    }
                     setProgress(workDataOf(KeyCompletedItems to count))
                 }
             }
@@ -105,8 +111,10 @@ class SemanticIndexWorker(context: Context, parameters: WorkerParameters) : Coro
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Throwable) {
-            dao.index(indexId)?.let {
-                dao.upsertIndex(it.copy(status = "failed", updatedAtMillis = System.currentTimeMillis()))
+            SemanticIndexCommitGate.mutex.withLock {
+                dao.index(indexId)?.let {
+                    dao.upsertIndex(it.copy(status = "failed", updatedAtMillis = System.currentTimeMillis()))
+                }
             }
             applicationContext.getSharedPreferences("semantic-model-settings", Context.MODE_PRIVATE).run {
                 if (getString("pending_index", null) == indexId) {
@@ -127,17 +135,20 @@ class SemanticIndexWorker(context: Context, parameters: WorkerParameters) : Coro
         dao: com.ugallery.core.database.SemanticDao,
         count: Long,
     ) {
-        dao.index(indexId)?.let { dao.upsertIndex(it.copy(status = "active", embeddedCount = count, updatedAtMillis = System.currentTimeMillis())) }
-        val preferences = applicationContext.getSharedPreferences("semantic-model-settings", Context.MODE_PRIVATE)
-        val previous = preferences.getString("active_index", null)
-        check(preferences.edit()
-            .putString("active_model", model.id)
-            .putString("active_index", indexId)
-            .remove("pending_model")
-            .remove("pending_index")
-            .remove("index_error")
-            .commit()) { "Unable to persist active semantic index" }
-        if (previous != null && previous != indexId) dao.deleteIndex(previous)
+        SemanticIndexCommitGate.mutex.withLock {
+            if (isStopped) throw CancellationException("Semantic index cancelled")
+            val preferences = applicationContext.getSharedPreferences("semantic-model-settings", Context.MODE_PRIVATE)
+            if (!preferences.getBoolean("enabled", false) ||
+                (preferences.getString("pending_index", null) != indexId && preferences.getString("active_index", null) != indexId)) return
+            if (dao.markIndexActiveIfPresent(indexId, count, System.currentTimeMillis()) != 1) return
+            val previous = preferences.getString("active_index", null)
+            check(preferences.edit()
+                .putString("active_model", model.id).putString("active_index", indexId)
+                .remove("pending_model").remove("pending_index").remove("index_error").commit()) {
+                "Unable to persist active semantic index"
+            }
+            if (previous != null && previous != indexId) dao.deleteIndex(previous)
+        }
     }
 
     companion object {

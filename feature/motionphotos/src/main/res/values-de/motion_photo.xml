@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="motion_title">Motion Photo</string>
+    <string name="motion_back">Zurück</string>
+    <string name="motion_loading">Lokale Bewegung wird gelesen…</string>
+    <string name="motion_unavailable">Bewegungsanteil nicht verfügbar</string>
+    <string name="motion_unavailable_hint">Das Original bleibt unverändert. Diese Datei enthält keinen unterstützten, lesbaren JPEG + MP4-Bewegungsanteil. Keine erfundenen Frames.</string>
+    <string name="motion_original">Zum Original zurück</string>
+    <string name="motion_frame">Ausgewähltes echtes Videobild</string>
+    <string name="motion_frame_number">Bild %1$d</string>
+    <string name="motion_time">%1$d / %2$d ms</string>
+    <string name="motion_play">Bewegung abspielen</string>
+    <string name="motion_pause">Pause</string>
+    <string name="motion_set_key">Schlüsselbild festlegen</string>
+    <string name="motion_reset_key">Originaltitelbild wiederherstellen</string>
+    <string name="motion_original_key">Titelbild: Originalfoto</string>
+    <string name="motion_selected_key">Gespeichertes Schlüsselbild: %1$d ms</string>
+    <string name="motion_note">Alles bleibt auf diesem Gerät. Das Titelbild ist eine reversible lokale Bearbeitung; Originalbytes bleiben intakt. JPEG und MP4 sind separate Kopien. JPEG-Bewegungsdateien bis 512 MB, Clips bis 60 Sekunden; extrahierte JPEGs bis 4096 Pixel pro Seite.</string>
+    <string name="motion_save_jpeg">Bild als JPEG speichern</string>
+    <string name="motion_save_mp4">Clip als MP4 speichern</string>
+    <string name="motion_cancel">Abbrechen</string>
+    <string name="motion_saved">Titelbild lokal gespeichert</string>
+    <string name="motion_error">Die Aktion wurde nicht abgeschlossen. Prüfe Quellzugriff und freien Speicher und versuche es erneut. Das Original bleibt unverändert.</string>
+    <string name="motion_exported">Geprüfte Kopie gespeichert</string>
+    <string name="motion_open">Kopie öffnen</string>
+    <string name="motion_share">Kopie teilen</string>
+    <string name="motion_cancel_title">Aktuelle Aktion abbrechen?</string>
+    <string name="motion_continue">Fortsetzen</string>
+</resources>

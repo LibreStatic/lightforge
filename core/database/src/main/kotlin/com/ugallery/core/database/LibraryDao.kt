@@ -12,6 +12,16 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface LibraryDao {
+    @RawQuery(observedEntities = [MediaItemEntity::class, ArchivedMediaEntity::class,
+        PhotoStackEntity::class, PhotoStackMemberEntity::class])
+    fun rawStackTimelinePagingSource(query: SupportSQLiteQuery): androidx.paging.PagingSource<Int, StackTimelineRow>
+
+    @RawQuery
+    suspend fun stackTimelinePage(query: SupportSQLiteQuery): List<StackTimelineRow>
+
+    @RawQuery
+    suspend fun stackTimelineSelection(query: SupportSQLiteQuery): List<MediaItemEntity>
+
     @RawQuery(observedEntities = [MediaItemEntity::class, ArchivedMediaEntity::class])
     fun rawTimelinePagingSource(query: SupportSQLiteQuery): androidx.paging.PagingSource<Int, MediaItemEntity>
 
@@ -501,7 +511,31 @@ interface LibraryDao {
     ): Flow<CleanupSummaryRow>
 
     @Upsert
-    suspend fun upsertMedia(items: List<MediaItemEntity>)
+    suspend fun upsertMediaRows(items: List<MediaItemEntity>)
+
+    @Query("SELECT * FROM portable_timeline_overrides WHERE volumeName=:volume AND mediaStoreId IN (:ids)")
+    suspend fun portableDateChoices(volume: String, ids: List<Long>): List<PortableTimelineOverrideEntity>
+
+    @Transaction
+    suspend fun upsertMedia(items: List<MediaItemEntity>) {
+        // Indexed bounded queries, not one database lookup per scanned photo.
+        val choices = items.groupBy { it.volumeName }.flatMap { (volume, rows) ->
+            rows.map { it.mediaStoreId }.chunked(500).flatMap { portableDateChoices(volume, it) }
+        }.associateBy { it.volumeName to it.mediaStoreId }
+        // Verified foreground/restore publications have no scanner token. If a full scan is
+        // active, preserve their visibility even when its cursor already passed this row.
+        // This transaction serializes with scan completion; absent, unverified rows still hide.
+        val activeScans = items.filter { it.isAccessible && it.lastSeenScanId == 0L }
+            .map { it.volumeName }.distinct().associateWith { checkpoint(it)?.activeScanId }
+        upsertMediaRows(items.map { row ->
+            val choice = choices[row.volumeName to row.mediaStoreId]?.takeIf { it.generationAdded == row.generationAdded }
+            val dated = if (choice == null) row else row.copy(timelineSortMillis = choice.timelineSortMillis, dateTakenMillis = choice.dateTakenMillis)
+            val activeScan = activeScans[row.volumeName]
+            if (dated.isAccessible && dated.lastSeenScanId == 0L && activeScan != null)
+                dated.copy(lastSeenScanId = activeScan)
+            else dated
+        })
+    }
 
     @Upsert
     suspend fun upsertCheckpoint(checkpoint: MediaStoreCheckpointEntity)
@@ -545,7 +579,7 @@ interface LibraryDao {
     ): List<KnownMediaGeneration>
 
     @Query(
-        "UPDATE media_items SET lastSeenScanId=:scanId " +
+        "UPDATE media_items SET lastSeenScanId=:scanId, isAccessible=1 " +
             "WHERE volumeName=:volumeName AND mediaStoreId IN (:mediaStoreIds)",
     )
     suspend fun markMediaSeen(volumeName: String, mediaStoreIds: List<Long>, scanId: Long): Int
@@ -558,7 +592,7 @@ interface LibraryDao {
     ) {
         if (items.isNotEmpty()) {
             val volumeName = items.first().volumeName
-            require(items.all { it.volumeName == volumeName })
+            require(items.all { it.volumeName == volumeName && it.isAccessible })
             val known = knownMediaGenerations(volumeName, items.map(MediaItemEntity::mediaStoreId))
                 .associate { it.mediaStoreId to it.generationModified }
             markMediaSeen(volumeName, items.map(MediaItemEntity::mediaStoreId), items.first().lastSeenScanId)
@@ -576,9 +610,15 @@ interface LibraryDao {
     @Query("DELETE FROM media_items WHERE volumeName=:volumeName AND lastSeenScanId!=:scanId")
     suspend fun deleteItemsNotSeenInScan(volumeName: String, scanId: Long): Int
 
+    @Query("UPDATE media_items SET isAccessible=0 WHERE volumeName=:volumeName AND lastSeenScanId!=:scanId")
+    suspend fun hideItemsNotSeenInScan(volumeName: String, scanId: Long): Int
+
     @Transaction
     suspend fun completeVolumeScan(checkpoint: MediaStoreCheckpointEntity, scanId: Long) {
-        deleteItemsNotSeenInScan(checkpoint.volumeName, scanId)
+        // A provider scan cannot distinguish deleted media from revoked selected-photo access.
+        // Hide absent rows without cascading away saved decisions; an explicit fully-authorized
+        // deletion hint remains the path for removal. Reappearing rows retain their identity.
+        hideItemsNotSeenInScan(checkpoint.volumeName, scanId)
         upsertCheckpoint(checkpoint)
     }
 
@@ -804,6 +844,19 @@ interface LibraryDao {
     @Query("SELECT * FROM virtual_albums WHERE albumId = :albumId")
     suspend fun virtualAlbum(albumId: Long): VirtualAlbumEntity?
 
+    /** One atomic statement validates membership/access at the write, or clears explicitly. */
+    @Query("""
+        UPDATE virtual_albums SET chosenCoverVolumeName=:volumeName,
+            chosenCoverMediaStoreId=:mediaStoreId, updatedAtMillis=:updatedAtMillis
+        WHERE albumId=:albumId AND (
+            (:volumeName IS NULL AND :mediaStoreId IS NULL) OR EXISTS (
+                SELECT 1 FROM virtual_album_media vm JOIN media_items m
+                ON m.volumeName=vm.volumeName AND m.mediaStoreId=vm.mediaStoreId
+                WHERE vm.albumId=:albumId AND vm.volumeName=:volumeName AND vm.mediaStoreId=:mediaStoreId
+                AND m.isAccessible=1 AND m.isTrashed=0))
+    """)
+    suspend fun setVirtualAlbumCover(albumId: Long, volumeName: String?, mediaStoreId: Long?, updatedAtMillis: Long): Int
+
     @Query("SELECT COUNT(*) FROM virtual_album_media WHERE albumId = :albumId")
     suspend fun virtualAlbumMediaCount(albumId: Long): Long
 
@@ -839,13 +892,17 @@ interface LibraryDao {
         SELECT a.albumId, a.name, COUNT(m.mediaStoreId) AS itemCount,
             MAX(m.timelineSortMillis) AS latestSortMillis,
             (SELECT vm2.volumeName FROM virtual_album_media vm2
+             JOIN virtual_albums choice ON choice.albumId=vm2.albumId
              JOIN media_items m2 ON m2.volumeName = vm2.volumeName AND m2.mediaStoreId = vm2.mediaStoreId
              WHERE vm2.albumId = a.albumId AND m2.isAccessible = 1 AND m2.isTrashed = 0
-             ORDER BY m2.timelineSortMillis DESC, m2.mediaStoreId DESC LIMIT 1) AS coverVolumeName,
+             ORDER BY CASE WHEN vm2.volumeName=choice.chosenCoverVolumeName AND vm2.mediaStoreId=choice.chosenCoverMediaStoreId THEN 0 ELSE 1 END,
+                m2.timelineSortMillis DESC, m2.mediaStoreId DESC, m2.volumeName DESC LIMIT 1) AS coverVolumeName,
             (SELECT vm2.mediaStoreId FROM virtual_album_media vm2
+             JOIN virtual_albums choice ON choice.albumId=vm2.albumId
              JOIN media_items m2 ON m2.volumeName = vm2.volumeName AND m2.mediaStoreId = vm2.mediaStoreId
              WHERE vm2.albumId = a.albumId AND m2.isAccessible = 1 AND m2.isTrashed = 0
-             ORDER BY m2.timelineSortMillis DESC, m2.mediaStoreId DESC LIMIT 1) AS coverMediaStoreId
+             ORDER BY CASE WHEN vm2.volumeName=choice.chosenCoverVolumeName AND vm2.mediaStoreId=choice.chosenCoverMediaStoreId THEN 0 ELSE 1 END,
+                m2.timelineSortMillis DESC, m2.mediaStoreId DESC, m2.volumeName DESC LIMIT 1) AS coverMediaStoreId
         FROM virtual_albums a
         LEFT JOIN virtual_album_media vm ON vm.albumId = a.albumId
         LEFT JOIN media_items m ON m.volumeName = vm.volumeName AND m.mediaStoreId = vm.mediaStoreId

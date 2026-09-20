@@ -1,7 +1,9 @@
 package com.ugallery.core.designsystem
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,30 +21,27 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /** Visual treatment shared by every selectable media grid. */
 @Composable
-fun MediaSelectionOverlay(
-    selected: Boolean,
-    modifier: Modifier = Modifier,
-) {
+fun MediaSelectionOverlay(selected: Boolean, modifier: Modifier = Modifier) {
     if (!selected) return
     Box(
         modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.26f))
-            .testTag("media_selection_indicator"),
+            .testTag("media_selection_indicator")
     ) {
         Surface(
             modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(28.dp),
@@ -87,23 +86,25 @@ fun <T> Modifier.lazyGridDragSelection(
         coroutineScope {
             var lastIndex: Int? = null
             var desiredSelected = true
-            var gestureActive = false
             var pointerPosition: Offset? = null
             var autoScrollJob: Job? = null
             val visited = mutableSetOf<Any>()
 
-            fun indexAt(position: Offset): Int? = state.layoutInfo.visibleItemsInfo
-                .lastOrNull { item ->
-                    position.x >= item.offset.x &&
-                        position.x < item.offset.x + item.size.width &&
-                        position.y >= item.offset.y &&
-                        position.y < item.offset.y + item.size.height
-                }
-                ?.index
+            fun indexAt(position: Offset): Int? =
+                state.layoutInfo.visibleItemsInfo
+                    .lastOrNull { item ->
+                        position.x >= item.offset.x &&
+                            position.x < item.offset.x + item.size.width &&
+                            position.y >= item.offset.y &&
+                            position.y < item.offset.y + item.size.height
+                    }
+                    ?.index
 
             fun paintIndex(index: Int) {
                 val item = currentItemAtIndex(index) ?: return
-                if (visited.add(currentItemKey(item)) && currentIsSelected(item) != desiredSelected) {
+                if (
+                    visited.add(currentItemKey(item)) && currentIsSelected(item) != desiredSelected
+                ) {
                     currentOnSelectionChange(item, desiredSelected)
                 }
             }
@@ -120,18 +121,19 @@ fun <T> Modifier.lazyGridDragSelection(
                 lastIndex = index
             }
 
-            fun edgeScrollDelta(position: Offset): Float = when {
-                position.y < edgeThresholdPx -> {
-                    -maximumScrollPerFramePx *
-                        ((edgeThresholdPx - position.y) / edgeThresholdPx).coerceIn(0f, 1f)
+            fun edgeScrollDelta(position: Offset): Float =
+                when {
+                    position.y < edgeThresholdPx -> {
+                        -maximumScrollPerFramePx *
+                            ((edgeThresholdPx - position.y) / edgeThresholdPx).coerceIn(0f, 1f)
+                    }
+                    position.y > size.height - edgeThresholdPx -> {
+                        maximumScrollPerFramePx *
+                            ((position.y - (size.height - edgeThresholdPx)) / edgeThresholdPx)
+                                .coerceIn(0f, 1f)
+                    }
+                    else -> 0f
                 }
-                position.y > size.height - edgeThresholdPx -> {
-                    maximumScrollPerFramePx *
-                        ((position.y - (size.height - edgeThresholdPx)) / edgeThresholdPx)
-                            .coerceIn(0f, 1f)
-                }
-                else -> 0f
-            }
 
             fun restartAutoScroll(position: Offset) {
                 val delta = edgeScrollDelta(position)
@@ -153,41 +155,44 @@ fun <T> Modifier.lazyGridDragSelection(
                 }
             }
 
-            suspend fun finishGesture() {
-                autoScrollJob?.cancelAndJoin()
+            fun finishGesture() {
+                autoScrollJob?.cancel()
                 autoScrollJob = null
                 pointerPosition = null
                 lastIndex = null
-                gestureActive = false
                 visited.clear()
             }
 
-            detectDragGesturesAfterLongPress(
-                onDragStart = { position ->
-                    visited.clear()
-                    gestureActive = false
-                    pointerPosition = position
-                    indexAt(position)?.let { index ->
-                        currentItemAtIndex(index)?.let { anchor ->
-                            gestureActive = true
-                            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                            desiredSelected = !currentIsSelected(anchor)
-                            paintThrough(index)
-                            restartAutoScroll(position)
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                val held = awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
+                val index = indexAt(held.position) ?: return@awaitEachGesture
+                val anchor = currentItemAtIndex(index) ?: return@awaitEachGesture
+                visited.clear()
+                pointerPosition = held.position
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                desiredSelected = !currentIsSelected(anchor)
+                paintThrough(index)
+                restartAutoScroll(held.position)
+                try {
+                    while (true) {
+                        // Intercept the release before a clickable cell handles it in Main.
+                        // A stationary long press otherwise selects, then immediately toggles off.
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        val change = event.changes.firstOrNull { it.id == held.id } ?: break
+                        if (change.isConsumed) break
+                        if (change.pressed && change.position != change.previousPosition) {
+                            pointerPosition = change.position
+                            indexAt(change.position)?.let(::paintThrough)
+                            restartAutoScroll(change.position)
                         }
+                        change.consume()
+                        if (!change.pressed) break
                     }
-                },
-                onDrag = { change, _ ->
-                    if (!gestureActive) return@detectDragGesturesAfterLongPress
-                    val position = change.position
-                    pointerPosition = position
-                    indexAt(position)?.let(::paintThrough)
-                    restartAutoScroll(position)
-                    change.consume()
-                },
-                onDragEnd = { launch { finishGesture() } },
-                onDragCancel = { launch { finishGesture() } },
-            )
+                } finally {
+                    finishGesture()
+                }
+            }
         }
     }
 }

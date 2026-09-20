@@ -168,4 +168,6 @@
     <string name="semantic_quality_higher">Higher quality</string>
     <string name="semantic_language_english_focused">English-focused</string>
     <string name="semantic_index_error">The semantic index could not be built. Check available storage and media access, then choose the model again.</string>
+    <string name="portable_preferences_field_collection_order">Collection order</string>
+    <string name="portable_preferences_field_hidden_collections">Hidden collections</string>
 </resources>

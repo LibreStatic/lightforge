@@ -1,0 +1,19 @@
+<resources>
+    <string name="manual_moment_title">Erinnerung erstellen</string>
+    <string name="manual_moment_explanation">Prüfe die Fotos und ihre Reihenfolge. Originale und globale Zuordnungen bleiben unverändert.</string>
+    <string name="manual_moment_title_label">Titel</string>
+    <string name="manual_moment_title_hint">Optionaler Titel</string>
+    <string name="manual_moment_include_special">Screenshots und Dokumente in diese Erinnerung aufnehmen</string>
+    <string name="manual_moment_include_special_body">Diese Auswahl gilt nur für diese Erinnerung. Ausgeblendete Personen oder Daten, archivierte Fotos, Papierkorbinhalte und Zugriffsrechte werden weiterhin berücksichtigt.</string>
+    <string name="manual_moment_error">Prüfe die ausgewählten Fotos und die Option für Screenshots/Dokumente und speichere erneut. Eine Quelle könnte sich geändert haben oder nicht mehr verfügbar sein.</string>
+    <string name="manual_moment_save">Erinnerung speichern</string>
+    <string name="manual_moment_cancel">Abbrechen</string>
+    <string name="manual_moment_working">Wird gespeichert…</string>
+    <string name="manual_moment_up">Nach oben</string>
+    <string name="manual_moment_down">Nach unten</string>
+    <string name="manual_moment_remove">Entfernen</string>
+    <string name="manual_moment_photo">Foto %1$d von %2$d</string>
+    <string name="manual_moment_unavailable">Foto nicht verfügbar</string>
+    <string name="manual_moment_empty">Wähle 1 bis 120 Fotos aus, um eine Erinnerung zu erstellen.</string>
+    <string name="manual_moment_select_photos">Wähle 1 bis 120 Fotos aus, um eine Erinnerung zu erstellen.</string>
+</resources>

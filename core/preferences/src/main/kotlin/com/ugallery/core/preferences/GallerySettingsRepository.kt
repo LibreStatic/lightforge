@@ -1,12 +1,14 @@
 package com.ugallery.core.preferences
 
 import android.content.Context
-import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -14,144 +16,320 @@ import java.io.InputStream
 import java.io.OutputStream
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import org.json.JSONArray
 import org.json.JSONObject
 
 private val Context.gallerySettingsStore by preferencesDataStore("gallery-settings")
 
-class GallerySettingsRepository(context: Context) {
-    private val store = context.applicationContext.gallerySettingsStore
+class GallerySettingsRepository(private val store: DataStore<Preferences>) :
+    PortablePreferencesPort {
+    constructor(context: Context) : this(context.applicationContext.gallerySettingsStore)
 
-    val settings: Flow<GallerySettings> = store.data
-        .catch { emit(androidx.datastore.preferences.core.emptyPreferences()) }
-        .map(::decode)
+    private val revisionKey = longPreferencesKey("portable.revision")
+    private val receiptsKey = stringSetPreferencesKey("portable.receipts")
+
+    private fun advance(target: MutablePreferences): Long =
+        Math.addExact(target[revisionKey] ?: 0L, 1L).also { target[revisionKey] = it }
+
+    private data class Receipt(
+        val id: String,
+        val sha: String,
+        val groups: Set<PortablePreferenceGroup>,
+        val revision: Long,
+    ) {
+        fun encode() =
+            "$id|$sha|${groups.sortedBy { it.ordinal }.joinToString(",") { it.name }}|$revision"
+    }
+
+    private fun receipts(preferences: Preferences): List<Receipt> {
+        val encoded = preferences[receiptsKey].orEmpty()
+        require(encoded.size <= PortablePreferencesCodec.MaxReceipts)
+        val result =
+            encoded.map { value ->
+                require(value.length <= 256)
+                val parts = value.split('|')
+                require(parts.size == 4)
+                val id = PortablePreferencesCodec.operationId(parts[0])
+                require(parts[1].matches(Regex("[0-9a-f]{64}")))
+                val groups = parts[2].split(',').map { PortablePreferenceGroup.valueOf(it) }.toSet()
+                require(groups.isNotEmpty())
+                val revision = parts[3].toLong().also { require(it > 0) }
+                Receipt(id, parts[1], groups, revision)
+            }
+        require(result.map { it.id }.distinct().size == result.size)
+        return result
+    }
+
+    private fun differences(
+        current: GallerySettings,
+        document: PortablePreferencesDocument,
+    ): List<PortablePreferenceDifference> {
+        val json = current.toJson()
+        return document.values.map { (field, value) ->
+            PortablePreferenceDifference(
+                field,
+                field.validate(json.getJSONObject(field.section).get(field.key)),
+                value,
+            )
+        }
+    }
+
+    override suspend fun review(bytes: ByteArray, operationId: String): PortablePreferencesReview {
+        PortablePreferencesCodec.operationId(operationId)
+        val document = PortablePreferencesCodec.decode(bytes.copyOf())
+        val current = store.data.first() // Never convert a storage failure into an empty review.
+        val previous = receipts(current).singleOrNull { it.id == operationId }
+        if (previous != null && previous.sha != document.sha256)
+            throw PortablePreferencesException(PortablePreferencesFailure.OperationMismatch)
+        return PortablePreferencesReview(
+            operationId,
+            document.sha256,
+            current[revisionKey] ?: 0L,
+            differences(decode(current), document),
+            previous?.groups.orEmpty(),
+        )
+    }
+
+    override suspend fun apply(
+        bytes: ByteArray,
+        review: PortablePreferencesReview,
+        selectedGroups: Set<PortablePreferenceGroup>,
+    ): PortablePreferencesResult {
+        PortablePreferencesCodec.operationId(review.operationId)
+        val document = PortablePreferencesCodec.decode(bytes.copyOf())
+        val selected = selectedGroups.toSet()
+        if (document.sha256 != review.payloadSha256)
+            throw PortablePreferencesException(PortablePreferencesFailure.OperationMismatch)
+        require(
+            selected.isNotEmpty() &&
+                selected.all { group -> document.values.keys.any { it.group == group } }
+        )
+        var result: PortablePreferencesResult? = null
+        store.edit { target ->
+            val prior = receipts(target)
+            val receipt = prior.singleOrNull { it.id == review.operationId }
+            if (receipt != null) {
+                if (receipt.sha != document.sha256 || receipt.groups != selected)
+                    throw PortablePreferencesException(PortablePreferencesFailure.OperationMismatch)
+                result = PortablePreferencesResult(receipt.revision, receipt.groups, true)
+            } else {
+                // Rebuild the entire diff from the exact bounded payload and destination inside
+                // this atomic edit. UI DTO fields never authorize writes by themselves.
+                val current = decode(target)
+                if (
+                    (target[revisionKey] ?: 0L) != review.expectedRevision ||
+                        differences(current, document) != review.differences
+                )
+                    throw PortablePreferencesException(PortablePreferencesFailure.Conflict)
+                if (prior.size >= PortablePreferencesCodec.MaxReceipts)
+                    throw PortablePreferencesException(PortablePreferencesFailure.ReceiptLimit)
+                val merged = current.toJson()
+                document.values
+                    .filterKeys { it.group in selected }
+                    .forEach { (field, value) ->
+                        merged.getJSONObject(field.section).put(field.key, field.jsonValue(value))
+                    }
+                encode(target, merged.toSettings().normalized())
+                val revision = advance(target)
+                val added = Receipt(review.operationId, document.sha256, selected, revision)
+                target[receiptsKey] = (prior + added).map { it.encode() }.toSet()
+                result = PortablePreferencesResult(revision, selected, false)
+            }
+        }
+        return checkNotNull(result)
+    }
+
+    val settings: Flow<GallerySettings> =
+        store.data
+            .catch { emit(androidx.datastore.preferences.core.emptyPreferences()) }
+            .map(::decode)
 
     suspend fun update(transform: (GallerySettings) -> GallerySettings) {
-        store.edit { target -> encode(target, transform(decode(target)).normalized()) }
+        store.edit { target ->
+            encode(target, transform(decode(target)).normalized())
+            advance(target)
+        }
     }
 
     suspend fun reset() {
-        store.edit { it.clear() }
+        // Reset known settings only; atomic import receipts and future unrelated keys survive.
+        store.edit { target ->
+            encode(target, GallerySettings())
+            advance(target)
+        }
     }
 
     suspend fun exportTo(output: OutputStream) {
         output.bufferedWriter().use { it.write(exportJson().toString(2)) }
     }
 
-    suspend fun exportJson(): JSONObject = settings.first().toJson()
+    suspend fun exportJson(): JSONObject = decode(store.data.first()).toJson()
 
     suspend fun importFrom(input: InputStream) {
-        importJson(input.bufferedReader().use { JSONObject(it.readText()) })
+        importJson(JSONObject(PortablePreferencesCodec.readBounded(input).toString(Charsets.UTF_8)))
     }
 
     suspend fun importJson(json: JSONObject) {
+        require(
+            json.toString().toByteArray(Charsets.UTF_8).size <= PortablePreferencesCodec.MaxBytes
+        )
         val parsed = json.toSettings()
-        require(parsed.schemaVersion in 1..GallerySettings.CurrentSchemaVersion) { "Unsupported settings version" }
-        store.edit { target -> encode(target, parsed.normalized()) }
+        require(parsed.schemaVersion in 1..GallerySettings.CurrentSchemaVersion) {
+            "Unsupported settings version"
+        }
+        store.edit { target ->
+            encode(target, parsed.normalized())
+            advance(target)
+        }
     }
 
-    private fun GallerySettings.normalized() = copy(
-        schemaVersion = GallerySettings.CurrentSchemaVersion,
-        library = library.copy(
-            folderRules = buildMap {
-                library.folderRules.forEach { (target, selected) ->
-                    val normalized = when (target) {
-                        is FolderSelectionTarget.Path -> FolderSelectionPolicy.normalizeRelativePath(target.relativePath)
-                            ?.let { FolderSelectionTarget.Path(target.volumeName, it) }
-                        is FolderSelectionTarget.Bucket -> target
-                    }
-                    normalized?.let { put(it, selected) }
-                }
-            },
-        ),
-        gestures = gestures.copy(
-            photoMaxZoom = gestures.photoMaxZoom.coerceIn(2f, 8f),
-            videoMaxZoom = gestures.videoMaxZoom.coerceIn(2f, 8f),
-            videoSkipSeconds = gestures.videoSkipSeconds.takeIf { it in setOf(5, 10, 15, 30) } ?: 10,
-        ),
-        thumbnails = thumbnails.copy(gridColumns = thumbnails.gridColumns.coerceIn(2, 13)),
-        security = security.copy(
-            relockTimeoutMinutes = security.relockTimeoutMinutes.takeIf { it in setOf(0, 1, 5, 15) } ?: 1,
-        ),
-        analysis = analysis.copy(
-            fullAnalysisMinimumBatteryPercent = analysis.fullAnalysisMinimumBatteryPercent
-                .takeIf { it in setOf(20, 30, 40, 50) } ?: 20,
-        ),
-    )
-
-    private fun decode(p: Preferences) = GallerySettings(
-        library = LibrarySettings(
-            sort = p[Keys.LibrarySort]?.enumOrDefault(LibrarySort.DateTaken) ?: LibrarySort.DateTaken,
-            ascending = p[Keys.LibraryAscending] ?: false,
-            filter = p[Keys.LibraryFilter]?.enumOrDefault(LibraryFilter.All) ?: LibraryFilter.All,
-            grouping = p[Keys.LibraryGrouping]?.enumOrDefault(LibraryGrouping.Day) ?: LibraryGrouping.Day,
-            folderSelectionMode = p[Keys.FolderMode]?.enumOrDefault(FolderSelectionMode.AllExceptExcluded)
-                ?: FolderSelectionMode.AllExceptExcluded,
-            folderRules = p[Keys.FolderRules]?.mapNotNull(::decodeStoredFolderRule)?.toMap()
-                ?: migrateLegacyFolderRules(
-                    mode = p[Keys.FolderMode]?.enumOrDefault(FolderSelectionMode.AllExceptExcluded)
-                        ?: FolderSelectionMode.AllExceptExcluded,
-                    included = p[Keys.IncludedFolders].orEmpty(),
-                    excluded = p[Keys.ExcludedFolders].orEmpty(),
+    private fun GallerySettings.normalized() =
+        copy(
+            schemaVersion = GallerySettings.CurrentSchemaVersion,
+            library =
+                library.copy(
+                    collectionOrder = library.collectionOrder.also(CollectionLayoutPolicy::validate),
+                    hiddenCollections = library.hiddenCollections.also(CollectionLayoutPolicy::validate),
+                    folderRules =
+                        buildMap {
+                            library.folderRules.forEach { (target, selected) ->
+                                val normalized =
+                                    when (target) {
+                                        is FolderSelectionTarget.Path ->
+                                            FolderSelectionPolicy.normalizeRelativePath(
+                                                    target.relativePath
+                                                )
+                                                ?.let {
+                                                    FolderSelectionTarget.Path(
+                                                        target.volumeName,
+                                                        it,
+                                                    )
+                                                }
+                                        is FolderSelectionTarget.Bucket -> target
+                                    }
+                                normalized?.let { put(it, selected) }
+                            }
+                        }
                 ),
-        ),
-        playback = PlaybackSettings(
-            autoplayVideos = p[Keys.Autoplay] ?: true,
-            startVideosMuted = p[Keys.StartMuted] ?: true,
-            loopVideos = p[Keys.Loop] ?: false,
-            rememberVideoPosition = p[Keys.RememberPosition] ?: true,
-            maximumBrightness = p[Keys.MaximumBrightness] ?: false,
-            videoScrubbingMode = p[Keys.VideoScrubbingMode]
-                ?.enumOrDefault(VideoScrubbingMode.LegacySeekBar)
-                ?: VideoScrubbingMode.LegacySeekBar,
-        ),
-        gestures = GestureSettings(
-            doubleTapZoom = p[Keys.DoubleTapZoom] ?: true,
-            pinchZoom = p[Keys.PinchZoom] ?: true,
-            swipeDownToClose = p[Keys.SwipeDown] ?: true,
-            photoBrightness = p[Keys.PhotoBrightness] ?: true,
-            videoBrightness = p[Keys.VideoBrightness] ?: true,
-            videoVolume = p[Keys.VideoVolume] ?: true,
-            videoSeek = p[Keys.VideoSeek] ?: true,
-            rotatePhotos = p[Keys.RotatePhotos] ?: false,
-            photoMaxZoom = p[Keys.PhotoMaxZoom] ?: 8f,
-            videoMaxZoom = p[Keys.VideoMaxZoom] ?: 4f,
-            videoSkipSeconds = p[Keys.VideoSkipSeconds] ?: 10,
-            onboardingShown = p[Keys.OnboardingShown] ?: false,
-        ),
-        thumbnails = ThumbnailSettings(
-            cropToFill = p[Keys.CropThumbnails] ?: true,
-            animateMedia = p[Keys.AnimateMedia] ?: true,
-            showVideoDuration = p[Keys.ShowDuration] ?: true,
-            showFileType = p[Keys.ShowFileType] ?: false,
-            markFavorites = p[Keys.MarkFavorites] ?: true,
-            gridColumns = p[Keys.GridColumns] ?: 3,
-        ),
-        operations = OperationSettings(
-            shareWithoutLocationByDefault = p[Keys.ShareSanitized] ?: false,
-            keepLastModifiedWhenPossible = p[Keys.KeepModified] ?: true,
-            skipAppDeleteConfirmation = p[Keys.SkipDeleteConfirmation] ?: false,
-        ),
-        security = SecuritySettings(
-            appLockEnabled = p[Keys.AppLock] ?: false,
-            destructiveActionLockEnabled = p[Keys.DestructiveLock] ?: false,
-            relockTimeoutMinutes = p[Keys.RelockTimeout] ?: 1,
-        ),
-        analysis = AnalysisSettings(
-            fullAnalysisMinimumBatteryPercent = p[Keys.FullAnalysisMinimumBattery] ?: 20,
-        ),
-    ).normalized()
+            gestures =
+                gestures.copy(
+                    photoMaxZoom = gestures.photoMaxZoom.coerceIn(2f, 8f),
+                    videoMaxZoom = gestures.videoMaxZoom.coerceIn(2f, 8f),
+                    videoSkipSeconds =
+                        gestures.videoSkipSeconds.takeIf { it in setOf(5, 10, 15, 30) } ?: 10,
+                ),
+            thumbnails = thumbnails.copy(gridColumns = thumbnails.gridColumns.coerceIn(2, 13)),
+            security =
+                security.copy(
+                    relockTimeoutMinutes =
+                        security.relockTimeoutMinutes.takeIf { it in setOf(0, 1, 5, 15) } ?: 1
+                ),
+            analysis =
+                analysis.copy(
+                    fullAnalysisMinimumBatteryPercent =
+                        analysis.fullAnalysisMinimumBatteryPercent.takeIf {
+                            it in setOf(20, 30, 40, 50)
+                        } ?: 20
+                ),
+        )
+
+    private fun decode(p: Preferences) =
+        GallerySettings(
+                library =
+                    LibrarySettings(
+                        sort =
+                            p[Keys.LibrarySort]?.enumOrDefault(LibrarySort.DateTaken)
+                                ?: LibrarySort.DateTaken,
+                        ascending = p[Keys.LibraryAscending] ?: false,
+                        collectionOrder = runCatching { CollectionLayoutPolicy.decode(p[Keys.CollectionOrder].orEmpty()) }.getOrDefault(emptyList()),
+                        hiddenCollections = runCatching { CollectionLayoutPolicy.decode(p[Keys.HiddenCollections].orEmpty()).toSet() }.getOrDefault(emptySet()),
+                        filter =
+                            p[Keys.LibraryFilter]?.enumOrDefault(LibraryFilter.All)
+                                ?: LibraryFilter.All,
+                        grouping =
+                            p[Keys.LibraryGrouping]?.enumOrDefault(LibraryGrouping.Day)
+                                ?: LibraryGrouping.Day,
+                        folderSelectionMode =
+                            p[Keys.FolderMode]?.enumOrDefault(FolderSelectionMode.AllExceptExcluded)
+                                ?: FolderSelectionMode.AllExceptExcluded,
+                        folderRules =
+                            p[Keys.FolderRules]?.mapNotNull(::decodeStoredFolderRule)?.toMap()
+                                ?: migrateLegacyFolderRules(
+                                    mode =
+                                        p[Keys.FolderMode]?.enumOrDefault(
+                                            FolderSelectionMode.AllExceptExcluded
+                                        ) ?: FolderSelectionMode.AllExceptExcluded,
+                                    included = p[Keys.IncludedFolders].orEmpty(),
+                                    excluded = p[Keys.ExcludedFolders].orEmpty(),
+                                ),
+                    ),
+                playback =
+                    PlaybackSettings(
+                        autoplayVideos = p[Keys.Autoplay] ?: true,
+                        startVideosMuted = p[Keys.StartMuted] ?: true,
+                        loopVideos = p[Keys.Loop] ?: false,
+                        rememberVideoPosition = p[Keys.RememberPosition] ?: true,
+                        maximumBrightness = p[Keys.MaximumBrightness] ?: false,
+                        videoScrubbingMode =
+                            p[Keys.VideoScrubbingMode]?.enumOrDefault(
+                                VideoScrubbingMode.LegacySeekBar
+                            ) ?: VideoScrubbingMode.LegacySeekBar,
+                    ),
+                gestures =
+                    GestureSettings(
+                        doubleTapZoom = p[Keys.DoubleTapZoom] ?: true,
+                        pinchZoom = p[Keys.PinchZoom] ?: true,
+                        swipeDownToClose = p[Keys.SwipeDown] ?: true,
+                        photoBrightness = p[Keys.PhotoBrightness] ?: true,
+                        videoBrightness = p[Keys.VideoBrightness] ?: true,
+                        videoVolume = p[Keys.VideoVolume] ?: true,
+                        videoSeek = p[Keys.VideoSeek] ?: true,
+                        rotatePhotos = p[Keys.RotatePhotos] ?: false,
+                        photoMaxZoom = p[Keys.PhotoMaxZoom] ?: 8f,
+                        videoMaxZoom = p[Keys.VideoMaxZoom] ?: 4f,
+                        videoSkipSeconds = p[Keys.VideoSkipSeconds] ?: 10,
+                        onboardingShown = p[Keys.OnboardingShown] ?: false,
+                    ),
+                thumbnails =
+                    ThumbnailSettings(
+                        cropToFill = p[Keys.CropThumbnails] ?: true,
+                        animateMedia = p[Keys.AnimateMedia] ?: true,
+                        showVideoDuration = p[Keys.ShowDuration] ?: true,
+                        showFileType = p[Keys.ShowFileType] ?: false,
+                        markFavorites = p[Keys.MarkFavorites] ?: true,
+                        gridColumns = p[Keys.GridColumns] ?: 3,
+                    ),
+                operations =
+                    OperationSettings(
+                        shareWithoutLocationByDefault = p[Keys.ShareSanitized] ?: false,
+                        keepLastModifiedWhenPossible = p[Keys.KeepModified] ?: true,
+                        skipAppDeleteConfirmation = p[Keys.SkipDeleteConfirmation] ?: false,
+                    ),
+                security =
+                    SecuritySettings(
+                        appLockEnabled = p[Keys.AppLock] ?: false,
+                        destructiveActionLockEnabled = p[Keys.DestructiveLock] ?: false,
+                        relockTimeoutMinutes = p[Keys.RelockTimeout] ?: 1,
+                    ),
+                analysis =
+                    AnalysisSettings(
+                        fullAnalysisMinimumBatteryPercent = p[Keys.FullAnalysisMinimumBattery] ?: 20
+                    ),
+            )
+            .normalized()
 
     private fun encode(p: MutablePreferences, s: GallerySettings) {
         p[Keys.LibrarySort] = s.library.sort.name
         p[Keys.LibraryAscending] = s.library.ascending
         p[Keys.LibraryFilter] = s.library.filter.name
         p[Keys.LibraryGrouping] = s.library.grouping.name
+        p[Keys.CollectionOrder] = s.library.collectionOrder.joinToString(",")
+        p[Keys.HiddenCollections] = s.library.hiddenCollections.sorted().joinToString(",")
         p[Keys.FolderMode] = s.library.folderSelectionMode.name
-        p[Keys.FolderRules] = s.library.folderRules.entries
-            .mapTo(linkedSetOf()) { encodeStoredFolderRule(it) }
+        p[Keys.FolderRules] =
+            s.library.folderRules.entries.mapTo(linkedSetOf()) { encodeStoredFolderRule(it) }
         p.remove(Keys.IncludedFolders)
         p.remove(Keys.ExcludedFolders)
         p[Keys.Autoplay] = s.playback.autoplayVideos
@@ -187,54 +365,98 @@ class GallerySettingsRepository(context: Context) {
         p[Keys.FullAnalysisMinimumBattery] = s.analysis.fullAnalysisMinimumBatteryPercent
     }
 
-    private fun GallerySettings.toJson() = JSONObject().apply {
-        put("schemaVersion", schemaVersion)
-        put("library", JSONObject().apply {
-            put("sort", library.sort.name); put("ascending", library.ascending)
-            put("filter", library.filter.name); put("grouping", library.grouping.name)
-            put("folderSelectionMode", library.folderSelectionMode.name)
-            put("folderRules", JSONArray().apply {
-                library.folderRules.entries
-                    .sortedBy { encodeStoredFolderRule(it) }
-                    .forEach { put(folderRuleJson(it.key, it.value)) }
-            })
-        })
-        put("playback", JSONObject().apply {
-            put("autoplayVideos", playback.autoplayVideos); put("startVideosMuted", playback.startVideosMuted)
-            put("loopVideos", playback.loopVideos); put("rememberVideoPosition", playback.rememberVideoPosition)
-            put("maximumBrightness", playback.maximumBrightness)
-            put("videoScrubbingMode", playback.videoScrubbingMode.name)
-        })
-        put("gestures", JSONObject().apply {
-            put("doubleTapZoom", gestures.doubleTapZoom); put("pinchZoom", gestures.pinchZoom)
-            put("swipeDownToClose", gestures.swipeDownToClose); put("photoBrightness", gestures.photoBrightness)
-            put("videoBrightness", gestures.videoBrightness); put("videoVolume", gestures.videoVolume)
-            put("videoSeek", gestures.videoSeek); put("rotatePhotos", gestures.rotatePhotos)
-            put("photoMaxZoom", gestures.photoMaxZoom); put("videoMaxZoom", gestures.videoMaxZoom)
-            put("videoSkipSeconds", gestures.videoSkipSeconds); put("onboardingShown", gestures.onboardingShown)
-        })
-        put("thumbnails", JSONObject().apply {
-            put("cropToFill", thumbnails.cropToFill); put("animateMedia", thumbnails.animateMedia)
-            put("showVideoDuration", thumbnails.showVideoDuration); put("showFileType", thumbnails.showFileType)
-            put("markFavorites", thumbnails.markFavorites); put("gridColumns", thumbnails.gridColumns)
-        })
-        put("operations", JSONObject().apply {
-            put("shareWithoutLocationByDefault", operations.shareWithoutLocationByDefault)
-            put("keepLastModifiedWhenPossible", operations.keepLastModifiedWhenPossible)
-            put("skipAppDeleteConfirmation", operations.skipAppDeleteConfirmation)
-        })
-        put("security", JSONObject().apply {
-            put("appLockEnabled", security.appLockEnabled)
-            put("destructiveActionLockEnabled", security.destructiveActionLockEnabled)
-            put("relockTimeoutMinutes", security.relockTimeoutMinutes)
-        })
-        put("analysis", JSONObject().apply {
-            put("fullAnalysisMinimumBatteryPercent", analysis.fullAnalysisMinimumBatteryPercent)
-        })
-    }
+    private fun GallerySettings.toJson() =
+        JSONObject().apply {
+            put("schemaVersion", schemaVersion)
+            put(
+                "library",
+                JSONObject().apply {
+                    put("sort", library.sort.name)
+                    put("ascending", library.ascending)
+                    put("filter", library.filter.name)
+                    put("grouping", library.grouping.name)
+                    put("collectionOrder", library.collectionOrder.joinToString(","))
+                    put("hiddenCollections", library.hiddenCollections.sorted().joinToString(","))
+                    put("folderSelectionMode", library.folderSelectionMode.name)
+                    put(
+                        "folderRules",
+                        JSONArray().apply {
+                            library.folderRules.entries
+                                .sortedBy { encodeStoredFolderRule(it) }
+                                .forEach { put(folderRuleJson(it.key, it.value)) }
+                        },
+                    )
+                },
+            )
+            put(
+                "playback",
+                JSONObject().apply {
+                    put("autoplayVideos", playback.autoplayVideos)
+                    put("startVideosMuted", playback.startVideosMuted)
+                    put("loopVideos", playback.loopVideos)
+                    put("rememberVideoPosition", playback.rememberVideoPosition)
+                    put("maximumBrightness", playback.maximumBrightness)
+                    put("videoScrubbingMode", playback.videoScrubbingMode.name)
+                },
+            )
+            put(
+                "gestures",
+                JSONObject().apply {
+                    put("doubleTapZoom", gestures.doubleTapZoom)
+                    put("pinchZoom", gestures.pinchZoom)
+                    put("swipeDownToClose", gestures.swipeDownToClose)
+                    put("photoBrightness", gestures.photoBrightness)
+                    put("videoBrightness", gestures.videoBrightness)
+                    put("videoVolume", gestures.videoVolume)
+                    put("videoSeek", gestures.videoSeek)
+                    put("rotatePhotos", gestures.rotatePhotos)
+                    put("photoMaxZoom", gestures.photoMaxZoom)
+                    put("videoMaxZoom", gestures.videoMaxZoom)
+                    put("videoSkipSeconds", gestures.videoSkipSeconds)
+                    put("onboardingShown", gestures.onboardingShown)
+                },
+            )
+            put(
+                "thumbnails",
+                JSONObject().apply {
+                    put("cropToFill", thumbnails.cropToFill)
+                    put("animateMedia", thumbnails.animateMedia)
+                    put("showVideoDuration", thumbnails.showVideoDuration)
+                    put("showFileType", thumbnails.showFileType)
+                    put("markFavorites", thumbnails.markFavorites)
+                    put("gridColumns", thumbnails.gridColumns)
+                },
+            )
+            put(
+                "operations",
+                JSONObject().apply {
+                    put("shareWithoutLocationByDefault", operations.shareWithoutLocationByDefault)
+                    put("keepLastModifiedWhenPossible", operations.keepLastModifiedWhenPossible)
+                    put("skipAppDeleteConfirmation", operations.skipAppDeleteConfirmation)
+                },
+            )
+            put(
+                "security",
+                JSONObject().apply {
+                    put("appLockEnabled", security.appLockEnabled)
+                    put("destructiveActionLockEnabled", security.destructiveActionLockEnabled)
+                    put("relockTimeoutMinutes", security.relockTimeoutMinutes)
+                },
+            )
+            put(
+                "analysis",
+                JSONObject().apply {
+                    put(
+                        "fullAnalysisMinimumBatteryPercent",
+                        analysis.fullAnalysisMinimumBatteryPercent,
+                    )
+                },
+            )
+        }
 
     private fun JSONObject.toSettings(): GallerySettings {
-        fun JSONObject.bool(name: String, fallback: Boolean) = if (has(name)) getBoolean(name) else fallback
+        fun JSONObject.bool(name: String, fallback: Boolean) =
+            if (has(name)) getBoolean(name) else fallback
         val p = optJSONObject("playback") ?: JSONObject()
         val l = optJSONObject("library") ?: JSONObject()
         val g = optJSONObject("gestures") ?: JSONObject()
@@ -244,37 +466,77 @@ class GallerySettingsRepository(context: Context) {
         val a = optJSONObject("analysis") ?: JSONObject()
         return GallerySettings(
             schemaVersion = optInt("schemaVersion", 1),
-            library = LibrarySettings(
-                sort = l.optString("sort").enumOrDefault(LibrarySort.DateTaken),
-                ascending = l.bool("ascending", false),
-                filter = l.optString("filter").enumOrDefault(LibraryFilter.All),
-                grouping = l.optString("grouping").enumOrDefault(LibraryGrouping.Day),
-                folderSelectionMode = l.optString("folderSelectionMode")
-                    .enumOrDefault(FolderSelectionMode.AllExceptExcluded),
-                folderRules = if (l.has("folderRules")) {
-                    l.optJSONArray("folderRules").toFolderRules()
-                } else {
-                    migrateLegacyFolderRules(
-                        mode = l.optString("folderSelectionMode")
+            library =
+                LibrarySettings(
+                    sort = l.optString("sort").enumOrDefault(LibrarySort.DateTaken),
+                    ascending = l.bool("ascending", false),
+                    filter = l.optString("filter").enumOrDefault(LibraryFilter.All),
+                    grouping = l.optString("grouping").enumOrDefault(LibraryGrouping.Day),
+                    collectionOrder = CollectionLayoutPolicy.decode(l.optString("collectionOrder", "")),
+                    hiddenCollections = CollectionLayoutPolicy.decode(l.optString("hiddenCollections", "")).toSet(),
+                    folderSelectionMode =
+                        l.optString("folderSelectionMode")
                             .enumOrDefault(FolderSelectionMode.AllExceptExcluded),
-                        included = l.stringSet("includedFolders"),
-                        excluded = l.stringSet("excludedFolders"),
-                    )
-                },
-            ),
-            playback = PlaybackSettings(
-                autoplayVideos = p.bool("autoplayVideos", true),
-                startVideosMuted = p.bool("startVideosMuted", true),
-                loopVideos = p.bool("loopVideos", false),
-                rememberVideoPosition = p.bool("rememberVideoPosition", true),
-                maximumBrightness = p.bool("maximumBrightness", false),
-                videoScrubbingMode = p.optString("videoScrubbingMode")
-                    .enumOrDefault(VideoScrubbingMode.LegacySeekBar),
-            ),
-            gestures = GestureSettings(g.bool("doubleTapZoom", true), g.bool("pinchZoom", true), g.bool("swipeDownToClose", true), g.bool("photoBrightness", true), g.bool("videoBrightness", true), g.bool("videoVolume", true), g.bool("videoSeek", true), g.bool("rotatePhotos", false), g.optDouble("photoMaxZoom", 8.0).toFloat(), g.optDouble("videoMaxZoom", 4.0).toFloat(), g.optInt("videoSkipSeconds", 10), g.bool("onboardingShown", false)),
-            thumbnails = ThumbnailSettings(t.bool("cropToFill", true), t.bool("animateMedia", true), t.bool("showVideoDuration", true), t.bool("showFileType", false), t.bool("markFavorites", true), t.optInt("gridColumns", 3)),
-            operations = OperationSettings(o.bool("shareWithoutLocationByDefault", false), o.bool("keepLastModifiedWhenPossible", true), o.bool("skipAppDeleteConfirmation", false)),
-            security = SecuritySettings(s.bool("appLockEnabled", false), s.bool("destructiveActionLockEnabled", false), s.optInt("relockTimeoutMinutes", 1)),
+                    folderRules =
+                        if (l.has("folderRules")) {
+                            l.optJSONArray("folderRules").toFolderRules()
+                        } else {
+                            migrateLegacyFolderRules(
+                                mode =
+                                    l.optString("folderSelectionMode")
+                                        .enumOrDefault(FolderSelectionMode.AllExceptExcluded),
+                                included = l.stringSet("includedFolders"),
+                                excluded = l.stringSet("excludedFolders"),
+                            )
+                        },
+                ),
+            playback =
+                PlaybackSettings(
+                    autoplayVideos = p.bool("autoplayVideos", true),
+                    startVideosMuted = p.bool("startVideosMuted", true),
+                    loopVideos = p.bool("loopVideos", false),
+                    rememberVideoPosition = p.bool("rememberVideoPosition", true),
+                    maximumBrightness = p.bool("maximumBrightness", false),
+                    videoScrubbingMode =
+                        p.optString("videoScrubbingMode")
+                            .enumOrDefault(VideoScrubbingMode.LegacySeekBar),
+                ),
+            gestures =
+                GestureSettings(
+                    g.bool("doubleTapZoom", true),
+                    g.bool("pinchZoom", true),
+                    g.bool("swipeDownToClose", true),
+                    g.bool("photoBrightness", true),
+                    g.bool("videoBrightness", true),
+                    g.bool("videoVolume", true),
+                    g.bool("videoSeek", true),
+                    g.bool("rotatePhotos", false),
+                    g.optDouble("photoMaxZoom", 8.0).toFloat(),
+                    g.optDouble("videoMaxZoom", 4.0).toFloat(),
+                    g.optInt("videoSkipSeconds", 10),
+                    g.bool("onboardingShown", false),
+                ),
+            thumbnails =
+                ThumbnailSettings(
+                    t.bool("cropToFill", true),
+                    t.bool("animateMedia", true),
+                    t.bool("showVideoDuration", true),
+                    t.bool("showFileType", false),
+                    t.bool("markFavorites", true),
+                    t.optInt("gridColumns", 3),
+                ),
+            operations =
+                OperationSettings(
+                    o.bool("shareWithoutLocationByDefault", false),
+                    o.bool("keepLastModifiedWhenPossible", true),
+                    o.bool("skipAppDeleteConfirmation", false),
+                ),
+            security =
+                SecuritySettings(
+                    s.bool("appLockEnabled", false),
+                    s.bool("destructiveActionLockEnabled", false),
+                    s.optInt("relockTimeoutMinutes", 1),
+                ),
             analysis = AnalysisSettings(a.optInt("fullAnalysisMinimumBatteryPercent", 20)),
         )
     }
@@ -284,6 +546,8 @@ class GallerySettingsRepository(context: Context) {
         val LibraryAscending = booleanPreferencesKey("library.ascending")
         val LibraryFilter = stringPreferencesKey("library.filter")
         val LibraryGrouping = stringPreferencesKey("library.grouping")
+        val CollectionOrder = stringPreferencesKey("library.collectionOrder")
+        val HiddenCollections = stringPreferencesKey("library.hiddenCollections")
         val FolderMode = stringPreferencesKey("library.folder_mode")
         val FolderRules = stringSetPreferencesKey("library.folder_rules")
         val IncludedFolders = stringSetPreferencesKey("library.included_folders")
@@ -327,24 +591,28 @@ class GallerySettingsRepository(context: Context) {
     private fun JSONObject.stringSet(name: String): Set<String> {
         val values = optJSONArray(name) ?: return emptySet()
         return buildSet {
-            for (index in 0 until values.length()) values.optString(index).takeIf(String::isNotBlank)?.let(::add)
+            for (index in 0 until values.length()) values
+                .optString(index)
+                .takeIf(String::isNotBlank)
+                ?.let(::add)
         }
     }
 
-    private fun folderRuleJson(target: FolderSelectionTarget, selected: Boolean) = JSONObject().apply {
-        put("selected", selected)
-        put("volumeName", target.volumeName)
-        when (target) {
-            is FolderSelectionTarget.Path -> {
-                put("type", "path")
-                put("relativePath", target.relativePath)
-            }
-            is FolderSelectionTarget.Bucket -> {
-                put("type", "bucket")
-                put("bucketId", target.bucketId)
+    private fun folderRuleJson(target: FolderSelectionTarget, selected: Boolean) =
+        JSONObject().apply {
+            put("selected", selected)
+            put("volumeName", target.volumeName)
+            when (target) {
+                is FolderSelectionTarget.Path -> {
+                    put("type", "path")
+                    put("relativePath", target.relativePath)
+                }
+                is FolderSelectionTarget.Bucket -> {
+                    put("type", "bucket")
+                    put("bucketId", target.bucketId)
+                }
             }
         }
-    }
 
     private fun encodeStoredFolderRule(entry: Map.Entry<FolderSelectionTarget, Boolean>): String =
         folderRuleJson(entry.key, entry.value).toString()
@@ -354,21 +622,26 @@ class GallerySettingsRepository(context: Context) {
 
     private fun JSONObject.toFolderRule(): Pair<FolderSelectionTarget, Boolean>? {
         val volume = optString("volumeName").takeIf(String::isNotBlank) ?: return null
-        val target = when (optString("type")) {
-            "path" -> FolderSelectionPolicy.normalizeRelativePath(optString("relativePath"))
-                ?.let { FolderSelectionTarget.Path(volume, it) }
-            "bucket" -> if (has("bucketId")) FolderSelectionTarget.Bucket(volume, getLong("bucketId")) else null
-            else -> null
-        } ?: return null
+        val target =
+            when (optString("type")) {
+                "path" ->
+                    FolderSelectionPolicy.normalizeRelativePath(optString("relativePath"))?.let {
+                        FolderSelectionTarget.Path(volume, it)
+                    }
+                "bucket" ->
+                    if (has("bucketId")) FolderSelectionTarget.Bucket(volume, getLong("bucketId"))
+                    else null
+                else -> null
+            } ?: return null
         return target to optBoolean("selected", false)
     }
 
     private fun JSONArray?.toFolderRules(): Map<FolderSelectionTarget, Boolean> = buildMap {
         val array = this@toFolderRules ?: return@buildMap
         for (index in 0 until array.length()) {
-            runCatching { array.optJSONObject(index)?.toFolderRule() }.getOrNull()?.let { (target, selected) ->
-                put(target, selected)
-            }
+            runCatching { array.optJSONObject(index)?.toFolderRule() }
+                .getOrNull()
+                ?.let { (target, selected) -> put(target, selected) }
         }
     }
 }

@@ -37,9 +37,19 @@ android {
 
     buildTypes {
         debug {
-            applicationIdSuffix = ".debug"
+            // Explicit acceptance installs must never replace the user's debug application/data.
+            applicationIdSuffix = if (providers.gradleProperty("ugallery.pdfAcceptance").orNull == "true") {
+                ".pdfacceptance"
+            } else {
+                ".debug"
+            }
         }
         release {
+            // Opt-in minified acceptance APK is isolated from every user's normal/debug install.
+            if (providers.gradleProperty("ugallery.remoteReleaseAcceptance").orNull == "true") {
+                applicationIdSuffix = ".remoteacceptance"
+                signingConfig = signingConfigs.getByName("debug")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
@@ -121,6 +131,8 @@ tasks.named("preBuild").configure {
 }
 
 dependencies {
+    androidTestImplementation("org.maplibre.gl:android-sdk-opengl:13.6.0")
+    androidTestImplementation("com.tom-roush:pdfbox-android:2.0.27.0")
     implementation(project(":core:designsystem"))
     implementation(project(":core:navigation"))
     implementation(project(":core:model"))
@@ -140,6 +152,10 @@ dependencies {
     implementation(project(":feature:trash"))
     implementation(project(":feature:search"))
     implementation(project(":feature:settings"))
+    implementation(project(":feature:remotebackup"))
+    implementation(project(":feature:ownsync"))
+    implementation(project(":feature:localsharing"))
+    implementation(project(":core:remotestorage"))
     implementation(project(":core:selection"))
     implementation(project(":core:editing-image"))
     implementation(project(":core:raw"))
@@ -150,10 +166,9 @@ dependencies {
     implementation(project(":feature:privatealbum"))
     implementation(project(":feature:motionphotos"))
     implementation(project(":feature:collage"))
+    implementation(project(":feature:pdfstudio"))
     implementation(project(":feature:widget"))
     implementation(project(":feature:places"))
-    implementation(project(":feature:subjectclip"))
-    implementation(project(":feature:objecteraser"))
     implementation(project(":feature:semanticsearch"))
     implementation(project(":feature:petrecognition"))
 
@@ -177,6 +192,7 @@ dependencies {
 
     baselineProfile(project(":baselineprofile"))
     testImplementation(libs.junit4)
+    androidTestImplementation(libs.androidx.exifinterface)
     androidTestImplementation(libs.androidx.test.ext)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.uiautomator)

@@ -1,0 +1,12 @@
+<resources>
+    <string name="memory_back">Collections</string>
+    <string name="memory_previous">Précédent</string>
+    <string name="memory_next">Suivant</string>
+    <string name="memory_empty">Aucune photo disponible dans ce souvenir. Vos références enregistrées sont conservées.</string>
+    <string name="memory_order_hint">Le réordonnancement modifie le récit enregistré. Précédent et Suivant changent uniquement la lecture.</string>
+    <string name="memory_set_cover">Définir comme couverture</string>
+    <string name="memory_select_photo">Afficher la photo %1$d</string>
+    <string name="memory_delete_title">Supprimer ce souvenir ?</string>
+    <string name="memory_delete_body">Seul ce souvenir est supprimé. Les photos originales restent inchangées.</string>
+    <string name="memory_unavailable">Le souvenir est en cours de chargement ou ne sera plus disponible.</string>
+</resources>

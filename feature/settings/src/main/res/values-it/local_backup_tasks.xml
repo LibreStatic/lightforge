@@ -1,0 +1,22 @@
+<resources>
+    <string name="local_backup_tasks_title">Attività di backup</string>
+    <string name="local_backup_task_queued">In coda</string>
+    <string name="local_backup_task_durable_hint">Le attività continuano fuori da questa schermata. La pausa conserva le fasi complete e i file ripristinati verificati. La preparazione ricomincia la creazione dell’archivio; un file di destinazione interrotto ricomincia dopo la verifica. Gli archivi privati restano finché elimini la cronologia.</string>
+    <string name="local_backup_tasks_empty">Nessuna attività di backup.</string>
+    <string name="local_backup_task_action_failed">Operazione non riuscita. Controlla l’accesso e scegli la destinazione originale.</string>
+    <string name="local_backup_task_review_hint">File e registri modificati o ambigui vengono conservati per la revisione. I file esistenti non vengono sostituiti.</string>
+    <string name="local_backup_task_permission_hint">Ripristina l’accesso alla stessa destinazione e riprendi. Un file assente o inaccessibile non implica mai la sua eliminazione.</string>
+    <string name="local_backup_task_pause">Pausa</string>
+    <string name="local_backup_task_resume">Riprendi / riprova</string>
+    <string name="local_backup_task_regrant">Ripristina accesso</string>
+    <string name="local_backup_task_inspect">Esamina archivio</string>
+    <string name="local_backup_task_forget">Rimuovi cronologia e archivio privato</string>
+    <string name="local_backup_task_cancel_hint">Annullare questa attività e rimuovere soltanto i suoi file non modificati? I file modificati restano per la revisione.</string>
+    <string name="local_backup_task_keep">Mantieni attività</string>
+    <string name="local_backup_task_paused">In pausa</string>
+    <string name="local_backup_task_waiting_permission">In attesa di accesso</string>
+    <string name="local_backup_task_needs_review">Revisione necessaria</string>
+    <string name="local_backup_task_cancelling">Annullamento / pulizia</string>
+    <string name="local_backup_task_completed">Completata e verificata</string>
+    <string name="local_backup_task_corrupt">Attività illeggibile — conservata per revisione</string>
+</resources>
