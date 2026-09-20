@@ -26,6 +26,8 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -2287,6 +2289,12 @@ internal fun ProductionGalleryApp(
             }
         }
         val controls: @Composable (SurfaceRoute) -> Unit = { activeRoute ->
+            // Controls are drawn above the route's own chrome, so on routes where the scaffold
+            // withholds the top inset they have to apply it themselves or they collide with the
+            // status bar. The surface tint still bleeds behind the bar; only the content moves.
+            val controlsTopInset = if (surfaceControlsNeedTopInset(activeRoute)) {
+                Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
+            } else Modifier
             GalleryAnimatedVisibility(
                 // Moment keeps library selection for Back, but owns its chrome and top inset.
                 visible = selectionCount > 0 && activeRoute !in setOf(SurfaceRoute.PublicationRecoveries, SurfaceRoute.PdfStudio, SurfaceRoute.Documents, SurfaceRoute.Stacks, SurfaceRoute.SmartAlbums, SurfaceRoute.MemoryControls, SurfaceRoute.Moment, SurfaceRoute.MomentParticipants, SurfaceRoute.ManualMoment, SurfaceRoute.MemoryVideo, SurfaceRoute.MotionPhoto, SurfaceRoute.CreationGif, SurfaceRoute.Collage, SurfaceRoute.MemoriesBrowser, SurfaceRoute.LocalBackup, SurfaceRoute.LocalBackupTasks, SurfaceRoute.RemoteBackup, SurfaceRoute.OwnSync, SurfaceRoute.OfflinePlaces, SurfaceRoute.LocalSharing, SurfaceRoute.PetIdentity),
@@ -2378,7 +2386,7 @@ internal fun ProductionGalleryApp(
             moveState.copyDraft?.let { draft ->
                 Surface(color = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer) {
-                    Column(Modifier.fillMaxWidth().padding(12.dp).testTag("move-copy-panel")) {
+                    Column(Modifier.fillMaxWidth().then(controlsTopInset).padding(12.dp).testTag("move-copy-panel")) {
                         Text(stringResource(R.string.move_copy_title))
                         Text(draft.name)
                         Text(stringResource(if (draft.destinationUri == null) R.string.move_copy_unknown else R.string.move_copy_body))
@@ -2432,7 +2440,7 @@ internal fun ProductionGalleryApp(
                     color = if (success) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = if (success) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
                 ) {
-                    Column(Modifier.fillMaxWidth().padding(12.dp).testTag("verified-move-panel")) {
+                    Column(Modifier.fillMaxWidth().then(controlsTopInset).padding(12.dp).testTag("verified-move-panel")) {
                         Text(stringResource(when (banner.tone) {
                             VerifiedMoveTone.Success -> R.string.move_verified_complete
                             VerifiedMoveTone.Attention -> R.string.move_verified_attention
@@ -2507,24 +2515,9 @@ internal fun ProductionGalleryApp(
             viewerReturnDestination == ViewerReturnDestination.Root(RootTab.Photos), external != null,
         )
         val scaffoldRoute = if (accessibleViewerWindow) SurfaceRoute.Root else renderedRoute
-        val internalTopBarRoute = scaffoldRoute == SurfaceRoute.PublicationRecoveries ||
-            scaffoldRoute == SurfaceRoute.Settings ||
-            scaffoldRoute == SurfaceRoute.About ||
-            scaffoldRoute == SurfaceRoute.People ||
-            scaffoldRoute == SurfaceRoute.Moment ||
-            scaffoldRoute == SurfaceRoute.ManualMoment ||
-            scaffoldRoute == SurfaceRoute.MemoryVideo ||
-            scaffoldRoute == SurfaceRoute.MomentParticipants ||
-            scaffoldRoute == SurfaceRoute.MotionPhoto ||
-            scaffoldRoute == SurfaceRoute.CreationGif ||
-            scaffoldRoute == SurfaceRoute.Collage ||
-            scaffoldRoute == SurfaceRoute.MemoriesBrowser
+        val internalTopBarRoute = surfaceOwnsTopBar(scaffoldRoute)
         val contentInsets = when {
-            scaffoldRoute == SurfaceRoute.Viewer ||
-                scaffoldRoute == SurfaceRoute.PhotoEditor ||
-                scaffoldRoute == SurfaceRoute.VideoEditor ||
-                scaffoldRoute == SurfaceRoute.PrivateAlbum ||
-                scaffoldRoute == SurfaceRoute.PrivateAlbumPicker -> WindowInsets(0, 0, 0, 0)
+            surfaceIsFullBleed(scaffoldRoute) -> WindowInsets(0, 0, 0, 0)
             internalTopBarRoute -> ScaffoldDefaults.contentWindowInsets.only(
                 WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal,
             )
