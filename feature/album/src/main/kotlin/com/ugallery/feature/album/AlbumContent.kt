@@ -82,6 +82,8 @@ fun AlbumContent(
     showHeader: Boolean = true,
     modifier: Modifier = Modifier,
     onRenameAlbum: (() -> Unit)? = null,
+    onDeleteAlbum: (() -> Unit)? = null,
+    deleteAlbumLabel: String? = null,
     onSetCover: ((TimelineMedia?) -> Unit)? = null,
     coverWorking: Boolean = false,
     coverFailed: Boolean = false,
@@ -133,6 +135,13 @@ fun AlbumContent(
             if (album.key is AlbumKey.Virtual && onRenameAlbum != null) {
                 TextButton(onClick = onRenameAlbum, enabled = !picking && !coverWorking, modifier = Modifier.testTag("album-rename")) {
                     Text(stringResource(R.string.album_rename))
+                }
+            }
+            // Device folders are filesystem directories: only AlbumKey.Virtual albums may be deleted.
+            if (album.key is AlbumKey.Virtual && onDeleteAlbum != null && deleteAlbumLabel != null) {
+                TextButton(onClick = onDeleteAlbum, enabled = !picking && !coverWorking,
+                    modifier = Modifier.testTag("album-delete")) {
+                    Text(deleteAlbumLabel)
                 }
             }
             if (canSetCover) {

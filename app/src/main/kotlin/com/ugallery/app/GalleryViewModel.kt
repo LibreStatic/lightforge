@@ -2703,6 +2703,43 @@ class GalleryViewModel @Inject constructor(
         viewModelScope.launch { runtime.value?.albums?.createVirtualAlbum(name) }
     }
 
+    private val mutableAlbumDelete = MutableStateFlow<AlbumDeleteState?>(null)
+    val albumDelete = mutableAlbumDelete.asStateFlow()
+
+    fun beginAlbumDelete(album: AlbumSummary) {
+        val albumId = deletableVirtualAlbumId(album.key) ?: return
+        if (mutableAlbumDelete.value?.working == true) return
+        mutableAlbumDelete.value = AlbumDeleteState(albumId, album.name.orEmpty())
+    }
+
+    fun dismissAlbumDelete() {
+        if (mutableAlbumDelete.value?.working != true) mutableAlbumDelete.value = null
+    }
+
+    fun confirmAlbumDelete() {
+        val state = mutableAlbumDelete.value?.takeUnless { it.working } ?: return
+        mutableAlbumDelete.value = state.copy(working = true, deleteFailed = false)
+        viewModelScope.launch {
+            try {
+                val active = runtime.value
+                val deleted = active != null && active.albums.deleteVirtualAlbum(state.albumId)
+                if (deleted) {
+                    mutableAlbumDelete.value = null
+                    // Drop the surface the album owned; availableSurfaceRoute() returns to Collections.
+                    if (mutableSelectedAlbum.value?.key == AlbumKey.Virtual(state.albumId)) {
+                        mutableSelectedAlbum.value = null
+                    }
+                } else {
+                    mutableAlbumDelete.value = state.copy(deleteFailed = true)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                mutableAlbumDelete.value = state.copy(deleteFailed = true)
+            }
+        }
+    }
+
     fun addSelectionToVirtualAlbum(albumId: Long) {
         require(albumId > 0)
         val selected = mutableSelection.value

@@ -42,6 +42,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.AlertDialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
@@ -368,6 +369,7 @@ internal fun ProductionGalleryApp(
     val albumCoverFailed by viewModel.albumCoverFailed.collectAsState()
     val albumCoverRevision by viewModel.albumCoverRevision.collectAsState()
     val albumRename by viewModel.albumRename.collectAsState()
+    val albumDelete by viewModel.albumDelete.collectAsState()
     val selection by viewModel.selection.collectAsState()
     var pdfReturnToDocuments by rememberSaveable { mutableStateOf(false) }
     var pendingPdfSources by rememberSaveable { mutableStateOf(arrayListOf<String>()) }
@@ -1441,6 +1443,8 @@ internal fun ProductionGalleryApp(
                             },
                             onMediaSelectionChange = viewModel::setMediaSelected,
                             onRenameAlbum = { viewModel.beginAlbumRename(album) },
+                            onDeleteAlbum = deletableVirtualAlbumId(album.key)?.let { { viewModel.beginAlbumDelete(album) } },
+                            deleteAlbumLabel = stringResource(R.string.album_delete),
                             onSetCover = { viewModel.setAlbumCover(album, it) },
                             coverWorking = albumCoverWorking,
                             coverFailed = albumCoverFailed,
@@ -2850,6 +2854,32 @@ internal fun ProductionGalleryApp(
             saveFailed = rename.saveFailed,
             onConfirm = viewModel::confirmAlbumRename,
             onDismiss = viewModel::dismissAlbumRename,
+        )
+    }
+    albumDelete?.let { pending ->
+        AlertDialog(
+            onDismissRequest = { if (!pending.working) viewModel.dismissAlbumDelete() },
+            properties = DialogProperties(dismissOnBackPress = !pending.working, dismissOnClickOutside = !pending.working),
+            title = { Text(stringResource(R.string.album_delete_title, pending.name.ifEmpty { stringResource(com.ugallery.feature.album.R.string.album_untitled) })) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(R.string.album_delete_body))
+                    if (pending.deleteFailed) Text(stringResource(R.string.album_delete_failed),
+                        Modifier.testTag("album-delete-error"))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { viewModel.confirmAlbumDelete() }, enabled = !pending.working,
+                    modifier = Modifier.testTag("album-delete-confirm")) {
+                    Text(stringResource(if (pending.working) R.string.album_delete_deleting else R.string.album_delete_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissAlbumDelete() }, enabled = !pending.working,
+                    modifier = Modifier.testTag("album-delete-cancel")) {
+                    Text(stringResource(R.string.album_delete_cancel))
+                }
+            },
         )
     }
     if (showCreateAlbum) {
