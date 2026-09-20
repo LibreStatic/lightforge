@@ -60,6 +60,14 @@ fun CreationGifContent(sessionId: String, title: String, sources: List<CreationG
     val valid = validCreationGifDraft(savedSessionId, sessionId, savedIdentity, identity, order, seconds, current)
     val index = current.coerceIn(0, (order.size - 1).coerceAtLeast(0))
     val editable = valid && gifAllowsNewExport(export.publication, sourcesAvailable) && !export.running
+    val contentScroll = rememberScrollState()
+    // A finished export disables every editor control; without this the outcome stays below the fold
+    // and the screen is indistinguishable from one still working.
+    val revealsOutcome = gifRevealsOutcome(export.publication, export.running)
+    LaunchedEffect(revealsOutcome) {
+        if (!revealsOutcome) return@LaunchedEffect
+        snapshotFlow { contentScroll.maxValue }.collect { maximum -> contentScroll.animateScrollTo(maximum) }
+    }
     val selected = if (editable) sources[order[index]] else null
     LaunchedEffect(export.receipt) {
         export.receipt?.let { receipt ->
@@ -142,7 +150,7 @@ fun CreationGifContent(sessionId: String, title: String, sources: List<CreationG
         color = MaterialTheme.colorScheme.background, contentColor = MaterialTheme.colorScheme.onBackground) {
         Column(Modifier.fillMaxSize().widthIn(max = 840.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             GalleryTopAppBar(title = title, onBack = ::back, navigationContentDescription = stringResource(R.string.creation_gif_back))
-            Column(Modifier.weight(1f).widthIn(max = 840.dp).fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.weight(1f).widthIn(max = 840.dp).fillMaxWidth().verticalScroll(contentScroll).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Surface(color = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface, shape = MaterialTheme.shapes.large) {
                     Box(Modifier.fillMaxWidth().heightIn(max = 380.dp).aspectRatio(1f), contentAlignment = Alignment.Center) {
                         preview?.let { Image(it.asImageBitmap(), stringResource(R.string.creation_gif_preview), Modifier.fillMaxSize().testTag("creation-gif-preview"), contentScale = ContentScale.Fit) }

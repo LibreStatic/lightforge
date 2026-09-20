@@ -15,6 +15,15 @@ internal fun gifAllowsNewExport(status: CreationGifPublicationUi, sourcesAvailab
 internal fun gifKeepsRecovery(status: CreationGifPublicationUi) =
     status != CreationGifPublicationUi.None && status != CreationGifPublicationUi.Published
 
+/**
+ * The outcome surface sits under the editor controls, so a finished export can land entirely below
+ * the fold: every visible control is disabled and nothing on screen says the export ended. A
+ * terminal publication therefore has to be scrolled into view, which is exactly the states that
+ * disable editing while no longer running.
+ */
+internal fun gifRevealsOutcome(status: CreationGifPublicationUi, running: Boolean): Boolean =
+    !running && status != CreationGifPublicationUi.None && status != CreationGifPublicationUi.Checking
+
 internal fun gifMissingPublicationState(confirmed: Boolean, retirementRequested: Boolean,
     previousResult: Boolean, attempted: Boolean): CreationGifPublicationUi = when {
     confirmed && retirementRequested -> CreationGifPublicationUi.Retired
