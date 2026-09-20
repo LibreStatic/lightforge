@@ -1,6 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="?android:attr/colorBackground" />
-    <corners android:radius="12dp" />
-</shape>
+<!--
+  Fallback preview for launchers below API 31, which cannot inflate
+  android:previewLayout. Previously this was a single flat rounded rectangle
+  filled with ?android:attr/colorBackground, which rendered as an empty white
+  tile in the widget picker. It now draws a photo-mosaic silhouette so the
+  entry is recognisable even without previewLayout.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="?android:attr/colorBackground" />
+            <corners android:radius="16dp" />
+        </shape>
+    </item>
+    <item android:left="14dp" android:top="14dp" android:right="52dp" android:bottom="52dp">
+        <shape android:shape="rectangle">
+            <solid android:color="?android:attr/colorAccent" />
+            <corners android:radius="8dp" />
+        </shape>
+    </item>
+    <item android:left="52dp" android:top="14dp" android:right="14dp" android:bottom="52dp">
+        <shape android:shape="rectangle">
+            <solid android:color="?android:attr/colorAccent" />
+            <corners android:radius="8dp" />
+        </shape>
+    </item>
+    <item android:left="14dp" android:top="52dp" android:right="52dp" android:bottom="14dp">
+        <shape android:shape="rectangle">
+            <solid android:color="?android:attr/colorAccent" />
+            <corners android:radius="8dp" />
+        </shape>
+    </item>
+    <item android:left="52dp" android:top="52dp" android:right="14dp" android:bottom="14dp">
+        <shape android:shape="rectangle">
+            <solid android:color="?android:attr/colorAccent" />
+            <corners android:radius="8dp" />
+        </shape>
+    </item>
+</layer-list>
