@@ -3584,10 +3584,10 @@ private fun ChooseAlbumDialog(
                 }
             }
         },
+        // Creating a new album is reachable whatever the existing count: a user with albums should
+        // not have to leave the selection to make one.
         confirmButton = {
-            if (albums.isEmpty()) {
-                TextButton(onClick = onCreateAlbum) { Text(stringResource(R.string.album_create)) }
-            }
+            TextButton(onClick = onCreateAlbum) { Text(stringResource(R.string.album_create)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.album_cancel)) } },
     )
