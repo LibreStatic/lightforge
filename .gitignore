@@ -12,3 +12,23 @@ core/ml/src/androidTest/assets/private_identity/
 
 # Native build artifacts
 .cxx/
+
+# Verification evidence artifacts: build outputs, model/map binaries, tool virtualenvs
+# and baseline source snapshots. These are reproducible and far too large for git
+# (40 APKs alone are ~9 GB). Textual evidence already committed under docs/evidence
+# stays tracked; only these artifact classes are excluded.
+docs/evidence/**/*.apk
+docs/evidence/**/*.ugmodel
+docs/evidence/**/*.onnx
+docs/evidence/**/*.zip
+docs/evidence/**/*.pmtiles
+docs/evidence/**/*.mbtiles
+docs/evidence/**/*.key
+docs/evidence/**/venv/
+docs/evidence/**/baseline/
+docs/evidence/**/model-assets/
+docs/evidence/**/pet-assets/
+docs/evidence/**/model-tools/
+docs/evidence/**/pet-tools/
+docs/evidence/**/maps-fixture/
+docs/evidence/**/maps-renderer-ab/
