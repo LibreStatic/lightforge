@@ -19,4 +19,4 @@
     <string name="collection_layout_private">Private album</string>
     <string name="collection_layout_pdf">PDF Studio</string>
     <string name="collection_layout_collage">Collage</string>
-</resources>
+<string name="collections_albums_empty">No albums yet</string><string name="collections_albums_empty_body">Albums you create appear here. Device folders are listed in their own section.</string><string name="collections_folders_empty">No device folders</string><string name="collections_folders_empty_body">Folders that hold photos on this device appear here.</string></resources>

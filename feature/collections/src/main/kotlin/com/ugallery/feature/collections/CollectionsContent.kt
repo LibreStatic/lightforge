@@ -68,6 +68,24 @@ internal fun collectionGridColumns(availableWidth: Dp): Int =
         else -> 4
     }
 
+/** Which empty state a Collections album section may claim. */
+enum class CollectionsSectionEmptyState { Hidden, NoAlbums, NoDeviceFolders }
+
+/**
+ * An empty section must only claim that *it* is empty. The surface keeps device folders, Moments and
+ * library cards on the same scrollable page, so a still-loading or non-album section shows nothing.
+ */
+fun collectionsSectionEmptyState(
+    sectionId: String,
+    itemCount: Int,
+    refreshing: Boolean,
+): CollectionsSectionEmptyState = when {
+    refreshing || itemCount > 0 -> CollectionsSectionEmptyState.Hidden
+    sectionId == "virtual-albums" -> CollectionsSectionEmptyState.NoAlbums
+    sectionId == "physical-albums" -> CollectionsSectionEmptyState.NoDeviceFolders
+    else -> CollectionsSectionEmptyState.Hidden
+}
+
 internal fun collectionRowCount(itemCount: Int, columns: Int): Int {
     require(itemCount >= 0)
     require(columns > 0)
@@ -315,9 +333,14 @@ private fun LazyListScope.pagedAlbumCardRows(
     thumbnailLoader: ThumbnailLoader?,
     onAlbumClick: (AlbumSummary) -> Unit,
 ) {
-    if (albums.itemCount == 0 && albums.loadState.refresh !is LoadState.Loading) {
-        item(key = "$id-empty") { GalleryStateContent(stringResource(R.string.collections_empty),
-            stringResource(R.string.collections_empty_body), stringResource(R.string.collections_empty), Modifier.fillMaxWidth()) }
+    val emptyState = collectionsSectionEmptyState(id, albums.itemCount, albums.loadState.refresh is LoadState.Loading)
+    if (emptyState != CollectionsSectionEmptyState.Hidden) {
+        val title = if (emptyState == CollectionsSectionEmptyState.NoAlbums) R.string.collections_albums_empty
+        else R.string.collections_folders_empty
+        val body = if (emptyState == CollectionsSectionEmptyState.NoAlbums) R.string.collections_albums_empty_body
+        else R.string.collections_folders_empty_body
+        item(key = "$id-empty") { GalleryStateContent(stringResource(title),
+            stringResource(body), stringResource(title), Modifier.fillMaxWidth()) }
     }
     // Never access every Paging item to build/sort a block. Only composed rows request media.
     repeat(collectionRowCount(albums.itemCount, columns)) { rowIndex ->
