@@ -2,7 +2,12 @@
 
 Dependency-free bash helpers for driving the debug build on an emulator.
 
+**Run it under `bash`.** The login shell on this machine is zsh, which does not
+word-split unquoted expansions; the harness refuses to load under a non-bash
+shell rather than computing a garbage coordinate and tapping the wrong place.
+
 ```bash
+bash                      # <- the login shell is zsh
 source tools/e2e/harness.sh
 launch
 expect "Timeline"
@@ -31,14 +36,50 @@ Two E2E rounds reported working features as broken. Both were harness bugs:
 `expect` / `expectgone` catch a no-op tap at the point it happens instead of
 three steps later.
 
+A later round hit three more harness bugs, all fixed:
+
+* **`adb shell` ate the driving script's stdin.** `adb shell`/`adb exec-out`
+  forward stdin to the device and drain it, so a script piped into bash died
+  silently at the first helper that shelled out — runs "produced no output at
+  all and looked like a dead device". Every adb call now redirects
+  `</dev/null`, so heredoc-driven scripts work (see below). Keep that
+  redirection if you add an adb call.
+* **Sourcing from zsh tapped the wrong place.** `set -- $wh` yields a single
+  word under zsh, so a `1080 2400` screen size became one garbage token. The
+  harness now refuses to load outside bash, and the two word-splitting sites
+  use explicit `read -r`.
+* **`nodes` printed a column of blank `text= desc=` clickables.** In Compose the
+  label is usually a non-clickable child of the clickable node, so listing
+  clickables told you nothing about what you could tap. `nodes` now appends a
+  `label` column resolved from the node's own subtree.
+
+### Driving the harness from a heredoc
+
+```bash
+bash <<'EOF'
+source tools/e2e/harness.sh
+expect "Timeline"
+nodes | awk -F'\t' '$4=="true" {print $11, $6, $7}'   # label + tap coords
+EOF
+```
+
 ## Functions
 
 | Function | Purpose |
 | --- | --- |
 | `shot <name>` | screenshot into `$SHOTS` |
 | `dump` / `redump` | raw uiautomator XML |
-| `nodes [query]` | TSV: `tier text desc clickable bounds tapx tapy class id hasclick` |
+| `nodes [query]` | TSV: `tier text desc clickable bounds tapx tapy class id hasclick label` |
 | `texts` | unique `text=` / `content-desc=` values on screen |
+
+`nodes`' 11th column, `label`, is the best `text`/`content-desc` found in the
+node's own subtree (falling back to its own, then `""`). Columns 1-10 are
+unchanged, so existing callers and scripts keep working. Listing what is
+tappable on a screen:
+
+```bash
+nodes | awk -F'\t' '$4=="true" {printf "%-28s tap=(%s,%s)\n", $11, $6, $7}'
+```
 | `tapon <q>` | tiered, ambiguity-safe tap (back-compatible name) |
 | `tapexact <q>` | exact text or content-desc only |
 | `tapbtn <q>` | only matches whose tap target is a clickable node |
@@ -65,6 +106,13 @@ Every helper returns non-zero on failure and prints a line starting with
 | `E2E_TAP_SETTLE` | `1.5` | seconds to wait after a tap |
 | `E2E_SCROLL_STEP` | `260` | px per scroll increment |
 | `E2E_SCROLL_MAX` | `25` | bounded scroll passes |
+
+## Requirements
+
+* **bash.** The harness is bash-only (word splitting, `read -r <<<`, process
+  substitution) and refuses to load under zsh, which is the login shell here.
+  `bash -c 'source tools/e2e/harness.sh; ...'` or a `bash <<'EOF'` heredoc.
+* `adb` on PATH with `adb get-state` = `device`.
 
 ## Emulator requirements
 

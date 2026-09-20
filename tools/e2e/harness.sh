@@ -29,6 +29,20 @@
 #      current screen's texts so the no-op is caught where it happened rather
 #      than three steps later.
 #
+#   4. `adb shell` EATING THE DRIVING SCRIPT'S STDIN.
+#      `adb shell`/`adb exec-out` forward their stdin to the device and drain
+#      it. A script piped into bash (`bash <<'EOF' ... EOF`, or `cat s.sh |
+#      bash`) therefore vanished at the FIRST helper that shelled out: the run
+#      "produced no output at all and looked like a dead device". Every adb
+#      invocation in this file redirects `</dev/null` so heredoc-driven scripts
+#      survive. If you add one, redirect it too.
+#
+#   5. BEING SOURCED FROM A NON-BASH SHELL -> silent WRONG TAPS.
+#      This file relies on bash word-splitting and process substitution. Under
+#      zsh `set -- $wh` yields ONE word, so a screen size of "1080 2400" became
+#      a single garbage token and the harness tapped the wrong place without
+#      erroring. Loading under anything but bash is now refused up front.
+#
 # BACK-COMPAT: shot dump nodes tapxy tapon texts back swipe launch errs alive
 # tap1 tap_by_text tap_by_desc all keep their old names and call signatures.
 #
@@ -36,7 +50,11 @@
 #   shot <name>              screenshot to $SHOTS/<name>.png
 #   dump                     raw uiautomator XML (cached, see redump)
 #   redump                   force a fresh dump
-#   nodes [query]            TSV of nodes (tier text desc clickable bounds tapx tapy class id)
+#   nodes [query]            TSV of nodes (tier text desc clickable bounds tapx
+#                            tapy class id hasclick label); `label` is the best
+#                            text/content-desc found in the node's own subtree,
+#                            so clickable Compose containers whose own text= and
+#                            desc= are empty still show what they say.
 #   texts                    unique text= / content-desc= values on screen
 #   tapon <q>                tiered match (exact>substring, clickable>not); ambiguity = failure
 #   tapexact <q>             exact text or content-desc only
@@ -49,7 +67,26 @@
 #
 # EXIT/RETURN CONVENTION: every helper returns non-zero on failure and prints a
 # line starting with "E2E FAIL:". Drive scripts with `set -e` or check $?.
+#
+# REQUIREMENTS: bash (the login shell here is zsh -- run `bash` first), adb on
+# PATH, a device/emulator in `adb get-state` = device. Heredoc-driven scripts
+# are supported: `bash <<'EOF' ... EOF` works.
 # ---------------------------------------------------------------------------
+
+# --- shell guard: refuse to load anywhere but bash --------------------------
+if [ -z "${BASH_VERSION:-}" ]; then
+  echo "E2E FAIL: tools/e2e/harness.sh requires bash, but this shell is not bash." >&2
+  echo "  (the login shell on this machine is zsh; zsh does not word-split unquoted" >&2
+  echo "   expansions, so the harness would compute garbage coordinates and TAP THE" >&2
+  echo "   WRONG PLACE instead of failing.)" >&2
+  echo "  Run it under bash instead, e.g.:" >&2
+  echo "      bash -c 'source tools/e2e/harness.sh; texts'" >&2
+  echo "      bash <<'EOF'" >&2
+  echo "      source tools/e2e/harness.sh" >&2
+  echo "      texts" >&2
+  echo "      EOF" >&2
+  return 1 2>/dev/null || exit 1
+fi
 
 SHOTS="${SHOTS:-/home/user/ugallery/docs/e2e-screenshots}"
 PKG="${PKG:-com.ugallery.app.debug}"
@@ -62,11 +99,14 @@ mkdir -p "$SHOTS" 2>/dev/null
 _e2e_err() { echo "E2E FAIL: $*" >&2; }
 
 # --- raw device helpers -----------------------------------------------------
-shot()  { adb exec-out screencap -p > "$SHOTS/$1.png"; echo "saved $SHOTS/$1.png"; }
+# NOTE: every adb call below redirects </dev/null. `adb shell`/`adb exec-out`
+# forward stdin to the device and will otherwise swallow the rest of a script
+# that is being piped into bash (see failure mode 4 in the header).
+shot()  { adb exec-out screencap -p </dev/null > "$SHOTS/$1.png"; echo "saved $SHOTS/$1.png"; }
 
 _E2E_DUMP_CACHE=""
 redump() {
-  _E2E_DUMP_CACHE="$(adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb shell cat /sdcard/ui.xml 2>/dev/null)"
+  _E2E_DUMP_CACHE="$(adb shell uiautomator dump /sdcard/ui.xml </dev/null >/dev/null 2>&1; adb shell cat /sdcard/ui.xml </dev/null 2>/dev/null)"
   [ -n "$_E2E_DUMP_CACHE" ] || { _e2e_err "uiautomator dump returned nothing (device asleep/locked?)"; return 1; }
   printf '%s' "$_E2E_DUMP_CACHE"
 }
@@ -76,13 +116,13 @@ dump() { redump; }
 
 texts() { redump | tr '<' '\n' | grep -oE '(text|content-desc)="[^"]+"' | sort -u; }
 
-back()  { adb shell input keyevent KEYCODE_BACK; sleep 1; }
-swipe() { adb shell input swipe "$@"; sleep 1; }
-launch(){ adb shell am force-stop "$PKG"; adb shell am start -n "$PKG/$ACTIVITY" >/dev/null; sleep 6; }
-errs()  { adb logcat -d -b crash,main '*:E' | tail -40; }
-alive() { [ "$(adb get-state 2>/dev/null)" = "device" ]; }
-relaunch_if_dead() { alive || { _e2e_err "no device"; return 1; }; adb shell pidof "$PKG" >/dev/null 2>&1 || launch; }
-tapxy() { adb shell input tap "$1" "$2"; sleep "$E2E_TAP_SETTLE"; }
+back()  { adb shell input keyevent KEYCODE_BACK </dev/null; sleep 1; }
+swipe() { adb shell input swipe "$@" </dev/null; sleep 1; }
+launch(){ adb shell am force-stop "$PKG" </dev/null; adb shell am start -n "$PKG/$ACTIVITY" </dev/null >/dev/null; sleep 6; }
+errs()  { adb logcat -d -b crash,main '*:E' </dev/null | tail -40; }
+alive() { [ "$(adb get-state </dev/null 2>/dev/null)" = "device" ]; }
+relaunch_if_dead() { alive || { _e2e_err "no device"; return 1; }; adb shell pidof "$PKG" </dev/null >/dev/null 2>&1 || launch; }
+tapxy() { adb shell input tap "$1" "$2" </dev/null; sleep "$E2E_TAP_SETTLE"; }
 
 # --- node parser ------------------------------------------------------------
 # Emits TSV per node: tier text desc clickable bounds tapx tapy class resource-id hasclick
@@ -96,8 +136,16 @@ tapxy() { adb shell input tap "$1" "$2"; sleep "$E2E_TAP_SETTLE"; }
 #   4 substring match, tap target = nearest clickable ancestor (or the node itself)
 # With no query every node is emitted with tier 0.
 _e2e_parse() {
-  local q="$1"
-  redump | sed 's/</\n</g' | awk -v q="$q" '
+  local xml
+  xml="$(redump)" || return 1
+  _e2e_parse_xml "$xml" "$1"
+}
+
+# _e2e_parse_xml <xml> <query> -- the parser proper, so one dump can be reused
+# (nodes needs both the full node list and the filtered one).
+_e2e_parse_xml() {
+  local xml="$1" q="$2"
+  printf '%s' "$xml" | sed 's/</\n</g' | awk -v q="$q" '
     function attr(line, name,   re, s) {
       re = name "=\""
       s = index(line, re); if (s == 0) return ""
@@ -149,8 +197,56 @@ _e2e_parse() {
   '
 }
 
+# _e2e_add_label <full-tsv>  -- reads rows on stdin, appends an 11th column:
+# the best label for that node. A clickable Compose container almost never
+# carries its own text; the label lives on a non-clickable descendant (this is
+# the very relationship the matcher already walks to compute tap targets). We
+# resolve it the same way, by geometric containment: the first node in document
+# order whose bounds sit inside this node's bounds and which has a non-empty
+# text/content-desc. Falls back to the node's own text, then desc, then "".
+# Columns 1-10 are emitted byte-identically, so every existing caller is safe.
+_e2e_add_label() {
+  awk -F'\t' '
+    function own(t, d) { return (t != "") ? t : d }
+    NR==FNR {
+      n++
+      T[n]=$2; D[n]=$3; BN[n]=$5
+      split($5, p, /[^0-9]+/)
+      X1[n]=p[2]; Y1[n]=p[3]; X2[n]=p[4]; Y2[n]=p[5]
+      next
+    }
+    {
+      lab = own($2, $3)
+      if (lab == "") {
+        split($5, q, /[^0-9]+/)
+        ax1=q[2]; ay1=q[3]; ax2=q[4]; ay2=q[5]
+        for (j = 1; j <= n; j++) {
+          l2 = own(T[j], D[j])
+          # A candidate with a label is never this node: we only get here when
+          # this node has neither text nor desc. So no self-check is needed --
+          # and crucially we must NOT skip same-bounds rows, because in Compose
+          # the labelled child usually fills its clickable parent exactly.
+          if (l2 == "") continue
+          if (X1[j] >= ax1 && Y1[j] >= ay1 && X2[j] <= ax2 && Y2[j] <= ay2) {
+            lab = l2; break                   # document order == visual order
+          }
+        }
+      }
+      print $0 "\t" lab
+    }
+  ' "$1" -
+}
+
 nodes() {
-  if [ $# -eq 0 ]; then _e2e_parse ""; else _e2e_parse "$1"; fi
+  local q="${1:-}" xml full
+  xml="$(redump)" || return 1
+  full="$(_e2e_parse_xml "$xml" "")"
+  [ -n "$full" ] || return 0
+  if [ -n "$q" ]; then
+    _e2e_parse_xml "$xml" "$q" | _e2e_add_label <(printf '%s\n' "$full")
+  else
+    printf '%s\n' "$full" | _e2e_add_label <(printf '%s\n' "$full")
+  fi
 }
 
 # _e2e_resolve <query> <mode>   mode: tiered | exact | clickable
@@ -186,10 +282,11 @@ _e2e_tap_resolved() {
   local q="$1" mode="$2" xy rc
   xy="$(_e2e_resolve "$q" "$mode")"; rc=$?
   [ $rc -eq 0 ] || return $rc
-  set -- $xy
-  adb shell input tap "$1" "$2"
+  local tx ty
+  read -r tx ty <<<"$xy"      # explicit split: do not rely on unquoted $xy
+  adb shell input tap "$tx" "$ty" </dev/null
   sleep "$E2E_TAP_SETTLE"
-  echo "tapped [$mode] \"$q\" at $1,$2"
+  echo "tapped [$mode] \"$q\" at $tx,$ty"
 }
 
 # Back-compatible name; now tiered + ambiguity-safe.
@@ -229,15 +326,16 @@ expectgone() {
 
 # --- scrolling that cannot skip content -------------------------------------
 _e2e_screen_size() {
-  adb shell wm size 2>/dev/null | sed -n 's/.*: *\([0-9]*\)x\([0-9]*\).*/\1 \2/p' | tail -1
+  adb shell wm size </dev/null 2>/dev/null | sed -n 's/.*: *\([0-9]*\)x\([0-9]*\).*/\1 \2/p' | tail -1
 }
 
 # scrollto <query> [down|up] [max_passes]
 scrollto() {
   local q="$1" dir="${2:-down}" max="${3:-$E2E_SCROLL_MAX}"
   local wh w h cx y1 y2 i
-  wh="$(_e2e_screen_size)"; set -- $wh
-  w="${1:-1080}"; h="${2:-2400}"
+  wh="$(_e2e_screen_size)"
+  read -r w h <<<"$wh"        # explicit split: do not rely on unquoted $wh
+  w="${w:-1080}"; h="${h:-2400}"
   cx=$(( w / 2 ))
   if [ "$dir" = "up" ]; then
     y1=$(( h / 3 )); y2=$(( y1 + E2E_SCROLL_STEP ))
@@ -250,7 +348,7 @@ scrollto() {
       echo "scrollto: found \"$q\" after $i step(s) ($dir)"
       return 0
     fi
-    adb shell input swipe "$cx" "$y1" "$cx" "$y2" 350
+    adb shell input swipe "$cx" "$y1" "$cx" "$y2" 350 </dev/null
     sleep 0.6
   done
   _e2e_err "scrollto: \"$q\" never appeared after $max ${dir} steps of ${E2E_SCROLL_STEP}px."
