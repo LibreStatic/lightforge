@@ -39,6 +39,18 @@ interface PdfGalleryDeliveryDao {
     @Query("DELETE FROM gallery_deliveries WHERE id = :id") suspend fun delete(id: String)
 }
 
+/**
+ * A delivery that failed is kept so the user can retry or discard it, but a later delivery of the
+ * same selection that imports cleanly settles the question: the earlier failure is stale, and
+ * leaving its banner up tells the user their working import failed.
+ */
+internal fun supersedesFailedDelivery(
+    completed: PdfGalleryDelivery,
+    candidate: PdfGalleryDelivery,
+): Boolean = candidate.error != null &&
+    candidate.id != completed.id &&
+    candidate.uris == completed.uris
+
 /** Gallery access belongs to the media permission flow, not to SAF persistable URI grants. */
 internal class PdfGalleryIntake(context: Context) {
     private val db = PdfProjectDatabase.get(context)
@@ -76,7 +88,12 @@ internal class PdfGalleryIntake(context: Context) {
         progress: (Int, Int) -> Unit,
     ): PdfProject {
         val project = repository.importGallery(row, progress)
-        withContext(NonCancellable) { db.galleryDeliveries().delete(row.id) }
+        withContext(NonCancellable) {
+            db.galleryDeliveries().delete(row.id)
+            db.galleryDeliveries().all()
+                .filter { supersedesFailedDelivery(row, it) }
+                .forEach { db.galleryDeliveries().delete(it.id) }
+        }
         return project
     }
 }
