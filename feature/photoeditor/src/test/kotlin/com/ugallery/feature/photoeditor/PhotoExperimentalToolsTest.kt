@@ -41,4 +41,37 @@ class PhotoExperimentalToolsTest {
         assertEquals(1, appendBrushPoint(first, PhotoPoint(0.505f, 0.5f), 1f).size)
         assertEquals(2, appendBrushPoint(first, PhotoPoint(0.6f, 0.5f), 1f).size)
     }
+
+    @Test
+    fun marks_roundTripThroughRotateFlipAndCrop() {
+        val geometry = listOf(
+            com.ugallery.core.model.EditOperation.Rotate(90),
+            com.ugallery.core.model.EditOperation.Flip(horizontal = true),
+            com.ugallery.core.model.EditOperation.Crop(100, 200, 900, 800),
+        )
+        val source = PhotoPoint(0.3f, 0.6f)
+        val edited = projectToEdited(source, geometry)!!
+        val back = projectToSource(edited, geometry)!!
+        assertEquals(source.x, back.x, 0.0001f)
+        assertEquals(source.y, back.y, 0.0001f)
+    }
+
+    @Test
+    fun rotate90_movesTopLeftToTopRight() {
+        val edited = projectToEdited(PhotoPoint(0f, 0f), listOf(com.ugallery.core.model.EditOperation.Rotate(90)))!!
+        assertEquals(1f, edited.x, 0.0001f)
+        assertEquals(0f, edited.y, 0.0001f)
+    }
+
+    @Test
+    fun cropHidesMarksOutsideTheFrame() {
+        assertNull(projectToEdited(PhotoPoint(0.05f, 0.5f), listOf(com.ugallery.core.model.EditOperation.Crop(100, 0, 1000, 1000))))
+    }
+
+    @Test
+    fun straightenIsNotProjectable() {
+        val geometry = photoGeometryOperations(listOf(com.ugallery.core.model.EditOperation.Straighten(5f)))
+        assertEquals(false, photoGeometryProjectable(geometry))
+        assertEquals(true, photoGeometryProjectable(photoGeometryOperations(listOf(com.ugallery.core.model.EditOperation.Straighten(0f)))))
+    }
 }

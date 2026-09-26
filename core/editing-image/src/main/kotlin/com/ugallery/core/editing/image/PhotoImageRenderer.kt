@@ -82,6 +82,13 @@ class PhotoImageRenderer(
             applyRecipe(decoded, upright(uri, recipe))
         }
 
+    /**
+     * Copies [source]'s capture EXIF (date, GPS, camera) into an upright [destination] of
+     * [width] x [height] that was encoded outside this renderer. Returns false when not possible.
+     */
+    suspend fun copyCaptureMetadata(source: Uri, destination: File, width: Int, height: Int): Boolean =
+        withContext(ioDispatcher) { PhotoExifMetadata.copy(resolver, source, destination, width, height) }
+
     /** Applies a recipe to an already decoded bitmap, consuming it when a transform replaces it. */
     suspend fun renderDecoded(source: Bitmap, recipe: EditRecipe): Bitmap = withContext(ioDispatcher) {
         applyRecipe(source, recipe)

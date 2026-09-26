@@ -167,6 +167,10 @@ import com.ugallery.feature.viewer.ViewerUiState
 import com.ugallery.feature.photoeditor.PhotoEditorContentState
 import com.ugallery.feature.photoeditor.PhotoPoint
 import com.ugallery.feature.photoeditor.eraseRegionsFor
+import com.ugallery.feature.photoeditor.photoGeometryOperations
+import com.ugallery.feature.photoeditor.photoGeometryProjectable
+import com.ugallery.feature.photoeditor.projectToEdited
+import com.ugallery.feature.photoeditor.projectToSource
 import com.ugallery.feature.objecteraser.ObjectEraser
 import com.ugallery.feature.subjectclip.SubjectClipper
 import com.ugallery.feature.videoeditor.VideoEditorContentState
@@ -250,8 +254,13 @@ data class PhotoEditorSession(
     /** Cancel/save-copy discard only this session's draft, not a restored recipe on entry. */
     val entryRecipe: EditRecipe? = null,
     val entryRecipeUpdatedAtMillis: Long = 0,
-    /** Applied experimental eraser dabs, re-applied at full size on Save copy. */
+    /**
+     * Applied experimental eraser dabs, re-applied at full size on Save copy. Stored in upright
+     * source coordinates and re-projected through the recipe, unless [eraseGeometry] is set: then
+     * they were drawn under a straighten and are in the edited coordinates of that geometry.
+     */
     val eraseMarks: List<PhotoPoint> = emptyList(),
+    val eraseGeometry: List<EditOperation>? = null,
 )
 
 data class EditorMediaSource(
@@ -3552,7 +3561,7 @@ class GalleryViewModel @Inject constructor(
         val session = mutablePhotoEditor.value ?: return
         val updated = session.history.apply(operation)
         if (updated == session.history) return
-        if (renderRequired) dropExperimentalPhotoEdits()
+        if (renderRequired) retargetExperimentalPhotoEdits(updated.present)
         mutablePhotoEditor.value = (mutablePhotoEditor.value ?: session).copy(
             history = updated,
             content = (mutablePhotoEditor.value ?: session).content.copy(
@@ -3598,7 +3607,7 @@ class GalleryViewModel @Inject constructor(
         val updated = transform(session.history)
         if (updated == session.history) return
         val renderRequired = photoBaseOperations(session.history.present) != photoBaseOperations(updated.present)
-        if (renderRequired) dropExperimentalPhotoEdits()
+        if (renderRequired) retargetExperimentalPhotoEdits(updated.present)
         mutablePhotoEditor.value = (mutablePhotoEditor.value ?: session).copy(
             history = updated,
             content = (mutablePhotoEditor.value ?: session).content.copy(
@@ -3681,11 +3690,16 @@ class GalleryViewModel @Inject constructor(
                         "image/webp" -> Bitmap.CompressFormat.WEBP_LOSSY
                         else -> Bitmap.CompressFormat.JPEG
                     }
+                    val erasedWidth = erased.width
+                    val erasedHeight = erased.height
                     try {
                         withContext(Dispatchers.IO) { temp.outputStream().use { erased.compress(format, 95, it) } }
                     } finally {
                         erased.recycle()
                     }
+                    // Same capture EXIF as a normal save copy; the pixels are already upright.
+                    PhotoImageRenderer(getApplication<Application>().contentResolver)
+                        .copyCaptureMetadata(session.source.uri, temp, erasedWidth, erasedHeight)
                     publishPhotoResult(temp, outputMime, extension, emptyList())
                 } else when (val result = PhotoImageRenderer(getApplication<Application>().contentResolver).export(
                     session.source.uri, session.history.present, temp, preserveMetadata = true,
@@ -3716,11 +3730,25 @@ class GalleryViewModel @Inject constructor(
     /** Experimental object eraser: erases the preview copy only; Save copy re-applies the dabs at full size. */
     fun applyObjectErase(points: List<PhotoPoint>) {
         val session = mutablePhotoEditor.value ?: return
-        val preview = session.content.preview ?: return
+        if (session.content.preview == null) return
         if (points.isEmpty() || session.content.isRaw) return
-        val marks = session.eraseMarks + points
-        mutablePhotoEditor.value = session.copy(
-            content = session.content.copy(isExperimentalProcessing = true, statusMessage = null),
+        val geometry = photoGeometryOperations(session.history.present.operations)
+        val updated = if (photoGeometryProjectable(geometry) && session.eraseGeometry == null) {
+            session.copy(eraseMarks = session.eraseMarks + points.mapNotNull { projectToSource(it, geometry) })
+        } else {
+            session.copy(eraseMarks = session.eraseMarks + points, eraseGeometry = geometry)
+        }
+        runObjectErase(updated)
+    }
+
+    /** Erases [session]'s marks from its current preview, e.g. after a geometry edit re-rendered it. */
+    private fun runObjectErase(session: PhotoEditorSession) {
+        val preview = session.content.preview ?: return
+        val marks = editedEraseMarks(session)
+        // The new marks are stored only once the erase succeeds.
+        val shown = mutablePhotoEditor.value ?: return
+        mutablePhotoEditor.value = shown.copy(
+            content = shown.content.copy(isExperimentalProcessing = true, statusMessage = null),
         )
         photoExperimentalJob?.cancel()
         photoExperimentalJob = viewModelScope.launch {
@@ -3751,7 +3779,8 @@ class GalleryViewModel @Inject constructor(
             }
             current.content.erasePreview?.recycle()
             mutablePhotoEditor.value = current.copy(
-                eraseMarks = marks,
+                eraseMarks = session.eraseMarks,
+                eraseGeometry = session.eraseGeometry,
                 content = current.content.copy(
                     erasePreview = erased.bitmap,
                     eraseMethod = erased.method,
@@ -3762,12 +3791,20 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
+    /** The session's eraser marks in the coordinates of its current edited image. */
+    private fun editedEraseMarks(session: PhotoEditorSession): List<PhotoPoint> {
+        session.eraseGeometry?.let { return session.eraseMarks }
+        val geometry = photoGeometryOperations(session.history.present.operations)
+        return session.eraseMarks.mapNotNull { projectToEdited(it, geometry) }
+    }
+
     fun clearObjectErase() {
         val session = mutablePhotoEditor.value ?: return
         photoExperimentalJob?.cancel()
         session.content.erasePreview?.recycle()
         mutablePhotoEditor.value = session.copy(
             eraseMarks = emptyList(),
+            eraseGeometry = null,
             content = session.content.copy(
                 erasePreview = null,
                 eraseMethod = null,
@@ -3906,7 +3943,7 @@ class GalleryViewModel @Inject constructor(
                     withContext(Dispatchers.Default) {
                         ObjectEraser().eraseRegions(
                             decoded,
-                            eraseRegionsFor(session.eraseMarks, decoded.width, decoded.height),
+                            eraseRegionsFor(editedEraseMarks(session), decoded.width, decoded.height),
                         ).bitmap
                     }
                 } finally {
@@ -3914,6 +3951,31 @@ class GalleryViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /**
+     * Geometry changed to [recipe]: source-anchored eraser marks survive and are re-applied when
+     * the new preview renders; marks drawn under a straighten (and the clip seed) are dropped.
+     */
+    private fun retargetExperimentalPhotoEdits(recipe: EditRecipe) {
+        val session = mutablePhotoEditor.value ?: return
+        val geometry = photoGeometryOperations(recipe.operations)
+        val keep = session.eraseMarks.isNotEmpty() && (
+            (session.eraseGeometry == null && photoGeometryProjectable(geometry)) || session.eraseGeometry == geometry
+            )
+        if (!keep) return dropExperimentalPhotoEdits()
+        photoExperimentalJob?.cancel()
+        session.content.erasePreview?.recycle()
+        session.content.subjectClipPreview?.recycle()
+        mutablePhotoEditor.value = session.copy(
+            content = session.content.copy(
+                erasePreview = null,
+                subjectClipPreview = null,
+                subjectClipSeed = null,
+                subjectClipMethod = null,
+                isExperimentalProcessing = false,
+            ),
+        )
     }
 
     /** Geometry changed: eraser dabs and the clip seed no longer line up with the photo. */
@@ -3926,6 +3988,7 @@ class GalleryViewModel @Inject constructor(
         session.content.subjectClipPreview?.recycle()
         mutablePhotoEditor.value = session.copy(
             eraseMarks = emptyList(),
+            eraseGeometry = null,
             content = session.content.copy(
                 erasePreview = null,
                 eraseMethod = null,
@@ -4257,6 +4320,9 @@ class GalleryViewModel @Inject constructor(
             if (!current.content.isRaw && current.content.autoEnhancementSuggestions == null) {
                 startPhotoAutoEnhancementAnalysis(current.source.stableId, originalPreview ?: preview)
             }
+            // Eraser marks kept across a geometry edit are re-applied to the new preview.
+            mutablePhotoEditor.value?.takeIf { it.eraseMarks.isNotEmpty() && it.content.erasePreview == null }
+                ?.let(::runObjectErase)
         } else {
             preview.recycle()
             cropSourcePreview?.takeIf { it !== originalPreview && it !== preview }?.recycle()

@@ -32,6 +32,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.ugallery.core.designsystem.GallerySpacing
+import com.ugallery.core.model.EditOperation
 import com.ugallery.feature.objecteraser.ObjectEraser
 import com.ugallery.feature.subjectclip.SubjectClipper
 import kotlin.math.min
@@ -72,6 +73,69 @@ fun eraseRegionsFor(points: List<PhotoPoint>, width: Int, height: Int): List<Obj
         val centerY = (point.y * height).roundToInt()
         ObjectEraser.EraseRegion(centerX - radius, centerY - radius, radius * 2, radius * 2)
     }
+}
+
+/** The recipe operations that move pixels, in order; eraser marks are projected through these. */
+fun photoGeometryOperations(operations: List<EditOperation>): List<EditOperation> =
+    operations.filter {
+        it is EditOperation.Crop || it is EditOperation.Rotate || it is EditOperation.Flip ||
+            (it is EditOperation.Straighten && it.degrees != 0f)
+    }
+
+/**
+ * Whether marks can move between source and edited coordinates through [geometry]. Straighten
+ * crops by the intermediate aspect ratio, so marks drawn under it stay in edited coordinates.
+ */
+fun photoGeometryProjectable(geometry: List<EditOperation>): Boolean =
+    geometry.none { it is EditOperation.Straighten }
+
+/** Maps an upright-source point to the edited image; null when a crop leaves it out of frame. */
+fun projectToEdited(point: PhotoPoint, geometry: List<EditOperation>): PhotoPoint? {
+    var x = point.x
+    var y = point.y
+    geometry.forEach { operation ->
+        when (operation) {
+            is EditOperation.Crop -> {
+                val left = operation.leftPermille / 1_000f
+                val top = operation.topPermille / 1_000f
+                x = (x - left) / ((operation.rightPermille - operation.leftPermille) / 1_000f)
+                y = (y - top) / ((operation.bottomPermille - operation.topPermille) / 1_000f)
+                if (x !in 0f..1f || y !in 0f..1f) return null
+            }
+            is EditOperation.Rotate -> repeat(((operation.degrees / 90) % 4 + 4) % 4) {
+                val rotatedX = 1f - y
+                y = x
+                x = rotatedX
+            }
+            is EditOperation.Flip -> if (operation.horizontal) x = 1f - x else y = 1f - y
+            is EditOperation.Straighten -> return null
+            else -> Unit
+        }
+    }
+    return PhotoPoint(x, y)
+}
+
+/** Inverse of [projectToEdited]: maps an edited-image point back to the upright source. */
+fun projectToSource(point: PhotoPoint, geometry: List<EditOperation>): PhotoPoint? {
+    var x = point.x
+    var y = point.y
+    geometry.asReversed().forEach { operation ->
+        when (operation) {
+            is EditOperation.Crop -> {
+                x = operation.leftPermille / 1_000f + x * (operation.rightPermille - operation.leftPermille) / 1_000f
+                y = operation.topPermille / 1_000f + y * (operation.bottomPermille - operation.topPermille) / 1_000f
+            }
+            is EditOperation.Rotate -> repeat(((operation.degrees / 90) % 4 + 4) % 4) {
+                val sourceX = y
+                y = 1f - x
+                x = sourceX
+            }
+            is EditOperation.Flip -> if (operation.horizontal) x = 1f - x else y = 1f - y
+            is EditOperation.Straighten -> return null
+            else -> Unit
+        }
+    }
+    return PhotoPoint(x, y)
 }
 
 /** Drops dabs closer than half a brush radius to the previous one, keeping masks bounded. */
