@@ -45,6 +45,7 @@ class MlChunkWorker(
             }
             is MlRunnerResult.Finished -> {
                 setProgress(workDataOf(Output.Completed to result.checkpoint.completedItems))
+                chainNextStage(task, state)
                 Result.success(workDataOf(Output.Completed to result.checkpoint.completedItems))
             }
             is MlRunnerResult.Backoff -> {
@@ -73,8 +74,25 @@ class MlChunkWorker(
         }
     }
 
+    /**
+     * People analysis is three dependent stages. Chaining them here keeps grouping going when
+     * the app is backgrounded or killed after an earlier stage finishes.
+     */
+    private fun chainNextStage(task: MlTaskType, state: MlStateStore) {
+        val next = nextStage(task) ?: return
+        if (!state.isConsentEnabled(next) || state.isPaused(next)) return
+        MlScheduler(applicationContext).enqueue(next, MlRunMode.FullLibrary)
+    }
+
     companion object {
         private const val LogTag = "UGalleryMl"
+
+        /** The stage that consumes [task]'s output, or null when nothing depends on it. */
+        internal fun nextStage(task: MlTaskType): MlTaskType? = when (task) {
+            MlTaskType.FaceDetection -> MlTaskType.FaceEmbeddings
+            MlTaskType.FaceEmbeddings -> MlTaskType.PersonClustering
+            else -> null
+        }
         private val ThermalWait = Duration.ofMinutes(2)
         internal fun uniqueName(task: MlTaskType) = "ugallery-ml-${task.name}"
         internal fun request(

@@ -1931,7 +1931,7 @@ class GalleryViewModel @Inject constructor(
                 mlScheduler.grantConsent(it)
                 mlScheduler.unpause(it)
             }
-            nextPeopleTask()?.let { mlScheduler.enqueue(it, MlRunMode.Recent) }
+            enqueueNextPeopleStage()
             monitorFaceProgress()
             monitorPeopleProgress()
         } else {
@@ -2080,7 +2080,7 @@ class GalleryViewModel @Inject constructor(
             mlScheduler.grantConsent(it)
             mlScheduler.unpause(it)
         }
-        nextPeopleTask()?.let { mlScheduler.enqueue(it, MlRunMode.Recent) }
+        enqueueNextPeopleStage()
         mutablePeopleAnalysis.value = peopleControlState()
         monitorFaceProgress()
         monitorPeopleProgress()
@@ -2271,23 +2271,30 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Starts the first unfinished People stage. Later stages are chained by MlChunkWorker, so
+     * this is only needed for explicit user actions and to recover a chain stopped mid-way.
+     */
+    private fun enqueueNextPeopleStage() {
+        val next = nextPeopleTask() ?: return
+        if (!mlScheduler.hasConsent(next)) return
+        // Face detection may be a bounded recent update. Embedding every detected face and
+        // rebuilding clusters are library-wide passes and must retain the charging gate.
+        mlScheduler.enqueue(next, if (next == MlTaskType.FaceDetection) MlRunMode.Recent else MlRunMode.FullLibrary)
+    }
+
+    /** UI observer only: MlChunkWorker schedules each People stage after the previous one. */
     private fun monitorPeopleProgress() {
         peopleProgressJob?.cancel()
         peopleProgressJob = viewModelScope.launch {
+            val stages = listOf(MlTaskType.FaceDetection, MlTaskType.FaceEmbeddings, MlTaskType.PersonClustering)
+            // A chain stopped between stages (for example before this fix) is picked up once here.
+            if (nextPeopleTask() != MlTaskType.FaceDetection && !peopleControlState().isPending()) enqueueNextPeopleStage()
+            var idlePolls = 0
             while (isActive) {
                 val next = nextPeopleTask()
-                if (next != null && mlScheduler.hasConsent(next)) {
-                    // Face detection may be a bounded recent update. Embedding every detected
-                    // face and rebuilding clusters are library-wide passes and must retain the
-                    // charging gate even when they are scheduled after an earlier stage finishes.
-                    val mode = if (next == MlTaskType.FaceDetection) {
-                        MlRunMode.Recent
-                    } else {
-                        MlRunMode.FullLibrary
-                    }
-                    mlScheduler.enqueue(next, mode)
-                }
-                mutablePeopleAnalysis.value = peopleControlState()
+                val current = peopleControlState()
+                mutablePeopleAnalysis.value = current
                 refreshMeState()
                 if (next == null) {
                     // Person clustering writes several related tables in one background pass.
@@ -2296,9 +2303,11 @@ class GalleryViewModel @Inject constructor(
                     peopleRefreshGeneration.value++
                     break
                 }
-                if (listOf(MlTaskType.FaceDetection, MlTaskType.FaceEmbeddings, MlTaskType.PersonClustering).any {
-                    mlScheduler.controlState(it).paused
-                }) break
+                if (stages.any { mlScheduler.controlState(it).paused }) break
+                // The worker hands over between stages; two idle polls in a row mean the chain
+                // stopped (gave up or lost consent) rather than being between stages.
+                idlePolls = if (current.isPending()) 0 else idlePolls + 1
+                if (idlePolls >= 2) break
                 delay(750)
             }
         }
