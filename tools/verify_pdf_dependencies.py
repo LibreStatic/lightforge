@@ -16,7 +16,11 @@ for artifact, version in expected.items():
     component = [c for c in licenses["components"] if c["group"] == "org.bouncycastle" and c["name"] == artifact]
     assert len(component) == 1 and component[0]["version"] == version, component
     assert component[0]["licenseTextAsset"] == "licenses/Bouncy-Castle.txt"
-assert not any(line.startswith("org.bouncycastle:") and ("jdk15on:" in line or "jdk18on:" in line) for line in lock)
+# AGP's own lint and test-result tooling brings jdk18on; it never reaches an app or test classpath.
+tooling = {"androidLintTool", "unified-test-platform-android-test-plugin-result-listener-gradle"}
+for line in lock:
+    if line.startswith("org.bouncycastle:") and ("jdk15on:" in line or "jdk18on:" in line):
+        assert "jdk18on:" in line and set(line.split("=")[1].split(",")) <= tooling, line
 assert "2000-2023" in (ROOT / "app/src/main/assets/licenses/Bouncy-Castle.txt").read_text()
 rules = (ROOT / "feature/pdfstudio/consumer-rules.pro").read_text()
 assert 'consumerProguardFiles("consumer-rules.pro")' in build

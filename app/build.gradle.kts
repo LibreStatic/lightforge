@@ -133,6 +133,12 @@ tasks.named("preBuild").configure {
 dependencies {
     androidTestImplementation("org.maplibre.gl:android-sdk-opengl:13.6.0")
     androidTestImplementation("com.tom-roush:pdfbox-android:2.0.27.0")
+    // Compile instrumented tests against the BouncyCastle family they run with, not the port's 1.72.
+    constraints {
+        androidTestImplementation("org.bouncycastle:bcprov-jdk15to18:1.85.2")
+        androidTestImplementation("org.bouncycastle:bcpkix-jdk15to18:1.85")
+        androidTestImplementation("org.bouncycastle:bcutil-jdk15to18:1.85.1")
+    }
     implementation(project(":core:designsystem"))
     implementation(project(":core:navigation"))
     implementation(project(":core:model"))
