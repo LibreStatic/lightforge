@@ -66,12 +66,20 @@ class MlScheduler(context: Context) {
         return enqueue(task, mode)
     }
 
-    /** Cancels unplugged full-library work while preserving its durable request for resume. */
+    /**
+     * Stops unplugged full-library work while preserving its durable request: the replacement
+     * waits for a charger, so plugging in resumes it without reopening the app.
+     */
     fun onAppBackgrounded() {
         LocalAnalysisForegroundState.setForeground(false)
         if (AndroidAnalysisBatteryStateProvider(appContext).current().charging) return
         MlTaskType.entries.filter { state.requestedMode(it) == MlRunMode.FullLibrary }.forEach {
-            workManager.cancelUniqueWork(MlChunkWorker.uniqueName(it))
+            if (!state.isConsentEnabled(it) || state.isPaused(it)) return@forEach
+            workManager.enqueueUniqueWork(
+                MlChunkWorker.uniqueName(it),
+                ExistingWorkPolicy.REPLACE,
+                MlChunkWorker.request(it, MlRunMode.FullLibrary, MlBackoffWait.Charging),
+            )
         }
     }
 

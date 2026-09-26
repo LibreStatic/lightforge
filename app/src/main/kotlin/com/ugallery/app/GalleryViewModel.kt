@@ -2209,7 +2209,8 @@ class GalleryViewModel @Inject constructor(
                     petRefreshGeneration.value++
                     break
                 }
-                if (!current.consentGranted || current.paused) break
+                // Nothing requested and nothing running means the worker gave up (or never ran).
+                if (!current.consentGranted || current.paused || !current.isPending()) break
                 delay(500)
             }
         }
@@ -2222,12 +2223,16 @@ class GalleryViewModel @Inject constructor(
                 val current = mlScheduler.controlState(MlTaskType.FaceDetection)
                 mutableFaceAnalysis.value = current
                 if (!current.consentGranted || current.paused ||
-                    current.status == com.ugallery.core.ml.MlCheckpoint.Status.Complete
+                    current.status == com.ugallery.core.ml.MlCheckpoint.Status.Complete ||
+                    !current.isPending()
                 ) break
                 delay(500)
             }
         }
     }
+
+    private fun MlControlState.isPending(): Boolean =
+        requested || status == com.ugallery.core.ml.MlCheckpoint.Status.Running
 
     private fun peopleControlState(): MlControlState {
         val tasks = listOf(MlTaskType.FaceDetection, MlTaskType.FaceEmbeddings, MlTaskType.PersonClustering)

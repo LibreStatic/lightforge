@@ -83,7 +83,7 @@ class MlSchedulerPolicyDeviceTest {
             ),
         )
 
-        assertEquals(MlRunnerResult.Retry("power"), runner.run(engine, MlWorkPolicy.forMode(MlRunMode.FullLibrary)))
+        assertEquals(MlRunnerResult.Backoff(MlBackoffWait.Charging), runner.run(engine, MlWorkPolicy.forMode(MlRunMode.FullLibrary)))
         assertEquals(0, engine.processCalls)
     }
 
@@ -95,7 +95,7 @@ class MlSchedulerPolicyDeviceTest {
             MlExecutionController(ThermalStatusProvider { PowerManager.THERMAL_STATUS_MODERATE }),
         )
 
-        assertEquals(MlRunnerResult.Retry("thermal"), runner.run(engine, MlWorkPolicy.forMode(MlRunMode.Recent)))
+        assertEquals(MlRunnerResult.Backoff(MlBackoffWait.Thermal), runner.run(engine, MlWorkPolicy.forMode(MlRunMode.Recent)))
         assertEquals(0, engine.processCalls)
     }
 

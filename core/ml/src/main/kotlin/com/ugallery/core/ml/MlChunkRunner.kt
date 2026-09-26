@@ -7,6 +7,8 @@ sealed interface MlRunnerResult {
     data class Continue(val checkpoint: MlCheckpoint) : MlRunnerResult
     data class Finished(val checkpoint: MlCheckpoint) : MlRunnerResult
     data class Retry(val reason: String) : MlRunnerResult
+    /** Power or thermal state blocks the run; not a failure and never counted toward giving up. */
+    data class Backoff(val wait: MlBackoffWait) : MlRunnerResult
     data object Stopped : MlRunnerResult
 }
 
@@ -27,8 +29,8 @@ class MlChunkRunner(
                 state.setRequestedMode(engine.task, null)
                 return MlRunnerResult.Stopped
             }
-            MlExecutionDecision.ThermalBackoff -> return MlRunnerResult.Retry("thermal")
-            MlExecutionDecision.PowerBackoff -> return MlRunnerResult.Retry("power")
+            MlExecutionDecision.ThermalBackoff -> return MlRunnerResult.Backoff(MlBackoffWait.Thermal)
+            MlExecutionDecision.PowerBackoff -> return MlRunnerResult.Backoff(MlBackoffWait.Charging)
             MlExecutionDecision.UserPriority -> return MlRunnerResult.Stopped
             MlExecutionDecision.PermissionLost -> {
                 engine.purgeDerivedData()
