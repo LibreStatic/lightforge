@@ -78,7 +78,7 @@
     <string name="remote_error_user_required">Ingresá un usuario.</string>
     <string name="remote_error_folder_invalid">Carpeta inválida: no puede contener segmentos «..».</string>
     <string name="remote_error_folder_sftp_absolute">Las carpetas SFTP deben empezar con / y no pueden contener una barra invertida, por ejemplo /backups.</string>
-    <string name="remote_error_invalid_path">El servidor rechazó la ruta de la carpeta. Vuelve a agregar el servidor con una carpeta absoluta como /backups.</string>
+    <string name="remote_error_invalid_path">El servidor rechazó la ruta de la carpeta. Volvé a agregar el servidor con una carpeta absoluta como /backups.</string>
     <string name="remote_error_share_required">Ingresá un nombre de recurso SMB válido.</string>
     <string name="remote_error_key_required">Elegí un archivo de clave privada SSH.</string>
     <string name="remote_transfer_progress">%1$s de %2$s</string>

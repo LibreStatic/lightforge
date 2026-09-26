@@ -120,7 +120,7 @@
     <string name="video_editor_start_tracking">Seguir objeto</string>
     <string name="video_editor_delete_annotation">Eliminar capa</string>
     <string name="video_editor_cancel_tracking">Cancelar seguimiento</string>
-    <string name="video_editor_tracking_needs_correction">El seguimiento perdió el objeto. Reposiciona la capa en el tiempo marcado y continúa.</string>
+    <string name="video_editor_tracking_needs_correction">El seguimiento perdió el objeto. Reposicioná la capa en el tiempo marcado y continuá.</string>
     <string name="video_editor_tracking_failed">Falló el seguimiento del objeto</string>
     <string name="video_editor_annotation_eraser">Borrador</string>
     <string name="video_editor_annotation_horizontal_position">Posición horizontal</string>

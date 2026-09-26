@@ -39,7 +39,7 @@
 <string name="video_export_hdr_unsupported">Este dispositivo no puede codificar HDR con una superficie de entrada de 10 bits compatible por hardware. Elegí SDR Rec.709.</string>
 <string name="video_export_cancel">Cancelar</string>
 <string name="video_export_view">Ver</string>
-<string name="video_export_queued">Exportación en cola. Puedes seguir usando UGallery.</string>
+<string name="video_export_queued">Exportación en cola. Podés seguir usando UGallery.</string>
 <string name="video_export_cancelled">Exportación de video cancelada</string>
 <string name="video_export_queue_title">Exportaciones de video</string>
 <string name="video_export_waiting">Esperando en la cola</string>
