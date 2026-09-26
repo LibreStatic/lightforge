@@ -255,6 +255,8 @@ private val ViewerReturnDestinationSaver = listSaver<ViewerReturnDestination?, S
     },
 )
 
+private const val FavoritesSearchQuery = "favorites"
+
 private fun rootStateKey(tab: RootTab) = when (tab) {
     RootTab.Photos -> "root:photos"
     RootTab.Search -> "root:search"
@@ -1379,6 +1381,12 @@ internal fun ProductionGalleryApp(
                         onPdfStudioClick = { pdfReturnToDocuments = false; route = SurfaceRoute.PdfStudio },
                         collageLabel = stringResource(R.string.m6_collage),
                         onCollageClick = ::openCreationCollage,
+                        // Reuses the Search favorites filter ("favorites" sets favoriteOnly).
+                        onFavoritesClick = {
+                            viewModel.setSearchQuery(FavoritesSearchQuery)
+                            viewModel.search(FavoritesSearchQuery)
+                            rootTab = RootTab.Search
+                        },
                         momentPlaceLabels = momentPlaceLabels,
                     )
                     RootTab.Search -> SearchContent(

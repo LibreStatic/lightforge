@@ -59,6 +59,7 @@ import com.ugallery.core.mediastore.LocalShareSanitizer
 import com.ugallery.core.mediastore.ScopedMediaOperations
 import com.ugallery.core.ml.DetectedContentRepository
 import com.ugallery.core.ml.FaceIdentityKey
+import com.ugallery.core.search.SearchQueryParser
 import com.ugallery.core.ml.LocalAnalysisOnboardingDecision
 import com.ugallery.core.ml.LocalAnalysisOnboardingStore
 import com.ugallery.core.ml.MlScheduler
@@ -1747,7 +1748,10 @@ class GalleryViewModel @Inject constructor(
                 }
                 searchCursor = cursor
                 val page = cursor.nextPage()
-                val semanticHits = runCatching { semanticSearchEngine?.search(raw).orEmpty() }
+                // Filter-only queries such as "favorites" have no text to embed; semantic hits
+                // would add unrelated photos to an exact filter.
+                val semanticHits = if (SearchQueryParser().parse(raw).normalizedTerms.isEmpty()) emptyList()
+                else runCatching { semanticSearchEngine?.search(raw).orEmpty() }
                     .getOrDefault(emptyList())
                 if (isCurrentSearch(generation, raw)) {
                     mutableSearch.value = GallerySearchUiState(

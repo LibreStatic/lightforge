@@ -31,7 +31,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
 internal val DefaultCollectionLayoutOrder = listOf(
-    "documents", "people", "archive", "trash", "virtual-albums", "physical-albums",
+    "documents", "people", "favorites", "archive", "trash", "virtual-albums", "physical-albums",
     "dogs", "cats", "memories", "all-memories", "create-album", "private-album",
     "memory-controls", "smart-albums", "photo-stacks", "pdf-studio", "collage", "local-analysis",
 )

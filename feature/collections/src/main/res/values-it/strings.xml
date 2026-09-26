@@ -19,4 +19,4 @@
     <string name="collection_layout_private">Album privato</string>
     <string name="collection_layout_pdf">Studio PDF</string>
     <string name="collection_layout_collage">Collage</string>
-<string name="collections_albums_empty">Nessun album</string><string name="collections_albums_empty_body">Gli album che crei compaiono qui. Le cartelle del dispositivo sono elencate nella loro sezione.</string><string name="collections_folders_empty">Nessuna cartella del dispositivo</string><string name="collections_folders_empty_body">Le cartelle con foto su questo dispositivo compaiono qui.</string></resources>
+<string name="collections_albums_empty">Nessun album</string><string name="collections_albums_empty_body">Gli album che crei compaiono qui. Le cartelle del dispositivo sono elencate nella loro sezione.</string><string name="collections_folders_empty">Nessuna cartella del dispositivo</string><string name="collections_folders_empty_body">Le cartelle con foto su questo dispositivo compaiono qui.</string><string name="collections_favorites">Preferiti</string><string name="collections_favorites_body">Foto e video che hai segnato come preferiti</string></resources>

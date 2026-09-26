@@ -144,6 +144,7 @@ fun CollectionsContent(
     onPdfStudioClick: (() -> Unit)? = null,
     collageLabel: String? = null,
     onCollageClick: (() -> Unit)? = null,
+    onFavoritesClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     momentPlaceLabels: ((String) -> kotlinx.coroutines.flow.Flow<String?>)? = null,
     layoutOrder: List<String> = emptyList(),
@@ -213,6 +214,17 @@ fun CollectionsContent(
                     onClick = onPeopleClick,
                 )
             )
+        onFavoritesClick?.let { action ->
+            add(
+                CollectionCardSpec(
+                    key = "favorites",
+                    title = stringResource(R.string.collections_favorites),
+                    body = stringResource(R.string.collections_favorites_body),
+                    icon = GalleryIcons.Heart,
+                    onClick = action,
+                )
+            )
+        }
         add(
             CollectionCardSpec(
                 key = "archive",
@@ -253,6 +265,7 @@ fun CollectionsContent(
     action("local-analysis", stringResource(R.string.collections_local_analysis), stringResource(R.string.collections_local_analysis_body), GalleryIcons.Analyze, onLocalAnalysisClick)
     val labels = mapOf(
         "documents" to stringResource(R.string.documents_title), "people" to stringResource(R.string.collections_people),
+        "favorites" to stringResource(R.string.collections_favorites),
         "archive" to stringResource(R.string.collections_archive), "trash" to stringResource(R.string.collections_trash),
         "virtual-albums" to stringResource(R.string.collection_layout_virtual), "physical-albums" to stringResource(R.string.collection_layout_physical),
         "dogs" to dogsTitle, "cats" to catsTitle, "memories" to stringResource(R.string.collections_moments),

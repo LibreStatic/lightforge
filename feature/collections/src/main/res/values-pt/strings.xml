@@ -19,4 +19,4 @@
     <string name="collection_layout_private">Álbum privado</string>
     <string name="collection_layout_pdf">Estúdio PDF</string>
     <string name="collection_layout_collage">Colagem</string>
-<string name="collections_albums_empty">Ainda não há álbuns</string><string name="collections_albums_empty_body">Os álbuns que você criar aparecem aqui. As pastas do dispositivo são listadas na própria seção.</string><string name="collections_folders_empty">Nenhuma pasta do dispositivo</string><string name="collections_folders_empty_body">As pastas com fotos neste dispositivo aparecem aqui.</string></resources>
+<string name="collections_albums_empty">Ainda não há álbuns</string><string name="collections_albums_empty_body">Os álbuns que você criar aparecem aqui. As pastas do dispositivo são listadas na própria seção.</string><string name="collections_folders_empty">Nenhuma pasta do dispositivo</string><string name="collections_folders_empty_body">As pastas com fotos neste dispositivo aparecem aqui.</string><string name="collections_favorites">Favoritos</string><string name="collections_favorites_body">Fotos e vídeos que você marcou como favoritos</string></resources>
