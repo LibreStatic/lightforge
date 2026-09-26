@@ -170,4 +170,6 @@
     <string name="portable_preferences_field_hidden_collections">Collections masquées</string>
     <string name="local_analysis_cleanup">Analyse pour libérer de l’espace</string>
     <string name="local_analysis_cleanup_summary">Trouve les doublons exacts et les photos floues sur cet appareil, pendant la charge ou quand UGallery est ouverte avec assez de batterie. Rien n’est supprimé sans votre confirmation.</string>
+    <string name="settings_language">Langue</string>
+    <string name="settings_language_system">Langue du système</string>
 </resources>

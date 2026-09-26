@@ -1,5 +1,9 @@
 package com.ugallery.feature.settings
 
+import android.app.LocaleManager
+import android.os.Build
+import android.os.LocaleList
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.testTagsAsResourceId
 
 import androidx.activity.compose.BackHandler
@@ -375,6 +379,7 @@ private fun SettingsCategoryList(
             SettingsCategoryRow(GalleryIcons.Lock, stringResource(R.string.settings_security), if (securityOn) onLabel else offLabel, 1, 3) { onOpen(SettingsPage.Security) }
             SettingsCategoryRow(GalleryIcons.Download, stringResource(R.string.settings_backup), null, 2, 3) { onOpen(SettingsPage.Backup) }
         }
+        AppLanguageGroup()
         SettingsCategoryGroup(stringResource(R.string.settings_group_intelligence)) {
             SettingsCategoryRow(GalleryIcons.Analyze, stringResource(R.string.settings_page_ai), if (aiConsentGranted) onLabel else offLabel, 0, 1) { onOpen(SettingsPage.AiAnalysis) }
         }
@@ -393,6 +398,53 @@ private fun SettingsCategoryList(
 }
 
 private fun enabledCount(vararg flags: Boolean) = flags.count { it }
+
+/** Per-app language tags; keep in sync with app/src/main/res/xml/locales_config.xml. */
+private val AppLanguageTags = listOf("", "en", "es", "fr", "pt", "it", "de")
+private val AppLanguageLabels = listOf(
+    R.string.settings_language_system,
+    R.string.settings_language_en,
+    R.string.settings_language_es,
+    R.string.settings_language_fr,
+    R.string.settings_language_pt,
+    R.string.settings_language_it,
+    R.string.settings_language_de,
+)
+
+/** App language picker. Android 13+ applies it per app and recreates the activity. */
+@Composable
+private fun AppLanguageGroup() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+    val context = LocalContext.current
+    val manager = remember(context) { context.getSystemService(LocaleManager::class.java) }
+    val current = remember(manager) {
+        val language = manager.applicationLocales.get(0)?.language.orEmpty()
+        AppLanguageTags.indexOf(language).coerceAtLeast(0)
+    }
+    var dialogVisible by rememberSaveable { mutableStateOf(false) }
+    SettingsCategoryGroup(stringResource(R.string.settings_language)) {
+        SettingsCategoryRow(
+            GalleryIcons.Settings,
+            stringResource(R.string.settings_language),
+            stringResource(AppLanguageLabels[current]),
+            0,
+            1,
+            Modifier.testTag("settings_language_row"),
+        ) { dialogVisible = true }
+    }
+    if (dialogVisible) SettingsSingleChoiceDialog(
+        title = stringResource(R.string.settings_language),
+        options = AppLanguageLabels,
+        selectedOption = current,
+        optionTestTags = AppLanguageTags.map { "settings_language_" + it.ifEmpty { "system" } },
+        onDismiss = { dialogVisible = false },
+    ) { index ->
+        dialogVisible = false
+        manager.applicationLocales =
+            if (index == 0) LocaleList.getEmptyLocaleList()
+            else LocaleList.forLanguageTags(AppLanguageTags[index])
+    }
+}
 
 @Composable
 private fun SettingsCategoryGroup(title: String, content: @Composable () -> Unit) {

@@ -170,4 +170,6 @@
     <string name="portable_preferences_field_hidden_collections">Colecciones ocultas</string>
     <string name="local_analysis_cleanup">Análisis para liberar espacio</string>
     <string name="local_analysis_cleanup_summary">Encuentra duplicados exactos y fotos borrosas en este dispositivo, mientras carga o con UGallery abierta y batería suficiente. No se borra nada sin tu confirmación.</string>
+    <string name="settings_language">Idioma</string>
+    <string name="settings_language_system">Predeterminado del sistema</string>
 </resources>

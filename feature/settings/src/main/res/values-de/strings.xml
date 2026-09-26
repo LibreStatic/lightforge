@@ -169,4 +169,6 @@
     <string name="portable_preferences_field_hidden_collections">Ausgeblendete Sammlungen</string>
     <string name="local_analysis_cleanup">Analyse zum Freigeben von Speicher</string>
     <string name="local_analysis_cleanup_summary">Findet exakte Duplikate und unscharfe Fotos auf diesem Gerät, beim Laden oder wenn UGallery mit genug Akku geöffnet ist. Nichts wird ohne deine Bestätigung gelöscht.</string>
+    <string name="settings_language">Sprache</string>
+    <string name="settings_language_system">Systemstandard</string>
 </resources>
