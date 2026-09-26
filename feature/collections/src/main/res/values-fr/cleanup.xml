@@ -10,6 +10,7 @@
     <string name="cleanup_keep">Conserver</string>
     <string name="cleanup_trash_copies">Placer les copies dans la corbeille</string>
     <string name="cleanup_large_videos_title">Grandes vidéos (100 Mo ou plus)</string>
+    <string name="cleanup_screenshots_title">Captures d’écran</string>
     <string name="cleanup_blurry_title">Photos floues</string>
     <string name="cleanup_trash_all">Tout placer dans la corbeille</string>
     <string name="cleanup_empty">Rien trouvé pour le moment.</string>
@@ -31,6 +32,11 @@
         <item quantity="one">%1$d vidéo · %2$s</item>
         <item quantity="many">%1$d vidéos · %2$s</item>
         <item quantity="other">%1$d vidéos · %2$s</item>
+    </plurals>
+    <plurals name="cleanup_screenshots_summary">
+        <item quantity="one">%d capture d’écran</item>
+        <item quantity="many">%d captures d’écran</item>
+        <item quantity="other">%d captures d’écran</item>
     </plurals>
     <plurals name="cleanup_blurry_summary">
         <item quantity="one">%d photo peut être floue</item>

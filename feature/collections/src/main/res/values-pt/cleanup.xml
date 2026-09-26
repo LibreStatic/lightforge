@@ -10,6 +10,7 @@
     <string name="cleanup_keep">Manter</string>
     <string name="cleanup_trash_copies">Mover cópias para a lixeira</string>
     <string name="cleanup_large_videos_title">Vídeos grandes (100 MB ou mais)</string>
+    <string name="cleanup_screenshots_title">Capturas de tela</string>
     <string name="cleanup_blurry_title">Fotos desfocadas</string>
     <string name="cleanup_trash_all">Mover tudo para a lixeira</string>
     <string name="cleanup_empty">Nada encontrado ainda.</string>
@@ -31,6 +32,11 @@
         <item quantity="one">%1$d vídeo · %2$s</item>
         <item quantity="many">%1$d vídeos · %2$s</item>
         <item quantity="other">%1$d vídeos · %2$s</item>
+    </plurals>
+    <plurals name="cleanup_screenshots_summary">
+        <item quantity="one">%d captura de tela</item>
+        <item quantity="many">%d capturas de tela</item>
+        <item quantity="other">%d capturas de tela</item>
     </plurals>
     <plurals name="cleanup_blurry_summary">
         <item quantity="one">%d foto pode estar desfocada</item>

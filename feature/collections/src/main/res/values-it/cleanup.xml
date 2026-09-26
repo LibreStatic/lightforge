@@ -10,6 +10,7 @@
     <string name="cleanup_keep">Mantieni</string>
     <string name="cleanup_trash_copies">Sposta le copie nel cestino</string>
     <string name="cleanup_large_videos_title">Video grandi (100 MB o più)</string>
+    <string name="cleanup_screenshots_title">Screenshot</string>
     <string name="cleanup_blurry_title">Foto sfocate</string>
     <string name="cleanup_trash_all">Sposta tutto nel cestino</string>
     <string name="cleanup_empty">Ancora nessun risultato.</string>
@@ -31,6 +32,11 @@
         <item quantity="one">%1$d video · %2$s</item>
         <item quantity="many">%1$d video · %2$s</item>
         <item quantity="other">%1$d video · %2$s</item>
+    </plurals>
+    <plurals name="cleanup_screenshots_summary">
+        <item quantity="one">%d screenshot</item>
+        <item quantity="many">%d screenshot</item>
+        <item quantity="other">%d screenshot</item>
     </plurals>
     <plurals name="cleanup_blurry_summary">
         <item quantity="one">%d foto potrebbe essere sfocata</item>

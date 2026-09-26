@@ -32,13 +32,7 @@ class RoomSelectionTargetSource(database: GalleryDatabase) {
                     "AND m.mediaStoreId=vm.mediaStoreId"
             }
             is MediaQuery.Scope.Search -> error("Search selection requires the M3 AppSearch bridge")
-            is MediaQuery.Scope.BlurryCandidates ->
-                "similarity_features sf JOIN media_items m ON m.volumeName=sf.volumeName " +
-                    "AND m.mediaStoreId=sf.mediaStoreId"
-            is MediaQuery.Scope.ExactDuplicateGroup ->
-                "duplicate_hashes dh JOIN media_items m ON m.volumeName=dh.volumeName " +
-                    "AND m.mediaStoreId=dh.mediaStoreId"
-            else -> "media_items m"
+            else -> CleanupScopeSql.from(scope) ?: "media_items m"
         }
         val where = mutableListOf<String>()
         if (query.scope is MediaQuery.Scope.VirtualAlbum) where += "vm.albumId=?"
@@ -47,24 +41,7 @@ class RoomSelectionTargetSource(database: GalleryDatabase) {
             where += "m.volumeName=?"; args += physicalScope.volumeName
             where += "m.bucketId=?"; args += physicalScope.bucketId
         }
-        when (val scope = query.scope) {
-            is MediaQuery.Scope.LargeVideos -> {
-                where += "m.mediaType=3"; where += "m.sizeBytes>=?"; args += scope.minimumBytes
-            }
-            MediaQuery.Scope.Screenshots -> where += "(LOWER(COALESCE(m.bucketDisplayName,'')) LIKE '%screenshot%' OR LOWER(COALESCE(m.relativePath,'')) LIKE '%screenshot%' OR LOWER(COALESCE(m.displayName,'')) LIKE '%screenshot%')"
-            is MediaQuery.Scope.BlurryCandidates -> {
-                where += "sf.algorithmVersion=?"; args += scope.algorithmVersion
-                where += "sf.generationModified=m.generationModified"
-                where += "sf.blurScore<=?"; args += scope.maximumScore
-            }
-            is MediaQuery.Scope.ExactDuplicateGroup -> {
-                where += "dh.hashVersion=?"; args += scope.hashVersion
-                where += "dh.sha256=?"; args += scope.sha256.lowercase()
-                where += "dh.sizeBytes=?"; args += scope.sizeBytes
-                where += "dh.generationModified=m.generationModified"
-            }
-            else -> Unit
-        }
+        CleanupScopeSql.addPredicates(query.scope, where, args)
         where += "m.isAccessible=1"
         where += "m.isTrashed=?"; args += if (query.trashedOnly) 1 else 0
         when (query.archiveMode) {
@@ -114,4 +91,39 @@ class RoomSelectionTargetSource(database: GalleryDatabase) {
             "OR LOWER(COALESCE($alias.displayName,'')) GLOB '*.[nN][eE][fF]' " +
             "OR LOWER(COALESCE($alias.displayName,'')) GLOB '*.[aA][rR][wW]' " +
             "OR LOWER(COALESCE($alias.displayName,'')) GLOB '*.[rR][aA][fF]')"
+}
+
+/** Shared FROM/WHERE fragments for the "Free up space" scopes, used by selection and viewer paging. */
+internal object CleanupScopeSql {
+    fun from(scope: MediaQuery.Scope): String? = when (scope) {
+        is MediaQuery.Scope.BlurryCandidates ->
+            "similarity_features sf JOIN media_items m ON m.volumeName=sf.volumeName " +
+                "AND m.mediaStoreId=sf.mediaStoreId"
+        is MediaQuery.Scope.ExactDuplicateGroup ->
+            "duplicate_hashes dh JOIN media_items m ON m.volumeName=dh.volumeName " +
+                "AND m.mediaStoreId=dh.mediaStoreId"
+        is MediaQuery.Scope.LargeVideos, MediaQuery.Scope.Screenshots -> "media_items m"
+        else -> null
+    }
+
+    fun addPredicates(scope: MediaQuery.Scope, where: MutableList<String>, args: MutableList<Any>) {
+        when (scope) {
+            is MediaQuery.Scope.LargeVideos -> {
+                where += "m.mediaType=3"; where += "m.sizeBytes>=?"; args += scope.minimumBytes
+            }
+            MediaQuery.Scope.Screenshots -> where += "(LOWER(COALESCE(m.bucketDisplayName,'')) LIKE '%screenshot%' OR LOWER(COALESCE(m.relativePath,'')) LIKE '%screenshot%' OR LOWER(COALESCE(m.displayName,'')) LIKE '%screenshot%')"
+            is MediaQuery.Scope.BlurryCandidates -> {
+                where += "sf.algorithmVersion=?"; args += scope.algorithmVersion
+                where += "sf.generationModified=m.generationModified"
+                where += "sf.blurScore<=?"; args += scope.maximumScore
+            }
+            is MediaQuery.Scope.ExactDuplicateGroup -> {
+                where += "dh.hashVersion=?"; args += scope.hashVersion
+                where += "dh.sha256=?"; args += scope.sha256.lowercase()
+                where += "dh.sizeBytes=?"; args += scope.sizeBytes
+                where += "dh.generationModified=m.generationModified"
+            }
+            else -> Unit
+        }
+    }
 }

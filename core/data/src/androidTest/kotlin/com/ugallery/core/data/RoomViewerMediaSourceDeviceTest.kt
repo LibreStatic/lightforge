@@ -76,6 +76,21 @@ class RoomViewerMediaSourceDeviceTest {
         assertFalse(window.hasNext)
     }
 
+    @Test fun cleanupScreenshotsWindowPagesOnlyThatList() = runBlocking {
+        database.libraryDao().upsertMedia(
+            listOf(
+                media(1).copy(displayName = "Screenshot_1.png"),
+                media(2),
+                media(3).copy(displayName = "Screenshot_3.png"),
+                media(4).copy(displayName = "Screenshot_4.png"),
+            ),
+        )
+        val query = MediaQuery(scope = MediaQuery.Scope.Screenshots, kindFilter = MediaQuery.KindFilter.Images)
+        val window = source.window(query, timeline(3), radius = 5)
+
+        assertEquals(listOf(4L, 3L, 1L), window.items.map { it.key.mediaStoreId })
+    }
+
     private fun timeline(id: Long) = TimelineMedia(
         MediaKey("external_primary", id), MediaKind.Image, 1, id, 1, 1, 0,
     )

@@ -60,12 +60,20 @@ data class CleanupUiState(
     val largeVideos: List<MediaKey> = emptyList(),
     val largeVideoCount: Long = 0,
     val largeVideoBytes: Long = 0,
+    val screenshots: List<MediaKey> = emptyList(),
+    val screenshotCount: Long = 0,
     val blurry: List<MediaKey> = emptyList(),
     val blurryCount: Long = 0,
 )
 
 /** Sections that move every listed item to the trash in one select-all action. */
-enum class CleanupSection { LargeVideos, Blurry }
+enum class CleanupSection { LargeVideos, Screenshots, Blurry }
+
+/** The list an opened item belongs to, so the viewer pages through that same list. */
+sealed interface CleanupList {
+    data class DuplicateGroup(val groupId: String) : CleanupList
+    data class Section(val section: CleanupSection) : CleanupList
+}
 
 private sealed interface CleanupTrashRequest {
     val count: Long
@@ -83,7 +91,7 @@ fun CleanupContent(
     thumbnailLoader: ThumbnailLoader?,
     onBack: () -> Unit,
     onEnableAnalysis: () -> Unit,
-    onOpen: (MediaKey) -> Unit,
+    onOpen: (MediaKey, CleanupList) -> Unit,
     onTrashDuplicateCopies: (groupId: String) -> Unit,
     onTrashSection: (CleanupSection) -> Unit,
     modifier: Modifier = Modifier,
@@ -105,6 +113,12 @@ fun CleanupContent(
         state.largeVideoCount.toInt(),
         state.largeVideoCount,
         size(state.largeVideoBytes),
+    )
+    val screenshotsTitle = stringResource(R.string.cleanup_screenshots_title)
+    val screenshotsSummary = pluralStringResource(
+        R.plurals.cleanup_screenshots_summary,
+        state.screenshotCount.toInt(),
+        state.screenshotCount,
     )
     val blurryTitle = stringResource(R.string.cleanup_blurry_title)
     val blurrySummary = pluralStringResource(R.plurals.cleanup_blurry_summary, state.blurryCount.toInt(), state.blurryCount)
@@ -156,7 +170,9 @@ fun CleanupContent(
                             ),
                             style = MaterialTheme.typography.titleSmall,
                         )
-                        ThumbnailRow(group.members, thumbnailLoader, keep = group.keep, onOpen = onOpen)
+                        ThumbnailRow(group.members, thumbnailLoader, keep = group.keep) {
+                            onOpen(it, CleanupList.DuplicateGroup(group.id))
+                        }
                         OutlinedButton(onClick = {
                             request = CleanupTrashRequest.Copies(group.id, group.memberCount - 1)
                         }) { Text(stringResource(R.string.cleanup_trash_copies)) }
@@ -171,8 +187,18 @@ fun CleanupContent(
                 state.largeVideos,
                 state.largeVideoCount,
                 thumbnailLoader,
-                onOpen,
+                onOpen = { onOpen(it, CleanupList.Section(CleanupSection.LargeVideos)) },
                 onTrash = { request = CleanupTrashRequest.Section(CleanupSection.LargeVideos, state.largeVideoCount) },
+            )
+            section(
+                "screenshots",
+                screenshotsTitle,
+                screenshotsSummary,
+                state.screenshots,
+                state.screenshotCount,
+                thumbnailLoader,
+                onOpen = { onOpen(it, CleanupList.Section(CleanupSection.Screenshots)) },
+                onTrash = { request = CleanupTrashRequest.Section(CleanupSection.Screenshots, state.screenshotCount) },
             )
             section(
                 "blurry",
@@ -181,7 +207,7 @@ fun CleanupContent(
                 state.blurry,
                 state.blurryCount,
                 thumbnailLoader,
-                onOpen,
+                onOpen = { onOpen(it, CleanupList.Section(CleanupSection.Blurry)) },
                 onTrash = { request = CleanupTrashRequest.Section(CleanupSection.Blurry, state.blurryCount) },
             )
         }

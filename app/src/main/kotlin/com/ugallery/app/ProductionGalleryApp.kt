@@ -2302,7 +2302,7 @@ internal fun ProductionGalleryApp(
                         thumbnailLoader = thumbnails,
                         onBack = { route = SurfaceRoute.Root },
                         onEnableAnalysis = { viewModel.setCleanupAnalysisEnabled(true) },
-                        onOpen = { key -> openViewer(ViewerReturnDestination.Cleanup) { viewModel.openMediaByKey(key) } },
+                        onOpen = { key, list -> openViewer(ViewerReturnDestination.Cleanup) { viewModel.openCleanupMedia(key, list) } },
                         onTrashDuplicateCopies = viewModel::trashDuplicateCopies,
                         onTrashSection = viewModel::trashCleanupSection,
                     )

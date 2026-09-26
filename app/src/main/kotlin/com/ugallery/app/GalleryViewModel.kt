@@ -147,6 +147,7 @@ import com.ugallery.core.selection.MediaQuery
 import com.ugallery.core.thumbnail.NativeImageDecoder
 import com.ugallery.core.thumbnail.ThumbnailLoader
 import com.ugallery.feature.collections.CleanupDuplicateGroupUi
+import com.ugallery.feature.collections.CleanupList
 import com.ugallery.feature.collections.CleanupSection
 import com.ugallery.feature.collections.CleanupUiState
 import com.ugallery.feature.collections.LocalMeUiState
@@ -2218,13 +2219,13 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
-    fun openMediaByKey(key: MediaKey) {
+    fun openMediaByKey(key: MediaKey, sourceQuery: MediaQuery = MediaQuery()) {
         viewModelScope.launch {
             val row = runtime.value?.database?.libraryDao()?.media(key.volumeName, key.mediaStoreId) ?: return@launch
             if (!row.isAccessible || row.isTrashed) return@launch
             openMedia(TimelineMedia(key, if (row.mediaType == 3) MediaKind.Video else MediaKind.Image,
                 row.generationModified, row.timelineSortMillis, row.width, row.height, row.durationMillis,
-                row.dateExpiresSeconds?.times(1000), row.isFavorite, row.isTrashed))
+                row.dateExpiresSeconds?.times(1000), row.isFavorite, row.isTrashed), sourceQuery)
         }
     }
 
@@ -2281,6 +2282,7 @@ class GalleryViewModel @Inject constructor(
             cleanupGroups = groups.associateBy { it.id }
             val largeVideos = repository.largeVideosQuery()
             val blurry = repository.blurryCandidatesQuery()
+            val screenshots = repository.screenshotsQuery()
             CleanupUiState(
                 loading = false,
                 analysisEnabled = enabled,
@@ -2299,6 +2301,8 @@ class GalleryViewModel @Inject constructor(
                 largeVideos = active.selectionTargets.page(largeVideos, null, CleanupPreviewLimit).map { it.key },
                 largeVideoCount = active.selectionTargets.count(largeVideos),
                 largeVideoBytes = summary.largeVideoBytes,
+                screenshots = active.selectionTargets.page(screenshots, null, CleanupPreviewLimit).map { it.key },
+                screenshotCount = active.selectionTargets.count(screenshots),
                 blurry = active.selectionTargets.page(blurry, null, CleanupPreviewLimit).map { it.key },
                 blurryCount = active.selectionTargets.count(blurry),
             )
@@ -2313,11 +2317,23 @@ class GalleryViewModel @Inject constructor(
 
     fun trashCleanupSection(section: CleanupSection) {
         val repository = runtime.value?.database?.let(::CleanupRepository) ?: return
-        val query = when (section) {
-            CleanupSection.LargeVideos -> repository.largeVideosQuery()
-            CleanupSection.Blurry -> repository.blurryCandidatesQuery()
-        }
-        beginQueryAction(SelectionSpec.queryAll(query), MediaAction.Trash(true))
+        beginQueryAction(SelectionSpec.queryAll(cleanupSectionQuery(repository, section)), MediaAction.Trash(true))
+    }
+
+    private fun cleanupSectionQuery(repository: CleanupRepository, section: CleanupSection) = when (section) {
+        CleanupSection.LargeVideos -> repository.largeVideosQuery()
+        CleanupSection.Screenshots -> repository.screenshotsQuery()
+        CleanupSection.Blurry -> repository.blurryCandidatesQuery()
+    }
+
+    /** Opens a cleanup item so the viewer pages through the list it was opened from. */
+    fun openCleanupMedia(key: MediaKey, list: CleanupList) {
+        val repository = runtime.value?.database?.let(::CleanupRepository) ?: return
+        val query = when (list) {
+            is CleanupList.DuplicateGroup -> cleanupGroups[list.groupId]?.let(repository::exactDuplicateGroupQuery)
+            is CleanupList.Section -> cleanupSectionQuery(repository, list.section)
+        } ?: return openMediaByKey(key)
+        openMediaByKey(key, query)
     }
 
     fun unhidePerson(clusterId: String) {

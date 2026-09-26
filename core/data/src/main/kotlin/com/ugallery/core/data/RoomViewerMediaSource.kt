@@ -60,7 +60,8 @@ class RoomViewerMediaSource(database: GalleryDatabase) {
             }
             is MediaQuery.Scope.PhysicalAlbum,
             MediaQuery.Scope.Timeline -> "media_items m"
-            else -> error("Viewer navigation does not support ${scope::class.simpleName}")
+            else -> CleanupScopeSql.from(scope)
+                ?: error("Viewer navigation does not support ${scope::class.simpleName}")
         }
         val where = mutableListOf<String>()
         if (query.scope is MediaQuery.Scope.VirtualAlbum) where += "vm.albumId=?"
@@ -68,6 +69,7 @@ class RoomViewerMediaSource(database: GalleryDatabase) {
             where += "m.volumeName=?"; args += scope.volumeName
             where += "m.bucketId=?"; args += scope.bucketId
         }
+        CleanupScopeSql.addPredicates(query.scope, where, args)
         where += "m.isAccessible=1"
         where += "m.isTrashed=?"; args += if (query.trashedOnly) 1 else 0
         when (query.archiveMode) {
