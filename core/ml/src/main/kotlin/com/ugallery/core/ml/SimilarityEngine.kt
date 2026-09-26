@@ -137,6 +137,14 @@ class SimilarityMlEngine(
                 extractor.extract(candidate)
             } catch (_: SecurityException) {
                 return@withContext MlChunkOutcome.PermissionLost
+            } catch (_: java.io.IOException) {
+                // Missing or undecodable bytes (FileNotFoundException, ImageDecoder.DecodeException)
+                // are permanent for this generation. Store a neutral feature so the item leaves the
+                // pending query, and exclude it so it never joins a stack or the blurry list.
+                dao.upsertSimilarityFeature(SkippedFeature.entity(candidate, nowMillis()))
+                dao.excludeSimilarity(SimilarityExclusionEntity(candidate.volumeName, candidate.mediaStoreId, nowMillis()))
+                previousCluster?.let { clusters.rebuild(it) }
+                continue
             }
             val feature = raw.entity(candidate, nowMillis())
             dao.upsertSimilarityFeature(feature)
@@ -169,6 +177,7 @@ class SimilarityMlEngine(
         const val AlgorithmVersion = "phash64-rgb48-v1"
         const val MaxCandidates = 256
         const val SimilarityThreshold = 0.84f
+        private val SkippedFeature = RawSimilarityFeature(0L, ByteArray(0), Float.MAX_VALUE)
     }
 }
 

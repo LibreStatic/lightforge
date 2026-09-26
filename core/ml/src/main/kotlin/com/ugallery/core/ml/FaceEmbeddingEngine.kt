@@ -188,6 +188,13 @@ class FaceEmbeddingMlEngine(
                 dao.deleteDetectedFaces(item.volumeName, item.mediaStoreId)
                 processed += 1
                 continue
+            } catch (_: android.graphics.ImageDecoder.DecodeException) {
+                // Undecodable bytes are permanent for this generation. Without a bitmap its faces
+                // cannot be embedded, so drop them rather than retrying the chunk forever; a later
+                // edit bumps generationModified and face detection re-admits the item.
+                dao.deleteDetectedFaces(item.volumeName, item.mediaStoreId)
+                processed += 1
+                continue
             }
             try {
                 val current = dao.faceEmbeddings(item.volumeName, item.mediaStoreId).associateBy { it.faceOrdinal }
