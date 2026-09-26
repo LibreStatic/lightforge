@@ -101,6 +101,8 @@ private fun AboutOverview(
     modifier: Modifier = Modifier,
 ) {
     val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
+    val noLinkHandler = stringResource(R.string.about_no_link_handler)
 
     Column(modifier.fillMaxSize()) {
         GalleryTopAppBar(
@@ -167,7 +169,16 @@ private fun AboutOverview(
                     index = 0,
                     count = 3,
                     modifier = Modifier.testTag("about_source_code"),
-                ) { uriHandler.openUri(UGalleryRepository) }
+                ) {
+                    // openUri throws when no installed app handles ACTION_VIEW for the link.
+                    try {
+                        uriHandler.openUri(UGalleryRepository)
+                    } catch (_: IllegalArgumentException) {
+                        android.widget.Toast.makeText(context, noLinkHandler, android.widget.Toast.LENGTH_SHORT).show()
+                    } catch (_: android.content.ActivityNotFoundException) {
+                        android.widget.Toast.makeText(context, noLinkHandler, android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
                 AboutActionRow(
                     title = stringResource(R.string.about_app_license),
                     summary = stringResource(R.string.about_app_license_summary),
