@@ -1118,12 +1118,21 @@ private fun PhotoSurfaceState(
             var containerSize by remember(state.drawable) { mutableStateOf(IntSize.Zero) }
             val description = stringResource(R.string.viewer_photo_description)
             val density = LocalDensity.current
+            // "Rotate photos": a view-only two-finger turn that snaps to quarter turns; the
+            // snapped photo is refitted to the screen with its sides swapped.
+            val rotation = remember(state.drawable) { Animatable(0f) }
+            var snappedRotation by remember(state.drawable) { mutableFloatStateOf(0f) }
+            val rotationFit = remember(state.drawable) { Animatable(1f) }
             val zoom = remember(state.drawable) {
                 ZoomPanState(
                     density = density,
                     maxOffsets = { candidateScale ->
-                        val intrinsicWidth = state.drawable.intrinsicWidth.coerceAtLeast(1).toFloat()
-                        val intrinsicHeight = state.drawable.intrinsicHeight.coerceAtLeast(1).toFloat()
+                        // After a quarter turn the photo shows with swapped sides, refitted.
+                        val quarter = isQuarterTurn(snappedRotation)
+                        val drawableWidth = state.drawable.intrinsicWidth.coerceAtLeast(1).toFloat()
+                        val drawableHeight = state.drawable.intrinsicHeight.coerceAtLeast(1).toFloat()
+                        val intrinsicWidth = if (quarter) drawableHeight else drawableWidth
+                        val intrinsicHeight = if (quarter) drawableWidth else drawableHeight
                         val width = containerSize.width.toFloat().coerceAtLeast(1f)
                         val height = containerSize.height.toFloat().coerceAtLeast(1f)
                         val fit = min(width / intrinsicWidth, height / intrinsicHeight)
@@ -1136,9 +1145,6 @@ private fun PhotoSurfaceState(
                     },
                 )
             }
-            // "Rotate photos": a view-only two-finger turn that snaps to quarter turns.
-            val rotation = remember(state.drawable) { Animatable(0f) }
-            var snappedRotation by remember(state.drawable) { mutableFloatStateOf(0f) }
             LaunchedEffect(zoomTapGeneration) {
                 if (zoomTapGeneration == 0) return@LaunchedEffect
                 val center = Offset(containerSize.width / 2f, containerSize.height / 2f)
@@ -1162,8 +1168,8 @@ private fun PhotoSurfaceState(
                 modifier = Modifier.fillMaxSize()
                     .onSizeChanged { containerSize = it }
                     .graphicsLayer(
-                        scaleX = zoom.scale.value,
-                        scaleY = zoom.scale.value,
+                        scaleX = zoom.scale.value * rotationFit.value,
+                        scaleY = zoom.scale.value * rotationFit.value,
                         translationX = zoom.offsetX.value,
                         translationY = zoom.offsetY.value,
                         rotationZ = rotation.value,
@@ -1178,7 +1184,21 @@ private fun PhotoSurfaceState(
                             onRotateEnd = {
                                 val target = snapRotationDegrees(rotation.value)
                                 snappedRotation = target
+                                val fitTarget = quarterTurnFitScale(
+                                    state.drawable.intrinsicWidth.toFloat(),
+                                    state.drawable.intrinsicHeight.toFloat(),
+                                    containerSize.width.toFloat(),
+                                    containerSize.height.toFloat(),
+                                    target,
+                                )
                                 scope.launch { rotation.animateTo(target) }
+                                scope.launch { rotationFit.animateTo(fitTarget) }
+                                // Back to fit-to-screen so pan limits follow the new orientation.
+                                scope.launch {
+                                    val center = Offset(containerSize.width / 2f, containerSize.height / 2f)
+                                    zoom.zoomTo(center, 1f, null, settings.photoMaxZoom)
+                                    onZoomedChange(false)
+                                }
                             },
                             onGestureStart = { scope.launch { zoom.stopTransitions() } },
                             onGesture = { centroid, pan, factor ->
@@ -1289,6 +1309,27 @@ private suspend fun PointerInputScope.detectViewerTransformGestures(
         }
         if (rotating) onRotateEnd()
     }
+}
+
+internal fun isQuarterTurn(degrees: Float): Boolean = (degrees / 90f).roundToInt() % 2 != 0
+
+/**
+ * Extra scale that refits a FIT_CENTER photo after a view rotation of [degrees]: on a quarter turn
+ * the rotated sides must fit the container swapped; half and full turns keep the original fit.
+ */
+internal fun quarterTurnFitScale(
+    imageWidth: Float,
+    imageHeight: Float,
+    containerWidth: Float,
+    containerHeight: Float,
+    degrees: Float,
+): Float {
+    if (!isQuarterTurn(degrees) || imageWidth <= 0f || imageHeight <= 0f ||
+        containerWidth <= 0f || containerHeight <= 0f
+    ) return 1f
+    val fit = min(containerWidth / imageWidth, containerHeight / imageHeight)
+    val rotatedFit = min(containerWidth / imageHeight, containerHeight / imageWidth)
+    return rotatedFit / fit
 }
 
 /** Snaps a free rotation to the nearest quarter turn. */
