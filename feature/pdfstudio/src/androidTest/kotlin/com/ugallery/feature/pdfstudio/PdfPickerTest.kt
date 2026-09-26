@@ -68,7 +68,7 @@ class PdfPickerTest {
                     withTimeout(10_000) { while (!current.state.value.busy) delay(20) }
                     withContext(Dispatchers.Main) {
                         assertTrue(current.state.value.busy)
-                        assertFalse(current.beginPublication(job.id))
+                        assertTrue(current.beginPublication(job.id) is PublishStart.AlreadyPending)
                         current.publicationResult(uri)
                         current.publicationResult(uri)
                     }

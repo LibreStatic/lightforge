@@ -45,7 +45,7 @@ class PdfPickerProbeActivity : ComponentActivity() {
             Button(this).apply {
                 text = "Choose PDF destination"
                 setOnClickListener {
-                    if (vm.beginPublication(jobId)) {
+                    if (vm.beginPublication(jobId) == PublishStart.Launch) {
                         if (intent.getBooleanExtra("portable", false))
                             portablePicker.launch("UGallery-picker-${jobId}.ugpdfproject")
                         else picker.launch("UGallery-picker-${jobId}.pdf")
