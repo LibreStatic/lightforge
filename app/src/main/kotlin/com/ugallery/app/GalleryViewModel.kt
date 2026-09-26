@@ -5377,6 +5377,14 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
+    /** A denied confirmation belongs to the surface that asked for it; leaving drops its retry. */
+    fun dismissCancelledSystemAction() {
+        if (mutableSystemAction.value?.phase !is com.ugallery.core.mediastore.MediaActionPhase.Cancelled) return
+        currentSystemCoordinator = null
+        mutableSystemAction.value = null
+        savedStateHandle[ActionStateKey] = null
+    }
+
     fun retrySystemAction() {
         currentSystemCoordinator?.let { coordinator ->
             runCatching { coordinator.retryCurrent() }.getOrNull()?.let(mutableActionLaunches::tryEmit)

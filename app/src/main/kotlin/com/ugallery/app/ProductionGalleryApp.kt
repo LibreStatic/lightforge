@@ -868,6 +868,14 @@ internal fun ProductionGalleryApp(
     DisposableEffect(Unit) {
         onDispose { viewModel.setUserHardwareWorkload(null) }
     }
+    // "Retry confirmation" after a denied system dialog is scoped to the surface that started it:
+    // navigating elsewhere dismisses it instead of floating it over every tab (V-07).
+    var systemActionSurface by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(renderedRoute, rootTab) {
+        val surface = "${renderedRoute.name}:${rootTab.name}"
+        if (systemActionSurface != null && systemActionSurface != surface) viewModel.dismissCancelledSystemAction()
+        systemActionSurface = surface
+    }
     LaunchedEffect(route, renderedRoute) {
         if (route != renderedRoute) {
             viewerReturnDestination = null
@@ -1267,6 +1275,8 @@ internal fun ProductionGalleryApp(
                     else -> exportCompleteMessage
                 },
                 actionLabel = viewExportLabel,
+                // An action label would otherwise make it Indefinite and pin it over every surface (V-07).
+                duration = androidx.compose.material3.SnackbarDuration.Long,
             )
             if (result == SnackbarResult.ActionPerformed) {
                 val uri = android.net.Uri.parse(job.outputUri)
