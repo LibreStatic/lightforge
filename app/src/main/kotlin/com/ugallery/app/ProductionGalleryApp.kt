@@ -1397,6 +1397,7 @@ internal fun ProductionGalleryApp(
                             partialIndex = !searchIndexReady,
                             onRetry = { viewModel.search() },
                             error = search.error,
+                            semanticUnavailable = search.semanticUnavailable,
                             detectedContentEnabled = allLocalAnalysisEnabled,
                             thumbnailLoader = thumbnails,
                             petCollection = when (SearchVocabulary.resolve(search.query.trim())) {

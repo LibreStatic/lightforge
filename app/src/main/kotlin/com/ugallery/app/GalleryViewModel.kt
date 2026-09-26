@@ -217,6 +217,8 @@ data class GallerySearchUiState(
     val loading: Boolean = false,
     val terminal: Boolean = true,
     val error: Boolean = false,
+    /** Semantic search threw; results are keyword-only. Distinct from "no results". */
+    val semanticUnavailable: Boolean = false,
 )
 
 internal fun GallerySearchUiState.withEditedQuery(value: String): GallerySearchUiState {
@@ -1750,9 +1752,18 @@ class GalleryViewModel @Inject constructor(
                 val page = cursor.nextPage()
                 // Filter-only queries such as "favorites" have no text to embed; semantic hits
                 // would add unrelated photos to an exact filter.
+                var semanticUnavailable = false
                 val semanticHits = if (SearchQueryParser().parse(raw).normalizedTerms.isEmpty()) emptyList()
-                else runCatching { semanticSearchEngine?.search(raw).orEmpty() }
-                    .getOrDefault(emptyList())
+                else try {
+                    semanticSearchEngine?.search(raw).orEmpty()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (failure: Throwable) {
+                    // Model, LiteRT or lease failures fall back to keyword results, visibly.
+                    android.util.Log.w("GalleryViewModel", "Semantic search failed", failure)
+                    semanticUnavailable = true
+                    emptyList()
+                }
                 if (isCurrentSearch(generation, raw)) {
                     mutableSearch.value = GallerySearchUiState(
                         raw,
@@ -1760,6 +1771,7 @@ class GalleryViewModel @Inject constructor(
                         false,
                         page.isTerminal,
                         false,
+                        semanticUnavailable,
                     )
                 }
             } catch (cancelled: CancellationException) {

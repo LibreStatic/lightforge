@@ -97,6 +97,7 @@ fun SearchContent(
     partialIndex: Boolean,
     onRetry: () -> Unit = {},
     error: Boolean,
+    semanticUnavailable: Boolean = false,
     detectedContentEnabled: Boolean,
     petCollection: Pair<String, Long>? = null,
     onOpenPetCollection: ((String) -> Unit)? = null,
@@ -216,6 +217,14 @@ fun SearchContent(
         Text(stringResource(R.string.search_privacy), style = MaterialTheme.typography.bodySmall)
         if (query.isBlank()) {
             SearchDiscovery(onPresetSearch = onPresetSearch, onOpenPlaces = onOpenPlaces, modifier = Modifier.weight(1f))
+        }
+        if (semanticUnavailable && !error && query.isNotBlank()) {
+            Text(
+                stringResource(R.string.search_semantic_unavailable),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("search-semantic-unavailable"),
+            )
         }
         if (query.isNotBlank() || hits.isNotEmpty()) when {
             error -> Row(
