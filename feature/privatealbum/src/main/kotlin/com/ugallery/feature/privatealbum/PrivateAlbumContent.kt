@@ -44,6 +44,7 @@ import com.ugallery.core.designsystem.GalleryExpressiveButton
 import com.ugallery.core.designsystem.GalleryIcons
 import com.ugallery.core.designsystem.GalleryStateContent
 import com.ugallery.core.designsystem.GalleryTopAppBar
+import com.ugallery.core.designsystem.MediaTileBadges
 import com.ugallery.core.designsystem.VideoDurationBadge
 import com.ugallery.core.designsystem.videoDurationDescription
 import com.ugallery.core.security.PrivateAlbumCrypto
@@ -408,6 +409,13 @@ fun PrivateAlbumContent(
                                 contentDescription = null,
                                 modifier = Modifier.align(Alignment.Center).size(36.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            // File type only: private items have no favorite state.
+                            MediaTileBadges(
+                                isFavorite = false,
+                                displayName = item.originalDisplayName,
+                                isVideo = isVideo,
+                                modifier = Modifier.align(Alignment.TopStart).padding(6.dp),
                             )
                             if (isVideo) {
                                 VideoDurationBadge(

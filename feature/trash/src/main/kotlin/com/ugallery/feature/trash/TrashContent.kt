@@ -47,6 +47,7 @@ import com.ugallery.core.designsystem.GalleryLoadingIndicator
 import com.ugallery.core.designsystem.GalleryStateContent
 import com.ugallery.core.designsystem.MediaSelectionOverlay
 import com.ugallery.core.designsystem.RetainGridThumbnailViewport
+import com.ugallery.core.designsystem.MediaTileBadges
 import com.ugallery.core.designsystem.VideoDurationBadge
 import com.ugallery.core.designsystem.lazyGridDragSelection
 import com.ugallery.core.model.MediaKind
@@ -194,6 +195,12 @@ private fun TrashCell(
         val loaded = bitmap
         if (loaded == null) Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant))
         else Image(loaded.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        MediaTileBadges(
+            isFavorite = media.isFavorite,
+            displayName = media.displayName,
+            isVideo = media.kind == MediaKind.Video,
+            modifier = Modifier.align(Alignment.TopStart).padding(6.dp),
+        )
         if (media.kind == MediaKind.Video) {
             VideoDurationBadge(media.durationMillis, Modifier.align(Alignment.TopEnd).padding(6.dp))
         }
