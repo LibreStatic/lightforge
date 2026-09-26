@@ -1427,7 +1427,9 @@ internal fun ProductionGalleryApp(
                         },
                         momentPlaceLabels = momentPlaceLabels,
                     )
-                    RootTab.Search -> SearchContent(
+                    RootTab.Search -> {
+                        val archivedKeys by viewModel.archivedMediaKeys.collectAsState()
+                        SearchContent(
                             query = search.query,
                             hits = search.hits,
                             loading = search.loading,
@@ -1487,7 +1489,9 @@ internal fun ProductionGalleryApp(
                             peopleAnalysisEnabled = localAnalysisSwitches.isActive(com.ugallery.core.ml.LocalAnalysisFeature.People),
                             onEnablePeopleAnalysis = { viewModel.setPeopleAnalysisEnabled(true) },
                             onDeleteDetectedContent = viewModel::deleteAllLocalAnalysisData,
+                            isArchived = { hit -> "${hit.key.volumeName}:${hit.key.mediaStoreId}" in archivedKeys },
                         )
+                    }
                 }
                 SurfaceRoute.Updates -> UpdatesContent(activityEvents)
                 SurfaceRoute.DeviceFolders -> DeviceFoldersContent(

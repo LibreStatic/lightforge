@@ -411,6 +411,11 @@ class GalleryViewModel @Inject constructor(
         }
     }
     private val petSettings = PetCollectionSettings(application)
+    /** Search keeps archived items (as the Archive copy promises); tiles badge them from this set. */
+    val archivedMediaKeys = runtime.filterNotNull()
+        .flatMapLatest { it.database.libraryDao().observeArchivedMediaKeys() }
+        .map { it.toSet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
     private val localAnalysisSwitchStore = LocalAnalysisSwitchStore(application)
     /** Single source of truth for the "Use local analysis" master switch and its children. */
     private val mutableLocalAnalysisSwitches = MutableStateFlow(

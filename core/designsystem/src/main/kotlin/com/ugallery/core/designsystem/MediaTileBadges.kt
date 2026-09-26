@@ -86,19 +86,34 @@ fun isAnimatableMediaName(displayName: String?): Boolean {
 fun mediaStoreImageUri(volumeName: String, mediaStoreId: Long): Uri =
     ContentUris.withAppendedId(MediaStore.Images.Media.getContentUri(volumeName), mediaStoreId)
 
-/** Favorite heart and file type badge for the top-start corner of a grid tile. */
+/**
+ * Favorite heart, file type and "Archived" badges for the top-start corner of a grid tile. The
+ * archived badge is not a display preference: surfaces that mix archived items in always show it.
+ */
 @Composable
 fun MediaTileBadges(
     isFavorite: Boolean,
     displayName: String?,
     isVideo: Boolean,
     modifier: Modifier = Modifier,
+    isArchived: Boolean = false,
 ) {
     val settings = LocalThumbnailTileSettings.current
     val showFavorite = settings.markFavorites && isFavorite
     val typeLabel = if (settings.showFileType) mediaFileTypeLabel(displayName, isVideo) else null
-    if (!showFavorite && typeLabel == null) return
+    if (!showFavorite && typeLabel == null && !isArchived) return
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (isArchived) {
+            val label = stringResource(R.string.media_tile_archived)
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.clearAndSetSemantics { contentDescription = label },
+            ) {
+                Text(label, Modifier.padding(horizontal = 5.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall)
+            }
+        }
         if (showFavorite) {
             val description = stringResource(R.string.media_tile_favorite_description)
             Surface(

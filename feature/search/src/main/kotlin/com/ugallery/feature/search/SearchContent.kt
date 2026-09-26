@@ -62,6 +62,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ugallery.core.search.MediaSearchHit
 import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.MediaTileBadges
+import com.ugallery.core.designsystem.R as DesignR
 import com.ugallery.core.designsystem.GalleryExpressiveIconButton
 import com.ugallery.core.designsystem.GalleryLoadingIndicator
 import com.ugallery.core.designsystem.GallerySpacing
@@ -114,6 +116,7 @@ fun SearchContent(
     // People and faces is a separate, explicit opt-in: Enable above only covers content and text.
     peopleAnalysisEnabled: Boolean = true,
     onEnablePeopleAnalysis: () -> Unit = {},
+    isArchived: (MediaSearchHit) -> Boolean = { false },
     onDeleteDetectedContent: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -263,6 +266,7 @@ fun SearchContent(
                 thumbnailLoader = thumbnailLoader,
                 onLoadMore = onLoadMore,
                 onHit = onHit,
+                isArchived = isArchived,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -304,6 +308,7 @@ private fun SearchResultsGrid(
     thumbnailLoader: ThumbnailLoader?,
     onLoadMore: () -> Unit,
     onHit: (MediaSearchHit) -> Unit,
+    isArchived: (MediaSearchHit) -> Boolean,
     modifier: Modifier = Modifier,
 ) {
     val gridState = rememberLazyGridState()
@@ -329,7 +334,7 @@ private fun SearchResultsGrid(
             verticalArrangement = Arrangement.spacedBy(gap),
         ) {
             items(hits, key = { "${it.key.volumeName}:${it.key.mediaStoreId}" }) { hit ->
-                SearchResultCard(hit, thumbnailLoader, thumbnailSizePx) { onHit(hit) }
+                SearchResultCard(hit, thumbnailLoader, thumbnailSizePx, isArchived(hit)) { onHit(hit) }
             }
             if (loading && !terminal) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
@@ -478,6 +483,7 @@ private fun SearchResultCard(
     hit: MediaSearchHit,
     loader: ThumbnailLoader?,
     sizePx: Int,
+    archived: Boolean,
     onClick: () -> Unit,
 ) {
     val request = hit.thumbnailRequest(sizePx)
@@ -487,7 +493,8 @@ private fun SearchResultCard(
     val isVideo = hit.kind == MediaKind.Video
     val mediaTypeDescription = if (isVideo) videoDurationDescription(hit.durationMillis) else null
     val fallbackDescription = stringResource(R.string.search_result)
-    val description = listOfNotNull(hit.displayName ?: fallbackDescription, mediaTypeDescription)
+    val archivedDescription = if (archived) stringResource(DesignR.string.media_tile_archived) else null
+    val description = listOfNotNull(hit.displayName ?: fallbackDescription, mediaTypeDescription, archivedDescription)
         .joinToString(", ")
     Card(Modifier.clickable(onClick = onClick).semantics { contentDescription = description }) {
         val loaded = bitmap
@@ -505,6 +512,13 @@ private fun SearchResultCard(
                     contentScale = ContentScale.Crop,
                 )
             }
+            MediaTileBadges(
+                isFavorite = hit.favorite,
+                displayName = hit.displayName,
+                isVideo = isVideo,
+                isArchived = archived,
+                modifier = Modifier.align(Alignment.TopStart).padding(6.dp),
+            )
             if (isVideo) {
                 VideoDurationBadge(
                     durationMillis = hit.durationMillis,

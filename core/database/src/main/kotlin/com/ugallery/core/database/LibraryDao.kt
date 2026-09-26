@@ -749,6 +749,10 @@ interface LibraryDao {
     @Query("SELECT EXISTS(SELECT 1 FROM archived_media WHERE volumeName=:volumeName AND mediaStoreId=:mediaStoreId)")
     fun observeArchived(volumeName: String, mediaStoreId: Long): Flow<Boolean>
 
+    /** "volumeName:mediaStoreId" keys, so mixed-archive surfaces such as Search can badge them. */
+    @Query("SELECT volumeName || ':' || mediaStoreId FROM archived_media")
+    fun observeArchivedMediaKeys(): Flow<List<String>>
+
     /** Blocking, for the widget's worker thread; external MediaStore IDs are unique across volumes. */
     @Query("SELECT mediaStoreId FROM archived_media")
     fun archivedMediaStoreIds(): List<Long>
