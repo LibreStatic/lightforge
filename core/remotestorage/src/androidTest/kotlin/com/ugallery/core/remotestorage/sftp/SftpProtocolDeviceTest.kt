@@ -117,7 +117,7 @@ class SftpProtocolDeviceTest {
         }
         thread.start()
         assertTrue(started.await(1, TimeUnit.SECONDS))
-        Thread.sleep(250)
+        awaitStalledInHandshake(thread)
         cancellation.cancel()
         assertTrue("Cancellation did not stop stalled handshake", stopped.await(3, TimeUnit.SECONDS))
         assertEquals(RemoteFailure.CANCELLED, (result.get() as RemoteStorageException).failure)

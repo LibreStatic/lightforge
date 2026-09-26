@@ -208,7 +208,7 @@ class SmbRemoteConnectionDeviceTest {
             }
         }
         thread.start()
-        Thread.sleep(200)
+        awaitStalledInHandshake(thread)
         cancel.cancel()
         assertEquals(RemoteFailure.CANCELLED, result.get(3, java.util.concurrent.TimeUnit.SECONDS))
         thread.join(1000)
