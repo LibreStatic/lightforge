@@ -127,7 +127,7 @@ class CreationGifPlaybackLifecycleDeviceTest {
             homeStopped = true
             report("Home observed STOPPED sameActivity task=${host.taskId} pid=${android.os.Process.myPid()}")
             // No Compose idle/capture while its real Activity is stopped.
-            Thread.sleep(1_200)
+            assertStaysInStage(host, Stage.STOPPED, 1_200)
             resume(host)
             awaitStage(host, Stage.RESUMED)
             assertSame(host, activity)
@@ -139,10 +139,9 @@ class CreationGifPlaybackLifecycleDeviceTest {
             val stoppedIndex = (1..3).single { stoppedPosition == context.getString(R.string.creation_gif_position, it, 3) } - 1
             awaitColor(colors[stoppedIndex])
             val stableStarted = SystemClock.elapsedRealtime()
-            while (SystemClock.elapsedRealtime() - stableStarted < 2_400) {
-                compose.onNodeWithTag("creation-gif-play").assertTextEquals(context.getString(R.string.creation_gif_play))
-                compose.onNodeWithTag("creation-gif-position").assertTextEquals(stoppedPosition)
-                Thread.sleep(150)
+            assertHolds(2_400, "Returned GIF must stay paused on its frame") {
+                text("creation-gif-play") == context.getString(R.string.creation_gif_play) &&
+                    text("creation-gif-position") == stoppedPosition
             }
             assertEquals(colors[stoppedIndex], previewColor())
             stableMillis = SystemClock.elapsedRealtime() - stableStarted
@@ -204,9 +203,45 @@ class CreationGifPlaybackLifecycleDeviceTest {
         return found
     }
 
+    /** Fails as soon as [condition] turns false within [millis]: a condition wait, not a fixed sleep. */
+    private fun assertHolds(millis: Long, message: String, condition: () -> Boolean) {
+        val broke = try {
+            compose.waitUntil(millis) { !condition() }
+            true
+        } catch (_: ComposeTimeoutException) {
+            false
+        }
+        assertFalse(message, broke)
+    }
+
+    /** Fails as soon as [activity] leaves [stage] within [millis]; waits on lifecycle callbacks. */
+    private fun assertStaysInStage(activity: Activity, stage: Stage, millis: Long) {
+        val left = java.util.concurrent.CountDownLatch(1)
+        val callback = androidx.test.runner.lifecycle.ActivityLifecycleCallback { changed, newStage ->
+            if (changed === activity && newStage != stage) left.countDown()
+        }
+        val monitor = ActivityLifecycleMonitorRegistry.getInstance()
+        monitor.addLifecycleCallback(callback)
+        try {
+            assertTrue(inStage(activity, stage))
+            assertFalse("Activity left $stage early", left.await(millis, TimeUnit.MILLISECONDS))
+        } finally {
+            monitor.removeLifecycleCallback(callback)
+        }
+    }
+
     private fun awaitStage(activity: Activity, stage: Stage) {
-        val deadline = SystemClock.elapsedRealtime() + 10_000
-        while (!inStage(activity, stage) && SystemClock.elapsedRealtime() < deadline) Thread.sleep(50)
+        val reached = java.util.concurrent.CountDownLatch(1)
+        val callback = androidx.test.runner.lifecycle.ActivityLifecycleCallback { changed, newStage ->
+            if (changed === activity && newStage == stage) reached.countDown()
+        }
+        val monitor = ActivityLifecycleMonitorRegistry.getInstance()
+        monitor.addLifecycleCallback(callback)
+        try {
+            if (!inStage(activity, stage)) reached.await(10, TimeUnit.SECONDS)
+        } finally {
+            monitor.removeLifecycleCallback(callback)
+        }
         assertTrue("Expected real Activity $stage: ${activity.componentName} task=${activity.taskId}", inStage(activity, stage))
     }
 

@@ -3,6 +3,7 @@ package com.ugallery.feature.semanticsearch
 import android.graphics.BitmapFactory
 import android.os.Debug
 import android.os.SystemClock
+import kotlinx.coroutines.flow.first
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.json.JSONArray
@@ -198,8 +199,11 @@ class SemanticRealModelDeviceTest {
         fun failedRequest(): java.util.UUID {
             val request = androidx.work.OneTimeWorkRequestBuilder<SemanticReceiptFailureWorker>().build()
             work.enqueueUniqueWork(unique, androidx.work.ExistingWorkPolicy.REPLACE, request).result.get()
-            val deadline = SystemClock.elapsedRealtime() + 10_000
-            while (work.getWorkInfoById(request.id).get()?.state != androidx.work.WorkInfo.State.FAILED && SystemClock.elapsedRealtime() < deadline) SystemClock.sleep(30)
+            kotlinx.coroutines.runBlocking {
+                kotlinx.coroutines.withTimeoutOrNull(10_000) {
+                    work.getWorkInfoByIdFlow(request.id).first { it?.state?.isFinished == true }
+                }
+            }
             assertEquals(androidx.work.WorkInfo.State.FAILED, work.getWorkInfoById(request.id).get()?.state)
             return request.id
         }

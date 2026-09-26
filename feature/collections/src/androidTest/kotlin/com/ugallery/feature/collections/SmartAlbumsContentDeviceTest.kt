@@ -181,24 +181,25 @@ class SmartAlbumsContentDeviceTest {
     }
 
     private fun scroll(tag: String) {
-        val deadline = System.nanoTime() + 10_000_000_000L
         var failure: AssertionError? = null
-        while (System.nanoTime() < deadline) {
-            try {
-                val container =
-                    if (compose.onAllNodesWithTag("smart-grid").fetchSemanticsNodes().isNotEmpty())
-                        "smart-grid"
-                    else "smart-list"
-                compose.onNodeWithTag(container).performScrollToNode(hasTestTag(tag))
-                compose.onNodeWithTag(tag).assertIsDisplayed()
-                return
-            } catch (e: AssertionError) {
-                failure = e
-                Thread.sleep(50)
-                compose.waitForIdle()
+        try {
+            compose.waitUntil(10_000) {
+                try {
+                    val container =
+                        if (compose.onAllNodesWithTag("smart-grid").fetchSemanticsNodes().isNotEmpty())
+                            "smart-grid"
+                        else "smart-list"
+                    compose.onNodeWithTag(container).performScrollToNode(hasTestTag(tag))
+                    compose.onNodeWithTag(tag).assertIsDisplayed()
+                    true
+                } catch (e: AssertionError) {
+                    failure = e
+                    false
+                }
             }
+        } catch (timeout: ComposeTimeoutException) {
+            throw failure ?: timeout
         }
-        throw requireNotNull(failure)
     }
 
     private fun click(tag: String) {

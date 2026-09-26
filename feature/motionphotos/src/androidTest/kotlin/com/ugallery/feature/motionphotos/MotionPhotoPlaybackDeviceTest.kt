@@ -56,8 +56,7 @@ class MotionPhotoPlaybackDeviceTest {
             // Pause uses the actual Player, not a synthetic LifecycleOwner.
             click("motion-play"); awaitPlaying(false)
             val paused = positionMillis()
-            Thread.sleep(250)
-            assertEquals(paused, positionMillis())
+            assertHolds(250, "Paused position must not move") { !isPlaying() && positionMillis() == paused }
             click("motion-play"); awaitPlaying(true)
             compose.waitUntil(8_000) { !isPlaying() }
             assertEndFrame(durationUs)
@@ -67,8 +66,9 @@ class MotionPhotoPlaybackDeviceTest {
             click("motion-frame-2")
             compose.onNodeWithTag("motion-frame-2").assertIsSelected()
             compose.onNodeWithTag("motion-time").assertTextEquals(context.getString(R.string.motion_time, manualUs / 1000, durationUs / 1000))
-            Thread.sleep(250)
-            compose.onNodeWithTag("motion-frame-2").assertIsSelected()
+            assertHolds(250, "Selected frame must stay selected") {
+                runCatching { compose.onNodeWithTag("motion-frame-2").assertIsSelected() }.isSuccess
+            }
             click("motion-play"); awaitPlaying(true)
             // Starting from zero would take at least 1.3 seconds for this fixture; do not
             // accept a false restart merely because it eventually reaches the selected frame.
@@ -108,6 +108,17 @@ class MotionPhotoPlaybackDeviceTest {
     private fun text(tag: String) = compose.onNodeWithTag(tag).fetchSemanticsNode().config[SemanticsProperties.Text].joinToString(" ") { it.text }
     private fun isPlaying() = text("motion-play").contains(context.getString(R.string.motion_pause))
     private fun awaitPlaying(expected: Boolean) = compose.waitUntil(5_000) { isPlaying() == expected }
+
+    /** Fails as soon as [condition] turns false within [millis]: a condition wait, not a fixed sleep. */
+    private fun assertHolds(millis: Long, message: String, condition: () -> Boolean) {
+        val broke = try {
+            compose.waitUntil(millis) { !condition() }
+            true
+        } catch (_: ComposeTimeoutException) {
+            false
+        }
+        assertFalse(message, broke)
+    }
     private fun positionMillis(): Long = Regex("[0-9]+").find(text("motion-time"))!!.value.toLong()
 
     private fun outputs(): List<List<String?>> = listOf("images" to "Pictures/UGallery/Motion/", "video" to "Movies/UGallery/Motion/").flatMap { (collection, path) ->

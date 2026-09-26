@@ -186,7 +186,25 @@ class NativeSymbolControlDeviceTest {
                         bitmapPlaced > 0
                 )
                     break
-                Thread.sleep(100)
+                // Wait for the next rendered frame instead of a fixed pause.
+                val frame = CountDownLatch(1)
+                scenario.onActivity {
+                    val native = checkNotNull(view)
+                    native.addOnDidFinishRenderingFrameListener(
+                        object : MapView.OnDidFinishRenderingFrameListener {
+                            override fun onDidFinishRenderingFrame(
+                                fully: Boolean,
+                                frameEncodingTime: Double,
+                                frameRenderingTime: Double,
+                            ) {
+                                native.removeOnDidFinishRenderingFrameListener(this)
+                                frame.countDown()
+                            }
+                        }
+                    )
+                    checkNotNull(map).triggerRepaint()
+                }
+                frame.await(2, TimeUnit.SECONDS)
             }
             File(out, "result.json").writeText(observations.toString(2))
             last?.let { image ->
