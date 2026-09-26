@@ -31,6 +31,7 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.activity.compose)
     testImplementation(libs.junit4)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")

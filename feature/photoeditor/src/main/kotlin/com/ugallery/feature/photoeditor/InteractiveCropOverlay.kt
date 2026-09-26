@@ -6,6 +6,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
@@ -60,14 +61,25 @@ internal fun InteractiveCropOverlay(
         val imageLeft = (containerWidth - imageWidth) / 2f
         val imageTop = (containerHeight - imageHeight) / 2f
         val imageRect = Rect(imageLeft, imageTop, imageLeft + imageWidth, imageTop + imageHeight)
+        val handleRadius = 40f
+        // The left and right handles sit on the screen edges on a phone; keep their hit strips
+        // out of the system back gesture so dragging them crops instead of leaving (V-04).
+        fun edgeStrip(x: Float) = Rect(
+            x - handleRadius,
+            imageRect.top + draft.top * imageRect.height - handleRadius,
+            x + handleRadius,
+            imageRect.top + draft.bottom * imageRect.height + handleRadius,
+        )
 
         Canvas(
             Modifier
                 .fillMaxSize()
+                .systemGestureExclusion { edgeStrip(imageRect.left + draft.left * imageRect.width) }
+                .systemGestureExclusion { edgeStrip(imageRect.left + draft.right * imageRect.width) }
                 .pointerInput(imageRect) {
                     awaitEachGesture {
                         val down = awaitFirstDown()
-                        val handle = hitTest(down.position, imageRect, currentDraft, 40f)
+                        val handle = hitTest(down.position, imageRect, currentDraft, handleRadius)
                             ?: return@awaitEachGesture
                         val start = currentDraft
                         drag(down.id) { change ->

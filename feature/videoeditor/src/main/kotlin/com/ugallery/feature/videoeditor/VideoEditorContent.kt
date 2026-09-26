@@ -3,6 +3,7 @@ package com.ugallery.feature.videoeditor
 import android.view.SurfaceView
 import android.net.Uri
 import androidx.annotation.StringRes
+import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
@@ -1068,7 +1069,8 @@ private fun VideoTimeline(
             value = trimStart.toFloat()..trimEnd.toFloat(),
             onValueChange = { range -> onTrimChange(range.start.toLong(), range.endInclusive.toLong()) },
             valueRange = 0f..duration.toFloat(),
-            modifier = Modifier.fillMaxWidth().testTag("video-editor-trim").semantics {
+            // The start thumb rests on the left screen edge; keep it out of the back gesture (V-04).
+            modifier = Modifier.fillMaxWidth().systemGestureExclusion().testTag("video-editor-trim").semantics {
                 contentDescription = trimDescription
             },
         )

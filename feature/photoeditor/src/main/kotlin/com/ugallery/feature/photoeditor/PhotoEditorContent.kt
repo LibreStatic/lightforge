@@ -30,10 +30,13 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -126,15 +129,29 @@ fun PhotoEditorContent(
         selectedTool = tool
         if (tool == PhotoEditorTool.Crop) cropDraft = cropDraftFromState(state)
     }
+    // A changed crop draft is an edit: Back commits it (so Undo sees it) and then asks the host,
+    // which shows its discard confirmation once the committed history reports dirty (V-04).
+    var backAfterCropCommit by remember { mutableStateOf(false) }
+    val currentOnBack by rememberUpdatedState(onBack)
+    LaunchedEffect(backAfterCropCommit, state.isDirty) {
+        if (backAfterCropCommit && state.isDirty) {
+            backAfterCropCommit = false
+            currentOnBack()
+        }
+    }
+    fun backFromCropDraft() {
+        val draft = cropDraft ?: return
+        if (cropEditOperations(draft) != cropEditOperations(cropDraftFromState(state))) {
+            commitCropDraft()
+            backAfterCropCommit = true
+        } else cropDraft = null
+        selectedTool = defaultTool
+    }
+    BackHandler(enabled = cropDraft != null, onBack = ::backFromCropDraft)
     Scaffold(modifier = modifier, topBar = {
         GalleryTopAppBar(
             title = stringResource(R.string.photo_editor_title),
-            onBack = {
-                if (cropDraft != null) {
-                    cropDraft = null
-                    selectedTool = defaultTool
-                } else onBack()
-            },
+            onBack = { if (cropDraft != null) backFromCropDraft() else onBack() },
             navigationContentDescription = stringResource(R.string.photo_editor_cancel),
             actions = {
                 TextButton(onClick = {
