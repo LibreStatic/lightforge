@@ -31,7 +31,10 @@
     <string name="portable_preferences_field_filter">Media filter</string>
     <string name="portable_preferences_field_grouping">Date grouping</string>
     <string name="portable_preferences_field_crop">Crop thumbnails to fill</string>
+    <string name="portable_preferences_field_animate">Animate thumbnails</string>
     <string name="portable_preferences_field_duration">Show video duration</string>
+    <string name="portable_preferences_field_filetype">Show file type</string>
+    <string name="portable_preferences_field_favorites">Mark favorites</string>
     <string name="portable_preferences_field_columns">Grid columns</string>
     <string name="portable_preferences_field_autoplay">Autoplay videos</string>
     <string name="portable_preferences_field_muted">Start videos muted</string>
@@ -46,6 +49,7 @@
     <string name="portable_preferences_field_videobrightness">Video brightness gesture</string>
     <string name="portable_preferences_field_videovolume">Video volume gesture</string>
     <string name="portable_preferences_field_videoseek">Video seek gesture</string>
+    <string name="portable_preferences_field_rotate">Rotate photos</string>
     <string name="portable_preferences_field_photozoom">Maximum photo zoom</string>
     <string name="portable_preferences_field_videozoom">Maximum video zoom</string>
     <string name="portable_preferences_field_skipseconds">Video skip seconds</string>

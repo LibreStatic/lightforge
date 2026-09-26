@@ -13,6 +13,8 @@ import androidx.compose.runtime.collectAsState
 import com.ugallery.feature.photos.PhotosRoute
 import com.ugallery.feature.photos.LibraryUiState
 import com.ugallery.core.designsystem.LocalShowVideoDuration
+import com.ugallery.core.designsystem.LocalThumbnailTileSettings
+import com.ugallery.core.designsystem.ThumbnailTileSettings
 import com.ugallery.core.designsystem.UGalleryTheme
 import com.ugallery.feature.permissions.PermissionCoordinator
 import dagger.hilt.android.AndroidEntryPoint
@@ -53,7 +55,14 @@ class MainActivity : FragmentActivity() {
                     )
                 } else {
                     val thumbnails = galleryViewModel.gallerySettings.collectAsState().value.thumbnails
-                    CompositionLocalProvider(LocalShowVideoDuration provides thumbnails.showVideoDuration) {
+                    CompositionLocalProvider(
+                        LocalShowVideoDuration provides thumbnails.showVideoDuration,
+                        LocalThumbnailTileSettings provides ThumbnailTileSettings(
+                            markFavorites = thumbnails.markFavorites,
+                            showFileType = thumbnails.showFileType,
+                            animateMedia = thumbnails.animateMedia,
+                        ),
+                    ) {
                         ProductionGalleryApp(galleryViewModel, permissionCoordinator)
                     }
                 }

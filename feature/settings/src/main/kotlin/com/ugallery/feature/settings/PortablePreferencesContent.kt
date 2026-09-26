@@ -337,7 +337,10 @@ private fun fieldLabel(field: PortablePreferenceField): Int =
         PortablePreferenceField.Filter -> R.string.portable_preferences_field_filter
         PortablePreferenceField.Grouping -> R.string.portable_preferences_field_grouping
         PortablePreferenceField.Crop -> R.string.portable_preferences_field_crop
+        PortablePreferenceField.Animate -> R.string.portable_preferences_field_animate
         PortablePreferenceField.Duration -> R.string.portable_preferences_field_duration
+        PortablePreferenceField.FileType -> R.string.portable_preferences_field_filetype
+        PortablePreferenceField.Favorites -> R.string.portable_preferences_field_favorites
         PortablePreferenceField.Columns -> R.string.portable_preferences_field_columns
         PortablePreferenceField.Autoplay -> R.string.portable_preferences_field_autoplay
         PortablePreferenceField.Muted -> R.string.portable_preferences_field_muted
@@ -356,6 +359,7 @@ private fun fieldLabel(field: PortablePreferenceField): Int =
             R.string.portable_preferences_field_videobrightness
         PortablePreferenceField.VideoVolume -> R.string.portable_preferences_field_videovolume
         PortablePreferenceField.VideoSeek -> R.string.portable_preferences_field_videoseek
+        PortablePreferenceField.Rotate -> R.string.portable_preferences_field_rotate
         PortablePreferenceField.PhotoZoom -> R.string.portable_preferences_field_photozoom
         PortablePreferenceField.VideoZoom -> R.string.portable_preferences_field_videozoom
         PortablePreferenceField.SkipSeconds -> R.string.portable_preferences_field_skipseconds

@@ -130,6 +130,7 @@ data class GestureSettings(
     val videoBrightness: Boolean = true,
     val videoVolume: Boolean = true,
     val videoSeek: Boolean = true,
+    val rotatePhotos: Boolean = true,
     val photoMaxZoom: Float = 8f,
     val videoMaxZoom: Float = 4f,
     val videoSkipSeconds: Int = 10,
@@ -137,7 +138,10 @@ data class GestureSettings(
 
 data class ThumbnailSettings(
     val cropToFill: Boolean = true,
+    val animateMedia: Boolean = false,
     val showVideoDuration: Boolean = true,
+    val showFileType: Boolean = true,
+    val markFavorites: Boolean = true,
     val gridColumns: Int = 3,
 )
 

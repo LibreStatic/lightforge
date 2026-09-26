@@ -1,3 +1,5 @@
 <resources>
     <string name="video_duration_description">Video, Dauer %1$s</string>
+    <string name="media_tile_favorite_description">Favorit</string>
+    <string name="media_tile_file_type_description">Dateityp %1$s</string>
 </resources>

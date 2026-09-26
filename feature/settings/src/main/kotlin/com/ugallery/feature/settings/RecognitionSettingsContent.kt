@@ -341,10 +341,14 @@ private fun SettingsCategoryList(
         settings.gestures.videoBrightness,
         settings.gestures.videoVolume,
         settings.gestures.videoSeek,
+        settings.gestures.rotatePhotos,
     )
     val thumbnailCount = enabledCount(
         settings.thumbnails.cropToFill,
+        settings.thumbnails.animateMedia,
         settings.thumbnails.showVideoDuration,
+        settings.thumbnails.showFileType,
+        settings.thumbnails.markFavorites,
     )
     val operationsCount = enabledCount(
         settings.operations.shareWithoutLocationByDefault,
@@ -371,8 +375,8 @@ private fun SettingsCategoryList(
                 4,
                 Modifier.testTag("settings_playback_row"),
             ) { onOpen(SettingsPage.Playback) }
-            SettingsCategoryRow(GalleryIcons.Tune, stringResource(R.string.settings_gestures), enabledPattern.format(gestureCount, 7), 2, 4) { onOpen(SettingsPage.Gestures) }
-            SettingsCategoryRow(GalleryIcons.Image, stringResource(R.string.settings_thumbnails), "$columnsSummary · " + enabledPattern.format(thumbnailCount, 2), 3, 4) { onOpen(SettingsPage.Thumbnails) }
+            SettingsCategoryRow(GalleryIcons.Tune, stringResource(R.string.settings_gestures), enabledPattern.format(gestureCount, 8), 2, 4) { onOpen(SettingsPage.Gestures) }
+            SettingsCategoryRow(GalleryIcons.Image, stringResource(R.string.settings_thumbnails), "$columnsSummary · " + enabledPattern.format(thumbnailCount, 5), 3, 4) { onOpen(SettingsPage.Thumbnails) }
         }
         SettingsCategoryGroup(stringResource(R.string.settings_group_management)) {
             SettingsCategoryRow(GalleryIcons.Settings, stringResource(R.string.settings_operations), enabledPattern.format(operationsCount, 3), 0, 3) { onOpen(SettingsPage.Operations) }
@@ -1122,6 +1126,9 @@ private fun GesturesSection(
     SettingsSwitchRow(stringResource(R.string.settings_video_seek), settings.gestures.videoSeek) {
         onSettingsChange { current -> current.copy(gestures = current.gestures.copy(videoSeek = it)) }
     }
+    SettingsSwitchRow(stringResource(R.string.settings_rotate_photos), settings.gestures.rotatePhotos) {
+        onSettingsChange { current -> current.copy(gestures = current.gestures.copy(rotatePhotos = it)) }
+    }
     SettingsValueRow(stringResource(R.string.settings_photo_zoom_limit), stringResource(R.string.settings_zoom_value, settings.gestures.photoMaxZoom.toInt())) {
         val next = when (settings.gestures.photoMaxZoom.toInt()) { 2 -> 4f; 4 -> 8f; else -> 2f }
         onSettingsChange { current -> current.copy(gestures = current.gestures.copy(photoMaxZoom = next)) }
@@ -1144,8 +1151,17 @@ private fun ThumbnailsSection(
     SettingsSwitchRow(stringResource(R.string.settings_crop_thumbnails), settings.thumbnails.cropToFill) {
         onSettingsChange { current -> current.copy(thumbnails = current.thumbnails.copy(cropToFill = it)) }
     }
+    SettingsSwitchRow(stringResource(R.string.settings_animate_media), settings.thumbnails.animateMedia) {
+        onSettingsChange { current -> current.copy(thumbnails = current.thumbnails.copy(animateMedia = it)) }
+    }
     SettingsSwitchRow(stringResource(R.string.settings_show_duration), settings.thumbnails.showVideoDuration) {
         onSettingsChange { current -> current.copy(thumbnails = current.thumbnails.copy(showVideoDuration = it)) }
+    }
+    SettingsSwitchRow(stringResource(R.string.settings_show_file_type), settings.thumbnails.showFileType) {
+        onSettingsChange { current -> current.copy(thumbnails = current.thumbnails.copy(showFileType = it)) }
+    }
+    SettingsSwitchRow(stringResource(R.string.settings_mark_favorites), settings.thumbnails.markFavorites) {
+        onSettingsChange { current -> current.copy(thumbnails = current.thumbnails.copy(markFavorites = it)) }
     }
     SettingsValueRow(stringResource(R.string.settings_grid_columns), settings.thumbnails.gridColumns.toString()) {
         val next = if (settings.thumbnails.gridColumns >= 8) 2 else settings.thumbnails.gridColumns + 1

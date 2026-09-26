@@ -341,6 +341,21 @@ private fun TimelineThumbnail(
                     "timeline-image-loaded-${entry.value.key.volumeName}_${entry.value.key.mediaStoreId}"),
             )
         }
+        if (!isVideo && stack == null) {
+            com.ugallery.core.designsystem.AnimatedMediaTile(
+                uri = com.ugallery.core.designsystem.mediaStoreImageUri(
+                    entry.value.key.volumeName, entry.value.key.mediaStoreId,
+                ),
+                displayName = entry.value.displayName,
+                sizePx = sizePx,
+            )
+        }
+        com.ugallery.core.designsystem.MediaTileBadges(
+            isFavorite = entry.value.isFavorite,
+            displayName = entry.value.displayName,
+            isVideo = isVideo,
+            modifier = Modifier.align(Alignment.TopStart).padding(6.dp),
+        )
         if (isVideo) {
             VideoDurationBadge(
                 durationMillis = entry.value.durationMillis,

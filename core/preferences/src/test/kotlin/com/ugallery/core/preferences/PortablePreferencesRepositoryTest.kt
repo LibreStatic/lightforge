@@ -73,15 +73,16 @@ class PortablePreferencesRepositoryTest {
         }
 
     @Test
-    fun playbackAndGesturesApplyOnlyPresentFieldsAndIgnoreRemovedKeys() = test { repo, _ ->
+    fun playbackAndGesturesApplyOnlyPresentFieldsAndRestoreOldToggleKeys() = test { repo, _ ->
         repo.update { it.copy(gestures = it.gestures.copy(videoSkipSeconds = 30)) }
-        // rotatePhotos, onboardingShown and the thumbnail toggles were removed; old exports keep them.
+        // onboardingShown was removed and is ignored; the thumbnail and rotate toggles keep their
+        // original key names, so older exports restore them.
         val bytes =
             payload(
-                """{"playback":{"loopVideos":true,"videoScrubbingMode":"Filmstrip"},"gestures":{"pinchZoom":false,"photoMaxZoom":3.5,"onboardingShown":false,"rotatePhotos":true},"thumbnails":{"animateMedia":false,"showFileType":true,"markFavorites":false}}"""
+                """{"playback":{"loopVideos":true,"videoScrubbingMode":"Filmstrip"},"gestures":{"pinchZoom":false,"photoMaxZoom":3.5,"onboardingShown":false,"rotatePhotos":false},"thumbnails":{"animateMedia":true,"showFileType":false,"markFavorites":false}}"""
             )
         val review = repo.review(bytes, UUID.randomUUID().toString())
-        assertEquals(4, review.differences.size)
+        assertEquals(8, review.differences.size)
         repo.apply(bytes, review, review.availableGroups)
         val after = repo.settings.first()
         assertTrue(after.playback.loopVideos)
@@ -90,6 +91,10 @@ class PortablePreferencesRepositoryTest {
         assertFalse(after.gestures.pinchZoom)
         assertEquals(30, after.gestures.videoSkipSeconds)
         assertEquals(3.5f, after.gestures.photoMaxZoom)
+        assertFalse(after.gestures.rotatePhotos)
+        assertTrue(after.thumbnails.animateMedia)
+        assertFalse(after.thumbnails.showFileType)
+        assertFalse(after.thumbnails.markFavorites)
     }
 
     @Test

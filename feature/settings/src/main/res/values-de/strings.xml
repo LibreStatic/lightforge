@@ -51,13 +51,17 @@
     <string name="settings_video_brightness">Helligkeitsgeste für Videos</string>
     <string name="settings_video_volume">Lautstärkegeste für Videos</string>
     <string name="settings_video_seek">Suchgeste für Videos</string>
+    <string name="settings_rotate_photos">Fotos mit zwei Fingern drehen</string>
     <string name="settings_photo_zoom_limit">Foto-Zoomgrenze</string>
     <string name="settings_video_zoom_limit">Video-Zoomgrenze</string>
     <string name="settings_skip_seconds">Sprung bei Doppeltippen</string>
     <string name="settings_seconds">%1$d Sekunden</string>
     <string name="settings_thumbnails">Vorschaubilder</string>
     <string name="settings_crop_thumbnails">Vorschaubilder füllend zuschneiden</string>
+    <string name="settings_animate_media">GIF und WebP animieren</string>
     <string name="settings_show_duration">Videodauer anzeigen</string>
+    <string name="settings_show_file_type">Dateityp anzeigen</string>
+    <string name="settings_mark_favorites">Favoriten markieren</string>
     <string name="settings_grid_columns">Rasterspalten</string>
     <string name="settings_operations">Dateioperationen</string>
     <string name="settings_share_sanitized">Standardmäßig ohne Standort teilen</string>

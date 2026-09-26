@@ -106,6 +106,19 @@ fun MediaCollectionGrid(
                         bitmap?.let {
                             Image(it.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                         } ?: Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant))
+                        if (media.kind == MediaKind.Image) {
+                            com.ugallery.core.designsystem.AnimatedMediaTile(
+                                uri = com.ugallery.core.designsystem.mediaStoreImageUri(media.key.volumeName, media.key.mediaStoreId),
+                                displayName = media.displayName,
+                                sizePx = sizePx,
+                            )
+                        }
+                        com.ugallery.core.designsystem.MediaTileBadges(
+                            isFavorite = media.isFavorite,
+                            displayName = media.displayName,
+                            isVideo = media.kind == MediaKind.Video,
+                            modifier = Modifier.align(Alignment.TopStart).padding(6.dp),
+                        )
                         if (media.kind == MediaKind.Video) {
                             VideoDurationBadge(media.durationMillis, Modifier.align(Alignment.TopEnd).padding(6.dp))
                         }

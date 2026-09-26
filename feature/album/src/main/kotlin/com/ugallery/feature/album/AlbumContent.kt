@@ -321,6 +321,19 @@ private fun AlbumCell(
                 contentScale = ContentScale.Crop,
             )
         }
+        if (!isVideo) {
+            com.ugallery.core.designsystem.AnimatedMediaTile(
+                uri = com.ugallery.core.designsystem.mediaStoreImageUri(media.key.volumeName, media.key.mediaStoreId),
+                displayName = media.displayName,
+                sizePx = sizePx,
+            )
+        }
+        com.ugallery.core.designsystem.MediaTileBadges(
+            isFavorite = media.isFavorite,
+            displayName = media.displayName,
+            isVideo = isVideo,
+            modifier = Modifier.align(Alignment.TopStart).padding(6.dp),
+        )
         if (isVideo) {
             VideoDurationBadge(
                 durationMillis = media.durationMillis,

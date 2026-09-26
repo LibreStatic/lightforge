@@ -10,7 +10,12 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateRotation
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.animation.core.Animatable
+import androidx.compose.runtime.mutableFloatStateOf
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -1131,6 +1136,9 @@ private fun PhotoSurfaceState(
                     },
                 )
             }
+            // "Rotate photos": a view-only two-finger turn that snaps to quarter turns.
+            val rotation = remember(state.drawable) { Animatable(0f) }
+            var snappedRotation by remember(state.drawable) { mutableFloatStateOf(0f) }
             LaunchedEffect(zoomTapGeneration) {
                 if (zoomTapGeneration == 0) return@LaunchedEffect
                 val center = Offset(containerSize.width / 2f, containerSize.height / 2f)
@@ -1158,11 +1166,20 @@ private fun PhotoSurfaceState(
                         scaleY = zoom.scale.value,
                         translationX = zoom.offsetX.value,
                         translationY = zoom.offsetY.value,
+                        rotationZ = rotation.value,
                     )
-                    .pointerInput(state.drawable, settings.pinchZoom, settings.photoMaxZoom) {
+                    .pointerInput(state.drawable, settings.pinchZoom, settings.photoMaxZoom, settings.rotatePhotos) {
                         detectViewerTransformGestures(
                             isZoomed = { zoom.isZoomed },
                             allowPinch = settings.pinchZoom,
+                            onRotate = if (settings.rotatePhotos) {
+                                { degrees -> scope.launch { rotation.snapTo(snappedRotation + degrees) } }
+                            } else null,
+                            onRotateEnd = {
+                                val target = snapRotationDegrees(rotation.value)
+                                snappedRotation = target
+                                scope.launch { rotation.animateTo(target) }
+                            },
                             onGestureStart = { scope.launch { zoom.stopTransitions() } },
                             onGesture = { centroid, pan, factor ->
                                 val center = Offset(containerSize.width / 2f, containerSize.height / 2f)
@@ -1204,11 +1221,15 @@ private fun PhotoSurfaceState(
 private suspend fun PointerInputScope.detectViewerTransformGestures(
     isZoomed: () -> Boolean,
     allowPinch: Boolean = true,
+    onRotate: ((degrees: Float) -> Unit)? = null,
+    onRotateEnd: () -> Unit = {},
     onGestureStart: () -> Unit = {},
     onGesture: (centroid: Offset, pan: Offset, zoom: Float) -> Unit,
     onGestureEnd: (velocity: Offset) -> Unit = {},
 ) {
     awaitEachGesture {
+        var rotationTotal = 0f
+        var rotating = false
         var transforming = false
         var started = false
         var pendingSinglePointerPan = Offset.Zero
@@ -1222,7 +1243,7 @@ private suspend fun PointerInputScope.detectViewerTransformGestures(
             var gesturePan = pan
             if (!transforming) {
                 when {
-                    allowPinch && pressedPointers >= 2 -> transforming = true
+                    (allowPinch || onRotate != null) && pressedPointers >= 2 -> transforming = true
                     isZoomed() && pressedPointers == 1 -> {
                         pendingSinglePointerPan += pan
                         if (pendingSinglePointerPan.getDistance() > viewConfiguration.touchSlop) {
@@ -1253,6 +1274,12 @@ private suspend fun PointerInputScope.detectViewerTransformGestures(
                     // two-finger gesture contributes pan only, never scale.
                     onGesture(event.calculateCentroid(), gesturePan, if (allowPinch) rawZoom else 1f)
                 }
+                if (onRotate != null && pressedPointers >= 2) {
+                    rotationTotal += event.calculateRotation()
+                    // A slop keeps an ordinary pinch from tilting the photo.
+                    if (!rotating && abs(rotationTotal) > ROTATE_SLOP_DEGREES) rotating = true
+                    if (rotating) onRotate(rotationTotal)
+                }
                 event.changes.forEach { it.consume() }
             }
         } while (event.changes.any { it.pressed })
@@ -1260,8 +1287,14 @@ private suspend fun PointerInputScope.detectViewerTransformGestures(
             val velocity = velocityTracker.calculateVelocity()
             onGestureEnd(Offset(velocity.x, velocity.y))
         }
+        if (rotating) onRotateEnd()
     }
 }
+
+/** Snaps a free rotation to the nearest quarter turn. */
+internal fun snapRotationDegrees(degrees: Float): Float = (degrees / 90f).roundToInt() * 90f
+
+private const val ROTATE_SLOP_DEGREES = 15f
 
 @Composable
 private fun VideoSurface(
