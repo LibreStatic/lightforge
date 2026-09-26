@@ -12,6 +12,7 @@ enum class PdfFailure(val message: Int) {
     StorageFull(R.string.pdf_failure_storage),
     MemoryPressure(R.string.pdf_failure_memory),
     RendererUnavailable(R.string.pdf_failure_renderer),
+    Interrupted(R.string.pdf_failure_interrupted),
     EncryptedPdf(R.string.pdf_failure_encrypted),
     InvalidPdf(R.string.pdf_failure_invalid_pdf),
     DestinationChanged(R.string.pdf_failure_destination),

@@ -59,7 +59,7 @@ class PdfExportWorker(context: Context, parameters: WorkerParameters) :
         } catch (e: Exception) {
             // Typically ForegroundServiceStartNotAllowedException: the worker started while the
             // app was in the background. Nothing ran yet, so back off instead of failing the job.
-            if (runAttemptCount < MAX_FOREGROUND_ATTEMPTS) return Result.retry()
+            if (runAttemptCount < MAX_RETRY_ATTEMPTS) return Result.retry()
             queue.update(jobId, id.toString()) {
                 it.copy(status = PdfExportPhase.Failed.name, error = PdfFailure.from(e).name)
             }
@@ -73,6 +73,11 @@ class PdfExportWorker(context: Context, parameters: WorkerParameters) :
             }
             throw e
         } catch (e: Exception) {
+            // Another operation's overrun took the shared PDF process down: not this job's fault.
+            if (PdfFailure.from(e) == PdfFailure.Interrupted && runAttemptCount < MAX_RETRY_ATTEMPTS) {
+                queue.update(jobId, id.toString()) { it.interrupted() }
+                return Result.retry()
+            }
             queue.update(jobId, id.toString()) {
                 it.copy(status = PdfExportPhase.Failed.name, error = PdfFailure.from(e).name)
             }
@@ -274,7 +279,7 @@ class PdfExportWorker(context: Context, parameters: WorkerParameters) :
     companion object {
         private val gate = Mutex()
         private const val CHANNEL = "pdf-exports"
-        private const val MAX_FOREGROUND_ATTEMPTS = 5
+        private const val MAX_RETRY_ATTEMPTS = 5
     }
 }
 

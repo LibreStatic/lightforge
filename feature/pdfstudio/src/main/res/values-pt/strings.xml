@@ -109,4 +109,5 @@
     <string name="pdf_gallery_pending">Fotos selecionadas pendentes: %1$d</string>
     <string name="pdf_gallery_source">Item selecionado %1$d</string>
     <string name="pdf_gallery_source_rejected">Item selecionado %1$d, não adicionado</string>
+    <string name="pdf_failure_interrupted">O processador de PDF reiniciou durante a operação. As exportações são retomadas automaticamente; para outras ações, tente novamente.</string>
 </resources>

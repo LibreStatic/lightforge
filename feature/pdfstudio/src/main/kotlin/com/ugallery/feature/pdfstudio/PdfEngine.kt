@@ -36,7 +36,29 @@ class IsolatedPdfEngine(
 ) : PdfEngine {
     private val storage = PdfStorageBudget(freeBytes)
 
-    private suspend fun <T> execute(id: String = newId(), block: (IPdfProcessor) -> T): T =
+    /**
+     * One overrun kills the whole isolated process, so a healthy call sharing it dies too. Such a
+     * call is run once more on a fresh process; a second collateral death is reported as
+     * [PdfFailure.Interrupted] so callers can reschedule it instead of treating it as permanent.
+     */
+    private suspend fun <T> execute(
+        id: String = newId(),
+        timeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS,
+        block: (IPdfProcessor) -> T,
+    ): T {
+        var attempt = 0
+        while (true) {
+            val started = SystemClock.elapsedRealtime()
+            try {
+                return attempt(id, block)
+            } catch (e: DeadObjectException) {
+                if (!collateralDeath(SystemClock.elapsedRealtime() - started, timeoutMillis)) throw e
+                if (++attempt > 1) throw PdfOperationFailure(PdfFailure.Interrupted)
+            }
+        }
+    }
+
+    private suspend fun <T> attempt(id: String, block: (IPdfProcessor) -> T): T =
         withContext(Dispatchers.IO) {
             var connection: ServiceConnection? = null
             var remote: IPdfProcessor? = null
@@ -112,6 +134,9 @@ class IsolatedPdfEngine(
         }
 
     companion object {
+        // Mirrors PdfProcessingService.operationTimeoutMillis.
+        private const val DEFAULT_TIMEOUT_MILLIS = 60_000L
+        private const val EXPORT_TIMEOUT_MILLIS = 300_000L
         private val workers =
             java.util.concurrent.Executors.newFixedThreadPool(2) { task ->
                 Thread(task, "pdf-binder").apply { isDaemon = true }
@@ -170,7 +195,7 @@ class IsolatedPdfEngine(
         storage.beforeWrite(output)
         val jobId = newId()
         try {
-            execute(jobId) { service ->
+            execute(jobId, EXPORT_TIMEOUT_MILLIS) { service ->
                 val fds = mutableListOf<ParcelFileDescriptor>()
                 try {
                     project.validate()
@@ -237,3 +262,12 @@ class IsolatedPdfEngine(
         }
     }
 }
+
+/**
+ * A process death well before this call's own deadline was not this call's overrun: another
+ * operation in the shared isolated process was killed by the watchdog.
+ */
+internal fun collateralDeath(elapsedMillis: Long, timeoutMillis: Long): Boolean =
+    elapsedMillis < timeoutMillis - COLLATERAL_MARGIN_MILLIS
+
+private const val COLLATERAL_MARGIN_MILLIS = 1_000L
