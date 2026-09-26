@@ -34,6 +34,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -105,10 +107,11 @@ fun PhotoEditorContent(
     onRawOutputFormatChange: (RawOutputFormat) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    var cropDraft by remember { mutableStateOf<PhotoCropDraft?>(null) }
+    // Tool and uncommitted crop survive rotation; the edit history already lives in the view model.
+    var cropDraft by rememberSaveable(stateSaver = PhotoCropDraftSaver) { mutableStateOf<PhotoCropDraft?>(null) }
     var compareOriginal by remember { mutableStateOf(false) }
     val defaultTool = if (state.isRaw) PhotoEditorTool.Raw else PhotoEditorTool.Automatic
-    var selectedTool by remember(state.isRaw) { mutableStateOf(defaultTool) }
+    var selectedTool by rememberSaveable(state.isRaw) { mutableStateOf(defaultTool) }
     fun commitCropDraft() {
         cropDraft?.let { cropEditOperations(it).forEach(onApply) }
         cropDraft = null
@@ -142,7 +145,8 @@ fun PhotoEditorContent(
         BoxWithConstraints(
             Modifier.fillMaxSize().padding(padding).background(MaterialTheme.colorScheme.background),
         ) {
-            val useSidePanel = maxWidth >= 840.dp && maxWidth >= maxHeight * 1.2f
+            // Landscape phones are too short for preview, tabs and tool rows stacked vertically.
+            val useSidePanel = maxWidth >= 600.dp && maxWidth >= maxHeight * 1.2f
             if (useSidePanel) {
                 Row(Modifier.fillMaxSize()) {
                     PreviewStage(state, cropDraft, compareOriginal, { compareOriginal = it }, { cropDraft = it }, Modifier.weight(1f).fillMaxSize())
@@ -606,6 +610,23 @@ private fun CropControls(
         }
     }
 }
+
+private val PhotoCropDraftSaver = listSaver<PhotoCropDraft?, Float>(
+    save = { draft ->
+        draft?.let { listOf(it.left, it.top, it.right, it.bottom, it.aspectRatio ?: 0f, it.straightenDegrees) }
+            ?: emptyList()
+    },
+    restore = { values ->
+        if (values.size < 6) null else PhotoCropDraft(
+            left = values[0],
+            top = values[1],
+            right = values[2],
+            bottom = values[3],
+            aspectRatio = values[4].takeIf { it > 0f },
+            straightenDegrees = values[5],
+        )
+    },
+)
 
 private val cropAspectPresets = listOf(
     null to R.string.photo_editor_crop_free,
