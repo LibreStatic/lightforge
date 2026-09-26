@@ -119,7 +119,13 @@ class PrivateAlbumRepository private constructor(
     } }
     }
 
-    /** Explicit creation boundary. Populated or orphaned vaults never become a new empty setup. */
+    /**
+     * Legacy creator: its master key has no Keystore user-authentication binding. Production
+     * creates new vaults only through [keyProtection], with authenticated keys; this remains for
+     * device-test fixtures that build a pre-migration vault. Populated or orphaned vaults never
+     * become a new empty setup.
+     */
+    @androidx.annotation.VisibleForTesting(otherwise = androidx.annotation.VisibleForTesting.NONE)
     suspend fun setupNewAlbum(keyAlias: String = PrivateAlbumCrypto.MASTER_KEY_ALIAS) = withContext(ioDispatcher) {
         database.withTransaction {
             check(database.metadataDao().get() == null && database.privateMediaDao().count() == 0) {
