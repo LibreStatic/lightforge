@@ -255,6 +255,11 @@ internal fun ObjectEraserControls(state: PhotoEditorContentState, actions: Exper
     val method = state.eraseMethod ?: ObjectEraser.EraseMethod.NEIGHBOR_INTERPOLATION_FALLBACK
     ExperimentalFallbackNotice(stringResource(R.string.photo_editor_eraser_fallback, method.name))
     Text(stringResource(R.string.photo_editor_eraser_hint), style = MaterialTheme.typography.bodyMedium)
+}
+
+/** Apply/Clear for the eraser; pinned below the scrolling tool panel. */
+@Composable
+internal fun ObjectEraserActions(state: PhotoEditorContentState, actions: ExperimentalToolActions) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
         TextButton(
             onClick = actions.onClearErase,
@@ -274,6 +279,11 @@ internal fun SubjectClipControls(state: PhotoEditorContentState, actions: Experi
     val method = state.subjectClipMethod ?: SubjectClipper.ClipMethod.COLOR_DISTANCE_FALLBACK
     ExperimentalFallbackNotice(stringResource(R.string.photo_editor_clip_fallback, method.name))
     Text(stringResource(R.string.photo_editor_clip_hint), style = MaterialTheme.typography.bodyMedium)
+}
+
+/** Save cut-out; pinned below the scrolling tool panel. */
+@Composable
+internal fun SubjectClipActions(state: PhotoEditorContentState, actions: ExperimentalToolActions) {
     Button(
         onClick = actions.onSaveSubjectClip,
         enabled = state.subjectClipPreview != null && !state.isExperimentalProcessing && !state.isExporting,

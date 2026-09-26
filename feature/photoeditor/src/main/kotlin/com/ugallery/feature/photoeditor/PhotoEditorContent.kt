@@ -444,6 +444,12 @@ private fun PhotoTools(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        // Outside the scrolling panel so Apply/Clear and Save cut-out stay on screen (Z-03).
+        when (selectedTool) {
+            PhotoEditorTool.ObjectEraser -> ObjectEraserActions(state, experimental)
+            PhotoEditorTool.SubjectClip -> SubjectClipActions(state, experimental)
+            else -> Unit
+        }
 
         PhotoToolNavigation(state.isRaw, selectedTool, onSelectTool)
     }
