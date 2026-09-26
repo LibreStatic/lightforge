@@ -58,6 +58,7 @@ import com.ugallery.core.mediastore.PublishedCopy
 import com.ugallery.core.mediastore.LocalShareSanitizer
 import com.ugallery.core.mediastore.ScopedMediaOperations
 import com.ugallery.core.ml.DetectedContentRepository
+import com.ugallery.core.ml.FaceIdentityKey
 import com.ugallery.core.ml.LocalAnalysisOnboardingDecision
 import com.ugallery.core.ml.LocalAnalysisOnboardingStore
 import com.ugallery.core.ml.MlScheduler
@@ -406,19 +407,13 @@ class GalleryViewModel @Inject constructor(
     private val peopleRefreshGeneration = MutableStateFlow(0L)
     val peopleSummaries = combine(runtime.filterNotNull(), peopleRefreshGeneration) { current, _ -> current }
         .flatMapLatest { PeopleRepository(it.database).people() }
-        .map { rows ->
-            rows.map { row ->
-                PersonCardUi(
-                    clusterId = row.cluster.clusterId,
-                    displayName = row.cluster.displayName,
-                    memberCount = row.visibleMemberCount,
-                    coverKey = row.coverVolumeName?.let { volume ->
-                        row.coverMediaStoreId?.let { id -> MediaKey(volume, id) }
-                    },
-                )
-            }
-        }
+        .map { rows -> rows.map(::personCard) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val hiddenPeopleSummaries = combine(runtime.filterNotNull(), peopleRefreshGeneration) { current, _ -> current }
+        .flatMapLatest { PeopleRepository(it.database).hiddenPeople() }
+        .map { rows -> rows.map(::personCard) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    private var personMemberLimit = PersonMemberPageSize
     private val mutableSelectedPerson = MutableStateFlow<PersonCardUi?>(null)
     val selectedPerson = mutableSelectedPerson.asStateFlow()
     private val mutableSelectedPersonMembers = MutableStateFlow<List<PersonMemberCardUi>>(emptyList())
@@ -2096,11 +2091,77 @@ class GalleryViewModel @Inject constructor(
     fun openPerson(clusterId: String) {
         val selected = peopleSummaries.value.firstOrNull { it.clusterId == clusterId } ?: return
         mutableSelectedPerson.value = selected
+        personMemberLimit = PersonMemberPageSize
+        loadPersonMembers(clusterId)
+    }
+
+    /** The person page is a lazy grid; it asks for the next page when it reaches the end. */
+    fun loadMorePersonMembers() {
+        val clusterId = mutableSelectedPerson.value?.clusterId ?: return
+        if (mutableSelectedPersonMembers.value.size < personMemberLimit) return
+        personMemberLimit += PersonMemberPageSize
+        loadPersonMembers(clusterId)
+    }
+
+    private fun loadPersonMembers(clusterId: String) {
         viewModelScope.launch {
             val repo = runtime.value?.database?.let(::PeopleRepository) ?: return@launch
-            mutableSelectedPersonMembers.value = repo.members(clusterId).map {
+            val members = repo.members(clusterId, personMemberLimit).map {
                 PersonMemberCardUi(MediaKey(it.media.volumeName, it.media.mediaStoreId), it.membership.faceOrdinal)
             }
+            if (mutableSelectedPerson.value?.clusterId == clusterId) mutableSelectedPersonMembers.value = members
+        }
+    }
+
+    fun openPersonPhoto(key: MediaKey) {
+        viewModelScope.launch {
+            val row = runtime.value?.database?.libraryDao()?.media(key.volumeName, key.mediaStoreId) ?: return@launch
+            if (!row.isAccessible || row.isTrashed) return@launch
+            openMedia(TimelineMedia(key, if (row.mediaType == 3) MediaKind.Video else MediaKind.Image,
+                row.generationModified, row.timelineSortMillis, row.width, row.height, row.durationMillis,
+                row.dateExpiresSeconds?.times(1000), row.isFavorite, row.isTrashed))
+        }
+    }
+
+    fun mergePersonInto(sourceClusterId: String, targetClusterId: String) {
+        viewModelScope.launch {
+            val repo = runtime.value?.database?.let(::PeopleRepository) ?: return@launch
+            try {
+                repo.merge(targetClusterId, sourceClusterId)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                // A concurrent clustering pass can remove either person; keep the page as is.
+                android.util.Log.w("GalleryViewModel", "Merging people failed", failure)
+                return@launch
+            }
+            peopleRefreshGeneration.value++
+            // The merged person no longer exists; show the person it joined.
+            peopleSummaries.first { people -> people.none { it.clusterId == sourceClusterId } }
+            openPerson(targetClusterId)
+        }
+    }
+
+    fun splitPersonFaces(clusterId: String, faces: List<PersonMemberCardUi>) {
+        viewModelScope.launch {
+            val repo = runtime.value?.database?.let(::PeopleRepository) ?: return@launch
+            try {
+                repo.split(clusterId, faces.map { FaceIdentityKey(it.key.volumeName, it.key.mediaStoreId, it.faceOrdinal) })
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                android.util.Log.w("GalleryViewModel", "Splitting a person failed", failure)
+                return@launch
+            }
+            peopleRefreshGeneration.value++
+            loadPersonMembers(clusterId)
+        }
+    }
+
+    fun unhidePerson(clusterId: String) {
+        viewModelScope.launch {
+            runtime.value?.database?.let(::PeopleRepository)?.unhide(clusterId)
+            peopleRefreshGeneration.value++
         }
     }
 
@@ -2210,6 +2271,15 @@ class GalleryViewModel @Inject constructor(
             }
         }
     }
+
+    private fun personCard(row: com.ugallery.core.database.PersonClusterSummaryRow) = PersonCardUi(
+        clusterId = row.cluster.clusterId,
+        displayName = row.cluster.displayName,
+        memberCount = row.visibleMemberCount,
+        coverKey = row.coverVolumeName?.let { volume ->
+            row.coverMediaStoreId?.let { id -> MediaKey(volume, id) }
+        },
+    )
 
     private fun MlControlState.isPending(): Boolean =
         requested || status == com.ugallery.core.ml.MlCheckpoint.Status.Running
@@ -5754,5 +5824,6 @@ class GalleryViewModel @Inject constructor(
         const val ViewerWindowRadius = 80
         const val ViewerWindowRefreshThreshold = 12
         const val AnnotationEraserRadius = 0.028f
+        const val PersonMemberPageSize = 200
     }
 }

@@ -27,6 +27,22 @@ interface PersonDao {
     fun visiblePersonSummaries(algorithmVersion: String, limit: Int): Flow<List<PersonClusterSummaryRow>>
 
     @Query(
+        "SELECT c.*, COUNT(p.faceOrdinal) AS visibleMemberCount, " +
+            "(SELECT pm.volumeName FROM person_memberships pm JOIN media_items m ON " +
+            "m.volumeName=pm.volumeName AND m.mediaStoreId=pm.mediaStoreId WHERE pm.clusterId=c.clusterId " +
+            "AND m.isAccessible=1 AND m.isTrashed=0 ORDER BY pm.similarity DESC, pm.volumeName, pm.mediaStoreId LIMIT 1) " +
+            "AS coverVolumeName, " +
+            "(SELECT pm.mediaStoreId FROM person_memberships pm JOIN media_items m ON " +
+            "m.volumeName=pm.volumeName AND m.mediaStoreId=pm.mediaStoreId WHERE pm.clusterId=c.clusterId " +
+            "AND m.isAccessible=1 AND m.isTrashed=0 ORDER BY pm.similarity DESC, pm.volumeName, pm.mediaStoreId LIMIT 1) " +
+            "AS coverMediaStoreId FROM person_clusters c JOIN person_memberships p ON p.clusterId=c.clusterId " +
+            "JOIN media_items m ON m.volumeName=p.volumeName AND m.mediaStoreId=p.mediaStoreId " +
+            "WHERE c.algorithmVersion=:algorithmVersion AND c.isHidden=1 AND m.isAccessible=1 AND m.isTrashed=0 " +
+            "GROUP BY c.clusterId HAVING visibleMemberCount>0 ORDER BY c.updatedAtMillis DESC LIMIT :limit",
+    )
+    fun hiddenPersonSummaries(algorithmVersion: String, limit: Int): Flow<List<PersonClusterSummaryRow>>
+
+    @Query(
         "SELECT p.*,m.volumeName AS media_volumeName,m.mediaStoreId AS media_mediaStoreId," +
             "m.mediaType AS media_mediaType,m.mimeType AS media_mimeType,m.displayName AS media_displayName," +
             "m.sizeBytes AS media_sizeBytes,m.width AS media_width,m.height AS media_height," +

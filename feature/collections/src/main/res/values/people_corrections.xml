@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="people_merge">Merge into…</string>
+    <string name="people_merge_title">Merge into another person</string>
+    <string name="people_merge_body">All faces of this person move to the person you choose.</string>
+    <string name="people_split">Remove faces into a new person</string>
+    <string name="people_split_hint">Select the faces that are not this person.</string>
+    <plurals name="people_split_confirm">
+        <item quantity="one">Move %d face to a new person</item>
+        <item quantity="other">Move %d faces to a new person</item>
+    </plurals>
+    <string name="people_hidden_title">Hidden people</string>
+    <string name="people_unhide">Unhide</string>
+    <string name="people_open_photo">Open photo</string>
+</resources>

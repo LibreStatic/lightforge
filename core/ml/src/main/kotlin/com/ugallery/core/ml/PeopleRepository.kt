@@ -12,6 +12,10 @@ class PeopleRepository(private val database: GalleryDatabase) {
     fun people(limit: Int = DefaultPeopleLimit): Flow<List<PersonClusterSummaryRow>> =
         dao.visiblePersonSummaries(PersonClusteringMlEngine.AlgorithmVersion, limit)
 
+    /** Hidden people stay listed so they can be unhidden. */
+    fun hiddenPeople(limit: Int = DefaultPeopleLimit): Flow<List<PersonClusterSummaryRow>> =
+        dao.hiddenPersonSummaries(PersonClusteringMlEngine.AlgorithmVersion, limit)
+
     suspend fun members(clusterId: String, limit: Int = DefaultMemberLimit): List<PersonMembershipMediaRow> =
         dao.visibleClusterMembers(clusterId, limit)
 
@@ -28,6 +32,15 @@ class PeopleRepository(private val database: GalleryDatabase) {
     suspend fun rename(clusterId: String, name: String?) = PersonCorrectionRepository(database).rename(clusterId, name)
 
     suspend fun hide(clusterId: String) = PersonCorrectionRepository(database).hide(clusterId, true)
+
+    suspend fun unhide(clusterId: String) = PersonCorrectionRepository(database).hide(clusterId, false)
+
+    suspend fun merge(targetClusterId: String, sourceClusterId: String) =
+        PersonCorrectionRepository(database).merge(targetClusterId, listOf(sourceClusterId))
+
+    /** Moves [faces] out of [clusterId] into a new person and returns its id. */
+    suspend fun split(clusterId: String, faces: List<FaceIdentityKey>): String =
+        PersonCorrectionRepository(database).split(clusterId, faces)
 
     suspend fun meState(): MeProfileRepository.MeProfileState? = MeProfileRepository(database).state()
 

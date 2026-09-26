@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="people_merge">Mesclar com…</string>
+    <string name="people_merge_title">Mesclar com outra pessoa</string>
+    <string name="people_merge_body">Todos os rostos desta pessoa passam para a pessoa escolhida.</string>
+    <string name="people_split">Separar rostos em uma nova pessoa</string>
+    <string name="people_split_hint">Selecione os rostos que não são desta pessoa.</string>
+    <plurals name="people_split_confirm">
+        <item quantity="one">Mover %d rosto para uma nova pessoa</item>
+        <item quantity="many">Mover %d rostos para uma nova pessoa</item>
+        <item quantity="other">Mover %d rostos para uma nova pessoa</item>
+    </plurals>
+    <string name="people_hidden_title">Pessoas ocultas</string>
+    <string name="people_unhide">Mostrar</string>
+    <string name="people_open_photo">Abrir foto</string>
+</resources>

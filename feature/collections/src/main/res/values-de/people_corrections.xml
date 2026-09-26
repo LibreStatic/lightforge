@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="people_merge">Zusammenführen mit…</string>
+    <string name="people_merge_title">Mit einer anderen Person zusammenführen</string>
+    <string name="people_merge_body">Alle Gesichter dieser Person werden zur ausgewählten Person verschoben.</string>
+    <string name="people_split">Gesichter in eine neue Person verschieben</string>
+    <string name="people_split_hint">Wähle die Gesichter aus, die nicht zu dieser Person gehören.</string>
+    <plurals name="people_split_confirm">
+        <item quantity="one">%d Gesicht in eine neue Person verschieben</item>
+        <item quantity="other">%d Gesichter in eine neue Person verschieben</item>
+    </plurals>
+    <string name="people_hidden_title">Ausgeblendete Personen</string>
+    <string name="people_unhide">Einblenden</string>
+    <string name="people_open_photo">Foto öffnen</string>
+</resources>

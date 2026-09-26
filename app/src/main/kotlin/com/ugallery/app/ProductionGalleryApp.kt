@@ -213,6 +213,7 @@ private sealed interface ViewerReturnDestination {
     data object Highlight : ViewerReturnDestination
     data object Archive : ViewerReturnDestination
     data object Trash : ViewerReturnDestination
+    data object People : ViewerReturnDestination
 }
 
 private val ViewerReturnDestinationSaver = listSaver<ViewerReturnDestination?, String>(
@@ -228,6 +229,7 @@ private val ViewerReturnDestinationSaver = listSaver<ViewerReturnDestination?, S
             ViewerReturnDestination.Archive -> listOf("archive")
             ViewerReturnDestination.Places -> listOf("places")
             ViewerReturnDestination.Highlight -> listOf("highlight")
+            ViewerReturnDestination.People -> listOf("people")
         }
     },
     restore = { saved ->
@@ -247,6 +249,7 @@ private val ViewerReturnDestinationSaver = listSaver<ViewerReturnDestination?, S
             "archive" -> ViewerReturnDestination.Archive
             "places" -> ViewerReturnDestination.Places
             "highlight" -> ViewerReturnDestination.Highlight
+            "people" -> ViewerReturnDestination.People
             else -> null
         }
     },
@@ -443,6 +446,7 @@ internal fun ProductionGalleryApp(
     val momentPlaceLabels = remember(viewModel) { viewModel::momentPlaceLabel }
     val momentMembers by viewModel.momentMembers.collectAsState(initial = emptyList())
     val people by viewModel.peopleSummaries.collectAsState()
+    val hiddenPeople by viewModel.hiddenPeopleSummaries.collectAsState()
     val selectedPerson by viewModel.selectedPerson.collectAsState()
     val selectedPersonMembers by viewModel.selectedPersonMembers.collectAsState()
     val me by viewModel.me.collectAsState()
@@ -978,6 +982,7 @@ internal fun ProductionGalleryApp(
             ViewerReturnDestination.Trash -> route = SurfaceRoute.Trash
             ViewerReturnDestination.Places -> route = SurfaceRoute.OfflinePlaces
             ViewerReturnDestination.Highlight -> route = SurfaceRoute.HighlightCollection
+            ViewerReturnDestination.People -> route = SurfaceRoute.People
             null -> route = SurfaceRoute.Root
         }
     }
@@ -1908,6 +1913,7 @@ internal fun ProductionGalleryApp(
                         selectedPerson = selectedPerson,
                         selectedMembers = selectedPersonMembers,
                         me = me,
+                        hiddenPeople = hiddenPeople,
                     ),
                     thumbnailLoader = thumbnails,
                     onBack = {
@@ -1924,6 +1930,11 @@ internal fun ProductionGalleryApp(
                     onHidePerson = viewModel::hidePerson,
                     onSetSelectedAsMe = viewModel::setSelectedPersonAsMe,
                     onResetMe = viewModel::resetMe,
+                    onMemberClick = { key -> openViewer(ViewerReturnDestination.People) { viewModel.openPersonPhoto(key) } },
+                    onLoadMoreMembers = viewModel::loadMorePersonMembers,
+                    onMergePerson = viewModel::mergePersonInto,
+                    onSplitFaces = viewModel::splitPersonFaces,
+                    onUnhidePerson = viewModel::unhidePerson,
                 )
                 SurfaceRoute.Trash -> TrashContent(
                     items = trashItems,

@@ -14,9 +14,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -42,6 +44,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -88,6 +91,7 @@ data class PeopleUiState(
     val selectedPerson: PersonCardUi? = null,
     val selectedMembers: List<PersonMemberCardUi> = emptyList(),
     val me: LocalMeUiState? = null,
+    val hiddenPeople: List<PersonCardUi> = emptyList(),
 )
 
 enum class PeopleAnalysisStage { Idle, FaceDetection, FaceEmbeddings, PersonClustering, Complete, Paused }
@@ -108,8 +112,16 @@ fun PeopleContent(
     onSetSelectedAsMe: (String) -> Unit,
     onResetMe: () -> Unit,
     modifier: Modifier = Modifier,
+    onMemberClick: (MediaKey) -> Unit = {},
+    onLoadMoreMembers: () -> Unit = {},
+    onMergePerson: (sourceClusterId: String, targetClusterId: String) -> Unit = { _, _ -> },
+    onSplitFaces: (clusterId: String, faces: List<PersonMemberCardUi>) -> Unit = { _, _ -> },
+    onUnhidePerson: (String) -> Unit = {},
 ) {
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
+    var merging by rememberSaveable { mutableStateOf(false) }
+    var splitting by rememberSaveable(state.selectedPerson?.clusterId) { mutableStateOf(false) }
+    var splitSelection by remember(state.selectedPerson?.clusterId) { mutableStateOf(setOf<PersonMemberCardUi>()) }
     val fullSpan: (androidx.compose.foundation.lazy.grid.LazyGridItemSpanScope.() -> GridItemSpan) = {
         GridItemSpan(maxLineSpan)
     }
@@ -163,9 +175,61 @@ fun PeopleContent(
             } else items(state.people, key = { it.clusterId }) { person ->
                 PersonCard(person, thumbnailLoader) { onPersonClick(person.clusterId) }
             }
+            if (state.hiddenPeople.isNotEmpty()) {
+                item(span = fullSpan) {
+                    Text(
+                        stringResource(R.string.people_hidden_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.semantics { heading() },
+                    )
+                }
+                items(state.hiddenPeople, key = { "hidden:${it.clusterId}" }, span = { fullSpan() }) { person ->
+                    Row(
+                        Modifier.fillMaxWidth().testTag("hidden_person_${person.clusterId}"),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    ) {
+                        PersonThumbnail(person.coverKey, thumbnailLoader, Modifier.size(56.dp))
+                        Text(
+                            person.displayName ?: stringResource(R.string.people_default_name),
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = { onUnhidePerson(person.clusterId) }) { Text(stringResource(R.string.people_unhide)) }
+                    }
+                }
+            }
         } else {
             item(span = fullSpan) {
-                PersonDetail(selected, state.selectedMembers, thumbnailLoader, onRenamePerson, onHidePerson, onSetSelectedAsMe)
+                PersonDetail(
+                    selected, thumbnailLoader, onRenamePerson, onHidePerson, onSetSelectedAsMe,
+                    canMerge = state.people.any { it.clusterId != selected.clusterId },
+                    onMerge = { merging = true },
+                    splitting = splitting,
+                    splitCount = splitSelection.size,
+                    // A split must leave at least one face with this person.
+                    canSplit = splitSelection.isNotEmpty() && splitSelection.size < state.selectedMembers.size,
+                    onStartSplit = { splitting = true; splitSelection = emptySet() },
+                    onConfirmSplit = {
+                        onSplitFaces(selected.clusterId, splitSelection.toList())
+                        splitting = false
+                        splitSelection = emptySet()
+                    },
+                    onCancelSplit = { splitting = false; splitSelection = emptySet() },
+                )
+            }
+            itemsIndexed(state.selectedMembers, key = { _, it -> "${it.key}:${it.faceOrdinal}" }) { index, member ->
+                if (index == state.selectedMembers.lastIndex) LaunchedEffect(state.selectedMembers.size) { onLoadMoreMembers() }
+                PersonMemberTile(
+                    member,
+                    thumbnailLoader,
+                    selectable = splitting,
+                    selected = member in splitSelection,
+                    onClick = {
+                        if (splitting) splitSelection = if (member in splitSelection) splitSelection - member else splitSelection + member
+                        else onMemberClick(member.key)
+                    },
+                )
             }
         }
         }
@@ -180,6 +244,33 @@ fun PeopleContent(
             }
         },
         dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.people_cancel)) } },
+    )
+    val mergeSource = state.selectedPerson
+    if (merging && mergeSource != null) AlertDialog(
+        onDismissRequest = { merging = false },
+        title = { Text(stringResource(R.string.people_merge_title)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(stringResource(R.string.people_merge_body))
+                state.people.filter { it.clusterId != mergeSource.clusterId }.forEach { target ->
+                    TextButton(
+                        onClick = { merging = false; onMergePerson(mergeSource.clusterId, target.clusterId) },
+                        modifier = Modifier.fillMaxWidth().testTag("merge_target_${target.clusterId}"),
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            PersonThumbnail(target.coverKey, thumbnailLoader, Modifier.size(40.dp))
+                            Text(
+                                target.displayName ?: stringResource(R.string.people_default_name),
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text(stringResource(R.string.people_face_count, target.memberCount))
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = { merging = false }) { Text(stringResource(R.string.people_cancel)) } },
     )
 }
 
@@ -248,20 +339,41 @@ private fun peopleStatusText(state: PeopleUiState): String = when {
 @Composable
 private fun PersonDetail(
     person: PersonCardUi,
-    members: List<PersonMemberCardUi>,
     loader: ThumbnailLoader?,
     onRename: (String, String?) -> Unit,
     onHide: (String) -> Unit,
     onSetAsMe: (String) -> Unit,
+    canMerge: Boolean,
+    onMerge: () -> Unit,
+    splitting: Boolean,
+    splitCount: Int,
+    canSplit: Boolean,
+    onStartSplit: () -> Unit,
+    onConfirmSplit: () -> Unit,
+    onCancelSplit: () -> Unit,
 ) {
     var renaming by rememberSaveable { mutableStateOf(false) }
     var name by rememberSaveable(person.clusterId) { mutableStateOf(person.displayName.orEmpty()) }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(person.displayName ?: stringResource(R.string.people_default_name), style = MaterialTheme.typography.titleLarge)
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            GalleryExpressiveButton(onClick = { onSetAsMe(person.clusterId) }) { Text(stringResource(R.string.me_set_from_person)) }
-            OutlinedButton(onClick = { renaming = true }) { Text(stringResource(R.string.people_rename)) }
-            TextButton(onClick = { onHide(person.clusterId) }) { Text(stringResource(R.string.people_hide)) }
+        if (splitting) {
+            Text(stringResource(R.string.people_split_hint))
+            GalleryExpressiveButton(onClick = onConfirmSplit, enabled = canSplit, modifier = Modifier.testTag("people_split_confirm")) {
+                Text(pluralStringResource(R.plurals.people_split_confirm, splitCount, splitCount))
+            }
+            TextButton(onClick = onCancelSplit) { Text(stringResource(R.string.people_cancel)) }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                GalleryExpressiveButton(onClick = { onSetAsMe(person.clusterId) }) { Text(stringResource(R.string.me_set_from_person)) }
+                OutlinedButton(onClick = { renaming = true }) { Text(stringResource(R.string.people_rename)) }
+                OutlinedButton(onClick = onMerge, enabled = canMerge, modifier = Modifier.testTag("people_merge")) {
+                    Text(stringResource(R.string.people_merge))
+                }
+                OutlinedButton(onClick = onStartSplit, modifier = Modifier.testTag("people_split")) {
+                    Text(stringResource(R.string.people_split))
+                }
+                TextButton(onClick = { onHide(person.clusterId) }) { Text(stringResource(R.string.people_hide)) }
+            }
         }
         if (renaming) {
             androidx.compose.material3.TextField(
@@ -273,7 +385,30 @@ private fun PersonDetail(
                 Text(stringResource(R.string.people_save_name))
             }
         }
-        ThumbnailStrip(members, loader)
+    }
+}
+
+@Composable
+private fun PersonMemberTile(
+    member: PersonMemberCardUi,
+    loader: ThumbnailLoader?,
+    selectable: Boolean,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val description = stringResource(R.string.people_open_photo)
+    Box(
+        Modifier.fillMaxWidth().aspectRatio(1f).clip(MaterialTheme.shapes.medium)
+            .testTag("person_member_${member.key.mediaStoreId}_${member.faceOrdinal}")
+            .semantics { contentDescription = description }
+            .clickable(onClick = onClick),
+    ) {
+        PersonThumbnail(member.key, loader, Modifier.fillMaxSize())
+        if (selectable) androidx.compose.material3.Checkbox(
+            checked = selected,
+            onCheckedChange = { onClick() },
+            modifier = Modifier.align(androidx.compose.ui.Alignment.TopEnd),
+        )
     }
 }
 
