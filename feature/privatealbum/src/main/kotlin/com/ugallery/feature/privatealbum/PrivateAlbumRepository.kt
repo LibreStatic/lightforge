@@ -181,7 +181,8 @@ class PrivateAlbumRepository private constructor(
             val dataKey = PrivateAlbumCrypto.generateDataKey()
             val encryptedDataKey = PrivateAlbumCrypto.encryptDataKey(dataKey, masterKey)
 
-            containerFile = File(containerDir, "private_${System.nanoTime()}_${displayName.hashCode()}.ugpc")
+            // A random name: nothing about the original (not even a hash of its name) leaks into the listing.
+            containerFile = File(containerDir, "private_${java.util.UUID.randomUUID()}.ugpc")
                 .also { check(it.createNewFile()) { "Private container already exists" } }
             val input = resolver.openInputStream(sourceUri)
                 ?: return@withContext ImportResult(false, error = "Cannot open source URI")
