@@ -2589,26 +2589,32 @@ class GalleryViewModel @Inject constructor(
     fun setSelectionArchived(archived: Boolean) {
         val selected = mutableSelection.value
         val count = mutableSelectionCount.value
-        viewModelScope.launch(Dispatchers.IO) {
+        val revision = selectionRevision
+        viewModelScope.launch {
             val active = runtime.value ?: return@launch
-            when (selected) {
-                is SelectionSpec.Explicit -> active.archive.setArchived(selected.keys, archived)
-                is SelectionSpec.QueryAll -> {
-                    var after: MediaKey? = null
-                    while (true) {
-                        val page = active.selectionTargets.page(selected.querySnapshot, after, 500)
-                        if (page.isEmpty()) break
-                        active.archive.setArchived(page.map { it.key }, archived)
-                        after = page.last().key
-                        if (page.size < 500) break
+            withContext(Dispatchers.IO) {
+                when (selected) {
+                    is SelectionSpec.Explicit -> active.archive.setArchived(selected.keys, archived)
+                    is SelectionSpec.QueryAll -> {
+                        var after: MediaKey? = null
+                        while (true) {
+                            val page = active.selectionTargets.page(selected.querySnapshot, after, 500)
+                            if (page.isEmpty()) break
+                            // Select-all records deselected items only as exclusions.
+                            val keys = page.map { it.key }.filterNot { it in selected.exclusions }
+                            if (keys.isNotEmpty()) active.archive.setArchived(keys, archived)
+                            after = page.last().key
+                            if (page.size < 500) break
+                        }
                     }
                 }
+                active.activity.record(
+                    if (archived) GalleryActivityType.Archived else GalleryActivityType.Unarchived,
+                    count,
+                )
             }
-            active.activity.record(
-                if (archived) GalleryActivityType.Archived else GalleryActivityType.Unarchived,
-                count,
-            )
-            clearSelection()
+            // Selection state is main-thread only; keep a selection started while archiving ran.
+            if (selectionRevision == revision) clearSelection()
         }
     }
 
