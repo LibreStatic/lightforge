@@ -6,14 +6,19 @@ import android.graphics.ImageDecoder
 import android.os.CancellationSignal
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import kotlin.math.max
 
 /** Bounded source pages and one decoded photo at a time; no photo bytes enter a network client. */
 class PetIdentityAnalysis(context: Context, private val repository: PetIdentityRepository, private val models: PetModelStore) {
     private val resolver = context.applicationContext.contentResolver
-    suspend fun run(signal: CancellationSignal, progress: (Long, Long) -> Unit = { _, _ -> }) = withContext(Dispatchers.IO) {
+    suspend fun run(
+        signal: CancellationSignal,
+        progress: (analyzed: Long, detected: Long, skipped: Long) -> Unit = { _, _, _ -> },
+    ) = withContext(Dispatchers.IO) {
         var analyzed = 0L
         var detected = 0L
+        var skipped = 0L
         var after: com.ugallery.core.model.MediaKey? = null
         models.openEngine(signal).use { engine ->
             do {
@@ -25,11 +30,21 @@ class PetIdentityAnalysis(context: Context, private val repository: PetIdentityR
                 for (source in page.items) {
                     signal.throwIfCanceled()
                     if (!repository.isCurrent(source) || repository.isAnalyzed(source, PetModelCatalog.Fingerprint)) continue
-                    val bitmap = decode(source)
+                    val bitmap = try {
+                        decode(source)
+                    } catch (_: IOException) {
+                        // Missing or undecodable bytes (DecodeException) are permanent for this
+                        // generation. Commit an empty analysis so retries move past this photo;
+                        // a later edit bumps its generation and re-admits it.
+                        if (repository.isCurrent(source) && repository.commitAnalysis(source, PetModelCatalog.Fingerprint, emptyList())) {
+                            skipped++; progress(analyzed, detected, skipped)
+                        }
+                        continue
+                    }
                     val observations = try { engine.analyze(bitmap, signal) } finally { bitmap.recycle() }
                     signal.throwIfCanceled()
                     if (repository.isCurrent(source) && repository.commitAnalysis(source, PetModelCatalog.Fingerprint, observations)) {
-                        analyzed++; detected += observations.size; progress(analyzed, detected)
+                        analyzed++; detected += observations.size; progress(analyzed, detected, skipped)
                     }
                 }
                 check(page.nextKey == null || page.nextKey != after) { "Pet source cursor did not advance" }

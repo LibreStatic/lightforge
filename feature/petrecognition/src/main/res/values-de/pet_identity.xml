@@ -40,4 +40,8 @@
     <string name="pet_open_group">Gruppe öffnen</string>
     <string name="pet_model_ready">Geprüfte lokale Modelle installiert</string>
     <string name="pet_leave">Beim Verlassen wird der Vorgang abgebrochen. Abgeschlossene Fotoanalysen bleiben erhalten.</string>
+    <plurals name="pet_skipped">
+        <item quantity="one">%d Foto konnte nicht gelesen werden und wurde übersprungen</item>
+        <item quantity="other">%d Fotos konnten nicht gelesen werden und wurden übersprungen</item>
+    </plurals>
 </resources>
