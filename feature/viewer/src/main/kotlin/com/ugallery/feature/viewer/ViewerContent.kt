@@ -150,7 +150,7 @@ fun ViewerContent(
     isFavorite: Boolean,
     onBack: () -> Unit,
     onToggleFavorite: (() -> Unit)?,
-    onShare: () -> Unit,
+    onShare: (() -> Unit)?,
     onShareSanitized: (() -> Unit)?,
     onDetails: (() -> Unit)?,
     onEdit: (() -> Unit)?,
@@ -166,6 +166,8 @@ fun ViewerContent(
     onArchive: (() -> Unit)? = null,
     archiveActionLabel: String? = null,
     trashActionLabel: String? = null,
+    onDelete: (() -> Unit)? = null,
+    deleteActionLabel: String? = null,
     onMotionPhoto: (() -> Unit)? = null,
     motionPhotoLabel: String? = null,
     onContentTap: () -> Unit = {},
@@ -643,6 +645,13 @@ fun ViewerContent(
                                 leadingIcon = { Icon(GalleryIcons.Trash, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
                             )
                         }
+                        if (onDelete != null && deleteActionLabel != null) {
+                            DropdownMenuItem(
+                                text = { Text(deleteActionLabel, color = MaterialTheme.colorScheme.error) },
+                                onClick = { menuExpanded = false; onDelete() },
+                                leadingIcon = { Icon(GalleryIcons.Trash, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                            )
+                        }
                     }
                 }
             }
@@ -688,7 +697,7 @@ fun ViewerContent(
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    ViewerAction(onClick = onShare, icon = GalleryIcons.Share, label = stringResource(R.string.viewer_share), modifier = Modifier.weight(1f))
+                    onShare?.let { ViewerAction(onClick = it, icon = GalleryIcons.Share, label = stringResource(R.string.viewer_share), modifier = Modifier.weight(1f)) }
                     onEdit?.let { ViewerAction(onClick = it, icon = GalleryIcons.Edit, label = stringResource(R.string.viewer_edit), modifier = Modifier.weight(1f)) }
                     onToggleFavorite?.let { ViewerAction(onClick = it, icon = GalleryIcons.Heart, label = stringResource(if (isFavorite) R.string.viewer_unfavorite else R.string.viewer_favorite), modifier = Modifier.weight(1f)) }
                     onDetails?.let { ViewerAction(onClick = it, icon = GalleryIcons.Info, label = stringResource(R.string.viewer_details), modifier = Modifier.weight(1f)) }

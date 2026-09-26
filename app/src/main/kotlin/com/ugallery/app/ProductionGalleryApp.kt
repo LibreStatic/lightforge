@@ -3866,6 +3866,15 @@ private fun ViewerRoute(
     val mediaArchived by remember(media.key) { viewModel.isArchived(media) }
         .collectAsState(initial = false)
     val archiveLabel = stringResource(if (mediaArchived) R.string.archive_unarchive else R.string.archive_move)
+    // Restore/Delete from the trash viewer leaves the item stale in this list; close on completion.
+    var trashActionPending by remember(media.key) { mutableStateOf(false) }
+    val systemActionState by viewModel.systemAction.collectAsState()
+    LaunchedEffect(trashActionPending, systemActionState?.phase) {
+        if (trashActionPending && systemActionState?.phase == com.ugallery.core.mediastore.MediaActionPhase.Complete) {
+            trashActionPending = false
+            onBack()
+        }
+    }
     val viewer: @Composable () -> Unit = {
         ViewerContent(
             media = media,
@@ -3876,37 +3885,48 @@ private fun ViewerRoute(
             thumbnailLoader = thumbnailLoader,
             isFavorite = media.isFavorite,
             onBack = onBack,
-            onToggleFavorite = { viewModel.beginSystemAction(media, MediaAction.Favorite(!media.isFavorite)) },
-            onShare = {
+            // A trashed item only offers Restore, Delete permanently and Details.
+            onToggleFavorite = if (trashContext) null else ({ viewModel.beginSystemAction(media, MediaAction.Favorite(!media.isFavorite)) }),
+            onShare = if (trashContext) null else ({
                 if (gallerySettings.operations.shareWithoutLocationByDefault) {
                     onShareSanitized()
                 } else {
                     context.startActivity(Intent.createChooser(viewModel.originalShareIntent(media), null))
                 }
-            },
+            }),
             onDetails = onShowDetails,
-            onEdit = onEdit,
+            onEdit = onEdit.takeUnless { trashContext },
             onMotionPhoto = onMotionPhoto.takeIf { hasMotion },
             motionPhotoLabel = stringResource(com.ugallery.feature.motionphotos.R.string.motion_title),
-            onRename = {
+            onRename = if (trashContext) null else ({
                 renameValue = media.displayName.orEmpty()
                 renameDialogVisible = true
-            },
-            onCopy = { onTreeOperation(false) },
-            onMove = { onTreeOperation(true) },
-            onOpenWith = { launchExternal(ScopedMediaOperations.viewIntent(target, wildcardMime)) },
-            onSetAs = { launchExternal(ScopedMediaOperations.setAsIntent(target, wildcardMime)) },
-            onPrint = {
+            }),
+            onCopy = if (trashContext) null else ({ onTreeOperation(false) }),
+            onMove = if (trashContext) null else ({ onTreeOperation(true) }),
+            onOpenWith = if (trashContext) null else ({ launchExternal(ScopedMediaOperations.viewIntent(target, wildcardMime)) }),
+            onSetAs = if (trashContext) null else ({ launchExternal(ScopedMediaOperations.setAsIntent(target, wildcardMime)) }),
+            onPrint = if (trashContext) null else ({
                 runCatching { ScopedMediaOperations.printImage(context, target, media.displayName ?: "UGallery") }
                     .onFailure { Toast.makeText(context, it.message ?: actionUnavailable, Toast.LENGTH_SHORT).show() }
-            },
-            onRepairDate = ::showDateRepairPicker,
-            onShareSanitized = onShareSanitized,
+            }),
+            onRepairDate = if (trashContext) null else ::showDateRepairPicker,
+            onShareSanitized = onShareSanitized.takeUnless { trashContext },
             onTrash = {
                 runViewerDestructive {
+                    trashActionPending = trashContext
                     viewModel.beginSystemAction(media, MediaAction.Trash(!trashContext))
                 }
             },
+            onDelete = if (trashContext) ({
+                runViewerDestructive {
+                    trashActionPending = true
+                    viewModel.beginSystemAction(media, MediaAction.Delete)
+                }
+            }) else null,
+            deleteActionLabel = if (trashContext) {
+                stringResource(com.ugallery.feature.trash.R.string.trash_delete_permanently)
+            } else null,
             onArchive = if (trashContext) null else ({
                 viewModel.setMediaArchived(media, !mediaArchived)
                 onBack()
