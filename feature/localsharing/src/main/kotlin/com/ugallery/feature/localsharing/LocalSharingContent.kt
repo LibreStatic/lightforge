@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalClipboardManager
+import android.text.format.Formatter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
@@ -316,8 +317,8 @@ fun LocalSharingContent(
                     Text(
                         stringResource(
                             R.string.peer_progress,
-                            t.bytesDone,
-                            t.manifest?.totalBytes ?: 0,
+                            Formatter.formatShortFileSize(context, t.bytesDone),
+                            Formatter.formatShortFileSize(context, t.manifest?.totalBytes ?: 0),
                         )
                     )
                     t.manifest?.let { Text(pluralStringResource(R.plurals.peer_count, it.entries.size, it.entries.size)) }
@@ -412,8 +413,8 @@ fun LocalSharingContent(
                         Text(
                             stringResource(
                                 R.string.peer_progress,
-                                review.manifest.totalBytes,
-                                review.manifest.totalBytes,
+                                Formatter.formatShortFileSize(context, review.manifest.totalBytes),
+                                Formatter.formatShortFileSize(context, review.manifest.totalBytes),
                             )
                         )
                     }

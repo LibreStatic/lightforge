@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
+import android.text.format.Formatter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
@@ -271,7 +272,11 @@ fun PlacesContent(
                     Text(
                         stringResource(
                             R.string.places_overflow,
-                            page.photos.size,
+                            pluralStringResource(
+                                R.plurals.places_overflow_shown,
+                                page.photos.size,
+                                page.photos.size,
+                            ),
                             page.totalMatching,
                         ),
                         modifier = Modifier.testTag("places-overflow"),
@@ -399,7 +404,13 @@ fun PlacesContent(
                     style = MaterialTheme.typography.titleLarge,
                 )
                 Text(stringResource(R.string.places_world_body))
-                Text(stringResource(R.string.places_capacity, facts.freeBytes, facts.totalRamBytes))
+                Text(
+                    stringResource(
+                        R.string.places_capacity,
+                        Formatter.formatShortFileSize(context, facts.freeBytes),
+                        Formatter.formatShortFileSize(context, facts.totalRamBytes),
+                    )
+                )
                 val waiting =
                     OfflineMapEligibility.waiting(facts, OfflineMapCatalog.World.bytes, true)
                 if (waiting != null) Text(stringResource(statusResource(waiting)))

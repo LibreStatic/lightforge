@@ -29,7 +29,7 @@
     <string name="peer_derivative">Quitar ubicación recodifica copias y puede perder animación o Motion Photo incrustado. Los originales quedan intactos. Un error detiene la preparación. No incluye recetas privadas de edición.</string>
     <string name="peer_prepare">Preparar copias durables</string>
     <string name="peer_history">Historial de transferencias</string>
-    <string name="peer_progress">%1$d / %2$d bytes</string>
+    <string name="peer_progress">%1$s / %2$s</string>
     <plurals name="peer_count"><item quantity="one">%1$d archivo</item><item quantity="many">%1$d archivos</item><item quantity="other">%1$d archivos</item></plurals>
     <string name="peer_review">Revisar transferencia</string>
     <string name="peer_open_local">Abrir galería</string>

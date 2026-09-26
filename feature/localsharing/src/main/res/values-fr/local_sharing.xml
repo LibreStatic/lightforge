@@ -29,7 +29,7 @@
     <string name="peer_derivative">Le retrait de localisation réencode les copies et peut perdre animation ou Motion Photo intégré. Les originaux restent intacts. Un échec arrête la préparation. Sans recettes privées de retouche.</string>
     <string name="peer_prepare">Préparer les copies durables</string>
     <string name="peer_history">Historique des transferts</string>
-    <string name="peer_progress">%1$d / %2$d octets</string>
+    <string name="peer_progress">%1$s / %2$s</string>
     <plurals name="peer_count"><item quantity="one">%1$d fichier</item><item quantity="many">%1$d fichiers</item><item quantity="other">%1$d fichiers</item></plurals>
     <string name="peer_review">Vérifier le transfert</string>
     <string name="peer_open_local">Ouvrir la galerie</string>

@@ -29,7 +29,7 @@
     <string name="peer_derivative">Location removal re-encodes copies and can lose animation or embedded Motion Photo content. Originals stay unchanged. A failed sanitization stops preparation. Private editing recipes are not included.</string>
     <string name="peer_prepare">Prepare durable copies</string>
     <string name="peer_history">Transfer history</string>
-    <string name="peer_progress">%1$d / %2$d bytes</string>
+    <string name="peer_progress">%1$s / %2$s</string>
     <plurals name="peer_count"><item quantity="one">%1$d file</item><item quantity="other">%1$d files</item></plurals>
     <string name="peer_review">Review transfer</string>
     <string name="peer_open_local">Open Gallery</string>

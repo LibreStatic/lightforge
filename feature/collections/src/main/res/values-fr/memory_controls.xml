@@ -3,7 +3,7 @@
     <string name="memory_controls_back">Retour</string>
     <string name="memory_controls_scope">Choisissez les dates et personnes exclues de tous les souvenirs, y compris les histoires enregistrées.</string>
     <string name="memory_controls_originals">Vos photos originales, albums et paramètres d’analyse restent inchangés.</string>
-    <string name="memory_controls_count">%1$d exclusions sur %2$d</string>
+    <string name="memory_controls_count">Exclusions : %1$d / %2$d</string>
     <string name="memory_controls_add_dates">Masquer une période</string>
     <string name="memory_controls_add_person">Masquer une personne</string>
     <string name="memory_controls_empty">Aucune exclusion. Vos photos admissibles peuvent apparaître dans les souvenirs.</string>

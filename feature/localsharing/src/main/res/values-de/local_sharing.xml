@@ -29,7 +29,7 @@
     <string name="peer_derivative">Standortentfernung kodiert Kopien neu; Animationen oder eingebettete Motion Photos können verloren gehen. Originale bleiben unverändert. Fehler stoppen die Vorbereitung. Private Bearbeitungsrezepte sind nicht enthalten.</string>
     <string name="peer_prepare">Dauerhafte Kopien vorbereiten</string>
     <string name="peer_history">Übertragungsverlauf</string>
-    <string name="peer_progress">%1$d / %2$d Bytes</string>
+    <string name="peer_progress">%1$s / %2$s</string>
     <plurals name="peer_count"><item quantity="one">%1$d Datei</item><item quantity="other">%1$d Dateien</item></plurals>
     <string name="peer_review">Übertragung prüfen</string>
     <string name="peer_open_local">Galerie öffnen</string>
