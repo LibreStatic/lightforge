@@ -108,10 +108,14 @@ fun PhotoEditorContent(
     modifier: Modifier = Modifier,
 ) {
     // Tool and uncommitted crop survive rotation; the edit history already lives in the view model.
-    var cropDraft by rememberSaveable(stateSaver = PhotoCropDraftSaver) { mutableStateOf<PhotoCropDraft?>(null) }
+    // Explicit keys: the host composes this under a navigation rail in landscape and a bottom bar
+    // in portrait, so positional keys would not match across the rotation (F-E2E-05).
+    var cropDraft by rememberSaveable(stateSaver = PhotoCropDraftSaver, key = "photo-editor-crop-draft") {
+        mutableStateOf<PhotoCropDraft?>(null)
+    }
     var compareOriginal by remember { mutableStateOf(false) }
     val defaultTool = if (state.isRaw) PhotoEditorTool.Raw else PhotoEditorTool.Automatic
-    var selectedTool by rememberSaveable(state.isRaw) { mutableStateOf(defaultTool) }
+    var selectedTool by rememberSaveable(state.isRaw, key = "photo-editor-tool") { mutableStateOf(defaultTool) }
     fun commitCropDraft() {
         cropDraft?.let { cropEditOperations(it).forEach(onApply) }
         cropDraft = null
