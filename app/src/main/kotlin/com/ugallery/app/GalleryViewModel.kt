@@ -2004,26 +2004,6 @@ class GalleryViewModel @Inject constructor(
         mutablePetAnalysis.value = mlScheduler.controlState(MlTaskType.ImageLabels)
     }
 
-    fun enableDetectedContent() {
-        listOf(MlTaskType.ImageLabels, MlTaskType.Ocr).forEach {
-            mlScheduler.grantConsent(it); mlScheduler.enqueue(it, MlRunMode.Recent)
-        }
-        mutableDetectedContentEnabled.value = true
-    }
-
-    fun pauseDetectedContent() {
-        listOf(MlTaskType.ImageLabels, MlTaskType.Ocr).forEach(mlScheduler::pause)
-        mutableDetectedContentEnabled.value = false
-    }
-
-    fun deleteDetectedContent() {
-        viewModelScope.launch {
-            mlScheduler.deleteDerivedData(MlTaskType.ImageLabels)
-            mlScheduler.deleteDerivedData(MlTaskType.Ocr)
-            mutableDetectedContentEnabled.value = false
-        }
-    }
-
     fun enableFaceDetection() {
         mlScheduler.grantConsent(MlTaskType.FaceDetection)
         mlScheduler.enqueue(MlTaskType.FaceDetection, MlRunMode.Recent)

@@ -421,6 +421,9 @@ internal fun ProductionGalleryApp(
     val detectedContentEnabled by viewModel.detectedContentEnabled.collectAsState()
     val peopleAnalysis by viewModel.peopleAnalysis.collectAsState()
     val petCollectionsEnabled by viewModel.petCollectionsEnabled.collectAsState()
+    // Same derivation as Settings' "Use local analysis" switch, so both surfaces agree.
+    val allLocalAnalysisEnabled = peopleAnalysis.consentGranted && detectedContentEnabled &&
+        petCollectionsEnabled && semanticModels.enabled
     val petAnalysis by viewModel.petAnalysis.collectAsState()
     val localAnalysisOnboarding by viewModel.localAnalysisOnboarding.collectAsState()
     val gallerySettings by viewModel.gallerySettings.collectAsState()
@@ -1381,7 +1384,7 @@ internal fun ProductionGalleryApp(
                             partialIndex = !searchIndexReady,
                             onRetry = { viewModel.search() },
                             error = search.error,
-                            detectedContentEnabled = detectedContentEnabled,
+                            detectedContentEnabled = allLocalAnalysisEnabled,
                             thumbnailLoader = thumbnails,
                             petCollection = when (SearchVocabulary.resolve(search.query.trim())) {
                                 SearchConcept.Dog -> "dog" to petSummary.dogCount
@@ -1424,9 +1427,9 @@ internal fun ProductionGalleryApp(
                                     viewModel.openSearchHit(hit)
                                 }
                             },
-                            onEnableDetectedContent = viewModel::enableDetectedContent,
-                            onPauseDetectedContent = viewModel::pauseDetectedContent,
-                            onDeleteDetectedContent = viewModel::deleteDetectedContent,
+                            onEnableDetectedContent = { viewModel.setAllLocalAnalysisEnabled(true) },
+                            onPauseDetectedContent = { viewModel.setAllLocalAnalysisEnabled(false) },
+                            onDeleteDetectedContent = viewModel::deleteAllLocalAnalysisData,
                         )
                 }
                 SurfaceRoute.Updates -> UpdatesContent(activityEvents)
