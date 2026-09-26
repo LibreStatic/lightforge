@@ -71,5 +71,13 @@ enum class CreationCollagePublicationUi { Checking, None, RetryableMissing, Inco
 internal fun collageAllowsNewRender(status: CreationCollagePublicationUi, sourcesAvailable: Boolean): Boolean =
     status == CreationCollagePublicationUi.None && sourcesAvailable
 
+/**
+ * The outcome surface sits under the editor controls, so a finished "Save a copy" can land entirely
+ * below the fold while every visible control is disabled. Settled publications are scrolled into
+ * view, exactly the states that disable editing while no work is running (same rule as GIF).
+ */
+internal fun collageRevealsOutcome(status: CreationCollagePublicationUi, busy: Boolean): Boolean =
+    !busy && status != CreationCollagePublicationUi.None && status != CreationCollagePublicationUi.Checking
+
 internal fun collageKeepsRecovery(status: CreationCollagePublicationUi): Boolean =
     status != CreationCollagePublicationUi.None && status != CreationCollagePublicationUi.Published

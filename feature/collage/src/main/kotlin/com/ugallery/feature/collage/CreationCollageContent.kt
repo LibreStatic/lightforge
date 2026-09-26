@@ -80,12 +80,20 @@ fun CreationCollageContent(
     val layout = state.layout
     val editingEnabled = supported && !state.busy &&
         collageAllowsNewRender(state.publication, state.sourcesAvailable)
+    val contentScroll = rememberScrollState()
+    // A finished export disables every editor control; without this the outcome stays below the fold
+    // and the screen is indistinguishable from one still working.
+    val revealsOutcome = collageRevealsOutcome(state.publication, state.busy)
+    LaunchedEffect(revealsOutcome) {
+        if (!revealsOutcome) return@LaunchedEffect
+        snapshotFlow { contentScroll.maxValue }.collect { maximum -> contentScroll.animateScrollTo(maximum) }
+    }
     Surface(modifier.fillMaxSize().testTag("creation-collage-screen").semantics { testTagsAsResourceId = true },
         color = MaterialTheme.colorScheme.background, contentColor = MaterialTheme.colorScheme.onBackground) {
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
             GalleryTopAppBar(title = stringResource(R.string.creation_collage_title), onBack = ::back,
                 navigationContentDescription = stringResource(R.string.creation_collage_back))
-            Column(Modifier.weight(1f).widthIn(max = 840.dp).fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp),
+            Column(Modifier.weight(1f).widthIn(max = 840.dp).fillMaxWidth().verticalScroll(contentScroll).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(R.string.creation_collage_originals))
                 Surface(color = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface,
