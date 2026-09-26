@@ -352,6 +352,7 @@ internal fun ProductionGalleryApp(
     permissions: PermissionCoordinator,
 ) {
     val context = LocalContext.current
+    val resources = androidx.compose.ui.platform.LocalResources.current
     val appScope = rememberCoroutineScope()
     val density = LocalDensity.current
     val voiceSearchUnavailable = stringResource(com.ugallery.feature.search.R.string.search_voice_unavailable)
@@ -805,8 +806,8 @@ internal fun ProductionGalleryApp(
                         }
                         val message = collageRejectionMessage(outcome.reason, outcome.selectedCount)
                         snackbarHostState.showSnackbar(
-                            message.formatArg?.let { context.getString(message.stringRes, it) }
-                                ?: context.getString(message.stringRes),
+                            message.formatArg?.let { resources.getString(message.stringRes, it) }
+                                ?: resources.getString(message.stringRes),
                         )
                     }
                 }
