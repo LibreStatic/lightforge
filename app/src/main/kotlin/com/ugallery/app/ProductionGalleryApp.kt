@@ -2391,6 +2391,7 @@ internal fun ProductionGalleryApp(
                         onCreateMemory = { openManualMoment() },
                         canCreateGif = viewModel.canCreateGif(),
                         onCreateGif = ::openCreationGif,
+                        onCreateCollage = ::openCreationCollage,
                         onClear = viewModel::clearSelection,
                     )
                 }
@@ -3458,6 +3459,7 @@ private fun SelectionActions(
     onCreateMemory: () -> Unit,
     canCreateGif: Boolean,
     onCreateGif: () -> Unit,
+    onCreateCollage: () -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -3520,6 +3522,13 @@ private fun SelectionActions(
                         onClick = { menuExpanded = false; onCreateGif() },
                         enabled = canCreateGif,
                         modifier = Modifier.semantics { testTagsAsResourceId = true }.testTag("selection-create-gif"),
+                    )
+                    // Always enabled: preparation explains a count or media-type mismatch in a snackbar.
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.m6_collage)) },
+                        onClick = { menuExpanded = false; onCreateCollage() },
+                        leadingIcon = { Icon(GalleryIcons.Collections, contentDescription = null) },
+                        modifier = Modifier.semantics { testTagsAsResourceId = true }.testTag("selection-create-collage"),
                     )
                     DropdownMenuItem(
                         text = { Text(stringResource(com.ugallery.feature.pdfstudio.R.string.pdf_studio)) },
