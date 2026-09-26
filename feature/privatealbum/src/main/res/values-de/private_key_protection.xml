@@ -18,4 +18,6 @@
     <string name="private_key_protection_credentials_required">Richte in den Systemeinstellungen eine Displaysperre mit PIN, Muster oder Passwort ein. Kehre dann hierher zurück und tippe auf Erneut versuchen, um die Medien- und Indexschlüssel zu schützen.</string>
     <string name="private_key_unlock_body">Entsperre mit Biometrie oder der Displaysperre deines Geräts.</string>
     <string name="private_key_auth_unavailable">Die Geräteauthentifizierung ist nicht verfügbar. Richte in den Systemeinstellungen eine Displaysperre ein, kehre dann zurück und versuche es erneut.</string>
+    <string name="private_key_protection_auto_working">Dein privates Album wird aktualisiert, damit seine Schlüssel deine Displaysperre erfordern. Lass die App geöffnet, bis der Vorgang abgeschlossen ist.</string>
+    <string name="private_key_protection_auto_failed">Die Aktualisierung konnte nicht abgeschlossen werden. Dein privates Album funktioniert weiterhin; beim nächsten Entsperren wird es erneut versucht.</string>
 </resources>

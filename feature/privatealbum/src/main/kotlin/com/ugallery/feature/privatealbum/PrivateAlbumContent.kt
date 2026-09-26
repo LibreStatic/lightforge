@@ -85,32 +85,53 @@ fun PrivateAlbumContent(
     var keyProtectionStatus by remember { mutableStateOf(PrivateKeyProtectionStatus.Legacy) }
     var keyProtectionPhase by remember { mutableStateOf(PrivateKeyProtectionPhase.Confirmation) }
     var protectionJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    var automaticProtection by remember { mutableStateOf(false) }
+    var automaticProtectionAttempted by remember(repository) { mutableStateOf(false) }
 
     LaunchedEffect(isUnlocked) {
         if (!isUnlocked) {
+            // A failed or interrupted automatic upgrade is retried on the next unlock.
+            automaticProtectionAttempted = false
             protectionJob?.cancel()
             if (keyProtectionPhase == PrivateKeyProtectionPhase.Working)
                 keyProtectionPhase = PrivateKeyProtectionPhase.AuthenticationRequired
         }
     }
 
-    fun protectKeys() {
+    suspend fun finishProtection() {
+        repository.keyProtection().advance()
+        keyProtectionStatus = PrivateKeyProtectionStatus.Protected
+        keyProtectionPhase = PrivateKeyProtectionPhase.Complete
+        setupComplete = true
+        retryIndex++
+    }
+
+    fun protectKeys(automatic: Boolean = false) {
         if (protectionJob?.isActive == true) return
+        automaticProtection = automatic
         showKeyProtection = true
         keyProtectionPhase = PrivateKeyProtectionPhase.Working
         protectionJob = scope.launch {
             try {
+                // begin() resumes an existing journal (e.g. after process death) instead of restarting.
                 repository.keyProtection().begin()
+                if (automatic) {
+                    // The user has just authenticated to unlock, which usually covers the new key's
+                    // 30 s validity window; only prompt again when Keystore says it does not.
+                    try {
+                        finishProtection()
+                        return@launch
+                    } catch (cancelled: CancellationException) { throw cancelled }
+                    catch (failure: Exception) {
+                        if (!PrivateAlbumCrypto.requiresAuthentication(failure)) throw failure
+                    }
+                }
                 keyProtectionPhase = PrivateKeyProtectionPhase.AuthenticationRequired
                 onUnlockRequest({
                     keyProtectionPhase = PrivateKeyProtectionPhase.Working
                     protectionJob = scope.launch {
                         try {
-                            repository.keyProtection().advance()
-                            keyProtectionStatus = PrivateKeyProtectionStatus.Protected
-                            keyProtectionPhase = PrivateKeyProtectionPhase.Complete
-                            setupComplete = true
-                            retryIndex++
+                            finishProtection()
                         } catch (cancelled: CancellationException) { throw cancelled }
                         catch (failure: Exception) {
                             keyProtectionPhase = if (PrivateAlbumCrypto.requiresAuthentication(failure))
@@ -120,7 +141,9 @@ fun PrivateAlbumContent(
                 }, { keyProtectionPhase = PrivateKeyProtectionPhase.Failed })
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (failure: Exception) {
-                keyProtectionPhase = if (failure is PrivateDeviceCredentialRequiredException)
+                // Without a screen lock there is nothing to upgrade to; stay quiet until asked.
+                if (automatic && failure is PrivateDeviceCredentialRequiredException) showKeyProtection = false
+                else keyProtectionPhase = if (failure is PrivateDeviceCredentialRequiredException)
                     PrivateKeyProtectionPhase.CredentialsRequired else PrivateKeyProtectionPhase.Failed
             }
         }
@@ -172,6 +195,21 @@ fun PrivateAlbumContent(
             // offer setup/reset, or run portable recovery against an unavailable index.
             indexUnavailable()
             }
+        }
+    }
+
+    LaunchedEffect(isUnlocked, indexState, setupComplete, keyProtectionStatus) {
+        if (PrivateLegacyMigrationPolicy.shouldMigrateOnUnlock(
+                unlocked = isUnlocked && (!repository.isSessionBacked || accessState == PrivateIndexAccessState.Ready),
+                indexReady = indexState == PrivateIndexUiState.Ready,
+                setupComplete = setupComplete,
+                status = keyProtectionStatus,
+                attemptedThisUnlock = automaticProtectionAttempted,
+                protectionInProgress = protectionJob?.isActive == true,
+            )
+        ) {
+            automaticProtectionAttempted = true
+            protectKeys(automatic = true)
         }
     }
 
@@ -246,6 +284,7 @@ fun PrivateAlbumContent(
                     }
                     if (isUnlocked && indexState == PrivateIndexUiState.Ready && setupComplete && keyProtectionStatus != PrivateKeyProtectionStatus.Protected) {
                         IconButton(onClick = {
+                            automaticProtection = false
                             showKeyProtection = true
                             keyProtectionPhase = PrivateKeyProtectionPhase.Confirmation
                         }, modifier = Modifier.testTag("private-key-protection-open")) {
@@ -411,7 +450,8 @@ fun PrivateAlbumContent(
     if ((showSetupWarning || (showKeyProtection && isUnlocked)) && indexState != PrivateIndexUiState.Unavailable && (!repository.isSessionBacked || (isUnlocked && accessState == PrivateIndexAccessState.Ready))) {
         PrivateKeyProtectionContent(
             phase = keyProtectionPhase,
-            onConfirm = ::protectKeys,
+            automatic = automaticProtection,
+            onConfirm = { protectKeys(automaticProtection) },
             onDismiss = {
                 if (keyProtectionPhase == PrivateKeyProtectionPhase.Complete) {
                     showSetupWarning = false

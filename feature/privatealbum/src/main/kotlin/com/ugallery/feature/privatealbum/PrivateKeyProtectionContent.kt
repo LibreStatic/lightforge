@@ -38,15 +38,18 @@ fun PrivateKeyProtectionContent(
     phase: PrivateKeyProtectionPhase,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
+    automatic: Boolean = false,
 ) {
     val working = phase == PrivateKeyProtectionPhase.Working
     val complete = phase == PrivateKeyProtectionPhase.Complete
     val body = when (phase) {
         PrivateKeyProtectionPhase.Confirmation -> R.string.private_key_protection_body
-        PrivateKeyProtectionPhase.Working -> R.string.private_key_protection_working
+        PrivateKeyProtectionPhase.Working ->
+            if (automatic) R.string.private_key_protection_auto_working else R.string.private_key_protection_working
         PrivateKeyProtectionPhase.AuthenticationRequired -> R.string.private_key_protection_authentication_required
         PrivateKeyProtectionPhase.CredentialsRequired -> R.string.private_key_protection_credentials_required
-        PrivateKeyProtectionPhase.Failed -> R.string.private_key_protection_failed
+        PrivateKeyProtectionPhase.Failed ->
+            if (automatic) R.string.private_key_protection_auto_failed else R.string.private_key_protection_failed
         PrivateKeyProtectionPhase.Complete -> R.string.private_key_protection_complete
     }
     val confirm = when (phase) {

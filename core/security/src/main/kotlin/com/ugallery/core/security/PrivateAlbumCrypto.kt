@@ -350,7 +350,8 @@ object PrivateAlbumCrypto {
             ?: error("Private master key is missing")
     }
 
-    /** Creation is reserved for explicit new-vault setup; ordinary operations use the stored alias. */
+    /** Legacy, unauthenticated key creation for pre-migration test fixtures only; production uses [createAuthenticatedMasterKey]. */
+    @androidx.annotation.VisibleForTesting(otherwise = androidx.annotation.VisibleForTesting.NONE)
     fun getOrCreateMasterKey(alias: String = MASTER_KEY_ALIAS): SecretKey {
         require(alias.startsWith("ugallery.privatealbum.") && alias.length in 1..200) { "Invalid private master alias" }
         val keyStore = KeyStore.getInstance(KEYSTORE_NAME)

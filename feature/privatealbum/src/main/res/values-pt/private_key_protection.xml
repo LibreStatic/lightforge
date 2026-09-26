@@ -18,4 +18,6 @@
     <string name="private_key_protection_credentials_required">Configure um bloqueio de tela com PIN, padrão ou senha nas Configurações do sistema. Depois volte aqui e toque em Tentar novamente para proteger as chaves de mídia e do índice.</string>
     <string name="private_key_unlock_body">Desbloqueie com biometria ou com o bloqueio de tela do dispositivo.</string>
     <string name="private_key_auth_unavailable">A autenticação do dispositivo está indisponível. Configure um bloqueio de tela nas Configurações do sistema, depois volte e tente novamente.</string>
+    <string name="private_key_protection_auto_working">Seu álbum privado está sendo atualizado para que as chaves exijam o bloqueio de tela. Mantenha o app aberto até terminar.</string>
+    <string name="private_key_protection_auto_failed">Não foi possível concluir a atualização. Seu álbum privado continua funcionando e ela será tentada novamente no próximo desbloqueio.</string>
 </resources>
