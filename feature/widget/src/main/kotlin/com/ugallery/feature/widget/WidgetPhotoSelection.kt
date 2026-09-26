@@ -7,6 +7,8 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
+import com.ugallery.core.database.GalleryDatabase
+import com.ugallery.core.database.GalleryDatabaseFactory
 
 /** Bounded persistent cache policy shared by production and JVM checks. */
 internal object WidgetSelectionPolicy {
@@ -43,6 +45,12 @@ class WidgetPhotoSelection(private val context: Context) {
         private const val PREFS_NAME = "ugallery_widget"
         private const val KEY_INDEX = "photo_index"
         private const val URIS_CACHE_KEY = "cached_uris"
+        @Volatile private var database: GalleryDatabase? = null
+
+        private fun database(context: Context): GalleryDatabase =
+            database ?: synchronized(this) {
+                database ?: GalleryDatabaseFactory.open(context.applicationContext).also { database = it }
+            }
     }
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -57,12 +65,22 @@ class WidgetPhotoSelection(private val context: Context) {
         return result
     }
 
+    /** The app's own Archive hides items from Photos; the widget follows it, cache or not. */
+    private fun archivedIds(): Set<Long> = try {
+        database(context).libraryDao().archivedMediaStoreIds().toHashSet()
+    } catch (failure: Exception) {
+        Log.w(TAG, "Archive state is unavailable", failure)
+        emptySet()
+    }
+
     private fun selectCurrent(uris: List<Uri>): Uri? {
         val previous = try { prefs.getInt(KEY_INDEX, 0) } catch (_: ClassCastException) { 0 }
         val start = WidgetSelectionPolicy.nextIndex(previous, uris.size) ?: return null
+        val archived = archivedIds()
         for (offset in uris.indices) {
             val index = (start + offset) % uris.size
             val uri = uris[index]
+            if (WidgetSelectionPolicy.mediaId(uri.toString()) in archived) continue
             if (canReadCurrentPhoto(uri)) {
                 prefs.edit().putInt(KEY_INDEX, index).apply()
                 return uri
