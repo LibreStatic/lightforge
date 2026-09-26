@@ -256,7 +256,7 @@ class PrivateViewerFlowDeviceTest {
                 remember(activity) {
                     initialSecure = activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE != 0
                     activityRef.set(activity)
-                    Unit
+                    activity
                 }
                 DisposableEffect(Unit) { onDispose { disposed.set(true) } }
                 val localDensity = LocalDensity.current.density
@@ -441,7 +441,7 @@ class PrivateViewerFlowDeviceTest {
                 val activity = requireNotNull(unwrapActivity(LocalContext.current))
                 remember(activity) {
                     initialSecure = activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE != 0
-                    activityRef.set(activity); Unit
+                    activityRef.set(activity); activity
                 }
                 DisposableEffect(Unit) { onDispose { disposed.set(true) } }
                 val localDensity = LocalDensity.current.density
@@ -630,7 +630,7 @@ class PrivateViewerFlowDeviceTest {
     /** Actual platform dynamic light/dark palettes; retained compact RTL/200% encrypted-photo flow.
      * Only the observed text-role pairs are measured. No wallpaper/global settings or video matrix.
      */
-    @androidx.annotation.RequiresApi(31)
+    @androidx.test.filters.SdkSuppress(minSdkVersion = 31)
     @Test fun photoViewerDynamicPaletteAt200PercentRtlKeepsControlsReachableAndInsetSafe() = runBlocking {
         // This case must exercise actual Android dynamic resources, not the API30 fallback.
         check(android.os.Build.VERSION.SDK_INT >= 31) { "Dynamic palette fixture requires API31+" }
@@ -655,7 +655,7 @@ class PrivateViewerFlowDeviceTest {
                 remember(activity) {
                     initialSecure = activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE != 0
                     activityRef.set(activity)
-                    Unit
+                    activity
                 }
                 DisposableEffect(Unit) { onDispose { disposed.set(true) } }
                 val localDensity = LocalDensity.current.density

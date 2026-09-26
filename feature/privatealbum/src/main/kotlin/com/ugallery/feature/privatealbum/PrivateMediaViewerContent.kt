@@ -284,6 +284,7 @@ private fun PrivateViewerVideo(source: PrivateViewerSource, onFailure: () -> Uni
         }
     }
     val seekLabel = stringResource(R.string.private_viewer_seek)
+    val sourceValid by source.valid.collectAsState()
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
             AndroidView(factory = { SurfaceView(it).apply { setSecure(true); player.setVideoSurfaceView(this) } },
@@ -291,7 +292,7 @@ private fun PrivateViewerVideo(source: PrivateViewerSource, onFailure: () -> Uni
         }
         Text(stringResource(R.string.private_viewer_time, viewerTime(position), viewerTime(duration)), Modifier.testTag("private-viewer-position"))
         Slider(value = position.coerceAtMost(duration).toFloat(), valueRange = 0f..duration.coerceAtLeast(1).toFloat(),
-            enabled = duration > 0 && source.valid.value,
+            enabled = duration > 0 && sourceValid,
             onValueChange = { if (source.valid.value) { player.pause(); position = it.toLong(); player.seekTo(position) } },
             modifier = Modifier.testTag("private-viewer-seek").semantics { contentDescription = seekLabel })
         Button(onClick = {
