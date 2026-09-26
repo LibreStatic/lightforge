@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -206,6 +207,7 @@ fun PhotoEditorContent(
         ) {
             // Landscape phones are too short for preview, tabs and tool rows stacked vertically.
             val useSidePanel = maxWidth >= 600.dp && maxWidth >= maxHeight * 1.2f
+            val panelMaxHeight = maxHeight * 0.5f
             if (useSidePanel) {
                 Row(Modifier.fillMaxSize()) {
                     PreviewStage(state, cropDraft, compareOriginal, { compareOriginal = it }, { cropDraft = it }, selectedTool, experimental, Modifier.weight(1f).fillMaxSize())
@@ -230,7 +232,14 @@ fun PhotoEditorContent(
                         onApplyAutoSuggestion,
                         onRawOutputFormatChange,
                         experimental,
-                        Modifier.weight(0.42f).fillMaxWidth(),
+                        // Eraser and cut-out panels hold prose (fallback notice + hint) that a 0.42 weight
+                        // squeezed into a sliver; let them wrap up to a cap so the text reads in full (Z-05).
+                        if (selectedTool.isExperimentalTool()) {
+                            Modifier.fillMaxWidth().heightIn(max = panelMaxHeight)
+                        } else {
+                            Modifier.weight(0.42f).fillMaxWidth()
+                        },
+                        wrapPanel = selectedTool.isExperimentalTool(),
                     )
                 }
             }
@@ -344,6 +353,7 @@ private fun PhotoTools(
     onRawOutputFormatChange: (RawOutputFormat) -> Unit,
     experimental: ExperimentalToolActions,
     modifier: Modifier,
+    wrapPanel: Boolean = false,
 ) {
     Column(
         modifier.padding(GallerySpacing.Md),
@@ -373,7 +383,7 @@ private fun PhotoTools(
             }
         }
         Column(
-            Modifier.weight(1f).verticalScroll(rememberScrollState()),
+            Modifier.weight(1f, fill = !wrapPanel).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(GallerySpacing.Md),
         ) {
             when (selectedTool) {
@@ -875,3 +885,6 @@ private fun RawExportControls(selected: RawOutputFormat, onSelected: (RawOutputF
         label = { Text(stringResource(R.string.photo_editor_output_jpeg)) },
     )
 }
+
+private fun PhotoEditorTool.isExperimentalTool(): Boolean =
+    this == PhotoEditorTool.ObjectEraser || this == PhotoEditorTool.SubjectClip
