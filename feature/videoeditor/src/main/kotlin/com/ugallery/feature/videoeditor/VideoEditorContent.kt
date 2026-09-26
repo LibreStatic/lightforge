@@ -1809,8 +1809,9 @@ private fun normalizeVideoRotation(value: Float): Float {
     return result
 }
 
+/** Slow-motion marker positions, rounded to the nearest second like the duration badge. */
 private fun formatMillis(value: Long): String {
-    val seconds = (value / 1_000).coerceAtLeast(0)
+    val seconds = ((value + 500) / 1_000).coerceAtLeast(0)
     return "%d:%02d".format(seconds / 60, seconds % 60)
 }
 

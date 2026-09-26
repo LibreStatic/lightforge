@@ -56,10 +56,13 @@ fun VideoDurationBadge(
     }
 }
 
-/** Formats a MediaStore duration for compact display without rounding up. */
+/**
+ * Formats a MediaStore duration for compact display, rounded to the nearest second. Any non-zero
+ * clip reads at least "0:01" so a sub-second video never looks empty.
+ */
 fun formatVideoDuration(durationMillis: Long): String {
     if (durationMillis <= 0L) return "--:--"
-    val totalSeconds = durationMillis / 1_000L
+    val totalSeconds = ((durationMillis + 500L) / 1_000L).coerceAtLeast(1L)
     val seconds = totalSeconds % 60L
     val totalMinutes = totalSeconds / 60L
     return if (totalMinutes < 60L) {
