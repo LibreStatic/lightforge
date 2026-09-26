@@ -68,7 +68,7 @@ fun MediaCollectionGrid(
             contentPadding = PaddingValues(bottom = 96.dp),
             modifier = Modifier.fillMaxSize().lazyGridDragSelection(
                 state = state,
-                itemAtIndex = items::peek,
+                itemAtIndex = { index -> items.itemSnapshotList.getOrNull(index) },
                 itemKey = { it.key },
                 isSelected = isSelected,
                 onSelectionChange = { media, selected ->
@@ -78,7 +78,7 @@ fun MediaCollectionGrid(
             ),
         ) {
             items(items.itemCount, key = { index ->
-                items.peek(index)?.key?.let { "${it.volumeName}:${it.mediaStoreId}" } ?: "pending:$index"
+                items.itemSnapshotList.getOrNull(index)?.key?.let { "${it.volumeName}:${it.mediaStoreId}" } ?: "pending:$index"
             }) { index ->
                 items[index]?.let { media ->
                     val request = media.request(sizePx)
@@ -120,7 +120,7 @@ fun MediaCollectionGrid(
             columns = columns,
             itemCount = items.itemCount,
             contentKey = items.itemSnapshotList,
-            itemAtIndex = { index -> items.peek(index)?.let { media ->
+            itemAtIndex = { index -> items.itemSnapshotList.getOrNull(index)?.let { media ->
                 ThumbnailPrefetchCandidate(media.request(sizePx), media.width, media.height, 0)
             } },
         )

@@ -228,14 +228,14 @@ fun AlbumContent(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = if (picking || coverWorking) Modifier else Modifier.lazyGridDragSelection(
                         state = gridState,
-                        itemAtIndex = items::peek,
+                        itemAtIndex = { index -> items.itemSnapshotList.getOrNull(index) },
                         itemKey = { it.key },
                         isSelected = { SelectionReducer.isSelected(selection, it.key) },
                         onSelectionChange = onMediaSelectionChange,
                     ),
                 ) {
                     items(items.itemCount, key = { index ->
-                        items.peek(index)?.key?.let { "${it.volumeName}:${it.mediaStoreId}" } ?: "pending:$index"
+                        items.itemSnapshotList.getOrNull(index)?.key?.let { "${it.volumeName}:${it.mediaStoreId}" } ?: "pending:$index"
                     }) { index ->
                         items[index]?.let { media ->
                             AlbumCell(
@@ -267,7 +267,7 @@ fun AlbumContent(
                     itemCount = items.itemCount,
                     contentKey = items.itemSnapshotList,
                     itemAtIndex = { index ->
-                        val media = items.peek(index) ?: return@RetainGridThumbnailViewport null
+                        val media = items.itemSnapshotList.getOrNull(index) ?: return@RetainGridThumbnailViewport null
                         ThumbnailPrefetchCandidate(
                             request = media.thumbnailRequest(thumbnailSizePx),
                             sourceWidth = media.width,

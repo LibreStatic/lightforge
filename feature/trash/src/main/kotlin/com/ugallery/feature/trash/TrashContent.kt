@@ -94,7 +94,7 @@ fun TrashContent(
                 contentPadding = PaddingValues(bottom = 96.dp),
                 modifier = Modifier.fillMaxSize().testTag("trash_grid").lazyGridDragSelection(
                     state = gridState,
-                    itemAtIndex = { index -> if (index <= 0) null else items.peek(index - 1) },
+                    itemAtIndex = { index -> if (index <= 0) null else items.itemSnapshotList.getOrNull(index - 1) },
                     itemKey = { it.key },
                     isSelected = isSelected,
                     onSelectionChange = { media, selected ->
@@ -108,7 +108,7 @@ fun TrashContent(
                 }
                 items(
                     count = items.itemCount,
-                    key = { index -> items.peek(index)?.key?.let { "${it.volumeName}:${it.mediaStoreId}" } ?: "pending:$index" },
+                    key = { index -> items.itemSnapshotList.getOrNull(index)?.key?.let { "${it.volumeName}:${it.mediaStoreId}" } ?: "pending:$index" },
                     contentType = { "trash-media" },
                 ) { index ->
                     val media = items[index]
@@ -142,7 +142,7 @@ fun TrashContent(
                 contentKey = items.itemSnapshotList,
                 itemAtIndex = { index ->
                     if (index <= 0) return@RetainGridThumbnailViewport null
-                    val media = items.peek(index - 1) ?: return@RetainGridThumbnailViewport null
+                    val media = items.itemSnapshotList.getOrNull(index - 1) ?: return@RetainGridThumbnailViewport null
                     ThumbnailPrefetchCandidate(media.thumbnailRequest(thumbnailSizePx), media.width, media.height, 0)
                 },
             )

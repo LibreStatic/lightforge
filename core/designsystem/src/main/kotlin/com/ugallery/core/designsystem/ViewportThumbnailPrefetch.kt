@@ -77,7 +77,7 @@ fun RetainGridThumbnailViewport(
                 }
                 val center = (visibleIndices.first() + visibleIndices.last()) / 2
                 val visible = visibleIndices.mapNotNull { index ->
-                    currentItemAtIndex(index)?.copy(
+                    candidateAtOrNull(index, currentItemAtIndex)?.copy(
                         distanceFromViewportCenter = abs(index - center),
                     )
                 }
@@ -88,7 +88,7 @@ fun RetainGridThumbnailViewport(
                     (visibleIndices.first() - 1 downTo 0)
                 }
                 for (index in range) {
-                    currentItemAtIndex(index)?.let { candidate ->
+                    candidateAtOrNull(index, currentItemAtIndex)?.let { candidate ->
                         extra += candidate.copy(distanceFromViewportCenter = abs(index - center))
                     }
                     if (extra.size >= columns) break
@@ -123,3 +123,17 @@ private data class GridViewportSnapshot(
 
 internal fun boundedViewportIndices(indices: List<Int>, itemCount: Int): List<Int> =
     indices.filter { it >= 0 && it < itemCount }.distinct().sorted()
+
+/**
+ * The accessor reads live Paging data while [itemCount] is the composition's snapshot, so a
+ * refresh that empties the list (restoring the last Trash item) can shrink it in between.
+ * A vanished index is simply not prefetched.
+ */
+internal fun candidateAtOrNull(
+    index: Int,
+    itemAtIndex: (Int) -> ThumbnailPrefetchCandidate?,
+): ThumbnailPrefetchCandidate? = try {
+    itemAtIndex(index)
+} catch (_: IndexOutOfBoundsException) {
+    null
+}
