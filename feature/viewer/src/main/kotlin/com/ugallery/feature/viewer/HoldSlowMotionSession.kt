@@ -48,7 +48,8 @@ sealed interface HoldSlowMotionState {
 }
 
 /**
- * Maintains a persistent low-resolution RIFE buffer ahead of playback.
+ * Maintains a persistent low-resolution RIFE buffer ahead of playback once the user first holds;
+ * until then [prepare] is a no-op, so merely viewing a video never runs interpolation.
  * Export still reads the original media at full quality.
  */
 class HoldSlowMotionSession(
@@ -68,24 +69,26 @@ class HoldSlowMotionSession(
     private var bufferFailure: String? = null
     private var prefetchBackend = FrameInterpolationBackend.Cpu
     private var prefetchJob: Job? = null
+    private var armed = false
+    private var preparingWindowStart = Long.MIN_VALUE
     private var playbackJob: Job? = null
     private var holdStartMillis = 0L
     private var sourcePositionMillis = 0L
 
     fun prepare(positionMillis: Long) {
+        if (!armed) return
         val requestedWindow = positionMillis.coerceAtLeast(0L).windowStart()
-        synchronized(bufferLock) {
-            if (requestedWindow == bufferedWindowStart &&
-                (bufferComplete || prefetchJob?.isActive == true)
-            ) return
-        }
+        if (requestedWindow == preparingWindowStart && (prefetchJob?.isActive == true ||
+                synchronized(bufferLock) { bufferedWindowStart == requestedWindow && bufferComplete })
+        ) return
+        preparingWindowStart = requestedWindow
         val previousPrefetch = prefetchJob
         previousPrefetch?.cancel()
-        loadWindow(requestedWindow)
-        if (synchronized(bufferLock) { bufferComplete }) return
         prefetchJob = scope.launch(Dispatchers.Default) {
             try {
                 previousPrefetch?.join()
+                withContext(Dispatchers.IO) { loadWindow(requestedWindow) }
+                if (synchronized(bufferLock) { bufferComplete }) return@launch
                 renderWindow(requestedWindow)
             } catch (_: CancellationException) {
                 throw CancellationException()
@@ -104,6 +107,7 @@ class HoldSlowMotionSession(
         holdStartMillis = positionMillis.coerceAtLeast(0L)
         sourcePositionMillis = holdStartMillis
         mutableState.replaceFrame(HoldSlowMotionState.Buffering)
+        armed = true
         prepare(positionMillis)
         playbackJob = scope.launch {
             try {
