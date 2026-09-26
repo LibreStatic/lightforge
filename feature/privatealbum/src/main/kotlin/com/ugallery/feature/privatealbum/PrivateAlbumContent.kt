@@ -238,6 +238,12 @@ fun PrivateAlbumContent(
                 onBack = onBack,
                 navigationContentDescription = stringResource(R.string.private_back),
                 actions = {
+                    // The empty state carries its own add button; a populated album needs one here.
+                    if (isUnlocked && indexState == PrivateIndexUiState.Ready && mediaList.isNotEmpty()) {
+                        IconButton(onClick = onAddRequest, modifier = Modifier.testTag("private-add")) {
+                            Icon(GalleryIcons.Plus, contentDescription = stringResource(R.string.private_choose_media))
+                        }
+                    }
                     if (isUnlocked && indexState == PrivateIndexUiState.Ready && setupComplete && keyProtectionStatus != PrivateKeyProtectionStatus.Protected) {
                         IconButton(onClick = {
                             showKeyProtection = true

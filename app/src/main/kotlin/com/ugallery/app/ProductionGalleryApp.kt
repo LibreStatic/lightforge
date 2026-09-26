@@ -817,12 +817,25 @@ internal fun ProductionGalleryApp(
     val privateImportSelection = remember { mutableStateMapOf<MediaKey, TimelineMedia>() }
     var privateImportProgress by remember { mutableStateOf<PrivateImportProgress?>(null) }
     var privateImportOutcome by remember { mutableStateOf<PrivateImportOutcome?>(null) }
+    // Viewer "Move to private album": the picker needs an unlocked session, so the item waits here.
+    var privatePendingImport by remember { mutableStateOf<TimelineMedia?>(null) }
 
     LaunchedEffect(privateAlbumUnlocked) {
         if (!privateAlbumUnlocked) {
             privateImportSelection.clear()
             privateImportOutcome = null
             if (route == SurfaceRoute.PrivateAlbumPicker) route = SurfaceRoute.PrivateAlbum
+        }
+    }
+    LaunchedEffect(privateAlbumUnlocked, route, privatePendingImport) {
+        val pending = privatePendingImport ?: return@LaunchedEffect
+        if (route != SurfaceRoute.PrivateAlbum) {
+            privatePendingImport = null
+        } else if (privateAlbumUnlocked && privateSession.accessToken() != null) {
+            privatePendingImport = null
+            privateImportSelection.clear()
+            privateImportSelection[pending.key] = pending
+            route = SurfaceRoute.PrivateAlbumPicker
         }
     }
 
@@ -1543,6 +1556,10 @@ internal fun ProductionGalleryApp(
                         sessionVideoMuted = sessionVideoMuted,
                         onSessionVideoMutedChange = { sessionVideoMuted = it },
                         trashContext = viewerReturnDestination == ViewerReturnDestination.Trash,
+                        onMoveToPrivate = {
+                            privatePendingImport = media
+                            route = SurfaceRoute.PrivateAlbum
+                        },
                     )
                 } ?: PublicMediaRecoveryContent(
                     title = stringResource(R.string.external_unavailable),
@@ -3808,6 +3825,7 @@ private fun ViewerRoute(
     sessionVideoMuted: Boolean? = null,
     onSessionVideoMutedChange: (Boolean?) -> Unit = {},
     trashContext: Boolean = false,
+    onMoveToPrivate: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val viewerSnapshot by viewModel.viewerRestoreSnapshot.collectAsState()
@@ -4004,6 +4022,7 @@ private fun ViewerRoute(
                 onBack()
             }),
             archiveActionLabel = if (trashContext) null else archiveLabel,
+            onMoveToPrivate = onMoveToPrivate.takeUnless { trashContext },
             onSelectMedia = { selected ->
                 mediaItems.firstOrNull { it.viewerId == selected.viewerId }?.let(viewModel::selectViewerMedia)
             },

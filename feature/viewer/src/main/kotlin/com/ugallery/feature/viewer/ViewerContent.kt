@@ -165,6 +165,7 @@ fun ViewerContent(
     onSelectMedia: (ViewerMedia) -> Unit,
     onArchive: (() -> Unit)? = null,
     archiveActionLabel: String? = null,
+    onMoveToPrivate: (() -> Unit)? = null,
     trashActionLabel: String? = null,
     onDelete: (() -> Unit)? = null,
     deleteActionLabel: String? = null,
@@ -630,6 +631,11 @@ fun ViewerContent(
                         onSetAs?.let { action -> DropdownMenuItem(text = { Text(stringResource(R.string.viewer_set_as)) }, onClick = { menuExpanded = false; action() }) }
                         onOpenWith?.let { action -> DropdownMenuItem(text = { Text(stringResource(R.string.viewer_open_with)) }, onClick = { menuExpanded = false; action() }) }
                         onRepairDate?.let { action -> DropdownMenuItem(text = { Text(stringResource(R.string.viewer_repair_date)) }, onClick = { menuExpanded = false; action() }) }
+                        onMoveToPrivate?.let { action -> DropdownMenuItem(
+                            text = { Text(stringResource(R.string.viewer_move_to_private)) },
+                            onClick = { menuExpanded = false; action() },
+                            leadingIcon = { Icon(GalleryIcons.Lock, contentDescription = null) },
+                        ) }
                         if (onArchive != null && archiveActionLabel != null) {
                             DropdownMenuItem(
                                 text = { Text(archiveActionLabel) },
