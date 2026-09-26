@@ -119,6 +119,7 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -189,6 +190,14 @@ fun ViewerContent(
         ?: remember { mutableStateOf<HoldSlowMotionState>(HoldSlowMotionState.Idle) }
     var zoomTapGeneration by remember(media.viewerId) { mutableIntStateOf(0) }
     var chromeInteractionGeneration by remember(media.viewerId) { mutableIntStateOf(0) }
+    // Auto-hide fades the video chrome out while it stays in place and hit-testable, so a tap
+    // that lands during the fade still reaches its action (F-E2E-08).
+    var chromeAutoHiding by remember(media.viewerId) { mutableStateOf(false) }
+    val chromeAutoHideAlpha by animateFloatAsState(
+        targetValue = if (chromeAutoHiding) 0f else 1f,
+        animationSpec = tween(if (chromeAutoHiding) VIDEO_CHROME_AUTO_HIDE_FADE_MILLIS else CHROME_FADE_MILLIS),
+        label = "videoChromeAutoHide",
+    )
     var zoomTapPosition by remember(media.viewerId) { mutableStateOf(Offset.Zero) }
     var gestureFeedback by remember(media.viewerId) { mutableStateOf<String?>(null) }
     val context = LocalContext.current
@@ -342,13 +351,17 @@ fun ViewerContent(
         menuExpanded,
         chromeInteractionGeneration,
     ) {
+        if (chromeVisible) chromeAutoHiding = false
         if (media.kind != MediaKind.Video) return@LaunchedEffect
         if (!videoIsPlaying) {
+            chromeAutoHiding = false
             chromeVisible = true
             return@LaunchedEffect
         }
         if (chromeVisible && !menuExpanded) {
             delay(VIDEO_CHROME_TIMEOUT_MILLIS)
+            chromeAutoHiding = true
+            delay(VIDEO_CHROME_AUTO_HIDE_FADE_MILLIS.toLong())
             chromeVisible = false
         }
     }
@@ -448,7 +461,8 @@ fun ViewerContent(
                             }
                         },
                         onTap = {
-                            chromeVisible = !chromeVisible
+                            // A tap during the auto-hide fade keeps the chrome instead of hiding it.
+                            if (chromeAutoHiding && chromeVisible) chromeInteractionGeneration++ else chromeVisible = !chromeVisible
                             onContentTap()
                         },
                         onDoubleTap = { position ->
@@ -515,7 +529,7 @@ fun ViewerContent(
             }
         }
         if (media.kind == MediaKind.Video) {
-            ViewerChromeScrim(visible = chromeVisible)
+            ViewerChromeScrim(visible = chromeVisible, modifier = Modifier.graphicsLayer { alpha = chromeAutoHideAlpha })
         }
         if (media.kind == MediaKind.Video && videoController != null) {
             VideoPlaybackControl(
@@ -523,7 +537,7 @@ fun ViewerContent(
                 state = videoState,
                 visible = chromeVisible,
                 onInteraction = { chromeInteractionGeneration++ },
-                modifier = Modifier.align(Alignment.Center),
+                modifier = Modifier.align(Alignment.Center).graphicsLayer { alpha = chromeAutoHideAlpha },
                 onMuteToggle = onMuteToggle,
             )
         }
@@ -588,7 +602,7 @@ fun ViewerContent(
         GalleryAnimatedVisibility(
             visible = chromeVisible,
             edge = GalleryMotionEdge.Top,
-            modifier = Modifier.align(Alignment.TopCenter),
+            modifier = Modifier.align(Alignment.TopCenter).graphicsLayer { alpha = chromeAutoHideAlpha },
         ) {
             Row(
                 Modifier.fillMaxWidth()
@@ -665,7 +679,7 @@ fun ViewerContent(
         GalleryAnimatedVisibility(
             visible = chromeVisible,
             edge = GalleryMotionEdge.Bottom,
-            modifier = Modifier.align(Alignment.BottomCenter),
+            modifier = Modifier.align(Alignment.BottomCenter).graphicsLayer { alpha = chromeAutoHideAlpha },
         ) {
             Column(
                 Modifier.fillMaxWidth()
@@ -1429,12 +1443,12 @@ private fun VideoPlaybackControl(
 }
 
 @Composable
-private fun ViewerChromeScrim(visible: Boolean) {
+private fun ViewerChromeScrim(visible: Boolean, modifier: Modifier = Modifier) {
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn(tween(CHROME_FADE_MILLIS)),
         exit = fadeOut(tween(CHROME_FADE_MILLIS)),
-        modifier = Modifier.fillMaxSize().testTag(VIEWER_CHROME_SCRIM_TEST_TAG),
+        modifier = modifier.fillMaxSize().testTag(VIEWER_CHROME_SCRIM_TEST_TAG),
     ) {
         Box(Modifier.fillMaxSize().background(GalleryOverlayTokens.ScrimBase)) {
             Box(
@@ -1486,6 +1500,8 @@ private fun formatVideoTime(positionMillis: Long): String {
 private const val VIDEO_CHROME_TIMEOUT_MILLIS = 3_000L
 private const val VIDEO_POSITION_UPDATE_MILLIS = 200L
 private const val CHROME_FADE_MILLIS = 150
+/** Auto-hide fade; the chrome keeps its position and stays tappable until it ends. */
+private const val VIDEO_CHROME_AUTO_HIDE_FADE_MILLIS = 700
 internal const val VIEWER_CHROME_SCRIM_TEST_TAG = "viewer_chrome_scrim"
 internal const val VIDEO_LEGACY_SEEK_BAR_TEST_TAG = "video_legacy_seek_bar"
 internal const val VIDEO_FRAME_SCRUBBER_TEST_TAG = "video_frame_scrubber"
