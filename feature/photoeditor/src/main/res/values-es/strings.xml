@@ -39,4 +39,6 @@
     <string name="photo_editor_chromatic_aberration">Corrección de aberración cromática</string>
     <string name="photo_editor_lens_correction">Corrección de lente</string>
     <string name="photo_editor_tiff_geometry_unsupported">El recorte, la rotación, el volteo y el enderezado requieren salida JPEG para fotos RAW.</string>
+    <string name="photo_editor_warning_png">Copia guardada como PNG para conservar la resolución completa</string>
+    <string name="photo_editor_warning_hdr_metadata">Los metadatos HDR y del contenedor no se conservaron en la copia</string>
 </resources>

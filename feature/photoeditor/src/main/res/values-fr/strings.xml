@@ -37,4 +37,6 @@
     <string name="photo_editor_chromatic_aberration">Correction de l’aberration chromatique</string>
     <string name="photo_editor_lens_correction">Correction de l’objectif</string>
     <string name="photo_editor_tiff_geometry_unsupported">Le recadrage, la rotation, le retournement et le redressement nécessitent une sortie JPEG pour les photos RAW.</string>
+    <string name="photo_editor_warning_png">Copie enregistrée en PNG pour conserver la pleine résolution</string>
+    <string name="photo_editor_warning_hdr_metadata">Les métadonnées HDR et du conteneur n’ont pas été conservées dans la copie</string>
 </resources>

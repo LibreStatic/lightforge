@@ -130,7 +130,7 @@ class PhotoImageRendererDeviceTest {
             assertEquals(10_000, completed.height)
             assertEquals("image/png", completed.mimeType)
             assertTrue(!completed.wasDownscaled)
-            assertTrue(completed.warnings.single().contains("tiled", ignoreCase = true))
+            assertTrue(completed.warnings.single() == PhotoExportWarning.FullResolutionPng)
 
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeFile(output.absolutePath, bounds)

@@ -37,4 +37,6 @@
     <string name="photo_editor_chromatic_aberration">Correzione aberrazione cromatica</string>
     <string name="photo_editor_lens_correction">Correzione obiettivo</string>
     <string name="photo_editor_tiff_geometry_unsupported">Ritaglio, rotazione, riflessione e raddrizzamento richiedono l’output JPEG per le foto RAW.</string>
+    <string name="photo_editor_warning_png">Copia salvata come PNG per mantenere la piena risoluzione</string>
+    <string name="photo_editor_warning_hdr_metadata">I metadati HDR e del contenitore non sono stati mantenuti nella copia</string>
 </resources>

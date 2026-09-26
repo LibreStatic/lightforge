@@ -28,13 +28,21 @@ import kotlin.math.roundToInt
 
 data class ImageBounds(val width: Int, val height: Int, val mimeType: String?)
 
+/** A lossy fallback the export applied; the UI maps each one to a localized notice. */
+enum class PhotoExportWarning {
+    /** The source exceeded the bitmap budget, so the tiled path wrote a PNG. */
+    FullResolutionPng,
+    /** HEIC/AVIF HDR gain maps and container metadata were not carried into the re-encode. */
+    HdrMetadataNotCopied,
+}
+
 sealed interface PhotoExportOutcome {
     data class Completed(
         val file: File,
         val width: Int,
         val height: Int,
         val wasDownscaled: Boolean,
-        val warnings: List<String> = emptyList(),
+        val warnings: List<PhotoExportWarning> = emptyList(),
         val mimeType: String? = null,
     ) : PhotoExportOutcome
 
@@ -117,15 +125,14 @@ class PhotoImageRenderer(
                     width = tiled.width,
                     height = tiled.height,
                     wasDownscaled = false,
-                    warnings = listOf(
-                        "Full-resolution tiled export used PNG to stay within the device bitmap budget",
-                    ) + if (sourceBounds.mimeType?.contains("heic", true) == true ||
-                        sourceBounds.mimeType?.contains("avif", true) == true
-                    ) {
-                        listOf("HDR/container metadata was not copied into the 8-bit PNG output")
-                    } else {
-                        emptyList()
-                    },
+                    warnings = listOf(PhotoExportWarning.FullResolutionPng) +
+                        if (sourceBounds.mimeType?.contains("heic", true) == true ||
+                            sourceBounds.mimeType?.contains("avif", true) == true
+                        ) {
+                            listOf(PhotoExportWarning.HdrMetadataNotCopied)
+                        } else {
+                            emptyList()
+                        },
                     mimeType = "image/png",
                 )
             }
@@ -168,7 +175,7 @@ class PhotoImageRenderer(
                 warnings = buildList {
                     if (sourceBounds.mimeType?.contains("heic", true) == true ||
                         sourceBounds.mimeType?.contains("avif", true) == true
-                    ) add("Output was encoded as JPEG; HDR/container metadata was not copied")
+                    ) add(PhotoExportWarning.HdrMetadataNotCopied)
                 },
                 mimeType = compressMime(sourceBounds.mimeType),
             )

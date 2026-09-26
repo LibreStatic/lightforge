@@ -66,6 +66,8 @@ data class VideoExportJob(
     val pendingUri: String? = null,
     val error: String? = null,
     val usedSoftwareCodec: Boolean = false,
+    /** Media3 changed the requested encoder format or resolution to one the device supports. */
+    val usedEncoderFallback: Boolean = false,
     val codecName: String? = null,
     val createdAtMillis: Long,
     val updatedAtMillis: Long,
@@ -163,6 +165,7 @@ class VideoExportStore private constructor(private val context: Context) {
             pendingUri = json.optString("pendingUri").takeIf(String::isNotBlank),
             error = json.optString("error").takeIf(String::isNotBlank),
             usedSoftwareCodec = json.optBoolean("usedSoftwareCodec"),
+            usedEncoderFallback = json.optBoolean("usedEncoderFallback"),
             codecName = json.optString("codecName").takeIf(String::isNotBlank),
             createdAtMillis = json.getLong("createdAtMillis"),
             updatedAtMillis = json.getLong("updatedAtMillis"),
@@ -174,7 +177,8 @@ class VideoExportStore private constructor(private val context: Context) {
         put("encodedRecipe", encodedRecipe); put("displayName", displayName)
         put("status", status.name); put("phase", phase.name); put("progressPermille", progressPermille)
         put("outputUri", outputUri ?: ""); put("pendingUri", pendingUri ?: ""); put("error", error ?: "")
-        put("usedSoftwareCodec", usedSoftwareCodec); put("codecName", codecName ?: "")
+        put("usedSoftwareCodec", usedSoftwareCodec); put("usedEncoderFallback", usedEncoderFallback)
+        put("codecName", codecName ?: "")
         put("createdAtMillis", createdAtMillis); put("updatedAtMillis", updatedAtMillis)
     }
 
@@ -301,6 +305,7 @@ class VideoExportWorker(context: Context, parameters: WorkerParameters) : Corout
                     outputUri = published.uri.toString(),
                     pendingUri = null,
                     usedSoftwareCodec = exportResult.usedSoftwareCodec,
+                    usedEncoderFallback = exportResult.fallbackWarning != null,
                     codecName = exportResult.videoEncoderName ?: exportResult.videoDecoderName,
                     error = null,
                 )
@@ -404,7 +409,11 @@ class VideoExportWorker(context: Context, parameters: WorkerParameters) : Corout
             .setDataAndType(uri, "video/mp4")
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         val pending = PendingIntent.getActivity(applicationContext, notificationId(job.id), view, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        val text = if (job.usedSoftwareCodec) R.string.video_export_complete_software else R.string.video_export_complete
+        val text = when {
+            job.usedSoftwareCodec -> R.string.video_export_complete_software
+            job.usedEncoderFallback -> R.string.video_export_complete_fallback
+            else -> R.string.video_export_complete
+        }
         return base(job).setContentText(applicationContext.getString(text)).setContentIntent(pending).setAutoCancel(true)
             .addAction(0, applicationContext.getString(R.string.video_export_view), pending).build()
     }

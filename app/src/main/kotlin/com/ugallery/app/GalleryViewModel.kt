@@ -98,6 +98,7 @@ import com.ugallery.core.preferences.FavoriteBackupRecord
 import com.ugallery.core.preferences.GalleryBackupCodec
 import com.ugallery.core.editing.image.PhotoExportOutcome
 import com.ugallery.core.editing.image.PhotoAutoEnhancementAnalyzer
+import com.ugallery.core.editing.image.PhotoExportWarning
 import com.ugallery.core.editing.image.PhotoImageRenderer
 import com.ugallery.core.editing.video.Media3VideoExporter
 import com.ugallery.core.editing.video.VideoEditRecipe
@@ -671,6 +672,9 @@ class GalleryViewModel @Inject constructor(
     val videoEditorOpening = mutableVideoEditorOpening.asStateFlow()
     private val mutableEditorCopyOpened = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val editorCopyOpened = mutableEditorCopyOpened.asSharedFlow()
+    private val mutableEditorCopyNotice = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    /** Localized notices about lossy fallbacks in a copy that was just saved and opened. */
+    val editorCopyNotice = mutableEditorCopyNotice.asSharedFlow()
     private val mutableQuickSlowMotionSave = MutableStateFlow(QuickSlowMotionSaveState())
     val quickSlowMotionSave = mutableQuickSlowMotionSave.asStateFlow()
     private val mutableSanitizedShare = MutableSharedFlow<Intent>(extraBufferCapacity = 1)
@@ -3385,13 +3389,13 @@ class GalleryViewModel @Inject constructor(
                         java.io.File(getApplication<Application>().cacheDir, "raw-scratch"),
                     ).export(session.source.uri, session.content.rawSettings, session.content.rawOutputFormat, temp)) {
                         is RawExportOutcome.Completed -> if (geometryRecipe.isIdentity) {
-                            publishPhotoResult(result.file, result.mimeType, extension, result.warnings)
+                            publishPhotoResult(result.file, result.mimeType, extension, emptyList())
                         } else when (val transformed = PhotoImageRenderer(getApplication<Application>().contentResolver).export(
                             Uri.fromFile(result.file), geometryRecipe, transformedRaw, preserveMetadata = true,
                         )) {
                             is PhotoExportOutcome.Completed -> publishPhotoResult(
                                 transformed.file, transformed.mimeType ?: "image/jpeg", "jpg",
-                                result.warnings + transformed.warnings,
+                                transformed.warnings,
                             )
                             is PhotoExportOutcome.Failure -> updatePhotoExportFailure(transformed.reason)
                         }
@@ -3423,7 +3427,12 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
-    private suspend fun publishPhotoResult(file: java.io.File, mimeType: String, fallbackExtension: String, warnings: List<String>) {
+    private suspend fun publishPhotoResult(
+        file: java.io.File,
+        mimeType: String,
+        fallbackExtension: String,
+        warnings: List<PhotoExportWarning>,
+    ) {
         val publishedExtension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: fallbackExtension
         val published = PendingMediaWriter(getApplication<Application>().contentResolver).publishFile(
             file,
@@ -3434,6 +3443,20 @@ class GalleryViewModel @Inject constructor(
             ),
         )
         finishEditorCopy(published, MediaKind.Image)
+        if (warnings.isNotEmpty()) {
+            mutableEditorCopyNotice.emit(
+                warnings.distinct().joinToString("\n") { warning ->
+                    getApplication<Application>().getString(
+                        when (warning) {
+                            PhotoExportWarning.FullResolutionPng ->
+                                com.ugallery.feature.photoeditor.R.string.photo_editor_warning_png
+                            PhotoExportWarning.HdrMetadataNotCopied ->
+                                com.ugallery.feature.photoeditor.R.string.photo_editor_warning_hdr_metadata
+                        },
+                    )
+                },
+            )
+        }
     }
 
     private fun updatePhotoExportFailure(reason: String) {
@@ -3729,8 +3752,9 @@ class GalleryViewModel @Inject constructor(
         val statusMessage = when (job.status) {
             VideoExportJobStatus.Queued -> getApplication<Application>().getString(R.string.video_export_queued)
             VideoExportJobStatus.Completed -> getApplication<Application>().getString(
-                if (job.usedSoftwareCodec) com.ugallery.feature.videoeditor.R.string.video_editor_encoder_fallback
-                else com.ugallery.feature.videoeditor.R.string.video_editor_copy_saved,
+                if (job.usedSoftwareCodec || job.usedEncoderFallback) {
+                    com.ugallery.feature.videoeditor.R.string.video_editor_encoder_fallback
+                } else com.ugallery.feature.videoeditor.R.string.video_editor_copy_saved,
             )
             VideoExportJobStatus.Failed -> job.error
                 ?: getApplication<Application>().getString(R.string.video_export_failed)

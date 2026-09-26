@@ -276,12 +276,15 @@ class Media3VideoExporter(private val context: Context) {
                             VideoExportResult(
                                 request.output,
                                 durationMillis = outputDurationMillis,
-                                videoMimeType = if (request.recipe.outputQuality == VideoOutputQuality.HevcMain10 ||
-                                    request.recipe.dynamicRange != VideoDynamicRange.SdrRec709
-                                ) {
-                                    MimeTypes.VIDEO_H265
-                                } else request.videoMimeType,
-                                audioMimeType = request.audioMimeType,
+                                // Media3 reports what it actually encoded, which differs from the
+                                // request once encoder fallback applies.
+                                videoMimeType = exportResult.videoMimeType
+                                    ?: if (request.recipe.outputQuality == VideoOutputQuality.HevcMain10 ||
+                                        request.recipe.dynamicRange != VideoDynamicRange.SdrRec709
+                                    ) {
+                                        MimeTypes.VIDEO_H265
+                                    } else request.videoMimeType,
+                                audioMimeType = exportResult.audioMimeType ?: request.audioMimeType,
                                 fallbackWarning = fallbackWarning,
                                 videoEncoderName = exportResult.videoEncoderName,
                                 videoDecoderName = decoderName,

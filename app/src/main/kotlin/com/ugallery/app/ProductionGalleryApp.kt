@@ -1194,6 +1194,9 @@ internal fun ProductionGalleryApp(
             route = SurfaceRoute.Viewer
         }
     }
+    LaunchedEffect(Unit) {
+        viewModel.editorCopyNotice.collect { notice -> snackbarHostState.showSnackbar(notice) }
+    }
     val exportFailedMessage = stringResource(R.string.video_export_failed)
     val exportCancelledMessage = stringResource(R.string.video_export_cancelled)
     LaunchedEffect(viewModel, exportFailedMessage, exportCancelledMessage) {
@@ -1216,11 +1219,16 @@ internal fun ProductionGalleryApp(
     }
     val exportCompleteMessage = stringResource(R.string.video_export_complete)
     val exportSoftwareMessage = stringResource(R.string.video_export_complete_software)
+    val exportFallbackMessage = stringResource(R.string.video_export_complete_fallback)
     val viewExportLabel = stringResource(R.string.video_export_view)
     LaunchedEffect(Unit) {
         viewModel.videoExportCompleted.collect { job ->
             val result = snackbarHostState.showSnackbar(
-                message = if (job.usedSoftwareCodec) exportSoftwareMessage else exportCompleteMessage,
+                message = when {
+                    job.usedSoftwareCodec -> exportSoftwareMessage
+                    job.usedEncoderFallback -> exportFallbackMessage
+                    else -> exportCompleteMessage
+                },
                 actionLabel = viewExportLabel,
             )
             if (result == SnackbarResult.ActionPerformed) {
