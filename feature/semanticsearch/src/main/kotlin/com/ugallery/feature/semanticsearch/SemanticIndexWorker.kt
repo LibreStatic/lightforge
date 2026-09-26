@@ -4,6 +4,7 @@ import android.content.ContentUris
 import android.content.Context
 import android.os.CancellationSignal
 import android.provider.MediaStore
+import android.util.Log
 import android.util.Size
 import androidx.work.CoroutineWorker
 import androidx.work.Constraints
@@ -22,6 +23,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.withLock
 import java.io.FileNotFoundException
+import java.io.IOException
 
 class SemanticIndexWorker(context: Context, parameters: WorkerParameters) : CoroutineWorker(context, parameters) {
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -65,14 +67,15 @@ class SemanticIndexWorker(context: Context, parameters: WorkerParameters) : Coro
                             applicationContext.contentResolver.loadThumbnail(uri, Size(ImagePixels, ImagePixels), CancellationSignal())
                         } catch (failure: SecurityException) {
                             throw failure
-                        } catch (_: FileNotFoundException) {
-                            val vector = ByteArray(CompactSemanticEmbedding.Dimensions)
-                            val bands = SemanticLsh.bands(vector, descriptor.version)
-                            return@mapNotNull SemanticEmbeddingEntity(
-                                indexId, item.volumeName, item.mediaStoreId, item.generationModified, descriptor.version,
-                                vector, bands[0], bands[1], bands[2], bands[3], bands[4], bands[5], bands[6], bands[7],
-                                System.currentTimeMillis(),
-                            )
+                        } catch (failure: IOException) {
+                            // Missing files, undecodable bytes (ImageDecoder.DecodeException) and
+                            // videos without a usable thumbnail are permanent for this generation.
+                            // Store an empty vector so the item leaves the pending set; failing
+                            // here would mark the whole (possibly active) index failed.
+                            if (failure !is FileNotFoundException) {
+                                Log.w(Tag, "Skipping ${item.volumeName}/${item.mediaStoreId}: ${failure.javaClass.simpleName}")
+                            }
+                            return@mapNotNull skipped(indexId, item, descriptor)
                         }
                         try {
                             val vector = CompactSemanticEmbedding.quantize(inference.embedImage(bitmap))
@@ -111,6 +114,8 @@ class SemanticIndexWorker(context: Context, parameters: WorkerParameters) : Coro
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Throwable) {
+            // Only permission loss or a model/LiteRT failure reaches this point.
+            Log.w(Tag, "Semantic index $indexId failed", failure)
             SemanticIndexCommitGate.mutex.withLock {
                 dao.index(indexId)?.let {
                     dao.upsertIndex(it.copy(status = "failed", updatedAtMillis = System.currentTimeMillis()))
@@ -127,6 +132,20 @@ class SemanticIndexWorker(context: Context, parameters: WorkerParameters) : Coro
         } finally {
             database.close()
         }
+    }
+
+    private fun skipped(
+        indexId: String,
+        item: com.ugallery.core.database.MediaItemEntity,
+        model: SemanticModelDescriptor,
+    ): SemanticEmbeddingEntity {
+        val vector = ByteArray(CompactSemanticEmbedding.Dimensions)
+        val bands = SemanticLsh.bands(vector, model.version)
+        return SemanticEmbeddingEntity(
+            indexId, item.volumeName, item.mediaStoreId, item.generationModified, model.version,
+            vector, bands[0], bands[1], bands[2], bands[3], bands[4], bands[5], bands[6], bands[7],
+            System.currentTimeMillis(),
+        )
     }
 
     private suspend fun complete(
@@ -152,6 +171,7 @@ class SemanticIndexWorker(context: Context, parameters: WorkerParameters) : Coro
     }
 
     companion object {
+        private const val Tag = "SemanticIndexWorker"
         const val KeyModelId = "model_id"
         const val KeyIndexId = "index_id"
         const val KeyMode = "index_mode"
