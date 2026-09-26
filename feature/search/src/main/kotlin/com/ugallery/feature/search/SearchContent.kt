@@ -111,6 +111,9 @@ fun SearchContent(
     onHit: (MediaSearchHit) -> Unit,
     onEnableDetectedContent: () -> Unit,
     onPauseDetectedContent: () -> Unit,
+    // People and faces is a separate, explicit opt-in: Enable above only covers content and text.
+    peopleAnalysisEnabled: Boolean = true,
+    onEnablePeopleAnalysis: () -> Unit = {},
     onDeleteDetectedContent: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -275,7 +278,15 @@ fun SearchContent(
             }
         },
         dismissButton = {
-            Row {
+            Column(horizontalAlignment = Alignment.End) {
+                if (detectedContentEnabled && !peopleAnalysisEnabled) {
+                    TextButton(
+                        onClick = onEnablePeopleAnalysis,
+                        modifier = Modifier.testTag("search_analysis_enable_people"),
+                    ) {
+                        Text(stringResource(R.string.search_analysis_enable_people))
+                    }
+                }
                 if (detectedContentEnabled) TextButton(onClick = onDeleteDetectedContent) {
                     Text(stringResource(R.string.search_analysis_delete))
                 }

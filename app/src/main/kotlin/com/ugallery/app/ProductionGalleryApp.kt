@@ -434,7 +434,6 @@ internal fun ProductionGalleryApp(
     val petCollectionsEnabled by viewModel.petCollectionsEnabled.collectAsState()
     // Settings and the Search sheet read the same persisted master/child switches.
     val localAnalysisSwitches by viewModel.localAnalysisSwitches.collectAsState()
-    val allLocalAnalysisEnabled = localAnalysisSwitches.master
     val petAnalysis by viewModel.petAnalysis.collectAsState()
     val localAnalysisOnboarding by viewModel.localAnalysisOnboarding.collectAsState()
     val gallerySettings by viewModel.gallerySettings.collectAsState()
@@ -1437,7 +1436,7 @@ internal fun ProductionGalleryApp(
                             onRetry = { viewModel.search() },
                             error = search.error,
                             semanticUnavailable = search.semanticUnavailable,
-                            detectedContentEnabled = allLocalAnalysisEnabled,
+                            detectedContentEnabled = localAnalysisSwitches.isActive(com.ugallery.core.ml.LocalAnalysisFeature.Content),
                             thumbnailLoader = thumbnails,
                             petCollection = when (SearchVocabulary.resolve(search.query.trim())) {
                                 SearchConcept.Dog -> "dog" to petSummary.dogCount
@@ -1482,8 +1481,11 @@ internal fun ProductionGalleryApp(
                                     viewModel.openSearchHit(hit)
                                 }
                             },
-                            onEnableDetectedContent = { viewModel.setAllLocalAnalysisEnabled(true) },
+                            // Enable = master + photo content and text only; people stays a separate opt-in.
+                            onEnableDetectedContent = { viewModel.setContentAnalysisEnabled(true) },
                             onPauseDetectedContent = { viewModel.setAllLocalAnalysisEnabled(false) },
+                            peopleAnalysisEnabled = localAnalysisSwitches.isActive(com.ugallery.core.ml.LocalAnalysisFeature.People),
+                            onEnablePeopleAnalysis = { viewModel.setPeopleAnalysisEnabled(true) },
                             onDeleteDetectedContent = viewModel::deleteAllLocalAnalysisData,
                         )
                 }
