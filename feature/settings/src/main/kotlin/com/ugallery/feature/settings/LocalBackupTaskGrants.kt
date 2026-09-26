@@ -14,7 +14,11 @@ internal class LocalBackupTaskGrants(context: Context) {
     private val file =
         AtomicFile(File(context.applicationContext.filesDir, "local-backup-task-grants.json"))
 
-    fun retain(task: String, uri: Uri, flags: Int, required: Boolean = false) =
+    /**
+     * [adopted] are flags another ledger handed over for this task: they count as owned here even
+     * though the app already held them, so this ledger releases them exactly once.
+     */
+    fun retain(task: String, uri: Uri, flags: Int, required: Boolean = false, adopted: Int = 0) =
         synchronized(lock) {
             val root = load()
             val key = uri.toString()
@@ -31,6 +35,7 @@ internal class LocalBackupTaskGrants(context: Context) {
                     ?: JSONObject().put("protected", held).put("owned", 0).put("tasks", JSONArray())
             val ids = entry.getJSONArray("tasks")
             if ((0 until ids.length()).none { ids.getString(it) == task }) ids.put(task)
+            adopt(entry, adopted)
             entry.put("owned", entry.getInt("owned") or (flags and entry.getInt("protected").inv()))
             rows.put(key, entry)
             save(root) // Precedes acquisition, including the process-death window before return.
@@ -96,5 +101,11 @@ internal class LocalBackupTaskGrants(context: Context) {
 
     companion object {
         private val lock = Any()
+
+        fun adopt(entry: JSONObject, adopted: Int) {
+            if (adopted == 0) return
+            entry.put("protected", entry.getInt("protected") and adopted.inv())
+            entry.put("owned", entry.getInt("owned") or adopted)
+        }
     }
 }

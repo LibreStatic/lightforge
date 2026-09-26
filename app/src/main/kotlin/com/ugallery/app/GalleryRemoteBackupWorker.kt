@@ -22,6 +22,7 @@ import com.ugallery.core.remotestorage.AndroidRemoteCredentialVault
 import com.ugallery.core.remotestorage.OwnStorageConnectionFactory
 import com.ugallery.feature.remotebackup.RemoteBackupController
 import com.ugallery.feature.remotebackup.RemoteBackupRunner
+import com.ugallery.feature.remotebackup.RemoteBackupGrants
 import com.ugallery.feature.remotebackup.RemoteBackupServices
 import com.ugallery.feature.remotebackup.RemoteRestoreBridge
 import com.ugallery.feature.settings.RemoteRestoreTaskBridge
@@ -104,7 +105,9 @@ class GalleryRemoteBackupWorker(context: Context, parameters: WorkerParameters) 
 
         fun services(context: Context, database: GalleryDatabase): RemoteBackupServices {
             val bridge =
-                RemoteRestoreTaskBridge(context) { GalleryBackupTaskWorker.schedule(context, it) }
+                RemoteRestoreTaskBridge(context, RemoteBackupGrants(context)) {
+                    GalleryBackupTaskWorker.schedule(context, it)
+                }
             return RemoteBackupServices(
                 OwnStorageConnectionFactory(),
                 AndroidRemoteCredentialVault(context),

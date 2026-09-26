@@ -14,9 +14,14 @@ import org.json.JSONObject
 
 /**
  * Root integration: stable restore identity survives death between child creation and parent
- * linkage.
+ * linkage. [parentGrants] is the remote ledger whose destination grant the local restore takes
+ * over, so it is released once, when the local restore finishes.
  */
-class RemoteRestoreTaskBridge(context: Context, private val schedule: (String) -> Unit) {
+class RemoteRestoreTaskBridge(
+    context: Context,
+    private val parentGrants: PersistableUriGrants? = null,
+    private val schedule: (String) -> Unit,
+) {
     private val context = context.applicationContext
     private val root = File(this.context.filesDir, "remote-restore-receipts")
     private val store = LocalBackupTaskStore(this.context)
@@ -125,7 +130,13 @@ class RemoteRestoreTaskBridge(context: Context, private val schedule: (String) -
                             )
                             // Receipt remains after task history is forgotten. Never recreate a
                             // completed restore.
-                            store.read(id)?.takeUnless { it.terminal }?.let { schedule(id) }
+                            val live = store.read(id)?.takeUnless { it.terminal }
+                            // Finish a handoff interrupted after the receipt was written.
+                            destination?.let {
+                                if (live != null) transferGrant(requestId, id, it)
+                                else parentGrants?.release(requestId)
+                            }
+                            live?.let { schedule(id) }
                             return@synchronized id
                         }
                         val source = LocalBackupTaskSnapshots.privateSource(context, archive)
@@ -162,14 +173,7 @@ class RemoteRestoreTaskBridge(context: Context, private val schedule: (String) -
                                     existing.snapshotSource == source.path
                             )
                         }
-                        destination?.let {
-                            grants.retain(
-                                id,
-                                it,
-                                Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
-                            )
-                        }
+                        destination?.let { transferGrant(requestId, id, it) }
                         // Worker copies remote private archive; parent retains it until child
                         // completion.
                         val output = receipt.startWrite()
@@ -193,6 +197,17 @@ class RemoteRestoreTaskBridge(context: Context, private val schedule: (String) -
                 }
             }
         }
+
+    /** Local ledger records the parent's flags first, then the parent forgets them. */
+    private fun transferGrant(requestId: String, id: String, destination: Uri) {
+        grants.retain(
+            id,
+            destination,
+            Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            adopted = parentGrants?.owned(requestId, destination) ?: 0,
+        )
+        parentGrants?.handOff(requestId, destination)
+    }
 
     companion object {
         private val lock = Any()

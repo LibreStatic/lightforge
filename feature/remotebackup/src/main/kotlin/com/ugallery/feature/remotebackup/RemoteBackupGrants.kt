@@ -5,9 +5,9 @@ import com.ugallery.feature.settings.PersistableUriGrants
 
 /**
  * Records prior permission ownership before taking a grant. Completed and cancelled tasks release
- * theirs; RestoringLocally keeps the destination for the local restore it handed off to.
+ * theirs; RestoringLocally hands the destination over to the local restore ledger.
  */
-internal fun RemoteBackupGrants(context: Context) =
+fun RemoteBackupGrants(context: Context) =
     PersistableUriGrants(context, "remote-backup-grants.json") {
         RemoteBackupStore(context)
             .list()

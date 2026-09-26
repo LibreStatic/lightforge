@@ -36,7 +36,7 @@ class RemoteBackupRunner(context: Context, private val services: RemoteBackupSer
     /** A completed or cancelled task no longer reads its sources or writes its destination. */
     private fun releaseFinishedGrants(id: String) {
         val task = runCatching { store.get(id) }.getOrNull() ?: return
-        // RestoringLocally hands the destination to the local restore, which still needs it.
+        // RestoringLocally transferred the destination grant to the local restore ledger.
         if (
             task.status == RemoteBackupStatus.Completed ||
                 task.status == RemoteBackupStatus.Cancelled

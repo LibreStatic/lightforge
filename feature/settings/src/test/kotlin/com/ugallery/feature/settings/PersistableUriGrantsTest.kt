@@ -57,4 +57,31 @@ class PersistableUriGrantsTest {
         assertFalse(root.getJSONObject("content://old").has("owned"))
         assertEquals(mapOf("content://old" to 1), PersistableUriGrants.forget(root) { false })
     }
+
+    @Test
+    fun restoreHandoffTransfersTheDestinationGrantExactlyOnce() {
+        // Remote ledger took read+write on the destination for its download task.
+        val remote = JSONObject().put("content://dest", row(false, false, "remote" to 3))
+        val transferred = PersistableUriGrants.ownedBy(remote, "content://dest", "remote")
+        assertEquals(3, transferred)
+        // Local ledger saw the grant as already held (protected) and adopts the remote's flags.
+        val local = JSONObject().put("protected", 3).put("owned", 0)
+        LocalBackupTaskGrants.adopt(local, transferred)
+        assertEquals(0, local.getInt("protected"))
+        assertEquals(3, local.getInt("owned"))
+        // Remote forgets the task without releasing anything, now or on a later sweep.
+        PersistableUriGrants.handOff(remote, "content://dest", "remote")
+        assertFalse(remote.has("content://dest"))
+        assertEquals(emptyMap<String, Int>(), PersistableUriGrants.forget(remote) { false })
+        // A repeated handoff is a no-op and transfers nothing more.
+        assertEquals(0, PersistableUriGrants.ownedBy(remote, "content://dest", "remote"))
+    }
+
+    @Test
+    fun sharedHandoffKeepsTheTransferredFlagsOutOfTheRemoteRelease() {
+        val remote =
+            JSONObject().put("content://dest", row(false, false, "remote" to 3, "other" to 1))
+        PersistableUriGrants.handOff(remote, "content://dest", "remote")
+        assertEquals(emptyMap<String, Int>(), PersistableUriGrants.forget(remote) { false })
+    }
 }

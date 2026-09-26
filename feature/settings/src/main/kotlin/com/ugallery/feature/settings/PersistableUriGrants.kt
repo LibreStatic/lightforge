@@ -67,6 +67,20 @@ class PersistableUriGrants(
             save(root)
         }
 
+    /** Flags [task] took on [uri] beyond what the app held before; what a handoff transfers. */
+    fun owned(task: String, uri: Uri): Int = synchronized(lock) { ownedBy(load(), uri.toString(), task) }
+
+    /**
+     * Transfers [task]'s ownership of [uri] to another ledger that already recorded it: this
+     * ledger forgets the task and will never release the transferred flags itself.
+     */
+    fun handOff(task: String, uri: Uri) =
+        synchronized(lock) {
+            val root = load()
+            handOff(root, uri.toString(), task)
+            save(root)
+        }
+
     private fun releaseAll(released: Map<String, Int>) =
         released.forEach { (key, owned) ->
             val uri = Uri.parse(key)
@@ -117,6 +131,31 @@ class PersistableUriGrants(
     companion object {
         private val lock = Any()
         private const val MaxBytes = 16 * 1024 * 1024
+
+        fun ownedBy(root: JSONObject, key: String, task: String): Int {
+            val row = root.optJSONObject(key) ?: return 0
+            val flags = row.getJSONObject("tasks").optInt(task, 0)
+            return flags and priorFlags(row).inv()
+        }
+
+        /** Forgets [task] on [key]; its flags become the new owner's, so they count as prior here. */
+        fun handOff(root: JSONObject, key: String, task: String) {
+            val row = root.optJSONObject(key) ?: return
+            val tasks = row.getJSONObject("tasks")
+            if (!tasks.has(task)) return
+            val transferred = tasks.getInt(task) and priorFlags(row).inv()
+            tasks.remove(task)
+            if (tasks.length() == 0) {
+                root.remove(key)
+                return
+            }
+            if (transferred and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0) row.put("priorRead", true)
+            if (transferred and Intent.FLAG_GRANT_WRITE_URI_PERMISSION != 0) row.put("priorWrite", true)
+        }
+
+        private fun priorFlags(row: JSONObject) =
+            (if (row.optBoolean("priorRead")) Intent.FLAG_GRANT_READ_URI_PERMISSION else 0) or
+                (if (row.optBoolean("priorWrite")) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0)
 
         /**
          * Drops every task that is not [keep] from [root]. Returns the URIs no remaining task
