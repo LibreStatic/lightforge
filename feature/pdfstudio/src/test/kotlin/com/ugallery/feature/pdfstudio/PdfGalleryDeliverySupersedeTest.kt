@@ -19,10 +19,20 @@ class PdfGalleryDeliverySupersedeTest {
     }
 
     @Test
-    fun `a failure of a different selection is left alone`() {
+    fun `a clean import of a new selection supersedes an older failure too`() {
         val completed = delivery("b", selection)
         val failed = delivery("a", other, error = "Unsupported")
-        assertEquals(false, supersedesFailedDelivery(completed, failed))
+        assertEquals(true, supersedesFailedDelivery(completed, failed))
+    }
+
+    @Test
+    fun `a persisted failure keeps its code apart from the rejected source`() {
+        val failed = delivery("a", selection, error = "UnsupportedFormat#2")
+        assertEquals("UnsupportedFormat", failed.failure())
+        assertEquals(2, failed.failedSource())
+        val plain = delivery("c", selection, error = "Cancelled")
+        assertEquals("Cancelled", plain.failure())
+        assertEquals(null, plain.failedSource())
     }
 
     @Test

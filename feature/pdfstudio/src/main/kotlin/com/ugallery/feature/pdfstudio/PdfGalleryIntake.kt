@@ -18,6 +18,16 @@ data class PdfGalleryDelivery(
         val array = JSONArray(uris)
         return List(array.length()) { Uri.parse(array.getString(it)) }
     }
+
+    /** The persisted [PdfFailure] code (or "Cancelled"), without the rejected source number. */
+    fun failure(): String? = error?.substringBefore(SOURCE_SEPARATOR)
+
+    /** 1-based position of the source that was rejected, when the failure names one. */
+    fun failedSource(): Int? = error?.substringAfter(SOURCE_SEPARATOR, "")?.toIntOrNull()
+
+    companion object {
+        const val SOURCE_SEPARATOR = '#'
+    }
 }
 
 @Dao
@@ -40,16 +50,14 @@ interface PdfGalleryDeliveryDao {
 }
 
 /**
- * A delivery that failed is kept so the user can retry or discard it, but a later delivery of the
- * same selection that imports cleanly settles the question: the earlier failure is stale, and
- * leaving its banner up tells the user their working import failed.
+ * A delivery that failed is kept so the user can retry or discard it, but a later delivery that
+ * imports cleanly settles the question: the user has moved on to a selection that works, and
+ * leaving the earlier banner up tells them their working import failed.
  */
 internal fun supersedesFailedDelivery(
     completed: PdfGalleryDelivery,
     candidate: PdfGalleryDelivery,
-): Boolean = candidate.error != null &&
-    candidate.id != completed.id &&
-    candidate.uris == completed.uris
+): Boolean = candidate.error != null && candidate.id != completed.id
 
 /** Gallery access belongs to the media permission flow, not to SAF persistable URI grants. */
 internal class PdfGalleryIntake(context: Context) {
@@ -75,8 +83,11 @@ internal class PdfGalleryIntake(context: Context) {
 
     suspend fun pending() = db.galleryDeliveries().all().firstOrNull { it.error == null }
 
-    suspend fun failed(id: String, code: String) =
-        withContext(NonCancellable) { db.galleryDeliveries().error(id, code) }
+    suspend fun failed(id: String, code: String, source: Int? = null) =
+        withContext(NonCancellable) {
+            db.galleryDeliveries()
+                .error(id, source?.let { "$code${PdfGalleryDelivery.SOURCE_SEPARATOR}$it" } ?: code)
+        }
 
     suspend fun retry(id: String) = db.galleryDeliveries().error(id, null)
 

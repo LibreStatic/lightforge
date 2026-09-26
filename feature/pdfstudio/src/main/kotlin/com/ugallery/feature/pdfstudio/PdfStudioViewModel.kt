@@ -157,7 +157,11 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
                             }
                         throw e
                     } catch (e: Exception) {
-                        galleryIntake.failed(row.id, PdfFailure.from(e).name)
+                        galleryIntake.failed(
+                            row.id,
+                            PdfFailure.from(e).name,
+                            (e as? PdfSourceFailure)?.number,
+                        )
                         throw e
                     } finally {
                         activeGallery = null

@@ -107,4 +107,6 @@
     <string name="pdf_gallery_retry">Tentar seleção novamente</string>
     <string name="pdf_gallery_discard">Descartar seleção</string>
     <string name="pdf_gallery_pending">Fotos selecionadas pendentes: %1$d</string>
+    <string name="pdf_gallery_source">Item selecionado %1$d</string>
+    <string name="pdf_gallery_source_rejected">Item selecionado %1$d, não adicionado</string>
 </resources>

@@ -259,13 +259,18 @@ fun PdfStudioScreen(
                                         delivery.sources().size,
                                     )
                                 )
-                                Text(
+                                val reason =
                                     stringResource(
-                                        if (delivery.error == "Cancelled")
+                                        if (delivery.failure() == "Cancelled")
                                             R.string.pdf_queue_cancelled
-                                        else PdfFailure.persisted(delivery.error).message
+                                        else PdfFailure.persisted(delivery.failure()).message
                                     )
+                                Text(
+                                    delivery.failedSource()?.let { number ->
+                                        stringResource(R.string.pdf_failure_source, number, reason)
+                                    } ?: reason
                                 )
+                                GallerySourceStrip(delivery)
                                 FlowRow {
                                     TextButton(
                                         onClick = { vm.retryGallery(delivery.id) },
@@ -1020,6 +1025,52 @@ private fun PdfPageBitmap(page: PdfPage, vm: PdfStudioViewModel, side: Int, modi
         }
     bitmap?.let { Image(it.asImageBitmap(), null, modifier, contentScale = ContentScale.Fit) }
     failure?.let { PdfPreviewProblem(it, side > 192) { retry++ } }
+}
+
+/** The delivery's photos, with the one that was rejected badged so the user can find it. */
+@Composable
+private fun GallerySourceStrip(delivery: PdfGalleryDelivery) {
+    val failed = delivery.failedSource() ?: return
+    val sources = remember(delivery.uris) { delivery.sources() }
+    androidx.compose.foundation.lazy.LazyRow(
+        Modifier.fillMaxWidth().padding(top = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        items(sources.size) { index ->
+            val number = index + 1
+            val rejected = number == failed
+            val description =
+                if (rejected) stringResource(R.string.pdf_gallery_source_rejected, number)
+                else stringResource(R.string.pdf_gallery_source, number)
+            val resolver = androidx.compose.ui.platform.LocalContext.current.contentResolver
+            val uri = sources[index]
+            val bitmap by
+                produceState<android.graphics.Bitmap?>(null, uri) {
+                    value =
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            runCatching {
+                                    resolver.loadThumbnail(uri, android.util.Size(144, 144), null)
+                                }
+                                .getOrNull()
+                        }
+                }
+            Box(
+                Modifier.size(48.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clearAndSetSemantics { contentDescription = description }
+            ) {
+                bitmap?.let {
+                    Image(
+                        it.asImageBitmap(),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                    )
+                }
+                if (rejected) Badge(Modifier.align(Alignment.TopEnd).padding(2.dp))
+            }
+        }
+    }
 }
 
 @Composable
