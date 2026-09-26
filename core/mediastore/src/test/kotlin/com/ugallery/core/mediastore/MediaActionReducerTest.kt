@@ -94,5 +94,25 @@ class MediaActionReducerTest {
     }
 
     private fun key(id: Long) = MediaKey("external_primary", id)
+    @Test
+    fun `hand-picked selection larger than one request completes in bounded chunks`() {
+        var remaining = (1L..1_234L).map(::target)
+        var snapshot = MediaActionReducer.start(MediaAction.Trash(true), remaining.size.toLong())
+        var requests = 0
+        while (snapshot.phase == MediaActionPhase.ReadyForChunk) {
+            val chunk = remaining.take(MediaActionReducer.MaxChunkSize)
+            remaining = remaining.drop(chunk.size)
+            snapshot = MediaActionReducer.stage(snapshot, chunk)
+            val requestId = (snapshot.phase as MediaActionPhase.AwaitingSystem).requestId
+            snapshot = MediaActionReducer.verified(
+                snapshot, requestId, succeeded = chunk.size, failed = 0, VerifiedDisposition.Completed,
+            )
+            requests++
+        }
+        assertEquals(3, requests)
+        assertTrue(snapshot.phase is MediaActionPhase.Complete)
+        assertEquals(1_234L, snapshot.progress.completed)
+    }
+
     private fun target(id: Long) = MediaActionTarget(key(id), MediaKind.Image)
 }

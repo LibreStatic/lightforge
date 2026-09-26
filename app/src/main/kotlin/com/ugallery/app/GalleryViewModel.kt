@@ -4939,7 +4939,6 @@ class GalleryViewModel @Inject constructor(
         val targets = media
             .distinctBy(TimelineMedia::key)
             .map { MediaActionTarget(it.key, it.kind) }
-        require(targets.size <= MediaActionReducer.MaxChunkSize)
         beginTargetsAction(targets, action)
     }
 
@@ -5048,7 +5047,11 @@ class GalleryViewModel @Inject constructor(
         }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     private fun beginTargetsAction(targets: List<MediaActionTarget>, action: MediaAction) {
-        require(targets.size <= MediaActionReducer.MaxChunkSize)
+        if (targets.size > MediaActionReducer.MaxChunkSize) {
+            // Hand-picked selections can outgrow one system request; stage them in bounded chunks.
+            viewModelScope.launch { beginChunkedTargetsAction(targets, action) }
+            return
+        }
         val sizedInitial = MediaActionReducer.start(action, targets.size.toLong())
         val coordinator = coordinator(sizedInitial)
         currentSystemCoordinator = coordinator
@@ -5349,9 +5352,12 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
-    private suspend fun beginFavoriteImport(targets: List<MediaActionTarget>) {
+    private suspend fun beginFavoriteImport(targets: List<MediaActionTarget>) =
+        beginChunkedTargetsAction(targets, MediaAction.Favorite(true))
+
+    /** Stages an explicit target list through the favorite-import cursor, which is action-agnostic. */
+    private suspend fun beginChunkedTargetsAction(targets: List<MediaActionTarget>, action: MediaAction) {
         if (targets.isEmpty()) return
-        val action = MediaAction.Favorite(true)
         currentSystemCoordinator = coordinator(MediaActionReducer.start(action, targets.size.toLong()))
         favoriteImportCursor = FavoriteImportCursor(ArrayList(targets)).also {
             savedStateHandle[FavoriteImportStateKey] = it
