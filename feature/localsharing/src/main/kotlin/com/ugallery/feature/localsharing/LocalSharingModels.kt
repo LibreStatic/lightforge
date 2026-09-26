@@ -105,6 +105,15 @@ data class LocalSharingTransfer(
                     LocalSharingStatus.Cancelled,
                     LocalSharingStatus.LocalTaskCreated,
                 )
+
+    /**
+     * A stop the user did not request (WorkManager constraints, quota, Doze) keeps the current
+     * step so the worker retry resumes it; only a user pause parks the transfer as Paused.
+     */
+    fun interrupted(): LocalSharingTransfer =
+        if (pauseRequested)
+            copy(status = LocalSharingStatus.Paused, resumeStatus = resumeStatus ?: status)
+        else this
 }
 
 data class LocalSharingInvitation(

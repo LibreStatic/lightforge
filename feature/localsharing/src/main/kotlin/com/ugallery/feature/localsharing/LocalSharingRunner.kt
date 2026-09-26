@@ -29,6 +29,7 @@ class LocalSharingRunner(private val context: Context, private val services: Loc
                             LocalSharingStatus.Preparing,
                             LocalSharingStatus.Queued,
                             LocalSharingStatus.Transferring,
+                            LocalSharingStatus.Importing,
                         ) && !it.pauseRequested)
         } ?: false
 
@@ -102,15 +103,17 @@ class LocalSharingRunner(private val context: Context, private val services: Loc
                                                     )
                                                 }
                                             }
-                                        } else
+                                        } else if (
+                                            e is CancellationException || e is PeerStopped
+                                        )
+                                            store.update(id) { it.interrupted() }
+                                        else
                                             store.update(id) {
                                                 it.copy(
                                                     resumeStatus = it.resumeStatus ?: it.status,
                                                     status =
                                                         when {
-                                                            it.pauseRequested ||
-                                                                e is CancellationException ||
-                                                                e is PeerStopped ->
+                                                            it.pauseRequested ->
                                                                 LocalSharingStatus.Paused
                                                             e is SecurityException ->
                                                                 LocalSharingStatus.WaitingPeer

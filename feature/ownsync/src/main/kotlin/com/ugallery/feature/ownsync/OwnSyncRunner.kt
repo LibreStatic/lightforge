@@ -141,12 +141,7 @@ class OwnSyncRunner(context: Context, private val services: OwnSyncServices) {
                             runCatching {
                                 store.update(runId) { state ->
                                     if (state.terminal) state
-                                    else
-                                        state.copy(
-                                            status =
-                                                if (state.cancelRequested) OwnSyncStatus.Cancelled
-                                                else OwnSyncStatus.Paused
-                                        )
+                                    else state.copy(status = state.interruptedStatus)
                                 }
                             }
                         }
@@ -162,12 +157,7 @@ class OwnSyncRunner(context: Context, private val services: OwnSyncServices) {
                                 store.update(runId) { state ->
                                     if (state.terminal) state
                                     else
-                                        state.copy(
-                                            status =
-                                                if (state.cancelRequested) OwnSyncStatus.Cancelled
-                                                else OwnSyncStatus.Paused,
-                                            failure = null,
-                                        )
+                                        state.copy(status = state.interruptedStatus, failure = null)
                                 }
                             }
                             return@withContext false

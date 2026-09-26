@@ -119,4 +119,19 @@ class LocalSharingModelTest {
             peerDigest(ByteArrayInputStream(ByteArray(100)), 100) { throw PeerStopped() }
         }
     }
+
+    @Test
+    fun unrequestedStopKeepsTheStepAndUserPauseParksIt() {
+        val running =
+            LocalSharingTransfer(
+                "t",
+                "p",
+                LocalSharingDirection.Send,
+                status = LocalSharingStatus.Transferring,
+            )
+        assertEquals(running, running.interrupted())
+        val paused = running.copy(pauseRequested = true).interrupted()
+        assertEquals(LocalSharingStatus.Paused, paused.status)
+        assertEquals(LocalSharingStatus.Transferring, paused.resumeStatus)
+    }
 }

@@ -119,4 +119,15 @@ class OwnSyncModelTest {
             )
         assertEquals(4L, run.bytesDone)
     }
+
+    @Test
+    fun onlyUserRequestsPauseOrCancelAnInterruptedRun() {
+        val run = OwnSyncRun("r", "j", status = OwnSyncStatus.Running)
+        assertEquals(OwnSyncStatus.Queued, run.interruptedStatus)
+        assertEquals(OwnSyncStatus.Paused, run.copy(pauseRequested = true).interruptedStatus)
+        assertEquals(
+            OwnSyncStatus.Cancelled,
+            run.copy(pauseRequested = true, cancelRequested = true).interruptedStatus,
+        )
+    }
 }

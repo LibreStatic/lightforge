@@ -109,6 +109,18 @@ data class OwnSyncRun(
     val terminal
         get() = status == OwnSyncStatus.Completed || status == OwnSyncStatus.Cancelled
 
+    /**
+     * Status after the running lease stops. Only a user request pauses or cancels; a scheduler
+     * stop (constraints, quota, Doze) re-queues so the worker retry resumes the run.
+     */
+    val interruptedStatus
+        get() =
+            when {
+                cancelRequested -> OwnSyncStatus.Cancelled
+                pauseRequested -> OwnSyncStatus.Paused
+                else -> OwnSyncStatus.Queued
+            }
+
     val bytesDone
         get() =
             plan
