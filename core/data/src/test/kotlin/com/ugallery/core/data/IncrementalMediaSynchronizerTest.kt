@@ -83,6 +83,21 @@ class IncrementalMediaSynchronizerTest {
     }
 
     @Test
+    fun rowHintDoesNotWriteBackAStaleCheckpoint() = runTest {
+        val newer = checkpoint().copy(generation = 12)
+        val store = FakeStore(checkpoint()).apply {
+            // A sync finishing while the hint is in flight advances the checkpoint.
+            afterCheckpointRead = { checkpoint = newer }
+        }
+        val result = IncrementalMediaSynchronizer(FakeDeltaSource(listOf(record(42, 11))), store, ::fullAccess)
+            .applyRowHint(MediaKey("external_primary", 42))
+
+        assertEquals(RowHintResult.Upserted, result)
+        assertEquals(newer, store.checkpoint)
+        assertEquals(1, store.items.size)
+    }
+
+    @Test
     fun providerVersionChangeRequiresVolumeReconciliation() = runTest {
         val result = IncrementalMediaSynchronizer(
             FakeDeltaSource(emptyList()), FakeStore(checkpoint()), ::fullAccess,
@@ -128,7 +143,9 @@ class IncrementalMediaSynchronizerTest {
         var afterCommit: (() -> Unit)? = null
         var deleteCount = 0
 
-        override suspend fun checkpoint(volumeName: String) = checkpoint
+        var afterCheckpointRead: (() -> Unit)? = null
+
+        override suspend fun checkpoint(volumeName: String) = checkpoint.also { afterCheckpointRead?.invoke() }
         override suspend fun resetVolumeForScan(checkpoint: MediaStoreCheckpointEntity) {
             items.keys.removeAll { it.first == checkpoint.volumeName }
             this.checkpoint = checkpoint
@@ -151,6 +168,9 @@ class IncrementalMediaSynchronizerTest {
 
         override suspend fun completeScan(checkpoint: MediaStoreCheckpointEntity, scanId: Long) {
             this.checkpoint = checkpoint
+        }
+        override suspend fun upsertHintedMedia(items: List<MediaItemEntity>) {
+            items.forEach { this.items[it.volumeName to it.mediaStoreId] = it }
         }
         override suspend fun deleteMedia(volumeName: String, id: Long): Int {
             deleteCount++

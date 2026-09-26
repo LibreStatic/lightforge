@@ -15,6 +15,9 @@ import kotlin.coroutines.coroutineContext
 
 interface IncrementalMediaIndexStore : MediaIndexStore {
     suspend fun deleteMedia(volumeName: String, id: Long): Int
+
+    /** Upserts rows without a checkpoint; an active scan token is resolved in the same transaction. */
+    suspend fun upsertHintedMedia(items: List<MediaItemEntity>)
 }
 
 sealed interface IncrementalSyncResult {
@@ -145,9 +148,10 @@ class IncrementalMediaSynchronizer(
             store.deleteMedia(key.volumeName, key.mediaStoreId)
             RowHintResult.Deleted
         } else {
-            val checkpoint = store.checkpoint(key.volumeName)
-                ?: return@withContext RowHintResult.PermissionLost
-            store.commitMediaPage(listOf(record.toEntity(checkpoint.activeScanId ?: 0)), checkpoint)
+            store.checkpoint(key.volumeName) ?: return@withContext RowHintResult.PermissionLost
+            // Hints run outside the refresh lock: writing back a checkpoint read here could roll
+            // back a scan or delta sync that finished meanwhile, so only the row is written.
+            store.upsertHintedMedia(listOf(record.toEntity(0)))
             RowHintResult.Upserted
         }
     }

@@ -61,6 +61,7 @@ class RoomMediaIndexStore(private val dao: LibraryDao) : IncrementalMediaIndexSt
         dao.completeVolumeScan(checkpoint, scanId)
     override suspend fun deleteMedia(volumeName: String, id: Long): Int =
         dao.deleteMedia(volumeName, id)
+    override suspend fun upsertHintedMedia(items: List<MediaItemEntity>) = dao.upsertMedia(items)
 }
 
 /** Performs bounded, resumable reads; each page and its checkpoint are one short transaction. */
