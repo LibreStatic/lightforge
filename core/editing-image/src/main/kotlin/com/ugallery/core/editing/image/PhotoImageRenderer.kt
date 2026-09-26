@@ -64,7 +64,7 @@ class PhotoImageRenderer(
             val sample = sampleForDimension(sourceBounds.width, sourceBounds.height, maxDimension)
             val decoded = decode(uri, sample)
                 ?: throw IOException("Unable to decode image preview")
-            applyRecipe(decoded, recipe)
+            applyRecipe(decoded, upright(uri, recipe))
         }
 
     /** Applies a recipe to an already decoded bitmap, consuming it when a transform replaces it. */
@@ -72,11 +72,16 @@ class PhotoImageRenderer(
         applyRecipe(source, recipe)
     }
 
+    /**
+     * Exports [recipe] applied to the upright source. [preserveMetadata] copies capture EXIF
+     * (date, GPS, camera) into re-encoded output; share sanitizing leaves it off to strip EXIF.
+     */
     suspend fun export(
         uri: Uri,
         recipe: EditRecipe,
         destination: File,
         onProgress: suspend (Long) -> Unit = {},
+        preserveMetadata: Boolean = false,
     ): PhotoExportOutcome = withContext(ioDispatcher) {
         try {
             coroutineContext.ensureActive()
@@ -91,16 +96,22 @@ class PhotoImageRenderer(
                     mimeType = sourceBounds.mimeType,
                 )
             }
+            val uprightRecipe = upright(uri, recipe)
             val sourcePixels = sourceBounds.width.toLong() * sourceBounds.height.toLong()
             if (sourcePixels > maxExportPixels) {
+                // The tiled plan maps output tiles back through the leading orientation ops, so
+                // region-decoded tiles are rotated/flipped like the single-bitmap path.
                 val tiled = TiledPngPhotoExporter(resolver).export(
                     uri = uri,
                     sourceWidth = sourceBounds.width,
                     sourceHeight = sourceBounds.height,
-                    recipe = recipe,
+                    recipe = uprightRecipe,
                     destination = destination,
                     onProgress = onProgress,
                 )
+                if (preserveMetadata) {
+                    PhotoExifMetadata.copy(resolver, uri, tiled.file, tiled.width, tiled.height)
+                }
                 return@withContext PhotoExportOutcome.Completed(
                     file = tiled.file,
                     width = tiled.width,
@@ -124,7 +135,7 @@ class PhotoImageRenderer(
             val decoded = decode(uri, sample)
                 ?: return@withContext PhotoExportOutcome.Failure("Unable to decode source image")
             val rendered = try {
-                applyRecipe(decoded, recipe)
+                applyRecipe(decoded, uprightRecipe)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Throwable) {
@@ -146,6 +157,9 @@ class PhotoImageRenderer(
             }
             if (!rendered.isRecycled) rendered.recycle()
             check(destination.isFile && destination.length() > 0) { "Image export is empty" }
+            if (preserveMetadata) {
+                PhotoExifMetadata.copy(resolver, uri, destination, renderedWidth, renderedHeight)
+            }
             PhotoExportOutcome.Completed(
                 file = destination,
                 width = renderedWidth,
@@ -165,6 +179,12 @@ class PhotoImageRenderer(
             destination.delete()
             PhotoExportOutcome.Failure(failure.message ?: "Image export failed")
         }
+    }
+
+    /** Prefixes the EXIF orientation fix so every recipe operation sees the upright image. */
+    private fun upright(uri: Uri, recipe: EditRecipe): EditRecipe {
+        val orientation = orientationOperations(PhotoExifMetadata.readOrientation(resolver, uri))
+        return if (orientation.isEmpty()) recipe else recipe.copy(operations = orientation + recipe.operations)
     }
 
     private fun decodeBounds(uri: Uri): ImageBounds {

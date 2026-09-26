@@ -3387,7 +3387,7 @@ class GalleryViewModel @Inject constructor(
                         is RawExportOutcome.Completed -> if (geometryRecipe.isIdentity) {
                             publishPhotoResult(result.file, result.mimeType, extension, result.warnings)
                         } else when (val transformed = PhotoImageRenderer(getApplication<Application>().contentResolver).export(
-                            Uri.fromFile(result.file), geometryRecipe, transformedRaw,
+                            Uri.fromFile(result.file), geometryRecipe, transformedRaw, preserveMetadata = true,
                         )) {
                             is PhotoExportOutcome.Completed -> publishPhotoResult(
                                 transformed.file, transformed.mimeType ?: "image/jpeg", "jpg",
@@ -3398,7 +3398,7 @@ class GalleryViewModel @Inject constructor(
                         is RawExportOutcome.Failure -> updatePhotoExportFailure(result.reason)
                     }
                 } else when (val result = PhotoImageRenderer(getApplication<Application>().contentResolver).export(
-                    session.source.uri, session.history.present, temp,
+                    session.source.uri, session.history.present, temp, preserveMetadata = true,
                 )) {
                     is PhotoExportOutcome.Completed -> publishPhotoResult(
                         result.file, result.mimeType ?: outputMime, extension, result.warnings,
