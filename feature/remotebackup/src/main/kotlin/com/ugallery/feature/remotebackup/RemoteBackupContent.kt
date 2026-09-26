@@ -19,7 +19,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import android.text.format.Formatter
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
@@ -41,6 +43,7 @@ fun RemoteBackupContent(
     val tasks by controller.tasks.collectAsState()
     val probes by controller.probes.collectAsState()
     val profileFailure by controller.profileFailure.collectAsState()
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var selectedId by remember { mutableStateOf<String?>(null) }
     val selected = profiles.singleOrNull { it.id == selectedId } ?: profiles.firstOrNull()
@@ -307,7 +310,7 @@ fun RemoteBackupContent(
                     ) {
                         Column(Modifier.fillMaxWidth().padding(12.dp)) {
                             Text(entry.name)
-                            Text("${entry.size} B")
+                            Text(Formatter.formatShortFileSize(context, entry.size))
                             Button(
                                 onClick = {
                                     action { controller.enqueueDownload(profile.id, entry) }
@@ -362,9 +365,15 @@ fun RemoteBackupContent(
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                             )
-                            Text("${task.bytesDone} / ${task.totalBytes} B")
+                            Text(
+                                stringResource(
+                                    R.string.remote_transfer_progress,
+                                    Formatter.formatShortFileSize(context, task.bytesDone),
+                                    Formatter.formatShortFileSize(context, task.totalBytes),
+                                )
+                            )
                         }
-                        task.archiveSha?.let { Text("SHA256: $it") }
+                        task.archiveSha?.let { Text(stringResource(R.string.remote_archive_checksum, it)) }
                         if (task.failure == RemoteFailure.UNSUPPORTED.name)
                             Text(stringResource(R.string.remote_unsupported))
                         if (task.failure == RemoteFailure.INVALID_PATH.name)
@@ -569,11 +578,12 @@ fun RemoteBackupContent(
                         Text(task?.name.orEmpty())
                         Text(task?.profile?.let { it.host + " / " + it.share + it.root }.orEmpty())
                         Text(
-                            stringResource(
-                                R.string.remote_archive_summary,
+                            pluralStringResource(
+                                R.plurals.remote_archive_summary,
+                                review.manifest.entries.size,
                                 review.manifest.version,
                                 review.manifest.entries.size,
-                                review.manifest.totalBytes,
+                                Formatter.formatShortFileSize(context, review.manifest.totalBytes),
                             )
                         )
                         Text(stringResource(R.string.remote_restore_scope))
@@ -602,7 +612,13 @@ fun RemoteBackupContent(
                         }
                     }
                     items(review.manifest.entries, key = { it.path }) { entry ->
-                        Text(entry.name + " · " + entry.mime + " · " + entry.bytes + " B")
+                        Text(
+                            entry.name +
+                                " · " +
+                                entry.mime +
+                                " · " +
+                                Formatter.formatShortFileSize(context, entry.bytes)
+                        )
                     }
                 }
             },

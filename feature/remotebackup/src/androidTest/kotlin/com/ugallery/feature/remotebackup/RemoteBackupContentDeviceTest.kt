@@ -172,11 +172,12 @@ class RemoteBackupContentDeviceTest {
                 .performScrollToNode(hasTestTag("remote-review-$id"))
             compose.onNodeWithTag("remote-review-$id").performClick()
             val summary =
-                actual.getString(
-                    R.string.remote_archive_summary,
+                actual.resources.getQuantityString(
+                    R.plurals.remote_archive_summary,
+                    manifest.entries.size,
                     manifest.version,
                     manifest.entries.size,
-                    manifest.totalBytes,
+                    android.text.format.Formatter.formatShortFileSize(actual, manifest.totalBytes),
                 )
             compose.waitUntil(10000) {
                 compose.onAllNodesWithText(summary).fetchSemanticsNodes().isNotEmpty()

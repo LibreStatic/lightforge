@@ -44,7 +44,7 @@
     <string name="remote_local_task">Apri ripristino locale</string>
     <string name="remote_cancel_hint">Fermare questa attività? File remoti parziali o incerti restano visibili per verifica. Nessun originale o file remoto verrà eliminato.</string>
     <string name="remote_residuals">Oggetti remoti da verificare: %1$s</string>
-    <string name="remote_archive_summary">Archivio v%1$d · %2$d file · %3$d byte</string>
+    <plurals name="remote_archive_summary"><item quantity="one">Archivio v%1$d · %2$d file · %3$s</item><item quantity="many">Archivio v%1$d · %2$d file · %3$s</item><item quantity="other">Archivio v%1$d · %2$d file · %3$s</item></plurals>
     <string name="remote_org_summary">Organizzazione: %1$d/%2$d sorgenti; riferimenti/stati omessi: %3$d; irrisolti: %4$d.</string>
     <string name="remote_partial">Accetto l’ambito parziale mostrato</string>
     <string name="remote_global">Importa anche regole dei ricordi che riguardano la libreria esistente</string>
@@ -81,4 +81,6 @@
     <string name="remote_error_invalid_path">Il server ha rifiutato il percorso della cartella. Aggiungi di nuovo il server con una cartella assoluta come /backups.</string>
     <string name="remote_error_share_required">Inserisci un nome di condivisione SMB valido.</string>
     <string name="remote_error_key_required">Scegli un file di chiave privata SSH.</string>
+    <string name="remote_transfer_progress">%1$s di %2$s</string>
+    <string name="remote_archive_checksum">Checksum (SHA-256): %1$s</string>
 </resources>

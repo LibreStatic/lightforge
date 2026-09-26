@@ -44,7 +44,7 @@
     <string name="remote_local_task">Open local restoration</string>
     <string name="remote_cancel_hint">Stop this task? Remote partials and uncertain final files remain visible for manual review. No remote file or original will be deleted.</string>
     <string name="remote_residuals">Remote objects to review: %1$s</string>
-    <string name="remote_archive_summary">Archive v%1$d · %2$d files · %3$d bytes</string>
+    <plurals name="remote_archive_summary"><item quantity="one">Archive v%1$d · %2$d file · %3$s</item><item quantity="other">Archive v%1$d · %2$d files · %3$s</item></plurals>
     <string name="remote_org_summary">Organization: %1$d/%2$d sources; omitted references/states: %3$d; unresolved: %4$d.</string>
     <string name="remote_partial">I accept the displayed partial organization scope</string>
     <string name="remote_global">Also import memory rules affecting the existing library</string>
@@ -81,4 +81,6 @@
     <string name="remote_error_invalid_path">The server rejected the folder path. Add the server again with an absolute folder such as /backups.</string>
     <string name="remote_error_share_required">Enter a valid SMB share name.</string>
     <string name="remote_error_key_required">Choose an SSH private key file.</string>
+    <string name="remote_transfer_progress">%1$s of %2$s</string>
+    <string name="remote_archive_checksum">Checksum (SHA-256): %1$s</string>
 </resources>
