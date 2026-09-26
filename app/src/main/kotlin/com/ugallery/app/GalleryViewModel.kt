@@ -2816,6 +2816,7 @@ class GalleryViewModel @Inject constructor(
             }
             // Selection state is main-thread only; keep a selection started while archiving ran.
             if (selectionRevision == revision) clearSelection()
+            if (archived) refreshWidget()
         }
     }
 
@@ -2828,6 +2829,7 @@ class GalleryViewModel @Inject constructor(
                     1,
                 )
             }
+            if (archived) withContext(Dispatchers.Main) { refreshWidget() }
         }
     }
 
@@ -5228,7 +5230,24 @@ class GalleryViewModel @Inject constructor(
                 .map { retiredMoveRow(it.entry) }
                 .distinctUntilChanged()
                 .filterNotNull()
-                .collect { key -> runtime.value?.synchronizer?.applyRowHint(key) }
+                .collect { key ->
+                    runtime.value?.synchronizer?.applyRowHint(key)
+                    refreshWidget()
+                }
+        }
+    }
+
+    private var widgetRefresh: Job? = null
+
+    /**
+     * The home-screen widget keeps its bitmap until its 30-minute tick, so tell it when a photo
+     * leaves the library. Coalesced: a bulk action or a burst of archives is one update.
+     */
+    private fun refreshWidget() {
+        widgetRefresh?.cancel()
+        widgetRefresh = viewModelScope.launch {
+            delay(WidgetRefreshDebounceMillis)
+            com.ugallery.feature.widget.GalleryWidgetProvider.triggerUpdate(getApplication())
         }
     }
 
@@ -5402,6 +5421,8 @@ class GalleryViewModel @Inject constructor(
                         else -> Unit
                     }
                 }
+                val action = completedProgress.action
+                if ((action is MediaAction.Trash && action.enabled) || action == MediaAction.Delete) refreshWidget()
                 clearSelection()
                 bulkCursor = null
                 savedStateHandle[BulkStateKey] = null
@@ -5939,6 +5960,7 @@ class GalleryViewModel @Inject constructor(
         const val CreationStateKey = "local_creation_ui_v1"
         const val SelectedMomentStateKey = "selected_moment_id"
         const val ActionStateKey = "media_action_state"
+        const val WidgetRefreshDebounceMillis = 1_500L
         const val BulkStateKey = "bulk_action_state"
         const val FavoriteImportStateKey = "favorite_import_state"
         const val WriteMutationStateKey = "pending_write_mutation"
