@@ -3958,11 +3958,28 @@ private fun ViewerRoute(
     val archiveLabel = stringResource(if (mediaArchived) R.string.archive_unarchive else R.string.archive_move)
     // Restore/Delete from the trash viewer leaves the item stale in this list; close on completion.
     var trashActionPending by remember(media.key) { mutableStateOf(false) }
+    // Moving to trash from the library leaves the photo stale too: advance to its neighbour,
+    // captured before the list drops the row, or close when it was the last one (V-05).
+    var advanceAfterTrash by remember(media.key) { mutableStateOf(false) }
+    var trashNeighbour by remember(media.key) { mutableStateOf<TimelineMedia?>(null) }
     val systemActionState by viewModel.systemAction.collectAsState()
-    LaunchedEffect(trashActionPending, systemActionState?.phase) {
-        if (trashActionPending && systemActionState?.phase == com.ugallery.core.mediastore.MediaActionPhase.Complete) {
-            trashActionPending = false
-            onBack()
+    LaunchedEffect(trashActionPending, advanceAfterTrash, systemActionState?.phase) {
+        when (systemActionState?.phase) {
+            com.ugallery.core.mediastore.MediaActionPhase.Complete -> {
+                if (trashActionPending) {
+                    trashActionPending = false
+                    onBack()
+                } else if (advanceAfterTrash) {
+                    advanceAfterTrash = false
+                    trashNeighbour?.let(viewModel::selectViewerMedia) ?: onBack()
+                }
+            }
+            is com.ugallery.core.mediastore.MediaActionPhase.Cancelled,
+            is com.ugallery.core.mediastore.MediaActionPhase.RequestFailed -> {
+                trashActionPending = false
+                advanceAfterTrash = false
+            }
+            else -> Unit
         }
     }
     val viewer: @Composable () -> Unit = {
@@ -4005,6 +4022,12 @@ private fun ViewerRoute(
             onTrash = {
                 runViewerDestructive {
                     trashActionPending = trashContext
+                    if (!trashContext) {
+                        val index = mediaItems.indexOfFirst { it.viewerId == media.viewerId }
+                        trashNeighbour = if (index < 0) null
+                            else mediaItems.getOrNull(index + 1) ?: mediaItems.getOrNull(index - 1)
+                        advanceAfterTrash = true
+                    }
                     viewModel.beginSystemAction(media, MediaAction.Trash(!trashContext))
                 }
             },
