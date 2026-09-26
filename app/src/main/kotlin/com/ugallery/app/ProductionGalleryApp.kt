@@ -359,6 +359,8 @@ internal fun ProductionGalleryApp(
     val privateLockedTitle = stringResource(com.ugallery.feature.privatealbum.R.string.private_locked)
     val privateUnlockSubtitle = stringResource(com.ugallery.feature.privatealbum.R.string.private_key_unlock_body)
     val privateBiometricFailed = stringResource(com.ugallery.feature.privatealbum.R.string.private_biometric_failed)
+    val privateImportConfirmBody = stringResource(com.ugallery.feature.privatealbum.R.string.private_import_confirm_body)
+    val privateImportInterrupted = stringResource(com.ugallery.feature.privatealbum.R.string.private_import_interrupted)
     val privateExportFailed = stringResource(com.ugallery.feature.privatealbum.R.string.private_export_failed)
     val appLockTitle = stringResource(R.string.app_lock_title)
     val appLockBody = stringResource(R.string.app_lock_body)
@@ -882,39 +884,46 @@ internal fun ProductionGalleryApp(
         route = SurfaceRoute.Root
     }
 
+    /** Renews the 30 s authenticated-key window without touching the album's UI authorization. */
+    suspend fun reauthenticatePrivateImport(): Boolean {
+        val fragmentActivity = context as? FragmentActivity ?: return false
+        if (!BiometricGate.canAuthenticate(context)) return false
+        return kotlinx.coroutines.suspendCancellableCoroutine { continuation ->
+            BiometricGate.authenticate(
+                activity = fragmentActivity,
+                title = privateLockedTitle,
+                subtitle = privateImportConfirmBody,
+                onSuccess = { if (continuation.isActive) continuation.resumeWith(Result.success(true)) },
+                onError = { if (continuation.isActive) continuation.resumeWith(Result.success(false)) },
+                // A failed sample is not terminal; the prompt stays open for another attempt.
+                onFail = {},
+            )
+        }
+    }
+
     fun startPrivateImport() {
         val batch = privateImportSelection.values.toList()
         val access = privateSession.accessToken() ?: return
         if (route != SurfaceRoute.PrivateAlbumPicker || batch.isEmpty() || privateImportProgress != null) return
         privateImportProgress = PrivateImportProgress(0, batch.size)
         appScope.launch {
-            if (!privateSession.hasAccess(access) || route != SurfaceRoute.PrivateAlbumPicker) {
-                privateImportProgress = null
-                return@launch
-            }
-            val successful = mutableListOf<TimelineMedia>()
-            val masterKey = try { privateAlbumRepo.requireMasterKeyBinding() }
-                catch (cancelled: CancellationException) { privateImportProgress = null; throw cancelled }
-                catch (failure: Exception) {
-                    val stillOwned = privateSession.hasAccess(access)
-                    if (stillOwned && com.ugallery.core.security.PrivateAlbumCrypto.requiresAuthentication(failure)) privateSession.revoke()
-                    privateImportProgress = null
-                    if (stillOwned && route == SurfaceRoute.PrivateAlbumPicker) {
-                        privateImportSelection.clear()
-                        privateImportOutcome = PrivateImportOutcome(emptyList(), batch.size)
-                        route = SurfaceRoute.PrivateAlbum
-                    }
-                    return@launch
-                }
-            batch.forEachIndexed { index, media ->
-                privateImportProgress = PrivateImportProgress(index + 1, batch.size)
-                if (privateAlbumRepo.importFromMedia(media, masterKey).success) successful += media
-            }
+            val result = try {
+                com.ugallery.feature.privatealbum.importPrivateBatch(
+                    items = batch,
+                    resolveKey = { privateAlbumRepo.requireMasterKeyBinding() },
+                    importOne = { media, key -> privateAlbumRepo.importFromMedia(media, key).success },
+                    reauthenticate = ::reauthenticatePrivateImport,
+                    hasAccess = { privateSession.hasAccess(access) && route == SurfaceRoute.PrivateAlbumPicker },
+                    onProgress = { privateImportProgress = PrivateImportProgress(it, batch.size) },
+                )
+            } catch (cancelled: CancellationException) { privateImportProgress = null; throw cancelled }
             privateImportSelection.clear()
             privateImportProgress = null
+            // The album may already be locked, which hides the outcome dialog; a toast is still seen.
+            if (result.interrupted) Toast.makeText(context, privateImportInterrupted, Toast.LENGTH_LONG).show()
             // A previously authorized import may finish, but must not reopen a route after exit/lock.
             if (privateSession.hasAccess(access) && route == SurfaceRoute.PrivateAlbumPicker) {
-                privateImportOutcome = PrivateImportOutcome(successful, batch.size)
+                privateImportOutcome = PrivateImportOutcome(result.successful, batch.size)
                 route = SurfaceRoute.PrivateAlbum
             }
         }
