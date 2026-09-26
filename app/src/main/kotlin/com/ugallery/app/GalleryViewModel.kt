@@ -185,6 +185,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -4998,7 +4999,24 @@ class GalleryViewModel @Inject constructor(
 
     internal fun clearTreeOperation() { savedStateHandle["pending_tree_operation_v1"] = null }
 
-    internal suspend fun copyMediaToTree(input: PendingTreeOperation, treeUri: Uri): Result<Uri> = try {
+    internal enum class TreeOperationOutcome { Copied, MoveCopied, Failed }
+
+    // Buffered so an outcome finished during a configuration change still reaches the new UI.
+    private val treeOperationOutcomeChannel = Channel<TreeOperationOutcome>(Channel.BUFFERED)
+    internal val treeOperationOutcomes = treeOperationOutcomeChannel.receiveAsFlow()
+
+    /** Runs in viewModelScope so rotating the device does not cancel a large copy. */
+    internal fun startTreeOperation(input: PendingTreeOperation, treeUri: Uri) {
+        viewModelScope.launch {
+            val outcome = copyMediaToTree(input, treeUri).fold(
+                onSuccess = { if (input.move) TreeOperationOutcome.MoveCopied else TreeOperationOutcome.Copied },
+                onFailure = { TreeOperationOutcome.Failed },
+            )
+            treeOperationOutcomeChannel.send(outcome)
+        }
+    }
+
+    private suspend fun copyMediaToTree(input: PendingTreeOperation, treeUri: Uri): Result<Uri> = try {
         val result = if (input.move) verifiedMove.copy(input, treeUri) else ScopedMediaOperations.copyToTree(
             getApplication<Application>().contentResolver, input.target, treeUri, input.name, input.mime, input.lastModifiedMillis,
         )

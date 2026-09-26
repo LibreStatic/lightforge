@@ -1116,12 +1116,16 @@ internal fun ProductionGalleryApp(
     val treeLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { treeUri ->
         val captured = viewModel.pendingTreeOperation
         viewModel.clearTreeOperation()
-        if (treeUri != null && captured != null) appScope.launch(kotlinx.coroutines.Dispatchers.Main.immediate) {
-            viewModel.copyMediaToTree(captured, treeUri)
-                .onSuccess {
-                    Toast.makeText(context, if (captured.move) treeMoveCopyComplete else treeCopyComplete, Toast.LENGTH_SHORT).show()
-                }
-                .onFailure { Toast.makeText(context, treeActionUnavailable, Toast.LENGTH_SHORT).show() }
+        if (treeUri != null && captured != null) viewModel.startTreeOperation(captured, treeUri)
+    }
+    LaunchedEffect(Unit) {
+        viewModel.treeOperationOutcomes.collect { outcome ->
+            val message = when (outcome) {
+                GalleryViewModel.TreeOperationOutcome.Copied -> treeCopyComplete
+                GalleryViewModel.TreeOperationOutcome.MoveCopied -> treeMoveCopyComplete
+                GalleryViewModel.TreeOperationOutcome.Failed -> treeActionUnavailable
+            }
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
     val moveState by viewModel.verifiedMove.state.collectAsState()
