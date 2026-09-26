@@ -183,7 +183,7 @@ internal fun publicationRecoveryMotionProviderKey(sourceIdentity: String?): Stri
 
 internal enum class SurfaceRoute {
     Root, Updates, DeviceFolders, Album, HighlightCollection, Viewer, PhotoEditor, VideoEditor,
-    Archive, Trash, Settings, About, Moment, MomentParticipants, MemoryControls, MemoriesBrowser, ManualMoment, MemoryVideo, MotionPhoto, CreationGif, LocalBackup, LocalBackupTasks, RemoteBackup, OwnSync, OfflinePlaces, LocalSharing, PetIdentity, People, PrivateAlbum, PrivateAlbumPicker, Collage, PdfStudio, Documents, Stacks, SmartAlbums, PublicationRecoveries,
+    Archive, Trash, Settings, About, Moment, MomentParticipants, MemoryControls, MemoriesBrowser, ManualMoment, MemoryVideo, MotionPhoto, CreationGif, LocalBackup, LocalBackupTasks, RemoteBackup, OwnSync, OfflinePlaces, LocalSharing, PetIdentity, People, Cleanup, PrivateAlbum, PrivateAlbumPicker, Collage, PdfStudio, Documents, Stacks, SmartAlbums, PublicationRecoveries,
 }
 internal fun retainsPhotosViewerWindow(
     requested: Boolean, route: SurfaceRoute, fromPhotos: Boolean, external: Boolean,
@@ -214,6 +214,7 @@ private sealed interface ViewerReturnDestination {
     data object Archive : ViewerReturnDestination
     data object Trash : ViewerReturnDestination
     data object People : ViewerReturnDestination
+    data object Cleanup : ViewerReturnDestination
 }
 
 private val ViewerReturnDestinationSaver = listSaver<ViewerReturnDestination?, String>(
@@ -230,6 +231,7 @@ private val ViewerReturnDestinationSaver = listSaver<ViewerReturnDestination?, S
             ViewerReturnDestination.Places -> listOf("places")
             ViewerReturnDestination.Highlight -> listOf("highlight")
             ViewerReturnDestination.People -> listOf("people")
+            ViewerReturnDestination.Cleanup -> listOf("cleanup")
         }
     },
     restore = { saved ->
@@ -250,6 +252,7 @@ private val ViewerReturnDestinationSaver = listSaver<ViewerReturnDestination?, S
             "places" -> ViewerReturnDestination.Places
             "highlight" -> ViewerReturnDestination.Highlight
             "people" -> ViewerReturnDestination.People
+            "cleanup" -> ViewerReturnDestination.Cleanup
             else -> null
         }
     },
@@ -449,6 +452,7 @@ internal fun ProductionGalleryApp(
     val momentMembers by viewModel.momentMembers.collectAsState(initial = emptyList())
     val people by viewModel.peopleSummaries.collectAsState()
     val hiddenPeople by viewModel.hiddenPeopleSummaries.collectAsState()
+    val cleanupAnalysisEnabled by viewModel.cleanupAnalysisEnabled.collectAsState()
     val selectedPerson by viewModel.selectedPerson.collectAsState()
     val selectedPersonMembers by viewModel.selectedPersonMembers.collectAsState()
     val me by viewModel.me.collectAsState()
@@ -985,6 +989,7 @@ internal fun ProductionGalleryApp(
             ViewerReturnDestination.Places -> route = SurfaceRoute.OfflinePlaces
             ViewerReturnDestination.Highlight -> route = SurfaceRoute.HighlightCollection
             ViewerReturnDestination.People -> route = SurfaceRoute.People
+            ViewerReturnDestination.Cleanup -> route = SurfaceRoute.Cleanup
             null -> route = SurfaceRoute.Root
         }
     }
@@ -1382,6 +1387,7 @@ internal fun ProductionGalleryApp(
                         collageLabel = stringResource(R.string.m6_collage),
                         onCollageClick = ::openCreationCollage,
                         // Reuses the Search favorites filter ("favorites" sets favoriteOnly).
+                        onCleanupClick = { route = SurfaceRoute.Cleanup },
                         onFavoritesClick = {
                             viewModel.setSearchQuery(FavoritesSearchQuery)
                             viewModel.search(FavoritesSearchQuery)
@@ -1941,7 +1947,7 @@ internal fun ProductionGalleryApp(
                     onHidePerson = viewModel::hidePerson,
                     onSetSelectedAsMe = viewModel::setSelectedPersonAsMe,
                     onResetMe = viewModel::resetMe,
-                    onMemberClick = { key -> openViewer(ViewerReturnDestination.People) { viewModel.openPersonPhoto(key) } },
+                    onMemberClick = { key -> openViewer(ViewerReturnDestination.People) { viewModel.openMediaByKey(key) } },
                     onLoadMoreMembers = viewModel::loadMorePersonMembers,
                     onMergePerson = viewModel::mergePersonInto,
                     onSplitFaces = viewModel::splitPersonFaces,
@@ -2063,6 +2069,8 @@ internal fun ProductionGalleryApp(
                     onAllAnalysisEnabledChange = viewModel::setAllLocalAnalysisEnabled,
                     onPeopleAnalysisEnabledChange = viewModel::setPeopleAnalysisEnabled,
                     onContentAnalysisEnabledChange = viewModel::setContentAnalysisEnabled,
+                    cleanupAnalysisEnabled = cleanupAnalysisEnabled,
+                    onCleanupAnalysisEnabledChange = viewModel::setCleanupAnalysisEnabled,
                     semanticModels = SemanticModelSettingsUiState(
                         enabled = semanticModels.enabled,
                         automaticSelection = semanticModels.selectionMode == com.ugallery.feature.semanticsearch.SemanticSelectionMode.Automatic,
@@ -2240,6 +2248,19 @@ internal fun ProductionGalleryApp(
                     com.ugallery.feature.collections.SmartAlbumsContent(
                         repository = repository, thumbnailLoader = thumbnails,
                         onBack = { route = SurfaceRoute.Root }, onAnalysis = { route = SurfaceRoute.Settings },
+                    )
+                }
+                SurfaceRoute.Cleanup -> {
+                    // Collected only here so the cleanup queries run while the screen is shown.
+                    val cleanup by viewModel.cleanup.collectAsState()
+                    com.ugallery.feature.collections.CleanupContent(
+                        state = cleanup,
+                        thumbnailLoader = thumbnails,
+                        onBack = { route = SurfaceRoute.Root },
+                        onEnableAnalysis = { viewModel.setCleanupAnalysisEnabled(true) },
+                        onOpen = { key -> openViewer(ViewerReturnDestination.Cleanup) { viewModel.openMediaByKey(key) } },
+                        onTrashDuplicateCopies = viewModel::trashDuplicateCopies,
+                        onTrashSection = viewModel::trashCleanupSection,
                     )
                 }
                 SurfaceRoute.Stacks -> photoStackRepository?.let { repository ->

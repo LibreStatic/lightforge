@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cleanup_title">Liberar espaço</string>
+    <string name="cleanup_collection_body">Duplicatas exatas, vídeos grandes e fotos desfocadas para revisar</string>
+    <string name="cleanup_back">Coleções</string>
+    <string name="cleanup_analysis_off">A detecção de duplicatas e fotos desfocadas está desativada. Ative-a para analisar sua biblioteca neste dispositivo.</string>
+    <string name="cleanup_analysis_enable">Ativar análise</string>
+    <string name="cleanup_analysis_hint">A análise é executada neste dispositivo durante o carregamento, ou com o UGallery aberto e bateria suficiente. Os resultados aparecem conforme avança.</string>
+    <string name="cleanup_duplicates_title">Duplicatas exatas</string>
+    <string name="cleanup_keep">Manter</string>
+    <string name="cleanup_trash_copies">Mover cópias para a lixeira</string>
+    <string name="cleanup_large_videos_title">Vídeos grandes (100 MB ou mais)</string>
+    <string name="cleanup_blurry_title">Fotos desfocadas</string>
+    <string name="cleanup_trash_all">Mover tudo para a lixeira</string>
+    <string name="cleanup_empty">Nada encontrado ainda.</string>
+    <string name="cleanup_trash_body">Você pode restaurar os itens da lixeira até que sejam excluídos automaticamente.</string>
+    <string name="cleanup_trash_confirm">Mover para a lixeira</string>
+    <string name="cleanup_cancel">Cancelar</string>
+    <string name="cleanup_open_item">Abrir</string>
+    <plurals name="cleanup_duplicates_summary">
+        <item quantity="one">%1$d grupo · %2$s podem ser liberados</item>
+        <item quantity="many">%1$d grupos · %2$s podem ser liberados</item>
+        <item quantity="other">%1$d grupos · %2$s podem ser liberados</item>
+    </plurals>
+    <plurals name="cleanup_group_summary">
+        <item quantity="one">%1$d cópia idêntica · %2$s podem ser liberados</item>
+        <item quantity="many">%1$d cópias idênticas · %2$s podem ser liberados</item>
+        <item quantity="other">%1$d cópias idênticas · %2$s podem ser liberados</item>
+    </plurals>
+    <plurals name="cleanup_large_videos_summary">
+        <item quantity="one">%1$d vídeo · %2$s</item>
+        <item quantity="many">%1$d vídeos · %2$s</item>
+        <item quantity="other">%1$d vídeos · %2$s</item>
+    </plurals>
+    <plurals name="cleanup_blurry_summary">
+        <item quantity="one">%d foto pode estar desfocada</item>
+        <item quantity="many">%d fotos podem estar desfocadas</item>
+        <item quantity="other">%d fotos podem estar desfocadas</item>
+    </plurals>
+    <plurals name="cleanup_trash_title">
+        <item quantity="one">Mover %d item para a lixeira?</item>
+        <item quantity="many">Mover %d itens para a lixeira?</item>
+        <item quantity="other">Mover %d itens para a lixeira?</item>
+    </plurals>
+</resources>

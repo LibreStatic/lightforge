@@ -421,8 +421,9 @@ private fun ThumbnailStrip(items: List<PersonMemberCardUi>, loader: ThumbnailLoa
     }
 }
 
+/** Square media thumbnail with a neutral placeholder; also used by the cleanup review. */
 @Composable
-private fun PersonThumbnail(key: MediaKey?, loader: ThumbnailLoader?, modifier: Modifier = Modifier) {
+internal fun PersonThumbnail(key: MediaKey?, loader: ThumbnailLoader?, modifier: Modifier = Modifier) {
     var bitmap by remember { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(key) {
         bitmap = if (key == null || loader == null) null else runCatching {

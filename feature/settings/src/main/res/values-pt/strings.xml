@@ -172,4 +172,6 @@
     <string name="semantic_index_error">Não foi possível criar o índice semântico. Verifique o armazenamento disponível e o acesso à mídia e escolha o modelo novamente.</string>
     <string name="portable_preferences_field_collection_order">Ordem das coleções</string>
     <string name="portable_preferences_field_hidden_collections">Coleções ocultas</string>
+    <string name="local_analysis_cleanup">Análise para liberar espaço</string>
+    <string name="local_analysis_cleanup_summary">Encontra duplicatas exatas e fotos desfocadas neste dispositivo, durante o carregamento ou com o UGallery aberto e bateria suficiente. Nada é excluído sem a sua confirmação.</string>
 </resources>

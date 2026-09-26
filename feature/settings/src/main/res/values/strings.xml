@@ -170,4 +170,6 @@
     <string name="semantic_index_error">The semantic index could not be built. Check available storage and media access, then choose the model again.</string>
     <string name="portable_preferences_field_collection_order">Collection order</string>
     <string name="portable_preferences_field_hidden_collections">Hidden collections</string>
+    <string name="local_analysis_cleanup">Free up space analysis</string>
+    <string name="local_analysis_cleanup_summary">Finds exact duplicates and blurry photos on this device, while charging or while UGallery is open with enough battery. Nothing is deleted without your confirmation.</string>
 </resources>

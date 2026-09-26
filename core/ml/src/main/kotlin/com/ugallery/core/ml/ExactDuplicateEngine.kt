@@ -15,6 +15,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.FileInputStream
+import java.io.IOException
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 
@@ -101,17 +102,21 @@ class ExactDuplicateMlEngine(
                         hasher.full(candidate)
                     } catch (_: SecurityException) {
                         return@withContext MlChunkOutcome.PermissionLost
+                    } catch (_: IOException) {
+                        // Missing or unreadable bytes are permanent for this generation. A digest
+                        // no real file can have keeps it out of every group instead of retrying.
+                        unreadableDigest(candidate)
                     }
-                    check(
-                        dao.setDuplicateFullHash(
-                            candidate.volumeName,
-                            candidate.mediaStoreId,
-                            candidate.generationModified,
-                            modelVersion,
-                            digest,
-                            nowMillis(),
-                        ) == 1,
-                    ) { "Duplicate hash candidate changed while hashing" }
+                    // Zero rows means the file changed while hashing; its new generation is
+                    // sampled again on a later pass, so there is nothing to retry here.
+                    dao.setDuplicateFullHash(
+                        candidate.volumeName,
+                        candidate.mediaStoreId,
+                        candidate.generationModified,
+                        modelVersion,
+                        digest,
+                        nowMillis(),
+                    )
                 }
                 return@withContext MlChunkOutcome.More(fullCandidates.last().key(), fullCandidates.size)
             }
@@ -124,6 +129,8 @@ class ExactDuplicateMlEngine(
                     hasher.sample(candidate)
                 } catch (_: SecurityException) {
                     return@withContext MlChunkOutcome.PermissionLost
+                } catch (_: IOException) {
+                    unreadableDigest(candidate)
                 }
                 dao.upsertDuplicateHash(
                     DuplicateHashEntity(
@@ -144,6 +151,8 @@ class ExactDuplicateMlEngine(
     override suspend fun purgeDerivedData() {
         dao.purgeDuplicateHashes()
     }
+
+    private fun unreadableDigest(item: MediaItemEntity) = "unreadable:${item.volumeName}:${item.mediaStoreId}"
 
     companion object { const val HashVersion = "sha256-sampled-v1" }
 }

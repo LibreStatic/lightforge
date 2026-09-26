@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cleanup_title">Free up space</string>
+    <string name="cleanup_collection_body">Exact duplicates, large videos and blurry photos to review</string>
+    <string name="cleanup_back">Collections</string>
+    <string name="cleanup_analysis_off">Duplicate and blurry photo detection is off. Turn it on to analyze your library on this device.</string>
+    <string name="cleanup_analysis_enable">Turn on analysis</string>
+    <string name="cleanup_analysis_hint">Analysis runs on this device while charging, or while UGallery is open with enough battery. Results appear as it progresses.</string>
+    <string name="cleanup_duplicates_title">Exact duplicates</string>
+    <string name="cleanup_keep">Keep</string>
+    <string name="cleanup_trash_copies">Move copies to trash</string>
+    <string name="cleanup_large_videos_title">Large videos (100 MB or more)</string>
+    <string name="cleanup_blurry_title">Blurry photos</string>
+    <string name="cleanup_trash_all">Move all to trash</string>
+    <string name="cleanup_empty">Nothing found yet.</string>
+    <string name="cleanup_trash_body">You can restore items from the trash until they are deleted automatically.</string>
+    <string name="cleanup_trash_confirm">Move to trash</string>
+    <string name="cleanup_cancel">Cancel</string>
+    <string name="cleanup_open_item">Open</string>
+    <plurals name="cleanup_duplicates_summary">
+        <item quantity="one">%1$d group · %2$s can be freed</item>
+        <item quantity="other">%1$d groups · %2$s can be freed</item>
+    </plurals>
+    <plurals name="cleanup_group_summary">
+        <item quantity="one">%1$d identical copy · %2$s can be freed</item>
+        <item quantity="other">%1$d identical copies · %2$s can be freed</item>
+    </plurals>
+    <plurals name="cleanup_large_videos_summary">
+        <item quantity="one">%1$d video · %2$s</item>
+        <item quantity="other">%1$d videos · %2$s</item>
+    </plurals>
+    <plurals name="cleanup_blurry_summary">
+        <item quantity="one">%d photo may be blurry</item>
+        <item quantity="other">%d photos may be blurry</item>
+    </plurals>
+    <plurals name="cleanup_trash_title">
+        <item quantity="one">Move %d item to trash?</item>
+        <item quantity="other">Move %d items to trash?</item>
+    </plurals>
+</resources>

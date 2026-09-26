@@ -151,6 +151,8 @@ fun RecognitionSettingsContent(
     onAllAnalysisEnabledChange: (Boolean) -> Unit = {},
     onPeopleAnalysisEnabledChange: (Boolean) -> Unit = {},
     onContentAnalysisEnabledChange: (Boolean) -> Unit = {},
+    cleanupAnalysisEnabled: Boolean = false,
+    onCleanupAnalysisEnabledChange: (Boolean) -> Unit = {},
     semanticModels: SemanticModelSettingsUiState = SemanticModelSettingsUiState(),
     onSemanticEnabledChange: (Boolean) -> Unit = {},
     onSemanticDownload: (String, Boolean) -> Unit = { _, _ -> },
@@ -261,6 +263,8 @@ fun RecognitionSettingsContent(
                         onAllAnalysisEnabledChange = onAllAnalysisEnabledChange,
                         onPeopleAnalysisEnabledChange = onPeopleAnalysisEnabledChange,
                         onContentAnalysisEnabledChange = onContentAnalysisEnabledChange,
+                        cleanupAnalysisEnabled = cleanupAnalysisEnabled,
+                        onCleanupAnalysisEnabledChange = onCleanupAnalysisEnabledChange,
                         semanticModels = semanticModels,
                         onSemanticEnabledChange = onSemanticEnabledChange,
                         onSemanticDownload = onSemanticDownload,
@@ -1195,6 +1199,8 @@ private fun AiAnalysisSection(
     onAllAnalysisEnabledChange: (Boolean) -> Unit,
     onPeopleAnalysisEnabledChange: (Boolean) -> Unit,
     onContentAnalysisEnabledChange: (Boolean) -> Unit,
+    cleanupAnalysisEnabled: Boolean,
+    onCleanupAnalysisEnabledChange: (Boolean) -> Unit,
     semanticModels: SemanticModelSettingsUiState,
     onSemanticEnabledChange: (Boolean) -> Unit,
     onSemanticDownload: (String, Boolean) -> Unit,
@@ -1267,6 +1273,13 @@ private fun AiAnalysisSection(
         onCheckedChange = onContentAnalysisEnabledChange,
     )
     Text(stringResource(R.string.local_analysis_content_summary), style = MaterialTheme.typography.bodySmall)
+    SettingsSwitchRow(
+        stringResource(R.string.local_analysis_cleanup),
+        cleanupAnalysisEnabled,
+        modifier = Modifier.testTag("cleanup_analysis_switch"),
+        onCheckedChange = onCleanupAnalysisEnabledChange,
+    )
+    Text(stringResource(R.string.local_analysis_cleanup_summary), style = MaterialTheme.typography.bodySmall)
     SemanticModelsSection(
         state = semanticModels,
         onEnabledChange = onSemanticEnabledChange,

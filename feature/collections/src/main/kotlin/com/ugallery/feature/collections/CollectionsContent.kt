@@ -145,6 +145,7 @@ fun CollectionsContent(
     collageLabel: String? = null,
     onCollageClick: (() -> Unit)? = null,
     onFavoritesClick: (() -> Unit)? = null,
+    onCleanupClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     momentPlaceLabels: ((String) -> kotlinx.coroutines.flow.Flow<String?>)? = null,
     layoutOrder: List<String> = emptyList(),
@@ -262,10 +263,12 @@ fun CollectionsContent(
         GalleryIcons.Collections, onPdfStudioClick.takeIf { pdfStudioLabel != null })
     action("collage", collageLabel ?: stringResource(R.string.collection_layout_collage), stringResource(R.string.collections_collage_body),
         GalleryIcons.Collections, onCollageClick.takeIf { collageLabel != null })
+    action("cleanup", stringResource(R.string.cleanup_title), stringResource(R.string.cleanup_collection_body),
+        GalleryIcons.Trash, onCleanupClick, "collections-cleanup")
     action("local-analysis", stringResource(R.string.collections_local_analysis), stringResource(R.string.collections_local_analysis_body), GalleryIcons.Analyze, onLocalAnalysisClick)
     val labels = mapOf(
         "documents" to stringResource(R.string.documents_title), "people" to stringResource(R.string.collections_people),
-        "favorites" to stringResource(R.string.collections_favorites),
+        "favorites" to stringResource(R.string.collections_favorites), "cleanup" to stringResource(R.string.cleanup_title),
         "archive" to stringResource(R.string.collections_archive), "trash" to stringResource(R.string.collections_trash),
         "virtual-albums" to stringResource(R.string.collection_layout_virtual), "physical-albums" to stringResource(R.string.collection_layout_physical),
         "dogs" to dogsTitle, "cats" to catsTitle, "memories" to stringResource(R.string.collections_moments),

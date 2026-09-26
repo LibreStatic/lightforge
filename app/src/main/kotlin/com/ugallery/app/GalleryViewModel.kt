@@ -58,6 +58,10 @@ import com.ugallery.core.mediastore.PublishedCopy
 import com.ugallery.core.mediastore.LocalShareSanitizer
 import com.ugallery.core.mediastore.ScopedMediaOperations
 import com.ugallery.core.ml.DetectedContentRepository
+import com.ugallery.core.ml.CleanupRepository
+import com.ugallery.core.ml.CleanupSummary
+import com.ugallery.core.ml.ExactDuplicateGroup
+import com.ugallery.core.ml.ExactDuplicateRepository
 import com.ugallery.core.ml.FaceIdentityKey
 import com.ugallery.core.search.SearchQueryParser
 import com.ugallery.core.ml.LocalAnalysisOnboardingDecision
@@ -139,6 +143,9 @@ import com.ugallery.core.selection.SelectionSpec
 import com.ugallery.core.selection.MediaQuery
 import com.ugallery.core.thumbnail.NativeImageDecoder
 import com.ugallery.core.thumbnail.ThumbnailLoader
+import com.ugallery.feature.collections.CleanupDuplicateGroupUi
+import com.ugallery.feature.collections.CleanupSection
+import com.ugallery.feature.collections.CleanupUiState
 import com.ugallery.feature.collections.LocalMeUiState
 import com.ugallery.feature.collections.MomentMemberUi
 import com.ugallery.feature.collections.PeopleUiState
@@ -335,6 +342,8 @@ class GalleryViewModel @Inject constructor(
     )
     private val contentAnalysisTasks = listOf(MlTaskType.ImageLabels, MlTaskType.Ocr)
     private val localAnalysisTasks = peopleAnalysisTasks + contentAnalysisTasks
+    /** Opt-in "Free up space" analysis; both run under the full-library charging/foreground gate. */
+    private val cleanupAnalysisTasks = listOf(MlTaskType.ExactDuplicates, MlTaskType.Similarity)
     private val gallerySettingsRepository = GallerySettingsRepository(application)
     val gallerySettings = gallerySettingsRepository.settings.stateIn(
         viewModelScope,
@@ -395,6 +404,15 @@ class GalleryViewModel @Inject constructor(
         contentAnalysisTasks.all(mlScheduler::hasConsent),
     )
     val detectedContentEnabled = mutableDetectedContentEnabled.asStateFlow()
+    private val mutableCleanupAnalysisEnabled = MutableStateFlow(cleanupAnalysisTasks.all(mlScheduler::hasConsent))
+    val cleanupAnalysisEnabled = mutableCleanupAnalysisEnabled.asStateFlow()
+    @Volatile private var cleanupGroups: Map<String, ExactDuplicateGroup> = emptyMap()
+    /** Re-read whenever Room reports a change to hashes, similarity features or media. */
+    val cleanup = combine(runtime.filterNotNull(), mutableCleanupAnalysisEnabled) { active, enabled -> active to enabled }
+        .flatMapLatest { (active, enabled) ->
+            CleanupRepository(active.database).summary.map { summary -> loadCleanup(active, summary, enabled) }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CleanupUiState())
     private val mutableFaceAnalysis = MutableStateFlow(mlScheduler.controlState(MlTaskType.FaceDetection))
     val faceAnalysis = mutableFaceAnalysis.asStateFlow()
     private val mutablePeopleAnalysis = MutableStateFlow(peopleControlState())
@@ -1954,7 +1972,7 @@ class GalleryViewModel @Inject constructor(
         semanticModelManager?.setEnabled(false)
         viewModelScope.launch {
             disableAllLocalAnalysis()
-            localAnalysisTasks.reversed().forEach { mlScheduler.deleteDerivedData(it) }
+            (localAnalysisTasks + cleanupAnalysisTasks).reversed().forEach { mlScheduler.deleteDerivedData(it) }
             refreshLocalAnalysisControls()
         }
     }
@@ -2003,7 +2021,7 @@ class GalleryViewModel @Inject constructor(
     fun deleteAllLocalAnalysisData() {
         viewModelScope.launch {
             disableAllLocalAnalysis()
-            localAnalysisTasks.reversed().forEach { mlScheduler.deleteDerivedData(it) }
+            (localAnalysisTasks + cleanupAnalysisTasks).reversed().forEach { mlScheduler.deleteDerivedData(it) }
             refreshLocalAnalysisControls()
         }
     }
@@ -2028,7 +2046,8 @@ class GalleryViewModel @Inject constructor(
     }
 
     private suspend fun disableAllLocalAnalysis() {
-        localAnalysisTasks.forEach { mlScheduler.setConsent(it, false) }
+        (localAnalysisTasks + cleanupAnalysisTasks).forEach { mlScheduler.setConsent(it, false) }
+        mutableCleanupAnalysisEnabled.value = false
         petSettings.setEnabled(false)
         mutablePetCollectionsEnabled.value = false
         faceProgressJob?.cancel()
@@ -2158,7 +2177,7 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
-    fun openPersonPhoto(key: MediaKey) {
+    fun openMediaByKey(key: MediaKey) {
         viewModelScope.launch {
             val row = runtime.value?.database?.libraryDao()?.media(key.volumeName, key.mediaStoreId) ?: return@launch
             if (!row.isAccessible || row.isTrashed) return@launch
@@ -2201,6 +2220,63 @@ class GalleryViewModel @Inject constructor(
             peopleRefreshGeneration.value++
             loadPersonMembers(clusterId)
         }
+    }
+
+    fun setCleanupAnalysisEnabled(enabled: Boolean) {
+        cleanupAnalysisTasks.forEach {
+            if (enabled) {
+                mlScheduler.grantConsent(it)
+                mlScheduler.unpause(it)
+                mlScheduler.enqueue(it, MlRunMode.FullLibrary)
+            } else mlScheduler.setConsent(it, false)
+        }
+        mutableCleanupAnalysisEnabled.value = enabled
+    }
+
+    private suspend fun loadCleanup(active: GalleryRuntime, summary: CleanupSummary, enabled: Boolean): CleanupUiState =
+        withContext(Dispatchers.IO) {
+            val repository = CleanupRepository(active.database)
+            val groups = ExactDuplicateRepository(active.database).groups(null, CleanupGroupLimit)
+            cleanupGroups = groups.associateBy { it.id }
+            val largeVideos = repository.largeVideosQuery()
+            val blurry = repository.blurryCandidatesQuery()
+            CleanupUiState(
+                loading = false,
+                analysisEnabled = enabled,
+                duplicateGroups = groups.map { group ->
+                    CleanupDuplicateGroupUi(
+                        id = group.id,
+                        members = active.selectionTargets.page(repository.exactDuplicateGroupQuery(group), null, CleanupPreviewLimit)
+                            .map { it.key },
+                        keep = group.recommendedKeep,
+                        memberCount = group.memberCount,
+                        recoverableBytes = group.recoverableBytes,
+                    )
+                },
+                duplicateGroupCount = summary.exactGroupCount,
+                duplicateBytes = summary.exactRecoverableBytes,
+                largeVideos = active.selectionTargets.page(largeVideos, null, CleanupPreviewLimit).map { it.key },
+                largeVideoCount = active.selectionTargets.count(largeVideos),
+                largeVideoBytes = summary.largeVideoBytes,
+                blurry = active.selectionTargets.page(blurry, null, CleanupPreviewLimit).map { it.key },
+                blurryCount = active.selectionTargets.count(blurry),
+            )
+        }
+
+    /** Every copy except the recommended one goes through the shared select-all trash pipeline. */
+    fun trashDuplicateCopies(groupId: String) {
+        val group = cleanupGroups[groupId] ?: return
+        val query = runtime.value?.database?.let(::CleanupRepository)?.exactDuplicateGroupQuery(group) ?: return
+        beginQueryAction(SelectionSpec.queryAll(query, listOf(group.recommendedKeep)), MediaAction.Trash(true))
+    }
+
+    fun trashCleanupSection(section: CleanupSection) {
+        val repository = runtime.value?.database?.let(::CleanupRepository) ?: return
+        val query = when (section) {
+            CleanupSection.LargeVideos -> repository.largeVideosQuery()
+            CleanupSection.Blurry -> repository.blurryCandidatesQuery()
+        }
+        beginQueryAction(SelectionSpec.queryAll(query), MediaAction.Trash(true))
     }
 
     fun unhidePerson(clusterId: String) {
@@ -5870,5 +5946,7 @@ class GalleryViewModel @Inject constructor(
         const val ViewerWindowRefreshThreshold = 12
         const val AnnotationEraserRadius = 0.028f
         const val PersonMemberPageSize = 200
+        const val CleanupGroupLimit = 50
+        const val CleanupPreviewLimit = 30
     }
 }

@@ -172,4 +172,6 @@
     <string name="semantic_index_error">L’index sémantique n’a pas pu être créé. Vérifiez l’espace disponible et l’accès aux médias, puis choisissez à nouveau le modèle.</string>
     <string name="portable_preferences_field_collection_order">Ordre des collections</string>
     <string name="portable_preferences_field_hidden_collections">Collections masquées</string>
+    <string name="local_analysis_cleanup">Analyse pour libérer de l’espace</string>
+    <string name="local_analysis_cleanup_summary">Trouve les doublons exacts et les photos floues sur cet appareil, pendant la charge ou quand UGallery est ouverte avec assez de batterie. Rien n’est supprimé sans votre confirmation.</string>
 </resources>
