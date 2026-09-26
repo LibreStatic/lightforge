@@ -20,6 +20,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.filter
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.produceState
@@ -154,6 +158,8 @@ fun PagedPhotosTimeline(
             focusSnapshot.items.none { (it as? TimelineEntry.Media)?.value?.key == request.key }
         if (state.isScrollInProgress || sourceMissing) onFocusReturnConsumed(request)
     }
+    var userScrolled by rememberSaveable { mutableStateOf(false) }
+    PinTimelineToNewestUntilUserScrolls(state, columns, focusReturn, userScrolled) { userScrolled = true }
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
         state = state,
@@ -168,7 +174,10 @@ fun PagedPhotosTimeline(
                 itemAtIndex = { index -> (entries.itemSnapshotList.getOrNull(index) as? TimelineEntry.Media)?.value },
                 itemKey = { it.key },
                 isSelected = isMediaSelected,
-                onSelectionChange = onMediaSelectionChange,
+                onSelectionChange = { media, selected ->
+                    userScrolled = true
+                    onMediaSelectionChange(media, selected)
+                },
             )
             .testTag("timeline_grid")
             .semantics { testTagsAsResourceId = true },
@@ -391,3 +400,47 @@ private fun TimelineMedia.thumbnailRequest(sizePx: Int) = ThumbnailRequest(
     widthPx = sizePx,
     heightPx = sizePx,
 )
+
+/**
+ * Keeps a freshly shown timeline on its newest row while newer rows arrive above an early
+ * partial page (first grant, initial scan). The grid anchors on its first visible key, so an
+ * insertion at the top would otherwise leave it scrolled down one or more days (Z-01). Any move
+ * away from the top that the user did not make is undone; once the user scrolls, pinches,
+ * drag-selects or returns from a viewer with a focus target, the position is theirs.
+ */
+@Composable
+private fun PinTimelineToNewestUntilUserScrolls(
+    state: LazyGridState,
+    columns: Int,
+    focusReturn: TimelineFocusReturn?,
+    userScrolled: Boolean,
+    onUserScrolled: () -> Unit,
+) {
+    val initialColumns = rememberSaveable { columns }
+    if (!userScrolled && (focusReturn != null || columns != initialColumns)) onUserScrolled()
+    // Any scroll we did not start (drag, fling, wheel, keyboard, accessibility) hands over.
+    var pinning by remember { mutableStateOf(false) }
+    LaunchedEffect(state) {
+        snapshotFlow { state.isScrollInProgress && !pinning }
+            .filter { it }
+            .collect { onUserScrolled() }
+    }
+    val pinned by rememberUpdatedState(!userScrolled)
+    LaunchedEffect(state) {
+        snapshotFlow { state.firstVisibleItemIndex }
+            .filter { it > 0 }
+            .collect { index ->
+                if (pinned) {
+                    android.util.Log.i(PinLogTag, "Timeline moved to index $index without a user scroll; pinning to newest")
+                    pinning = true
+                    try {
+                        state.scrollToItem(0)
+                    } finally {
+                        pinning = false
+                    }
+                }
+            }
+    }
+}
+
+private const val PinLogTag = "UGalleryLibrary"
