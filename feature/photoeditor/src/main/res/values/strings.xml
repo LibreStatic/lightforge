@@ -60,4 +60,17 @@
     <string name="photo_editor_error_raw_too_large">This RAW is too large for JPEG export. Choose 16-bit TIFF.</string>
     <string name="photo_editor_error_raw_render">Could not develop this RAW photo</string>
     <plurals name="photo_editor_error_raw_storage"><item quantity="one">RAW export needs %1$d MB of free temporary storage</item><item quantity="other">RAW export needs %1$d MB of free temporary storage</item></plurals>
+    <string name="photo_editor_object_eraser">Object eraser</string>
+    <string name="photo_editor_subject_clip">Subject cut-out</string>
+    <string name="photo_editor_experimental_tool">%1$s · Experimental</string>
+    <string name="photo_editor_eraser_fallback">Fallback quality (%1$s): fills the brushed area from its surrounding colors. Results are approximate.</string>
+    <string name="photo_editor_clip_fallback">Fallback quality (%1$s): keeps pixels close in color to the tapped point. Results are approximate.</string>
+    <string name="photo_editor_eraser_hint">Brush over the object to remove, then tap Apply. Save copy keeps the original unchanged.</string>
+    <string name="photo_editor_clip_hint">Tap the subject to preview the cut-out. It is saved as a new PNG with a transparent background.</string>
+    <string name="photo_editor_eraser_apply">Apply</string>
+    <string name="photo_editor_eraser_clear">Clear</string>
+    <string name="photo_editor_clip_save">Save cut-out</string>
+    <string name="photo_editor_eraser_mask_description">Areas marked for erasing</string>
+    <string name="photo_editor_experimental_too_large">This photo is too large for the experimental tool</string>
+    <string name="photo_editor_eraser_reset">Erased areas were cleared because the photo geometry changed</string>
 </resources>

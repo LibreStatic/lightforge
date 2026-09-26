@@ -46,4 +46,17 @@
     <string name="photo_editor_error_raw_too_large">Este RAW es demasiado grande para exportarlo como JPEG. Elige TIFF de 16 bits.</string>
     <string name="photo_editor_error_raw_render">No se pudo revelar esta foto RAW</string>
     <plurals name="photo_editor_error_raw_storage"><item quantity="one">La exportación RAW necesita %1$d MB de almacenamiento temporal libre</item><item quantity="many">La exportación RAW necesita %1$d MB de almacenamiento temporal libre</item><item quantity="other">La exportación RAW necesita %1$d MB de almacenamiento temporal libre</item></plurals>
+    <string name="photo_editor_object_eraser">Borrador de objetos</string>
+    <string name="photo_editor_subject_clip">Recorte de sujeto</string>
+    <string name="photo_editor_experimental_tool">%1$s · Experimental</string>
+    <string name="photo_editor_eraser_fallback">Calidad alternativa (%1$s): rellena la zona pintada con los colores de alrededor. El resultado es aproximado.</string>
+    <string name="photo_editor_clip_fallback">Calidad alternativa (%1$s): conserva los píxeles de color parecido al punto tocado. El resultado es aproximado.</string>
+    <string name="photo_editor_eraser_hint">Pinta sobre el objeto que quieres quitar y toca Aplicar. Guardar copia no modifica el original.</string>
+    <string name="photo_editor_clip_hint">Toca el sujeto para previsualizar el recorte. Se guarda como un PNG nuevo con fondo transparente.</string>
+    <string name="photo_editor_eraser_apply">Aplicar</string>
+    <string name="photo_editor_eraser_clear">Borrar</string>
+    <string name="photo_editor_clip_save">Guardar recorte</string>
+    <string name="photo_editor_eraser_mask_description">Zonas marcadas para borrar</string>
+    <string name="photo_editor_experimental_too_large">Esta foto es demasiado grande para la herramienta experimental</string>
+    <string name="photo_editor_eraser_reset">Se quitaron las zonas borradas porque cambió la geometría de la foto</string>
 </resources>

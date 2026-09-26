@@ -168,6 +168,8 @@ dependencies {
     implementation(project(":core:editing-video"))
     implementation(project(":core:security"))
     implementation(project(":feature:photoeditor"))
+    implementation(project(":feature:objecteraser"))
+    implementation(project(":feature:subjectclip"))
     implementation(project(":feature:videoeditor"))
     implementation(project(":feature:privatealbum"))
     implementation(project(":feature:motionphotos"))

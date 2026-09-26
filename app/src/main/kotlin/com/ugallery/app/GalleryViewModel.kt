@@ -159,6 +159,10 @@ import com.ugallery.feature.viewer.PhotoViewerPipeline
 import com.ugallery.feature.viewer.ViewerAdjacentPreloadPlanner
 import com.ugallery.feature.viewer.ViewerUiState
 import com.ugallery.feature.photoeditor.PhotoEditorContentState
+import com.ugallery.feature.photoeditor.PhotoPoint
+import com.ugallery.feature.photoeditor.eraseRegionsFor
+import com.ugallery.feature.objecteraser.ObjectEraser
+import com.ugallery.feature.subjectclip.SubjectClipper
 import com.ugallery.feature.videoeditor.VideoEditorContentState
 import com.ugallery.feature.videoeditor.labelResource
 import com.ugallery.feature.collage.CollageConfig
@@ -240,6 +244,8 @@ data class PhotoEditorSession(
     /** Cancel/save-copy discard only this session's draft, not a restored recipe on entry. */
     val entryRecipe: EditRecipe? = null,
     val entryRecipeUpdatedAtMillis: Long = 0,
+    /** Applied experimental eraser dabs, re-applied at full size on Save copy. */
+    val eraseMarks: List<PhotoPoint> = emptyList(),
 )
 
 data class EditorMediaSource(
@@ -255,6 +261,9 @@ data class EditorMediaSource(
     val uri: Uri get() = Uri.parse(uriString)
     val stableId: String get() = libraryMedia?.viewerId ?: uriString
 }
+
+/** The experimental eraser and subject clip decode one full-size bitmap; larger photos are refused. */
+private const val EXPERIMENTAL_PHOTO_MAX_PIXELS = 24_000_000L
 
 private data class RawPreviewRequest(
     val generation: Long,
@@ -645,6 +654,7 @@ class GalleryViewModel @Inject constructor(
     private var photoJob: Job? = null
     private var adjacentPhotoJob: Job? = null
     private var photoEditorJob: Job? = null
+    private var photoExperimentalJob: Job? = null
     private var photoEditorOpenGeneration = 0L
     private var photoAutoEnhancementJob: Job? = null
     private var photoAutoEnhancementGeneration = 0L
@@ -3479,11 +3489,13 @@ class GalleryViewModel @Inject constructor(
         val session = mutablePhotoEditor.value ?: return
         val updated = session.history.apply(operation)
         if (updated == session.history) return
-        mutablePhotoEditor.value = session.copy(
+        if (renderRequired) dropExperimentalPhotoEdits()
+        mutablePhotoEditor.value = (mutablePhotoEditor.value ?: session).copy(
             history = updated,
-            content = session.content.copy(
+            content = (mutablePhotoEditor.value ?: session).content.copy(
                 isRendering = renderRequired,
-                isDirty = updated.present.operations.isNotEmpty(),
+                isDirty = updated.present.operations.isNotEmpty() ||
+                    mutablePhotoEditor.value?.eraseMarks?.isNotEmpty() == true,
                 canUndo = updated.past.isNotEmpty(),
                 canRedo = false,
                 selectedFilter = selectedFilter(updated.present),
@@ -3523,9 +3535,10 @@ class GalleryViewModel @Inject constructor(
         val updated = transform(session.history)
         if (updated == session.history) return
         val renderRequired = photoBaseOperations(session.history.present) != photoBaseOperations(updated.present)
-        mutablePhotoEditor.value = session.copy(
+        if (renderRequired) dropExperimentalPhotoEdits()
+        mutablePhotoEditor.value = (mutablePhotoEditor.value ?: session).copy(
             history = updated,
-            content = session.content.copy(
+            content = (mutablePhotoEditor.value ?: session).content.copy(
                 isRendering = renderRequired,
                 isDirty = updated.present.operations.isNotEmpty(),
                 canUndo = updated.past.isNotEmpty(),
@@ -3598,6 +3611,19 @@ class GalleryViewModel @Inject constructor(
                         }
                         is RawExportOutcome.Failure -> updatePhotoExportFailure(rawExportFailureMessage(result))
                     }
+                } else if (session.eraseMarks.isNotEmpty()) {
+                    val erased = renderExperimentalPhotoSource(session, transformedRaw) ?: return@launch
+                    val format = when (outputMime) {
+                        "image/png" -> Bitmap.CompressFormat.PNG
+                        "image/webp" -> Bitmap.CompressFormat.WEBP_LOSSY
+                        else -> Bitmap.CompressFormat.JPEG
+                    }
+                    try {
+                        withContext(Dispatchers.IO) { temp.outputStream().use { erased.compress(format, 95, it) } }
+                    } finally {
+                        erased.recycle()
+                    }
+                    publishPhotoResult(temp, outputMime, extension, emptyList())
                 } else when (val result = PhotoImageRenderer(getApplication<Application>().contentResolver).export(
                     session.source.uri, session.history.present, temp, preserveMetadata = true,
                 )) {
@@ -3622,6 +3648,238 @@ class GalleryViewModel @Inject constructor(
                 transformedRaw.delete()
             }
         }
+    }
+
+    /** Experimental object eraser: erases the preview copy only; Save copy re-applies the dabs at full size. */
+    fun applyObjectErase(points: List<PhotoPoint>) {
+        val session = mutablePhotoEditor.value ?: return
+        val preview = session.content.preview ?: return
+        if (points.isEmpty() || session.content.isRaw) return
+        val marks = session.eraseMarks + points
+        mutablePhotoEditor.value = session.copy(
+            content = session.content.copy(isExperimentalProcessing = true, statusMessage = null),
+        )
+        photoExperimentalJob?.cancel()
+        photoExperimentalJob = viewModelScope.launch {
+            val erased = try {
+                withContext(Dispatchers.Default) {
+                    ObjectEraser().eraseRegions(preview, eraseRegionsFor(marks, preview.width, preview.height))
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Throwable) {
+                null
+            }
+            val current = mutablePhotoEditor.value
+            if (current == null || current.content.preview !== preview) {
+                erased?.bitmap?.recycle()
+                return@launch
+            }
+            if (erased == null) {
+                mutablePhotoEditor.value = current.copy(
+                    content = current.content.copy(
+                        isExperimentalProcessing = false,
+                        statusMessage = getApplication<Application>().getString(
+                            com.ugallery.feature.photoeditor.R.string.photo_editor_preview_unavailable,
+                        ),
+                    ),
+                )
+                return@launch
+            }
+            current.content.erasePreview?.recycle()
+            mutablePhotoEditor.value = current.copy(
+                eraseMarks = marks,
+                content = current.content.copy(
+                    erasePreview = erased.bitmap,
+                    eraseMethod = erased.method,
+                    isExperimentalProcessing = false,
+                    isDirty = true,
+                ),
+            )
+        }
+    }
+
+    fun clearObjectErase() {
+        val session = mutablePhotoEditor.value ?: return
+        photoExperimentalJob?.cancel()
+        session.content.erasePreview?.recycle()
+        mutablePhotoEditor.value = session.copy(
+            eraseMarks = emptyList(),
+            content = session.content.copy(
+                erasePreview = null,
+                eraseMethod = null,
+                isExperimentalProcessing = false,
+                isDirty = session.history.present.operations.isNotEmpty(),
+            ),
+        )
+    }
+
+    /** Experimental subject clip: previews the cut-out of the displayed photo around [seed]. */
+    fun previewSubjectClip(seed: PhotoPoint) {
+        val session = mutablePhotoEditor.value ?: return
+        val source = session.content.erasePreview ?: session.content.preview ?: return
+        if (session.content.isRaw) return
+        mutablePhotoEditor.value = session.copy(
+            content = session.content.copy(subjectClipSeed = seed, isExperimentalProcessing = true, statusMessage = null),
+        )
+        photoExperimentalJob?.cancel()
+        photoExperimentalJob = viewModelScope.launch {
+            val clip = try {
+                withContext(Dispatchers.Default) {
+                    SubjectClipper().clipSubject(
+                        source,
+                        seedX = (seed.x * source.width).toInt(),
+                        seedY = (seed.y * source.height).toInt(),
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Throwable) {
+                null
+            }
+            val current = mutablePhotoEditor.value
+            if (current == null || current.content.subjectClipSeed != seed ||
+                (current.content.erasePreview ?: current.content.preview) !== source
+            ) {
+                clip?.bitmap?.recycle()
+                return@launch
+            }
+            current.content.subjectClipPreview?.recycle()
+            mutablePhotoEditor.value = current.copy(
+                content = current.content.copy(
+                    subjectClipPreview = clip?.bitmap,
+                    subjectClipMethod = clip?.method,
+                    isExperimentalProcessing = false,
+                ),
+            )
+        }
+    }
+
+    /** Saves the subject cut-out as a new PNG with transparency; the original is never modified. */
+    fun saveSubjectClip() {
+        val session = mutablePhotoEditor.value ?: return
+        val seed = session.content.subjectClipSeed ?: return
+        if (session.content.isExporting || session.content.isRaw) return
+        mutablePhotoEditor.value = session.copy(content = session.content.copy(isExporting = true, statusMessage = null))
+        photoEditorJob?.cancel()
+        photoEditorJob = viewModelScope.launch {
+            val cache = getApplication<Application>().cacheDir
+            val rendered = java.io.File(cache, "photo-clip-render-${System.nanoTime()}")
+            val temp = java.io.File(cache, "photo-clip-${System.nanoTime()}.png")
+            try {
+                val bitmap = renderExperimentalPhotoSource(session, rendered) ?: return@launch
+                val clip = try {
+                    withContext(Dispatchers.Default) {
+                        SubjectClipper().clipSubject(
+                            bitmap,
+                            seedX = (seed.x * bitmap.width).toInt(),
+                            seedY = (seed.y * bitmap.height).toInt(),
+                        )
+                    }
+                } finally {
+                    bitmap.recycle()
+                }
+                try {
+                    withContext(Dispatchers.IO) {
+                        temp.outputStream().use { clip.bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                    }
+                } finally {
+                    clip.bitmap.recycle()
+                }
+                publishPhotoResult(temp, "image/png", "png", emptyList())
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Throwable) {
+                updatePhotoExportFailure(getApplication<Application>().getString(
+                    com.ugallery.feature.photoeditor.R.string.photo_editor_error_save,
+                ))
+            } finally {
+                rendered.delete()
+                temp.delete()
+            }
+        }
+    }
+
+    /**
+     * Renders the recipe upright at full size and applies the experimental eraser dabs. Returns
+     * null after reporting a failure; sources past the single-bitmap budget are refused.
+     */
+    private suspend fun renderExperimentalPhotoSource(
+        session: PhotoEditorSession,
+        rendered: java.io.File,
+    ): Bitmap? {
+        val renderer = PhotoImageRenderer(getApplication<Application>().contentResolver)
+        val bounds = renderer.bounds(session.source.uri)
+        if (bounds.width.toLong() * bounds.height.toLong() > EXPERIMENTAL_PHOTO_MAX_PIXELS) {
+            updatePhotoExportFailure(getApplication<Application>().getString(
+                com.ugallery.feature.photoeditor.R.string.photo_editor_experimental_too_large,
+            ))
+            return null
+        }
+        // A full-frame crop forces a decoded, EXIF-upright render even for an unedited photo.
+        val recipe = session.history.present.let {
+            if (it.isIdentity) it.copy(operations = listOf(EditOperation.Crop(0, 0, 1_000, 1_000))) else it
+        }
+        return when (val result = renderer.export(session.source.uri, recipe, rendered)) {
+            is PhotoExportOutcome.Failure -> {
+                updatePhotoExportFailure(photoExportFailureMessage(result))
+                null
+            }
+            is PhotoExportOutcome.Completed -> {
+                val decoded = withContext(Dispatchers.IO) {
+                    BitmapFactory.decodeFile(
+                        result.file.path,
+                        BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.ARGB_8888 },
+                    )
+                }
+                if (decoded == null) {
+                    updatePhotoExportFailure(getApplication<Application>().getString(
+                        com.ugallery.feature.photoeditor.R.string.photo_editor_error_decode,
+                    ))
+                    return null
+                }
+                if (session.eraseMarks.isEmpty()) return decoded
+                try {
+                    withContext(Dispatchers.Default) {
+                        ObjectEraser().eraseRegions(
+                            decoded,
+                            eraseRegionsFor(session.eraseMarks, decoded.width, decoded.height),
+                        ).bitmap
+                    }
+                } finally {
+                    decoded.recycle()
+                }
+            }
+        }
+    }
+
+    /** Geometry changed: eraser dabs and the clip seed no longer line up with the photo. */
+    private fun dropExperimentalPhotoEdits() {
+        val session = mutablePhotoEditor.value ?: return
+        val hadErase = session.eraseMarks.isNotEmpty()
+        if (!hadErase && session.content.subjectClipSeed == null && session.content.erasePreview == null) return
+        photoExperimentalJob?.cancel()
+        session.content.erasePreview?.recycle()
+        session.content.subjectClipPreview?.recycle()
+        mutablePhotoEditor.value = session.copy(
+            eraseMarks = emptyList(),
+            content = session.content.copy(
+                erasePreview = null,
+                eraseMethod = null,
+                subjectClipPreview = null,
+                subjectClipSeed = null,
+                subjectClipMethod = null,
+                isExperimentalProcessing = false,
+                statusMessage = if (hadErase) getApplication<Application>().getString(
+                    com.ugallery.feature.photoeditor.R.string.photo_editor_eraser_reset,
+                ) else session.content.statusMessage,
+            ),
+        )
+    }
+
+    private fun recycleExperimentalPreviews(content: PhotoEditorContentState?) {
+        content?.erasePreview?.recycle()
+        content?.subjectClipPreview?.recycle()
     }
 
     private suspend fun publishPhotoResult(
@@ -3696,6 +3954,8 @@ class GalleryViewModel @Inject constructor(
         photoRecipeJob = null
         pendingRecipeWrite?.cancel()
         closeRawPreviewSession()
+        photoExperimentalJob?.cancel()
+        recycleExperimentalPreviews(session?.content)
         if (session?.source?.libraryMedia != null) {
             val previousDiscard = photoRecipeDiscardJob
             photoRecipeDiscardJob = viewModelScope.launch {
@@ -5054,6 +5314,8 @@ class GalleryViewModel @Inject constructor(
         photoSession?.content?.cropSourcePreview
             ?.takeIf { it !== photoSession.content.preview && it !== photoSession.content.originalPreview }
             ?.recycle()
+        photoExperimentalJob?.cancel()
+        recycleExperimentalPreviews(photoSession?.content)
         mutablePhotoEditor.value = null
         mutableVideoEditor.value = null
         externalVideoAccessJob?.cancel()

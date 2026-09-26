@@ -43,7 +43,7 @@ A gallery that scales to quarter-million-item libraries on-device, with local ML
 - Full-screen viewer with large image tiling, video playback (Media3 ExoPlayer).
 - Search: keyword (AppSearch), semantic (local embeddings), by person, by place.
 - Face detection (ML Kit) + face recognition (LiteRT embeddings + clustering + manual correction); opt-in.
-- OCR, pet recognition, object eraser, subject clip; local, opt-in where applicable.
+- OCR, pet recognition; local, opt-in where applicable. Object eraser and subject clip are experimental photo editor tools with basic, explicitly labelled fallback quality (no ML model yet).
 - Moments/collections auto-grouping by time and location.
 - Private albums (biometric-encrypted, Android Keystore).
 - Collage, GIF, slideshow, motion photo playback.

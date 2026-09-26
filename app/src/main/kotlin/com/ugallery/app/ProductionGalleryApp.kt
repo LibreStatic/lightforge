@@ -1597,6 +1597,10 @@ internal fun ProductionGalleryApp(
                         onToneChangeFinished = viewModel::commitPhotoTone,
                         onApplyAutoSuggestion = viewModel::applyPhotoAutoSuggestion,
                         onRawOutputFormatChange = viewModel::setRawOutputFormat,
+                        onApplyObjectErase = viewModel::applyObjectErase,
+                        onClearObjectErase = viewModel::clearObjectErase,
+                        onPreviewSubjectClip = viewModel::previewSubjectClip,
+                        onSaveSubjectClip = viewModel::saveSubjectClip,
                     )
                     }
                 }

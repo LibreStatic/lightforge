@@ -44,4 +44,17 @@
     <string name="photo_editor_error_raw_too_large">Questo RAW è troppo grande per l’esportazione JPEG. Scegli TIFF a 16 bit.</string>
     <string name="photo_editor_error_raw_render">Impossibile sviluppare questa foto RAW</string>
     <plurals name="photo_editor_error_raw_storage"><item quantity="one">L’esportazione RAW richiede %1$d MB di spazio temporaneo libero</item><item quantity="many">L’esportazione RAW richiede %1$d MB di spazio temporaneo libero</item><item quantity="other">L’esportazione RAW richiede %1$d MB di spazio temporaneo libero</item></plurals>
+    <string name="photo_editor_object_eraser">Gomma oggetti</string>
+    <string name="photo_editor_subject_clip">Ritaglio soggetto</string>
+    <string name="photo_editor_experimental_tool">%1$s · Sperimentale</string>
+    <string name="photo_editor_eraser_fallback">Qualità di riserva (%1$s): riempie l’area dipinta con i colori circostanti. Il risultato è approssimativo.</string>
+    <string name="photo_editor_clip_fallback">Qualità di riserva (%1$s): mantiene i pixel di colore simile al punto toccato. Il risultato è approssimativo.</string>
+    <string name="photo_editor_eraser_hint">Dipingi sull’oggetto da rimuovere, poi tocca Applica. Salva copia non modifica l’originale.</string>
+    <string name="photo_editor_clip_hint">Tocca il soggetto per vedere l’anteprima del ritaglio. Viene salvato come nuovo PNG con sfondo trasparente.</string>
+    <string name="photo_editor_eraser_apply">Applica</string>
+    <string name="photo_editor_eraser_clear">Cancella</string>
+    <string name="photo_editor_clip_save">Salva ritaglio</string>
+    <string name="photo_editor_eraser_mask_description">Aree segnate da cancellare</string>
+    <string name="photo_editor_experimental_too_large">Questa foto è troppo grande per lo strumento sperimentale</string>
+    <string name="photo_editor_eraser_reset">Le aree cancellate sono state rimosse perché la geometria della foto è cambiata</string>
 </resources>

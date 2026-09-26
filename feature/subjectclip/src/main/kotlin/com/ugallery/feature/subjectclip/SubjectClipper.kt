@@ -24,15 +24,18 @@ class SubjectClipper {
         COLOR_DISTANCE_FALLBACK,
     }
 
+    /** Keeps pixels whose color is within [tolerance] of the seed pixel (the tapped subject). */
     fun clipSubject(
         bitmap: Bitmap,
         tolerance: Int = 30,
+        seedX: Int = bitmap.width / 2,
+        seedY: Int = bitmap.height / 2,
     ): ClipResult {
         val width = bitmap.width
         val height = bitmap.height
         val result = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
 
-        val centerColor = bitmap.getPixel(width / 2, height / 2)
+        val centerColor = bitmap.getPixel(seedX.coerceIn(0, width - 1), seedY.coerceIn(0, height - 1))
 
         val pixels = IntArray(width * height)
         bitmap.getPixels(pixels, 0, width, 0, 0, width, height)

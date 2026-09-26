@@ -27,6 +27,8 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:editing-image"))
     implementation(project(":core:navigation"))
+    implementation(project(":feature:objecteraser"))
+    implementation(project(":feature:subjectclip"))
     implementation(platform(libs.compose.bom))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")

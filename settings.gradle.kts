@@ -65,6 +65,8 @@ include(
     ":feature:semanticsearch",
     ":feature:petrecognition",
    ":feature:motionphotos",
+    ":feature:objecteraser",
+    ":feature:subjectclip",
 )
 
 include(":feature:localsharing")

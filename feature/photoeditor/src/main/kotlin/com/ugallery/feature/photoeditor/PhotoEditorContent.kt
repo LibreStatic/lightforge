@@ -65,6 +65,8 @@ import com.ugallery.core.designsystem.GallerySpacing
 import com.ugallery.core.designsystem.GalleryExpressiveIconButton
 import com.ugallery.core.designsystem.GalleryLoadingIndicator
 import com.ugallery.core.designsystem.GalleryTopAppBar
+import com.ugallery.feature.objecteraser.ObjectEraser
+import com.ugallery.feature.subjectclip.SubjectClipper
 import kotlin.math.abs
 
 data class PhotoEditorContentState(
@@ -88,9 +90,17 @@ data class PhotoEditorContentState(
     val rawMetadata: RawMetadata? = null,
     val rawSettings: RawDevelopmentSettings = RawDevelopmentSettings(),
     val rawOutputFormat: RawOutputFormat = RawOutputFormat.JpegSrgb,
+    /** Experimental object eraser result over [preview]; Save copy re-applies it at full size. */
+    val erasePreview: Bitmap? = null,
+    val eraseMethod: ObjectEraser.EraseMethod? = null,
+    /** Experimental subject cut-out of [preview] around [subjectClipSeed]. */
+    val subjectClipPreview: Bitmap? = null,
+    val subjectClipSeed: PhotoPoint? = null,
+    val subjectClipMethod: SubjectClipper.ClipMethod? = null,
+    val isExperimentalProcessing: Boolean = false,
 )
 
-private enum class PhotoEditorTool { Automatic, Crop, Adjust, Filters, Raw, Export }
+private enum class PhotoEditorTool { Automatic, Crop, Adjust, Filters, ObjectEraser, SubjectClip, Raw, Export }
 
 @Composable
 fun PhotoEditorContent(
@@ -108,6 +118,10 @@ fun PhotoEditorContent(
         onApply(tone ?: EditOperation.Tone())
     },
     onRawOutputFormatChange: (RawOutputFormat) -> Unit = {},
+    onApplyObjectErase: (List<PhotoPoint>) -> Unit = {},
+    onClearObjectErase: () -> Unit = {},
+    onPreviewSubjectClip: (PhotoPoint) -> Unit = {},
+    onSaveSubjectClip: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     // Tool and uncommitted crop survive rotation; the edit history already lives in the view model.
@@ -119,6 +133,22 @@ fun PhotoEditorContent(
     var compareOriginal by remember { mutableStateOf(false) }
     val defaultTool = if (state.isRaw) PhotoEditorTool.Raw else PhotoEditorTool.Automatic
     var selectedTool by rememberSaveable(state.isRaw, key = "photo-editor-tool") { mutableStateOf(defaultTool) }
+    // Brush dabs not yet applied; applied dabs live in the view model with the erased preview.
+    var eraseStrokes by remember { mutableStateOf<List<PhotoPoint>>(emptyList()) }
+    val experimental = ExperimentalToolActions(
+        eraseStrokes = eraseStrokes,
+        onEraseStrokesChange = { eraseStrokes = it },
+        onApplyErase = {
+            onApplyObjectErase(eraseStrokes)
+            eraseStrokes = emptyList()
+        },
+        onClearErase = {
+            eraseStrokes = emptyList()
+            onClearObjectErase()
+        },
+        onPreviewSubjectClip = onPreviewSubjectClip,
+        onSaveSubjectClip = onSaveSubjectClip,
+    )
     fun commitCropDraft() {
         cropDraft?.let { cropEditOperations(it).forEach(onApply) }
         cropDraft = null
@@ -170,12 +200,12 @@ fun PhotoEditorContent(
             val useSidePanel = maxWidth >= 600.dp && maxWidth >= maxHeight * 1.2f
             if (useSidePanel) {
                 Row(Modifier.fillMaxSize()) {
-                    PreviewStage(state, cropDraft, compareOriginal, { compareOriginal = it }, { cropDraft = it }, Modifier.weight(1f).fillMaxSize())
-                    PhotoTools(state, selectedTool, ::selectTool, cropDraft, { cropDraft = it }, onApply, onUndo, onRedo, onRawSettingsChange, onRawSettingsChangeFinished, onTonePreview, onToneChangeFinished, onApplyAutoSuggestion, onRawOutputFormatChange, Modifier.weight(0.42f).padding(16.dp))
+                    PreviewStage(state, cropDraft, compareOriginal, { compareOriginal = it }, { cropDraft = it }, selectedTool, experimental, Modifier.weight(1f).fillMaxSize())
+                    PhotoTools(state, selectedTool, ::selectTool, cropDraft, { cropDraft = it }, onApply, onUndo, onRedo, onRawSettingsChange, onRawSettingsChangeFinished, onTonePreview, onToneChangeFinished, onApplyAutoSuggestion, onRawOutputFormatChange, experimental, Modifier.weight(0.42f).padding(16.dp))
                 }
             } else {
                 Column(Modifier.fillMaxSize()) {
-                    PreviewStage(state, cropDraft, compareOriginal, { compareOriginal = it }, { cropDraft = it }, Modifier.weight(1f).fillMaxWidth())
+                    PreviewStage(state, cropDraft, compareOriginal, { compareOriginal = it }, { cropDraft = it }, selectedTool, experimental, Modifier.weight(1f).fillMaxWidth())
                     PhotoTools(
                         state,
                         selectedTool,
@@ -191,6 +221,7 @@ fun PhotoEditorContent(
                         onToneChangeFinished,
                         onApplyAutoSuggestion,
                         onRawOutputFormatChange,
+                        experimental,
                         Modifier.weight(0.42f).fillMaxWidth(),
                     )
                 }
@@ -206,13 +237,18 @@ private fun PreviewStage(
     compareOriginal: Boolean,
     onCompareOriginalChange: (Boolean) -> Unit,
     onCropDraftChange: (PhotoCropDraft) -> Unit,
+    selectedTool: PhotoEditorTool,
+    experimental: ExperimentalToolActions,
     modifier: Modifier,
 ) {
     Box(modifier.background(Color.Black), contentAlignment = Alignment.Center) {
+        val erasing = selectedTool == PhotoEditorTool.ObjectEraser && cropDraft == null
+        val clipping = selectedTool == PhotoEditorTool.SubjectClip && cropDraft == null
         val preview = when {
             cropDraft != null -> state.cropSourcePreview ?: state.originalPreview ?: state.preview
             compareOriginal -> state.originalPreview ?: state.preview
-            else -> state.preview
+            clipping && state.subjectClipPreview != null -> state.subjectClipPreview
+            else -> state.erasePreview ?: state.preview
         }
         if (preview != null) {
             val description = stringResource(R.string.photo_editor_preview_description)
@@ -230,8 +266,8 @@ private fun PreviewStage(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer(rotationZ = cropDraft?.straightenDegrees ?: 0f)
-                    .pointerInput(state.originalPreview, cropDraft) {
-                    if (cropDraft != null || state.originalPreview == null) return@pointerInput
+                    .pointerInput(state.originalPreview, cropDraft, erasing, clipping) {
+                    if (cropDraft != null || state.originalPreview == null || erasing || clipping) return@pointerInput
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         onCompareOriginalChange(true)
@@ -254,6 +290,18 @@ private fun PreviewStage(
                     modifier = Modifier.fillMaxSize(),
                 )
             }
+            if (erasing || clipping) {
+                ExperimentalPreviewOverlay(
+                    bitmapSize = IntSize(preview.width, preview.height),
+                    erasing = erasing,
+                    eraseStrokes = experimental.eraseStrokes,
+                    onEraseStrokesChange = experimental.onEraseStrokesChange,
+                    subjectClipSeed = state.subjectClipSeed,
+                    onSubjectTap = experimental.onPreviewSubjectClip,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+            if (state.isExperimentalProcessing) GalleryLoadingIndicator()
         } else if (state.isRendering) {
             GalleryLoadingIndicator()
         } else {
@@ -286,6 +334,7 @@ private fun PhotoTools(
     onToneChangeFinished: () -> Unit,
     onApplyAutoSuggestion: (EditOperation.Tone?) -> Unit,
     onRawOutputFormatChange: (RawOutputFormat) -> Unit,
+    experimental: ExperimentalToolActions,
     modifier: Modifier,
 ) {
     Column(
@@ -300,6 +349,8 @@ private fun PhotoTools(
                     selectedTool == PhotoEditorTool.Adjust -> stringResource(R.string.photo_editor_adjust)
                     selectedTool == PhotoEditorTool.Filters -> stringResource(R.string.photo_editor_filters)
                     selectedTool == PhotoEditorTool.Raw -> stringResource(R.string.photo_editor_raw_title)
+                    selectedTool == PhotoEditorTool.ObjectEraser || selectedTool == PhotoEditorTool.SubjectClip ->
+                        toolLabel(selectedTool)
                     else -> stringResource(R.string.photo_editor_export_tab)
                 },
                 style = MaterialTheme.typography.titleMedium,
@@ -369,6 +420,8 @@ private fun PhotoTools(
                     )
                 }
                 PhotoEditorTool.Filters -> FilterControls(state, onApply)
+                PhotoEditorTool.ObjectEraser -> ObjectEraserControls(state, experimental)
+                PhotoEditorTool.SubjectClip -> SubjectClipControls(state, experimental)
                 PhotoEditorTool.Raw -> RawControls(
                     state.rawSettings,
                     state.rawMetadata,
@@ -402,6 +455,8 @@ private fun PhotoToolNavigation(
             PhotoEditorTool.Crop,
             PhotoEditorTool.Adjust,
             PhotoEditorTool.Filters,
+            PhotoEditorTool.ObjectEraser,
+            PhotoEditorTool.SubjectClip,
         )
     }
     LazyRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
@@ -415,7 +470,7 @@ private fun PhotoToolNavigation(
                     PhotoEditorTool.Crop -> ({ Icon(GalleryIcons.Crop, contentDescription = null) })
                     PhotoEditorTool.Adjust, PhotoEditorTool.Raw -> ({ Icon(GalleryIcons.Tune, contentDescription = null) })
                     PhotoEditorTool.Filters, PhotoEditorTool.Automatic -> ({ Icon(GalleryIcons.Palette, contentDescription = null) })
-                    PhotoEditorTool.Export -> null
+                    PhotoEditorTool.Export, PhotoEditorTool.ObjectEraser, PhotoEditorTool.SubjectClip -> null
                 },
             )
         }
@@ -428,6 +483,14 @@ private fun toolLabel(tool: PhotoEditorTool): String = when (tool) {
     PhotoEditorTool.Crop -> stringResource(R.string.photo_editor_crop)
     PhotoEditorTool.Adjust -> stringResource(R.string.photo_editor_adjust)
     PhotoEditorTool.Filters -> stringResource(R.string.photo_editor_filters)
+    PhotoEditorTool.ObjectEraser -> stringResource(
+        R.string.photo_editor_experimental_tool,
+        stringResource(R.string.photo_editor_object_eraser),
+    )
+    PhotoEditorTool.SubjectClip -> stringResource(
+        R.string.photo_editor_experimental_tool,
+        stringResource(R.string.photo_editor_subject_clip),
+    )
     PhotoEditorTool.Raw -> stringResource(R.string.photo_editor_raw_title)
     PhotoEditorTool.Export -> stringResource(R.string.photo_editor_export_tab)
 }
