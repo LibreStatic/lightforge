@@ -620,6 +620,7 @@ class GalleryViewModel @Inject constructor(
     private val mutableHardwareVolumeKeys = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val hardwareVolumeKeys = mutableHardwareVolumeKeys.asSharedFlow()
     private var currentSystemCoordinator: MediaStoreActionCoordinator? = null
+    private var handledSystemRequestId: Long? = null
     private var pendingWriteMutation: PendingWriteMutation? = savedStateHandle[WriteMutationStateKey]
     private var photoJob: Job? = null
     private var adjacentPhotoJob: Job? = null
@@ -5064,12 +5065,15 @@ class GalleryViewModel @Inject constructor(
         mutableActionLaunches.tryEmit(coordinator.stageChunk(targets))
     }
 
-    fun resumePendingSystemAction() {
-        val snapshot = mutableSystemAction.value ?: return
-        val coordinator = coordinator(snapshot)
-        currentSystemCoordinator = coordinator
-        when (snapshot.phase) {
+    /**
+     * [inFlightRequestId] is the request the UI launched and still expects a result for; that
+     * dialog is still up (or its result is being handled), so it must not be launched twice.
+     */
+    fun resumePendingSystemAction(inFlightRequestId: Long?) {
+        val coordinator = restoredSystemCoordinator() ?: return
+        when (val phase = coordinator.snapshot.value.phase) {
             is com.ugallery.core.mediastore.MediaActionPhase.AwaitingSystem -> {
+                if (phase.requestId == inFlightRequestId || phase.requestId == handledSystemRequestId) return
                 runCatching { coordinator.recreateCurrentRequest() }
                     .getOrNull()?.let(mutableActionLaunches::tryEmit)
             }
@@ -5091,12 +5095,20 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
+    /** Keeps a live coordinator; after process death rebuilds it from the saved snapshot. */
+    private fun restoredSystemCoordinator(): MediaStoreActionCoordinator? = currentSystemCoordinator
+        ?: mutableSystemAction.value?.let(::coordinator)?.also { currentSystemCoordinator = it }
+
     fun onSystemActionResult(requestId: Long, approved: Boolean) {
+        // A result can arrive before resumePendingSystemAction() runs (it is delivered when the
+        // launcher registers), so it must not depend on resume having rebuilt the coordinator.
+        val coordinator = restoredSystemCoordinator() ?: return
+        handledSystemRequestId = requestId
         viewModelScope.launch {
-            val approvedTargets = (currentSystemCoordinator?.snapshot?.value?.phase as?
+            val approvedTargets = (coordinator.snapshot.value.phase as?
                 com.ugallery.core.mediastore.MediaActionPhase.AwaitingSystem)?.targets.orEmpty()
-            val approvedAction = currentSystemCoordinator?.snapshot?.value?.progress?.action
-            val snapshot = currentSystemCoordinator?.onSystemResult(requestId, approved)
+            val approvedAction = coordinator.snapshot.value.progress.action
+            val snapshot = coordinator.onSystemResult(requestId, approved)
             if (approved && approvedAction == MediaAction.Write) {
                 applyPendingWriteMutation(approvedTargets.singleOrNull())
             }
@@ -5373,6 +5385,7 @@ class GalleryViewModel @Inject constructor(
 
     private suspend fun stageNextFavoriteImportChunk() {
         val cursor = favoriteImportCursor ?: return
+        if (!systemCoordinatorReadyForChunk()) return
         val chunk = cursor.remaining.take(MediaActionReducer.MaxChunkSize)
         if (chunk.isEmpty()) {
             val coordinator = currentSystemCoordinator ?: return
@@ -5385,11 +5398,22 @@ class GalleryViewModel @Inject constructor(
         favoriteImportCursor = FavoriteImportCursor(ArrayList(cursor.remaining.drop(chunk.size))).also {
             savedStateHandle[FavoriteImportStateKey] = it
         }
-        currentSystemCoordinator?.stageChunk(chunk)?.let { mutableActionLaunches.emit(it) }
+        stageSystemChunk(chunk)
+    }
+
+    // Checked before a cursor advances, so a stale duplicate callback neither skips nor re-stages a chunk.
+    private fun systemCoordinatorReadyForChunk() = currentSystemCoordinator?.snapshot?.value?.phase ==
+        com.ugallery.core.mediastore.MediaActionPhase.ReadyForChunk
+
+    /** A request-creation failure is already recorded as RequestFailed; it must not crash the scope. */
+    private suspend fun stageSystemChunk(targets: List<MediaActionTarget>) {
+        val coordinator = currentSystemCoordinator ?: return
+        runCatching { coordinator.stageChunk(targets) }.getOrNull()?.let { mutableActionLaunches.emit(it) }
     }
 
     private suspend fun stageNextBulkChunk() {
         val cursor = bulkCursor ?: return
+        if (!systemCoordinatorReadyForChunk()) return
         val source = runtime.value?.selectionTargets ?: return
         var after = cursor.afterExclusive
         while (true) {
@@ -5406,7 +5430,7 @@ class GalleryViewModel @Inject constructor(
             bulkCursor = cursor.copy(afterExclusive = after).also { savedStateHandle[BulkStateKey] = it }
             val targets = page.filterNot { it.key in cursor.selection.exclusions }
             if (targets.isNotEmpty()) {
-                currentSystemCoordinator?.stageChunk(targets)?.let { mutableActionLaunches.emit(it) }
+                stageSystemChunk(targets)
                 return
             }
         }

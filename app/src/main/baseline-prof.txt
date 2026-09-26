@@ -34649,7 +34649,7 @@ SPLcom/ugallery/app/GalleryViewModel;->restorePendingExternalVideoEditor()V
 SPLcom/ugallery/app/GalleryViewModel;->restorePendingManualMoment(Lcom/ugallery/app/GalleryRuntime;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 SPLcom/ugallery/app/GalleryViewModel;->restorePendingVideoEditor(Lcom/ugallery/app/GalleryRuntime;)V
 SPLcom/ugallery/app/GalleryViewModel;->restorePendingViewer(Lcom/ugallery/app/GalleryRuntime;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-SPLcom/ugallery/app/GalleryViewModel;->resumePendingSystemAction()V
+SPLcom/ugallery/app/GalleryViewModel;->resumePendingSystemAction(Ljava/lang/Long;)V
 SPLcom/ugallery/app/GalleryViewModel;->revalidateExternalGrant()V
 HSPLcom/ugallery/app/GalleryViewModel;->saveCreationState()V
 PLcom/ugallery/app/GalleryViewModel;->search$default(Lcom/ugallery/app/GalleryViewModel;Ljava/lang/String;ILjava/lang/Object;)V

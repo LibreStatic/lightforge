@@ -1166,7 +1166,7 @@ internal fun ProductionGalleryApp(
             }
         }
     }
-    LaunchedEffect(Unit) { viewModel.resumePendingSystemAction() }
+    LaunchedEffect(Unit) { viewModel.resumePendingSystemAction(pendingRequestId) }
     LaunchedEffect(Unit) {
         viewModel.externalSaved.collect { uri ->
             (context as? Activity)?.apply {
