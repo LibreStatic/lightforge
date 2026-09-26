@@ -15,7 +15,10 @@ enum class PortablePreferenceGroup {
     Gestures,
 }
 
-/** Only these fields cross devices. Missing fields never reset destination choices. */
+/**
+ * Only these fields cross devices. Missing fields never reset destination choices, and keys of
+ * removed settings (animateMedia, showFileType, markFavorites, rotatePhotos) are ignored.
+ */
 enum class PortablePreferenceField(
     val group: PortablePreferenceGroup,
     val section: String,
@@ -28,10 +31,7 @@ enum class PortablePreferenceField(
     Filter(PortablePreferenceGroup.Presentation, "library", "filter"),
     Grouping(PortablePreferenceGroup.Presentation, "library", "grouping"),
     Crop(PortablePreferenceGroup.Presentation, "thumbnails", "cropToFill"),
-    Animate(PortablePreferenceGroup.Presentation, "thumbnails", "animateMedia"),
     Duration(PortablePreferenceGroup.Presentation, "thumbnails", "showVideoDuration"),
-    FileType(PortablePreferenceGroup.Presentation, "thumbnails", "showFileType"),
-    Favorites(PortablePreferenceGroup.Presentation, "thumbnails", "markFavorites"),
     Columns(PortablePreferenceGroup.Presentation, "thumbnails", "gridColumns"),
     Autoplay(PortablePreferenceGroup.Playback, "playback", "autoplayVideos"),
     Muted(PortablePreferenceGroup.Playback, "playback", "startVideosMuted"),
@@ -46,7 +46,6 @@ enum class PortablePreferenceField(
     VideoBrightness(PortablePreferenceGroup.Gestures, "gestures", "videoBrightness"),
     VideoVolume(PortablePreferenceGroup.Gestures, "gestures", "videoVolume"),
     VideoSeek(PortablePreferenceGroup.Gestures, "gestures", "videoSeek"),
-    Rotate(PortablePreferenceGroup.Gestures, "gestures", "rotatePhotos"),
     PhotoZoom(PortablePreferenceGroup.Gestures, "gestures", "photoMaxZoom"),
     VideoZoom(PortablePreferenceGroup.Gestures, "gestures", "videoMaxZoom"),
     SkipSeconds(PortablePreferenceGroup.Gestures, "gestures", "videoSkipSeconds");

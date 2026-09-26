@@ -48,7 +48,7 @@ class PortablePreferencesRepositoryTest {
                     security = SecuritySettings(true, true, 15),
                     operations = OperationSettings(true, false, false),
                     analysis = AnalysisSettings(50),
-                    gestures = it.gestures.copy(onboardingShown = true),
+                    gestures = it.gestures.copy(videoSkipSeconds = 30),
                     playback = it.playback.copy(loopVideos = true),
                 )
             }
@@ -73,13 +73,12 @@ class PortablePreferencesRepositoryTest {
         }
 
     @Test
-    fun playbackAndGesturesApplyOnlyPresentFieldsAndKeepOnboarding() = test { repo, _ ->
-        repo.update {
-            it.copy(gestures = it.gestures.copy(onboardingShown = true, rotatePhotos = true))
-        }
+    fun playbackAndGesturesApplyOnlyPresentFieldsAndIgnoreRemovedKeys() = test { repo, _ ->
+        repo.update { it.copy(gestures = it.gestures.copy(videoSkipSeconds = 30)) }
+        // rotatePhotos, onboardingShown and the thumbnail toggles were removed; old exports keep them.
         val bytes =
             payload(
-                """{"playback":{"loopVideos":true,"videoScrubbingMode":"Filmstrip"},"gestures":{"pinchZoom":false,"photoMaxZoom":3.5,"onboardingShown":false}}"""
+                """{"playback":{"loopVideos":true,"videoScrubbingMode":"Filmstrip"},"gestures":{"pinchZoom":false,"photoMaxZoom":3.5,"onboardingShown":false,"rotatePhotos":true},"thumbnails":{"animateMedia":false,"showFileType":true,"markFavorites":false}}"""
             )
         val review = repo.review(bytes, UUID.randomUUID().toString())
         assertEquals(4, review.differences.size)
@@ -89,8 +88,7 @@ class PortablePreferencesRepositoryTest {
         assertTrue(after.playback.autoplayVideos)
         assertEquals(VideoScrubbingMode.Filmstrip, after.playback.videoScrubbingMode)
         assertFalse(after.gestures.pinchZoom)
-        assertTrue(after.gestures.rotatePhotos)
-        assertTrue(after.gestures.onboardingShown)
+        assertEquals(30, after.gestures.videoSkipSeconds)
         assertEquals(3.5f, after.gestures.photoMaxZoom)
     }
 

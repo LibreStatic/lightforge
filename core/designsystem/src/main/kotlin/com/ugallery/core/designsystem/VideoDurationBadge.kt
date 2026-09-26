@@ -10,6 +10,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,6 +21,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.util.Locale
+
+/** Settings' "Show video duration". Off keeps the play marker so video cells stay recognisable. */
+val LocalShowVideoDuration = staticCompositionLocalOf { true }
 
 /** Compact, high-contrast marker used on video cells in media grids. */
 @Composable
@@ -42,7 +46,7 @@ fun VideoDurationBadge(
             modifier = Modifier.size(12.dp),
             tint = GalleryOverlayTokens.Content,
         )
-        Text(
+        if (LocalShowVideoDuration.current) Text(
             text = formatVideoDuration(durationMillis),
             color = GalleryOverlayTokens.Content,
             maxLines = 1,

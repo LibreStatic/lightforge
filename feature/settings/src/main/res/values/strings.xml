@@ -58,17 +58,13 @@
     <string name="settings_video_brightness">Video brightness gesture</string>
     <string name="settings_video_volume">Video volume gesture</string>
     <string name="settings_video_seek">Video seek gesture</string>
-    <string name="settings_rotate_photos">Rotate photos with two fingers</string>
     <string name="settings_photo_zoom_limit">Photo zoom limit</string>
     <string name="settings_video_zoom_limit">Video zoom limit</string>
     <string name="settings_skip_seconds">Double-tap skip</string>
     <string name="settings_seconds">%1$d seconds</string>
     <string name="settings_thumbnails">Thumbnails</string>
     <string name="settings_crop_thumbnails">Crop thumbnails to fill</string>
-    <string name="settings_animate_media">Animate GIF and WebP</string>
     <string name="settings_show_duration">Show video duration</string>
-    <string name="settings_show_file_type">Show file type</string>
-    <string name="settings_mark_favorites">Mark favorites</string>
     <string name="settings_grid_columns">Grid columns</string>
     <string name="settings_operations">File operations</string>
     <string name="settings_share_sanitized">Share without location by default</string>

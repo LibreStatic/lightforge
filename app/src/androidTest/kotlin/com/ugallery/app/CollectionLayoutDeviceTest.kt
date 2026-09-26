@@ -65,7 +65,7 @@ class CollectionLayoutDeviceTest {
         fixture { file ->
             opened(file) { repo ->
                 repo.update { it.copy(playback = it.playback.copy(loopVideos = true),
-                    security = SecuritySettings(true, true, 15), gestures = it.gestures.copy(onboardingShown = true),
+                    security = SecuritySettings(true, true, 15), gestures = it.gestures.copy(videoSkipSeconds = 30),
                     library = it.library.copy(folderSelectionMode = FolderSelectionMode.OnlyIncluded,
                         folderRules = mapOf(FolderSelectionTarget.Bucket("fixture-volume", 55) to true))) }
                 val before = repo.settings.first()

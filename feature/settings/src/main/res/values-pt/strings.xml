@@ -52,17 +52,13 @@
     <string name="settings_video_brightness">Gesto de brilho em vídeos</string>
     <string name="settings_video_volume">Gesto de volume em vídeos</string>
     <string name="settings_video_seek">Gesto de busca em vídeos</string>
-    <string name="settings_rotate_photos">Girar fotos com dois dedos</string>
     <string name="settings_photo_zoom_limit">Limite de zoom da foto</string>
     <string name="settings_video_zoom_limit">Limite de zoom do vídeo</string>
     <string name="settings_skip_seconds">Salto com toque duplo</string>
     <string name="settings_seconds">%1$d segundos</string>
     <string name="settings_thumbnails">Miniaturas</string>
     <string name="settings_crop_thumbnails">Cortar miniaturas para preencher</string>
-    <string name="settings_animate_media">Animar GIF e WebP</string>
     <string name="settings_show_duration">Mostrar duração do vídeo</string>
-    <string name="settings_show_file_type">Mostrar tipo de arquivo</string>
-    <string name="settings_mark_favorites">Marcar favoritos</string>
     <string name="settings_grid_columns">Colunas da grade</string>
     <string name="settings_operations">Operações de arquivo</string>
     <string name="settings_share_sanitized">Compartilhar sem localização por padrão</string>

@@ -286,19 +286,14 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                         videoBrightness = p[Keys.VideoBrightness] ?: true,
                         videoVolume = p[Keys.VideoVolume] ?: true,
                         videoSeek = p[Keys.VideoSeek] ?: true,
-                        rotatePhotos = p[Keys.RotatePhotos] ?: false,
                         photoMaxZoom = p[Keys.PhotoMaxZoom] ?: 8f,
                         videoMaxZoom = p[Keys.VideoMaxZoom] ?: 4f,
                         videoSkipSeconds = p[Keys.VideoSkipSeconds] ?: 10,
-                        onboardingShown = p[Keys.OnboardingShown] ?: false,
                     ),
                 thumbnails =
                     ThumbnailSettings(
                         cropToFill = p[Keys.CropThumbnails] ?: true,
-                        animateMedia = p[Keys.AnimateMedia] ?: true,
                         showVideoDuration = p[Keys.ShowDuration] ?: true,
-                        showFileType = p[Keys.ShowFileType] ?: false,
-                        markFavorites = p[Keys.MarkFavorites] ?: true,
                         gridColumns = p[Keys.GridColumns] ?: 3,
                     ),
                 operations =
@@ -345,16 +340,11 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         p[Keys.VideoBrightness] = s.gestures.videoBrightness
         p[Keys.VideoVolume] = s.gestures.videoVolume
         p[Keys.VideoSeek] = s.gestures.videoSeek
-        p[Keys.RotatePhotos] = s.gestures.rotatePhotos
         p[Keys.PhotoMaxZoom] = s.gestures.photoMaxZoom
         p[Keys.VideoMaxZoom] = s.gestures.videoMaxZoom
         p[Keys.VideoSkipSeconds] = s.gestures.videoSkipSeconds
-        p[Keys.OnboardingShown] = s.gestures.onboardingShown
         p[Keys.CropThumbnails] = s.thumbnails.cropToFill
-        p[Keys.AnimateMedia] = s.thumbnails.animateMedia
         p[Keys.ShowDuration] = s.thumbnails.showVideoDuration
-        p[Keys.ShowFileType] = s.thumbnails.showFileType
-        p[Keys.MarkFavorites] = s.thumbnails.markFavorites
         p[Keys.GridColumns] = s.thumbnails.gridColumns
         p[Keys.ShareSanitized] = s.operations.shareWithoutLocationByDefault
         p[Keys.KeepModified] = s.operations.keepLastModifiedWhenPossible
@@ -409,21 +399,16 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     put("videoBrightness", gestures.videoBrightness)
                     put("videoVolume", gestures.videoVolume)
                     put("videoSeek", gestures.videoSeek)
-                    put("rotatePhotos", gestures.rotatePhotos)
                     put("photoMaxZoom", gestures.photoMaxZoom)
                     put("videoMaxZoom", gestures.videoMaxZoom)
                     put("videoSkipSeconds", gestures.videoSkipSeconds)
-                    put("onboardingShown", gestures.onboardingShown)
                 },
             )
             put(
                 "thumbnails",
                 JSONObject().apply {
                     put("cropToFill", thumbnails.cropToFill)
-                    put("animateMedia", thumbnails.animateMedia)
                     put("showVideoDuration", thumbnails.showVideoDuration)
-                    put("showFileType", thumbnails.showFileType)
-                    put("markFavorites", thumbnails.markFavorites)
                     put("gridColumns", thumbnails.gridColumns)
                 },
             )
@@ -510,19 +495,14 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     g.bool("videoBrightness", true),
                     g.bool("videoVolume", true),
                     g.bool("videoSeek", true),
-                    g.bool("rotatePhotos", false),
                     g.optDouble("photoMaxZoom", 8.0).toFloat(),
                     g.optDouble("videoMaxZoom", 4.0).toFloat(),
                     g.optInt("videoSkipSeconds", 10),
-                    g.bool("onboardingShown", false),
                 ),
             thumbnails =
                 ThumbnailSettings(
                     t.bool("cropToFill", true),
-                    t.bool("animateMedia", true),
                     t.bool("showVideoDuration", true),
-                    t.bool("showFileType", false),
-                    t.bool("markFavorites", true),
                     t.optInt("gridColumns", 3),
                 ),
             operations =
@@ -565,16 +545,11 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         val VideoBrightness = booleanPreferencesKey("gestures.video_brightness")
         val VideoVolume = booleanPreferencesKey("gestures.video_volume")
         val VideoSeek = booleanPreferencesKey("gestures.video_seek")
-        val RotatePhotos = booleanPreferencesKey("gestures.rotate_photos")
         val PhotoMaxZoom = floatPreferencesKey("gestures.photo_max_zoom")
         val VideoMaxZoom = floatPreferencesKey("gestures.video_max_zoom")
         val VideoSkipSeconds = intPreferencesKey("gestures.video_skip_seconds")
-        val OnboardingShown = booleanPreferencesKey("gestures.onboarding_shown")
         val CropThumbnails = booleanPreferencesKey("thumbnails.crop")
-        val AnimateMedia = booleanPreferencesKey("thumbnails.animate")
         val ShowDuration = booleanPreferencesKey("thumbnails.duration")
-        val ShowFileType = booleanPreferencesKey("thumbnails.file_type")
-        val MarkFavorites = booleanPreferencesKey("thumbnails.favorite")
         val GridColumns = intPreferencesKey("thumbnails.columns")
         val ShareSanitized = booleanPreferencesKey("operations.share_sanitized")
         val KeepModified = booleanPreferencesKey("operations.keep_modified")

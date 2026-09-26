@@ -8,9 +8,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.fragment.app.FragmentActivity
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import com.ugallery.feature.photos.PhotosRoute
 import com.ugallery.feature.photos.LibraryUiState
+import com.ugallery.core.designsystem.LocalShowVideoDuration
 import com.ugallery.core.designsystem.UGalleryTheme
 import com.ugallery.feature.permissions.PermissionCoordinator
 import dagger.hilt.android.AndroidEntryPoint
@@ -50,7 +52,10 @@ class MainActivity : FragmentActivity() {
                         benchmarkMlRunning = benchmarkMlRunning,
                     )
                 } else {
-                    ProductionGalleryApp(galleryViewModel, permissionCoordinator)
+                    val thumbnails = galleryViewModel.gallerySettings.collectAsState().value.thumbnails
+                    CompositionLocalProvider(LocalShowVideoDuration provides thumbnails.showVideoDuration) {
+                        ProductionGalleryApp(galleryViewModel, permissionCoordinator)
+                    }
                 }
             }
         }

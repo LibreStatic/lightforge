@@ -452,7 +452,7 @@ fun ViewerContent(
                         },
                         onDoubleTap = { position ->
                             if (!gestureSettings.doubleTapZoom) return@detectTapGestures
-                            if (media.kind == MediaKind.Video && videoController != null) {
+                            if (media.kind == MediaKind.Video && videoController != null && gestureSettings.videoSeek) {
                                 val edge = size.width / 3f
                                 when {
                                     position.x < edge -> videoController.seekBy(-gestureSettings.videoSkipSeconds * 1_000L)
