@@ -86,6 +86,8 @@ data class PhotoEditorContentState(
     val isAutoEnhancementAnalyzing: Boolean = false,
     val crop: EditOperation.Crop? = null,
     val straightenDegrees: Float = 0f,
+    /** The recipe's pixel-moving operations ([photoGeometryOperations]); pending dabs follow them. */
+    val geometry: List<EditOperation> = emptyList(),
     val isRaw: Boolean = false,
     val rawMetadata: RawMetadata? = null,
     val rawSettings: RawDevelopmentSettings = RawDevelopmentSettings(),
@@ -135,6 +137,12 @@ fun PhotoEditorContent(
     var selectedTool by rememberSaveable(state.isRaw, key = "photo-editor-tool") { mutableStateOf(defaultTool) }
     // Brush dabs not yet applied; applied dabs live in the view model with the erased preview.
     var eraseStrokes by remember { mutableStateOf<List<PhotoPoint>>(emptyList()) }
+    // Pending dabs are in edited-image coordinates: re-project them when crop/rotate/flip change.
+    var eraseStrokesGeometry by remember { mutableStateOf(state.geometry) }
+    if (eraseStrokesGeometry != state.geometry) {
+        eraseStrokes = reprojectEditedPoints(eraseStrokes, eraseStrokesGeometry, state.geometry)
+        eraseStrokesGeometry = state.geometry
+    }
     val experimental = ExperimentalToolActions(
         eraseStrokes = eraseStrokes,
         onEraseStrokesChange = { eraseStrokes = it },

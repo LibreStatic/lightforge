@@ -3451,6 +3451,7 @@ class GalleryViewModel @Inject constructor(
                     colorOperations = photoColorOperations(initial),
                     crop = selectedCrop(initial),
                     straightenDegrees = selectedStraighten(initial),
+                    geometry = photoGeometryOperations(initial.operations),
                     isRaw = isRaw,
                     rawMetadata = rawMetadata,
                     rawSettings = rawSettings,
@@ -3575,6 +3576,7 @@ class GalleryViewModel @Inject constructor(
                 colorOperations = photoColorOperations(updated.present),
                 crop = selectedCrop(updated.present),
                 straightenDegrees = selectedStraighten(updated.present),
+                geometry = photoGeometryOperations(updated.present.operations),
                 statusMessage = null,
             ),
         )
@@ -3620,6 +3622,7 @@ class GalleryViewModel @Inject constructor(
                 colorOperations = photoColorOperations(updated.present),
                 crop = selectedCrop(updated.present),
                 straightenDegrees = selectedStraighten(updated.present),
+                geometry = photoGeometryOperations(updated.present.operations),
                 rawSettings = selectedRawSettings(updated.present),
                 statusMessage = null,
             ),

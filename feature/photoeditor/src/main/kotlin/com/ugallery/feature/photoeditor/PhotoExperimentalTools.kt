@@ -138,6 +138,21 @@ fun projectToSource(point: PhotoPoint, geometry: List<EditOperation>): PhotoPoin
     return PhotoPoint(x, y)
 }
 
+/**
+ * Moves edited-image [points] drawn under geometry [from] onto the image edited by [to], keeping
+ * them over the same content; points cropped out of frame are dropped. Marks cannot follow a
+ * straighten, so they are cleared when either side has one.
+ */
+fun reprojectEditedPoints(
+    points: List<PhotoPoint>,
+    from: List<EditOperation>,
+    to: List<EditOperation>,
+): List<PhotoPoint> {
+    if (points.isEmpty() || from == to) return points
+    if (!photoGeometryProjectable(from) || !photoGeometryProjectable(to)) return emptyList()
+    return points.mapNotNull { point -> projectToSource(point, from)?.let { projectToEdited(it, to) } }
+}
+
 /** Drops dabs closer than half a brush radius to the previous one, keeping masks bounded. */
 internal fun appendBrushPoint(points: List<PhotoPoint>, point: PhotoPoint, aspect: Float): List<PhotoPoint> {
     val last = points.lastOrNull() ?: return points + point
