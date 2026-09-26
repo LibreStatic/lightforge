@@ -74,6 +74,18 @@ class EditModelsTest {
     }
 
     @Test
+    fun fullFrameCropIsNotRecordedAndClearsAnEarlierCrop() {
+        val initial = EditHistory.initial(EditRecipe.forSource(source, 7))
+
+        assertEquals(initial, initial.apply(EditOperation.Crop(0, 0, 1_000, 1_000)))
+
+        val cropped = initial.apply(EditOperation.Crop(100, 100, 800, 800))
+        val reset = cropped.apply(EditOperation.Crop(0, 0, 1_000, 1_000))
+        assertEquals(emptyList<EditOperation>(), reset.present.operations)
+        assertTrue(reset.present.isIdentity)
+    }
+
+    @Test
     fun applyingAnAlreadySelectedValueDoesNotCreateUndoHistory() {
         val history = EditHistory.initial(EditRecipe.forSource(source, 7))
             .apply(EditOperation.Filter("natural"))

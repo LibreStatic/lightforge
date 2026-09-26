@@ -13,6 +13,10 @@ sealed interface EditOperation : java.io.Serializable {
             require(rightPermille in 1..1000 && bottomPermille in 1..1000)
             require(rightPermille > leftPermille && bottomPermille > topPermille)
         }
+
+        /** A crop that keeps every pixel; the history drops it like a neutral Tone or Filter. */
+        val isFullFrame: Boolean
+            get() = leftPermille == 0 && topPermille == 0 && rightPermille == 1_000 && bottomPermille == 1_000
     }
 
     data class Rotate(val degrees: Int) : EditOperation {
@@ -103,7 +107,9 @@ data class EditHistory(
             is EditOperation.Tone -> replaceSlot<EditOperation.Tone>(
                 operation.takeUnless { it == EditOperation.Tone() },
             )
-            is EditOperation.Crop -> replaceSlot<EditOperation.Crop>(operation)
+            is EditOperation.Crop -> replaceSlot<EditOperation.Crop>(
+                operation.takeUnless { it.isFullFrame },
+            )
             is EditOperation.Straighten -> replaceSlot<EditOperation.Straighten>(
                 operation.takeUnless { it.degrees == 0f },
             )
