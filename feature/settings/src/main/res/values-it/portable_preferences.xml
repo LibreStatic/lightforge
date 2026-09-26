@@ -5,7 +5,17 @@
     <string name="portable_preferences_applied">Preferenze selezionate applicate. Le altre impostazioni sono conservate.</string>
     <string name="portable_preferences_replayed">Questa operazione è già stata applicata. Non sovrascriverà modifiche successive, anche dopo il ripristino delle impostazioni.</string>
     <string name="portable_preferences_empty">Questa copia non contiene preferenze compatibili.</string>
-    <string name="portable_preferences_changes">%1$d modifiche su %2$d campi</string>
+    <string name="portable_preferences_changes">%1$s su %2$s</string>
+    <plurals name="portable_preferences_changed">
+        <item quantity="one">%d modifica</item>
+        <item quantity="many">%d modifiche</item>
+        <item quantity="other">%d modifiche</item>
+    </plurals>
+    <plurals name="portable_preferences_fields">
+        <item quantity="one">%d campo</item>
+        <item quantity="many">%d campi</item>
+        <item quantity="other">%d campi</item>
+    </plurals>
     <string name="portable_preferences_hide">Nascondi valori</string>
     <string name="portable_preferences_details">Verifica valori attuali e della copia</string>
     <string name="portable_preferences_difference">Attuale: %1$s\nCopia: %2$s</string>

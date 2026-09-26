@@ -5,7 +5,15 @@
     <string name="portable_preferences_applied">Selected preferences applied. Other settings were preserved.</string>
     <string name="portable_preferences_replayed">This operation was already applied. It will not overwrite subsequent changes, even after resetting settings.</string>
     <string name="portable_preferences_empty">This backup contains no supported preference fields.</string>
-    <string name="portable_preferences_changes">%1$d changed of %2$d fields</string>
+    <string name="portable_preferences_changes">%1$s of %2$s</string>
+    <plurals name="portable_preferences_changed">
+        <item quantity="one">%d changed</item>
+        <item quantity="other">%d changed</item>
+    </plurals>
+    <plurals name="portable_preferences_fields">
+        <item quantity="one">%d field</item>
+        <item quantity="other">%d fields</item>
+    </plurals>
     <string name="portable_preferences_hide">Hide values</string>
     <string name="portable_preferences_details">Review current and backup values</string>
     <string name="portable_preferences_difference">Current: %1$s\nBackup: %2$s</string>

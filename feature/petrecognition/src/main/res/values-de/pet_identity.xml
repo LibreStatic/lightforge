@@ -11,7 +11,15 @@
     <string name="pet_cancel">Abbrechen</string>
     <string name="pet_analyze">Lokale Fotos analysieren</string>
     <string name="pet_cancel_analysis">Analyse abbrechen</string>
-    <string name="pet_progress">%1$d Fotos analysiert · %2$d Tiere</string>
+    <string name="pet_progress">%1$s · %2$s</string>
+    <plurals name="pet_progress_photos">
+        <item quantity="one">%d Foto analysiert</item>
+        <item quantity="other">%d Fotos analysiert</item>
+    </plurals>
+    <plurals name="pet_progress_animals">
+        <item quantity="one">%d Tier</item>
+        <item quantity="other">%d Tiere</item>
+    </plurals>
     <string name="pet_error">Vorgang fehlgeschlagen oder Mediathek geändert. Aktualisieren und erneut versuchen.</string>
     <string name="pet_groups">Gruppen</string>
     <string name="pet_unassigned">Nicht zugeordnete prüfen</string>

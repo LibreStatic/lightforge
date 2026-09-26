@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -146,11 +147,13 @@ fun PortablePreferencesContent(
                                                 style = MaterialTheme.typography.titleMedium,
                                             )
                                             Text(
-                                                stringResource(
-                                                    R.string.portable_preferences_changes,
-                                                    differences.count { it.changed },
-                                                    differences.size,
-                                                )
+                                                differences.count { it.changed }.let { changed ->
+                                                    stringResource(
+                                                        R.string.portable_preferences_changes,
+                                                        pluralStringResource(R.plurals.portable_preferences_changed, changed, changed),
+                                                        pluralStringResource(R.plurals.portable_preferences_fields, differences.size, differences.size),
+                                                    )
+                                                }
                                             )
                                         }
                                         Checkbox(

@@ -3182,7 +3182,11 @@ internal fun ProductionGalleryApp(
                             com.ugallery.feature.privatealbum.R.plurals.private_import_result,
                             importedCount,
                             importedCount,
-                            outcome.total,
+                            pluralStringResource(
+                                com.ugallery.feature.privatealbum.R.plurals.private_import_result_items,
+                                outcome.total,
+                                outcome.total,
+                            ),
                         )
                     } else {
                         stringResource(com.ugallery.feature.privatealbum.R.string.private_import_result_failed)

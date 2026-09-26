@@ -11,7 +11,17 @@
     <string name="pet_cancel">Annulla</string>
     <string name="pet_analyze">Analizza foto locali</string>
     <string name="pet_cancel_analysis">Annulla analisi</string>
-    <string name="pet_progress">%1$d foto analizzate · %2$d animali</string>
+    <string name="pet_progress">%1$s · %2$s</string>
+    <plurals name="pet_progress_photos">
+        <item quantity="one">%d foto analizzata</item>
+        <item quantity="many">%d foto analizzate</item>
+        <item quantity="other">%d foto analizzate</item>
+    </plurals>
+    <plurals name="pet_progress_animals">
+        <item quantity="one">%d animale</item>
+        <item quantity="many">%d animali</item>
+        <item quantity="other">%d animali</item>
+    </plurals>
     <string name="pet_error">Operazione non riuscita o raccolta modificata. Aggiorna e riprova.</string>
     <string name="pet_groups">Gruppi</string>
     <string name="pet_unassigned">Rivedi non assegnati</string>

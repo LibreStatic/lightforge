@@ -11,7 +11,17 @@
     <string name="pet_cancel">Cancelar</string>
     <string name="pet_analyze">Analisar fotos locais</string>
     <string name="pet_cancel_analysis">Cancelar análise</string>
-    <string name="pet_progress">%1$d fotos analisadas · %2$d animais</string>
+    <string name="pet_progress">%1$s · %2$s</string>
+    <plurals name="pet_progress_photos">
+        <item quantity="one">%d foto analisada</item>
+        <item quantity="many">%d fotos analisadas</item>
+        <item quantity="other">%d fotos analisadas</item>
+    </plurals>
+    <plurals name="pet_progress_animals">
+        <item quantity="one">%d animal</item>
+        <item quantity="many">%d animais</item>
+        <item quantity="other">%d animais</item>
+    </plurals>
     <string name="pet_error">A operação falhou ou a biblioteca mudou. Atualize e tente novamente.</string>
     <string name="pet_groups">Grupos</string>
     <string name="pet_unassigned">Revisar não atribuídos</string>

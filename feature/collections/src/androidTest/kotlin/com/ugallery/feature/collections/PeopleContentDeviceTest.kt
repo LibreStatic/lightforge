@@ -84,7 +84,11 @@ class PeopleContentDeviceTest {
         compose.onNode(hasText("Alex")).performClick()
         compose.onNode(hasText(context.getString(R.string.me_set_from_person))).performClick()
         assertEquals(1, setMeCount)
-        compose.onNode(hasText(context.getString(R.string.me_summary, 1, 4))).assertIsDisplayed()
+        compose.onNode(hasText(context.getString(
+            R.string.me_summary,
+            context.resources.getQuantityString(R.plurals.me_summary_references, 1, 1),
+            context.resources.getQuantityString(R.plurals.me_summary_matches, 4, 4),
+        ))).assertIsDisplayed()
         compose.onNode(hasText(context.getString(R.string.people_delete_all))).performClick()
         compose.onNode(hasText(context.getString(R.string.people_delete_body))).assertIsDisplayed()
         compose.onNode(hasText(context.getString(R.string.people_delete_confirm))).performClick()

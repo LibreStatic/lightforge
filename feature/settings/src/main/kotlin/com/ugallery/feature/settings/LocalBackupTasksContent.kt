@@ -26,6 +26,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -104,14 +105,7 @@ fun LocalBackupTasksContent(
                             stringResource(task.status.stringId()),
                             modifier = Modifier.testTag("local-backup-task-status-${task.id}"),
                         )
-                        Text(
-                            stringResource(
-                                R.string.local_backup_progress,
-                                task.filesDone,
-                                task.filesTotal,
-                                task.bytesDone,
-                            )
-                        )
+                        Text(localBackupProgressText(task.filesDone, task.filesTotal, task.bytesDone))
                         if (task.status == LocalBackupTaskStatus.Running) {
                             LinearProgressIndicator(Modifier.fillMaxWidth())
                         }
@@ -226,3 +220,15 @@ private fun LocalBackupTaskStatus.stringId(): Int =
         LocalBackupTaskStatus.Cancelled -> R.string.local_backup_cancelled
         LocalBackupTaskStatus.Completed -> R.string.local_backup_task_completed
     }
+
+/** Each count carries its own plural so "file(s)" and "byte(s)" agree independently. */
+@Composable
+internal fun localBackupProgressText(done: Int, total: Int, bytes: Long): String = stringResource(
+    R.string.local_backup_progress,
+    pluralStringResource(R.plurals.local_backup_progress_files, total, done, total),
+    localBackupBytesText(bytes),
+)
+
+@Composable
+internal fun localBackupBytesText(bytes: Long): String =
+    pluralStringResource(R.plurals.local_backup_bytes, bytes.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt(), bytes)

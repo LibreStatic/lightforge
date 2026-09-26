@@ -5,7 +5,17 @@
     <string name="portable_preferences_applied">Préférences sélectionnées appliquées. Les autres réglages sont conservés.</string>
     <string name="portable_preferences_replayed">Cette opération a déjà été appliquée. Elle ne remplacera pas les modifications ultérieures, même après une réinitialisation des réglages.</string>
     <string name="portable_preferences_empty">Cette sauvegarde ne contient aucune préférence compatible.</string>
-    <string name="portable_preferences_changes">%1$d modifications sur %2$d champs</string>
+    <string name="portable_preferences_changes">%1$s sur %2$s</string>
+    <plurals name="portable_preferences_changed">
+        <item quantity="one">%d modification</item>
+        <item quantity="many">%d modifications</item>
+        <item quantity="other">%d modifications</item>
+    </plurals>
+    <plurals name="portable_preferences_fields">
+        <item quantity="one">%d champ</item>
+        <item quantity="many">%d champs</item>
+        <item quantity="other">%d champs</item>
+    </plurals>
     <string name="portable_preferences_hide">Masquer les valeurs</string>
     <string name="portable_preferences_details">Vérifier les valeurs actuelles et sauvegardées</string>
     <string name="portable_preferences_difference">Actuel : %1$s\nSauvegarde : %2$s</string>

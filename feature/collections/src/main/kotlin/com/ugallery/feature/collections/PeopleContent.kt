@@ -282,7 +282,13 @@ private fun MeSection(me: LocalMeUiState?, thumbnailLoader: ThumbnailLoader?, on
             if (me == null) {
                 Text(stringResource(R.string.me_empty))
             } else {
-                Text(stringResource(R.string.me_summary, me.referenceCount, me.matchCount))
+                Text(
+                    stringResource(
+                        R.string.me_summary,
+                        pluralStringResource(R.plurals.me_summary_references, me.referenceCount.toInt(), me.referenceCount),
+                        pluralStringResource(R.plurals.me_summary_matches, me.matchCount.toInt(), me.matchCount),
+                    ),
+                )
                 if (!me.ready) GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
                 if (me.matches.isNotEmpty()) ThumbnailStrip(me.matches.take(6), thumbnailLoader)
                 TextButton(onClick = onResetMe) { Text(stringResource(R.string.me_reset)) }

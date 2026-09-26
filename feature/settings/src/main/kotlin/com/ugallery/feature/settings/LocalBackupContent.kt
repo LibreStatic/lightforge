@@ -41,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
@@ -403,14 +404,7 @@ fun LocalBackupContent(
                 if (busy) {
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                     progress?.let {
-                        Text(
-                            stringResource(
-                                R.string.local_backup_progress,
-                                it.completed,
-                                it.total,
-                                it.bytes,
-                            )
-                        )
+                        Text(localBackupProgressText(it.completed, it.total, it.bytes))
                     }
                     TextButton(
                         onClick = { confirmCancel = true },
@@ -430,8 +424,8 @@ fun LocalBackupContent(
                     Text(
                         stringResource(
                             R.string.local_backup_summary,
-                            manifest.entries.size,
-                            manifest.totalBytes,
+                            pluralStringResource(R.plurals.local_backup_originals, manifest.entries.size, manifest.entries.size),
+                            localBackupBytesText(manifest.totalBytes),
                         )
                     )
                     manifest.entries.take(20).forEach { Text(it.name) }

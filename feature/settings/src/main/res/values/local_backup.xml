@@ -16,10 +16,22 @@
     <string name="local_backup_exported">Backup saved and destination bytes verified.</string>
     <string name="local_backup_restored">Restored files were reopened and their SHA-256 hashes verified.</string>
     <string name="local_backup_too_many">Choose at most 10,000 files per backup.</string>
-    <string name="local_backup_progress">%1$d / %2$d files · %3$d bytes</string>
+    <string name="local_backup_progress">%1$s · %2$s</string>
+    <plurals name="local_backup_progress_files">
+        <item quantity="one">%1$d / %2$d file</item>
+        <item quantity="other">%1$d / %2$d files</item>
+    </plurals>
+    <plurals name="local_backup_bytes">
+        <item quantity="one">%d byte</item>
+        <item quantity="other">%d bytes</item>
+    </plurals>
     <string name="local_backup_cancel">Cancel</string>
     <string name="local_backup_review">Verified backup · format version 1</string>
-    <string name="local_backup_summary">%1$d originals · %2$d bytes</string>
+    <string name="local_backup_summary">%1$s · %2$s</string>
+    <plurals name="local_backup_originals">
+        <item quantity="one">%d original</item>
+        <item quantity="other">%d originals</item>
+    </plurals>
     <string name="local_backup_more">And %1$d more files</string>
     <string name="local_backup_restore_hint">Restore copies into a new UGallery-restored folder. Existing files are not overwritten or deleted. Organization and preferences will not be changed.</string>
     <string name="local_backup_restore">Restore copies</string>

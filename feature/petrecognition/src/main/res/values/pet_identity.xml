@@ -11,7 +11,15 @@
     <string name="pet_cancel">Cancel</string>
     <string name="pet_analyze">Analyze local photos</string>
     <string name="pet_cancel_analysis">Cancel analysis</string>
-    <string name="pet_progress">%1$d photos analyzed · %2$d animals</string>
+    <string name="pet_progress">%1$s · %2$s</string>
+    <plurals name="pet_progress_photos">
+        <item quantity="one">%d photo analyzed</item>
+        <item quantity="other">%d photos analyzed</item>
+    </plurals>
+    <plurals name="pet_progress_animals">
+        <item quantity="one">%d animal</item>
+        <item quantity="other">%d animals</item>
+    </plurals>
     <string name="pet_error">The operation failed or the library changed. Refresh and try again.</string>
     <string name="pet_groups">Groups</string>
     <string name="pet_unassigned">Review unassigned</string>

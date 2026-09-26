@@ -116,7 +116,13 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (analysis.running) LinearProgressIndicator(modifier = Modifier.fillMaxWidth().testTag("pet-progress"))
                 else LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().testTag("pet-progress"))
-                if (analysis.running) Text(stringResource(R.string.pet_progress, analysis.analyzed, analysis.detected))
+                if (analysis.running) Text(
+                    stringResource(
+                        R.string.pet_progress,
+                        pluralStringResource(R.plurals.pet_progress_photos, analysis.analyzed.toInt(), analysis.analyzed),
+                        pluralStringResource(R.plurals.pet_progress_animals, analysis.detected.toInt(), analysis.detected),
+                    ),
+                )
                 OutlinedButton(onClick = { if (analysis.running) PetIdentityAnalysisRunner.cancel() else cancel() }, modifier = Modifier.testTag("pet-cancel")) { Text(stringResource(R.string.pet_cancel_analysis)) }
             }
         }

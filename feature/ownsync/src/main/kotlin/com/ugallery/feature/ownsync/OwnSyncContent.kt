@@ -16,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
@@ -167,19 +168,24 @@ fun OwnSyncContent(
                     ) {
                         Text(jobs.firstOrNull { it.id == run.jobId }?.name ?: run.id)
                         Text(stringResource(statusLabel(run.status)))
+                        val done = run.plan.count { it.done }
+                        val total = run.plan.count {
+                            it.action in
+                                listOf(
+                                    OwnSyncAction.Add,
+                                    OwnSyncAction.Quarantine,
+                                    OwnSyncAction.Restore,
+                                )
+                        }
                         Text(
                             stringResource(
                                 R.string.own_sync_progress,
-                                run.plan.count { it.done },
-                                run.plan.count {
-                                    it.action in
-                                        listOf(
-                                            OwnSyncAction.Add,
-                                            OwnSyncAction.Quarantine,
-                                            OwnSyncAction.Restore,
-                                        )
-                                },
-                                run.bytesDone,
+                                pluralStringResource(R.plurals.own_sync_progress_operations, total, done, total),
+                                pluralStringResource(
+                                    R.plurals.own_sync_progress_bytes,
+                                    run.bytesDone.coerceIn(0L, Int.MAX_VALUE.toLong()).toInt(),
+                                    run.bytesDone,
+                                ),
                             )
                         )
                         if (run.failure != null) Text(stringResource(R.string.own_sync_attention))

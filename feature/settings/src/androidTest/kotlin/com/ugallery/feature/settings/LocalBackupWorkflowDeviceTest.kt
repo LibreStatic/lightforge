@@ -121,7 +121,11 @@ class LocalBackupWorkflowDeviceTest {
             compose.onNodeWithTag("local-backup-create").performClick()
             awaitText(context.getString(R.string.local_backup_exported))
             compose
-                .onNodeWithText(context.getString(R.string.local_backup_summary, 2, 400003L))
+                .onNodeWithText(context.getString(
+                    R.string.local_backup_summary,
+                    context.resources.getQuantityString(R.plurals.local_backup_originals, 2, 2),
+                    context.resources.getQuantityString(R.plurals.local_backup_bytes, 400003, 400003L),
+                ))
                 .performScrollTo()
                 .assertIsDisplayed()
             assertTrue(read(backup).isNotEmpty())
