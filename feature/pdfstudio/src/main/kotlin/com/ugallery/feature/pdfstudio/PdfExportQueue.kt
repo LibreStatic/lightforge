@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.work.*
 import java.io.File
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -74,6 +75,9 @@ class PdfExportQueue(private val context: Context) {
             OneTimeWorkRequestBuilder<PdfExportWorker>()
                 .setId(UUID.fromString(row.workId))
                 .setInputData(workDataOf("jobId" to row.id))
+                // Expedited work may start its foreground service from the background (API 31+).
+                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, WorkRequest.MIN_BACKOFF_MILLIS, TimeUnit.MILLISECONDS)
                 .addTag(TAG)
                 .build()
         manager

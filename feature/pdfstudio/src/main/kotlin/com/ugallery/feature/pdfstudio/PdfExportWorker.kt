@@ -52,8 +52,20 @@ class PdfExportWorker(context: Context, parameters: WorkerParameters) :
                     )
         )
             return Result.success()
-        return try {
+        try {
             setForeground(foreground(row))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Typically ForegroundServiceStartNotAllowedException: the worker started while the
+            // app was in the background. Nothing ran yet, so back off instead of failing the job.
+            if (runAttemptCount < MAX_FOREGROUND_ATTEMPTS) return Result.retry()
+            queue.update(jobId, id.toString()) {
+                it.copy(status = PdfExportPhase.Failed.name, error = PdfFailure.from(e).name)
+            }
+            return Result.success()
+        }
+        return try {
             PdfWorkLocks.forJob(jobId).withLock { gate.withLock { execute(jobId) } }
         } catch (e: CancellationException) {
             withContext(NonCancellable + Dispatchers.IO) {
@@ -207,7 +219,17 @@ class PdfExportWorker(context: Context, parameters: WorkerParameters) :
             }
         }
 
-    private fun foreground(row: PdfExportJob): ForegroundInfo {
+    /** Expedited work needs this before API 31; the row may already be gone. */
+    override suspend fun getForegroundInfo(): ForegroundInfo {
+        val jobId = inputData.getString("jobId").orEmpty()
+        return queue.get(jobId)?.let(::foreground)
+            ?: foreground(jobId, applicationContext.getString(R.string.pdf_queue), portable = false)
+    }
+
+    private fun foreground(row: PdfExportJob): ForegroundInfo =
+        foreground(row.id, row.projectName, row.portable)
+
+    private fun foreground(jobId: String, title: String, portable: Boolean): ForegroundInfo {
         val manager = applicationContext.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
             NotificationChannel(
@@ -219,19 +241,19 @@ class PdfExportWorker(context: Context, parameters: WorkerParameters) :
         val cancel =
             PendingIntent.getBroadcast(
                 applicationContext,
-                row.id.hashCode(),
+                jobId.hashCode(),
                 Intent(applicationContext, PdfExportCancelReceiver::class.java)
-                    .setAction(row.id)
-                    .putExtra("jobId", row.id),
+                    .setAction(jobId)
+                    .putExtra("jobId", jobId),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
         val notification =
             NotificationCompat.Builder(applicationContext, CHANNEL)
                 .setSmallIcon(android.R.drawable.stat_sys_download)
-                .setContentTitle(row.projectName)
+                .setContentTitle(title)
                 .setContentText(
                     applicationContext.getString(
-                        if (row.portable) R.string.pdf_queue_packaging
+                        if (portable) R.string.pdf_queue_packaging
                         else R.string.pdf_queue_running
                     )
                 )
@@ -243,7 +265,7 @@ class PdfExportWorker(context: Context, parameters: WorkerParameters) :
                 )
                 .build()
         return ForegroundInfo(
-            0x50000000 or (row.id.hashCode() and 0x0fffffff),
+            0x50000000 or (jobId.hashCode() and 0x0fffffff),
             notification,
             ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
         )
@@ -252,6 +274,7 @@ class PdfExportWorker(context: Context, parameters: WorkerParameters) :
     companion object {
         private val gate = Mutex()
         private const val CHANNEL = "pdf-exports"
+        private const val MAX_FOREGROUND_ATTEMPTS = 5
     }
 }
 
