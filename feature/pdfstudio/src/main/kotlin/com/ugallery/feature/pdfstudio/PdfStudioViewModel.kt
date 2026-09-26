@@ -14,6 +14,8 @@ data class PdfStudioState(
     val progress: Pair<Int, Int>? = null,
     val message: Int? = null,
     val sourceError: Int? = null,
+    /** Export whose Ready notice offers Save; cleared once saving starts or the notice goes. */
+    val readyExport: String? = null,
     val canUndo: Boolean = false,
     val canRedo: Boolean = false,
     val selectedPages: Set<String> = emptySet(),
@@ -58,12 +60,21 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         )
     private var galleryRecovery: Job? = null
     private var activeGallery: String? = null
+    /** The export this studio queued or saved, so its outcome replaces the "queued" notice. */
+    private var watchedExport: String?
+        get() = saved[WATCHED_EXPORT]
+        set(value) {
+            saved[WATCHED_EXPORT] = value
+            watchedPhase = null
+        }
+    private var watchedPhase: PdfExportPhase? = null
 
     init {
         saved.get<String>("projectId")?.let { open(it) }
         resumePublication()
         resumeImport()
         viewModelScope.launch { galleryIntake.deliveries.collect { resumeGallery() } }
+        viewModelScope.launch { exportQueue.jobs.collect(::followExport) }
         viewModelScope.launch {
             runCatching { exportQueue.reconcile() }
                 .onFailure {
@@ -76,7 +87,7 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         if (mutable.value.busy) return
         task =
             viewModelScope.launch {
-                mutable.update { it.copy(busy = true, message = null, sourceError = null) }
+                mutable.update { it.copy(busy = true, message = null, sourceError = null, readyExport = null) }
                 try {
                     block()
                 } catch (e: CancellationException) {
@@ -548,19 +559,52 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         autosave?.cancelAndJoin()
         persistCurrent()
         if (onlySelected) p = p.copy(pages = p.pages.filter { it.id in s.selectedPages })
-        exportQueue.enqueue(p, compact)
+        watchedExport = exportQueue.enqueue(p, compact).id
         mutable.update { it.copy(message = R.string.pdf_queue_added) }
+    }
+
+    /** Edge-triggered: report only the phase the watched export has just reached. */
+    private fun followExport(jobs: List<PdfExportJob>) {
+        val id = watchedExport ?: return
+        // A list emitted before the new row was committed is not a removal.
+        val phase = jobs.firstOrNull { it.id == id }?.phase ?: return
+        if (phase == watchedPhase) return
+        watchedPhase = phase
+        val queuedNotice = setOf(R.string.pdf_queue_added, R.string.pdf_queue_ready)
+        when (phase) {
+            PdfExportPhase.Ready ->
+                mutable.update { it.copy(message = R.string.pdf_queue_ready, sourceError = null, readyExport = id) }
+            PdfExportPhase.Published -> {
+                mutable.update { it.copy(message = R.string.pdf_queue_published, sourceError = null, readyExport = null) }
+                watchedExport = null
+            }
+            // Still watched: a retry from the queue can bring it back to Ready.
+            PdfExportPhase.Failed ->
+                mutable.update { it.copy(message = R.string.pdf_queue_failed, sourceError = null, readyExport = null) }
+            PdfExportPhase.Cancelled -> {
+                mutable.update {
+                    it.copy(message = it.message.takeUnless { m -> m in queuedNotice }, readyExport = null)
+                }
+                watchedExport = null
+            }
+            PdfExportPhase.Publishing -> mutable.update { it.copy(readyExport = null) }
+            PdfExportPhase.Queued, PdfExportPhase.Running, PdfExportPhase.Cancelling -> Unit
+        }
     }
 
     fun cancelExport(id: String) = operation { exportQueue.cancel(id) }
 
     fun keepExportDestination(id: String) = operation { exportQueue.keepDestination(id) }
 
-    fun retryExport(id: String) = operation { exportQueue.retry(id) }
+    fun retryExport(id: String) = operation {
+        exportQueue.retry(id)
+        watchedExport = id
+    }
 
     fun removeExport(id: String) = operation { exportQueue.remove(id) }
 
-    internal fun beginPublication(id: String): PublishStart = publishPicker.begin(id)
+    internal fun beginPublication(id: String): PublishStart =
+        publishPicker.begin(id).also { if (it is PublishStart.Launch) watchedExport = id }
 
     /**
      * A recorded request with no live launcher behind it (SAF cancelled without delivering, or the
@@ -580,7 +624,7 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
 
     /** Dismiss the current banner. Explicit user action, never a timeout. */
     fun dismissMessage() {
-        mutable.update { it.copy(message = null, sourceError = null) }
+        mutable.update { it.copy(message = null, sourceError = null, readyExport = null) }
     }
 
     fun publicationResult(uri: Uri?) {
@@ -629,8 +673,12 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         val p = requireNotNull(mutable.value.project)
         autosave?.cancelAndJoin()
         persistCurrent()
-        exportQueue.enqueue(p, compact = false, portable = true)
+        watchedExport = exportQueue.enqueue(p, compact = false, portable = true).id
         mutable.update { it.copy(message = R.string.pdf_queue_added) }
+    }
+
+    private companion object {
+        const val WATCHED_EXPORT = "watchedExport"
     }
 
     fun cancel() {

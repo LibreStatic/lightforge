@@ -101,6 +101,23 @@ fun PdfStudioScreen(
             saveInFlight = false
             vm.publicationResult(it)
         }
+    fun saveExport(job: PdfExportJob) {
+        var start = vm.beginPublication(job.id)
+        if (start is PublishStart.AlreadyPending) start = vm.restartPublication(job.id)
+        when (start) {
+            is PublishStart.Launch -> {
+                saveInFlight = true
+                try {
+                    if (job.portable) exportProject.launch("${job.projectName}.ugpdfproject")
+                    else exportPdf.launch("${job.projectName}.pdf")
+                } catch (e: Exception) {
+                    saveInFlight = false
+                    vm.publicationLaunchFailed(e)
+                }
+            }
+            is PublishStart.AlreadyPending -> vm.publicationBusy()
+        }
+    }
     fun launchImport(portable: Boolean) {
         if (!vm.beginImport(portable)) return
         try {
@@ -287,6 +304,26 @@ fun PdfStudioScreen(
                                 } ?: message,
                                 Modifier.weight(1f).padding(12.dp),
                             )
+                            exportJobs
+                                .firstOrNull { job -> job.id == state.readyExport }
+                                ?.takeIf { job -> job.phase == PdfExportPhase.Ready }
+                                ?.let { job ->
+                                    TextButton(
+                                        onClick = { saveExport(job) },
+                                        enabled = !state.busy && !saveInFlight,
+                                        colors =
+                                            ButtonDefaults.textButtonColors(
+                                                contentColor = LocalContentColor.current
+                                            ),
+                                    ) {
+                                        Text(
+                                            stringResource(
+                                                if (job.portable) R.string.pdf_portable
+                                                else R.string.pdf_save_pdf
+                                            )
+                                        )
+                                    }
+                                }
                             TextButton(
                                 onClick = vm::dismissMessage,
                                 colors =
@@ -510,24 +547,7 @@ fun PdfStudioScreen(
                 state.busy,
                 vm,
                 savePending = saveInFlight,
-                onSave = { job ->
-                    var start = vm.beginPublication(job.id)
-                    if (start is PublishStart.AlreadyPending) start = vm.restartPublication(job.id)
-                    when (start) {
-                        is PublishStart.Launch -> {
-                            saveInFlight = true
-                            try {
-                                if (job.portable)
-                                    exportProject.launch("${job.projectName}.ugpdfproject")
-                                else exportPdf.launch("${job.projectName}.pdf")
-                            } catch (e: Exception) {
-                                saveInFlight = false
-                                vm.publicationLaunchFailed(e)
-                            }
-                        }
-                        is PublishStart.AlreadyPending -> vm.publicationBusy()
-                    }
-                },
+                onSave = ::saveExport,
             )
         }
     if (exporting) {
