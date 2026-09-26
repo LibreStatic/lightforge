@@ -77,6 +77,8 @@
     <string name="remote_error_port_invalid">Inserisci una porta tra 1 e 65535.</string>
     <string name="remote_error_user_required">Inserisci un nome utente.</string>
     <string name="remote_error_folder_invalid">Cartella non valida: non può contenere segmenti «..».</string>
+    <string name="remote_error_folder_sftp_absolute">Le cartelle SFTP devono iniziare con / e non possono contenere una barra rovesciata, ad esempio /backups.</string>
+    <string name="remote_error_invalid_path">Il server ha rifiutato il percorso della cartella. Aggiungi di nuovo il server con una cartella assoluta come /backups.</string>
     <string name="remote_error_share_required">Inserisci un nome di condivisione SMB valido.</string>
     <string name="remote_error_key_required">Scegli un file di chiave privata SSH.</string>
 </resources>

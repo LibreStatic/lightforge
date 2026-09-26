@@ -15,8 +15,9 @@ internal enum class RemoteField {
 }
 
 /**
- * Pure mirror of [com.ugallery.core.remotestorage.RemoteProfile.validate] and
- * [com.ugallery.core.remotestorage.RemoteNames.requireChild], returning one string resource per
+ * Pure mirror of [com.ugallery.core.remotestorage.RemoteProfile.validate],
+ * [com.ugallery.core.remotestorage.RemoteNames.requireChild] and the SFTP connector's root rule
+ * (absolute, at most 4096 characters, no backslash), returning one string resource per
  * offending field. An empty map means the draft would build a valid profile, so
  * `R.string.remote_error` stays reserved for genuine connection or IO failures.
  */
@@ -55,6 +56,11 @@ internal fun validateRemoteDraft(
             root.split('/', '\\').any { it == ".." } ||
             (protocol == RemoteProtocol.SMB && (root.startsWith("\\\\") || ':' in root))
     if (rootInvalid) errors[RemoteField.ROOT] = R.string.remote_error_folder_invalid
+    else if (
+        protocol == RemoteProtocol.SFTP &&
+            (!root.startsWith('/') || '\\' in root || root.split('/').any { it == "." })
+    )
+        errors[RemoteField.ROOT] = R.string.remote_error_folder_sftp_absolute
     if (protocol == RemoteProtocol.SMB && !isValidShare(share))
         errors[RemoteField.SHARE] = R.string.remote_error_share_required
     if (keyAuth && !hasKey) errors[RemoteField.KEY] = R.string.remote_error_key_required

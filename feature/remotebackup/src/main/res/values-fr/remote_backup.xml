@@ -77,6 +77,8 @@
     <string name="remote_error_port_invalid">Saisissez un port entre 1 et 65535.</string>
     <string name="remote_error_user_required">Saisissez un nom d’utilisateur.</string>
     <string name="remote_error_folder_invalid">Dossier invalide : il ne peut pas contenir de segments « .. ».</string>
+    <string name="remote_error_folder_sftp_absolute">Les dossiers SFTP doivent commencer par / et ne peuvent pas contenir de barre oblique inverse, par exemple /backups.</string>
+    <string name="remote_error_invalid_path">Le serveur a refusé le chemin du dossier. Ajoutez de nouveau le serveur avec un dossier absolu comme /backups.</string>
     <string name="remote_error_share_required">Saisissez un nom de partage SMB valide.</string>
     <string name="remote_error_key_required">Choisissez un fichier de clé privée SSH.</string>
 </resources>

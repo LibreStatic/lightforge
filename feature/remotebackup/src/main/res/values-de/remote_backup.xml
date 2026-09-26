@@ -77,6 +77,8 @@
     <string name="remote_error_port_invalid">Gib einen Port zwischen 1 und 65535 ein.</string>
     <string name="remote_error_user_required">Gib einen Benutzernamen ein.</string>
     <string name="remote_error_folder_invalid">Ungültiger Ordner: Er darf keine „..“-Segmente enthalten.</string>
+    <string name="remote_error_folder_sftp_absolute">SFTP-Ordner müssen mit / beginnen und dürfen keinen umgekehrten Schrägstrich enthalten, zum Beispiel /backups.</string>
+    <string name="remote_error_invalid_path">Der Server hat den Ordnerpfad abgelehnt. Füge den Server erneut mit einem absoluten Ordner wie /backups hinzu.</string>
     <string name="remote_error_share_required">Gib einen gültigen SMB-Freigabenamen ein.</string>
     <string name="remote_error_key_required">Wähle eine SSH-Datei mit privatem Schlüssel.</string>
 </resources>

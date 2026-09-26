@@ -77,6 +77,8 @@
     <string name="remote_error_port_invalid">Enter a port between 1 and 65535.</string>
     <string name="remote_error_user_required">Enter a username.</string>
     <string name="remote_error_folder_invalid">Invalid folder: it cannot contain «..» segments.</string>
+    <string name="remote_error_folder_sftp_absolute">SFTP folders must start with / and cannot contain a backslash, for example /backups.</string>
+    <string name="remote_error_invalid_path">The server rejected the folder path. Add the server again with an absolute folder such as /backups.</string>
     <string name="remote_error_share_required">Enter a valid SMB share name.</string>
     <string name="remote_error_key_required">Choose an SSH private key file.</string>
 </resources>

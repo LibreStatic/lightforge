@@ -40,13 +40,35 @@ class RemoteProfileValidationTest {
                 root = "",
             )
         assertEquals(
-            listOf(RemoteField.NAME, RemoteField.HOST, RemoteField.PORT, RemoteField.USERNAME),
+            listOf(
+                RemoteField.NAME,
+                RemoteField.HOST,
+                RemoteField.PORT,
+                RemoteField.USERNAME,
+                RemoteField.ROOT,
+            ),
             errors.keys.toList(),
         )
         assertEquals(R.string.remote_error_name_required, errors[RemoteField.NAME])
         assertEquals(R.string.remote_error_host_required, errors[RemoteField.HOST])
         assertEquals(R.string.remote_error_port_invalid, errors[RemoteField.PORT])
         assertEquals(R.string.remote_error_user_required, errors[RemoteField.USERNAME])
+        assertEquals(R.string.remote_error_folder_sftp_absolute, errors[RemoteField.ROOT])
+    }
+
+    @Test
+    fun `sftp folder must be absolute without backslashes like the connector`() {
+        assertEquals(emptyMap<RemoteField, Int>(), sftp(root = "/"))
+        listOf("photos", "/backups\\ugallery", "/backups/./x").forEach {
+            assertEquals(
+                R.string.remote_error_folder_sftp_absolute,
+                sftp(root = it)[RemoteField.ROOT],
+            )
+        }
+        assertEquals(
+            R.string.remote_error_folder_invalid,
+            sftp(root = "/" + "a".repeat(4096))[RemoteField.ROOT],
+        )
     }
 
     @Test

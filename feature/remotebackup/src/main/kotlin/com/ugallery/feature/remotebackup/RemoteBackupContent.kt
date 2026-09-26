@@ -134,8 +134,11 @@ fun RemoteBackupContent(
                 item {
                     Text(
                         stringResource(
-                            if (error == RemoteFailure.UNSUPPORTED) R.string.remote_unsupported
-                            else R.string.remote_error
+                            when (error) {
+                                RemoteFailure.UNSUPPORTED -> R.string.remote_unsupported
+                                RemoteFailure.INVALID_PATH -> R.string.remote_error_invalid_path
+                                else -> R.string.remote_error
+                            }
                         ),
                         modifier = Modifier.testTag("remote-error"),
                     )
@@ -364,6 +367,8 @@ fun RemoteBackupContent(
                         task.archiveSha?.let { Text("SHA256: $it") }
                         if (task.failure == RemoteFailure.UNSUPPORTED.name)
                             Text(stringResource(R.string.remote_unsupported))
+                        if (task.failure == RemoteFailure.INVALID_PATH.name)
+                            Text(stringResource(R.string.remote_error_invalid_path))
                         if (task.residuals.isNotEmpty())
                             Text(
                                 stringResource(
@@ -677,7 +682,8 @@ private fun RemoteProfileEditor(
     var host by remember { mutableStateOf("") }
     var port by remember { mutableStateOf("22") }
     var username by remember { mutableStateOf("") }
-    var root by remember { mutableStateOf("") }
+    // The SFTP connector needs an absolute folder; SMB folders are relative to the share.
+    var root by remember { mutableStateOf(if (protocol == RemoteProtocol.SFTP) "/" else "") }
     var share by remember { mutableStateOf("") }
     var domain by remember { mutableStateOf("") }
     var keyAuth by remember { mutableStateOf(existing?.authKind == RemoteAuthKind.PRIVATE_KEY) }
@@ -756,6 +762,8 @@ private fun RemoteProfileEditor(
                                     protocol = value
                                     fieldErrors = emptyMap()
                                     port = if (value == RemoteProtocol.SFTP) "22" else "445"
+                                    if (value == RemoteProtocol.SFTP && root.isEmpty()) root = "/"
+                                    if (value == RemoteProtocol.SMB && root == "/") root = ""
                                     if (value == RemoteProtocol.SMB) keyAuth = false
                                 }
                             ) {

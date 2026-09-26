@@ -77,6 +77,8 @@
     <string name="remote_error_port_invalid">Informe uma porta entre 1 e 65535.</string>
     <string name="remote_error_user_required">Informe um nome de usuário.</string>
     <string name="remote_error_folder_invalid">Pasta inválida: não pode conter segmentos «..».</string>
+    <string name="remote_error_folder_sftp_absolute">As pastas SFTP devem começar com / e não podem conter barra invertida, por exemplo /backups.</string>
+    <string name="remote_error_invalid_path">O servidor recusou o caminho da pasta. Adicione o servidor novamente com uma pasta absoluta como /backups.</string>
     <string name="remote_error_share_required">Informe um nome de compartilhamento SMB válido.</string>
     <string name="remote_error_key_required">Escolha um arquivo de chave privada SSH.</string>
 </resources>
