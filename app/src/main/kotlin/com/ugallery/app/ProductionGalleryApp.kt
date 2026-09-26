@@ -1404,9 +1404,11 @@ internal fun ProductionGalleryApp(
                                 SearchConcept.Cat -> "cat" to petSummary.catCount
                                 else -> null
                             },
+                            // Pet searches read the collection's own labels, so re-running the
+                            // query here shows the collection's photos in place.
                             onOpenPetCollection = { label ->
+                                viewModel.setSearchQuery(label)
                                 viewModel.search(label)
-                                rootTab = RootTab.Collections
                             },
                             onOpenPlaces = ::openOfflinePlaces,
                             onQueryChange = viewModel::setSearchQuery,

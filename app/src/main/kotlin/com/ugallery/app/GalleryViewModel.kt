@@ -1735,7 +1735,7 @@ class GalleryViewModel @Inject constructor(
         mutableSearch.value = GallerySearchUiState(query = raw, loading = true, terminal = false)
         searchJob = viewModelScope.launch {
             try {
-                faceSearchHits(raw)?.let { hits ->
+                (faceSearchHits(raw) ?: petSearchHits(raw))?.let { hits ->
                     if (isCurrentSearch(generation, raw)) {
                         mutableSearch.value = GallerySearchUiState(raw, hits, false, true, false)
                     }
@@ -1859,6 +1859,35 @@ class GalleryViewModel @Inject constructor(
                     height = media.height,
                 )
             }
+    }
+
+    /**
+     * Dog and cat searches read the same Room labels as the pet collection counts, so the
+     * Collections tile and Search always agree. Null falls back to keyword search.
+     */
+    private suspend fun petSearchHits(raw: String): List<MediaSearchHit>? {
+        val type = when (SearchVocabulary.resolve(raw)) {
+            SearchConcept.Dog -> com.ugallery.core.ml.PetType.Dog
+            SearchConcept.Cat -> com.ugallery.core.ml.PetType.Cat
+            else -> return null
+        }
+        val database = runtime.value?.database ?: return null
+        val media = com.ugallery.core.ml.PetCollectionRepository(database).media(type, 200)
+        if (media.isEmpty()) return null
+        return media.map { item ->
+            MediaSearchHit(
+                key = MediaKey(item.volumeName, item.mediaStoreId),
+                kind = if (item.mediaType == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO) MediaKind.Video else MediaKind.Image,
+                displayName = item.displayName,
+                timelineSortMillis = item.timelineSortMillis,
+                generationModified = item.generationModified,
+                favorite = item.isFavorite,
+                debug = SearchRankingDebug(raw, "pet-${type.canonicalLabel}", 1.0, listOf("canonicalLabels")),
+                durationMillis = item.durationMillis,
+                width = item.width,
+                height = item.height,
+            )
+        }
     }
 
     fun loadMoreSearch() {

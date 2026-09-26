@@ -88,6 +88,15 @@ interface LibraryDao {
     fun petCollectionSummaryFlow(): Flow<PetCollectionSummaryRow>
 
     @Query(
+        "SELECT m.* FROM media_items m WHERE m.isAccessible=1 AND m.isTrashed=0 AND EXISTS " +
+            "(SELECT 1 FROM media_labels l WHERE l.volumeName=m.volumeName AND l.mediaStoreId=m.mediaStoreId " +
+            "AND l.canonicalLabel=:canonicalLabel) AND NOT EXISTS " +
+            "(SELECT 1 FROM label_suppressions s WHERE s.canonicalLabel=:canonicalLabel) " +
+            "ORDER BY m.timelineSortMillis DESC, m.mediaStoreId DESC LIMIT :limit",
+    )
+    suspend fun labeledMedia(canonicalLabel: String, limit: Int): List<MediaItemEntity>
+
+    @Query(
         "SELECT m.* FROM media_items m WHERE m.mediaType=1 AND m.isAccessible=1 AND m.isTrashed=0 " +
             "AND NOT EXISTS (SELECT 1 FROM face_detection_runs r WHERE r.volumeName=m.volumeName " +
             "AND r.mediaStoreId=m.mediaStoreId AND r.generationModified=m.generationModified " +

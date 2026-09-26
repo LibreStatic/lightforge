@@ -2,6 +2,7 @@ package com.ugallery.core.ml
 
 import android.content.Context
 import com.ugallery.core.database.GalleryDatabase
+import com.ugallery.core.database.MediaItemEntity
 import com.ugallery.core.model.MediaKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -40,4 +41,7 @@ class PetCollectionRepository(database: GalleryDatabase) {
             },
         )
     }
+
+    /** The photos behind [summary]'s count for [type], newest first. */
+    suspend fun media(type: PetType, limit: Int): List<MediaItemEntity> = dao.labeledMedia(type.canonicalLabel, limit)
 }
