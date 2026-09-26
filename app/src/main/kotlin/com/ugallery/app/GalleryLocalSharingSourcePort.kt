@@ -11,6 +11,7 @@ import android.provider.OpenableColumns
 import com.ugallery.core.mediastore.LocalShareSanitizer
 import com.ugallery.core.model.MediaKind
 import com.ugallery.feature.localsharing.*
+import com.ugallery.feature.settings.PersistableUriGrants
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -24,20 +25,24 @@ import kotlinx.coroutines.withContext
 internal class GalleryLocalSharingSourcePort(context: Context) : LocalSharingSourcePort {
     private val context = context.applicationContext
     private val resolver = this.context.contentResolver
+    // Grants live only until the transfer has its private snapshots or is cancelled.
+    private val grants = PersistableUriGrants(this.context, "local-sharing-grants.json")
 
-    override suspend fun retain(selection: List<String>) = withContext(Dispatchers.IO) {
+    override suspend fun retain(transfer: String, selection: List<String>) = withContext(Dispatchers.IO) {
         require(selection.size in 1..LOCAL_SHARING_MAX_FILES && selection.distinct().size == selection.size)
         selection.forEach { raw ->
             val uri = Uri.parse(raw)
             require(uri.scheme == "content")
             if (uri.authority != MediaStore.AUTHORITY && uri.authority != "${context.packageName}.fileprovider") {
-                resolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                grants.retain(transfer, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION, required = true)
                 check(resolver.persistedUriPermissions.any { it.uri == uri && it.isReadPermission })
             }
             // Existing MediaStore/library grants need no synthetic SAF grant or privilege elevation.
             read(uri) { }
         }
     }
+
+    override suspend fun release(transfer: String) = withContext(Dispatchers.IO) { grants.release(transfer) }
 
     override suspend fun prepare(
         selection: List<String>, stripLocation: Boolean, destination: File, check: () -> Unit,

@@ -33,7 +33,7 @@ class GalleryLocalSharingSourcePortDeviceTest {
     private fun destination(name:String)=File(root,name).apply { check(mkdir()) }
     @Test fun originalsAreImmutableAndEqualBytesKeepSeparateSourceIdentities()=runBlocking {
         val one=original();val two=File(root,"second.jpg").also { one.copyTo(it) };val hash=sha(one)
-        val port=GalleryLocalSharingSourcePort(context);val selected=listOf(uri(one),uri(two));port.retain(selected)
+        val port=GalleryLocalSharingSourcePort(context);val selected=listOf(uri(one),uri(two));port.retain("device-test",selected)
         val destination=destination("out");val sources=port.prepare(selected,false,destination) { }
         assertEquals(2,sources.size);assertNotEquals(sources[0].entry.sourceId,sources[1].entry.sourceId)
         assertEquals(sources[0].entry.sha256,sources[1].entry.sha256)
@@ -63,6 +63,6 @@ class GalleryLocalSharingSourcePortDeviceTest {
         val foreign=File(output,"foreign").apply { writeText("keep") }
         assertTrue(runCatching { port.prepare(listOf(uri(source)),false,output) { } }.isFailure)
         assertEquals("keep",foreign.readText());assertEquals(hash,sha(source))
-        assertTrue(runCatching { port.retain(listOf(uri(source),uri(source))) }.isFailure)
+        assertTrue(runCatching { port.retain("device-test",listOf(uri(source),uri(source))) }.isFailure)
     }
 }

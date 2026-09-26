@@ -11,7 +11,13 @@ class LocalSharingServices(
 
 interface LocalSharingSourcePort {
     /** Retain exact selected URI grants during the picker confirmation, before scheduling. */
-    suspend fun retain(selection: List<String>)
+    suspend fun retain(transfer: String, selection: List<String>)
+
+    /**
+     * Give back the grants [transfer] took once its private snapshots exist or it is cancelled.
+     * Grants the app held before, or another transfer still needs, stay held.
+     */
+    suspend fun release(transfer: String) {}
 
     /**
      * Durable immutable copies ONLY under destination. Stable sourceId distinguishes equal-byte

@@ -179,6 +179,8 @@ class LocalSharingRunner(private val context: Context, private val services: Loc
                 status = LocalSharingStatus.AwaitingReview,
             )
         }
+        // The private snapshots are all the transfer reads from now on.
+        runCatching { services.sourcePort.release(t.id) }
     }
 
     private fun send(t: LocalSharingTransfer, check: () -> Unit) {
@@ -322,6 +324,8 @@ class LocalSharingRunner(private val context: Context, private val services: Loc
             }
         }
         store.update(t.id) { it.copy(status = LocalSharingStatus.Cancelled) }
+        if (t.direction == LocalSharingDirection.Send)
+            runCatching { services.sourcePort.release(t.id) }
         store.cleanupPrivate(t.id)
     }
 }

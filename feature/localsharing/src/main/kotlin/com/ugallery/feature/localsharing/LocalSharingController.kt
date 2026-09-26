@@ -155,7 +155,7 @@ class LocalSharingController(
                 )
             )
             try {
-                services.sourcePort.retain(selection)
+                services.sourcePort.retain(id, selection)
                 schedule(id)
             } catch (e: Exception) {
                 store.update(id) {
@@ -263,7 +263,7 @@ class LocalSharingController(
         withContext(Dispatchers.IO) {
             val t = store.transfer(id)!!
             require(t.selection.toSet() == selection.toSet())
-            services.sourcePort.retain(selection)
+            services.sourcePort.retain(id, selection)
             resume(id)
         }
 

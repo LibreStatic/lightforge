@@ -36,7 +36,7 @@ internal class PeerFixtureSource(
     var fail = false
     var grants = 0
 
-    override suspend fun retain(selection: List<String>) {
+    override suspend fun retain(transfer: String, selection: List<String>) {
         grants++
     }
 

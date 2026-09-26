@@ -31,6 +31,20 @@ class RemoteBackupRunner(context: Context, private val services: RemoteBackupSer
     }
 
     suspend fun run(id: String): Boolean =
+        withContext(Dispatchers.IO) { leased(id).also { releaseFinishedGrants(id) } }
+
+    /** A completed or cancelled task no longer reads its sources or writes its destination. */
+    private fun releaseFinishedGrants(id: String) {
+        val task = runCatching { store.get(id) }.getOrNull() ?: return
+        // RestoringLocally hands the destination to the local restore, which still needs it.
+        if (
+            task.status == RemoteBackupStatus.Completed ||
+                task.status == RemoteBackupStatus.Cancelled
+        )
+            runCatching { RemoteBackupGrants(context).release(id) }
+    }
+
+    private suspend fun leased(id: String): Boolean =
         withContext(Dispatchers.IO) {
             RandomAccessFile(store.lease(id), "rw").use { lockFile ->
                 val lease =
