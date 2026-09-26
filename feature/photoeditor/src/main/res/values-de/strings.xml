@@ -39,4 +39,9 @@
     <string name="photo_editor_tiff_geometry_unsupported">Zuschneiden, Drehen, Spiegeln und Begradigen erfordern für RAW-Fotos eine JPEG-Ausgabe.</string>
     <string name="photo_editor_warning_png">Kopie als PNG gespeichert, um die volle Auflösung zu erhalten</string>
     <string name="photo_editor_warning_hdr_metadata">HDR- und Container-Metadaten wurden nicht in die Kopie übernommen</string>
+    <string name="photo_editor_error_decode">Dieses Foto konnte nicht gelesen werden</string>
+    <string name="photo_editor_error_save">Kopie konnte nicht gespeichert werden</string>
+    <string name="photo_editor_error_raw_too_large">Dieses RAW ist zu groß für den JPEG-Export. Wähle 16-Bit-TIFF.</string>
+    <string name="photo_editor_error_raw_render">Dieses RAW-Foto konnte nicht entwickelt werden</string>
+    <plurals name="photo_editor_error_raw_storage"><item quantity="one">Der RAW-Export benötigt %1$d MB freien temporären Speicher</item><item quantity="other">Der RAW-Export benötigt %1$d MB freien temporären Speicher</item></plurals>
 </resources>

@@ -98,6 +98,7 @@ import com.ugallery.core.preferences.FavoriteBackupRecord
 import com.ugallery.core.preferences.GalleryBackupCodec
 import com.ugallery.core.editing.image.PhotoExportOutcome
 import com.ugallery.core.editing.image.PhotoAutoEnhancementAnalyzer
+import com.ugallery.core.editing.image.PhotoExportFailureKind
 import com.ugallery.core.editing.image.PhotoExportWarning
 import com.ugallery.core.editing.image.PhotoImageRenderer
 import com.ugallery.core.editing.video.Media3VideoExporter
@@ -127,6 +128,7 @@ import com.ugallery.core.database.VideoPlaybackPositionEntity
 import com.ugallery.core.database.MediaItemEntity
 import com.ugallery.core.database.PhysicalAlbumRow
 import com.ugallery.core.raw.RawDeveloper
+import com.ugallery.core.raw.RawExportFailureKind
 import com.ugallery.core.raw.RawExportOutcome
 import com.ugallery.core.raw.RawPreviewSession
 import com.ugallery.core.raw.isRawMimeOrName
@@ -3397,9 +3399,9 @@ class GalleryViewModel @Inject constructor(
                                 transformed.file, transformed.mimeType ?: "image/jpeg", "jpg",
                                 transformed.warnings,
                             )
-                            is PhotoExportOutcome.Failure -> updatePhotoExportFailure(transformed.reason)
+                            is PhotoExportOutcome.Failure -> updatePhotoExportFailure(photoExportFailureMessage(transformed))
                         }
-                        is RawExportOutcome.Failure -> updatePhotoExportFailure(result.reason)
+                        is RawExportOutcome.Failure -> updatePhotoExportFailure(rawExportFailureMessage(result))
                     }
                 } else when (val result = PhotoImageRenderer(getApplication<Application>().contentResolver).export(
                     session.source.uri, session.history.present, temp, preserveMetadata = true,
@@ -3407,7 +3409,7 @@ class GalleryViewModel @Inject constructor(
                     is PhotoExportOutcome.Completed -> publishPhotoResult(
                         result.file, result.mimeType ?: outputMime, extension, result.warnings,
                     )
-                    is PhotoExportOutcome.Failure -> updatePhotoExportFailure(result.reason)
+                    is PhotoExportOutcome.Failure -> updatePhotoExportFailure(photoExportFailureMessage(result))
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -3456,6 +3458,29 @@ class GalleryViewModel @Inject constructor(
                     )
                 },
             )
+        }
+    }
+
+    private fun photoExportFailureMessage(failure: PhotoExportOutcome.Failure): String =
+        getApplication<Application>().getString(
+            when (failure.kind) {
+                PhotoExportFailureKind.DecodeFailed -> com.ugallery.feature.photoeditor.R.string.photo_editor_error_decode
+                PhotoExportFailureKind.Failed -> com.ugallery.feature.photoeditor.R.string.photo_editor_error_save
+            },
+        )
+
+    private fun rawExportFailureMessage(failure: RawExportOutcome.Failure): String {
+        val resources = getApplication<Application>().resources
+        return when (failure.kind) {
+            RawExportFailureKind.InsufficientStorage -> resources.getQuantityString(
+                com.ugallery.feature.photoeditor.R.plurals.photo_editor_error_raw_storage,
+                failure.requiredMegabytes.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+                failure.requiredMegabytes,
+            )
+            RawExportFailureKind.TooLargeForJpeg ->
+                resources.getString(com.ugallery.feature.photoeditor.R.string.photo_editor_error_raw_too_large)
+            RawExportFailureKind.RenderFailed ->
+                resources.getString(com.ugallery.feature.photoeditor.R.string.photo_editor_error_raw_render)
         }
     }
 
@@ -3564,7 +3589,9 @@ class GalleryViewModel @Inject constructor(
                         mutablePhotoEditor.value = mutablePhotoEditor.value?.let { current ->
                             current.copy(content = current.content.copy(
                                 isRendering = false,
-                                statusMessage = failure.message,
+                                statusMessage = getApplication<Application>().getString(
+                                    com.ugallery.feature.photoeditor.R.string.photo_editor_preview_unavailable,
+                                ),
                             ))
                         }
                     }
@@ -3646,7 +3673,12 @@ class GalleryViewModel @Inject constructor(
             val current = mutablePhotoEditor.value
             if (current?.history?.present?.revision == recipe.revision) {
                 mutablePhotoEditor.value = current.copy(
-                    content = current.content.copy(isRendering = false, statusMessage = failure.message),
+                    content = current.content.copy(
+                        isRendering = false,
+                        statusMessage = getApplication<Application>().getString(
+                            com.ugallery.feature.photoeditor.R.string.photo_editor_preview_unavailable,
+                        ),
+                    ),
                 )
             }
             return

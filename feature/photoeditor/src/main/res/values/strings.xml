@@ -55,4 +55,9 @@
     <string name="photo_editor_tiff_geometry_unsupported">Crop, rotate, flip, and straighten require JPEG output for RAW photos.</string>
     <string name="photo_editor_warning_png">Copy saved as PNG to keep full resolution</string>
     <string name="photo_editor_warning_hdr_metadata">HDR and container metadata were not kept in the copy</string>
+    <string name="photo_editor_error_decode">Could not read this photo</string>
+    <string name="photo_editor_error_save">Could not save copy</string>
+    <string name="photo_editor_error_raw_too_large">This RAW is too large for JPEG export. Choose 16-bit TIFF.</string>
+    <string name="photo_editor_error_raw_render">Could not develop this RAW photo</string>
+    <plurals name="photo_editor_error_raw_storage"><item quantity="one">RAW export needs %1$d MB of free temporary storage</item><item quantity="other">RAW export needs %1$d MB of free temporary storage</item></plurals>
 </resources>

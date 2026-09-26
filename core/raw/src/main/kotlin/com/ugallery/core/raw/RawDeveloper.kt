@@ -26,8 +26,16 @@ sealed interface RawExportOutcome {
         val mimeType: String,
         val warnings: List<String> = emptyList(),
     ) : RawExportOutcome
-    data class Failure(val reason: String, val recoverable: Boolean = true) : RawExportOutcome
+    /** [reason] is diagnostic English; the UI shows a localized message chosen by [kind]. */
+    data class Failure(
+        val reason: String,
+        val recoverable: Boolean = true,
+        val kind: RawExportFailureKind = RawExportFailureKind.RenderFailed,
+        val requiredMegabytes: Long = 0,
+    ) : RawExportOutcome
 }
+
+enum class RawExportFailureKind { InsufficientStorage, TooLargeForJpeg, RenderFailed }
 
 internal object LibRawBridge {
     init { System.loadLibrary("ugallery_raw") }
@@ -94,6 +102,8 @@ class RawDeveloper(
                 if (scratchDirectory.usableSpace < required) {
                     return@withSource RawExportOutcome.Failure(
                         "RAW export needs ${required / (1_024 * 1_024)} MB of free temporary storage",
+                        kind = RawExportFailureKind.InsufficientStorage,
+                        requiredMegabytes = required / (1_024 * 1_024),
                     )
                 }
                 val error = LibRawBridge.nativeExportTiff(
@@ -113,6 +123,7 @@ class RawDeveloper(
                 if (pixels > MaxJpegPixels) {
                     return@withSource RawExportOutcome.Failure(
                         "This RAW is too large for bounded JPEG export; choose 16-bit TIFF",
+                        kind = RawExportFailureKind.TooLargeForJpeg,
                     )
                 }
                 val native = LibRawBridge.nativeRender(

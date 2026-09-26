@@ -41,4 +41,9 @@
     <string name="photo_editor_tiff_geometry_unsupported">El recorte, la rotación, el volteo y el enderezado requieren salida JPEG para fotos RAW.</string>
     <string name="photo_editor_warning_png">Copia guardada como PNG para conservar la resolución completa</string>
     <string name="photo_editor_warning_hdr_metadata">Los metadatos HDR y del contenedor no se conservaron en la copia</string>
+    <string name="photo_editor_error_decode">No se pudo leer esta foto</string>
+    <string name="photo_editor_error_save">No se pudo guardar la copia</string>
+    <string name="photo_editor_error_raw_too_large">Este RAW es demasiado grande para exportarlo como JPEG. Elige TIFF de 16 bits.</string>
+    <string name="photo_editor_error_raw_render">No se pudo revelar esta foto RAW</string>
+    <plurals name="photo_editor_error_raw_storage"><item quantity="one">La exportación RAW necesita %1$d MB de almacenamiento temporal libre</item><item quantity="many">La exportación RAW necesita %1$d MB de almacenamiento temporal libre</item><item quantity="other">La exportación RAW necesita %1$d MB de almacenamiento temporal libre</item></plurals>
 </resources>

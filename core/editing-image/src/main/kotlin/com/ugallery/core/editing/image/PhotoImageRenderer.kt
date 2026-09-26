@@ -46,8 +46,15 @@ sealed interface PhotoExportOutcome {
         val mimeType: String? = null,
     ) : PhotoExportOutcome
 
-    data class Failure(val reason: String, val recoverable: Boolean = true) : PhotoExportOutcome
+    /** [reason] is diagnostic English; the UI shows a localized message chosen by [kind]. */
+    data class Failure(
+        val reason: String,
+        val recoverable: Boolean = true,
+        val kind: PhotoExportFailureKind = PhotoExportFailureKind.Failed,
+    ) : PhotoExportOutcome
 }
+
+enum class PhotoExportFailureKind { DecodeFailed, Failed }
 
 /**
  * Bounded native image renderer. Preview never decodes a full 200 MP source; identity exports
@@ -140,7 +147,10 @@ class PhotoImageRenderer(
             // source resolution and therefore never silently downsample transformed content.
             val sample = 1
             val decoded = decode(uri, sample)
-                ?: return@withContext PhotoExportOutcome.Failure("Unable to decode source image")
+                ?: return@withContext PhotoExportOutcome.Failure(
+                    "Unable to decode source image",
+                    kind = PhotoExportFailureKind.DecodeFailed,
+                )
             val rendered = try {
                 applyRecipe(decoded, uprightRecipe)
             } catch (cancelled: CancellationException) {
