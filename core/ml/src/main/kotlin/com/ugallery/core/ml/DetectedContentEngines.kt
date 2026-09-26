@@ -12,6 +12,7 @@ import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.ugallery.core.database.GalleryDatabase
+import com.ugallery.core.database.LibraryDao
 import com.ugallery.core.database.LabelSuppressionEntity
 import com.ugallery.core.database.MediaItemEntity
 import com.ugallery.core.database.MediaLabelEntity
@@ -21,6 +22,7 @@ import com.ugallery.core.model.MediaKey
 import com.ugallery.core.model.MediaKind
 import com.ugallery.core.search.AppSearchMediaIndex
 import com.ugallery.core.search.MediaSearchDocument
+import com.ugallery.core.search.MediaSearchIndex
 import com.ugallery.core.search.SearchTextNormalizer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -136,7 +138,7 @@ class ImageLabelMlEngine(
     }
 
     override suspend fun purgeDerivedData() {
-        dao.purgeLabels(); dao.purgeLabelRuns(); searchIndex.clear()
+        dao.purgeLabels(); dao.purgeLabelRuns(); rewriteSearchDocuments(dao, searchIndex)
     }
 
     override fun close() { (inference as? Closeable)?.close(); searchIndex.close() }
@@ -221,7 +223,7 @@ class OcrMlEngine(
         else MlChunkOutcome.Complete(candidates.size)
     }
 
-    override suspend fun purgeDerivedData() { dao.purgeOcr(); searchIndex.clear() }
+    override suspend fun purgeDerivedData() { dao.purgeOcr(); rewriteSearchDocuments(dao, searchIndex) }
     override fun close() { (inference as? Closeable)?.close(); searchIndex.close() }
 
     private suspend fun recognize(candidate: MediaItemEntity): OcrDetected {
@@ -288,6 +290,34 @@ private suspend fun MediaItemEntity.searchDocument(
     ocrModelVersion = if (ocr == null) 0 else OcrMlEngine.SearchModelVersion,
     durationMillis = durationMillis,
 )
+
+/**
+ * Labels and OCR live inside each media's AppSearch document, next to its file name and folder.
+ * After purging them from Room, re-put every document from Room instead of clearing the index,
+ * so keyword search keeps working and only the ML-derived fields disappear.
+ */
+internal suspend fun rewriteSearchDocuments(dao: LibraryDao, index: MediaSearchIndex) {
+    index.ensureSchema()
+    var after: MediaKey? = null
+    while (true) {
+        val page = dao.searchRebuildPage(after?.volumeName, after?.mediaStoreId ?: Long.MIN_VALUE, MediaSearchIndex.MaxBatchSize)
+        if (page.isEmpty()) return
+        index.put(page.map { row ->
+            val media = row.media
+            MediaSearchDocument(
+                key = media.key(), kind = if (media.mediaType == 3) MediaKind.Video else MediaKind.Image,
+                mimeType = media.mimeType, displayName = media.displayName, bucketName = media.bucketDisplayName,
+                timelineSortMillis = media.timelineSortMillis, generationModified = media.generationModified,
+                favorite = media.isFavorite, width = media.width, height = media.height, ocrText = row.ocrText,
+                canonicalLabels = row.canonicalLabelsCsv?.split(',').orEmpty(),
+                labelModelVersion = if (row.canonicalLabelsCsv == null) 0 else ImageLabelMlEngine.SearchModelVersion,
+                ocrModelVersion = if (row.ocrText == null) 0 else OcrMlEngine.SearchModelVersion,
+                durationMillis = media.durationMillis,
+            )
+        })
+        after = page.last().media.key()
+    }
+}
 
 private fun MediaItemEntity.key() = MediaKey(volumeName, mediaStoreId)
 private fun MediaItemEntity.uri() = ContentUris.withAppendedId(

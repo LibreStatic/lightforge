@@ -130,13 +130,13 @@ object DetectedContentRuntime {
                 dao.purgeLabels()
                 dao.purgeLabelRuns()
                 AppSearchMediaIndex(context).also { index ->
-                    try { index.clear() } finally { index.close() }
+                    try { rewriteSearchDocuments(dao, index) } finally { index.close() }
                 }
             }
             MlTaskType.Ocr -> {
                 dao.purgeOcr()
                 AppSearchMediaIndex(context).also { index ->
-                    try { index.clear() } finally { index.close() }
+                    try { rewriteSearchDocuments(dao, index) } finally { index.close() }
                 }
             }
             MlTaskType.ExactDuplicates -> dao.purgeDuplicateHashes()
