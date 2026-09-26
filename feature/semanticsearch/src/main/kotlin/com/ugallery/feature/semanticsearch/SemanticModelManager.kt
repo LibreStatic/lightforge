@@ -325,7 +325,7 @@ class SemanticModelManager(
 
     companion object {
         /** Read by [SemanticModelDownloadWorker] so work queued before the user opted out stays idle. */
-        internal fun isEnabled(context: Context): Boolean =
+        fun isEnabled(context: Context): Boolean =
             context.getSharedPreferences("semantic-model-settings", Context.MODE_PRIVATE).getBoolean(KeyEnabled, false)
 
         private const val KeyEnabled = "enabled"

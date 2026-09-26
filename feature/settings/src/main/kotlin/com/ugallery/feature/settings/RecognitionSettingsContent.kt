@@ -56,6 +56,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
@@ -152,6 +153,7 @@ fun RecognitionSettingsContent(
     onBack: () -> Unit = {},
     peopleAnalysisEnabled: Boolean = state.consentGranted,
     contentAnalysisEnabled: Boolean = petAnalysisState.consentGranted,
+    localAnalysisEnabled: Boolean = peopleAnalysisEnabled && contentAnalysisEnabled && petCollectionsEnabled,
     onAllAnalysisEnabledChange: (Boolean) -> Unit = {},
     onPeopleAnalysisEnabledChange: (Boolean) -> Unit = {},
     onContentAnalysisEnabledChange: (Boolean) -> Unit = {},
@@ -264,6 +266,7 @@ fun RecognitionSettingsContent(
                         onRestorePetResults = onRestorePetResults,
                         peopleAnalysisEnabled = peopleAnalysisEnabled,
                         contentAnalysisEnabled = contentAnalysisEnabled,
+                        localAnalysisEnabled = localAnalysisEnabled,
                         onAllAnalysisEnabledChange = onAllAnalysisEnabledChange,
                         onPeopleAnalysisEnabledChange = onPeopleAnalysisEnabledChange,
                         onContentAnalysisEnabledChange = onContentAnalysisEnabledChange,
@@ -1248,6 +1251,7 @@ private fun AiAnalysisSection(
     onRestorePetResults: () -> Unit,
     peopleAnalysisEnabled: Boolean,
     contentAnalysisEnabled: Boolean,
+    localAnalysisEnabled: Boolean,
     onAllAnalysisEnabledChange: (Boolean) -> Unit,
     onPeopleAnalysisEnabledChange: (Boolean) -> Unit,
     onContentAnalysisEnabledChange: (Boolean) -> Unit,
@@ -1264,7 +1268,9 @@ private fun AiAnalysisSection(
     showHeader: Boolean,
 ) {
     val petCollectionsLabel = stringResource(R.string.pet_collections_enable)
-    val allEnabled = peopleAnalysisEnabled && contentAnalysisEnabled && petCollectionsEnabled && semanticModels.enabled
+    // Children stay tappable while the master is off (tapping one turns the master back on),
+    // but read as disabled so the master's state is obvious.
+    val childModifier = Modifier.alpha(if (localAnalysisEnabled) 1f else DisabledChildAlpha)
     if (showHeader) Text(
         stringResource(R.string.face_analysis_title),
         style = MaterialTheme.typography.headlineSmall,
@@ -1302,7 +1308,8 @@ private fun AiAnalysisSection(
         Column(Modifier.padding(GallerySpacing.Lg), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Md)) {
             SettingsSwitchRow(
                 stringResource(R.string.local_analysis_master),
-                allEnabled,
+                localAnalysisEnabled,
+                modifier = Modifier.testTag("local_analysis_master_switch"),
                 onCheckedChange = onAllAnalysisEnabledChange,
             )
             Text(
@@ -1310,30 +1317,40 @@ private fun AiAnalysisSection(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Text(stringResource(R.string.local_analysis_features), style = MaterialTheme.typography.titleLarge)
+            SettingsSwitchRow(
+                stringResource(R.string.local_analysis_people),
+                peopleAnalysisEnabled,
+                modifier = childModifier.testTag("people_analysis_switch"),
+                onCheckedChange = onPeopleAnalysisEnabledChange,
+            )
+            Text(stringResource(R.string.local_analysis_people_summary), style = MaterialTheme.typography.bodySmall, modifier = childModifier)
+            SettingsSwitchRow(
+                stringResource(R.string.local_analysis_content),
+                contentAnalysisEnabled,
+                modifier = childModifier.testTag("content_analysis_switch"),
+                onCheckedChange = onContentAnalysisEnabledChange,
+            )
+            Text(stringResource(R.string.local_analysis_content_summary), style = MaterialTheme.typography.bodySmall, modifier = childModifier)
+            SettingsSwitchRow(
+                stringResource(R.string.local_analysis_cleanup),
+                cleanupAnalysisEnabled,
+                modifier = childModifier.testTag("cleanup_analysis_switch"),
+                onCheckedChange = onCleanupAnalysisEnabledChange,
+            )
+            Text(stringResource(R.string.local_analysis_cleanup_summary), style = MaterialTheme.typography.bodySmall, modifier = childModifier)
+            SettingsSwitchRow(
+                petCollectionsLabel,
+                petCollectionsEnabled,
+                modifier = childModifier.testTag("pet_collections_switch"),
+                onCheckedChange = onPetCollectionsEnabledChange,
+            )
+            Text(stringResource(R.string.pet_collections_no_identity), style = MaterialTheme.typography.bodySmall, modifier = childModifier)
         }
     }
-    Text(stringResource(R.string.local_analysis_features), style = MaterialTheme.typography.titleLarge)
-    SettingsSwitchRow(
-        stringResource(R.string.local_analysis_people),
-        peopleAnalysisEnabled,
-        onCheckedChange = onPeopleAnalysisEnabledChange,
-    )
-    Text(stringResource(R.string.local_analysis_people_summary), style = MaterialTheme.typography.bodySmall)
-    SettingsSwitchRow(
-        stringResource(R.string.local_analysis_content),
-        contentAnalysisEnabled,
-        onCheckedChange = onContentAnalysisEnabledChange,
-    )
-    Text(stringResource(R.string.local_analysis_content_summary), style = MaterialTheme.typography.bodySmall)
-    SettingsSwitchRow(
-        stringResource(R.string.local_analysis_cleanup),
-        cleanupAnalysisEnabled,
-        modifier = Modifier.testTag("cleanup_analysis_switch"),
-        onCheckedChange = onCleanupAnalysisEnabledChange,
-    )
-    Text(stringResource(R.string.local_analysis_cleanup_summary), style = MaterialTheme.typography.bodySmall)
     SemanticModelsSection(
         state = semanticModels,
+        switchModifier = childModifier,
         onEnabledChange = onSemanticEnabledChange,
         onDownload = onSemanticDownload,
         onCancelDownload = onSemanticCancelDownload,
@@ -1342,13 +1359,6 @@ private fun AiAnalysisSection(
         onDeleteAll = onSemanticDeleteAll,
         onAutomaticSelection = onSemanticAutomaticSelection,
     )
-    SettingsSwitchRow(
-        petCollectionsLabel,
-        petCollectionsEnabled,
-        modifier = Modifier.testTag("pet_collections_switch"),
-        onCheckedChange = onPetCollectionsEnabledChange,
-    )
-    Text(stringResource(R.string.pet_collections_no_identity), style = MaterialTheme.typography.bodySmall)
 
     Text(stringResource(R.string.face_analysis_title), style = MaterialTheme.typography.titleLarge)
     Text(stringResource(R.string.face_analysis_no_identity), color = MaterialTheme.colorScheme.primary)
@@ -1399,9 +1409,12 @@ private fun AiAnalysisSection(
     }
 }
 
+private const val DisabledChildAlpha = 0.38f
+
 @Composable
 private fun SemanticModelsSection(
     state: SemanticModelSettingsUiState,
+    switchModifier: Modifier = Modifier,
     onEnabledChange: (Boolean) -> Unit,
     onDownload: (String, Boolean) -> Unit,
     onCancelDownload: (String) -> Unit,
@@ -1418,7 +1431,7 @@ private fun SemanticModelsSection(
     SettingsSwitchRow(
         stringResource(R.string.semantic_settings_enabled),
         state.enabled,
-        modifier = Modifier.testTag("semantic_search_switch"),
+        modifier = switchModifier.testTag("semantic_search_switch"),
         onCheckedChange = onEnabledChange,
     )
     Text(stringResource(R.string.semantic_settings_privacy), style = MaterialTheme.typography.bodySmall)

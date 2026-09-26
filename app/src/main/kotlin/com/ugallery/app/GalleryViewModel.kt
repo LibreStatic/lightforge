@@ -66,6 +66,9 @@ import com.ugallery.core.ml.FaceIdentityKey
 import com.ugallery.core.search.SearchQueryParser
 import com.ugallery.core.ml.LocalAnalysisOnboardingDecision
 import com.ugallery.core.ml.LocalAnalysisOnboardingStore
+import com.ugallery.core.ml.LocalAnalysisFeature
+import com.ugallery.core.ml.LocalAnalysisSwitchStore
+import com.ugallery.core.ml.LocalAnalysisSwitches
 import com.ugallery.core.ml.MlScheduler
 import com.ugallery.core.ml.MlTaskType
 import com.ugallery.core.ml.PetCollectionRepository
@@ -407,6 +410,20 @@ class GalleryViewModel @Inject constructor(
         }
     }
     private val petSettings = PetCollectionSettings(application)
+    private val localAnalysisSwitchStore = LocalAnalysisSwitchStore(application)
+    /** Single source of truth for the "Use local analysis" master switch and its children. */
+    private val mutableLocalAnalysisSwitches = MutableStateFlow(
+        localAnalysisSwitchStore.load {
+            buildSet {
+                if (peopleAnalysisTasks.all(mlScheduler::hasConsent)) add(LocalAnalysisFeature.People)
+                if (contentAnalysisTasks.all(mlScheduler::hasConsent)) add(LocalAnalysisFeature.Content)
+                if (cleanupAnalysisTasks.all(mlScheduler::hasConsent)) add(LocalAnalysisFeature.Cleanup)
+                if (petSettings.isEnabled()) add(LocalAnalysisFeature.Pets)
+                if (SemanticModelManager.isEnabled(application)) add(LocalAnalysisFeature.Semantic)
+            }
+        },
+    )
+    val localAnalysisSwitches = mutableLocalAnalysisSwitches.asStateFlow()
     private val mutableLocalAnalysisOnboarding = MutableStateFlow(localAnalysisOnboardingStore.decision())
     val localAnalysisOnboarding = mutableLocalAnalysisOnboarding.asStateFlow()
     private val mutableDetectedContentEnabled = MutableStateFlow(
@@ -1696,6 +1713,8 @@ class GalleryViewModel @Inject constructor(
                 manager.initializeEnabledDefault(
                     mutableLocalAnalysisOnboarding.value == LocalAnalysisOnboardingDecision.Accepted,
                 )
+                val semanticActive = mutableLocalAnalysisSwitches.value.isActive(LocalAnalysisFeature.Semantic)
+                if (SemanticModelManager.isEnabled(application) != semanticActive) manager.setEnabled(semanticActive)
                 semanticSearchEngine = SemanticSearchEngine(application, created.database, manager)
                 viewModelScope.launch { manager.state.collect { mutableSemanticModels.value = it } }
                 manager.ensureAutomaticDownload(
@@ -1833,7 +1852,11 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
-    fun setSemanticSearchEnabled(enabled: Boolean) {
+    fun setSemanticSearchEnabled(enabled: Boolean) = updateLocalAnalysisSwitches {
+        it.withFeature(LocalAnalysisFeature.Semantic, enabled)
+    }
+
+    private fun runSemanticSearch(enabled: Boolean) {
         semanticModelManager?.setEnabled(enabled)
         // Turning semantic search on is the user's consent to fetch the recommended model.
         if (enabled) semanticModelManager?.ensureAutomaticDownload(localAnalysisAccepted = true)
@@ -1972,28 +1995,72 @@ class GalleryViewModel @Inject constructor(
     fun acceptLocalAnalysisDefaults() {
         localAnalysisOnboardingStore.setDecision(LocalAnalysisOnboardingDecision.Accepted)
         mutableLocalAnalysisOnboarding.value = LocalAnalysisOnboardingDecision.Accepted
-        enableAllLocalAnalysis(fullLibrary = true)
-        setSemanticSearchEnabled(true)
+        updateLocalAnalysisSwitches(fullLibrary = true) { LocalAnalysisSwitches.AllOn }
     }
 
     fun declineLocalAnalysisDefaults() {
         localAnalysisOnboardingStore.setDecision(LocalAnalysisOnboardingDecision.Declined)
         mutableLocalAnalysisOnboarding.value = LocalAnalysisOnboardingDecision.Declined
-        semanticModelManager?.setEnabled(false)
+        updateLocalAnalysisSwitches { LocalAnalysisSwitches.AllOff }
         viewModelScope.launch {
-            disableAllLocalAnalysis()
             (localAnalysisTasks + cleanupAnalysisTasks).reversed().forEach { mlScheduler.deleteDerivedData(it) }
             refreshLocalAnalysisControls()
         }
     }
 
-    fun setAllLocalAnalysisEnabled(enabled: Boolean) {
-        setSemanticSearchEnabled(enabled)
-        if (enabled) enableAllLocalAnalysis(fullLibrary = true)
-        else viewModelScope.launch { disableAllLocalAnalysis() }
+    /** "Use local analysis": off pauses every child, on restores each child's own last choice. */
+    fun setAllLocalAnalysisEnabled(enabled: Boolean) =
+        updateLocalAnalysisSwitches(fullLibrary = true) { it.withMaster(enabled) }
+
+    fun setPeopleAnalysisEnabled(enabled: Boolean) = updateLocalAnalysisSwitches {
+        it.withFeature(LocalAnalysisFeature.People, enabled)
     }
 
-    fun setPeopleAnalysisEnabled(enabled: Boolean) {
+    fun setContentAnalysisEnabled(enabled: Boolean) = updateLocalAnalysisSwitches {
+        it.withFeature(LocalAnalysisFeature.Content, enabled)
+    }
+
+    fun setCleanupAnalysisEnabled(enabled: Boolean) = updateLocalAnalysisSwitches {
+        it.withFeature(LocalAnalysisFeature.Cleanup, enabled)
+    }
+
+    /**
+     * Persists the new switch state and starts or stops only the features whose effective state
+     * changed. [fullLibrary] keeps the master switch's historical full-library pass.
+     */
+    private fun updateLocalAnalysisSwitches(
+        fullLibrary: Boolean = false,
+        transform: (LocalAnalysisSwitches) -> LocalAnalysisSwitches,
+    ) {
+        val previous = mutableLocalAnalysisSwitches.value
+        val next = transform(previous)
+        localAnalysisSwitchStore.save(next)
+        mutableLocalAnalysisSwitches.value = next
+        val changes = previous.changedTo(next)
+        changes.forEach { (feature, active) ->
+            when (feature) {
+                LocalAnalysisFeature.People -> runPeopleAnalysis(active)
+                LocalAnalysisFeature.Content -> runContentAnalysis(active)
+                LocalAnalysisFeature.Cleanup -> runCleanupAnalysis(active)
+                LocalAnalysisFeature.Pets -> if (active) runPetCollections() else stopPetCollections()
+                LocalAnalysisFeature.Semantic -> runSemanticSearch(active)
+            }
+        }
+        // Pet collections also need image labels; stop them once neither feature wants them.
+        if (!next.isActive(LocalAnalysisFeature.Content) && !next.isActive(LocalAnalysisFeature.Pets)) {
+            contentAnalysisTasks.forEach { mlScheduler.setConsent(it, false) }
+        }
+        if (fullLibrary && changes.any { it.value }) viewModelScope.launch {
+            if (changes[LocalAnalysisFeature.People] == true) mlScheduler.restart(MlTaskType.FaceDetection, MlRunMode.FullLibrary)
+            if (changes[LocalAnalysisFeature.Content] == true) {
+                contentAnalysisTasks.forEach { mlScheduler.restart(it, MlRunMode.FullLibrary) }
+            }
+            refreshLocalAnalysisControls()
+        }
+        refreshLocalAnalysisControls()
+    }
+
+    private fun runPeopleAnalysis(enabled: Boolean) {
         if (enabled) {
             peopleAnalysisTasks.forEach {
                 mlScheduler.grantConsent(it)
@@ -2011,7 +2078,7 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
-    fun setContentAnalysisEnabled(enabled: Boolean) {
+    private fun runContentAnalysis(enabled: Boolean) {
         if (enabled) {
             contentAnalysisTasks.forEach {
                 mlScheduler.grantConsent(it)
@@ -2029,41 +2096,11 @@ class GalleryViewModel @Inject constructor(
     }
 
     fun deleteAllLocalAnalysisData() {
+        updateLocalAnalysisSwitches { it.withMaster(false) }
         viewModelScope.launch {
-            disableAllLocalAnalysis()
             (localAnalysisTasks + cleanupAnalysisTasks).reversed().forEach { mlScheduler.deleteDerivedData(it) }
             refreshLocalAnalysisControls()
         }
-    }
-
-    private fun enableAllLocalAnalysis(fullLibrary: Boolean) {
-        petSettings.setEnabled(true)
-        mutablePetCollectionsEnabled.value = true
-        localAnalysisTasks.forEach {
-            mlScheduler.grantConsent(it)
-            mlScheduler.unpause(it)
-        }
-        mutableDetectedContentEnabled.value = true
-        viewModelScope.launch {
-            val mode = if (fullLibrary) MlRunMode.FullLibrary else MlRunMode.Recent
-            mlScheduler.restart(MlTaskType.FaceDetection, mode)
-            contentAnalysisTasks.forEach { mlScheduler.restart(it, mode) }
-            refreshLocalAnalysisControls()
-            monitorFaceProgress()
-            monitorPeopleProgress()
-            monitorPetProgress()
-        }
-    }
-
-    private suspend fun disableAllLocalAnalysis() {
-        (localAnalysisTasks + cleanupAnalysisTasks).forEach { mlScheduler.setConsent(it, false) }
-        mutableCleanupAnalysisEnabled.value = false
-        petSettings.setEnabled(false)
-        mutablePetCollectionsEnabled.value = false
-        faceProgressJob?.cancel()
-        peopleProgressJob?.cancel()
-        petProgressJob?.cancel()
-        refreshLocalAnalysisControls()
     }
 
     private fun refreshLocalAnalysisControls() {
@@ -2110,13 +2147,7 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
-    fun enablePeopleRecognition() {
-        listOf(MlTaskType.FaceDetection, MlTaskType.FaceEmbeddings, MlTaskType.PersonClustering).forEach(mlScheduler::grantConsent)
-        mlScheduler.enqueue(MlTaskType.FaceDetection, MlRunMode.Recent)
-        mutablePeopleAnalysis.value = peopleControlState()
-        monitorFaceProgress()
-        monitorPeopleProgress()
-    }
+    fun enablePeopleRecognition() = setPeopleAnalysisEnabled(true)
 
     fun pausePeopleRecognition() {
         listOf(MlTaskType.FaceDetection, MlTaskType.FaceEmbeddings, MlTaskType.PersonClustering).forEach(mlScheduler::pause)
@@ -2232,7 +2263,7 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
-    fun setCleanupAnalysisEnabled(enabled: Boolean) {
+    private fun runCleanupAnalysis(enabled: Boolean) {
         cleanupAnalysisTasks.forEach {
             if (enabled) {
                 mlScheduler.grantConsent(it)
@@ -2332,7 +2363,11 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
-    fun enablePetCollections() {
+    fun enablePetCollections() = updateLocalAnalysisSwitches { it.withFeature(LocalAnalysisFeature.Pets, true) }
+
+    fun disablePetCollections() = updateLocalAnalysisSwitches { it.withFeature(LocalAnalysisFeature.Pets, false) }
+
+    private fun runPetCollections() {
         petSettings.setEnabled(true)
         mutablePetCollectionsEnabled.value = true
         mlScheduler.grantConsent(MlTaskType.ImageLabels)
@@ -2347,7 +2382,7 @@ class GalleryViewModel @Inject constructor(
         mutableDetectedContentEnabled.value = true
     }
 
-    fun disablePetCollections() {
+    private fun stopPetCollections() {
         petSettings.setEnabled(false)
         mutablePetCollectionsEnabled.value = false
     }

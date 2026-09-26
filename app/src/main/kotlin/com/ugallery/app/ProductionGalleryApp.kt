@@ -432,9 +432,9 @@ internal fun ProductionGalleryApp(
     val detectedContentEnabled by viewModel.detectedContentEnabled.collectAsState()
     val peopleAnalysis by viewModel.peopleAnalysis.collectAsState()
     val petCollectionsEnabled by viewModel.petCollectionsEnabled.collectAsState()
-    // Same derivation as Settings' "Use local analysis" switch, so both surfaces agree.
-    val allLocalAnalysisEnabled = peopleAnalysis.consentGranted && detectedContentEnabled &&
-        petCollectionsEnabled && semanticModels.enabled
+    // Settings and the Search sheet read the same persisted master/child switches.
+    val localAnalysisSwitches by viewModel.localAnalysisSwitches.collectAsState()
+    val allLocalAnalysisEnabled = localAnalysisSwitches.master
     val petAnalysis by viewModel.petAnalysis.collectAsState()
     val localAnalysisOnboarding by viewModel.localAnalysisOnboarding.collectAsState()
     val gallerySettings by viewModel.gallerySettings.collectAsState()
@@ -2105,8 +2105,9 @@ internal fun ProductionGalleryApp(
                     onImportSettings = { importSettingsLauncher.launch("application/json") },
                     onResetSettings = viewModel::resetGallerySettings,
                     onBack = { route = SurfaceRoute.Root },
-                    peopleAnalysisEnabled = peopleAnalysis.consentGranted,
-                    contentAnalysisEnabled = detectedContentEnabled,
+                    peopleAnalysisEnabled = localAnalysisSwitches.isActive(com.ugallery.core.ml.LocalAnalysisFeature.People),
+                    contentAnalysisEnabled = localAnalysisSwitches.isActive(com.ugallery.core.ml.LocalAnalysisFeature.Content),
+                    localAnalysisEnabled = localAnalysisSwitches.master,
                     onAllAnalysisEnabledChange = viewModel::setAllLocalAnalysisEnabled,
                     onPeopleAnalysisEnabledChange = viewModel::setPeopleAnalysisEnabled,
                     onContentAnalysisEnabledChange = viewModel::setContentAnalysisEnabled,
