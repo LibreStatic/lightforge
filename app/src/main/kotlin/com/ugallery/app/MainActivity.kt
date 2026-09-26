@@ -2,6 +2,7 @@ package com.ugallery.app
 
 import android.os.Bundle
 import android.os.Build
+import android.content.Context
 import android.content.Intent
 import android.view.KeyEvent
 import androidx.activity.compose.setContent
@@ -17,6 +18,7 @@ import com.ugallery.core.designsystem.LocalThumbnailTileSettings
 import com.ugallery.core.designsystem.ThumbnailTileSettings
 import com.ugallery.core.designsystem.UGalleryTheme
 import com.ugallery.feature.permissions.PermissionCoordinator
+import com.ugallery.feature.settings.LegacyAppLanguage
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -25,6 +27,10 @@ class MainActivity : FragmentActivity() {
     @Inject lateinit var permissionCoordinator: PermissionCoordinator
     private val galleryViewModel: GalleryViewModel by viewModels()
     private var usesProductionRuntime = false
+
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LegacyAppLanguage.wrap(newBase))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

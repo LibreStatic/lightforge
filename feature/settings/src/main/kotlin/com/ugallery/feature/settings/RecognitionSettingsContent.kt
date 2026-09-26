@@ -418,14 +418,19 @@ private val AppLanguageLabels = listOf(
     R.string.settings_language_de,
 )
 
-/** App language picker. Android 13+ applies it per app and recreates the activity. */
+/**
+ * App language picker. Android 13+ applies it per app through `LocaleManager`; older releases
+ * store it in [LegacyAppLanguage], which `MainActivity` applies in `attachBaseContext`.
+ */
 @Composable
 private fun AppLanguageGroup() {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
     val context = LocalContext.current
-    val manager = remember(context) { context.getSystemService(LocaleManager::class.java) }
-    val current = remember(manager) {
-        val language = manager.applicationLocales.get(0)?.language.orEmpty()
+    val current = remember(context) {
+        val language = if (LegacyAppLanguage.isNeeded) {
+            LegacyAppLanguage.tag(context)
+        } else {
+            context.getSystemService(LocaleManager::class.java).applicationLocales.get(0)?.language.orEmpty()
+        }
         AppLanguageTags.indexOf(language).coerceAtLeast(0)
     }
     var dialogVisible by rememberSaveable { mutableStateOf(false) }
@@ -447,9 +452,14 @@ private fun AppLanguageGroup() {
         onDismiss = { dialogVisible = false },
     ) { index ->
         dialogVisible = false
-        manager.applicationLocales =
-            if (index == 0) LocaleList.getEmptyLocaleList()
-            else LocaleList.forLanguageTags(AppLanguageTags[index])
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.getSystemService(LocaleManager::class.java).applicationLocales =
+                if (index == 0) LocaleList.getEmptyLocaleList()
+                else LocaleList.forLanguageTags(AppLanguageTags[index])
+        } else if (index != current) {
+            LegacyAppLanguage.setTag(context.applicationContext, AppLanguageTags[index])
+            LegacyAppLanguage.activity(context)?.recreate()
+        }
     }
 }
 
