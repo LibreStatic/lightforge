@@ -30,7 +30,7 @@
     <string name="peer_prepare">Prepare durable copies</string>
     <string name="peer_history">Transfer history</string>
     <string name="peer_progress">%1$d / %2$d bytes</string>
-    <string name="peer_count">%1$d files</string>
+    <plurals name="peer_count"><item quantity="one">%1$d file</item><item quantity="other">%1$d files</item></plurals>
     <string name="peer_review">Review transfer</string>
     <string name="peer_open_local">Open Gallery</string>
     <string name="peer_resume">Resume</string>

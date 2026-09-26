@@ -1,4 +1,4 @@
-<resources><string name="video_editor_title">Editar vídeo</string><string name="video_editor_cancel">Cancelar</string><string name="video_editor_save_copy">Guardar copia</string><string name="video_editor_preview_description">Vista previa de edición de vídeo</string><string name="video_editor_preview_unavailable">Vista previa no disponible</string><string name="video_editor_speed">Velocidad</string><string name="video_editor_audio">Audio</string><string name="video_editor_music">Música</string><string name="video_editor_speed_slow">0,5× Lenta</string><string name="video_editor_speed_normal">1× Normal</string><string name="video_editor_speed_fast">2× Rápida</string><string name="video_editor_original_audio">Audio original</string><string name="video_editor_choose_music">Elegir pista local</string><string name="video_editor_remove_music">Quitar música</string>    <string name="video_editor_trim_description">Recortar de %1$s a %2$s</string>
+<resources><string name="video_editor_title">Editar video</string><string name="video_editor_cancel">Cancelar</string><string name="video_editor_save_copy">Guardar copia</string><string name="video_editor_preview_description">Vista previa de edición de video</string><string name="video_editor_preview_unavailable">Vista previa no disponible</string><string name="video_editor_speed">Velocidad</string><string name="video_editor_audio">Audio</string><string name="video_editor_music">Música</string><string name="video_editor_speed_slow">0,5× Lenta</string><string name="video_editor_speed_normal">1× Normal</string><string name="video_editor_speed_fast">2× Rápida</string><string name="video_editor_original_audio">Audio original</string><string name="video_editor_choose_music">Elegir pista local</string><string name="video_editor_remove_music">Quitar música</string>    <string name="video_editor_trim_description">Recortar de %1$s a %2$s</string>
     <string name="video_editor_audio_description">Volumen del audio original</string>
 
     <string name="video_editor_color">Color</string>
@@ -79,7 +79,7 @@
     <string name="video_editor_audio_varispeed">Tono ralentizado</string>
     <string name="video_editor_delete_segment">Eliminar tramo</string>
     <string name="video_editor_cancel_export">Cancelar exportación</string>
-    <string name="video_editor_export_in_progress">Exportando vídeo</string>
+    <string name="video_editor_export_in_progress">Exportando video</string>
     <string name="video_editor_export_progress_percent">%1$d%%</string>
     <string name="video_editor_slow_overlap">Los tramos en cámara lenta no pueden superponerse</string>
     <string name="video_editor_slow_invalid_range">La salida debe estar después de la entrada</string>
@@ -131,9 +131,9 @@
     <string name="video_editor_annotation_move_forward">Mover adelante</string>
 <string name="video_editor_export_preparing">Preparando la exportación…</string>
 <string name="video_editor_export_generating_frames">Generando fotogramas de cámara lenta…</string>
-<string name="video_editor_export_rendering">Procesando el vídeo…</string>
+<string name="video_editor_export_rendering">Procesando el video…</string>
 <string name="video_editor_export_publishing">Guardando en tu galería…</string>
-<string name="video_editor_export_verifying">Verificando el vídeo guardado…</string>
+<string name="video_editor_export_verifying">Verificando el video guardado…</string>
 <string name="video_editor_software_decoder_warning">La decodificación por hardware no está disponible; la vista previa usa software</string>
     <string name="video_editor_profile_standard">Estándar Rec.709</string>
     <string name="video_editor_profile_apple_log">Apple Log</string>

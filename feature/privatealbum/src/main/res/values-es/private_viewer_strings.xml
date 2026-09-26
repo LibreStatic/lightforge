@@ -11,7 +11,7 @@
     <string name="private_viewer_zoom">Zoom</string>
     <string name="private_viewer_zoom_value">Zoom: %1$.1f×</string>
     <string name="private_viewer_reset">Restablecer vista</string>
-    <string name="private_viewer_seek">Posición del vídeo</string>
+    <string name="private_viewer_seek">Posición del video</string>
     <string name="private_viewer_time">%1$s / %2$s</string>
     <string name="private_viewer_play">Reproducir</string>
     <string name="private_viewer_pause">Pausar</string>

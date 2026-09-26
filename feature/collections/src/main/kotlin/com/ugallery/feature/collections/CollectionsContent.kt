@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -163,7 +164,7 @@ fun CollectionsContent(
                 CollectionCardSpec(
                     key = "dogs",
                     title = dogsTitle,
-                    body = stringResource(R.string.collections_item_count, dogCount),
+                    body = pluralStringResource(R.plurals.collections_item_count, dogCount.toInt(), dogCount),
                     icon = GalleryIcons.Pet,
                     cover = dogCover,
                     circular = true,
@@ -172,7 +173,7 @@ fun CollectionsContent(
                 CollectionCardSpec(
                     key = "cats",
                     title = catsTitle,
-                    body = stringResource(R.string.collections_item_count, catCount),
+                    body = pluralStringResource(R.plurals.collections_item_count, catCount.toInt(), catCount),
                     icon = GalleryIcons.Pet,
                     cover = catCover,
                     circular = true,
@@ -185,7 +186,7 @@ fun CollectionsContent(
             CollectionCardSpec(
                 key = "moment:${summary.moment.momentId}",
                 title = momentDisplayTitle(summary.moment, momentPlaceLabels),
-                body = stringResource(R.string.collections_item_count, summary.memberCount),
+                body = pluralStringResource(R.plurals.collections_item_count, summary.memberCount.toInt(), summary.memberCount),
                 icon = GalleryIcons.Image,
                 onClick = { onMomentClick(summary.moment) },
             )
@@ -196,7 +197,7 @@ fun CollectionsContent(
                 CollectionCardSpec(
                     key = "documents",
                     title = stringResource(R.string.documents_title),
-                    body = stringResource(R.string.documents_collection_count, documentCount),
+                    body = pluralStringResource(R.plurals.documents_collection_count, documentCount.toInt(), documentCount),
                     icon = GalleryIcons.Collections,
                     onClick = action,
                 )
@@ -208,7 +209,7 @@ fun CollectionsContent(
                 CollectionCardSpec(
                     key = "people",
                     title = stringResource(R.string.collections_people),
-                    body = stringResource(R.string.collections_item_count, peopleCount),
+                    body = pluralStringResource(R.plurals.collections_item_count, peopleCount.toInt(), peopleCount),
                     icon = GalleryIcons.User,
                     cover = peopleCover,
                     circular = true,
@@ -230,7 +231,7 @@ fun CollectionsContent(
             CollectionCardSpec(
                 key = "archive",
                 title = stringResource(R.string.collections_archive),
-                body = stringResource(R.string.collections_item_count, archiveCount),
+                body = pluralStringResource(R.plurals.collections_item_count, archiveCount.toInt(), archiveCount),
                 icon = GalleryIcons.Archive,
                 onClick = onArchiveClick,
             )
@@ -239,7 +240,7 @@ fun CollectionsContent(
             CollectionCardSpec(
                 key = "trash",
                 title = stringResource(R.string.collections_trash),
-                body = stringResource(R.string.collections_item_count, trashCount),
+                body = pluralStringResource(R.plurals.collections_item_count, trashCount.toInt(), trashCount),
                 icon = GalleryIcons.Trash,
                 onClick = onTrashClick,
             )
@@ -385,7 +386,7 @@ private fun AlbumSummary.asCollectionCard(onClick: (AlbumSummary) -> Unit) =
             if (availability == AlbumAvailability.VolumeUnavailable) {
                 stringResource(R.string.collections_volume_unavailable)
             } else {
-                stringResource(R.string.collections_item_count, itemCount)
+                pluralStringResource(R.plurals.collections_item_count, itemCount.toInt(), itemCount)
             },
         cover = cover,
         onClick = { onClick(this) },

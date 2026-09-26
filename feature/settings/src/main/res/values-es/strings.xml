@@ -77,7 +77,7 @@
     <string name="face_analysis_privacy">Las regiones faciales se detectan localmente después de tu autorización. Podés pausar el análisis y borrar todos los datos derivados.</string>
     <string name="face_analysis_no_identity">La detección no identifica ni nombra personas.</string>
     <string name="face_analysis_enable">Activar detección facial local</string>
-    <string name="face_analysis_progress">%1$d fotos analizadas</string>
+    <plurals name="face_analysis_progress"><item quantity="one">%1$d foto analizada</item><item quantity="many">%1$d fotos analizadas</item><item quantity="other">%1$d fotos analizadas</item></plurals>
     <string name="face_analysis_pause">Pausar</string>
     <string name="face_analysis_resume">Analizar ahora</string>
     <string name="face_analysis_all">Analizar toda la biblioteca</string>
@@ -90,10 +90,10 @@
     <string name="pet_collections_title">Mascotas</string>
     <string name="pet_collections_no_identity">Las colecciones de perros y gatos usan etiquetas locales y nunca afirman identificar una mascota individual.</string>
     <string name="pet_collections_enable">Mostrar colecciones de perros y gatos</string>
-    <string name="pet_analysis_preparing">Preparando el análisis de mascotas… %1$d elementos procesados</string>
-    <string name="pet_analysis_running">Analizando mascotas en este dispositivo… %1$d elementos procesados</string>
-    <string name="pet_analysis_paused">Análisis de mascotas pausado · %1$d elementos procesados</string>
-    <string name="pet_analysis_complete">Análisis de mascotas completo · %1$d elementos procesados</string>
+    <plurals name="pet_analysis_preparing"><item quantity="one">Preparando el análisis de mascotas… %1$d elemento procesado</item><item quantity="many">Preparando el análisis de mascotas… %1$d elementos procesados</item><item quantity="other">Preparando el análisis de mascotas… %1$d elementos procesados</item></plurals>
+    <plurals name="pet_analysis_running"><item quantity="one">Analizando mascotas en este dispositivo… %1$d elemento procesado</item><item quantity="many">Analizando mascotas en este dispositivo… %1$d elementos procesados</item><item quantity="other">Analizando mascotas en este dispositivo… %1$d elementos procesados</item></plurals>
+    <plurals name="pet_analysis_paused"><item quantity="one">Análisis de mascotas pausado · %1$d elemento procesado</item><item quantity="many">Análisis de mascotas pausado · %1$d elementos procesados</item><item quantity="other">Análisis de mascotas pausado · %1$d elementos procesados</item></plurals>
+    <plurals name="pet_analysis_complete"><item quantity="one">Análisis de mascotas completo · %1$d elemento procesado</item><item quantity="many">Análisis de mascotas completo · %1$d elementos procesados</item><item quantity="other">Análisis de mascotas completo · %1$d elementos procesados</item></plurals>
     <string name="pet_hide_dog">Ocultar resultados de perros</string>
     <string name="pet_hide_cat">Ocultar resultados de gatos</string>
     <string name="pet_restore">Restaurar etiquetas de mascotas</string>

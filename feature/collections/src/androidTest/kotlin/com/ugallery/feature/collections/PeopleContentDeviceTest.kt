@@ -79,7 +79,7 @@ class PeopleContentDeviceTest {
 
         compose.onNode(hasText(context.getString(R.string.people_noncommercial_notice))).assertIsDisplayed()
         compose.onNode(hasText(context.getString(R.string.people_enable))).performClick()
-        compose.onNode(hasText(context.getString(R.string.people_progress, 12))).assertIsDisplayed()
+        compose.onNode(hasText(context.resources.getQuantityString(R.plurals.people_progress, 12, 12))).assertIsDisplayed()
         compose.onNode(hasText(context.getString(R.string.people_status_detecting_faces))).assertIsDisplayed()
         compose.onNode(hasText("Alex")).performClick()
         compose.onNode(hasText(context.getString(R.string.me_set_from_person))).performClick()

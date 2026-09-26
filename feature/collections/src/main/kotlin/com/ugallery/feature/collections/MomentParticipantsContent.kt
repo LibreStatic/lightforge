@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
@@ -201,7 +202,7 @@ fun MomentParticipantsContent(
                         role = Role.Checkbox, onValueChange = { draft = current.toggle(person.clusterId, snapshot) }).padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         ParticipantThumbnail(person, snapshot.coverGenerations[person.clusterId], thumbnailLoader)
-                        Column(Modifier.weight(1f)) { Text(name); Text(stringResource(R.string.people_face_count, person.memberCount)) }
+                        Column(Modifier.weight(1f)) { Text(name); Text(pluralStringResource(R.plurals.people_face_count, person.memberCount, person.memberCount)) }
                         Checkbox(person.clusterId in current.selectedIds, onCheckedChange = null, enabled = !saving && current.mode == MomentParticipantsMode.Manual)
                     }
                 }

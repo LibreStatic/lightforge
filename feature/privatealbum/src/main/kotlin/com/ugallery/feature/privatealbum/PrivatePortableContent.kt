@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
@@ -380,16 +381,18 @@ fun PrivatePortableContent(
                             restore?.let { prepared ->
                                 if (prepared.previousReceipt != null) {
                                     Text(
-                                        stringResource(
-                                            R.string.private_portable_previous,
+                                        pluralStringResource(
+                                            R.plurals.private_portable_previous,
+                                            prepared.previousReceipt.itemCount,
                                             prepared.previousReceipt.itemCount,
                                         ),
                                         Modifier.testTag("private-portable-previous"),
                                     )
                                 } else {
                                     Text(
-                                        stringResource(
-                                            R.string.private_portable_review,
+                                        pluralStringResource(
+                                            R.plurals.private_portable_review,
+                                            prepared.items.size,
                                             prepared.items.size,
                                         ),
                                         Modifier.testTag("private-portable-review"),
@@ -418,9 +421,10 @@ fun PrivatePortableContent(
                         "restored" ->
                             result?.let {
                                 Text(
-                                    stringResource(
-                                        if (it.alreadyCommitted) R.string.private_portable_previous
-                                        else R.string.private_portable_restored,
+                                    pluralStringResource(
+                                        if (it.alreadyCommitted) R.plurals.private_portable_previous
+                                        else R.plurals.private_portable_restored,
+                                        it.count,
                                         it.count,
                                     ),
                                     Modifier.testTag("private-portable-restored"),

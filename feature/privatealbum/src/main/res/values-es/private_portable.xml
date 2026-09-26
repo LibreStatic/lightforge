@@ -8,10 +8,10 @@
     <string name="private_portable_confirm_password">Confirmar contraseña</string>
     <string name="private_portable_prepare">Preparar y verificar</string>
     <string name="private_portable_progress">Verificando %1$d de %2$d…</string>
-    <string name="private_portable_review">Hay %1$d elementos verificados. Los originales quedan intactos. Se agregarán copias cifradas a este álbum privado.</string>
+    <plurals name="private_portable_review"><item quantity="one">Hay %1$d elemento verificado. Los originales quedan intactos. Se agregarán copias cifradas a este álbum privado.</item><item quantity="many">Hay %1$d elementos verificados. Los originales quedan intactos. Se agregarán copias cifradas a este álbum privado.</item><item quantity="other">Hay %1$d elementos verificados. Los originales quedan intactos. Se agregarán copias cifradas a este álbum privado.</item></plurals>
     <string name="private_portable_commit">Restaurar copias privadas</string>
-    <string name="private_portable_restored">Se restauraron %1$d copias privadas.</string>
-    <string name="private_portable_previous">Esta copia ya se restauró (%1$d elementos). Es un comprobante histórico; los elementos que eliminaste no se restauran nuevamente.</string>
+    <plurals name="private_portable_restored"><item quantity="one">Se restauró %1$d copia privada.</item><item quantity="many">Se restauraron %1$d copias privadas.</item><item quantity="other">Se restauraron %1$d copias privadas.</item></plurals>
+    <plurals name="private_portable_previous"><item quantity="one">Esta copia ya se restauró (%1$d elemento). Es un comprobante histórico; los elementos que eliminaste no se restauran nuevamente.</item><item quantity="many">Esta copia ya se restauró (%1$d elementos). Es un comprobante histórico; los elementos que eliminaste no se restauran nuevamente.</item><item quantity="other">Esta copia ya se restauró (%1$d elementos). Es un comprobante histórico; los elementos que eliminaste no se restauran nuevamente.</item></plurals>
     <string name="private_portable_saved">Copia cifrada guardada y verificada mediante lectura.</string>
     <string name="private_portable_share">Compartir copia cifrada</string>
     <string name="private_portable_error">La copia no se pudo verificar. Revisá la contraseña, el acceso al archivo y el espacio libre. No se agregaron elementos sin verificar.</string>

@@ -30,7 +30,7 @@
     <string name="peer_prepare">Preparar copias durables</string>
     <string name="peer_history">Historial de transferencias</string>
     <string name="peer_progress">%1$d / %2$d bytes</string>
-    <string name="peer_count">%1$d archivos</string>
+    <plurals name="peer_count"><item quantity="one">%1$d archivo</item><item quantity="many">%1$d archivos</item><item quantity="other">%1$d archivos</item></plurals>
     <string name="peer_review">Revisar transferencia</string>
     <string name="peer_open_local">Abrir galería</string>
     <string name="peer_resume">Reanudar</string>

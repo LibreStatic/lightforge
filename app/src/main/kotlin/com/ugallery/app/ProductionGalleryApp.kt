@@ -3088,7 +3088,7 @@ internal fun ProductionGalleryApp(
         AlertDialog(
             onDismissRequest = { showEmptyTrashConfirmation = false },
             title = { Text(stringResource(R.string.trash_empty_confirm_title)) },
-            text = { Text(stringResource(R.string.trash_empty_confirm_body, trashCount)) },
+            text = { Text(pluralStringResource(R.plurals.trash_empty_confirm_body, trashCount.toInt(), trashCount)) },
             confirmButton = {
                 TextButton(onClick = {
                     showEmptyTrashConfirmation = false

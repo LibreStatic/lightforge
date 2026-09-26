@@ -1288,7 +1288,7 @@ private fun AiAnalysisSection(
         GalleryExpressiveButton(onClick = onEnable) { Text(stringResource(R.string.face_analysis_enable)) }
     } else {
         if (state.status == AnalysisStatus.Running) GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
-        Text(stringResource(R.string.face_analysis_progress, state.completedItems))
+        Text(pluralStringResource(R.plurals.face_analysis_progress, state.completedItems.toInt(), state.completedItems))
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             GalleryExpressiveButton(onClick = if (state.paused) onResume else onPause) {
                 Text(stringResource(if (state.paused) R.string.face_analysis_resume else R.string.face_analysis_pause))
@@ -1310,13 +1310,14 @@ private fun AiAnalysisSection(
             )
         }
         Text(
-            stringResource(
+            pluralStringResource(
                 when (petAnalysisState.status) {
-                    AnalysisStatus.Complete -> R.string.pet_analysis_complete
-                    AnalysisStatus.Paused -> R.string.pet_analysis_paused
-                    AnalysisStatus.Running -> R.string.pet_analysis_running
-                    AnalysisStatus.Ready, null -> R.string.pet_analysis_preparing
+                    AnalysisStatus.Complete -> R.plurals.pet_analysis_complete
+                    AnalysisStatus.Paused -> R.plurals.pet_analysis_paused
+                    AnalysisStatus.Running -> R.plurals.pet_analysis_running
+                    AnalysisStatus.Ready, null -> R.plurals.pet_analysis_preparing
                 },
+                petAnalysisState.completedItems.toInt(),
                 petAnalysisState.completedItems,
             ),
             style = MaterialTheme.typography.bodySmall,

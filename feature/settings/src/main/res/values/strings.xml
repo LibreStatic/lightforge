@@ -83,7 +83,7 @@
     <string name="face_analysis_privacy">Face regions are detected locally after you opt in. Analysis can be paused and all derived data can be deleted.</string>
     <string name="face_analysis_no_identity">Detection does not identify or name people.</string>
     <string name="face_analysis_enable">Enable local face detection</string>
-    <string name="face_analysis_progress">%1$d photos analyzed</string>
+    <plurals name="face_analysis_progress"><item quantity="one">%1$d photo analyzed</item><item quantity="other">%1$d photos analyzed</item></plurals>
     <string name="face_analysis_pause">Pause</string>
     <string name="face_analysis_resume">Analyze now</string>
     <string name="face_analysis_all">Analyze full library</string>
@@ -96,10 +96,10 @@
     <string name="pet_collections_title">Pets</string>
     <string name="pet_collections_no_identity">Dog and cat collections use local labels and never claim to identify an individual pet.</string>
     <string name="pet_collections_enable">Show dog and cat collections</string>
-    <string name="pet_analysis_preparing">Preparing pet analysis… %1$d items processed</string>
-    <string name="pet_analysis_running">Analyzing pets on this device… %1$d items processed</string>
-    <string name="pet_analysis_paused">Pet analysis paused · %1$d items processed</string>
-    <string name="pet_analysis_complete">Pet analysis complete · %1$d items processed</string>
+    <plurals name="pet_analysis_preparing"><item quantity="one">Preparing pet analysis… %1$d item processed</item><item quantity="other">Preparing pet analysis… %1$d items processed</item></plurals>
+    <plurals name="pet_analysis_running"><item quantity="one">Analyzing pets on this device… %1$d item processed</item><item quantity="other">Analyzing pets on this device… %1$d items processed</item></plurals>
+    <plurals name="pet_analysis_paused"><item quantity="one">Pet analysis paused · %1$d item processed</item><item quantity="other">Pet analysis paused · %1$d items processed</item></plurals>
+    <plurals name="pet_analysis_complete"><item quantity="one">Pet analysis complete · %1$d item processed</item><item quantity="other">Pet analysis complete · %1$d items processed</item></plurals>
     <string name="pet_hide_dog">Hide dog results</string>
     <string name="pet_hide_cat">Hide cat results</string>
     <string name="pet_restore">Restore pet labels</string>

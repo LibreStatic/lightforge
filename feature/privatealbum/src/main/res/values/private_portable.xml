@@ -8,10 +8,10 @@
     <string name="private_portable_confirm_password">Confirm password</string>
     <string name="private_portable_prepare">Prepare and verify</string>
     <string name="private_portable_progress">Verifying %1$d of %2$d…</string>
-    <string name="private_portable_review">%1$d verified items are ready. Originals stay unchanged. Restore adds encrypted copies to this private album.</string>
+    <plurals name="private_portable_review"><item quantity="one">%1$d verified item is ready. Originals stay unchanged. Restore adds encrypted copies to this private album.</item><item quantity="other">%1$d verified items are ready. Originals stay unchanged. Restore adds encrypted copies to this private album.</item></plurals>
     <string name="private_portable_commit">Restore private copies</string>
-    <string name="private_portable_restored">%1$d private copies restored.</string>
-    <string name="private_portable_previous">This backup was restored previously (%1$d items). This is a historical receipt; items you deleted are not restored again.</string>
+    <plurals name="private_portable_restored"><item quantity="one">%1$d private copy restored.</item><item quantity="other">%1$d private copies restored.</item></plurals>
+    <plurals name="private_portable_previous"><item quantity="one">This backup was restored previously (%1$d item). This is a historical receipt; items you deleted are not restored again.</item><item quantity="other">This backup was restored previously (%1$d items). This is a historical receipt; items you deleted are not restored again.</item></plurals>
     <string name="private_portable_saved">Encrypted backup saved and readback verified.</string>
     <string name="private_portable_share">Share encrypted backup</string>
     <string name="private_portable_error">The backup could not be verified. Check the password, document access and free space. No unverified items were added.</string>

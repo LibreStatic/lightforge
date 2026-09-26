@@ -33,5 +33,5 @@
     <string name="documents_reset">Redefinir minha classificação</string>
     <string name="documents_photo">Foto</string>
     <string name="documents_organize">Adicionar a Documentos</string>
-    <string name="documents_collection_count">%1$d fotos · categorias e texto locais</string>
+    <plurals name="documents_collection_count"><item quantity="one">%1$d foto · categorias e texto locais</item><item quantity="many">%1$d fotos · categorias e texto locais</item><item quantity="other">%1$d fotos · categorias e texto locais</item></plurals>
 </resources>

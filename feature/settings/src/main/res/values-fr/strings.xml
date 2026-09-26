@@ -77,7 +77,7 @@
     <string name="face_analysis_privacy">Les zones de visage sont détectées localement après votre accord. Vous pouvez suspendre l’analyse et supprimer toutes les données dérivées.</string>
     <string name="face_analysis_no_identity">La détection n’identifie ni ne nomme personne.</string>
     <string name="face_analysis_enable">Activer la détection locale</string>
-    <string name="face_analysis_progress">%1$d photos analysées</string>
+    <plurals name="face_analysis_progress"><item quantity="one">%1$d photo analysée</item><item quantity="many">%1$d photos analysées</item><item quantity="other">%1$d photos analysées</item></plurals>
     <string name="face_analysis_pause">Suspendre</string>
     <string name="face_analysis_resume">Analyser maintenant</string>
     <string name="face_analysis_all">Analyser toute la photothèque</string>
@@ -90,10 +90,10 @@
     <string name="pet_collections_title">Animaux</string>
     <string name="pet_collections_no_identity">Les collections chiens et chats utilisent des libellés locaux sans identifier un animal individuel.</string>
     <string name="pet_collections_enable">Afficher les collections chiens et chats</string>
-    <string name="pet_analysis_preparing">Préparation de l’analyse des animaux… %1$d éléments traités</string>
-    <string name="pet_analysis_running">Analyse des animaux sur cet appareil… %1$d éléments traités</string>
-    <string name="pet_analysis_paused">Analyse des animaux en pause · %1$d éléments traités</string>
-    <string name="pet_analysis_complete">Analyse des animaux terminée · %1$d éléments traités</string>
+    <plurals name="pet_analysis_preparing"><item quantity="one">Préparation de l’analyse des animaux… %1$d élément traité</item><item quantity="many">Préparation de l’analyse des animaux… %1$d éléments traités</item><item quantity="other">Préparation de l’analyse des animaux… %1$d éléments traités</item></plurals>
+    <plurals name="pet_analysis_running"><item quantity="one">Analyse des animaux sur cet appareil… %1$d élément traité</item><item quantity="many">Analyse des animaux sur cet appareil… %1$d éléments traités</item><item quantity="other">Analyse des animaux sur cet appareil… %1$d éléments traités</item></plurals>
+    <plurals name="pet_analysis_paused"><item quantity="one">Analyse des animaux en pause · %1$d élément traité</item><item quantity="many">Analyse des animaux en pause · %1$d éléments traités</item><item quantity="other">Analyse des animaux en pause · %1$d éléments traités</item></plurals>
+    <plurals name="pet_analysis_complete"><item quantity="one">Analyse des animaux terminée · %1$d élément traité</item><item quantity="many">Analyse des animaux terminée · %1$d éléments traités</item><item quantity="other">Analyse des animaux terminée · %1$d éléments traités</item></plurals>
     <string name="pet_hide_dog">Masquer les chiens</string>
     <string name="pet_hide_cat">Masquer les chats</string>
     <string name="pet_restore">Restaurer les libellés</string>

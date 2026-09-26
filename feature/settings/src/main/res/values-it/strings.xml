@@ -77,7 +77,7 @@
     <string name="face_analysis_privacy">Le aree dei volti vengono rilevate localmente dopo il consenso. Puoi sospendere l’analisi ed eliminare tutti i dati derivati.</string>
     <string name="face_analysis_no_identity">Il rilevamento non identifica né nomina le persone.</string>
     <string name="face_analysis_enable">Attiva rilevamento locale</string>
-    <string name="face_analysis_progress">%1$d foto analizzate</string>
+    <plurals name="face_analysis_progress"><item quantity="one">%1$d foto analizzata</item><item quantity="many">%1$d foto analizzate</item><item quantity="other">%1$d foto analizzate</item></plurals>
     <string name="face_analysis_pause">Pausa</string>
     <string name="face_analysis_resume">Analizza ora</string>
     <string name="face_analysis_all">Analizza l’intera raccolta</string>
@@ -90,10 +90,10 @@
     <string name="pet_collections_title">Animali</string>
     <string name="pet_collections_no_identity">Le raccolte di cani e gatti usano etichette locali e non identificano mai un singolo animale.</string>
     <string name="pet_collections_enable">Mostra raccolte di cani e gatti</string>
-    <string name="pet_analysis_preparing">Preparazione dell’analisi degli animali… %1$d elementi elaborati</string>
-    <string name="pet_analysis_running">Analisi degli animali su questo dispositivo… %1$d elementi elaborati</string>
-    <string name="pet_analysis_paused">Analisi degli animali in pausa · %1$d elementi elaborati</string>
-    <string name="pet_analysis_complete">Analisi degli animali completata · %1$d elementi elaborati</string>
+    <plurals name="pet_analysis_preparing"><item quantity="one">Preparazione dell’analisi degli animali… %1$d elemento elaborato</item><item quantity="many">Preparazione dell’analisi degli animali… %1$d elementi elaborati</item><item quantity="other">Preparazione dell’analisi degli animali… %1$d elementi elaborati</item></plurals>
+    <plurals name="pet_analysis_running"><item quantity="one">Analisi degli animali su questo dispositivo… %1$d elemento elaborato</item><item quantity="many">Analisi degli animali su questo dispositivo… %1$d elementi elaborati</item><item quantity="other">Analisi degli animali su questo dispositivo… %1$d elementi elaborati</item></plurals>
+    <plurals name="pet_analysis_paused"><item quantity="one">Analisi degli animali in pausa · %1$d elemento elaborato</item><item quantity="many">Analisi degli animali in pausa · %1$d elementi elaborati</item><item quantity="other">Analisi degli animali in pausa · %1$d elementi elaborati</item></plurals>
+    <plurals name="pet_analysis_complete"><item quantity="one">Analisi degli animali completata · %1$d elemento elaborato</item><item quantity="many">Analisi degli animali completata · %1$d elementi elaborati</item><item quantity="other">Analisi degli animali completata · %1$d elementi elaborati</item></plurals>
     <string name="pet_hide_dog">Nascondi risultati cani</string>
     <string name="pet_hide_cat">Nascondi risultati gatti</string>
     <string name="pet_restore">Ripristina etichette animali</string>

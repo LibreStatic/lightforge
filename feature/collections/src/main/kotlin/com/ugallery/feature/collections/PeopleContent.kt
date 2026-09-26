@@ -147,7 +147,7 @@ fun PeopleContent(
         } else {
             if (state.running || state.waiting) item(span = fullSpan) { GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth()) }
             item(span = fullSpan) { Text(peopleStatusText(state), style = MaterialTheme.typography.titleMedium) }
-            item(span = fullSpan) { Text(stringResource(R.string.people_progress, state.completedItems)) }
+            item(span = fullSpan) { Text(pluralStringResource(R.plurals.people_progress, state.completedItems.toInt(), state.completedItems)) }
             item(span = fullSpan) { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 GalleryExpressiveButton(onClick = if (state.paused) onResume else onPause) {
                     Text(stringResource(if (state.paused) R.string.people_resume else R.string.people_pause))
@@ -263,7 +263,7 @@ fun PeopleContent(
                                 target.displayName ?: stringResource(R.string.people_default_name),
                                 modifier = Modifier.weight(1f),
                             )
-                            Text(stringResource(R.string.people_face_count, target.memberCount))
+                            Text(pluralStringResource(R.plurals.people_face_count, target.memberCount, target.memberCount))
                         }
                     }
                 }
@@ -318,7 +318,7 @@ private fun PersonCard(person: PersonCardUi, loader: ThumbnailLoader?, onClick: 
         Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             PersonThumbnail(person.coverKey, loader, Modifier.fillMaxWidth().height(120.dp))
             Text(title, style = MaterialTheme.typography.titleMedium)
-            Text(stringResource(R.string.people_face_count, person.memberCount))
+            Text(pluralStringResource(R.plurals.people_face_count, person.memberCount, person.memberCount))
         }
     }
 }

@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
@@ -319,7 +320,7 @@ fun LocalSharingContent(
                             t.manifest?.totalBytes ?: 0,
                         )
                     )
-                    t.manifest?.let { Text(stringResource(R.string.peer_count, it.entries.size)) }
+                    t.manifest?.let { Text(pluralStringResource(R.plurals.peer_count, it.entries.size, it.entries.size)) }
                     if (
                         t.status in
                             setOf(
@@ -407,7 +408,7 @@ fun LocalSharingContent(
                 LazyColumn(Modifier.heightIn(max = 420.dp)) {
                     item {
                         Text(stringResource(R.string.peer_review_scope))
-                        Text(stringResource(R.string.peer_count, review.manifest!!.entries.size))
+                        Text(pluralStringResource(R.plurals.peer_count, review.manifest!!.entries.size, review.manifest!!.entries.size))
                         Text(
                             stringResource(
                                 R.string.peer_progress,

@@ -7,7 +7,7 @@
     <string name="places_no_map">Importá un mapa regional para comenzar</string>
     <string name="places_no_photos">No hay fotos con GPS autorizado en esta zona y año</string>
     <string name="places_overflow">Se muestran %1$d de %2$d fotos. Acercá el mapa para ver las restantes.</string>
-    <string name="places_group">%1$d fotos · %2$.4f, %3$.4f</string>
+    <plurals name="places_group"><item quantity="one">%1$d foto · %2$.4f, %3$.4f</item><item quantity="many">%1$d fotos · %2$.4f, %3$.4f</item><item quantity="other">%1$d fotos · %2$.4f, %3$.4f</item></plurals>
     <string name="places_open_photo">Abrir foto</string>
     <string name="places_packages">Paquetes de mapas</string>
     <string name="places_import">Importar paquete regional</string>

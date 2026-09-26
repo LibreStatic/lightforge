@@ -8,10 +8,10 @@
     <string name="private_portable_confirm_password">Passwort bestätigen</string>
     <string name="private_portable_prepare">Vorbereiten und prüfen</string>
     <string name="private_portable_progress">%1$d von %2$d wird geprüft…</string>
-    <string name="private_portable_review">%1$d geprüfte Elemente sind bereit. Die Originale bleiben unverändert. Verschlüsselte Kopien werden diesem privaten Album hinzugefügt.</string>
+    <plurals name="private_portable_review"><item quantity="one">%1$d geprüftes Element ist bereit. Die Originale bleiben unverändert. Verschlüsselte Kopien werden diesem privaten Album hinzugefügt.</item><item quantity="other">%1$d geprüfte Elemente sind bereit. Die Originale bleiben unverändert. Verschlüsselte Kopien werden diesem privaten Album hinzugefügt.</item></plurals>
     <string name="private_portable_commit">Private Kopien wiederherstellen</string>
-    <string name="private_portable_restored">%1$d private Kopien wiederhergestellt.</string>
-    <string name="private_portable_previous">Diese Sicherung wurde bereits wiederhergestellt (%1$d Elemente). Dies ist ein historischer Beleg; gelöschte Elemente werden nicht erneut wiederhergestellt.</string>
+    <plurals name="private_portable_restored"><item quantity="one">%1$d private Kopie wiederhergestellt.</item><item quantity="other">%1$d private Kopien wiederhergestellt.</item></plurals>
+    <plurals name="private_portable_previous"><item quantity="one">Diese Sicherung wurde bereits wiederhergestellt (%1$d Element). Dies ist ein historischer Beleg; gelöschte Elemente werden nicht erneut wiederhergestellt.</item><item quantity="other">Diese Sicherung wurde bereits wiederhergestellt (%1$d Elemente). Dies ist ein historischer Beleg; gelöschte Elemente werden nicht erneut wiederhergestellt.</item></plurals>
     <string name="private_portable_saved">Verschlüsselte Sicherung gespeichert und durch erneutes Lesen geprüft.</string>
     <string name="private_portable_share">Verschlüsselte Sicherung teilen</string>
     <string name="private_portable_error">Die Sicherung konnte nicht geprüft werden. Prüfe Passwort, Dokumentzugriff und freien Speicher. Es wurden keine ungeprüften Elemente hinzugefügt.</string>

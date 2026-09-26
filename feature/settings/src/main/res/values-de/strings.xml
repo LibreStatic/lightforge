@@ -76,7 +76,7 @@
     <string name="face_analysis_privacy">Gesichtsbereiche werden nach Ihrer Zustimmung lokal erkannt. Die Analyse kann pausiert und alle abgeleiteten Daten können gelöscht werden.</string>
     <string name="face_analysis_no_identity">Die Erkennung identifiziert oder benennt keine Personen.</string>
     <string name="face_analysis_enable">Lokale Gesichtserkennung aktivieren</string>
-    <string name="face_analysis_progress">%1$d Fotos analysiert</string>
+    <plurals name="face_analysis_progress"><item quantity="one">%1$d Foto analysiert</item><item quantity="other">%1$d Fotos analysiert</item></plurals>
     <string name="face_analysis_pause">Pausieren</string>
     <string name="face_analysis_resume">Jetzt analysieren</string>
     <string name="face_analysis_all">Gesamte Mediathek analysieren</string>
@@ -89,10 +89,10 @@
     <string name="pet_collections_title">Haustiere</string>
     <string name="pet_collections_no_identity">Hunde- und Katzensammlungen verwenden lokale Labels und identifizieren keine einzelnen Tiere.</string>
     <string name="pet_collections_enable">Hunde- und Katzensammlungen anzeigen</string>
-    <string name="pet_analysis_preparing">Tiererkennung wird vorbereitet… %1$d Elemente verarbeitet</string>
-    <string name="pet_analysis_running">Tiere werden auf diesem Gerät analysiert… %1$d Elemente verarbeitet</string>
-    <string name="pet_analysis_paused">Tiererkennung pausiert · %1$d Elemente verarbeitet</string>
-    <string name="pet_analysis_complete">Tiererkennung abgeschlossen · %1$d Elemente verarbeitet</string>
+    <plurals name="pet_analysis_preparing"><item quantity="one">Tiererkennung wird vorbereitet… %1$d Element verarbeitet</item><item quantity="other">Tiererkennung wird vorbereitet… %1$d Elemente verarbeitet</item></plurals>
+    <plurals name="pet_analysis_running"><item quantity="one">Tiere werden auf diesem Gerät analysiert… %1$d Element verarbeitet</item><item quantity="other">Tiere werden auf diesem Gerät analysiert… %1$d Elemente verarbeitet</item></plurals>
+    <plurals name="pet_analysis_paused"><item quantity="one">Tiererkennung pausiert · %1$d Element verarbeitet</item><item quantity="other">Tiererkennung pausiert · %1$d Elemente verarbeitet</item></plurals>
+    <plurals name="pet_analysis_complete"><item quantity="one">Tiererkennung abgeschlossen · %1$d Element verarbeitet</item><item quantity="other">Tiererkennung abgeschlossen · %1$d Elemente verarbeitet</item></plurals>
     <string name="pet_hide_dog">Hundeergebnisse ausblenden</string>
     <string name="pet_hide_cat">Katzenergebnisse ausblenden</string>
     <string name="pet_restore">Haustier-Labels wiederherstellen</string>
