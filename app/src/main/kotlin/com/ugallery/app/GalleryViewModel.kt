@@ -1672,7 +1672,9 @@ class GalleryViewModel @Inject constructor(
                 )
                 semanticSearchEngine = SemanticSearchEngine(application, created.database, manager)
                 viewModelScope.launch { manager.state.collect { mutableSemanticModels.value = it } }
-                manager.ensureAutomaticDownload()
+                manager.ensureAutomaticDownload(
+                    mutableLocalAnalysisOnboarding.value == LocalAnalysisOnboardingDecision.Accepted,
+                )
             }
             created.monitor = MediaStoreChangeMonitor(application.contentResolver, viewModelScope) { batch ->
                 batch.rowHints.forEach {
@@ -1792,8 +1794,14 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
-    fun setSemanticSearchEnabled(enabled: Boolean) { semanticModelManager?.setEnabled(enabled) }
-    fun downloadSemanticModel(modelId: String, allowMetered: Boolean) { semanticModelManager?.download(modelId, allowMetered) }
+    fun setSemanticSearchEnabled(enabled: Boolean) {
+        semanticModelManager?.setEnabled(enabled)
+        // Turning semantic search on is the user's consent to fetch the recommended model.
+        if (enabled) semanticModelManager?.ensureAutomaticDownload(localAnalysisAccepted = true)
+    }
+    fun downloadSemanticModel(modelId: String, allowMetered: Boolean) {
+        semanticModelManager?.download(modelId, allowMetered, userInitiated = true)
+    }
     fun cancelSemanticModelDownload(modelId: String) { semanticModelManager?.cancelDownload(modelId) }
     fun activateSemanticModel(modelId: String, allowUnsupported: Boolean) {
         semanticModelManager?.activate(modelId, allowUnsupported)
@@ -1897,7 +1905,7 @@ class GalleryViewModel @Inject constructor(
         localAnalysisOnboardingStore.setDecision(LocalAnalysisOnboardingDecision.Accepted)
         mutableLocalAnalysisOnboarding.value = LocalAnalysisOnboardingDecision.Accepted
         enableAllLocalAnalysis(fullLibrary = true)
-        semanticModelManager?.setEnabled(true)
+        setSemanticSearchEnabled(true)
     }
 
     fun declineLocalAnalysisDefaults() {
@@ -1912,7 +1920,7 @@ class GalleryViewModel @Inject constructor(
     }
 
     fun setAllLocalAnalysisEnabled(enabled: Boolean) {
-        semanticModelManager?.setEnabled(enabled)
+        setSemanticSearchEnabled(enabled)
         if (enabled) enableAllLocalAnalysis(fullLibrary = true)
         else viewModelScope.launch { disableAllLocalAnalysis() }
     }

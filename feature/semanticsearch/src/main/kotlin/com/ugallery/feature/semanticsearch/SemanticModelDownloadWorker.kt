@@ -18,6 +18,11 @@ class SemanticModelDownloadWorker(context: Context, parameters: WorkerParameters
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val modelId = inputData.getString(KeyModelId) ?: return@withContext Result.failure()
         val model = SemanticModelCatalog.models.firstOrNull { it.id == modelId } ?: return@withContext Result.failure()
+        // Downloads queued automatically must not touch the network once semantic search is off.
+        if (!SemanticDownloadConsent.downloadAllowed(
+                SemanticModelManager.isEnabled(applicationContext),
+                inputData.getBoolean(KeyUserInitiated, false),
+            )) return@withContext Result.success()
         if (inputData.getBoolean(KeyWifiOnly, false) && !isUnmeteredWifi()) return@withContext Result.retry()
         try {
             suspendCancellableCoroutine<Unit> { continuation ->
@@ -56,6 +61,7 @@ class SemanticModelDownloadWorker(context: Context, parameters: WorkerParameters
         private val Downloads = Executors.newFixedThreadPool(2) { task -> Thread(task, "semantic-package-download").apply { isDaemon = true } }
         const val KeyModelId = "model_id"
         const val KeyWifiOnly = "wifi_only"
+        const val KeyUserInitiated = "user_initiated"
         const val KeyDownloadedBytes = "downloaded_bytes"
         const val KeyError = "error"
         fun uniqueName(modelId: String) = "semantic-model-download-$modelId"

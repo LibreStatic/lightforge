@@ -24,6 +24,17 @@ import kotlinx.coroutines.sync.withLock
 
 enum class SemanticSelectionMode { Automatic, Manual }
 
+/** Network use for semantic models is opt-in: nothing is fetched unless the user asked for it. */
+internal object SemanticDownloadConsent {
+    fun automaticDownloadAllowed(
+        enabled: Boolean,
+        localAnalysisAccepted: Boolean,
+        selectionMode: SemanticSelectionMode,
+    ): Boolean = enabled && localAnalysisAccepted && selectionMode == SemanticSelectionMode.Automatic
+
+    fun downloadAllowed(enabled: Boolean, userInitiated: Boolean): Boolean = userInitiated || enabled
+}
+
 data class SemanticModelItemState(
     val descriptor: SemanticModelDescriptor,
     val compatibility: SemanticModelCompatibility,
@@ -74,7 +85,10 @@ class SemanticModelManager(
             editor.putBoolean(KeyEnabled, enabled)
             if (!enabled) editor.remove(KeyIndexError)
         }.apply()
-        if (!enabled) cancelPendingIndex()
+        if (!enabled) {
+            cancelPendingIndex()
+            SemanticModelCatalog.models.forEach { work.cancelUniqueWork(SemanticModelDownloadWorker.uniqueName(it.id)) }
+        }
         if (enabled) activateRecommendedIfReady()
         refresh()
     }
@@ -89,19 +103,26 @@ class SemanticModelManager(
     fun useAutomaticSelection() {
         preferences.edit().putString(KeySelectionMode, SemanticSelectionMode.Automatic.name).apply()
         recommended()?.let { model ->
-            if (storage.installed(model)) activate(model.id, keepAutomatic = true) else download(model.id, allowMetered = false)
+            if (storage.installed(model)) activate(model.id, keepAutomatic = true)
+            else download(model.id, allowMetered = false, userInitiated = true)
         }
         refresh()
     }
 
-    fun download(modelId: String, allowMetered: Boolean) {
+    /**
+     * [userInitiated] is true only for an explicit download the user confirmed. Every other
+     * caller is refused while semantic search is off.
+     */
+    fun download(modelId: String, allowMetered: Boolean, userInitiated: Boolean = false) {
         val model = requireModel(modelId)
         if (storage.installed(model)) return
+        if (!SemanticDownloadConsent.downloadAllowed(isEnabled(), userInitiated)) return
         val request = OneTimeWorkRequestBuilder<SemanticModelDownloadWorker>()
             .setConstraints(Constraints.Builder().setRequiredNetworkType(if (allowMetered) NetworkType.CONNECTED else NetworkType.UNMETERED).build())
             .setInputData(workDataOf(
                 SemanticModelDownloadWorker.KeyModelId to modelId,
                 SemanticModelDownloadWorker.KeyWifiOnly to !allowMetered,
+                SemanticModelDownloadWorker.KeyUserInitiated to userInitiated,
             ))
             .build()
         work.enqueueUniqueWork(SemanticModelDownloadWorker.uniqueName(modelId), ExistingWorkPolicy.KEEP, request)
@@ -218,8 +239,9 @@ class SemanticModelManager(
         monitorIndexCompletion(indexId)
     }
 
-    fun ensureAutomaticDownload(allowMetered: Boolean = false) {
-        if (selectionMode() != SemanticSelectionMode.Automatic) return
+    /** [localAnalysisAccepted] is the user's local-analysis consent; without it nothing is fetched. */
+    fun ensureAutomaticDownload(localAnalysisAccepted: Boolean, allowMetered: Boolean = false) {
+        if (!SemanticDownloadConsent.automaticDownloadAllowed(isEnabled(), localAnalysisAccepted, selectionMode())) return
         recommended()?.let { model ->
             if (storage.installed(model)) activateRecommendedIfReady()
             else download(model.id, allowMetered)
@@ -301,13 +323,17 @@ class SemanticModelManager(
 
     override fun close() { scope.cancel() }
 
-    private companion object {
-        const val KeyEnabled = "enabled"
-        const val KeySelectionMode = "selection_mode"
-        const val KeyActiveModel = "active_model"
-        const val KeyActiveIndex = "active_index"
-        const val KeyPendingModel = "pending_model"
-        const val KeyPendingIndex = "pending_index"
-        const val KeyIndexError = "index_error"
+    companion object {
+        /** Read by [SemanticModelDownloadWorker] so work queued before the user opted out stays idle. */
+        internal fun isEnabled(context: Context): Boolean =
+            context.getSharedPreferences("semantic-model-settings", Context.MODE_PRIVATE).getBoolean(KeyEnabled, false)
+
+        private const val KeyEnabled = "enabled"
+        private const val KeySelectionMode = "selection_mode"
+        private const val KeyActiveModel = "active_model"
+        private const val KeyActiveIndex = "active_index"
+        private const val KeyPendingModel = "pending_model"
+        private const val KeyPendingIndex = "pending_index"
+        private const val KeyIndexError = "index_error"
     }
 }
