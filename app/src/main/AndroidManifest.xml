@@ -35,6 +35,10 @@
         <!-- ORT 1.29 ships a telemetry provider; disable it before any app/engine initialization. -->
         <!-- This merger removal marker is not an instantiated runtime component. -->
         <provider android:name="ai.onnxruntime.TelemetryInitializer" tools:node="remove" tools:ignore="MissingClass" />
+        <!-- ML Kit bundles the Firelog uploader (transport-backend-cct). Without this backend discovery
+             service transport-runtime finds no backend and drops log batches instead of uploading them;
+             ML Kit's registrars in MlKitComponentDiscoveryService do not use it for inference. -->
+        <service android:name="com.google.android.datatransport.runtime.backends.TransportBackendDiscovery" tools:node="remove" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
