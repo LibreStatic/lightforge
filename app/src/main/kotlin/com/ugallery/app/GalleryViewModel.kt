@@ -3411,7 +3411,9 @@ class GalleryViewModel @Inject constructor(
                 mutablePhotoEditor.value = mutablePhotoEditor.value?.copy(
                     content = mutablePhotoEditor.value!!.content.copy(
                         isExporting = false,
-                        statusMessage = failure.message ?: "Could not save copy",
+                        statusMessage = getApplication<Application>().getString(
+                            com.ugallery.feature.videoeditor.R.string.video_editor_save_failed,
+                        ),
                     ),
                 )
             } finally {
@@ -4934,7 +4936,7 @@ class GalleryViewModel @Inject constructor(
                         .sanitized(listOf(asset), excludedPrivateCount = 0).intent,
                 )
             } catch (failure: Throwable) {
-                mutableShareError.emit(failure.message ?: "Could not prepare a sanitized share copy")
+                mutableShareError.emit(getApplication<Application>().getString(R.string.share_sanitized_failed))
             }
         }
     }
@@ -5165,7 +5167,7 @@ class GalleryViewModel @Inject constructor(
         pendingWriteMutation = null
         savedStateHandle[WriteMutationStateKey] = null
         if (authorizedTarget == null || authorizedTarget.key != mutation.key || authorizedTarget.kind != mutation.kind) {
-            mutableShareError.emit("The approved item did not match the pending media change")
+            mutableShareError.emit(getApplication<Application>().getString(R.string.media_change_mismatch))
             return
         }
         runCatching {
@@ -5179,7 +5181,7 @@ class GalleryViewModel @Inject constructor(
                     }
                 }
             }
-        }.onFailure { mutableShareError.emit(it.message ?: "The media change could not be applied") }
+        }.onFailure { mutableShareError.emit(getApplication<Application>().getString(R.string.media_change_failed)) }
     }
 
     fun mediaUri(media: TimelineMedia): Uri = media.uri()
