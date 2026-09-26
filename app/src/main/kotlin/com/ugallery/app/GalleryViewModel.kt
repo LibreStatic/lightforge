@@ -10,6 +10,8 @@ import android.graphics.Bitmap
 import android.graphics.drawable.AnimatedImageDrawable
 import android.graphics.drawable.BitmapDrawable
 import android.os.SystemClock
+import android.util.Log
+import com.ugallery.core.mediastore.VolumeGeneration
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
@@ -301,6 +303,8 @@ data class QuickSlowMotionSaveState(
     val progress: Float? = null,
     val completionGeneration: Long = 0,
 )
+
+private const val LibraryLogTag = "UGalleryLibrary"
 
 private data class GalleryRuntime(
     val database: GalleryDatabase,
@@ -1752,7 +1756,10 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
-    fun onForeground() {
+    /** After a media permission prompt: refresh and reload the grids even if nothing changed. */
+    fun onPermissionRequestResult() = onForeground(invalidateViews = true)
+
+    fun onForeground(invalidateViews: Boolean = false) {
         mutablePlacesSource.value?.refreshPermission()
         ownSyncController.reconcile()
         mlScheduler.onAppForegrounded()
@@ -1763,7 +1770,7 @@ class GalleryViewModel @Inject constructor(
         val before = permissions.access.value.unredactedLocation
         val after = permissions.revalidate().unredactedLocation
         if (before && !after) viewModelScope.launch { runtime.value?.metadata?.onLocationPermissionRevoked() }
-        viewModelScope.launch { refreshLibrary() }
+        viewModelScope.launch { refreshLibrary(invalidateViews = invalidateViews) }
         revalidateExternalGrant()
     }
 
@@ -5782,10 +5789,13 @@ class GalleryViewModel @Inject constructor(
 
     fun mediaUri(media: TimelineMedia): Uri = media.uri()
 
+    private var verifiedRuntime: GalleryRuntime? = null
+
     private suspend fun refreshLibrary(
         indexedHintCount: Int = 0,
         forceFullReconciliation: Boolean = false,
         reconcileUnobservedChanges: Boolean = false,
+        invalidateViews: Boolean = false,
     ): Unit = refreshMutex.withLock {
         val active = runtime.value ?: return@withLock
         if (access.value.images == com.ugallery.core.model.GrantLevel.None &&
@@ -5801,20 +5811,34 @@ class GalleryViewModel @Inject constructor(
             val completed = withContext(Dispatchers.IO) {
                 for (volume in active.generations.snapshot()) {
                     if (forceFullReconciliation) {
-                        active.scanner.scan(volume)
+                        scanVolume(active, volume, "full reconciliation")
                         requiresSearchRebuild = true
                         continue
                     }
                     when (val result = active.synchronizer.sync(volume, reconcileUnobservedChanges)) {
-                        IncrementalSyncResult.NeedsInitialScan,
-                        IncrementalSyncResult.NeedsFullVolumeReconciliation,
-                        -> { active.scanner.scan(volume); requiresSearchRebuild = true }
+                        IncrementalSyncResult.NeedsInitialScan -> {
+                            scanVolume(active, volume, "initial scan"); requiresSearchRebuild = true
+                        }
+                        IncrementalSyncResult.NeedsFullVolumeReconciliation -> {
+                            scanVolume(active, volume, "volume reconciliation"); requiresSearchRebuild = true
+                        }
                         is IncrementalSyncResult.Complete -> changedItems += result.changedItems
                         is IncrementalSyncResult.PausedPermission -> return@withContext false
                         else -> Unit
                     }
                 }
                 true
+            }
+            // Scans, reconciliations, explicit refreshes and the first pass of a runtime reload
+            // the timeline and album counts themselves, so a Room notification missed while the
+            // first page loaded mid-scan cannot leave the newest days out (V-06).
+            if (completed && (requiresSearchRebuild || reconcileUnobservedChanges || invalidateViews ||
+                    changedItems > 0 || verifiedRuntime !== active)
+            ) {
+                verifiedRuntime = active
+                Log.i(LibraryLogTag, "Invalidating timeline and collections (changed=$changedItems)")
+                active.timeline.invalidate()
+                active.albums.invalidateSummaries()
             }
             if (completed) withContext(Dispatchers.IO) {
                 val prefs = getApplication<Application>().getSharedPreferences("search-production", Context.MODE_PRIVATE)
@@ -5843,6 +5867,12 @@ class GalleryViewModel @Inject constructor(
         } catch (_: Throwable) {
             mutableEngineState.value = LibraryEngineState.Error
         }
+    }
+
+    private suspend fun scanVolume(active: GalleryRuntime, volume: VolumeGeneration, reason: String) {
+        Log.i(LibraryLogTag, "Scan start: ${volume.volumeName} ($reason) generation=${volume.generation}")
+        active.scanner.scan(volume)
+        Log.i(LibraryLogTag, "Scan complete: ${volume.volumeName} generation=${volume.generation}")
     }
 
     override fun onCleared() {

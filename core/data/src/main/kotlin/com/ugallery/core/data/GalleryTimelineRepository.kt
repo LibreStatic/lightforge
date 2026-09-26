@@ -21,6 +21,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 class GalleryTimelineRepository(private val database: GalleryDatabase) {
+    private val sources = PagingInvalidator()
+
+    /** Reloads every live timeline page from Room, whether or not Room saw a table change. */
+    fun invalidate() = sources.invalidate()
+
     fun timeline(
         zoneId: ZoneId,
         settings: LibrarySettings = LibrarySettings(),
@@ -38,7 +43,7 @@ class GalleryTimelineRepository(private val database: GalleryDatabase) {
             if (collapseStacks) {
                 Pager(
                         config,
-                        pagingSourceFactory = {
+                        pagingSourceFactory = sources.track {
                             if (settings == LibrarySettings()) StackTimelinePagingSource(database)
                             else
                                 database
@@ -68,7 +73,7 @@ class GalleryTimelineRepository(private val database: GalleryDatabase) {
             } else {
                 Pager(
                         config,
-                        pagingSourceFactory = {
+                        pagingSourceFactory = sources.track {
                             if (settings == LibrarySettings()) TimelinePagingSource(database)
                             else
                                 database

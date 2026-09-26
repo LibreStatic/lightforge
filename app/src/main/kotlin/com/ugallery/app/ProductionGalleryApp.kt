@@ -1141,7 +1141,7 @@ internal fun ProductionGalleryApp(
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
-    ) { viewModel.onForeground() }
+    ) { viewModel.onPermissionRequestResult() }
     val actionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult(),
     ) { result ->

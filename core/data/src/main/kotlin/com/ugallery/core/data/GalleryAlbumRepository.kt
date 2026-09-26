@@ -27,15 +27,19 @@ class GalleryAlbumRepository(
     private val nowMillis: () -> Long = System::currentTimeMillis,
 ) {
     private val dao = database.libraryDao()
+    private val summaries = PagingInvalidator()
+
+    /** Reloads album summaries (and their counts) even when Room saw no table change. */
+    fun invalidateSummaries() = summaries.invalidate()
 
     fun physicalAlbums(): Flow<PagingData<AlbumSummary>> = Pager(
         config = summaryPagingConfig(),
-        pagingSourceFactory = dao::physicalAlbums,
+        pagingSourceFactory = summaries.track(dao::physicalAlbums),
     ).flow.map { page -> page.map { it.summary() } }
 
     fun virtualAlbums(): Flow<PagingData<AlbumSummary>> = Pager(
         config = summaryPagingConfig(),
-        pagingSourceFactory = dao::virtualAlbums,
+        pagingSourceFactory = summaries.track(dao::virtualAlbums),
     ).flow.map { page -> page.map { it.summary() } }
 
     fun media(
