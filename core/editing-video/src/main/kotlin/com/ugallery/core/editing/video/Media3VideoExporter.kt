@@ -33,6 +33,7 @@ import androidx.media3.transformer.VideoEncoderSettings
 import androidx.media3.transformer.TransformationRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -113,7 +114,8 @@ class Media3VideoExporter(private val context: Context) {
                 exportOnMain(request, clipEndMillis, segments)
             }.also { request.onProgress(VideoExportProgress(VideoExportPhase.Completed, 1f)) }
         } finally {
-            withContext(Dispatchers.IO) { frameRoot.deleteRecursively() }
+            // NonCancellable: a cancelled export must still drop its full-size RIFE frames.
+            withContext(NonCancellable + Dispatchers.IO) { frameRoot.deleteRecursively() }
         }
     }
 
