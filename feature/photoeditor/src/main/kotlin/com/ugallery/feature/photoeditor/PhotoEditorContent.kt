@@ -60,6 +60,7 @@ import com.ugallery.core.designsystem.GallerySpacing
 import com.ugallery.core.designsystem.GalleryExpressiveIconButton
 import com.ugallery.core.designsystem.GalleryLoadingIndicator
 import com.ugallery.core.designsystem.GalleryTopAppBar
+import kotlin.math.abs
 
 data class PhotoEditorContentState(
     val preview: Bitmap? = null,
@@ -299,8 +300,15 @@ private fun PhotoTools(
                         sourceAspectRatio = (state.cropSourcePreview ?: state.preview)
                             ?.let { it.width.toFloat() / it.height } ?: 1f,
                         onChange = { onCropDraftChange(it) },
-                        onRotate = { onApply(EditOperation.Rotate(90)) },
-                        onFlip = { onApply(EditOperation.Flip(horizontal = true)) },
+                        // The overlay frames the rotated image, so the draft turns with it.
+                        onRotate = {
+                            onCropDraftChange(draft.rotatedClockwise())
+                            onApply(EditOperation.Rotate(90))
+                        },
+                        onFlip = {
+                            onCropDraftChange(draft.flippedHorizontally())
+                            onApply(EditOperation.Flip(horizontal = true))
+                        },
                         onCancel = {
                             onCropDraftChange(null)
                             onSelectTool(if (state.isRaw) PhotoEditorTool.Raw else PhotoEditorTool.Automatic)
@@ -568,15 +576,7 @@ private fun CropControls(
         }
     }
     LazyRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
-        val presets = listOf(
-            null to R.string.photo_editor_crop_free,
-            1f to R.string.photo_editor_crop_square,
-            (4f / 3f) to R.string.photo_editor_crop_four_three,
-            (3f / 4f) to R.string.photo_editor_crop_three_four,
-            (16f / 9f) to R.string.photo_editor_crop_sixteen_nine,
-            (9f / 16f) to R.string.photo_editor_crop_nine_sixteen,
-        )
-        items(presets) { (ratio, label) ->
+        items(cropAspectPresets) { (ratio, label) ->
             FilterChip(
                 selected = draft.aspectRatio == ratio,
                 onClick = { onChange(cropForAspect(draft, ratio, sourceAspectRatio)) },
@@ -606,6 +606,34 @@ private fun CropControls(
         }
     }
 }
+
+private val cropAspectPresets = listOf(
+    null to R.string.photo_editor_crop_free,
+    1f to R.string.photo_editor_crop_square,
+    (4f / 3f) to R.string.photo_editor_crop_four_three,
+    (3f / 4f) to R.string.photo_editor_crop_three_four,
+    (16f / 9f) to R.string.photo_editor_crop_sixteen_nine,
+    (9f / 16f) to R.string.photo_editor_crop_nine_sixteen,
+)
+
+/** The draft after a clockwise quarter turn, matching how the edit history rotates a Crop. */
+internal fun PhotoCropDraft.rotatedClockwise(): PhotoCropDraft = copy(
+    left = 1f - bottom,
+    top = left,
+    right = 1f - top,
+    bottom = right,
+    aspectRatio = aspectRatio?.let { ratio ->
+        cropAspectPresets.firstNotNullOfOrNull { (preset, _) -> preset?.takeIf { abs(it * ratio - 1f) < 0.001f } }
+            ?: (1f / ratio)
+    },
+)
+
+/** The draft after a horizontal flip; straightening turns the other way in the mirrored frame. */
+internal fun PhotoCropDraft.flippedHorizontally(): PhotoCropDraft = copy(
+    left = 1f - right,
+    right = 1f - left,
+    straightenDegrees = -straightenDegrees,
+)
 
 internal fun cropForAspect(draft: PhotoCropDraft, ratio: Float?, sourceAspectRatio: Float): PhotoCropDraft {
     if (ratio == null) return draft.copy(aspectRatio = null)

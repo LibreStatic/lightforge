@@ -107,14 +107,12 @@ data class EditHistory(
             is EditOperation.Tone -> replaceSlot<EditOperation.Tone>(
                 operation.takeUnless { it == EditOperation.Tone() },
             )
-            is EditOperation.Crop -> replaceSlot<EditOperation.Crop>(
-                operation.takeUnless { it.isFullFrame },
-            )
+            is EditOperation.Crop -> placeCrop(operation.takeUnless { it.isFullFrame })
             is EditOperation.Straighten -> replaceSlot<EditOperation.Straighten>(
                 operation.takeUnless { it.degrees == 0f },
             )
             is EditOperation.RawDevelop -> replaceSlot<EditOperation.RawDevelop>(operation)
-            is EditOperation.Rotate, is EditOperation.Flip -> present.operations + operation
+            is EditOperation.Rotate, is EditOperation.Flip -> insertGeometry(operation)
         }
         if (operations == present.operations) return this
         return copy(
@@ -122,6 +120,42 @@ data class EditHistory(
             present = present.copy(operations = operations, revision = present.revision + 1),
             future = emptyList(),
         )
+    }
+
+    /**
+     * The crop tool frames the image with every Rotate/Flip applied, so a Crop must render after
+     * all geometry operations. A Crop that an older recipe left before a Rotate/Flip moves behind it.
+     */
+    private fun placeCrop(replacement: EditOperation.Crop?): List<EditOperation> {
+        val operations = replaceSlot<EditOperation.Crop>(replacement)
+        if (replacement == null) return operations
+        val cropIndex = operations.indexOfFirst { it is EditOperation.Crop }
+        val lastGeometry = operations.indexOfLast { it is EditOperation.Rotate || it is EditOperation.Flip }
+        if (cropIndex > lastGeometry) return operations
+        return operations.toMutableList().apply {
+            removeAt(cropIndex)
+            add(lastGeometry, replacement)
+        }
+    }
+
+    /**
+     * Inserts Rotate/Flip before an existing Crop/Straighten and maps them into the new frame, which
+     * renders the same pixels as appending it while keeping the Crop in the crop tool's frame.
+     */
+    private fun insertGeometry(operation: EditOperation): List<EditOperation> {
+        val operations = present.operations
+        val firstFramed = operations.indexOfFirst { it is EditOperation.Crop || it is EditOperation.Straighten }
+        val geometryFollowsFrame = firstFramed >= 0 && operations.drop(firstFramed)
+            .any { it is EditOperation.Rotate || it is EditOperation.Flip }
+        if (firstFramed < 0 || geometryFollowsFrame) return operations + operation
+        return operations.take(firstFramed) + operation + operations.drop(firstFramed).map { existing ->
+            when (existing) {
+                is EditOperation.Crop -> existing.afterGeometry(operation)
+                is EditOperation.Straighten ->
+                    if (operation is EditOperation.Flip) EditOperation.Straighten(-existing.degrees) else existing
+                else -> existing
+            }
+        }
     }
 
     private inline fun <reified T : EditOperation> replaceSlot(replacement: T?): List<EditOperation> {
@@ -186,6 +220,28 @@ data class EditHistory(
             past = emptyList(), present = recipe, maxEntries = maxEntries,
         )
     }
+}
+
+/** The same crop expressed in the frame produced by [geometry] (a Rotate or Flip). */
+internal fun EditOperation.Crop.afterGeometry(geometry: EditOperation): EditOperation.Crop = when (geometry) {
+    is EditOperation.Flip -> if (geometry.horizontal) {
+        EditOperation.Crop(1_000 - rightPermille, topPermille, 1_000 - leftPermille, bottomPermille)
+    } else {
+        EditOperation.Crop(leftPermille, 1_000 - bottomPermille, rightPermille, 1_000 - topPermille)
+    }
+    is EditOperation.Rotate -> {
+        var crop = this
+        repeat((((geometry.degrees % 360) + 360) % 360) / 90) {
+            crop = EditOperation.Crop(
+                1_000 - crop.bottomPermille,
+                crop.leftPermille,
+                1_000 - crop.topPermille,
+                crop.rightPermille,
+            )
+        }
+        crop
+    }
+    else -> this
 }
 
 object EditRecipeIds {

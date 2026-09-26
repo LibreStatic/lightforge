@@ -37,4 +37,27 @@ class PhotoCropDraftTest {
         assertEquals(1f, crop.right, 0.001f)
         assertEquals(0f, crop.top, 0.001f)
     }
+
+    @Test
+    fun rotatingTheDraftMatchesTheHistoryCropRotation() {
+        val draft = PhotoCropDraft(left = 0.1f, top = 0.2f, right = 0.6f, bottom = 0.9f, aspectRatio = 16f / 9f)
+        val rotated = draft.rotatedClockwise()
+        val expected = cropEditOperations(draft).first() as com.ugallery.core.model.EditOperation.Crop
+
+        assertEquals(0.1f, rotated.left, 0.001f)
+        assertEquals(0.1f, rotated.top, 0.001f)
+        assertEquals(0.8f, rotated.right, 0.001f)
+        assertEquals(0.6f, rotated.bottom, 0.001f)
+        assertEquals(9f / 16f, rotated.aspectRatio)
+        assertEquals(1_000 - expected.bottomPermille, (rotated.left * 1_000).toInt())
+    }
+
+    @Test
+    fun flippingTheDraftMirrorsTheRectangleAndStraighten() {
+        val flipped = PhotoCropDraft(left = 0.1f, right = 0.6f, straightenDegrees = 4f).flippedHorizontally()
+
+        assertEquals(0.4f, flipped.left, 0.001f)
+        assertEquals(0.9f, flipped.right, 0.001f)
+        assertEquals(-4f, flipped.straightenDegrees, 0.001f)
+    }
 }

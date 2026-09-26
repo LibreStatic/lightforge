@@ -86,6 +86,52 @@ class EditModelsTest {
     }
 
     @Test
+    fun rotateAndFlipAfterACropKeepTheCropInTheRotatedFrame() {
+        val history = EditHistory.initial(EditRecipe.forSource(source, 7))
+            .apply(EditOperation.Crop(100, 200, 600, 900))
+            .apply(EditOperation.Straighten(5f))
+            .apply(EditOperation.Rotate(90))
+            .apply(EditOperation.Flip(horizontal = true))
+
+        assertEquals(
+            listOf(
+                EditOperation.Rotate(90),
+                EditOperation.Flip(horizontal = true),
+                // Rotate 90: (100,200,600,900) -> (100,100,800,600); flip: -> (200,100,900,600).
+                EditOperation.Crop(200, 100, 900, 600),
+                EditOperation.Straighten(-5f),
+            ),
+            history.present.operations,
+        )
+
+        val recropped = history.apply(EditOperation.Crop(0, 0, 500, 500))
+        assertEquals(EditOperation.Crop(0, 0, 500, 500), recropped.present.operations[2])
+        assertEquals(4, recropped.present.operations.size)
+    }
+
+    @Test
+    fun cropRotationsCompose() {
+        val crop = EditOperation.Crop(100, 200, 600, 900)
+        assertEquals(EditOperation.Crop(400, 100, 900, 800), crop.afterGeometry(EditOperation.Rotate(180)))
+        assertEquals(crop.afterGeometry(EditOperation.Rotate(270)), crop.afterGeometry(EditOperation.Rotate(-90)))
+        assertEquals(crop, crop.afterGeometry(EditOperation.Rotate(360)))
+        assertEquals(EditOperation.Crop(100, 100, 600, 800), crop.afterGeometry(EditOperation.Flip(horizontal = false)))
+    }
+
+    @Test
+    fun recropMovesACropFromAnOlderRecipeBehindItsGeometry() {
+        val legacy = EditRecipe.forSource(source, 7).copy(
+            operations = listOf(EditOperation.Crop(100, 100, 900, 900), EditOperation.Rotate(90), EditOperation.Tone(0.1f)),
+        )
+        val history = EditHistory.initial(legacy).apply(EditOperation.Crop(0, 0, 500, 500))
+
+        assertEquals(
+            listOf(EditOperation.Rotate(90), EditOperation.Crop(0, 0, 500, 500), EditOperation.Tone(0.1f)),
+            history.present.operations,
+        )
+    }
+
+    @Test
     fun applyingAnAlreadySelectedValueDoesNotCreateUndoHistory() {
         val history = EditHistory.initial(EditRecipe.forSource(source, 7))
             .apply(EditOperation.Filter("natural"))
