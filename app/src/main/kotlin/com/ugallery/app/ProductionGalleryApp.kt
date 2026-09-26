@@ -3166,8 +3166,9 @@ internal fun ProductionGalleryApp(
             text = {
                 Text(
                     if (importedCount > 0) {
-                        stringResource(
-                            com.ugallery.feature.privatealbum.R.string.private_import_result,
+                        pluralStringResource(
+                            com.ugallery.feature.privatealbum.R.plurals.private_import_result,
+                            importedCount,
                             importedCount,
                             outcome.total,
                         )
