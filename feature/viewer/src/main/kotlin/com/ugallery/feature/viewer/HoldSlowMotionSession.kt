@@ -48,8 +48,9 @@ sealed interface HoldSlowMotionState {
 }
 
 /**
- * Maintains a persistent low-resolution RIFE buffer ahead of playback once the user first holds;
- * until then [prepare] is a no-op, so merely viewing a video never runs interpolation.
+ * Maintains a persistent low-resolution RIFE buffer ahead of playback once the user first touches
+ * the video ([warmUp] on pointer-down) or holds; until then [prepare] is a no-op, so merely viewing
+ * a video never runs interpolation.
  * Export still reads the original media at full quality.
  */
 class HoldSlowMotionSession(
@@ -100,6 +101,15 @@ class HoldSlowMotionSession(
                 }
             }
         }
+    }
+
+    /**
+     * Arms the buffer on pointer-down, before the hold threshold, so the first hold rarely waits
+     * on "Buffering". Videos that are never touched still never interpolate.
+     */
+    fun warmUp(positionMillis: Long) {
+        armed = true
+        prepare(positionMillis)
     }
 
     fun start(positionMillis: Long) {

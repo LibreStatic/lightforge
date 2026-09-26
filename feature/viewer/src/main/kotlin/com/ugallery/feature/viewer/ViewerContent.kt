@@ -444,6 +444,7 @@ fun ViewerContent(
                                 tryAwaitRelease()
                                 return@detectTapGestures
                             }
+                            slowMotionSession.warmUp(videoController.currentPositionMillis())
                             tryAwaitRelease()
                             if (slowHoldConsumed) {
                                 val clip = slowMotionSession.stop()
