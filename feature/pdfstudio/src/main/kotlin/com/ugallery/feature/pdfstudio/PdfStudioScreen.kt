@@ -54,6 +54,13 @@ fun PdfStudioScreen(
     val fallbackRequestId = rememberSaveable(initialUris) { newId() }
     val galleryRows by vm.galleryDeliveries.collectAsStateWithLifecycle()
     val lastDestinationLabel by vm.lastDestinationLabel.collectAsStateWithLifecycle()
+    val watchedExportId by vm.watchedExportId.collectAsStateWithLifecycle()
+    val watchedJob = exportJobs.firstOrNull { it.id == watchedExportId }
+    // "Keep editing" hides the progress card; the top-bar chip (PdfEditorTopBar) reopens it. A new
+    // watched job (a fresh export, or a retry) always starts with the card visible again.
+    var progressHidden by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(watchedExportId) { progressHidden = false }
+    val context = androidx.compose.ui.platform.LocalContext.current
     var intakeAttempt by rememberSaveable(initialRequestId) { mutableIntStateOf(0) }
     var intakeFailed by rememberSaveable(initialRequestId) { mutableStateOf(false) }
     val consumeInitial by rememberUpdatedState(onInitialUrisConsumed)
@@ -191,6 +198,8 @@ fun PdfStudioScreen(
                             vm.portable()
                             showQueue = true
                         },
+                        watchedJob = watchedJob,
+                        onReopenProgress = { progressHidden = false },
                     )
                     PdfEditorBody(
                         vm = vm,
@@ -226,6 +235,17 @@ fun PdfStudioScreen(
                             onSaveExport = ::saveExport,
                             onDismissMessage = vm::dismissMessage,
                             onCancelBusy = vm::cancel,
+                            watchedExportId = watchedExportId,
+                            progressHidden = progressHidden,
+                            onCancelExport = vm::cancelExport,
+                            onHideProgress = { progressHidden = true },
+                            onRetryExport = vm::retryExport,
+                            onDismissResult = vm::dismissResult,
+                            onOpenRecovery = { job ->
+                                job.destination?.let { openPdf(context, android.net.Uri.parse(it), vm::reportOpenFailed) }
+                                vm.dismissRecovery()
+                            },
+                            onDismissRecovery = vm::dismissRecovery,
                         )
                     }
                 }
@@ -243,13 +263,24 @@ fun PdfStudioScreen(
             }
         }
     if (showQueue)
-        ModalBottomSheet(onDismissRequest = { showQueue = false }) {
-            PdfExportQueueContent(
-                exportJobs,
-                state.editorLocked,
-                vm,
-                savePending = saveInFlight,
-                onSave = ::saveExport,
+        PdfExportHistoryDialog(
+            jobs = exportJobs,
+            busy = state.editorLocked,
+            vm = vm,
+            savePending = saveInFlight,
+            onSave = ::saveExport,
+            onDismiss = { showQueue = false },
+        )
+    state.resultJobId
+        ?.let { id -> exportJobs.firstOrNull { it.id == id && it.phase == PdfExportPhase.Published } }
+        ?.let { job ->
+            val uri = job.destination?.let(android.net.Uri::parse)
+            PdfExportResultSheet(
+                job = job,
+                locationLabel = lastDestinationLabel,
+                onOpen = { uri?.let { openPdf(context, it, vm::reportOpenFailed) } },
+                onShare = { uri?.let { sharePdf(context, it, vm::reportOpenFailed) } },
+                onDone = vm::dismissResult,
             )
         }
     if (exporting && project != null)

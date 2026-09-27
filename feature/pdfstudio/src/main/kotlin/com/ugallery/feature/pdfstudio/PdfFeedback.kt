@@ -23,6 +23,11 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.ugallery.core.designsystem.GalleryIcon
+import com.ugallery.core.designsystem.GalleryIcons
+
+private val WATCHED_PROGRESS_PHASES =
+    setOf(PdfExportPhase.Queued, PdfExportPhase.Running, PdfExportPhase.Publishing)
 
 @Composable
 internal fun Confirm(title: Int, confirmLabel: String, dismiss: () -> Unit, confirm: () -> Unit) {
@@ -52,6 +57,8 @@ internal fun PdfFeedbackOverlay(
     intakeFailed: Boolean,
     hasInitialUris: Boolean,
     saveInFlight: Boolean,
+    watchedExportId: String?,
+    progressHidden: Boolean,
     onRetryIntake: () -> Unit,
     onDiscardIntake: () -> Unit,
     onRetryGallery: (String) -> Unit,
@@ -59,6 +66,12 @@ internal fun PdfFeedbackOverlay(
     onSaveExport: (PdfExportJob) -> Unit,
     onDismissMessage: () -> Unit,
     onCancelBusy: () -> Unit,
+    onCancelExport: (String) -> Unit,
+    onHideProgress: () -> Unit,
+    onRetryExport: (String) -> Unit,
+    onDismissResult: () -> Unit,
+    onOpenRecovery: (PdfExportJob) -> Unit,
+    onDismissRecovery: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -174,11 +187,127 @@ internal fun PdfFeedbackOverlay(
                 }
             }
         }
+        val watchedJob = exportJobs.firstOrNull { it.id == watchedExportId }
+        if (watchedJob != null && watchedJob.phase in WATCHED_PROGRESS_PHASES && !progressHidden) {
+            IssueCard {
+                LinearProgressIndicator(
+                    progress = { watchedJob.completed.toFloat() / watchedJob.total.coerceAtLeast(1) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    stringResource(
+                        R.string.pdf_export_progress_title,
+                        watchedJob.projectName,
+                        watchedJob.completed,
+                        watchedJob.total,
+                    )
+                )
+                FlowRow {
+                    TextButton(
+                        onClick = onHideProgress,
+                        colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
+                    ) {
+                        Text(stringResource(R.string.pdf_export_keep_editing))
+                    }
+                    TextButton(
+                        onClick = { onCancelExport(watchedJob.id) },
+                        colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
+                    ) {
+                        Text(stringResource(R.string.pdf_cancel))
+                    }
+                }
+            }
+        }
+        exportJobs
+            .firstOrNull { it.id == state.resultJobId && it.phase == PdfExportPhase.Failed }
+            ?.let { job ->
+                IssueCard(error = true) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        GalleryIcon(GalleryIcons.Error, contentDescription = null)
+                        Text(stringResource(PdfFailure.persisted(job.error).message))
+                    }
+                    FlowRow {
+                        TextButton(
+                            onClick = { onRetryExport(job.id) },
+                            colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
+                        ) {
+                            Text(stringResource(R.string.pdf_retry))
+                        }
+                        if (job.destination != null)
+                            TextButton(
+                                onClick = { onSaveExport(job) },
+                                enabled = !saveInFlight,
+                                colors =
+                                    ButtonDefaults.textButtonColors(
+                                        contentColor = LocalContentColor.current
+                                    ),
+                            ) {
+                                Text(stringResource(R.string.pdf_export_choose_another))
+                            }
+                        TextButton(
+                            onClick = onDismissResult,
+                            colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
+                        ) {
+                            Text(stringResource(R.string.pdf_done))
+                        }
+                    }
+                }
+            }
+        exportJobs
+            .firstOrNull { it.id == state.recoveryJobId }
+            ?.let { job ->
+                IssueCard(error = job.phase == PdfExportPhase.Failed) {
+                    Text(
+                        if (job.phase == PdfExportPhase.Published)
+                            stringResource(
+                                R.string.pdf_export_recovery_published,
+                                state.recoveryLabel
+                                    ?: stringResource(R.string.pdf_export_destination_default),
+                            )
+                        else
+                            stringResource(
+                                R.string.pdf_export_recovery_failed,
+                                stringResource(PdfFailure.persisted(job.error).message),
+                            )
+                    )
+                    FlowRow {
+                        if (job.phase == PdfExportPhase.Published)
+                            TextButton(
+                                onClick = { onOpenRecovery(job) },
+                                colors =
+                                    ButtonDefaults.textButtonColors(
+                                        contentColor = LocalContentColor.current
+                                    ),
+                            ) {
+                                Text(stringResource(R.string.pdf_open))
+                            }
+                        else
+                            TextButton(
+                                onClick = {
+                                    onDismissRecovery()
+                                    onRetryExport(job.id)
+                                },
+                                colors =
+                                    ButtonDefaults.textButtonColors(
+                                        contentColor = LocalContentColor.current
+                                    ),
+                            ) {
+                                Text(stringResource(R.string.pdf_retry))
+                            }
+                        TextButton(
+                            onClick = onDismissRecovery,
+                            colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
+                        ) {
+                            Text(stringResource(R.string.pdf_banner_dismiss))
+                        }
+                    }
+                }
+            }
     }
 }
 
 @Composable
-private fun IssueCard(error: Boolean = false, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+internal fun IssueCard(error: Boolean = false, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
     Surface(
         Modifier.fillMaxWidth(),
         color =

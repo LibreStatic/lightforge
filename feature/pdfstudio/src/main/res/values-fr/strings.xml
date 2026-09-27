@@ -141,4 +141,16 @@
     <string name="pdf_export_today">Aujourd\'hui</string>
     <string name="pdf_export_earlier">Plus tôt</string>
     <string name="pdf_export_open_failed">Aucune application de cet appareil ne peut ouvrir ou partager ce fichier.</string>
+    <string name="pdf_export_choose_destination">Choisir la destination</string>
+    <string name="pdf_export_progress_title">Exportation de %1$s · Page %2$d sur %3$d</string>
+    <string name="pdf_export_progress_chip">Exportation en cours, page %1$d sur %2$d</string>
+    <string name="pdf_export_keep_editing">Continuer la modification</string>
+    <string name="pdf_export_saved_title">PDF enregistré</string>
+    <string name="pdf_export_saved_summary">%1$s · %2$s · %3$s</string>
+    <string name="pdf_export_recovery_published">L’exportation s’est terminée alors qu’UGallery était fermé — Enregistré dans %1$s</string>
+    <string name="pdf_export_recovery_failed">L’exportation s’est terminée alors qu’UGallery était fermé — %1$s</string>
+    <plurals name="pdf_export_saved_pages">
+        <item quantity="one">%1$d page</item>
+        <item quantity="other">%1$d pages</item>
+    </plurals>
 </resources>

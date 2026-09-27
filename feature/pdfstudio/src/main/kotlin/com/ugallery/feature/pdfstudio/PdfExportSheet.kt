@@ -93,11 +93,8 @@ internal fun PdfExportSheet(
                     GalleryExpressiveChoiceGroup(
                         labels = labels,
                         selectedIndex = pagesChoice.ordinal,
-                        onSelect = { index ->
-                            val choice = PdfExportPagesChoice.entries[index]
-                            if (choice != PdfExportPagesChoice.Selected || selectedPageIds.isNotEmpty())
-                                pagesChoice = choice
-                        },
+                        onSelect = { index -> pagesChoice = PdfExportPagesChoice.entries[index] },
+                        enabled = listOf(true, true, selectedPageIds.isNotEmpty()),
                     )
                     if (selectedPageIds.isEmpty())
                         Text(
@@ -263,4 +260,57 @@ private fun exportSummary(project: PdfProject): String {
             if (page.width > page.height) R.string.pdf_export_landscape else R.string.pdf_export_portrait
         )
     return stringResource(R.string.pdf_export_summary, paper, orientation, project.dpi)
+}
+
+/**
+ * Shown once the watched export reaches Published (Phase B item 6): exact page count and output
+ * size (unlike the sheet's own "≈" estimates), the location it was saved to, and Open/Share/Done.
+ * [onOpen]/[onShare] should call [openPdf]/[sharePdf] and are responsible for reporting a failure
+ * (`PdfStudioViewModel.reportOpenFailed`) themselves; this composable only renders.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun PdfExportResultSheet(
+    job: PdfExportJob,
+    locationLabel: String?,
+    onOpen: () -> Unit,
+    onShare: () -> Unit,
+    onDone: () -> Unit,
+) {
+    val context = LocalContext.current
+    ModalBottomSheet(onDismissRequest = onDone) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                GalleryIcon(
+                    GalleryIcons.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Text(stringResource(R.string.pdf_export_saved_title), style = MaterialTheme.typography.titleLarge)
+            }
+            val pages =
+                androidx.compose.ui.res.pluralStringResource(
+                    R.plurals.pdf_export_saved_pages,
+                    job.total,
+                    job.total,
+                )
+            Text(
+                stringResource(
+                    R.string.pdf_export_saved_summary,
+                    pages,
+                    Formatter.formatShortFileSize(context, job.outputBytes),
+                    locationLabel ?: stringResource(R.string.pdf_export_destination_default),
+                )
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onOpen) { Text(stringResource(R.string.pdf_open)) }
+                OutlinedButton(onClick = onShare) { Text(stringResource(R.string.pdf_share)) }
+                Spacer(Modifier.weight(1f))
+                GalleryExpressiveButton(onClick = onDone) { Text(stringResource(R.string.pdf_done)) }
+            }
+        }
+    }
 }

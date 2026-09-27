@@ -1,6 +1,7 @@
 package com.ugallery.feature.pdfstudio
 
 import android.content.ActivityNotFoundException
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.text.format.DateUtils
@@ -10,15 +11,117 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.GalleryTopAppBar
 
 private val FINISHED = setOf(PdfExportPhase.Published, PdfExportPhase.Cancelled, PdfExportPhase.Failed)
 
-@OptIn(ExperimentalLayoutApi::class)
+internal fun openPdf(context: Context, uri: Uri, onFailed: () -> Unit) {
+    try {
+        context.startActivity(
+            Intent(Intent.ACTION_VIEW)
+                .setDataAndType(uri, "application/pdf")
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        )
+    } catch (e: ActivityNotFoundException) {
+        onFailed()
+    }
+}
+
+internal fun sharePdf(context: Context, uri: Uri, onFailed: () -> Unit) {
+    try {
+        context.startActivity(
+            Intent.createChooser(
+                Intent(Intent.ACTION_SEND)
+                    .setType("application/pdf")
+                    .putExtra(Intent.EXTRA_STREAM, uri)
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
+                null,
+            )
+        )
+    } catch (e: ActivityNotFoundException) {
+        onFailed()
+    }
+}
+
+/**
+ * The Exports history as a full-height surface (not a partially expanded sheet, so long lists and
+ * the Today/Earlier grouping have real room), with its own top bar: back and an overflow limited
+ * to "Clear finished".
+ */
+@Composable
+internal fun PdfExportHistoryDialog(
+    jobs: List<PdfExportJob>,
+    busy: Boolean,
+    vm: PdfStudioViewModel,
+    savePending: Boolean,
+    onSave: (PdfExportJob) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(
+            Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ) {
+            Column(Modifier.fillMaxSize()) {
+                var showOverflow by remember { mutableStateOf(false) }
+                GalleryTopAppBar(
+                    title = stringResource(R.string.pdf_queue),
+                    onBack = onDismiss,
+                    navigationContentDescription = stringResource(R.string.pdf_close),
+                    actions = {
+                        if (jobs.any { it.phase in FINISHED }) {
+                            Box {
+                                val actionsLabel = stringResource(R.string.pdf_project_actions)
+                                IconButton(
+                                    onClick = { showOverflow = true },
+                                    modifier = Modifier.semantics { contentDescription = actionsLabel },
+                                ) {
+                                    Icon(GalleryIcons.More, contentDescription = null)
+                                }
+                                DropdownMenu(
+                                    expanded = showOverflow,
+                                    onDismissRequest = { showOverflow = false },
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.pdf_export_clear_finished)) },
+                                        onClick = {
+                                            showOverflow = false
+                                            jobs.filter { it.phase in FINISHED }.forEach { vm.removeExport(it.id) }
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                    },
+                )
+                PdfExportQueueContent(
+                    jobs = jobs,
+                    busy = busy,
+                    vm = vm,
+                    savePending = savePending,
+                    onSave = onSave,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
 @Composable
 internal fun PdfExportQueueContent(
     jobs: List<PdfExportJob>,
@@ -26,31 +129,15 @@ internal fun PdfExportQueueContent(
     vm: PdfStudioViewModel,
     savePending: Boolean = false,
     onSave: (PdfExportJob) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val today = jobs.filter { DateUtils.isToday(it.created) }
     val earlier = jobs.filterNot { DateUtils.isToday(it.created) }
-    Column(Modifier.fillMaxWidth().padding(16.dp)) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(stringResource(R.string.pdf_queue), style = MaterialTheme.typography.titleLarge)
-            if (jobs.any { it.phase in FINISHED })
-                TextButton(
-                    onClick = { jobs.filter { it.phase in FINISHED }.forEach { vm.removeExport(it.id) } },
-                    enabled = !busy,
-                ) {
-                    Text(stringResource(R.string.pdf_export_clear_finished))
-                }
-        }
+    Column(modifier.fillMaxWidth().padding(16.dp)) {
         if (jobs.isEmpty())
             Text(stringResource(R.string.pdf_queue_empty), Modifier.padding(vertical = 16.dp))
-        LazyColumn(
-            Modifier.fillMaxWidth().heightIn(max = 520.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
+        LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (today.isNotEmpty()) {
                 item(key = "today") {
                     Text(stringResource(R.string.pdf_export_today), style = MaterialTheme.typography.labelLarge)
@@ -77,7 +164,7 @@ private fun PdfExportJobCard(
     job: PdfExportJob,
     busy: Boolean,
     savePending: Boolean,
-    context: android.content.Context,
+    context: Context,
     vm: PdfStudioViewModel,
     onSave: (PdfExportJob) -> Unit,
 ) {
@@ -121,6 +208,7 @@ private fun PdfExportJobCard(
                 val legacySaveLabel =
                     when {
                         job.portable -> R.string.pdf_portable
+                        job.phase == PdfExportPhase.Ready -> R.string.pdf_export_choose_destination
                         job.phase == PdfExportPhase.Failed && job.destination != null ->
                             R.string.pdf_export_choose_another
                         else -> R.string.pdf_save_pdf
@@ -134,38 +222,10 @@ private fun PdfExportJobCard(
                     }
                 if (job.phase == PdfExportPhase.Published && job.destination != null) {
                     val uri = Uri.parse(job.destination)
-                    TextButton(
-                        onClick = {
-                            try {
-                                context.startActivity(
-                                    Intent(Intent.ACTION_VIEW)
-                                        .setDataAndType(uri, "application/pdf")
-                                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                )
-                            } catch (e: ActivityNotFoundException) {
-                                vm.reportOpenFailed()
-                            }
-                        }
-                    ) {
+                    TextButton(onClick = { openPdf(context, uri, vm::reportOpenFailed) }) {
                         Text(stringResource(R.string.pdf_open))
                     }
-                    TextButton(
-                        onClick = {
-                            try {
-                                context.startActivity(
-                                    Intent.createChooser(
-                                        Intent(Intent.ACTION_SEND)
-                                            .setType("application/pdf")
-                                            .putExtra(Intent.EXTRA_STREAM, uri)
-                                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
-                                        null,
-                                    )
-                                )
-                            } catch (e: ActivityNotFoundException) {
-                                vm.reportOpenFailed()
-                            }
-                        }
-                    ) {
+                    TextButton(onClick = { sharePdf(context, uri, vm::reportOpenFailed) }) {
                         Text(stringResource(R.string.pdf_share))
                     }
                 }

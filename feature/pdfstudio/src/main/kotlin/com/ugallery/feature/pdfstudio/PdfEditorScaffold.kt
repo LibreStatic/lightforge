@@ -82,6 +82,8 @@ internal fun PdfEditorTopBar(
     onQueue: () -> Unit,
     onDetails: () -> Unit,
     onPortable: () -> Unit,
+    watchedJob: PdfExportJob? = null,
+    onReopenProgress: () -> Unit = {},
 ) {
     var showActions by remember { mutableStateOf(false) }
     val subtitle =
@@ -114,7 +116,24 @@ internal fun PdfEditorTopBar(
             actions = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (state.backgroundBusy) {
-                        GalleryLoadingIndicator(Modifier.size(20.dp).padding(end = 8.dp))
+                        val exportingPhases =
+                            setOf(PdfExportPhase.Queued, PdfExportPhase.Running, PdfExportPhase.Publishing)
+                        if (watchedJob != null && watchedJob.phase in exportingPhases) {
+                            val chipLabel =
+                                stringResource(
+                                    R.string.pdf_export_progress_chip,
+                                    watchedJob.completed,
+                                    watchedJob.total,
+                                )
+                            IconButton(
+                                onClick = onReopenProgress,
+                                modifier = Modifier.semantics { contentDescription = chipLabel },
+                            ) {
+                                GalleryLoadingIndicator(Modifier.size(20.dp))
+                            }
+                        } else {
+                            GalleryLoadingIndicator(Modifier.size(20.dp).padding(end = 8.dp))
+                        }
                     }
                     val undoLabel = stringResource(R.string.pdf_undo)
                     IconButton(
@@ -201,7 +220,7 @@ internal fun PdfLibraryTopBar(onBack: () -> Unit, onQueue: () -> Unit) {
                 onClick = onQueue,
                 modifier = Modifier.semantics { contentDescription = queueLabel },
             ) {
-                Icon(GalleryIcons.Folder, contentDescription = null)
+                Icon(GalleryIcons.History, contentDescription = null)
             }
         },
     )
