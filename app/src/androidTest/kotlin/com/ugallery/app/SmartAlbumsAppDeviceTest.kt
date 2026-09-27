@@ -245,6 +245,7 @@ class SmartAlbumsAppDeviceTest {
             click("smart-back")
             // The expanded rail only holds root destinations; smart albums live in Collections.
             val railCollections = device.findObject(By.res("rail-collections"))
+            val railUsed = railCollections != null
             if (railCollections != null) {
                 railCollections.click()
                 device.waitForIdle()
