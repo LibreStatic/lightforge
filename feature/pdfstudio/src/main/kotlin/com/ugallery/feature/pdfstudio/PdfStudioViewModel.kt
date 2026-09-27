@@ -44,6 +44,10 @@ data class PdfStudioState(
     val canUndo: Boolean = false,
     val canRedo: Boolean = false,
     val selectedPages: Set<String> = emptySet(),
+    /** Explicit multi-select mode in the Pages panel (Phase D): "Select" → "n selected" header,
+     * check badges and the contextual Duplicate/Rotate/Delete bar. Independent of [selectedPages]
+     * so leaving it clears the selection without affecting the export sheet's page choice. */
+    val pagesSelectionMode: Boolean = false,
     val zoom: Float = 1f,
     val panX: Float = 0f,
     val panY: Float = 0f,
@@ -631,6 +635,63 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         p.copy(pages = p.pages.filter { it.id !in ids }.ifEmpty { listOf(PdfPage()) })
     }
 
+    /** Enters/leaves the Pages panel's explicit selection mode, clearing any prior selection. */
+    fun setPagesSelectionMode(enabled: Boolean) {
+        mutable.update {
+            it.copy(pagesSelectionMode = enabled, selectedPages = if (enabled) it.selectedPages else emptySet())
+        }
+    }
+
+    fun selectAllPages() {
+        val ids = mutable.value.project?.pages?.map { it.id }?.toSet() ?: return
+        mutable.update { it.copy(selectedPages = ids) }
+    }
+
+    /** Duplicates every selected page (or just the current one), each copy inserted right after
+     * its original, as a single undo step. */
+    fun duplicateSelectedPages() = update { p ->
+        val ids = mutable.value.selectedPages.ifEmpty { setOf(p.pages[mutable.value.page].id) }
+        p.copy(
+            pages =
+                p.pages.flatMap { page ->
+                    if (page.id in ids) listOf(page, page.copy(id = newId())) else listOf(page)
+                }
+        )
+    }
+
+    /** Rotates every selected page (or just the current one) 90°, swapping width/height and
+     * re-fitting its images, as a single undo step — the same transform the old per-page "Rotate
+     * page" action applied to one page at a time. */
+    fun rotateSelectedPages() = update { p ->
+        val ids = mutable.value.selectedPages.ifEmpty { setOf(p.pages[mutable.value.page].id) }
+        p.copy(
+            pages =
+                p.pages.map { page ->
+                    if (page.id !in ids) return@map page
+                    val next =
+                        page.copy(
+                            width = page.height,
+                            height = page.width,
+                            rotation = (page.rotation + 90) % 360,
+                        )
+                    next.copy(images = page.images.map { i -> PdfGeometry.constrain(i, next) })
+                }
+        )
+    }
+
+    /**
+     * Applies a page-level layout change (paper/orientation/margin/gap/grid) to either just the
+     * current page or every page (the Layout panel's sticky "Apply to: This page / All pages"
+     * row), as a single undo step either way.
+     */
+    fun applyLayout(allPages: Boolean, transform: (PdfPage) -> PdfPage) {
+        if (!allPages) {
+            pageEdit(transform)
+            return
+        }
+        update { p -> p.copy(pages = p.pages.map { page -> if (page.source != null) page else transform(page) }) }
+    }
+
     fun movePage(delta: Int) {
         val s = mutable.value
         val p = s.project ?: return
@@ -725,11 +786,22 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
      * image wider/taller than the margin box from landing at a negative x/y) lives in
      * [PdfGeometry.align], which has JVM coverage; this just applies it as one undo step.
      */
-    fun alignSelectedImage(align: PdfGeometry.Align) = pageEdit { page ->
+    fun alignSelectedImage(align: PdfGeometry.Align, relativeToMargins: Boolean = true) = pageEdit { page ->
         val n = mutable.value.image
         if (n !in page.images.indices) return@pageEdit page
-        val aligned = PdfGeometry.align(page.images[n], page, align)
+        val aligned = PdfGeometry.align(page.images[n], page, align, relativeToMargins)
         page.copy(images = page.images.mapIndexed { m, img -> if (m == n) aligned else img })
+    }
+
+    /** Resets the selected image's crop focus, rotation and fit to their defaults, keeping its
+     * frame (x/y/width/height) untouched. */
+    fun resetSelectedImage() = imageEdit {
+        it.copy(fit = PdfFit.Contain, focusX = .5, focusY = .5, rotation = 0)
+    }
+
+    /** Nudges the selected image's crop focus by [dx]/[dy] (Phase D's 2D crop-focus viewport). */
+    fun moveSelectedImageFocus(dx: Double, dy: Double) = imageEdit {
+        it.copy(focusX = PdfCropFocus.move(it.focusX, dx), focusY = PdfCropFocus.move(it.focusY, dy))
     }
 
     /** Moves the selected image one step forward in stacking order (toward the front). */

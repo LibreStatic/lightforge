@@ -1,10 +1,35 @@
 package com.ugallery.feature.pdfstudio
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.unit.dp
+import com.ugallery.core.designsystem.GalleryIcons
 
+private val UNIT_LABELS = listOf("mm", "cm", "in", "px")
+
+/**
+ * Adjust / inspector panel (Phase D item 5) for the selected image: an asset header (thumbnail +
+ * pixel size), a 2×2 grid of [PdfStepperField]s for X/Y/W/H, a lock-ratio chain toggle, a Fit/Fill
+ * segmented control, a 2D crop-focus viewport (shown for Fill, replacing the old Crop X/Y
+ * sliders), Rotate, Align (relative to Page or Margins) and Layer menus, and Reset.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun PdfAdjustPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
@@ -21,85 +46,264 @@ internal fun PdfAdjustPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
             )
         }
     }
-    val image = page.images.getOrNull(s.image) ?: return
+    val image = page.images.getOrNull(s.image) ?: run {
+        Text(stringResource(R.string.pdf_selectimage), style = MaterialTheme.typography.bodySmall)
+        return
+    }
+    val asset = project.assets.firstOrNull { it.hash == image.asset }
     val f = project.unit.factor(project.dpi)
-    NumberField("X (${listOf("mm","cm","in","px")[project.unit.ordinal]})", image.x / f) { n ->
-        vm.imageEdit { PdfGeometry.constrain(it.copy(x = n * f), page) }
+    val unitLabel = UNIT_LABELS[project.unit.ordinal]
+
+    // Asset header: thumbnail + pixel size (no stored filename in PdfAsset today, so this omits
+    // the name rather than fabricate one).
+    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        PdfBitmap(
+            vm.repository.file(image.asset),
+            0,
+            PdfFit.Contain,
+            .5,
+            .5,
+            Modifier.size(48.dp).background(PdfPaperTokens.Paper, RoundedCornerShape(4.dp)),
+        )
+        Spacer(Modifier.width(8.dp))
+        if (asset != null)
+            Text(
+                stringResource(R.string.pdf_asset_pixel_size, asset.width, asset.height),
+                style = MaterialTheme.typography.bodySmall,
+            )
     }
-    NumberField("Y (${listOf("mm","cm","in","px")[project.unit.ordinal]})", image.y / f) { n ->
-        vm.imageEdit { PdfGeometry.constrain(it.copy(y = n * f), page) }
+
+    Row {
+        PdfStepperField(
+            "X",
+            image.x / f,
+            unitLabel,
+            step = 1.0,
+            min = 0.0,
+            max = page.width / f,
+            enabled = !s.editorLocked,
+            modifier = Modifier.weight(1f),
+            onValue = { n -> vm.imageEdit { PdfGeometry.constrain(it.copy(x = n * f), page) } },
+        )
+        PdfStepperField(
+            "Y",
+            image.y / f,
+            unitLabel,
+            step = 1.0,
+            min = 0.0,
+            max = page.height / f,
+            enabled = !s.editorLocked,
+            modifier = Modifier.weight(1f),
+            onValue = { n -> vm.imageEdit { PdfGeometry.constrain(it.copy(y = n * f), page) } },
+        )
     }
-    NumberField(stringResource(R.string.pdf_width), image.width / f) { n ->
-        if (n > 0) vm.imageEdit { PdfGeometry.resize(it, page, n * f, it.height, true) }
+    Row {
+        PdfStepperField(
+            stringResource(R.string.pdf_width),
+            image.width / f,
+            unitLabel,
+            step = 1.0,
+            min = 1.0 / f,
+            max = page.width / f,
+            enabled = !s.editorLocked,
+            modifier = Modifier.weight(1f),
+            onValue = { n -> if (n > 0) vm.imageEdit { PdfGeometry.resize(it, page, n * f, it.height, true) } },
+        )
+        PdfStepperField(
+            stringResource(R.string.pdf_height),
+            image.height / f,
+            unitLabel,
+            step = 1.0,
+            min = 1.0 / f,
+            max = page.height / f,
+            enabled = !s.editorLocked,
+            modifier = Modifier.weight(1f),
+            onValue = { n -> if (n > 0) vm.imageEdit { PdfGeometry.resize(it, page, it.width, n * f, false) } },
+        )
     }
-    NumberField(stringResource(R.string.pdf_height), image.height / f) { n ->
-        if (n > 0) vm.imageEdit { PdfGeometry.resize(it, page, it.width, n * f, false) }
+
+    val lockLabel = stringResource(R.string.pdf_lockratio)
+    val lockState =
+        stringResource(if (image.locked) R.string.pdf_lockratio_on else R.string.pdf_lockratio_off)
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+        IconToggleButton(
+            checked = image.locked,
+            onCheckedChange = { v -> vm.imageEdit { it.copy(locked = v) } },
+            enabled = !s.editorLocked,
+            modifier = Modifier.size(48.dp).semantics { contentDescription = lockLabel; stateDescription = lockState },
+        ) {
+            Icon(if (image.locked) GalleryIcons.Link else GalleryIcons.LinkOff, contentDescription = null)
+        }
+        Text(lockLabel)
     }
-    Toggle(stringResource(R.string.pdf_lockratio), image.locked) { v ->
-        vm.imageEdit { it.copy(locked = v) }
-    }
-    Toggle(stringResource(R.string.pdf_fillimage), image.fit == PdfFit.Cover) { v ->
-        vm.imageEdit { it.copy(fit = if (v) PdfFit.Cover else PdfFit.Contain) }
-    }
+
+    Text(stringResource(R.string.pdf_fitfill), style = MaterialTheme.typography.labelLarge)
+    GalleryExpressiveChoiceGroupCompat(
+        labels = listOf(stringResource(R.string.pdf_fit_label), stringResource(R.string.pdf_fill_label)),
+        selectedIndex = if (image.fit == PdfFit.Cover) 1 else 0,
+        onSelect = { index -> vm.imageEdit { it.copy(fit = if (index == 1) PdfFit.Cover else PdfFit.Contain) } },
+        enabled = !s.editorLocked,
+    )
+
     if (image.fit == PdfFit.Cover) {
-        Text(stringResource(R.string.pdf_cropx))
-        Slider(image.focusX.toFloat(), { v -> vm.imageEdit { it.copy(focusX = v.toDouble()) } })
-        Text(stringResource(R.string.pdf_cropy))
-        Slider(image.focusY.toFloat(), { v -> vm.imageEdit { it.copy(focusY = v.toDouble()) } })
+        Spacer(Modifier.height(8.dp))
+        PdfCropFocusViewport(vm, image, enabled = !s.editorLocked)
     }
+
+    Spacer(Modifier.height(8.dp))
     FlowRow {
         TextButton(
-            onClick = {
-                vm.imageEdit {
-                    PdfGeometry.constrain(
-                        it.copy(
-                            width = it.height,
-                            height = it.width,
-                            rotation = (it.rotation + 90) % 360,
-                        ),
-                        page,
-                    )
-                }
-            }
+            onClick = { vm.imageEdit { PdfGeometry.constrain(it.copy(width = it.height, height = it.width, rotation = (it.rotation + 90) % 360), page) } },
+            enabled = !s.editorLocked,
         ) {
             Text(stringResource(R.string.pdf_rotate))
         }
-        TextButton(
-            onClick = {
-                vm.imageEdit {
-                    it.copy(x = (page.width - it.width) / 2, y = (page.height - it.height) / 2)
+        var showAlign by remember { mutableStateOf(false) }
+        Box {
+            TextButton(onClick = { showAlign = true }, enabled = !s.editorLocked) {
+                Text(stringResource(R.string.pdf_toolbar_align))
+            }
+            DropdownMenu(expanded = showAlign, onDismissRequest = { showAlign = false }) {
+                Text(
+                    stringResource(R.string.pdf_align_relative_margins),
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                )
+                alignEntries().forEach { (align, label) ->
+                    DropdownMenuItem(
+                        text = { Text(stringResource(label)) },
+                        onClick = { showAlign = false; vm.alignSelectedImage(align, relativeToMargins = true) },
+                    )
+                }
+                HorizontalDivider()
+                Text(
+                    stringResource(R.string.pdf_align_relative_page),
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                )
+                alignEntries().forEach { (align, label) ->
+                    DropdownMenuItem(
+                        text = { Text(stringResource(label)) },
+                        onClick = { showAlign = false; vm.alignSelectedImage(align, relativeToMargins = false) },
+                    )
                 }
             }
-        ) {
-            Text(stringResource(R.string.pdf_center))
         }
-        TextButton(
-            onClick = {
-                vm.pageEdit {
-                    it.copy(images = it.images.toMutableList().apply { add(removeAt(s.image)) })
-                }
-                vm.selectImage(page.images.lastIndex)
+        var showLayer by remember { mutableStateOf(false) }
+        Box {
+            TextButton(onClick = { showLayer = true }, enabled = !s.editorLocked) {
+                Text(stringResource(R.string.pdf_toolbar_layer))
             }
-        ) {
-            Text(stringResource(R.string.pdf_front))
+            DropdownMenu(expanded = showLayer, onDismissRequest = { showLayer = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.pdf_layer_forward)) },
+                    onClick = { showLayer = false; vm.bringSelectedImageForward() },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.pdf_layer_backward)) },
+                    onClick = { showLayer = false; vm.sendSelectedImageBackward() },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.pdf_front)) },
+                    onClick = { showLayer = false; vm.bringSelectedImageToFront() },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.pdf_backlayer)) },
+                    onClick = { showLayer = false; vm.sendSelectedImageToBack() },
+                )
+            }
         }
-        TextButton(
-            onClick = {
-                vm.pageEdit {
-                    it.copy(images = it.images.toMutableList().apply { add(0, removeAt(s.image)) })
-                }
-                vm.selectImage(0)
-            }
-        ) {
-            Text(stringResource(R.string.pdf_backlayer))
+        TextButton(onClick = vm::resetSelectedImage, enabled = !s.editorLocked) {
+            Text(stringResource(R.string.pdf_reset))
         }
         TextButton(
             onClick = {
                 vm.pageEdit { it.copy(images = it.images.filterIndexed { n, _ -> n != s.image }) }
                 vm.selectImage(-1)
-            }
+            },
+            enabled = !s.editorLocked,
         ) {
             Text(stringResource(R.string.pdf_remove))
+        }
+    }
+}
+
+private fun alignEntries() =
+    listOf(
+        PdfGeometry.Align.Left to R.string.pdf_align_left,
+        PdfGeometry.Align.Center to R.string.pdf_align_center,
+        PdfGeometry.Align.Right to R.string.pdf_align_right,
+        PdfGeometry.Align.Top to R.string.pdf_align_top,
+        PdfGeometry.Align.Middle to R.string.pdf_align_middle,
+        PdfGeometry.Align.Bottom to R.string.pdf_align_bottom,
+    )
+
+/**
+ * 2D crop-focus viewport (Phase D item 5), replacing the old Crop X/Y sliders: a draggable focus
+ * point over the image preview. Keyboard/TalkBack adjustable via custom actions that nudge the
+ * focus 5% in each direction; the merged accessibility value reads "Focus 50%, 50%" style text
+ * ([R.string.pdf_crop_focus_value]).
+ */
+@Composable
+private fun PdfCropFocusViewport(vm: PdfStudioViewModel, image: PdfImage, enabled: Boolean) {
+    val left = stringResource(R.string.pdf_crop_focus_left)
+    val right = stringResource(R.string.pdf_crop_focus_right)
+    val up = stringResource(R.string.pdf_crop_focus_up)
+    val down = stringResource(R.string.pdf_crop_focus_down)
+    val focusValue =
+        stringResource(
+            R.string.pdf_crop_focus_value,
+            PdfCropFocus.percent(image.focusX),
+            PdfCropFocus.percent(image.focusY),
+        )
+    val label = stringResource(R.string.pdf_crop_focus)
+    Column {
+        Text(label, style = MaterialTheme.typography.labelLarge)
+        Box(
+            Modifier.fillMaxWidth()
+                .height(140.dp)
+                .clipToBounds()
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest, RoundedCornerShape(8.dp))
+                .semantics {
+                    contentDescription = label
+                    stateDescription = focusValue
+                    if (enabled)
+                        customActions =
+                            listOf(
+                                CustomAccessibilityAction(left) {
+                                    vm.moveSelectedImageFocus(-PdfCropFocus.NUDGE, 0.0)
+                                    true
+                                },
+                                CustomAccessibilityAction(right) {
+                                    vm.moveSelectedImageFocus(PdfCropFocus.NUDGE, 0.0)
+                                    true
+                                },
+                                CustomAccessibilityAction(up) {
+                                    vm.moveSelectedImageFocus(0.0, -PdfCropFocus.NUDGE)
+                                    true
+                                },
+                                CustomAccessibilityAction(down) {
+                                    vm.moveSelectedImageFocus(0.0, PdfCropFocus.NUDGE)
+                                    true
+                                },
+                            )
+                }
+                .pointerInput(image.asset, enabled) {
+                    if (!enabled) return@pointerInput
+                    detectDragGestures { change, dragAmount ->
+                        change.consume()
+                        val dx = dragAmount.x / size.width.toFloat()
+                        val dy = dragAmount.y / size.height.toFloat()
+                        vm.moveSelectedImageFocus(dx.toDouble(), dy.toDouble())
+                    }
+                },
+        ) {
+            PdfBitmap(vm.repository.file(image.asset), 0, PdfFit.Cover, .5, .5, Modifier.fillMaxSize())
+            androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                val center = Offset(image.focusX.toFloat() * size.width, image.focusY.toFloat() * size.height)
+                drawCircle(PdfPaperTokens.GuideOuter, radius = 14f, center = center, style = Stroke(width = 5f))
+                drawCircle(PdfPaperTokens.GuideInner, radius = 14f, center = center, style = Stroke(width = 2f))
+            }
         }
     }
 }

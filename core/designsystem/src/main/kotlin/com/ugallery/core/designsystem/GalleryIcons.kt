@@ -63,6 +63,14 @@ import androidx.compose.material.icons.rounded.AlignVerticalBottom
 import androidx.compose.material.icons.rounded.FlipToFront
 import androidx.compose.material.icons.rounded.FlipToBack
 import androidx.compose.material.icons.rounded.ZoomIn
+import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.LinkOff
+import androidx.compose.material.icons.rounded.SwapHoriz
+import androidx.compose.material.icons.rounded.SwapVert
+import androidx.compose.material.icons.rounded.Checklist
+import androidx.compose.material.icons.rounded.SelectAll
+import androidx.compose.material.icons.rounded.CenterFocusStrong
+import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -138,6 +146,14 @@ val GalleryIconAlignVerticalBottom: ImageVector get() = Icons.Rounded.AlignVerti
 val GalleryIconFlipToFront: ImageVector get() = Icons.Rounded.FlipToFront
 val GalleryIconFlipToBack: ImageVector get() = Icons.Rounded.FlipToBack
 val GalleryIconZoomIn: ImageVector get() = Icons.Rounded.ZoomIn
+val GalleryIconLink: ImageVector get() = Icons.Rounded.Link
+val GalleryIconLinkOff: ImageVector get() = Icons.Rounded.LinkOff
+val GalleryIconSwapHoriz: ImageVector get() = Icons.Rounded.SwapHoriz
+val GalleryIconSwapVert: ImageVector get() = Icons.Rounded.SwapVert
+val GalleryIconChecklist: ImageVector get() = Icons.Rounded.Checklist
+val GalleryIconSelectAll: ImageVector get() = Icons.Rounded.SelectAll
+val GalleryIconCenterFocusStrong: ImageVector get() = Icons.Rounded.CenterFocusStrong
+val GalleryIconMinus: ImageVector get() = Icons.Rounded.Remove
 
 /**
  * Standard gallery icon composable with Material 3 defaults:
@@ -229,4 +245,12 @@ object GalleryIcons {
     val FlipToFront get() = GalleryIconFlipToFront
     val FlipToBack get() = GalleryIconFlipToBack
     val ZoomIn get() = GalleryIconZoomIn
+    val Link get() = GalleryIconLink
+    val LinkOff get() = GalleryIconLinkOff
+    val SwapHoriz get() = GalleryIconSwapHoriz
+    val SwapVert get() = GalleryIconSwapVert
+    val Checklist get() = GalleryIconChecklist
+    val SelectAll get() = GalleryIconSelectAll
+    val CenterFocusStrong get() = GalleryIconCenterFocusStrong
+    val Minus get() = GalleryIconMinus
 }

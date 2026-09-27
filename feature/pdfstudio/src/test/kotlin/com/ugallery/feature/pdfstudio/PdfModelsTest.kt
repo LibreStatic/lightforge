@@ -180,6 +180,35 @@ class PdfModelsTest {
     }
 
     @Test
+    fun alignRelativeToMarginsDefaultMatchesThreeArgOverload() {
+        val page = PdfPage(width = 210.0, height = 297.0, margin = 10.0)
+        val i = image().copy(width = 40.0, height = 20.0)
+        PdfGeometry.Align.entries.forEach { align ->
+            val old = PdfGeometry.align(i, page, align)
+            val explicit = PdfGeometry.align(i, page, align, relativeToMargins = true)
+            assertEquals(align.name, old.x, explicit.x, .0001)
+            assertEquals(align.name, old.y, explicit.y, .0001)
+        }
+    }
+
+    @Test
+    fun alignRelativeToPageIgnoresMargins() {
+        val page = PdfPage(width = 210.0, height = 297.0, margin = 10.0)
+        val i = image().copy(width = 40.0, height = 20.0)
+        val left = PdfGeometry.align(i, page, PdfGeometry.Align.Left, relativeToMargins = false)
+        assertEquals(0.0, left.x, .0001)
+        val right = PdfGeometry.align(i, page, PdfGeometry.Align.Right, relativeToMargins = false)
+        assertEquals(page.width - i.width, right.x, .0001)
+        val top = PdfGeometry.align(i, page, PdfGeometry.Align.Top, relativeToMargins = false)
+        assertEquals(0.0, top.y, .0001)
+        val bottom = PdfGeometry.align(i, page, PdfGeometry.Align.Bottom, relativeToMargins = false)
+        assertEquals(page.height - i.height, bottom.y, .0001)
+        // Symmetric margins: page-relative and margin-relative Center/Middle agree.
+        val center = PdfGeometry.align(i, page, PdfGeometry.Align.Center, relativeToMargins = false)
+        assertEquals((page.width - i.width) / 2, center.x, .0001)
+    }
+
+    @Test
     fun replaceAssetKeepsFrameGeometry() {
         val oldAsset = PdfAsset(hash, "image/jpeg", 800, 400)
         val newHash = "b".repeat(64)

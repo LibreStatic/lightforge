@@ -277,12 +277,12 @@ internal fun PdfEditorBody(
             Row(Modifier.fillMaxSize()) {
                 if (layout.expanded)
                     Column(
-                        Modifier.width(156.dp)
+                        Modifier.width(220.dp)
                             .fillMaxHeight()
                             .verticalScroll(rememberScrollState())
                             .padding(8.dp)
                     ) {
-                        PdfPagesPanel(vm, state, onDeletePages)
+                        PdfPagesPanel(vm, state, onDeletePages, columns = 2)
                     }
                 PdfCanvas(
                     project.pages[state.page],
@@ -303,8 +303,9 @@ internal fun PdfEditorBody(
                             .padding(12.dp)
                     ) {
                         InsertControls(state, portable = onPortable, import = onLaunchImport)
-                        PdfLayoutPanel(vm, state)
-                        PdfAdjustPanel(vm, state)
+                        // Expanded right column shows Adjust when an image is selected,
+                        // otherwise Layout (Phase D) — not both stacked.
+                        if (state.image >= 0) PdfAdjustPanel(vm, state) else PdfLayoutPanel(vm, state)
                     }
             }
             if (!layout.expanded || panel == 3) {

@@ -145,6 +145,22 @@ object PdfGeometry {
         )
     }
 
+    /** As [constrain], but clamps x/y to the full physical page instead of the margin box —
+     * only [align]'s `relativeToMargins = false` path uses this, since every other caller
+     * (drag, resize, grid) is meant to respect margins. */
+    private fun constrainToPage(i: PdfImage, p: PdfPage): PdfImage {
+        val scale =
+            min(1.0, min((p.width - 2 * p.margin) / i.width, (p.height - 2 * p.margin) / i.height))
+        val w = i.width * scale
+        val h = i.height * scale
+        return i.copy(
+            width = w,
+            height = h,
+            x = i.x.coerceIn(0.0, maxOf(0.0, p.width - w)),
+            y = i.y.coerceIn(0.0, maxOf(0.0, p.height - h)),
+        )
+    }
+
     fun resize(
         i: PdfImage,
         p: PdfPage,
@@ -181,22 +197,36 @@ object PdfGeometry {
      * [constrain] matters: Right/Bottom (or any image wider/taller than the margin box) would
      * otherwise land at a negative x/y, which fails [PdfProject.validate] downstream.
      */
-    fun align(i: PdfImage, p: PdfPage, align: Align): PdfImage {
+    fun align(i: PdfImage, p: PdfPage, align: Align): PdfImage = align(i, p, align, relativeToMargins = true)
+
+    /**
+     * As [align], but [relativeToMargins] chooses whether Left/Right/Top/Bottom/Center/Middle
+     * treat the margin box or the full physical page as the reference frame (Phase D's Adjust
+     * panel "Relative to Page / Margins" choice). `relativeToMargins = true` reproduces the
+     * 3-argument [align] exactly: edges land on the margin, and Center/Middle land at the
+     * physical page's midpoint (which — because margins are symmetric — is also the margin box's
+     * midpoint, so the two reference frames agree there).
+     */
+    fun align(i: PdfImage, p: PdfPage, align: Align, relativeToMargins: Boolean): PdfImage {
+        val left = if (relativeToMargins) p.margin else 0.0
+        val top = if (relativeToMargins) p.margin else 0.0
+        val right = if (relativeToMargins) p.width - p.margin else p.width
+        val bottom = if (relativeToMargins) p.height - p.margin else p.height
         val x =
             when (align) {
-                Align.Left -> p.margin
-                Align.Center -> (p.width - i.width) / 2
-                Align.Right -> p.width - p.margin - i.width
+                Align.Left -> left
+                Align.Center -> (left + right - i.width) / 2
+                Align.Right -> right - i.width
                 else -> i.x
             }
         val y =
             when (align) {
-                Align.Top -> p.margin
-                Align.Middle -> (p.height - i.height) / 2
-                Align.Bottom -> p.height - p.margin - i.height
+                Align.Top -> top
+                Align.Middle -> (top + bottom - i.height) / 2
+                Align.Bottom -> bottom - i.height
                 else -> i.y
             }
-        return constrain(i.copy(x = x, y = y), p)
+        return if (relativeToMargins) constrain(i.copy(x = x, y = y), p) else constrainToPage(i.copy(x = x, y = y), p)
     }
 
     /**
