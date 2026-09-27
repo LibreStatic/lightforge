@@ -146,6 +146,7 @@
     <string name="pdf_export_progress_chip">Export in progress, page %1$d of %2$d</string>
     <string name="pdf_export_keep_editing">Keep editing</string>
     <string name="pdf_export_saved_title">PDF saved</string>
+    <string name="pdf_export_project_saved_title">Project file saved</string>
     <string name="pdf_export_saved_summary">%1$s · %2$s · %3$s</string>
     <string name="pdf_export_recovery_published">Export finished while UGallery was closed — Saved to %1$s</string>
     <string name="pdf_export_recovery_failed">Export finished while UGallery was closed — %1$s</string>

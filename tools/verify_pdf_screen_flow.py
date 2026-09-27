@@ -32,13 +32,20 @@ def match_prefix(n,label):
     return text==label or text.startswith(label+', ')
 def visible_prefix(label):return any(match_prefix(n,label) for n in dump()[0].iter('node'))
 def tap_where(predicate):
-    root,_=dump();parents={c:p for p in root.iter() for c in p};matches=[]
-    for n in root.iter('node'):
-        if not predicate(n):continue
-        original=n
-        while n.get('clickable')!='true' and n in parents:n=parents[n]
-        if n.get('clickable')=='true' and n.get('enabled')=='true':matches.append(n)
-        elif 'documentsui' in original.get('package','') and original.get('enabled')=='true':matches.append(original)
+    # UI transitions (sheets closing, library/editor swaps) are not instantaneous: retry briefly
+    # before failing, and keep the screen that was actually showing when it does fail.
+    for attempt in range(12):
+        root,raw=dump();parents={c:p for p in root.iter() for c in p};matches=[]
+        for n in root.iter('node'):
+            if not predicate(n):continue
+            original=n
+            while n.get('clickable')!='true' and n in parents:n=parents[n]
+            if n.get('clickable')=='true' and n.get('enabled')=='true':matches.append(n)
+            elif 'documentsui' in original.get('package','') and original.get('enabled')=='true':matches.append(original)
+        if matches:break
+        time.sleep(.5)
+    if not matches:
+        (out/'tap-failure.xml').write_bytes(raw);(out/'tap-failure.png').write_bytes(adb('exec-out','screencap','-p'))
     assert matches,'Enabled UI control missing'
     n=matches[-1];x,y,r,d=map(int,re.findall(r'\d+',n.get('bounds')))
     if r>x and d>y:shell('input','tap',str((x+r)//2),str((y+d)//2))
@@ -139,7 +146,9 @@ def pdf():
             cards=labeled_cards();assert len(cards)==1,'Label must belong to the checkable card'
             if cards[0].get('checked')!='true':tap_where(lambda n:match_prefix(n,'Compact'))
             cards=labeled_cards()
-            assert len(cards)==1 and cards[0].get('checked')=='true' and cards[0].get('clickable')=='true' and cards[0].get('NAF')!='true'
+            # A selected radio exposes no click action (Android drops ACTION_CLICK once checked),
+            # so require the checked state and a real label instead of clickability.
+            assert len(cards)==1 and cards[0].get('checked')=='true' and cards[0].get('NAF')!='true'
             x,y,r,d=map(int,re.findall(r'\d+',cards[0].get('bounds')));assert r>x and d>y
             snap('quality-selected')
         # The sticky Export action launches CreateDocument immediately: the destination is chosen
@@ -160,6 +169,15 @@ def portable():
     wait(lambda s:any(j['phase']=='Ready' and j['portable'] for j in s['jobs']))
     tap('Download project');save_file(cp['name']+'.ugpdfproject')
     wait(lambda s:any(j['verified'] and j['portable'] for j in s['jobs']))
+    # The result sheet and the full-screen Exports history stay on top; close both so the
+    # following steps start from the editor.
+    if not args.baseline and visible('Project file saved'):
+        snap('project-saved-sheet');tap('Done')
+    # "Download project" opens the full-screen Exports history; the editor behind it still shows
+    # up in the accessibility dump, so close the history explicitly.
+    for _ in range(3):
+        if not visible('Exports'):break
+        shell('input','keyevent','4');time.sleep(.5)
 run(4,'native-project-saved',portable)
 def restore():
     if not any('documentsui' in n.get('package','') for n in dump()[0].iter('node')):

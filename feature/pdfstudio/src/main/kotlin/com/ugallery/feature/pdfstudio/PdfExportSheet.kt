@@ -16,7 +16,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.ugallery.core.designsystem.GalleryExpressiveButton
@@ -62,7 +66,12 @@ internal fun PdfExportSheet(
         compactEstimate = onEstimate(pagesChoice, true)
     }
     val filenameValid = filename.isNotBlank()
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    // Fully expanded: a partially expanded sheet would push the sticky Cancel/Export row
+    // below the fold, leaving the sheet with no visible way to export.
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) {
         // The filename field can open the IME; imePadding keeps the sticky Cancel/Export row (and
         // the rest of the sheet) above the keyboard instead of letting it cover the row.
         Column(Modifier.fillMaxWidth().imePadding()) {
@@ -223,8 +232,15 @@ private fun QualityCard(
             .heightIn(min = 48.dp)
             .background(container, RoundedCornerShape(12.dp))
             .then(borderModifier)
+            // One accessibility node owns role, state, action and the composed label, so
+            // TalkBack and UI Automator never see an unlabeled radio with a stray child label.
+            .clearAndSetSemantics {
+                contentDescription = description
+                role = Role.RadioButton
+                this.selected = selected
+                onClick { onSelect(); true }
+            }
             .selectable(selected = selected, onClick = onSelect, role = Role.RadioButton)
-            .semantics { contentDescription = description }
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -282,7 +298,10 @@ internal fun PdfExportResultSheet(
     onDone: () -> Unit,
 ) {
     val context = LocalContext.current
-    ModalBottomSheet(onDismissRequest = onDone) {
+    ModalBottomSheet(
+        onDismissRequest = onDone,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -293,7 +312,10 @@ internal fun PdfExportResultSheet(
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                 )
-                Text(stringResource(R.string.pdf_export_saved_title), style = MaterialTheme.typography.titleLarge)
+                val title =
+                    if (job.portable) R.string.pdf_export_project_saved_title
+                    else R.string.pdf_export_saved_title
+                Text(stringResource(title), style = MaterialTheme.typography.titleLarge)
             }
             val pages =
                 androidx.compose.ui.res.pluralStringResource(

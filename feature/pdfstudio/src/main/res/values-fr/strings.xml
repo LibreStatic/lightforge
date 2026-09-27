@@ -146,6 +146,7 @@
     <string name="pdf_export_progress_chip">Exportation en cours, page %1$d sur %2$d</string>
     <string name="pdf_export_keep_editing">Continuer la modification</string>
     <string name="pdf_export_saved_title">PDF enregistré</string>
+    <string name="pdf_export_project_saved_title">Fichier de projet enregistré</string>
     <string name="pdf_export_saved_summary">%1$s · %2$s · %3$s</string>
     <string name="pdf_export_recovery_published">L’exportation s’est terminée alors qu’UGallery était fermé — Enregistré dans %1$s</string>
     <string name="pdf_export_recovery_failed">L’exportation s’est terminée alors qu’UGallery était fermé — %1$s</string>
