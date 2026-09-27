@@ -139,6 +139,28 @@ fun MediaTileBadges(
     }
 }
 
+/**
+ * Appends the visible badges to a tile's own accessibility label ("Photo" -> "Photo, PNG,
+ * Favorite") so a tile that clears its descendants' semantics still announces them as one node.
+ */
+@Composable
+fun mediaTileDescription(
+    base: String,
+    isFavorite: Boolean,
+    displayName: String?,
+    isVideo: Boolean,
+    isArchived: Boolean = false,
+): String {
+    val settings = LocalThumbnailTileSettings.current
+    val parts = buildList {
+        add(base)
+        if (settings.showFileType) mediaFileTypeLabel(displayName, isVideo)?.let(::add)
+        if (settings.markFavorites && isFavorite) add(stringResource(R.string.media_tile_favorite_description))
+        if (isArchived) add(stringResource(R.string.media_tile_archived))
+    }
+    return parts.joinToString(", ")
+}
+
 /** At most this many grid tiles decode and play an animation at once. */
 private const val MaxAnimatedTiles = 4
 private val animatedTilePermits = Semaphore(MaxAnimatedTiles)

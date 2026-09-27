@@ -35,6 +35,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -182,11 +184,15 @@ private fun TrashCell(
     val expiry = media.dateExpiresMillis?.let {
         stringResource(R.string.trash_expires_on, DateFormat.getMediumDateFormat(context).format(Date(it)))
     } ?: stringResource(R.string.trash_expiry_unknown)
+    val description = com.ugallery.core.designsystem.mediaTileDescription(
+        kind, media.isFavorite, media.displayName, media.kind == MediaKind.Video,
+    ) + ". $expiry"
     Box(
         Modifier.fillMaxWidth().aspectRatio(1f).testTag("trash_media_${media.key.volumeName}_${media.key.mediaStoreId}")
-            .semantics {
-                contentDescription = "$kind. $expiry"
+            .clearAndSetSemantics {
+                contentDescription = description
                 this.selected = selected
+                this.onClick { onClick(); true }
                 onLongClick { onLongClick(); true }
             }
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),

@@ -55,6 +55,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
@@ -64,7 +66,6 @@ import com.ugallery.core.search.MediaSearchHit
 import com.ugallery.core.designsystem.GalleryIcons
 import com.ugallery.core.designsystem.GalleryGridMetrics
 import com.ugallery.core.designsystem.MediaTileBadges
-import com.ugallery.core.designsystem.R as DesignR
 import com.ugallery.core.designsystem.GalleryExpressiveIconButton
 import com.ugallery.core.designsystem.GalleryLoadingIndicator
 import com.ugallery.core.designsystem.GallerySpacing
@@ -481,10 +482,19 @@ private fun SearchResultCard(
     val isVideo = hit.kind == MediaKind.Video
     val mediaTypeDescription = if (isVideo) videoDurationDescription(hit.durationMillis) else null
     val fallbackDescription = stringResource(R.string.search_result)
-    val archivedDescription = if (archived) stringResource(DesignR.string.media_tile_archived) else null
-    val description = listOfNotNull(hit.displayName ?: fallbackDescription, mediaTypeDescription, archivedDescription)
-        .joinToString(", ")
-    Card(Modifier.clickable(onClick = onClick).semantics { contentDescription = description }) {
+    val description = com.ugallery.core.designsystem.mediaTileDescription(
+        base = listOfNotNull(hit.displayName ?: fallbackDescription, mediaTypeDescription).joinToString(", "),
+        isFavorite = hit.favorite,
+        displayName = hit.displayName,
+        isVideo = isVideo,
+        isArchived = archived,
+    )
+    Card(
+        Modifier.clickable(onClick = onClick).clearAndSetSemantics {
+            contentDescription = description
+            this.onClick { onClick(); true }
+        },
+    ) {
         val loaded = bitmap
         Box(
             Modifier

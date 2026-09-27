@@ -44,6 +44,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.testTagsAsResourceId
@@ -304,6 +306,11 @@ private fun TimelineThumbnail(
         videoDurationDescription(entry.value.durationMillis)
     } else {
         stringResource(R.string.photo_thumbnail_description)
+    }.let { base ->
+        // One tile node: badges are folded into the label instead of separate a11y nodes (R-06).
+        com.ugallery.core.designsystem.mediaTileDescription(
+            base, entry.value.isFavorite, entry.value.displayName, isVideo,
+        )
     }
     val request = entry.value.thumbnailRequest(sizePx)
     val bitmap by key(request, loader) { produceState(loader.cached(request)) {
@@ -321,11 +328,11 @@ private fun TimelineThumbnail(
         .fillMaxWidth()
         .aspectRatio(1f)
         .testTag("media_${entry.value.key.volumeName}_${entry.value.key.mediaStoreId}")
-        .semantics {
+        .clearAndSetSemantics {
+            // Clearing also drops the clickable's actions, so they are restated here.
             this.contentDescription = contentDescription
             this.selected = selected
-        }
-        .semantics {
+            this.onClick { onClick(); true }
             onLongClick(label = longPressLabel) {
                 onLongClick()
                 true

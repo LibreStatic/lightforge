@@ -40,6 +40,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.semantics
@@ -301,11 +303,14 @@ private fun AlbumCell(
         videoDurationDescription(media.durationMillis)
     } else {
         stringResource(R.string.album_photo)
+    }.let { base ->
+        com.ugallery.core.designsystem.mediaTileDescription(base, media.isFavorite, media.displayName, isVideo)
     }
     val modifier = Modifier.fillMaxWidth().aspectRatio(1f)
-        .semantics {
+        .clearAndSetSemantics {
             contentDescription = description
             this.selected = selected
+            if (enabled) this.onClick { onClick(); true }
             if (onLongClick != null && enabled) onLongClick {
                 onLongClick()
                 true

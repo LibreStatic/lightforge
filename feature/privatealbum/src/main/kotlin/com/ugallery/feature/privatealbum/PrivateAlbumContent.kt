@@ -37,6 +37,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -390,10 +392,21 @@ fun PrivateAlbumContent(
                         } else {
                             stringResource(R.string.private_photo)
                         }
+                    val tileDescription =
+                        com.ugallery.core.designsystem.mediaTileDescription(
+                            "${item.originalDisplayName}, $typeDescription",
+                            isFavorite = false,
+                            displayName = item.originalDisplayName,
+                            isVideo = isVideo,
+                        )
                     Card(
                         modifier =
-                            Modifier.padding(2.dp).semantics {
-                                contentDescription = "${item.originalDisplayName}, $typeDescription"
+                            Modifier.padding(2.dp).clearAndSetSemantics {
+                                contentDescription = tileDescription
+                                onClick {
+                                    if (recoveryAvailableNow) viewerMediaId = item.id
+                                    true
+                                }
                             },
                         onClick = { if (recoveryAvailableNow) viewerMediaId = item.id },
                     ) {

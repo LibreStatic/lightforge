@@ -26,6 +26,10 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -84,9 +88,25 @@ fun MediaCollectionGrid(
                     val bitmap by produceState(thumbnailLoader.cached(request), request, thumbnailLoader) {
                         if (value == null) value = runCatching { thumbnailLoader.load(request) }.getOrNull()
                     }
+                    val isVideo = media.kind == MediaKind.Video
+                    val description = com.ugallery.core.designsystem.mediaTileDescription(
+                        base = if (isVideo) {
+                            com.ugallery.core.designsystem.videoDurationDescription(media.durationMillis)
+                        } else {
+                            stringResource(R.string.photo_thumbnail_description)
+                        },
+                        isFavorite = media.isFavorite,
+                        displayName = media.displayName,
+                        isVideo = isVideo,
+                    )
                     Box(
-                        Modifier.fillMaxWidth().aspectRatio(1f).semantics {
+                        Modifier.fillMaxWidth().aspectRatio(1f).clearAndSetSemantics {
+                            contentDescription = description
                             selected = isSelected(media)
+                            onClick {
+                                if (selectionMode) onSelectionChange(media, !isSelected(media)) else onOpen(media)
+                                true
+                            }
                             onLongClick {
                                 if (!selectionMode) onSelectionModeChange(true)
                                 onSelectionChange(media, !isSelected(media))
