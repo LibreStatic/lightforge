@@ -102,6 +102,7 @@
     <string name="pdf_failure_memory">Wenig Arbeitsspeicher. Andere Aufgaben schließen und die Vorschau erneut versuchen.</string>
     <string name="pdf_queue_packaging">Projekt und lokale Quelldateien werden gepackt</string>
     <string name="pdf_failure_import_target">Das ursprüngliche Projekt oder die Seite wurde entfernt. Wähle das Importziel erneut.</string>
+    <string name="pdf_failure_unsupported_glyph">Dieser Text enthält Zeichen, die die App noch nicht darstellen kann. Verwende andere Zeichen oder entferne sie.</string>
     <string name="pdf_project_actions">Projektaktionen</string>
     <string name="pdf_project_details">Projektdetails</string>
     <string name="pdf_canvas_label">Seitenfläche</string>

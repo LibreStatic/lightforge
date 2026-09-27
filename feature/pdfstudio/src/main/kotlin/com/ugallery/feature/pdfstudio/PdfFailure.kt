@@ -22,6 +22,9 @@ enum class PdfFailure(val message: Int) {
     DestinationChanged(R.string.pdf_failure_destination),
     ImportTargetMissing(R.string.pdf_failure_import_target),
     InvalidInput(R.string.pdf_failure_input),
+    /** A text element contains a character the bundled fonts cannot render, or that needs shaping
+     * PDFBox doesn't perform (Phase G1a's [PdfTextSupport]). */
+    UnsupportedGlyph(R.string.pdf_failure_unsupported_glyph),
     Unknown(R.string.pdf_error);
 
     companion object {

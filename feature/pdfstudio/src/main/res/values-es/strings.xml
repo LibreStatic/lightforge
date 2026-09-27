@@ -102,6 +102,7 @@
     <string name="pdf_failure_memory">Queda poca memoria. Cerrá otras tareas y reintentá la vista previa.</string>
     <string name="pdf_queue_packaging">Empaquetando el proyecto y sus archivos locales</string>
     <string name="pdf_failure_import_target">Se eliminó el proyecto o la página original. Elegí nuevamente dónde importar.</string>
+    <string name="pdf_failure_unsupported_glyph">Este texto usa caracteres que la app todavía no puede mostrar. Probá con otros caracteres o quitalos.</string>
     <string name="pdf_project_actions">Acciones del proyecto</string>
     <string name="pdf_project_details">Detalles del proyecto</string>
     <string name="pdf_canvas_label">Lienzo de página</string>
