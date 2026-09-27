@@ -25,6 +25,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.ugallery.core.designsystem.GalleryExpressiveChoiceGroup
 import com.ugallery.core.designsystem.GalleryIcons
@@ -199,34 +200,46 @@ private fun PdfMediaThumbnail(
     isDocument: Boolean = false,
     dragUri: android.net.Uri? = null,
 ) {
-    // Review fix: uses the standard Modifier.clickable(onClickLabel=, role=) + an ADDITIVE
-    // semantics block (contentDescription/customActions only) instead of clearAndSetSemantics,
-    // which replaced the whole semantics subtree (including whatever clickable itself
-    // contributes) with a hand-built one. clickable is the one actually wired to real touch
-    // input, so keeping its own semantics intact is the safer way to guarantee the accessible
-    // node and the real tap target are one and the same.
+    // The drag source must sit OUTSIDE the click handler: pointer events reach inner modifiers
+    // first, and a drag source placed inside consumed every down event, so taps never reached
+    // clickable (device-verified). With this order a tap still inserts and a long press starts
+    // the local drag.
+    val container = MaterialTheme.colorScheme.surfaceContainerHighest
     var modifier =
         Modifier.size(96.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            .clickable(onClickLabel = addActionLabel, role = Role.Button, onClick = onClick)
-            .semantics {
-                this.contentDescription = contentDescription
-                customActions = listOf(CustomAccessibilityAction(addActionLabel) { onClick(); true })
-            }
+            .background(container)
     if (dragUri != null)
         modifier =
-            modifier.dragAndDropSource { _ ->
-                // Privacy review fix (BLOCKER): DRAG_FLAG_GLOBAL let this content:// URI be
-                // dropped into another app's window in split screen, which could read a photo the
-                // user never explicitly shared with it. This drag is local to our own window
-                // only (flags = 0, no DRAG_FLAG_GLOBAL/GRANT_READ), so PdfCanvas's own
-                // dragAndDropTarget is the only possible destination.
+            modifier.dragAndDropSource(
+                // An explicit drag decoration: the default one records the tile's content once
+                // for the drag shadow and kept showing that first frame, so thumbnails that
+                // loaded afterwards never appeared (device-verified).
+                drawDragDecoration = {
+                    drawRect(container)
+                    bitmap?.let {
+                        drawImage(
+                            it.asImageBitmap(),
+                            dstSize = IntSize(size.width.toInt(), size.height.toInt()),
+                        )
+                    }
+                },
+            ) { _ ->
+                // Privacy: local drag only (flags = 0, no DRAG_FLAG_GLOBAL/GRANT_READ), so the
+                // content URI can only land on PdfCanvas's own dragAndDropTarget, never in
+                // another app's window in split screen.
                 DragAndDropTransferData(
                     android.content.ClipData.newUri(null, "pdf-media", dragUri),
                     dragUri,
                     0,
                 )
+            }
+    modifier =
+        modifier
+            .clickable(onClickLabel = addActionLabel, role = Role.Button, onClick = onClick)
+            .semantics {
+                this.contentDescription = contentDescription
+                customActions = listOf(CustomAccessibilityAction(addActionLabel) { onClick(); true })
             }
     Box(modifier, contentAlignment = Alignment.Center) {
         if (bitmap != null)
