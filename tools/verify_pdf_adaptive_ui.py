@@ -2,7 +2,7 @@
 """Exercise the real PDF screen in constrained native parents; never modify device settings."""
 import argparse, json, re, subprocess, time, xml.etree.ElementTree as ET
 from pathlib import Path
-p=argparse.ArgumentParser();p.add_argument('--serial',required=True);p.add_argument('--output',required=True);p.add_argument('--dynamic',action='store_true');args=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--serial',required=True);p.add_argument('--output',required=True);p.add_argument('--dynamic',action='store_true');p.add_argument('--folds',action='store_true');args=p.parse_args()
 out=Path(args.output);out.mkdir(parents=True,exist_ok=True)
 b=['rtk','proxy','adb','-s',args.serial];pkg='com.ugallery.feature.pdfstudio.test'
 def adb(*a): return subprocess.check_output(b+list(a),timeout=45)
@@ -99,8 +99,8 @@ for width,height,font,locale,dark,rtl in cases:
     # Phase C: the canvas's floating page/zoom badges and drag measurement chip carry text, so
     # they need the text threshold; the contextual toolbar (icon buttons only) and its Delete
     # action (an icon-only errorContainer/onErrorContainer button) need only the icon threshold.
-    for key in ('surface','primary','secondaryContainer','surfaceContainer','surfaceVariantText','surfacePrimaryText','canvasBadge','snapMeasurementChip','sheetContainerText','sheetContainerError','historyDot'):assert theme[key]>=4.5,(key,theme)
-    for key in ('outline','contextualToolbar','contextualToolbarDelete'):assert theme[key]>=3,(key,theme)
+    for key in ('surface','primary','secondaryContainer','surfaceContainer','surfaceVariantText','surfacePrimaryText','canvasBadge','snapMeasurementChip','sheetContainerText','sheetContainerError','historyDot','ruler','statusBar','hoverTooltip'):assert theme[key]>=4.5,(key,theme)
+    for key in ('outline','contextualToolbar','contextualToolbarDelete','shortcutKeycap'):assert theme[key]>=3,(key,theme)
     assert theme['dynamic']==args.dynamic
     (out/(name+'-theme.json')).write_text(json.dumps(theme,indent=2)+'\n')
     # Export is a filled top-bar action now; the overflow only holds the less frequent actions.
@@ -138,7 +138,57 @@ for width,height,font,locale,dark,rtl in cases:
     row=dict(physicalCoordinates=True,pageAddUndo=True,case=name,canvasHeightDp=round(canvas_dp,2),titleUndo=True,actionsReachable=True,semanticContrast=True)
     results.append(row);print('UI CASE PASS: '+json.dumps(row,sort_keys=True),flush=True)
     cleanup()
+fold_results=[]
+if args.folds:
+    # Phase F2 item D: two synthetic-fold cases exercised on a normal (non-foldable) emulator via
+    # PdfUiProbeActivity's optional `fold`/`hingePx`/`foldPos` extras. Sizes chosen to fit a normal
+    # emulator screen: a vertical hinge splitting an 840x640 window (HingeSplit), and a horizontal
+    # hinge splitting a 400x800 window (Tabletop).
+    fold_cases=[(840,640,'vertical',16,0.5,'fold-hingesplit'),(400,800,'horizontal',16,0.5,'fold-tabletop')]
+    for width,height,orientation,hinge_dp,fold_pos,name in fold_cases:
+        shell('run-as',pkg,'rm','-f','files/pdf-ui-state.json')
+        subprocess.run(b+['shell','run-as',pkg,'tee','files/pdf-ui-config.json'],input=json.dumps(dict(width=width,font=1,locale='en')).encode(),stdout=subprocess.DEVNULL,check=True)
+        shell('am','start','-W','-n',pkg+'/com.ugallery.feature.pdfstudio.PdfUiProbeActivity',
+              '--ei','width',str(width),'--ei','height',str(height),'--ef','font','1','--es','locale','en',
+              '--ez','dark','false','--ez','rtl','false','--ez','dynamic',str(args.dynamic).lower(),
+              '--es','fold',orientation,'--ei','hingePx',str(hinge_dp),'--ef','foldPos',str(fold_pos))
+        wait_ready();time.sleep(.5);ls=labels('en')
+        root=None
+        for _ in range(20):
+            root=snap(name)
+            if any(n.get('content-desc')==ls['pdf_canvas_label'] for n in root.iter('node')):break
+            time.sleep(.5)
+        pixels=int.from_bytes((out/(name+'.png')).read_bytes()[16:20],'big')
+        px_per_dp=pixels/width
+        if orientation=='vertical':
+            center=width*fold_pos
+            hinge=(center-hinge_dp/2,0.0,center+hinge_dp/2,float(height))
+        else:
+            center=height*fold_pos
+            hinge=(0.0,center-hinge_dp/2,float(width),center+hinge_dp/2)
+        hinge_px=tuple(v*px_per_dp for v in hinge)
+        def intersects(node_bounds):
+            x0,y0,x1,y1=node_bounds
+            return not (x1<=hinge_px[0] or x0>=hinge_px[2] or y1<=hinge_px[1] or y0>=hinge_px[3])
+        canvas=bounds(node_for(root,ls['pdf_canvas_label']))
+        assert not intersects(canvas),(name,'canvas overlaps the hinge',canvas,hinge_px)
+        # Entirely on one side: either fully left/above, or fully right/below, the hinge band.
+        if orientation=='vertical':
+            on_one_side=canvas[2]<=hinge_px[0] or canvas[0]>=hinge_px[2]
+        else:
+            on_one_side=canvas[3]<=hinge_px[1] or canvas[1]>=hinge_px[3]
+        assert on_one_side,(name,'canvas not entirely on one side of the hinge',canvas,hinge_px)
+        clickable=[n for n in root.iter('node') if n.get('clickable')=='true' and n.get('bounds')]
+        offenders=[n.get('content-desc') or n.get('text') for n in clickable if intersects(bounds(n))]
+        assert not offenders,(name,'clickable node(s) under the hinge',offenders)
+        theme=json.loads(shell('run-as',pkg,'cat','files/pdf-ui-theme.json'))
+        for key in ('surface','primary','secondaryContainer','surfaceContainer','ruler','statusBar','hoverTooltip'):assert theme[key]>=4.5,(name,key,theme)
+        for key in ('outline','contextualToolbar','shortcutKeycap'):assert theme[key]>=3,(name,key,theme)
+        row=dict(case=name,orientation=orientation,canvasBounds=canvas,hingeBoundsPx=list(hinge_px),noClickableUnderHinge=True,canvasOnOneSide=True)
+        fold_results.append(row);print('FOLD CASE PASS: '+json.dumps(row,sort_keys=True),flush=True)
+        cleanup()
 assert device_settings()==settings_before, 'Device settings changed'
 (out/'device-settings.json').write_text(json.dumps(settings_before,indent=2)+'\n')
 (out/'results.json').write_text(json.dumps(results,indent=2)+'\n')
-print(f'ADAPTIVE UI PASS: {len(cases)} native parent configurations; accessible actions; title edit/undo; page add/undo; '+('dynamic' if args.dynamic else 'static')+' light/dark contrast; fixture projects removed; device settings unchanged')
+if args.folds:(out/'fold-results.json').write_text(json.dumps(fold_results,indent=2)+'\n')
+print(f'ADAPTIVE UI PASS: {len(cases)} native parent configurations; accessible actions; title edit/undo; page add/undo; '+('dynamic' if args.dynamic else 'static')+' light/dark contrast; fixture projects removed; device settings unchanged'+(f'; {len(fold_results)} synthetic-fold cases' if args.folds else ''))

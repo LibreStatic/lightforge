@@ -50,6 +50,12 @@ class PdfUiProbeActivity : ComponentActivity() {
         val dynamic = intent.getBooleanExtra("dynamic", false)
         val rtl = intent.getBooleanExtra("rtl", false)
         val locale = intent.getStringExtra("locale") ?: "en"
+        // Phase F2 item D: an optional synthetic fold, so HingeSplit/Tabletop can be screenshotted
+        // on a normal (non-foldable) emulator. Absent `fold` keeps every existing caller/JSON
+        // output byte-for-byte identical to before this phase.
+        val foldOrientation = intent.getStringExtra("fold")
+        val hingeDp = intent.getIntExtra("hingePx", 0)
+        val foldPos = intent.getFloatExtra("foldPos", 0.5f)
         super.onCreate(savedInstanceState)
         lifecycleScope.launch {
             if (vm.state.value.project == null) {
@@ -192,11 +198,56 @@ class PdfUiProbeActivity : ComponentActivity() {
                                         // library card's metadata row (surface/onSurfaceVariant is
                                         // already covered by surfaceVariantText above).
                                         .put("historyDot", contrast(c.error, c.onError))
+                                        // Phase F2 additions: the expanded-mode rulers and status
+                                        // bar (surfaceContainer/onSurfaceVariant), the shortcuts
+                                        // sheet's keycap chips (surfaceContainerHigh/onSurface)
+                                        // and the pointer-hover tooltip (inverseSurface/
+                                        // inverseOnSurface).
+                                        .put("ruler", contrast(c.surfaceContainer, c.onSurfaceVariant))
+                                        .put("statusBar", contrast(c.surfaceContainer, c.onSurfaceVariant))
+                                        .put(
+                                            "shortcutKeycap",
+                                            contrast(c.surfaceContainerHigh, c.onSurface),
+                                        )
+                                        .put(
+                                            "hoverTooltip",
+                                            contrast(c.inverseSurface, c.inverseOnSurface),
+                                        )
                                         .toString()
                                 )
                         }
+                        val foldInfo =
+                            foldOrientation?.let { orientation ->
+                                val vertical = orientation == "vertical"
+                                val hinge = hingeDp.dp
+                                if (vertical) {
+                                    val center = (width * foldPos).dp
+                                    com.ugallery.core.designsystem.GalleryFoldInfo(
+                                        orientation =
+                                            com.ugallery.core.designsystem.GalleryFoldOrientation
+                                                .Vertical,
+                                        isSeparating = true,
+                                        left = (center - hinge / 2).coerceAtLeast(0.dp),
+                                        top = 0.dp,
+                                        right = (center + hinge / 2).coerceAtMost(width.dp),
+                                        bottom = height.dp,
+                                    )
+                                } else {
+                                    val center = (height * foldPos).dp
+                                    com.ugallery.core.designsystem.GalleryFoldInfo(
+                                        orientation =
+                                            com.ugallery.core.designsystem.GalleryFoldOrientation
+                                                .Horizontal,
+                                        isSeparating = true,
+                                        left = 0.dp,
+                                        top = (center - hinge / 2).coerceAtLeast(0.dp),
+                                        right = width.dp,
+                                        bottom = (center + hinge / 2).coerceAtMost(height.dp),
+                                    )
+                                }
+                            }
                         Box(Modifier.width(width.dp).height(height.dp)) {
-                            PdfStudioScreen(onExit = { finish() }, vm = vm)
+                            PdfStudioScreen(onExit = { finish() }, vm = vm, foldInfo = foldInfo)
                         }
                     }
                 }
