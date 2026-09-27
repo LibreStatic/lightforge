@@ -67,9 +67,9 @@
     <string name="settings_operations">Operaciones de archivos</string>
     <string name="settings_share_sanitized">Compartir sin ubicación por defecto</string>
     <string name="settings_keep_modified">Conservar fecha de modificación cuando sea posible</string>
-    <string name="settings_skip_confirmation">Omitir confirmación de borrado de UGallery</string>
+    <string name="settings_skip_confirmation">Omitir confirmación de borrado de Lightforge Studio</string>
     <string name="settings_security">Seguridad</string>
-    <string name="settings_app_lock">Bloquear UGallery</string>
+    <string name="settings_app_lock">Bloquear Lightforge Studio</string>
     <string name="settings_destructive_lock">Autenticar acciones destructivas</string>
     <string name="settings_relock_timeout">Tiempo para volver a bloquear</string>
     <string name="settings_minutes">%1$d min</string>
@@ -114,21 +114,21 @@
     <string name="settings_group_management">Privacidad y administración</string>
     <string name="settings_group_intelligence">Funciones inteligentes</string>
     <string name="settings_group_about">Acerca de</string>
-    <string name="settings_about">Acerca de UGallery</string>
+    <string name="settings_about">Acerca de Lightforge Studio</string>
     <string name="settings_about_summary">Versión, contribuidores y licencias de código abierto</string>
-    <string name="local_analysis_privacy">UGallery puede analizar tus fotos accesibles completamente en este dispositivo. No se sube nada y podés detener el análisis o borrar sus resultados cuando quieras.</string>
+    <string name="local_analysis_privacy">Lightforge Studio puede analizar tus fotos accesibles completamente en este dispositivo. No se sube nada y podés detener el análisis o borrar sus resultados cuando quieras.</string>
     <string name="local_analysis_master">Usar análisis local</string>
     <string name="local_analysis_master_summary">Controla personas y rostros, contenido y texto de fotos, y colecciones de mascotas. Los elementos conocidos sin cambios no se vuelven a analizar.</string>
     <string name="local_analysis_minimum_battery">Batería mínima para el análisis completo</string>
     <string name="local_analysis_battery_percent">%1$d%%</string>
-    <string name="local_analysis_minimum_battery_summary">Sin cargador, el análisis completo solo se ejecuta mientras UGallery está abierta y la batería está en este nivel o más. La carga siempre lo permite.</string>
+    <string name="local_analysis_minimum_battery_summary">Sin cargador, el análisis completo solo se ejecuta mientras Lightforge Studio está abierto y la batería está en este nivel o más. La carga siempre lo permite.</string>
     <string name="local_analysis_features">Funciones de análisis</string>
     <string name="local_analysis_people">Personas y rostros</string>
     <string name="local_analysis_people_summary">Detecta rostros y agrupa localmente fotos de una misma persona.</string>
     <string name="local_analysis_content">Contenido y texto de fotos</string>
     <string name="local_analysis_content_summary">Crea etiquetas para buscar y reconoce texto. Las colecciones de mascotas comparten estas etiquetas.</string>
     <string name="local_analysis_opt_out_title">El análisis local está listo</string>
-    <string name="local_analysis_opt_out_body">UGallery puede organizar personas, mascotas, contenido y texto de fotos completamente en este dispositivo usando solo las fotos que autorizaste. El indexado completo se ejecuta durante la carga o mientras UGallery está abierta con al menos 20 por ciento de batería de forma predeterminada. Podés cambiar este nivel, desactivar el análisis o borrar sus datos desde Ajustes.</string>
+    <string name="local_analysis_opt_out_body">Lightforge Studio puede organizar personas, mascotas, contenido y texto de fotos completamente en este dispositivo usando solo las fotos que autorizaste. El indexado completo se ejecuta durante la carga o mientras Lightforge Studio está abierto con al menos 20 por ciento de batería de forma predeterminada. Podés cambiar este nivel, desactivar el análisis o borrar sus datos desde Ajustes.</string>
     <string name="local_analysis_opt_out_accept">Activar análisis local</string>
     <string name="local_analysis_opt_out_decline">Ahora no</string>
 
@@ -173,7 +173,7 @@
     <string name="portable_preferences_field_collection_order">Orden de colecciones</string>
     <string name="portable_preferences_field_hidden_collections">Colecciones ocultas</string>
     <string name="local_analysis_cleanup">Análisis para liberar espacio</string>
-    <string name="local_analysis_cleanup_summary">Encuentra duplicados exactos y fotos borrosas en este dispositivo, mientras carga o con UGallery abierta y batería suficiente. No se borra nada sin tu confirmación.</string>
+    <string name="local_analysis_cleanup_summary">Encuentra duplicados exactos y fotos borrosas en este dispositivo, mientras carga o con Lightforge Studio abierto y batería suficiente. No se borra nada sin tu confirmación.</string>
     <string name="settings_language">Idioma</string>
     <string name="settings_language_system">Predeterminado del sistema</string>
 </resources>

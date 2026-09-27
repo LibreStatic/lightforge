@@ -151,8 +151,8 @@
     <string name="pdf_export_saved_title">PDF salvo</string>
     <string name="pdf_export_project_saved_title">Arquivo de projeto salvo</string>
     <string name="pdf_export_saved_summary">%1$s · %2$s · %3$s</string>
-    <string name="pdf_export_recovery_published">A exportação terminou enquanto o UGallery estava fechado — Salvo em %1$s</string>
-    <string name="pdf_export_recovery_failed">A exportação terminou enquanto o UGallery estava fechado — %1$s</string>
+    <string name="pdf_export_recovery_published">A exportação terminou enquanto o Lightforge Studio estava fechado — Salvo em %1$s</string>
+    <string name="pdf_export_recovery_failed">A exportação terminou enquanto o Lightforge Studio estava fechado — %1$s</string>
     <plurals name="pdf_export_saved_pages">
         <item quantity="one">%1$d página</item>
         <item quantity="other">%1$d páginas</item>

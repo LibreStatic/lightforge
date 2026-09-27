@@ -58,7 +58,7 @@ A gallery that scales to quarter-million-item libraries on-device, with local ML
 
 ## Brand Commitments
 
-- App name: UGallery
+- App name: Lightforge Studio (launcher label: "Lightforge"; package id `com.ugallery.app` and on-device folders such as `Movies/UGallery` stay unchanged for upgrade and restore compatibility)
 - Non-commercial use only
 - No [redacted] trade dress, code, or resources copied; functional parity with own identity
 - Local-first, privacy-first positioning

@@ -67,9 +67,9 @@
     <string name="settings_operations">Opérations sur les fichiers</string>
     <string name="settings_share_sanitized">Partager sans localisation par défaut</string>
     <string name="settings_keep_modified">Conserver la date de modification si possible</string>
-    <string name="settings_skip_confirmation">Ignorer la confirmation de suppression UGallery</string>
+    <string name="settings_skip_confirmation">Ignorer la confirmation de suppression Lightforge Studio</string>
     <string name="settings_security">Sécurité</string>
-    <string name="settings_app_lock">Verrouiller UGallery</string>
+    <string name="settings_app_lock">Verrouiller Lightforge Studio</string>
     <string name="settings_destructive_lock">Authentifier les actions destructives</string>
     <string name="settings_relock_timeout">Délai de reverrouillage</string>
     <string name="settings_minutes">%1$d min</string>
@@ -114,21 +114,21 @@
     <string name="settings_group_management">Confidentialité et gestion</string>
     <string name="settings_group_intelligence">Fonctions intelligentes</string>
     <string name="settings_group_about">À propos</string>
-    <string name="settings_about">À propos de UGallery</string>
+    <string name="settings_about">À propos de Lightforge Studio</string>
     <string name="settings_about_summary">Version, contributeurs et licences open source</string>
-    <string name="local_analysis_privacy">UGallery peut analyser vos photos accessibles entièrement sur cet appareil. Rien n’est envoyé et vous pouvez arrêter l’analyse ou supprimer ses résultats à tout moment.</string>
+    <string name="local_analysis_privacy">Lightforge Studio peut analyser vos photos accessibles entièrement sur cet appareil. Rien n’est envoyé et vous pouvez arrêter l’analyse ou supprimer ses résultats à tout moment.</string>
     <string name="local_analysis_master">Utiliser l’analyse locale</string>
     <string name="local_analysis_master_summary">Contrôle les personnes et visages, le contenu et le texte des photos, ainsi que les collections d’animaux. Les éléments connus et inchangés ne sont pas analysés à nouveau.</string>
     <string name="local_analysis_minimum_battery">Batterie minimale pour l’analyse complète</string>
     <string name="local_analysis_battery_percent">%1$d%%</string>
-    <string name="local_analysis_minimum_battery_summary">Sans chargeur, l’analyse complète ne s’exécute que lorsque UGallery est ouverte et que la batterie atteint ce niveau. La charge l’autorise toujours.</string>
+    <string name="local_analysis_minimum_battery_summary">Sans chargeur, l’analyse complète ne s’exécute que lorsque Lightforge Studio est ouvert et que la batterie atteint ce niveau. La charge l’autorise toujours.</string>
     <string name="local_analysis_features">Fonctions d’analyse</string>
     <string name="local_analysis_people">Personnes et visages</string>
     <string name="local_analysis_people_summary">Détecte les visages et regroupe localement les photos d’une même personne.</string>
     <string name="local_analysis_content">Contenu et texte des photos</string>
     <string name="local_analysis_content_summary">Crée des libellés recherchables et reconnaît le texte. Les collections d’animaux partagent ces libellés.</string>
     <string name="local_analysis_opt_out_title">L’analyse locale est prête</string>
-    <string name="local_analysis_opt_out_body">UGallery peut organiser les personnes, les animaux, le contenu et le texte des photos entièrement sur cet appareil, uniquement avec les photos autorisées. L’indexation complète s’exécute pendant la charge ou lorsque UGallery est ouverte avec au moins 20 pour cent de batterie par défaut. Vous pouvez modifier ce niveau, désactiver l’analyse ou supprimer ses données dans Paramètres.</string>
+    <string name="local_analysis_opt_out_body">Lightforge Studio peut organiser les personnes, les animaux, le contenu et le texte des photos entièrement sur cet appareil, uniquement avec les photos autorisées. L’indexation complète s’exécute pendant la charge ou lorsque Lightforge Studio est ouvert avec au moins 20 pour cent de batterie par défaut. Vous pouvez modifier ce niveau, désactiver l’analyse ou supprimer ses données dans Paramètres.</string>
     <string name="local_analysis_opt_out_accept">Activer l\'analyse locale</string>
     <string name="local_analysis_opt_out_decline">Pas maintenant</string>
 
@@ -173,7 +173,7 @@
     <string name="portable_preferences_field_collection_order">Ordre des collections</string>
     <string name="portable_preferences_field_hidden_collections">Collections masquées</string>
     <string name="local_analysis_cleanup">Analyse pour libérer de l’espace</string>
-    <string name="local_analysis_cleanup_summary">Trouve les doublons exacts et les photos floues sur cet appareil, pendant la charge ou quand UGallery est ouverte avec assez de batterie. Rien n’est supprimé sans votre confirmation.</string>
+    <string name="local_analysis_cleanup_summary">Trouve les doublons exacts et les photos floues sur cet appareil, pendant la charge ou quand Lightforge Studio est ouvert avec assez de batterie. Rien n’est supprimé sans votre confirmation.</string>
     <string name="settings_language">Langue</string>
     <string name="settings_language_system">Langue du système</string>
 </resources>

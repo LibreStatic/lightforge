@@ -1,4 +1,4 @@
-<resources><string name="destructive_auth_title">Authenticate action</string><string name="destructive_auth_body">Use biometrics or your device credential to continue.</string><string name="app_lock_title">UGallery is locked</string><string name="app_lock_body">Authenticate with biometrics or your device credential to continue.</string><string name="app_lock_unlock">Unlock</string><string name="app_name">UGallery</string><string name="nav_photos">Photos</string><string name="nav_collections">Collections</string><string name="nav_back">Back</string><string name="selection_clear">Clear selection</string><string name="action_retry">Retry confirmation</string><string name="details_close">Close</string><string name="album_create_title">Create album</string><string name="album_name">Album name</string><string name="album_create">Create</string><string name="album_cancel">Cancel</string><string name="external_grant_expired">The temporary grant expired. Reopen the item from the source app.</string><string name="external_save_copy">Save a copy</string><string name="external_unavailable">This item is unavailable.</string><string name="external_play">Play</string><string name="external_pause">Pause</string><string name="selection_count">%1$d selected</string><string name="selection_select_all">Select all</string><string name="selection_favorite">Favorite</string><string name="selection_trash">Move to trash</string><string name="selection_delete">Delete permanently</string><string name="selection_add_album">Add to album</string><string name="selection_share_limit">Sharing is limited to 500 items at a time.</string><string name="library_index_banner">Preparing your library. Search results may be incomplete.</string><string name="selection_share">Share</string><string name="selection_choose_album">Choose an album</string><string name="selection_no_albums">Create an album first</string><string name="trash_empty_confirm_title">Empty trash?</string><plurals name="trash_empty_confirm_body"><item quantity="one">Permanently delete %1$d item? This cannot be undone.</item><item quantity="other">Permanently delete %1$d items? This cannot be undone.</item></plurals><string name="trash_empty_confirm">Delete permanently</string><string name="nav_search">Search</string><string name="moment_state_label">Local moment</string><string name="m6_private_album">Private Album</string>
+<resources><string name="destructive_auth_title">Authenticate action</string><string name="destructive_auth_body">Use biometrics or your device credential to continue.</string><string name="app_lock_title">Lightforge Studio is locked</string><string name="app_lock_body">Authenticate with biometrics or your device credential to continue.</string><string name="app_lock_unlock">Unlock</string><string name="app_name">Lightforge</string><string name="nav_photos">Photos</string><string name="nav_collections">Collections</string><string name="nav_back">Back</string><string name="selection_clear">Clear selection</string><string name="action_retry">Retry confirmation</string><string name="details_close">Close</string><string name="album_create_title">Create album</string><string name="album_name">Album name</string><string name="album_create">Create</string><string name="album_cancel">Cancel</string><string name="external_grant_expired">The temporary grant expired. Reopen the item from the source app.</string><string name="external_save_copy">Save a copy</string><string name="external_unavailable">This item is unavailable.</string><string name="external_play">Play</string><string name="external_pause">Pause</string><string name="selection_count">%1$d selected</string><string name="selection_select_all">Select all</string><string name="selection_favorite">Favorite</string><string name="selection_trash">Move to trash</string><string name="selection_delete">Delete permanently</string><string name="selection_add_album">Add to album</string><string name="selection_share_limit">Sharing is limited to 500 items at a time.</string><string name="library_index_banner">Preparing your library. Search results may be incomplete.</string><string name="selection_share">Share</string><string name="selection_choose_album">Choose an album</string><string name="selection_no_albums">Create an album first</string><string name="trash_empty_confirm_title">Empty trash?</string><plurals name="trash_empty_confirm_body"><item quantity="one">Permanently delete %1$d item? This cannot be undone.</item><item quantity="other">Permanently delete %1$d items? This cannot be undone.</item></plurals><string name="trash_empty_confirm">Delete permanently</string><string name="nav_search">Search</string><string name="moment_state_label">Local moment</string><string name="m6_private_album">Private Album</string>
 <string name="m6_private_album_locked">Private album is locked</string>
 <string name="m6_private_album_unlock">Unlock with biometrics</string>
 <string name="m6_private_album_empty">No private items yet. Move media here from the viewer.</string>
@@ -23,24 +23,24 @@
 <string name="editor_discard_message">Your unsaved changes will be removed.</string>
 <string name="editor_discard_confirm">Discard</string>
 <string name="editor_keep_editing">Keep editing</string>
-<string name="about_title">About UGallery</string>
+<string name="about_title">About Lightforge Studio</string>
 <string name="about_version">Version %1$s</string>
 <string name="about_description">A private, expressive gallery for viewing, organizing, and editing your photos and videos on device.</string>
 <string name="about_developer_label">Developed by</string>
 <string name="about_developer">LibreStatic contributors</string>
 <string name="about_source_code">Source code</string>
-<string name="about_source_code_summary">View UGallery on GitHub</string>
-<string name="about_app_license">UGallery license</string>
+<string name="about_source_code_summary">View Lightforge Studio on GitHub</string>
+<string name="about_app_license">Lightforge Studio license</string>
 <string name="about_app_license_summary">Read the verbatim Apache License 2.0</string>
-<string name="about_app_license_title">UGallery license</string>
+<string name="about_app_license_title">Lightforge Studio license</string>
 <string name="about_licenses">Third-party licenses</string>
-<string name="about_licenses_summary">Open-source software used by UGallery</string>
+<string name="about_licenses_summary">Open-source software used by Lightforge Studio</string>
 <string name="about_licenses_title">Third-party licenses</string>
 <string name="about_back">Back</string>
-<string name="about_app_icon">UGallery app icon</string>
+<string name="about_app_icon">Lightforge Studio app icon</string>
     <string name="about_dependencies_count">%1$d runtime dependencies</string>
     <string name="about_license_load_error">The bundled license information could not be loaded.</string>
-    <string name="about_license_template_note">The bracketed fields in the appendix are part of Apache’s example template and are intentionally left unchanged. UGallery’s completed copyright notice appears above.</string>
+    <string name="about_license_template_note">The bracketed fields in the appendix are part of Apache’s example template and are intentionally left unchanged. Lightforge Studio’s completed copyright notice appears above.</string>
     <string name="nav_settings">Settings</string><string name="nav_create">Create</string><string name="nav_ask">Ask</string><string name="nav_updates">Updates</string><string name="nav_on_device">On device</string><string name="nav_archive">Archive</string><string name="nav_trash">Trash</string>
     <string name="updates_title">Updates</string><string name="updates_empty">No recent local activity</string><string name="updates_local_body">Indexing, analysis and media actions stay on this device.</string>
     <string name="device_folders_title">On device</string><string name="device_folders_empty">No device folders</string>
@@ -61,7 +61,7 @@
 <string name="video_export_hdr_unsupported">This device cannot encode HDR with a supported 10-bit hardware input surface. Choose SDR Rec.709.</string>
 <string name="video_export_cancel">Cancel</string>
 <string name="video_export_view">View</string>
-<string name="video_export_queued">Export queued. You can keep using UGallery.</string>
+<string name="video_export_queued">Export queued. You can keep using Lightforge Studio.</string>
 <string name="video_export_cancelled">Video export cancelled</string>
 <string name="video_export_queue_title">Video exports</string>
 <string name="video_export_waiting">Waiting in queue</string>

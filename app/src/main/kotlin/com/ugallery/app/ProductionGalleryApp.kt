@@ -3848,7 +3848,7 @@ private fun ExternalViewer(
         onMove = null,
         onOpenWith = { launchExternal(ScopedMediaOperations.viewIntent(media.uri, mime)) },
         onSetAs = if (media.kind == MediaKind.Image) ({ launchExternal(ScopedMediaOperations.setAsIntent(media.uri, mime)) }) else null,
-        onPrint = if (media.kind == MediaKind.Image) ({ ScopedMediaOperations.printImage(context, media.uri, media.displayName ?: "UGallery") }) else null,
+        onPrint = if (media.kind == MediaKind.Image) ({ ScopedMediaOperations.printImage(context, media.uri, media.displayName ?: "Lightforge") }) else null,
         onRepairDate = null,
         onTrash = null,
         onSelectMedia = {},
@@ -4096,7 +4096,7 @@ private fun ViewerRoute(
             onOpenWith = if (trashContext) null else ({ launchExternal(ScopedMediaOperations.viewIntent(target, wildcardMime)) }),
             onSetAs = if (trashContext) null else ({ launchExternal(ScopedMediaOperations.setAsIntent(target, wildcardMime)) }),
             onPrint = if (trashContext) null else ({
-                runCatching { ScopedMediaOperations.printImage(context, target, media.displayName ?: "UGallery") }
+                runCatching { ScopedMediaOperations.printImage(context, target, media.displayName ?: "Lightforge") }
                     .onFailure { Toast.makeText(context, it.message ?: actionUnavailable, Toast.LENGTH_SHORT).show() }
             }),
             onRepairDate = if (trashContext) null else ::showDateRepairPicker,
