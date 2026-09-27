@@ -326,9 +326,13 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         setProject(p)
         undo.addAll(session.undo)
         redo.addAll(session.redo)
-        pageViewports = session.viewports
         val page = p.pages.indexOfFirst { it.id == session.pageId }.coerceAtLeast(0)
         val viewport = session.viewportFor(p.pages[page].id)
+        // Seed the current page's entry even for a legacy session whose `viewports` map doesn't
+        // have it (viewportFor() above already fell back to the legacy top-level zoom/pan for
+        // it): without this, switching away and back to this page before ever calling viewport()
+        // on it would look it up as absent and silently reset to 1x/centered.
+        pageViewports = session.viewports + (p.pages[page].id to viewport)
         mutable.update {
             it.copy(
                 page = page,
@@ -372,7 +376,11 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         val project = mutable.value.project ?: return
         val editor = session()
         autosave?.cancel()
-        mutable.update { it.copy(saveState = PdfSaveState.Saving) }
+        // A pinch/pan gesture calls scheduleSave() on every frame; flipping saveState to Saving
+        // every time (when it already is) is pure per-frame state churn for a value that isn't
+        // changing, so only write it on the actual Idle/Saved/Error -> Saving transition.
+        if (mutable.value.saveState != PdfSaveState.Saving)
+            mutable.update { it.copy(saveState = PdfSaveState.Saving) }
         autosave =
             viewModelScope.launch {
                 delay(400)
@@ -663,35 +671,65 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         it.copy(fit = if (it.fit == PdfFit.Cover) PdfFit.Contain else PdfFit.Cover)
     }
 
-    enum class Align {
-        Left,
-        Center,
-        Right,
-        Top,
-        Middle,
-        Bottom,
+    /**
+     * Replace (contextual toolbar): re-picks the selected image's asset from [uri] while keeping
+     * its frame (x/y/width/height/rotation/fit — [PdfGeometry.replaceAsset] decides whether the
+     * crop focus resets). Goes through the same durable, deduping import path as any other image
+     * import ([PdfProjectRepository.import]), which appends a fresh [PdfImage] to the current
+     * page; this then folds that image's new asset into the *originally selected* image and drops
+     * the extra one, and commits the whole thing as a single [undo] step against the
+     * project as it was *before* this call (not the intermediate, already-persisted "with an
+     * extra appended image" state) — so Undo cleanly restores the original photo.
+     *
+     * Note: [PdfProjectRepository.import] persists its intermediate "appended" result directly
+     * (independent of this class's own undo/redo-driven autosave). That write is superseded
+     * within one autosave cycle by the swap this function then applies through [apply]; only a
+     * process death landing in the small window between those two would leave the intermediate,
+     * unswapped state on disk instead of silently losing the edit.
+     */
+    fun replaceSelectedImageAsset(uri: Uri) = operation(lock = false) {
+        val before = requireNotNull(mutable.value.project)
+        val pageIndex = mutable.value.page
+        val imageIndex = mutable.value.image
+        val page = before.pages.getOrNull(pageIndex) ?: return@operation
+        if (imageIndex !in page.images.indices) return@operation
+        val oldImage = page.images[imageIndex]
+        val oldAsset = before.assets.first { it.hash == oldImage.asset }
+        autosave?.cancelAndJoin()
+        persistCurrent()
+        val imported = repository.import(before, listOf(uri), pageIndex) { _, _ -> }
+        val importedPage = imported.pages[pageIndex]
+        val newImage = importedPage.images.last()
+        val newAsset = imported.assets.first { it.hash == newImage.asset }
+        val swapped = PdfGeometry.replaceAsset(oldImage, oldAsset, newAsset)
+        val nextPage =
+            importedPage.copy(
+                images =
+                    importedPage.images.dropLast(1).mapIndexed { m, im ->
+                        if (m == imageIndex) swapped else im
+                    }
+            )
+        val next =
+            imported
+                .copy(pages = imported.pages.mapIndexed { n, p -> if (n == pageIndex) nextPage else p })
+                .validate()
+        undo.addLast(before)
+        if (undo.size > 40) undo.removeFirst()
+        redo.clear()
+        apply(next)
     }
 
-    /** Aligns the selected image relative to the page (its margins define the left/top/right/bottom). */
-    fun alignSelectedImage(align: Align) = pageEdit { page ->
+    /**
+     * Aligns the selected image relative to the page (its margins define the left/top/right/
+     * bottom). The actual geometry (and the [PdfGeometry.constrain] call that keeps an
+     * image wider/taller than the margin box from landing at a negative x/y) lives in
+     * [PdfGeometry.align], which has JVM coverage; this just applies it as one undo step.
+     */
+    fun alignSelectedImage(align: PdfGeometry.Align) = pageEdit { page ->
         val n = mutable.value.image
         if (n !in page.images.indices) return@pageEdit page
-        val i = page.images[n]
-        val x =
-            when (align) {
-                Align.Left -> page.margin
-                Align.Center -> (page.width - i.width) / 2
-                Align.Right -> page.width - page.margin - i.width
-                else -> i.x
-            }
-        val y =
-            when (align) {
-                Align.Top -> page.margin
-                Align.Middle -> (page.height - i.height) / 2
-                Align.Bottom -> page.height - page.margin - i.height
-                else -> i.y
-            }
-        page.copy(images = page.images.mapIndexed { m, img -> if (m == n) img.copy(x = x, y = y) else img })
+        val aligned = PdfGeometry.align(page.images[n], page, align)
+        page.copy(images = page.images.mapIndexed { m, img -> if (m == n) aligned else img })
     }
 
     /** Moves the selected image one step forward in stacking order (toward the front). */
