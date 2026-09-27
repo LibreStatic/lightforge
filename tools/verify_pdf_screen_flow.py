@@ -105,7 +105,9 @@ def run(number,name,action):
 
 def create():
     if not marker('state').get('project'):
-        tap('New project');wait(lambda s:s['pages']==1 and not s['busy'])
+        # New project opens a setup sheet (paper, orientation, photos per page); accept defaults.
+        tap('New project');snap('new-project-sheet');tap('Create')
+        wait(lambda s:s['pages']==1 and not s['busy'])
     if marker('state')['assets']==1:return
     if not any('documentsui' in n.get('package','') for n in dump()[0].iter('node')):
         tap('Insert');tap('Import images / PDF')

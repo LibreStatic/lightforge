@@ -44,6 +44,14 @@ def dismiss_to_editor(label):
         if any(n.get('content-desc')==label for n in root.iter('node')):return
         shell('input','keyevent','4');time.sleep(.4)
     raise AssertionError('Sheet did not dismiss')
+def open_details(snap_name):
+    # The overflow menu animates in; retry until the details sheet (with the name field) shows.
+    for _ in range(3):
+        tap(ls['pdf_project_details']);root=snap(snap_name)
+        if any(n.get('text')==ls['pdf_name'] or n.get('content-desc')==ls['pdf_name'] for n in root.iter('node')):return root
+        if not any(n.get('text')==ls['pdf_project_details'] for n in root.iter('node')):
+            tap(ls['pdf_project_actions'])
+    raise AssertionError('Project details sheet did not open')
 def snap(name):
     root,raw=dump();(out/(name+'.xml')).write_bytes(raw)
     (out/(name+'.png')).write_bytes(adb('exec-out','screencap','-p'));return root
@@ -74,7 +82,13 @@ for width,height,font,locale,dark,rtl in cases:
     shell('run-as',pkg,'rm','-f','files/pdf-ui-state.json')
     subprocess.run(b+['shell','run-as',pkg,'tee','files/pdf-ui-config.json'], input=json.dumps(dict(width=width,font=font,locale=locale)).encode(),stdout=subprocess.DEVNULL,check=True)
     shell('am','start','-W','-n',pkg+'/com.ugallery.feature.pdfstudio.PdfUiProbeActivity','--ei','width',str(width),'--ei','height',str(height),'--ef','font',str(font),'--es','locale',locale,'--ez','dark',str(dark).lower(),'--ez','rtl',str(rtl).lower(),'--ez','dynamic',str(args.dynamic).lower())
-    initial=wait_ready();time.sleep(.5);ls=labels(locale);root=snap(name)
+    initial=wait_ready();time.sleep(.5);ls=labels(locale)
+    # The previous case's activity can still be on screen for a moment; wait for this case's
+    # canvas (in this case's locale) before taking the reference snapshot.
+    for _ in range(20):
+        root=snap(name)
+        if any(n.get('content-desc')==ls['pdf_canvas_label'] for n in root.iter('node')):break
+        time.sleep(.5)
     pixels=int.from_bytes((out/(name+'.png')).read_bytes()[16:20],'big')
     canvas=bounds(node_for(root,ls['pdf_canvas_label']));canvas_dp=(canvas[3]-canvas[1])*width/pixels
     assert canvas_dp>=120,(name,canvas_dp)
@@ -92,7 +106,7 @@ for width,height,font,locale,dark,rtl in cases:
     # Export is a filled top-bar action now; the overflow only holds the less frequent actions.
     node_for(root,ls['pdf_export'])
     tap(ls['pdf_project_actions']);menu=snap(name+'-menu');node_for(menu,ls['pdf_queue']);node_for(menu,ls['pdf_portable'])
-    tap(ls['pdf_project_details']);details=snap(name+'-details');node_for(details,ls['pdf_name'])
+    details=open_details(name+'-details');node_for(details,ls['pdf_name'])
     # Edit actual title, then undo through the top bar's own Undo button; reopening must reflect
     # the restored state.
     edit=[n for n in details.iter('node') if n.get('class')=='android.widget.EditText'][0]
@@ -104,7 +118,7 @@ for width,height,font,locale,dark,rtl in cases:
     # The title lives in the top app bar (tap to rename), not in an inline text field.
     editor=snap(name+'-undo-editor')
     assert any(n.get('text')==initial['name'] and n.get('class')!='android.widget.EditText' for n in editor.iter('node')), 'Top bar title did not follow undo'
-    tap(ls['pdf_project_actions']);tap(ls['pdf_project_details']);restored=snap(name+'-restored')
+    tap(ls['pdf_project_actions']);restored=open_details(name+'-restored')
     assert any(n.get('text')==initial['name'] for n in restored.iter('node') if n.get('class')=='android.widget.EditText')
     dismiss_to_editor(ls['pdf_project_actions'])
     if width < 840*font:tap(ls['pdf_pages'])
