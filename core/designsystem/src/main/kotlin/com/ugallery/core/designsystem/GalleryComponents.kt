@@ -21,6 +21,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -392,13 +393,11 @@ fun GalleryExpressiveChoiceGroup(
     icons: List<ImageVector?> = emptyList(),
     minimumItemWidth: Dp? = null,
     enabled: List<Boolean> = emptyList(),
+    wrap: Boolean = false,
 ) {
     fun isEnabled(index: Int) = enabled.getOrNull(index) ?: true
     if (minimumItemWidth != null) {
-        Row(
-            modifier = modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+        val chips: @Composable () -> Unit = {
             labels.forEachIndexed { index, label ->
                 val icon = icons.getOrNull(index)
                 FilterChip(
@@ -413,6 +412,18 @@ fun GalleryExpressiveChoiceGroup(
                 )
             }
         }
+        // In narrow panes a scrolling row hides options with no affordance; wrap keeps every
+        // choice visible (and reachable by accessibility services) on as many lines as needed.
+        if (wrap)
+            FlowRow(
+                modifier = modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) { chips() }
+        else
+            Row(
+                modifier = modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) { chips() }
         return
     }
     ButtonGroup(

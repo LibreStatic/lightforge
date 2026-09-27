@@ -25,19 +25,31 @@ import org.json.JSONObject
 /**
  * Phase F item 3 review fix: a trivial, self-contained [PdfMediaSource] so the Media panel can be
  * screenshotted/exercised by the probe/scripts without any real gallery data or permissions. Every
- * item is in-memory and every thumbnail is a generated solid-color bitmap (never touches
- * ContentResolver), so this has none of the privacy/permission concerns the real app-side
- * implementation does.
+ * item is a small generated solid-color PNG written to this test app's own cache (file:// URIs,
+ * like the other import tests), so an insert really goes through the durable intake pipeline
+ * without touching any real gallery data or permissions.
  */
-private class PdfFakeMediaSource : PdfMediaSource {
+private class PdfFakeMediaSource(private val directory: File) : PdfMediaSource {
     override val access =
         kotlinx.coroutines.flow.MutableStateFlow(PdfMediaAccess(PdfMediaAccessState.Full))
+
+    private fun fixture(name: String, key: String): Uri {
+        val file = File(directory.apply { mkdirs() }, "$name.png")
+        if (!file.exists()) {
+            val bitmap = Bitmap.createBitmap(64, 64, Bitmap.Config.ARGB_8888)
+            val hue = (key.hashCode().and(0xff)) / 255f * 360f
+            bitmap.eraseColor(android.graphics.Color.HSVToColor(floatArrayOf(hue, 0.5f, 0.8f)))
+            file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            bitmap.recycle()
+        }
+        return Uri.fromFile(file)
+    }
 
     private val photos =
         List(4) { n ->
             PdfMediaItem(
                 key = "fake-photo-$n",
-                uri = Uri.parse("content://pdf-ui-probe/photo/$n"),
+                uri = fixture("photo-$n", "fake-photo-$n"),
                 displayName = "Fake photo $n",
                 isDocument = false,
                 width = 64,
@@ -48,7 +60,7 @@ private class PdfFakeMediaSource : PdfMediaSource {
         List(2) { n ->
             PdfMediaItem(
                 key = "fake-doc-$n",
-                uri = Uri.parse("content://pdf-ui-probe/document/$n"),
+                uri = fixture("document-$n", "fake-doc-$n"),
                 displayName = "Fake document $n",
                 isDocument = true,
                 width = 64,
@@ -315,7 +327,7 @@ class PdfUiProbeActivity : ComponentActivity() {
                                     )
                                 }
                             }
-                        val mediaSource = remember { if (fakeMedia) PdfFakeMediaSource() else null }
+                        val mediaSource = remember { if (fakeMedia) PdfFakeMediaSource(File(cacheDir, "pdf-ui-fake-media")) else null }
                         Box(Modifier.width(width.dp).height(height.dp)) {
                             PdfStudioScreen(
                                 onExit = { finish() },

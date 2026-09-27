@@ -21,10 +21,9 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
-import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
-import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.ugallery.core.designsystem.GalleryExpressiveChoiceGroup
@@ -64,6 +63,7 @@ internal fun PdfMediaPanel(vm: PdfStudioViewModel, s: PdfStudioState, mediaSourc
             selectedIndex = chip.ordinal,
             onSelect = { chip = PdfMediaChip.entries[it] },
             minimumItemWidth = 84.dp,
+            wrap = true,
         )
         Spacer(Modifier.height(8.dp))
         if (chip == PdfMediaChip.InProject) {
@@ -82,18 +82,18 @@ internal fun PdfMediaPanel(vm: PdfStudioViewModel, s: PdfStudioState, mediaSourc
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(ownItems, key = { it.hash }) { asset ->
-                        var bitmap by remember(asset.hash) { mutableStateOf<Bitmap?>(null) }
-                        LaunchedEffect(asset.hash) {
-                            bitmap =
-                                runCatching {
-                                        vm.repository.imageBitmap(
-                                            vm.repository.file(asset.hash),
-                                            asset.orientation,
-                                            256,
-                                        )
-                                    }
-                                    .getOrNull()
-                        }
+                        val bitmap by
+                            produceState<Bitmap?>(null, asset.hash) {
+                                value =
+                                    runCatching {
+                                            vm.repository.imageBitmap(
+                                                vm.repository.file(asset.hash),
+                                                asset.orientation,
+                                                256,
+                                            )
+                                        }
+                                        .getOrNull()
+                            }
                         val label = stringResource(R.string.pdf_media_item_label, stringResource(R.string.pdf_media_in_project))
                         val addLabel = stringResource(R.string.pdf_media_add_to_page)
                         PdfMediaThumbnail(
@@ -157,10 +157,15 @@ internal fun PdfMediaPanel(vm: PdfStudioViewModel, s: PdfStudioState, mediaSourc
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             items(items, key = { it.key }) { item ->
-                                var bitmap by remember(item.key) { mutableStateOf<Bitmap?>(null) }
-                                LaunchedEffect(item.key) {
-                                    bitmap = runCatching { mediaSource.thumbnail(item, 256) }.getOrNull()
-                                }
+                                // produceState (rather than a manually-remembered MutableState +
+                                // a sibling LaunchedEffect) is the idiomatic way to turn a suspend
+                                // call into Compose state: it can't drift out of sync with the key
+                                // the way two separately-keyed `remember`/`LaunchedEffect` calls
+                                // could if either one's key expression were ever wrong.
+                                val bitmap by
+                                    produceState<Bitmap?>(null, mediaSource, item.key) {
+                                        value = runCatching { mediaSource.thumbnail(item, 256) }.getOrNull()
+                                    }
                                 val addLabel = stringResource(R.string.pdf_media_add_to_page)
                                 val label = stringResource(R.string.pdf_media_item_label, item.displayName)
                                 PdfMediaThumbnail(
@@ -194,11 +199,21 @@ private fun PdfMediaThumbnail(
     isDocument: Boolean = false,
     dragUri: android.net.Uri? = null,
 ) {
+    // Review fix: uses the standard Modifier.clickable(onClickLabel=, role=) + an ADDITIVE
+    // semantics block (contentDescription/customActions only) instead of clearAndSetSemantics,
+    // which replaced the whole semantics subtree (including whatever clickable itself
+    // contributes) with a hand-built one. clickable is the one actually wired to real touch
+    // input, so keeping its own semantics intact is the safer way to guarantee the accessible
+    // node and the real tap target are one and the same.
     var modifier =
         Modifier.size(96.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-            .clickable(onClick = onClick)
+            .clickable(onClickLabel = addActionLabel, role = Role.Button, onClick = onClick)
+            .semantics {
+                this.contentDescription = contentDescription
+                customActions = listOf(CustomAccessibilityAction(addActionLabel) { onClick(); true })
+            }
     if (dragUri != null)
         modifier =
             modifier.dragAndDropSource { _ ->
@@ -213,17 +228,7 @@ private fun PdfMediaThumbnail(
                     0,
                 )
             }
-    Box(
-        modifier.clearAndSetSemantics {
-            this.contentDescription = contentDescription
-            onClick(label = addActionLabel) {
-                onClick()
-                true
-            }
-            customActions = listOf(CustomAccessibilityAction(addActionLabel) { onClick(); true })
-        },
-        contentAlignment = Alignment.Center,
-    ) {
+    Box(modifier, contentAlignment = Alignment.Center) {
         if (bitmap != null)
             Image(
                 bitmap = bitmap.asImageBitmap(),

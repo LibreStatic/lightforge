@@ -65,6 +65,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -494,7 +496,6 @@ private fun PdfInspectorColumn(
     onPortable: () -> Unit,
     onLaunchImport: () -> Unit,
 ) {
-    InsertControls(state, portable = onPortable, import = onLaunchImport)
     // Expanded/hinge inspector tabs (Phase F item 3): Page / Photo / Media. Photo only exists
     // while an image is selected, and Media only when a PdfMediaSource was passed in; a manual
     // pick on either sticks until the selection changes (mirrors the existing Adjust-follows-
@@ -507,6 +508,13 @@ private fun PdfInspectorColumn(
             if (state.image >= 0) add(stringResource(R.string.pdf_adjust) to 1)
             if (mediaSource != null) add(stringResource(R.string.pdf_media) to 2)
         }
+    // Review fix: on a 640dp-tall window the Insert section (a button + a link) pushed the
+    // Media tab's grid down far enough that it started below the fold. It's collapsed away
+    // while the Media tab is active - Media is now the discoverable way to add gallery/document
+    // content, and "Import images / PDF" (a different, file-picker-based source) stays one tap
+    // away on every other tab.
+    if (inspectorTab != 2 || mediaSource == null)
+        InsertControls(state, portable = onPortable, import = onLaunchImport)
     if (tabs.size > 1) {
         val selected = tabs.indexOfFirst { it.second == inspectorTab }.coerceAtLeast(0)
         com.ugallery.core.designsystem.GalleryExpressiveChoiceGroup(
@@ -659,10 +667,20 @@ private fun PdfTabletopEditorBody(
     feedback: @Composable () -> Unit,
 ) {
     var panel by remember { mutableStateOf(0) }
-    Box(modifier) {
+    // The fold's bounds are window coordinates, but this body starts below the top app bar:
+    // measure where it sits in the window so the canvas half ends exactly at the crease.
+    val density = LocalDensity.current
+    var bodyTopInWindow by remember { mutableStateOf(0.dp) }
+    Box(
+        modifier.onGloballyPositioned {
+            bodyTopInWindow = with(density) { it.positionInWindow().y.toDp() }
+        }
+    ) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val fold = layout.foldInfo
-            val topHeight = fold?.top?.coerceIn(0.dp, maxHeight) ?: (maxHeight / 2)
+            val topHeight =
+                fold?.top?.let { (it - bodyTopInWindow).coerceIn(0.dp, maxHeight) }
+                    ?: (maxHeight / 2)
             val hingeHeight = fold?.hingeHeight ?: 0.dp
             Column(Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxWidth().height(topHeight)) {

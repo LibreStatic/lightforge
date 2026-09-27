@@ -601,8 +601,18 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         placementXMm: Double? = null,
         placementYMm: Double? = null,
     ) {
-        val project = mutable.value.project ?: return
-        val pageId = project.pages.getOrNull(pageIndex)?.id ?: return
+        // Review fix: these two guards used to `return` bare - a silent no-op indistinguishable
+        // from "nothing happened", exactly the reported symptom (tap does nothing, no issue
+        // card). Both cases should be effectively unreachable from the Media panel (it only
+        // renders while a project/page is open), so surfacing the generic failure message is a
+        // deliberate "this should never happen, but if it does, say so" guard, not a real
+        // day-to-day error path.
+        val project = mutable.value.project
+        val pageId = project?.pages?.getOrNull(pageIndex)?.id
+        if (project == null || pageId == null) {
+            mutable.update { it.copy(message = R.string.pdf_error) }
+            return
+        }
         viewModelScope.launch {
             try {
                 galleryIntake.stage(

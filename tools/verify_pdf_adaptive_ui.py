@@ -201,17 +201,23 @@ if args.media:
           '--ez','dark','false','--ez','rtl','false','--ez','dynamic',str(args.dynamic).lower(),
           '--ez','fakeMedia','true')
     baseline=wait_ready();time.sleep(.5);ls=labels('en')
-    assert baseline.get('currentPageImages',0)==0,baseline
+    # The probe fixture page already holds one image; measure the insert as a delta.
+    before=baseline.get('currentPageImages',0)
     root=None
     for _ in range(20):
         root=snap(name)
         if any(n.get('content-desc')==ls['pdf_canvas_label'] for n in root.iter('node')):break
         time.sleep(.5)
     tap(ls['pdf_media']);tab=snap(name+'-tab')
+    pixels=int.from_bytes((out/(name+'-tab.png')).read_bytes()[16:20],'big');px_per_dp=pixels/840
     # Chips: every one is present, labeled, and at least a 48dp touch target.
     for chip_key in ('pdf_media_all','pdf_media_photos','pdf_media_documents','pdf_media_in_project'):
-        chip=node_for(tab,ls[chip_key]);x,y,r,d=bounds(chip)
-        assert (r-x)>=44 and (d-y)>=44, (chip_key,'chip below 48dp target',chip.attrib) # dp vs px slack
+        chip=node_for(tab,ls[chip_key])
+        # The label is a child TextView; measure the clickable chip that owns it.
+        parents={c:p for p in tab.iter() for c in p}
+        while chip.get('clickable')!='true' and chip in parents:chip=parents[chip]
+        x,y,r,d=bounds(chip)
+        assert (r-x)>=48*px_per_dp*0.9 and (d-y)>=48*px_per_dp*0.9, (chip_key,'chip below 48dp target',chip.attrib)
     # Tiles: the fake source's items are labeled "<name>. Add to current page" and >=48dp.
     item_label=ls['pdf_media_item_label'].replace('%1$s','Fake photo 0')
     tile=node_for(tab,item_label);tx,ty,tr,td=bounds(tile)
@@ -220,15 +226,15 @@ if args.media:
     # Tap the tile: the current page must gain exactly one image.
     tap(item_label)
     for _ in range(30):
-        if state().get('currentPageImages',0)==1:break
+        if state().get('currentPageImages',0)==before+1:break
         time.sleep(.2)
-    assert state()['currentPageImages']==1,state()
+    assert state()['currentPageImages']==before+1,state()
     # Undo removes it again.
     tap(ls['pdf_undo'])
     for _ in range(30):
-        if state().get('currentPageImages',0)==0:break
+        if state().get('currentPageImages',0)==before:break
         time.sleep(.2)
-    assert state()['currentPageImages']==0,state()
+    assert state()['currentPageImages']==before,state()
     media_result=dict(case=name,chipsLabeled=True,tilesLabeledAndSized=True,tapAppendsImage=True,undoRemovesImage=True)
     print('MEDIA CASE PASS: '+json.dumps(media_result,sort_keys=True),flush=True)
     cleanup()

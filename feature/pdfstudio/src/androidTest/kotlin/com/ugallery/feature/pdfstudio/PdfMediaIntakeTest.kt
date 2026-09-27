@@ -143,6 +143,15 @@ class PdfMediaIntakeTest {
             val project = requireNotNull(model.state.value.project)
             assertEquals(projectId, project.id)
             assertEquals(1, project.pages.single().images.size)
+            // Review fix (device fail: "tapping a tile does nothing"): this drives the exact
+            // same vm.insertMedia -> gallery delivery staging -> resumeGallery's targeted,
+            // non-locking path -> importMediaIntoPage chain a real Media panel tap does, with no
+            // UI/gesture layer in between, so a failure here points squarely at that chain rather
+            // than at touch dispatch.
+            assertTrue("insert must be a single undo step", model.state.value.canUndo)
+            withContext(Dispatchers.Main) { model.undo() }
+            withTimeout(10_000) { while (model.state.value.busy) delay(20) }
+            assertEquals(0, requireNotNull(model.state.value.project).pages.single().images.size)
         } finally {
             withContext(Dispatchers.Main) { store.clear() }
             projectId?.let { repo.delete(it) }
