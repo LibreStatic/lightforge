@@ -110,10 +110,12 @@ def edit():
         assert visible('Saved · just now')
 run(2,'duplicate-undo-redo',edit)
 def pdf():
+    # Phase B moved the picker before rendering: exporting a regular PDF never enters Ready any
+    # more (the worker publishes as soon as it renders), so the only wait is for verification.
     jobs=[j for j in marker('state')['jobs'] if not j['portable']]
     if jobs and jobs[0]['verified']:return
     if not jobs:
-        # Export is a filled top-bar action now, not an overflow item.
+        # Export is a filled top-bar action, opening the destination-first export sheet.
         if not visible('Compact'):tap('Export')
         snap('quality-dialog')
         if args.baseline:
@@ -122,19 +124,22 @@ def pdf():
             print('BASELINE LABEL MISSING: native Compact switch has no accessible label',flush=True)
             tap_where(lambda n:n.get('checkable')=='true')
         else:
-            def labeled_toggles():
+            # The Original/Compact quality picker is two selectable cards now, not a single
+            # switch; each card is one checkable node owning its own "Original"/"Compact" label.
+            def labeled_cards():
                 return [n for n in dump()[0].iter('node') if n.get('checkable')=='true' and any(match(c,'Compact') for c in n.iter('node'))]
-            toggles=labeled_toggles();assert len(toggles)==1,'Label must belong to the checkable control'
-            if toggles[0].get('checked')!='true':tap('Compact')
-            toggles=labeled_toggles()
-            assert len(toggles)==1 and toggles[0].get('checked')=='true' and toggles[0].get('clickable')=='true' and toggles[0].get('NAF')!='true'
-            x,y,r,d=map(int,re.findall(r'\d+',toggles[0].get('bounds')));assert r-x>3*(d-y)
+            cards=labeled_cards();assert len(cards)==1,'Label must belong to the checkable card'
+            if cards[0].get('checked')!='true':tap('Compact')
+            cards=labeled_cards()
+            assert len(cards)==1 and cards[0].get('checked')=='true' and cards[0].get('clickable')=='true' and cards[0].get('NAF')!='true'
+            x,y,r,d=map(int,re.findall(r'\d+',cards[0].get('bounds')));assert r>x and d>y
             snap('quality-selected')
-        tap('Export PDF')
-    ready=wait(lambda s:any(j['phase']=='Ready' and not j['portable'] for j in s['jobs']))
-    if not args.baseline:assert all(j['compact'] for j in ready['jobs'] if not j['portable'])
-    if not any('documentsui' in n.get('package','') for n in dump()[0].iter('node')):tap('Save PDF')
-    save_file(cp['name']+'.pdf')
+        # The sticky Export action launches CreateDocument immediately: the destination is chosen
+        # before anything is queued or rendered.
+        tap('Export')
+        save_file(cp['name']+'.pdf')
+    queued=wait(lambda s:any(j['phase']!='Ready' and not j['portable'] for j in s['jobs']))
+    if not args.baseline:assert all(j['compact'] for j in queued['jobs'] if not j['portable'])
     wait(lambda s:any(j['verified'] and not j['portable'] for j in s['jobs']))
 run(3,'native-pdf-saved',pdf)
 def portable():
