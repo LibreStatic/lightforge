@@ -156,6 +156,10 @@ fun PdfStudioScreen(
             vm.importLaunchFailed(e)
         }
     }
+    val replaceImage =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
+            it?.let(vm::replaceSelectedImageAsset)
+        }
     // library() always works now (it joins whatever operation is in flight itself), so Back must
     // never be conditionally gated here or it can look tappable while doing nothing.
     BackHandler(project != null) { vm.library() }
@@ -216,6 +220,13 @@ fun PdfStudioScreen(
                         onShowQueue = { showQueue = true },
                         onLaunchImport = { launchImport(false) },
                         onAdjustImage = { panel = 3 },
+                        onReplaceImage = {
+                            try {
+                                replaceImage.launch(arrayOf("image/jpeg", "image/png", "image/webp"))
+                            } catch (e: Exception) {
+                                vm.importLaunchFailed(e)
+                            }
+                        },
                         modifier = Modifier.weight(1f),
                     ) {
                         PdfFeedbackOverlay(

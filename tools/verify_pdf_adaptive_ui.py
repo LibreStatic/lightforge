@@ -81,8 +81,11 @@ for width,height,font,locale,dark,rtl in cases:
     image_bounds=bounds(node_for(root,image_label))
     assert image_bounds[0]+image_bounds[2] < canvas[0]+canvas[2], 'Physical PDF image coordinates mirrored in RTL'
     theme=json.loads(shell('run-as',pkg,'cat','files/pdf-ui-theme.json'))
-    for key in ('surface','primary','secondaryContainer','surfaceContainer','surfaceVariantText','surfacePrimaryText'):assert theme[key]>=4.5,(key,theme)
-    assert theme['outline']>=3,theme
+    # Phase C: the canvas's floating page/zoom badges and drag measurement chip carry text, so
+    # they need the text threshold; the contextual toolbar (icon buttons only) and its Delete
+    # action (an icon-only errorContainer/onErrorContainer button) need only the icon threshold.
+    for key in ('surface','primary','secondaryContainer','surfaceContainer','surfaceVariantText','surfacePrimaryText','canvasBadge','snapMeasurementChip'):assert theme[key]>=4.5,(key,theme)
+    for key in ('outline','contextualToolbar','contextualToolbarDelete'):assert theme[key]>=3,(key,theme)
     assert theme['dynamic']==args.dynamic
     (out/(name+'-theme.json')).write_text(json.dumps(theme,indent=2)+'\n')
     # Export is a filled top-bar action now; the overflow only holds the less frequent actions.

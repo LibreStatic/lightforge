@@ -153,6 +153,27 @@ class PdfUiProbeActivity : ComponentActivity() {
                                             "selectedTool",
                                             contrast(c.secondaryContainer, c.onSecondaryContainer),
                                         )
+                                        // Phase C additions: the canvas's floating page/zoom
+                                        // badges and drag measurement chip (secondaryContainer/
+                                        // onSecondaryContainer), the contextual toolbar's own
+                                        // container (surfaceContainerHigh/onSurface), and its
+                                        // Delete action (errorContainer/onErrorContainer).
+                                        .put(
+                                            "canvasBadge",
+                                            contrast(c.secondaryContainer, c.onSecondaryContainer),
+                                        )
+                                        .put(
+                                            "snapMeasurementChip",
+                                            contrast(c.secondaryContainer, c.onSecondaryContainer),
+                                        )
+                                        .put(
+                                            "contextualToolbar",
+                                            contrast(c.surfaceContainerHigh, c.onSurface),
+                                        )
+                                        .put(
+                                            "contextualToolbarDelete",
+                                            contrast(c.errorContainer, c.onErrorContainer),
+                                        )
                                         .toString()
                                 )
                         }

@@ -268,6 +268,7 @@ internal fun PdfEditorBody(
     onShowQueue: () -> Unit,
     onLaunchImport: () -> Unit,
     onAdjustImage: () -> Unit,
+    onReplaceImage: () -> Unit,
     modifier: Modifier = Modifier,
     feedback: @Composable () -> Unit,
 ) {
@@ -292,6 +293,7 @@ internal fun PdfEditorBody(
                     pageIndex = state.page,
                     pageCount = project.pages.size,
                     onAdjustImage = onAdjustImage,
+                    onReplaceImage = onReplaceImage,
                 )
                 if (layout.expanded)
                     Column(
@@ -342,15 +344,6 @@ internal fun PdfEditorBody(
             ) {
                 feedback()
             }
-            // Drawn as an overlay (not inserted into the Column below) so the canvas never
-            // resizes/jumps when a selection appears or clears.
-            if (state.image >= 0 && !state.editorLocked)
-                PdfImageContextualToolbar(
-                    vm = vm,
-                    modifier =
-                        Modifier.align(Alignment.BottomCenter)
-                            .padding(bottom = if (layout.expanded) 12.dp else 96.dp),
-                )
         }
     }
     if (!layout.expanded) PdfPageStrip(vm, state, project)
@@ -397,15 +390,16 @@ private fun pdfToolBarTabs() =
 
 /**
  * Contextual toolbar shown above the page strip while an image is selected (Phase C item 4):
- * Crop/Fit, Rotate, Align, Layer and Delete. Replace (re-picking the asset while keeping frame
- * geometry) was left out of this phase: it needs its own import-picker wiring and a "keep
- * geometry" contract with the repository that did not fit safely in the same change as the rest
- * of this toolbar; the existing Adjust panel remains the way to swap an image's crop/fit today.
- * Reuses the existing "Adjust" custom action (pdf_adjust) and the panel it opens, which stays the
- * definitive place for numeric edits; this row is the quick, mouse/touch-first path.
+ * Replace, Crop/Fit, Rotate, Align, Layer and Delete. Reuses the existing "Adjust" custom action
+ * (pdf_adjust) and the panel it opens, which stays the definitive place for numeric edits; this
+ * row is the quick, mouse/touch-first path.
  */
 @Composable
-private fun PdfImageContextualToolbar(vm: PdfStudioViewModel, modifier: Modifier = Modifier) {
+internal fun PdfImageContextualToolbar(
+    vm: PdfStudioViewModel,
+    onReplace: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     var showAlign by remember { mutableStateOf(false) }
     var showLayer by remember { mutableStateOf(false) }
     Surface(
@@ -419,6 +413,13 @@ private fun PdfImageContextualToolbar(vm: PdfStudioViewModel, modifier: Modifier
             Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 4.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            val replaceLabel = stringResource(R.string.pdf_replace_image)
+            IconButton(
+                onClick = onReplace,
+                modifier = Modifier.semantics { contentDescription = replaceLabel },
+            ) {
+                Icon(GalleryIcons.Image, contentDescription = null)
+            }
             val cropFitLabel = stringResource(R.string.pdf_toolbar_cropfit)
             IconButton(
                 onClick = vm::toggleSelectedImageFit,
@@ -444,12 +445,12 @@ private fun PdfImageContextualToolbar(vm: PdfStudioViewModel, modifier: Modifier
                 DropdownMenu(expanded = showAlign, onDismissRequest = { showAlign = false }) {
                     val entries =
                         listOf(
-                            PdfStudioViewModel.Align.Left to R.string.pdf_align_left,
-                            PdfStudioViewModel.Align.Center to R.string.pdf_align_center,
-                            PdfStudioViewModel.Align.Right to R.string.pdf_align_right,
-                            PdfStudioViewModel.Align.Top to R.string.pdf_align_top,
-                            PdfStudioViewModel.Align.Middle to R.string.pdf_align_middle,
-                            PdfStudioViewModel.Align.Bottom to R.string.pdf_align_bottom,
+                            PdfGeometry.Align.Left to R.string.pdf_align_left,
+                            PdfGeometry.Align.Center to R.string.pdf_align_center,
+                            PdfGeometry.Align.Right to R.string.pdf_align_right,
+                            PdfGeometry.Align.Top to R.string.pdf_align_top,
+                            PdfGeometry.Align.Middle to R.string.pdf_align_middle,
+                            PdfGeometry.Align.Bottom to R.string.pdf_align_bottom,
                         )
                     entries.forEach { (align, label) ->
                         DropdownMenuItem(
@@ -502,11 +503,15 @@ private fun PdfImageContextualToolbar(vm: PdfStudioViewModel, modifier: Modifier
                 }
             }
             val deleteLabel = stringResource(R.string.pdf_delete_image)
-            IconButton(
+            // A validated Material role PAIR (errorContainer/onErrorContainer), not `error` tint
+            // over the toolbar's own surfaceContainerHigh background — that combination isn't a
+            // defined semantic pair and isn't contrast-checked anywhere.
+            androidx.compose.material3.FilledTonalIconButton(
                 onClick = vm::deleteSelectedImage,
                 colors =
-                    androidx.compose.material3.IconButtonDefaults.iconButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error
+                    androidx.compose.material3.IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
                     ),
                 modifier = Modifier.semantics { contentDescription = deleteLabel },
             ) {
@@ -550,6 +555,10 @@ internal fun PdfPageStrip(vm: PdfStudioViewModel, s: PdfStudioState, project: Pd
                 Box(
                     Modifier.width(56.dp)
                         .fillMaxHeight()
+                        // Neighbors sliding into the gap as a drag reorders the list is what
+                        // makes the drop position visible; the dragged item itself is excluded
+                        // (its own graphicsLayer translation below already tracks the finger).
+                        .then(if (dragging == page.id) Modifier else Modifier.animateItem())
                         .graphicsLayer {
                             translationX = if (dragging == page.id) dragOffsetX else 0f
                             shadowElevation = if (dragging == page.id) 8f else 0f
@@ -604,10 +613,20 @@ internal fun PdfPageStrip(vm: PdfStudioViewModel, s: PdfStudioState, project: Pd
                                     )
                                 },
                                 onDragEnd = {
-                                    val slot = 64.dp
+                                    // The real on-screen pitch (item size + spacing) between two
+                                    // consecutive laid-out items, not a guessed dp literal that
+                                    // would silently desync if the thumbnail size or spacing ever
+                                    // changes. Falls back to this item's own measured size (still
+                                    // real, just missing the inter-item gap) if only one item is
+                                    // currently visible/laid out.
+                                    val visible = listState.layoutInfo.visibleItemsInfo
                                     val slotPx =
-                                        with(this) { slot.toPx() }
-                                    val steps = (dragOffsetX / slotPx).let { if (it >= 0) kotlin.math.floor(it) else kotlin.math.ceil(it) }.toInt()
+                                        if (visible.size >= 2) visible[1].offset - visible[0].offset
+                                        else visible.firstOrNull()?.size ?: with(this) { 64.dp.toPx() }.toInt()
+                                    val steps =
+                                        (dragOffsetX / slotPx)
+                                            .let { if (it >= 0) kotlin.math.floor(it) else kotlin.math.ceil(it) }
+                                            .toInt()
                                     val target = (index + steps).coerceIn(0, project.pages.lastIndex)
                                     dragging = null
                                     dragOffsetX = 0f
@@ -628,7 +647,16 @@ internal fun PdfPageStrip(vm: PdfStudioViewModel, s: PdfStudioState, project: Pd
                         PageThumbnail(page, vm, Modifier.size(40.dp, 52.dp))
                         Text(
                             "${index + 1}",
-                            style = MaterialTheme.typography.labelSmall,
+                            // Non-color cue besides the primary border: the current page's own
+                            // number is also bold and a size step up, so it still reads as
+                            // "selected" without relying on color alone (color-blind users, or a
+                            // grayscale/high-contrast override).
+                            style =
+                                if (isCurrent)
+                                    MaterialTheme.typography.labelMedium.copy(
+                                        fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                                    )
+                                else MaterialTheme.typography.labelSmall,
                             color =
                                 if (isCurrent) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurfaceVariant,

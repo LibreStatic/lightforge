@@ -220,6 +220,7 @@ internal fun PdfCanvas(
     pageIndex: Int = 0,
     pageCount: Int = 1,
     onAdjustImage: () -> Unit,
+    onReplaceImage: () -> Unit = {},
 ) {
     val current by vm.state.collectAsStateWithLifecycle()
     val viewport by rememberUpdatedState(current)
@@ -285,8 +286,17 @@ internal fun PdfCanvas(
                 },
             contentAlignment = Alignment.Center,
         ) {
+            // A fixed-height band reserved at the bottom of the workspace — never over the paper
+            // — for the page/zoom badges (or, while an image is selected, the contextual toolbar
+            // in their place). Reserved unconditionally so switching selection never changes the
+            // page's own fit size (no jump).
+            val badgeBandHeight = 64.dp
             val width =
-                minOf(maxWidth - 24.dp, (maxHeight - 24.dp) * (page.width / page.height).toFloat())
+                minOf(
+                        maxWidth - 24.dp,
+                        (maxHeight - 24.dp - badgeBandHeight) *
+                            (page.width / page.height).toFloat(),
+                    )
                     .coerceAtLeast(80.dp)
             val height = width * (page.height / page.width).toFloat()
             // Shared across every image below: only one drag is ever active at a time, so a
@@ -298,8 +308,11 @@ internal fun PdfCanvas(
             var dragOffsetMm by
                 remember(page.id) { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
             // Physical print preview uses explicit white paper / black ink, a 21:1 contrast pair.
+            // Shifted up by half the reserved badge band so the page is centered in the space
+            // actually available above that band, not in the full (band-including) workspace.
             Box(
-                Modifier.size(width, height)
+                Modifier.offset(y = -(badgeBandHeight / 2))
+                    .size(width, height)
                     .graphicsLayer {
                         scaleX = current.zoom
                         scaleY = current.zoom
@@ -330,6 +343,12 @@ internal fun PdfCanvas(
                         val imageSelected = selected == n
                         val density = androidx.compose.ui.platform.LocalDensity.current
                         val pxPerMm = with(density) { width.toPx() } / page.width
+                        // A constant on-screen catch distance (~8dp) rather than a constant page-
+                        // space one: zoomed in, guides should feel just as "sticky" in screen
+                        // terms, not proportionally wider in mm.
+                        val snapThresholdMm =
+                            (with(density) { 8.dp.toPx() } / (pxPerMm * current.zoom))
+                                .coerceIn(0.1, 50.0)
                         var delta by
                             remember(i.id, i.x, i.y) {
                                 mutableStateOf(androidx.compose.ui.geometry.Offset.Zero)
@@ -398,24 +417,18 @@ internal fun PdfCanvas(
                                                     page.images.filterIndexed { m, _ -> m != n }
                                                 val candidateX = i.x + move.x / pxPerMm
                                                 val candidateY = i.y + move.y / pxPerMm
-                                                // The project's 5 mm grid (when on) rounds first;
-                                                // guides then snap within their own threshold
-                                                // regardless of that setting.
-                                                val gridX =
-                                                    if (current.project?.snap == true)
-                                                        kotlin.math.round(candidateX / 5) * 5
-                                                    else candidateX
-                                                val gridY =
-                                                    if (current.project?.snap == true)
-                                                        kotlin.math.round(candidateY / 5) * 5
-                                                    else candidateY
+                                                // Same resolution the live overlay/chip below
+                                                // already computed every frame, so the committed
+                                                // position always equals what was last shown.
                                                 val result =
-                                                    PdfSnapGuides.snap(
-                                                        gridX,
-                                                        gridY,
+                                                    PdfSnapGuides.resolveDrag(
+                                                        candidateX,
+                                                        candidateY,
                                                         i.width,
                                                         i.height,
                                                         PdfSnapGuides.candidates(page, others),
+                                                        gridMm = 5.0.takeIf { current.project?.snap == true },
+                                                        thresholdMm = snapThresholdMm,
                                                     )
                                                 activeSnap = null
                                                 dragOffsetMm = null
@@ -434,12 +447,14 @@ internal fun PdfCanvas(
                                             val candidateX = i.x + delta.x / pxPerMm
                                             val candidateY = i.y + delta.y / pxPerMm
                                             activeSnap =
-                                                PdfSnapGuides.snap(
+                                                PdfSnapGuides.resolveDrag(
                                                     candidateX,
                                                     candidateY,
                                                     i.width,
                                                     i.height,
                                                     PdfSnapGuides.candidates(page, others),
+                                                    gridMm = 5.0.takeIf { current.project?.snap == true },
+                                                    thresholdMm = snapThresholdMm,
                                                 )
                                             dragOffsetMm =
                                                 androidx.compose.ui.geometry.Offset(
@@ -458,12 +473,20 @@ internal fun PdfCanvas(
                                 Modifier.fillMaxSize(),
                                 PdfPreviewPolicy.side(page.images.size, thumbnail = false),
                             )
+                            // Every handle's 48dp touch target is CENTERED on its image vertex
+                            // (overflowing the image bounds), not inset inside it — so it never
+                            // covers the photo underneath, matching the other three below. Only
+                            // this bottom-right one keeps "Resize image n" (pdf_resize_label),
+                            // its click->Adjust action and its exact drag-resize math, since
+                            // PdfAccessibleAdjustTest/PdfKeyboardPointerDeviceTest depend on it;
+                            // (0.2, 0.2) of the image (that test's other click target) is well
+                            // clear of this corner's 48dp target.
                             if (selected == n && !busy)
                                 Box(
                                     Modifier.align(AbsoluteAlignment.BottomRight)
+                                        .offset(x = 24.dp, y = 24.dp)
                                         .size(48.dp)
                                         .semantics { contentDescription = resizeLabel }
-                                        .background(MaterialTheme.colorScheme.primary)
                                         .clickable(
                                             role = Role.Button,
                                             onClickLabel = resizeLabel,
@@ -490,21 +513,27 @@ internal fun PdfCanvas(
                                         },
                                     contentAlignment = Alignment.Center,
                                 ) {
-                                    Icon(
-                                        GalleryIcons.Resize,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onPrimary,
-                                    )
+                                    PdfHandleDot()
                                 }
+                            // These three corners are pointer/mouse-only touch targets, with no
+                            // contentDescription of their own (decorative, merged into this
+                            // image's own semantics above): the accessible path to resizing is
+                            // the bottom-right handle's "Resize image n" node above, whose click
+                            // action opens Adjust, plus the numeric Width/Height fields there.
+                            // Giving all four handles the same label would also make
+                            // `find { it.contentDescription == "Resize image n" }` in
+                            // PdfAccessibleAdjustTest/PdfKeyboardPointerDeviceTest ambiguous.
                             if (selected == n && !busy)
                                 listOf(
-                                        AbsoluteAlignment.TopLeft to PdfGeometry.Corner.TopLeft,
-                                        AbsoluteAlignment.TopRight to PdfGeometry.Corner.TopRight,
-                                        AbsoluteAlignment.BottomLeft to PdfGeometry.Corner.BottomLeft,
+                                        Triple(AbsoluteAlignment.TopLeft, PdfGeometry.Corner.TopLeft, (-24).dp to (-24).dp),
+                                        Triple(AbsoluteAlignment.TopRight, PdfGeometry.Corner.TopRight, 24.dp to (-24).dp),
+                                        Triple(AbsoluteAlignment.BottomLeft, PdfGeometry.Corner.BottomLeft, (-24).dp to 24.dp),
                                     )
-                                    .forEach { (cornerAlignment, corner) ->
+                                    .forEach { (cornerAlignment, corner, cornerOffset) ->
                                         PdfCornerHandle(
-                                            modifier = Modifier.align(cornerAlignment),
+                                            modifier =
+                                                Modifier.align(cornerAlignment)
+                                                    .offset(x = cornerOffset.first, y = cornerOffset.second),
                                             onResize = { dxMm, dyMm ->
                                                 vm.imageEdit {
                                                     PdfGeometry.resizeFromCorner(
@@ -533,7 +562,8 @@ internal fun PdfCanvas(
                     val pageBoxWidth = width.toPx()
                     val pageBoxHeight = pageBoxWidth * (page.height / page.width).toFloat()
                     val left = (this.size.width - pageBoxWidth) / 2f
-                    val top = (this.size.height - pageBoxHeight) / 2f
+                    // Matches the page box's own offset(y = -badgeBandHeight / 2) above.
+                    val top = (this.size.height - pageBoxHeight) / 2f - badgeBandHeight.toPx() / 2f
                     activeSnap?.vertical?.let { g ->
                         val x = left + (g.position / page.width).toFloat() * pageBoxWidth
                         drawLine(
@@ -565,54 +595,74 @@ internal fun PdfCanvas(
                         )
                     }
                 }
-            dragOffsetMm?.let { offset ->
-                val project = current.project
-                if (project != null) {
-                    val unitLabel = listOf("mm", "cm", "in", "px")[project.unit.ordinal]
-                    val factor = project.unit.factor(project.dpi)
-                    fun format(mm: Float) =
-                        "%.1f %s".format(kotlin.math.abs(mm) / factor, unitLabel)
-                    Surface(
-                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
-                    ) {
-                        Text(
+            // The reserved band itself: badges (with the drag measurement chip floating just
+            // above them while dragging) normally, or the contextual toolbar in their place while
+            // an image is selected — never over the paper, and never changing the page's fit size
+            // since the band's height is reserved unconditionally above.
+            Box(
+                Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(badgeBandHeight),
+                contentAlignment = Alignment.Center,
+            ) {
+                dragOffsetMm?.let { offset ->
+                    val project = current.project
+                    if (project != null) {
+                        val unitLabel = listOf("mm", "cm", "in", "px")[project.unit.ordinal]
+                        val factor = project.unit.factor(project.dpi)
+                        fun format(mm: Float) =
+                            "%.1f %s".format(kotlin.math.abs(mm) / factor, unitLabel)
+                        Surface(
+                            modifier = Modifier.align(Alignment.TopCenter).offset(y = (-28).dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
+                        ) {
+                            Text(
+                                stringResource(
+                                    R.string.pdf_snap_measurement,
+                                    format(offset.x),
+                                    format(offset.y),
+                                ),
+                                Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        }
+                    }
+                }
+                if (selected in page.images.indices && !busy) {
+                    PdfImageContextualToolbar(vm = vm, onReplace = onReplaceImage)
+                } else {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+                        val pageLabel =
                             stringResource(
-                                R.string.pdf_snap_measurement,
-                                format(offset.x),
-                                format(offset.y),
-                            ),
-                            Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            style = MaterialTheme.typography.labelMedium,
+                                R.string.pdf_page_indicator,
+                                pageIndex + 1,
+                                pageCount.coerceAtLeast(1),
+                            )
+                        Surface(
+                            modifier = Modifier.align(Alignment.CenterVertically),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
+                        ) {
+                            Text(
+                                pageLabel,
+                                Modifier.padding(horizontal = 12.dp, vertical = 6.dp).semantics {
+                                    contentDescription = pageLabel
+                                },
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        }
+                        Spacer(Modifier.weight(1f))
+                        PdfZoomBadge(
+                            zoomPercent = (current.zoom * 100).toInt(),
+                            busy = busy,
+                            onZoom = { vm.viewport(it, current.panX, current.panY) },
+                            onFit = { vm.viewport(1f, 0f, 0f) },
+                            modifier = Modifier.align(Alignment.CenterVertically),
                         )
                     }
                 }
             }
-            val pageLabel =
-                stringResource(R.string.pdf_page_indicator, pageIndex + 1, pageCount.coerceAtLeast(1))
-            Surface(
-                modifier = Modifier.align(Alignment.TopStart).padding(8.dp),
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
-            ) {
-                Text(
-                    pageLabel,
-                    Modifier.padding(horizontal = 12.dp, vertical = 6.dp).semantics {
-                        contentDescription = pageLabel
-                    },
-                    style = MaterialTheme.typography.labelMedium,
-                )
-            }
-            PdfZoomBadge(
-                zoomPercent = (current.zoom * 100).toInt(),
-                busy = busy,
-                onZoom = { vm.viewport(it, current.panX, current.panY) },
-                onFit = { vm.viewport(1f, 0f, 0f) },
-                modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
-            )
         }
     }
 }
@@ -641,9 +691,26 @@ private fun PdfCornerHandle(
         },
         contentAlignment = Alignment.Center,
     ) {
+        PdfHandleDot()
+    }
+}
+
+/**
+ * The small ~14dp dual-tone ring shared by all four resize handles: white outer + black inner
+ * (the same [PdfPaperTokens] pair as the selection outline/snap guides), so it stays visible over
+ * any photo regardless of its colors, without covering meaningful image content the way a large
+ * filled square would.
+ */
+@Composable
+private fun PdfHandleDot() {
+    Box(
+        Modifier.size(14.dp)
+            .background(PdfPaperTokens.GuideOuter, androidx.compose.foundation.shape.CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
         Box(
-            Modifier.size(12.dp)
-                .background(MaterialTheme.colorScheme.primary, androidx.compose.foundation.shape.CircleShape)
+            Modifier.size(9.dp)
+                .background(PdfPaperTokens.GuideInner, androidx.compose.foundation.shape.CircleShape)
         )
     }
 }

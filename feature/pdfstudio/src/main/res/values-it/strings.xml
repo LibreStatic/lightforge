@@ -177,4 +177,5 @@
     <string name="pdf_snap_measurement">↔ %1$s · ↕ %2$s</string>
     <string name="pdf_export_type_pdf">PDF</string>
     <string name="pdf_export_type_project">File di progetto</string>
+    <string name="pdf_replace_image">Sostituisci</string>
 </resources>
