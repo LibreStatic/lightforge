@@ -1,6 +1,6 @@
 package com.ugallery.app
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -40,7 +40,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.ugallery.core.designsystem.GalleryIcons
@@ -126,7 +125,7 @@ internal fun GalleryExpandedRail(
             }
             RailItem(GalleryIcons.Image, stringResource(R.string.nav_photos), route == SurfaceRoute.Root && selectedRoot == RootTab.Photos, tag = "rail-photos") { onRoot(RootTab.Photos) }
             RailItem(GalleryIcons.Collections, stringResource(R.string.nav_collections), route == SurfaceRoute.Root && selectedRoot == RootTab.Collections, tag = "rail-collections") { onRoot(RootTab.Collections) }
-            RailItem(GalleryIcons.Ask, stringResource(R.string.nav_ask), route == SurfaceRoute.Root && selectedRoot == RootTab.Search, tag = "rail-search") { onRoot(RootTab.Search) }
+            RailItem(GalleryIcons.Search, stringResource(R.string.nav_search), route == SurfaceRoute.Root && selectedRoot == RootTab.Search, tag = "rail-search") { onRoot(RootTab.Search) }
             Spacer(Modifier.weight(1f).heightIn(min = 12.dp))
             HorizontalDivider(Modifier.padding(horizontal = 30.dp, vertical = 8.dp))
             RailItem(
@@ -162,12 +161,12 @@ private fun RailItem(
 ) {
     Column(
         Modifier.fillMaxWidth().then(if (tag != null) Modifier.testTag(tag) else Modifier)
-.clickable(role = Role.Tab, onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 6.dp).semantics {
+            .semantics {
                 testTagsAsResourceId = true
-                selected = isSelected
                 if (contentDescription != null) this.contentDescription = contentDescription
-            },
+            }
+            .selectable(selected = isSelected, role = Role.Tab, onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
