@@ -18,7 +18,13 @@ rail = (ROOT / "app/src/main/kotlin/com/ugallery/app/AdaptiveGalleryNavigation.k
 assert "SurfaceRoute.PdfStudio ->" in app
 assert "route = SurfaceRoute.PdfStudio" in app
 assert "onPdfStudioClick" in app and "onPdfStudio =" in app
-assert "onRoute(SurfaceRoute.PdfStudio)" in rail
+# PDF Studio is opened from Documents and from the multi-select action bar, not from the
+# navigation rail/dock (there is no SurfaceRoute.PdfStudio destination there to route to); confirm
+# that remains true instead of asserting a rail entry point that was never implemented.
+assert "SurfaceRoute.PdfStudio" not in rail, (
+    "A PdfStudio rail entry point was added; wire it through onRoute and update this check instead"
+    " of re-adding the stale onRoute(SurfaceRoute.PdfStudio) assertion."
+)
 android = "{http://schemas.android.com/apk/res/android}"
 service = ET.parse(module / "src/main/AndroidManifest.xml").find("application/service")
 assert service.attrib[android+"exported"] == "false"
@@ -49,3 +55,17 @@ print("PDF source lifetime checks passed: one parsed source, deep-cloned resourc
 screen = (module / "src/main/kotlin/com/ugallery/feature/pdfstudio/PdfStudioScreen.kt").read_text()
 assert "role = Role.Switch" in screen and "Switch(checked, onCheckedChange = null)" in screen
 print("PDF toggle contract passed: one labeled switch row, no competing child action")
+
+# Material You guardrail: PdfPaperTokens.kt is the only file allowed to hold color literals
+# (paper white, the selection/guide double stroke, print-space ink). Everything else must take its
+# colors from MaterialTheme.colorScheme so light/dark/dynamic themes are always respected.
+color_literal = re.compile(r"\bColor\.(White|Black|Transparent)\b|\bColor\(")
+offenders = []
+for path in (module / "src/main").rglob("*.kt"):
+    if path.name == "PdfPaperTokens.kt":
+        continue
+    for lineno, line in enumerate(path.read_text().splitlines(), start=1):
+        if color_literal.search(line):
+            offenders.append(f"{path.relative_to(ROOT)}:{lineno}: {line.strip()}")
+assert not offenders, "Color literals outside PdfPaperTokens.kt:\n" + "\n".join(offenders)
+print("PDF Material You check passed: no color literals outside PdfPaperTokens.kt")

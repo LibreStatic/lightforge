@@ -45,6 +45,9 @@ import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Layers
+import androidx.compose.material.icons.rounded.FitScreen
+import androidx.compose.material.icons.rounded.OpenInFull
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -102,6 +105,9 @@ val GalleryIconArchive: ImageVector get() = Icons.Rounded.Archive
 val GalleryIconAsk: ImageVector get() = Icons.Rounded.AutoAwesome
 val GalleryIconFolder: ImageVector get() = Icons.Rounded.Folder
 val GalleryIconNotifications: ImageVector get() = Icons.Rounded.Notifications
+val GalleryIconLayers: ImageVector get() = Icons.Rounded.Layers
+val GalleryIconFitScreen: ImageVector get() = Icons.Rounded.FitScreen
+val GalleryIconResize: ImageVector get() = Icons.Rounded.OpenInFull
 
 /**
  * Standard gallery icon composable with Material 3 defaults:
@@ -175,4 +181,7 @@ object GalleryIcons {
     val Ask get() = GalleryIconAsk
     val Folder get() = GalleryIconFolder
     val Notifications get() = GalleryIconNotifications
+    val Layers get() = GalleryIconLayers
+    val FitScreen get() = GalleryIconFitScreen
+    val Resize get() = GalleryIconResize
 }

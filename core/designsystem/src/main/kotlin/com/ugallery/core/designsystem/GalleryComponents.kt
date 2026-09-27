@@ -224,16 +224,35 @@ fun GalleryTopAppBar(
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
     navigationContentDescription: String? = null,
+    subtitle: String? = null,
+    onTitleClick: (() -> Unit)? = null,
     actions: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit = {},
 ) {
     TopAppBar(
         title = {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            val titleContent: @Composable () -> Unit = {
+                Column {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (subtitle != null) {
+                        Text(
+                            text = subtitle,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+            if (onTitleClick != null) {
+                androidx.compose.material3.TextButton(onClick = onTitleClick) { titleContent() }
+            } else titleContent()
         },
         modifier = modifier,
         navigationIcon = {
