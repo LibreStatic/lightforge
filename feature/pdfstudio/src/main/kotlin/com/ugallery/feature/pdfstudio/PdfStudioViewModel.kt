@@ -30,6 +30,17 @@ data class PdfStudioState(
     val sourceError: Int? = null,
     /** Export whose Ready notice offers Save; cleared once saving starts or the notice goes. */
     val readyExport: String? = null,
+    /**
+     * The watched export's Published or Failed outcome, edge-triggered once: set the instant that
+     * job reaches a terminal state, cleared on dismissal (and never reset by recomposition/rotation
+     * since it lives in this state, nor re-shown for the same job after a process restart, since
+     * [PdfStudioViewModel] guards it against the persisted `dismissedResult` id).
+     */
+    val resultJobId: String? = null,
+    /** A job that reached Published or Failed while nothing was watching it (Phase B item 8). */
+    val recoveryJobId: String? = null,
+    /** Destination label for [recoveryJobId], resolved asynchronously; null while resolving. */
+    val recoveryLabel: String? = null,
     val canUndo: Boolean = false,
     val canRedo: Boolean = false,
     val selectedPages: Set<String> = emptySet(),
@@ -66,9 +77,18 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
     private var publishing: Job? = null
     private val exportDraftStore = PdfExportDraftStore(saved)
     private val lastDestinationStore = PdfLastDestinationStore(application)
+    private val ackStore = PdfExportAcknowledgementStore(application)
     private val mutableLastDestinationLabel = MutableStateFlow<String?>(null)
     /** "Save to: <label>" text for the export sheet's destination row, refreshed on demand. */
     val lastDestinationLabel = mutableLastDestinationLabel.asStateFlow()
+    /** The export currently followed for progress/result, reactive so the UI can show it live. */
+    val watchedExportId = saved.getStateFlow<String?>(WATCHED_EXPORT, null)
+    /** True once this job has been dismissed, so a later process restart never re-shows its sheet. */
+    private var dismissedResult: String?
+        get() = saved["pdfDismissedResult"]
+        set(value) {
+            saved["pdfDismissedResult"] = value
+        }
 
     /** Seeds `DocumentsContract.EXTRA_INITIAL_URI` so the next picker opens near the last one. */
     internal fun lastDestinationUriOrNull(): Uri? = lastDestinationStore.lastDestination
@@ -109,6 +129,45 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
                     mutable.update { it.copy(message = R.string.pdf_queue_recovery_error) }
                 }
         }
+        viewModelScope.launch { scanForUnwatchedOutcome() }
+    }
+
+    /**
+     * Phase B item 8: a job can reach Published or Failed while this studio was not running to
+     * observe it (process death, or a background worker finishing after the app was swiped away).
+     * On (re)open, look once for the most recent such job that nothing has acknowledged yet and
+     * surface exactly one inline recovery notice for it; [dismissRecovery] (dismiss, Open or Retry)
+     * marks it acknowledged so it is never shown again. A job this instance is actively
+     * [watchedExport]ing is excluded: [followExport] already reports its outcome live.
+     */
+    private suspend fun scanForUnwatchedOutcome() {
+        val jobs = exportQueue.jobs.first()
+        ackStore.prune(jobs.map { it.id }.toSet())
+        val watched = watchedExport
+        val candidate =
+            jobs
+                .asSequence()
+                .filter { it.phase in setOf(PdfExportPhase.Published, PdfExportPhase.Failed) }
+                .filter { it.id != watched }
+                .filter { !ackStore.isAcknowledged(it.id) }
+                .maxByOrNull { it.updated } ?: return
+        val label =
+            if (candidate.phase == PdfExportPhase.Published)
+                candidate.destination?.let {
+                    resolveDestinationLabel(
+                        getApplication(),
+                        Uri.parse(it),
+                        getApplication<Application>().getString(R.string.pdf_export_destination_default),
+                    )
+                }
+            else null
+        mutable.update { it.copy(recoveryJobId = candidate.id, recoveryLabel = label) }
+    }
+
+    /** Dismiss the recovery notice (explicit dismiss, or after Open/Retry act on it). */
+    fun dismissRecovery() {
+        mutable.value.recoveryJobId?.let(ackStore::acknowledge)
+        mutable.update { it.copy(recoveryJobId = null, recoveryLabel = null) }
     }
 
     /**
@@ -663,17 +722,43 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         val phase = jobs.firstOrNull { it.id == id }?.phase ?: return
         if (phase == watchedPhase) return
         watchedPhase = phase
+        // A previously shown result card is stale the moment the job leaves Published/Failed
+        // (a retry re-queues it, for instance): never let it linger for a phase it no longer
+        // describes.
+        if (phase != PdfExportPhase.Published && phase != PdfExportPhase.Failed)
+            mutable.update { if (it.resultJobId == id) it.copy(resultJobId = null) else it }
         val queuedNotice = setOf(R.string.pdf_queue_added, R.string.pdf_queue_ready)
         when (phase) {
             PdfExportPhase.Ready ->
                 mutable.update { it.copy(message = R.string.pdf_queue_ready, sourceError = null, readyExport = id) }
             PdfExportPhase.Published -> {
-                mutable.update { it.copy(message = R.string.pdf_queue_published, sourceError = null, readyExport = null) }
+                // The dedicated "PDF saved" sheet covers this outcome; the generic message banner
+                // only needs to fall back when that sheet was already dismissed for this job id
+                // (which cannot happen on a fresh id, but keeps this robust either way).
+                val showResult = id != dismissedResult
+                mutable.update {
+                    it.copy(
+                        message = if (showResult) null else R.string.pdf_queue_published,
+                        sourceError = null,
+                        readyExport = null,
+                        resultJobId = id.takeIf { showResult },
+                    )
+                }
+                ackStore.acknowledge(id)
                 watchedExport = null
             }
             // Still watched: a retry from the queue can bring it back to Ready.
-            PdfExportPhase.Failed ->
-                mutable.update { it.copy(message = R.string.pdf_queue_failed, sourceError = null, readyExport = null) }
+            PdfExportPhase.Failed -> {
+                val showResult = id != dismissedResult
+                mutable.update {
+                    it.copy(
+                        message = if (showResult) null else R.string.pdf_queue_failed,
+                        sourceError = null,
+                        readyExport = null,
+                        resultJobId = id.takeIf { showResult },
+                    )
+                }
+            }
             PdfExportPhase.Cancelled -> {
                 mutable.update {
                     it.copy(message = it.message.takeUnless { m -> m in queuedNotice }, readyExport = null)
@@ -692,12 +777,31 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
     fun retryExport(id: String) = operation(lock = false) {
         exportQueue.retry(id)
         watchedExport = id
+        clearResultIfShowing(id)
     }
 
     fun removeExport(id: String) = operation(lock = false) { exportQueue.remove(id) }
 
     internal fun beginPublication(id: String): PublishStart =
-        publishPicker.begin(id).also { if (it is PublishStart.Launch) watchedExport = id }
+        publishPicker.begin(id).also {
+            if (it is PublishStart.Launch) {
+                watchedExport = id
+                clearResultIfShowing(id)
+            }
+        }
+
+    /** A result card/sheet for [id] is stale the moment the user acts on it again. */
+    private fun clearResultIfShowing(id: String) {
+        mutable.update { if (it.resultJobId == id) it.copy(resultJobId = null) else it }
+    }
+
+    /** Dismiss the watched export's Published/Failed result card or sheet ("Done"). */
+    fun dismissResult() {
+        val id = mutable.value.resultJobId ?: return
+        dismissedResult = id
+        ackStore.acknowledge(id)
+        mutable.update { it.copy(resultJobId = null) }
+    }
 
     /**
      * A recorded request with no live launcher behind it (SAF cancelled without delivering, or the

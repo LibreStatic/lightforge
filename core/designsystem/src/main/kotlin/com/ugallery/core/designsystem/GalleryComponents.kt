@@ -375,7 +375,14 @@ fun GalleryExpressiveIconButton(
     )
 }
 
-/** Responsive single-choice group with Expressive press growth and automatic overflow. */
+/**
+ * Responsive single-choice group with Expressive press growth and automatic overflow.
+ *
+ * @param enabled per-item enabled state, matched to [labels] by index; a missing or short list
+ *   defaults every item to enabled. A disabled item keeps its label (callers should pair it with
+ *   a nearby helper text explaining why) but does not respond to taps and is announced as
+ *   unavailable to assistive tech.
+ */
 @Composable
 fun GalleryExpressiveChoiceGroup(
     labels: List<String>,
@@ -384,7 +391,9 @@ fun GalleryExpressiveChoiceGroup(
     modifier: Modifier = Modifier,
     icons: List<ImageVector?> = emptyList(),
     minimumItemWidth: Dp? = null,
+    enabled: List<Boolean> = emptyList(),
 ) {
+    fun isEnabled(index: Int) = enabled.getOrNull(index) ?: true
     if (minimumItemWidth != null) {
         Row(
             modifier = modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -399,6 +408,7 @@ fun GalleryExpressiveChoiceGroup(
                     leadingIcon = icon?.let { imageVector ->
                         { Icon(imageVector, contentDescription = null) }
                     },
+                    enabled = isEnabled(index),
                     modifier = Modifier.widthIn(min = minimumItemWidth).heightIn(min = 48.dp),
                 )
             }
@@ -415,6 +425,7 @@ fun GalleryExpressiveChoiceGroup(
                 checked = selectedIndex == index,
                 label = label,
                 onCheckedChange = { onSelect(index) },
+                enabled = isEnabled(index),
                 icon = icon?.let { imageVector ->
                     { Icon(imageVector, contentDescription = null) }
                 },

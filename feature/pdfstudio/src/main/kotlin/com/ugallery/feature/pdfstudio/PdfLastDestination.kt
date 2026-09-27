@@ -3,6 +3,8 @@ package com.ugallery.feature.pdfstudio
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
+import android.os.Build
+import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -41,18 +43,55 @@ class PdfLastDestinationStore(context: Context) {
 internal fun lastDestinationParent(uri: Uri): Uri = uri
 
 /**
- * A short, human-friendly label for [uri], for the destination row and export history: the
- * document's provider-reported display name, falling back to [fallback] ("Last used location")
- * when the grant was revoked or the provider does not support the query. Never throws.
+ * A short, human-friendly label for [uri], for the destination row and export history. Prefers the
+ * folder path leading to it (e.g. "Documents › UGallery") via `DocumentsContract
+ * .findDocumentPath`, which works for the tree-backed document URIs `CreateDocument` normally
+ * returns; falls back to the document's own provider-reported display name, then to [fallback]
+ * ("Last used location") when neither resolves (grant revoked, non-tree provider, older API).
+ * Never throws.
  */
 internal suspend fun resolveDestinationLabel(context: Context, uri: Uri, fallback: String): String =
     withContext(Dispatchers.IO) {
-        try {
-            context.contentResolver
-                .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-                ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
-                ?: fallback
-        } catch (e: Exception) {
-            fallback
-        }
+        findParentPathLabel(context, uri) ?: displayNameOrNull(context, uri) ?: fallback
     }
+
+private fun displayNameOrNull(context: Context, uri: Uri): String? =
+    try {
+        context.contentResolver
+            .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+            ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+    } catch (e: Exception) {
+        null
+    }
+
+/** The chain of ancestor folder names above [uri], newest last (e.g. "Documents › UGallery"). */
+private fun findParentPathLabel(context: Context, uri: Uri): String? {
+    if (Build.VERSION.SDK_INT < 26) return null
+    return try {
+        val ids = DocumentsContract.findDocumentPath(context.contentResolver, uri)?.path
+        // The path includes the document itself as its last entry; everything before it is an
+        // ancestor folder. A path of size <= 1 has no resolvable ancestor to show.
+        if (ids == null || ids.size <= 1) return null
+        ids.dropLast(1)
+            .mapNotNull { id ->
+                try {
+                    val ancestor = DocumentsContract.buildDocumentUriUsingTree(uri, id)
+                    context.contentResolver
+                        .query(
+                            ancestor,
+                            arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME),
+                            null,
+                            null,
+                            null,
+                        )
+                        ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            .takeIf { it.isNotEmpty() }
+            ?.joinToString(" › ")
+    } catch (e: Exception) {
+        null
+    }
+}
