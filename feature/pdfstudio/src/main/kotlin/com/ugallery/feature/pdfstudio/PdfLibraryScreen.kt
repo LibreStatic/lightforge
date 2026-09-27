@@ -69,7 +69,7 @@ internal fun ColumnScope.PdfLibraryScreen(
                                     contentColor = MaterialTheme.colorScheme.error
                                 ),
                         ) {
-                            Text(stringResource(R.string.pdf_remove))
+                            Text(stringResource(R.string.pdf_deleteproject_action))
                         }
                     }
                 }

@@ -108,7 +108,9 @@ fun PdfStudioScreen(
             vm.importLaunchFailed(e)
         }
     }
-    BackHandler(project != null) { if (!state.editorLocked) vm.library() }
+    // library() always works now (it joins whatever operation is in flight itself), so Back must
+    // never be conditionally gated here or it can look tappable while doing nothing.
+    BackHandler(project != null) { vm.library() }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val layout =
             PdfStudioLayoutPolicy.forSize(
@@ -137,7 +139,7 @@ fun PdfStudioScreen(
                     PdfEditorTopBar(
                         project = project,
                         state = state,
-                        onBack = { if (!state.editorLocked) vm.library() },
+                        onBack = vm::library,
                         onRename = { showDetails = true },
                         onUndo = vm::undo,
                         onRedo = vm::redo,

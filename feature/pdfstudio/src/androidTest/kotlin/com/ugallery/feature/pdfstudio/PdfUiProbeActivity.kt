@@ -139,7 +139,7 @@ class PdfUiProbeActivity : ComponentActivity() {
                                         // Phase A additions: top bar surface, the snackbar's
                                         // inverse surface, issue cards (secondary/error
                                         // container) and the selected bottom-bar tool.
-                                        .put("topBar", contrast(c.background, c.onSurface))
+                                        .put("topBar", contrast(c.surface, c.onSurface))
                                         .put("snackbar", contrast(c.inverseSurface, c.inverseOnSurface))
                                         .put(
                                             "issueCard",

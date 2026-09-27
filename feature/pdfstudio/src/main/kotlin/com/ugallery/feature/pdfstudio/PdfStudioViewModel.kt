@@ -316,10 +316,45 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
             )
     }
 
-    fun library() = operation {
-        autosave?.cancelAndJoin()
-        persistCurrent()
-        setProject(null)
+    /**
+     * Leaving the editor must never be silently swallowed by [operation]'s busy guard: a
+     * background, non-locking op (export enqueue/cancel/retry, gallery retry/discard...) can be
+     * `busy` without `editorLocked`, and Back stays enabled/tappable through exactly that window.
+     * So this joins whatever is currently running first — safe even if that is itself a
+     * project-mutating op, since setProject/persistCurrent only run after it has finished — and
+     * only then persists and clears the open project, instead of going through [operation] and
+     * returning early when `busy` is already true.
+     */
+    fun library() {
+        val previous = task
+        task =
+            viewModelScope.launch {
+                previous?.let { runCatching { it.join() } }
+                mutable.update {
+                    it.copy(
+                        busy = true,
+                        editorLocked = true,
+                        message = null,
+                        sourceError = null,
+                        readyExport = null,
+                    )
+                }
+                try {
+                    autosave?.cancelAndJoin()
+                    persistCurrent()
+                    setProject(null)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    reportFailure(e)
+                } finally {
+                    mutable.update { it.copy(busy = false, editorLocked = false, progress = null) }
+                    if (viewModelScope.isActive) {
+                        resumeImport()
+                        resumeGallery()
+                    }
+                }
+            }
     }
 
     fun delete(id: String) = operation {
@@ -408,7 +443,11 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
     }
 
     fun viewport(zoom: Float, panX: Float, panY: Float) {
-        if (!listOf(zoom, panX, panY).all { it.isFinite() }) return
+        // Gated like its siblings: editorLocked only covers genuine project-mutating ops (open/
+        // delete/duplicate/new project/library/import or gallery commit), during which the
+        // project can be swapped or torn down under it, so pan/zoom stays enabled through
+        // background work (export queueing, gallery retry/discard) but not through those.
+        if (mutable.value.editorLocked || !listOf(zoom, panX, panY).all { it.isFinite() }) return
         mutable.update {
             it.copy(
                 zoom = zoom.coerceIn(.5f, 4f),
@@ -596,10 +635,13 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
     }
 
     fun prepareExport(compact: Boolean, onlySelected: Boolean) = operation(lock = false) {
-        val s = mutable.value
-        var p = requireNotNull(s.project)
         autosave?.cancelAndJoin()
         persistCurrent()
+        // Read project/selectedPages AFTER the suspension above: this runs unlocked, so an edit
+        // made while cancelAndJoin/persistCurrent were suspending must be reflected in the
+        // snapshot that gets enqueued, not silently dropped from it.
+        val s = mutable.value
+        var p = requireNotNull(s.project)
         if (onlySelected) p = p.copy(pages = p.pages.filter { it.id in s.selectedPages })
         watchedExport = exportQueue.enqueue(p, compact).id
         mutable.update { it.copy(message = R.string.pdf_queue_added) }
@@ -712,9 +754,11 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
     }
 
     fun portable() = operation(lock = false) {
-        val p = requireNotNull(mutable.value.project)
         autosave?.cancelAndJoin()
         persistCurrent()
+        // Same ordering fix as prepareExport: read the project after the suspension so a
+        // concurrent edit is not excluded from the enqueued snapshot.
+        val p = requireNotNull(mutable.value.project)
         watchedExport = exportQueue.enqueue(p, compact = false, portable = true).id
         mutable.update { it.copy(message = R.string.pdf_queue_added) }
     }

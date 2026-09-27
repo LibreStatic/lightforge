@@ -251,7 +251,17 @@ internal fun PdfEditorBody(
                         }
                     }
             }
-            Box(Modifier.align(Alignment.BottomCenter).padding(12.dp)) { feedback() }
+            // Capped and independently scrollable so several stacked cards (gallery issue, a
+            // message/readyExport notice, the busy row) at 200% font never overflow the screen;
+            // the canvas above keeps its fixed position regardless.
+            Box(
+                Modifier.align(Alignment.BottomCenter)
+                    .padding(12.dp)
+                    .heightIn(max = maxHeight * 0.6f)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                feedback()
+            }
         }
     }
     if (!layout.expanded && layout.compactChrome) {
