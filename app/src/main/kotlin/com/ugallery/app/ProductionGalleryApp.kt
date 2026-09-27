@@ -1361,7 +1361,7 @@ internal fun ProductionGalleryApp(
                             SelectionReducer.isSelected(selection, media.key)
                         },
                         onMediaSelectionChange = viewModel::setMediaSelected,
-                        preferredColumns = gallerySettings.thumbnails.gridColumns,
+                        preferredColumns = gallerySettings.thumbnails.gridColumns.takeIf { it != com.ugallery.core.preferences.AutoGridColumns },
                         cropThumbnails = gallerySettings.thumbnails.cropToFill,
                         onDensityChange = { columns ->
                             viewModel.updateGallerySettings { current ->
@@ -2278,7 +2278,7 @@ internal fun ProductionGalleryApp(
                             entries = timeline,
                             thumbnailLoader = requireNotNull(thumbnails),
                             modifier = Modifier.fillMaxSize(),
-                            preferredColumns = gallerySettings.thumbnails.gridColumns,
+                            preferredColumns = gallerySettings.thumbnails.gridColumns.takeIf { it != com.ugallery.core.preferences.AutoGridColumns },
                             cropThumbnails = gallerySettings.thumbnails.cropToFill,
                             onMediaClick = { media ->
                                 updatePrivateImportSelection(

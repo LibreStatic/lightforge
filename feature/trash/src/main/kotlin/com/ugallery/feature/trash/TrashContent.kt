@@ -82,8 +82,7 @@ fun TrashContent(
         }
         else -> BoxWithConstraints(modifier.fillMaxSize()) {
             val gridState = rememberLazyGridState()
-            val columns = if (maxWidth < 600.dp) 3 else ((maxWidth + GalleryGridMetrics.Gap) /
-                (116.dp + GalleryGridMetrics.Gap)).toInt().coerceAtLeast(3)
+            val columns = GalleryGridMetrics.adaptiveColumns(maxWidth)
             val thumbnailSizePx = with(LocalDensity.current) {
                 ((maxWidth - GalleryGridMetrics.Gap * (columns - 1)) / columns).roundToPx()
             }.coerceAtLeast(1)

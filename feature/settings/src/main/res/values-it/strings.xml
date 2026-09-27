@@ -103,7 +103,7 @@
     <string name="pet_restore">Ripristina etichette animali</string>
     <string name="settings_page_ai">Analisi locale</string>
     <string name="settings_back">Indietro</string>
-    <string name="settings_summary_columns">%1$d colonne</string>
+    <string name="settings_grid_columns_auto">Automatico</string><string name="settings_summary_columns_auto">Colonne automatiche</string><string name="settings_summary_columns">%1$d colonne</string>
     <string name="settings_summary_enabled">%1$d su %2$d attivate</string>
     <string name="settings_summary_on">Sì</string>
     <string name="settings_summary_off">No</string>

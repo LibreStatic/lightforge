@@ -16,6 +16,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.unit.dp
+import com.ugallery.core.designsystem.GalleryGridMetrics
 import kotlinx.coroutines.flow.collectLatest
 import kotlin.math.abs
 
@@ -48,26 +50,32 @@ class TimelineDensityState internal constructor(
     }
 
     /**
-     * Seeds the density level once from a persisted absolute column count,
-     * snapping to the closest option of the active width bucket. Later calls
-     * are ignored so user pinch/button changes always win over the stored
-     * preference for the rest of the session.
+     * Seeds the density level from a persisted absolute column count, snapping
+     * to the closest option of the active width bucket. An explicit count seeds
+     * once; a null count (automatic) follows the width until the user pinches or
+     * cycles, so the default grid adapts to folds and rotation. After any user
+     * change the density state owns the value for the rest of the session.
      */
     fun seedFromPreferredColumns(columns: Int?, widthDp: Int) {
-        if (seededFromPreferredColumns || columns == null) return
-        seededFromPreferredColumns = true
+        if (seededFromPreferredColumns || userAdjusted) return
+        if (columns != null) seededFromPreferredColumns = true
+        val target = columns ?: GalleryGridMetrics.adaptiveColumns(widthDp.dp)
         val options = adaptiveDensityColumns(widthDp)
         var bestIndex = 0
         var bestDistance = Int.MAX_VALUE
         options.forEachIndexed { index, candidate ->
-            val distance = abs(candidate - columns)
+            val distance = abs(candidate - target)
             if (distance < bestDistance) {
                 bestDistance = distance
                 bestIndex = index
             }
         }
-        densityIndex = bestIndex
+        if (densityIndex != bestIndex) densityIndex = bestIndex
     }
+
+    /** True once the user changed the density by pinch or button in this session. */
+    var userAdjusted = false
+        private set
 
     /** Cycles through density options while preserving the current media anchor. */
     fun cycleDensity(anchorIndex: Int, anchorOffset: Int = 0, anchorStableKey: String? = null): Boolean {
@@ -75,6 +83,7 @@ class TimelineDensityState internal constructor(
         this.anchorOffset = anchorOffset.coerceAtLeast(0)
         this.anchorStableKey = anchorStableKey
         anchorRestorePending = true
+        userAdjusted = true
         densityIndex = (densityIndex + 1) % 5
         return true
     }
@@ -91,6 +100,7 @@ class TimelineDensityState internal constructor(
         this.anchorOffset = anchorOffset.coerceAtLeast(0)
         this.anchorStableKey = anchorStableKey
         anchorRestorePending = true
+        userAdjusted = true
         densityIndex = next
         return true
     }

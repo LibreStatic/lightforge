@@ -220,7 +220,10 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     videoSkipSeconds =
                         gestures.videoSkipSeconds.takeIf { it in setOf(5, 10, 15, 30) } ?: 10,
                 ),
-            thumbnails = thumbnails.copy(gridColumns = thumbnails.gridColumns.coerceIn(2, 13)),
+            thumbnails = thumbnails.copy(
+                gridColumns = thumbnails.gridColumns.takeIf { it == AutoGridColumns }
+                    ?: thumbnails.gridColumns.coerceIn(2, 13),
+            ),
             security =
                 security.copy(
                     relockTimeoutMinutes =
@@ -298,7 +301,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                         showVideoDuration = p[Keys.ShowDuration] ?: true,
                         showFileType = p[Keys.ShowFileType] ?: true,
                         markFavorites = p[Keys.MarkFavorites] ?: true,
-                        gridColumns = p[Keys.GridColumns] ?: 3,
+                        gridColumns = p[Keys.GridColumnsChoice] ?: AutoGridColumns,
                     ),
                 operations =
                     OperationSettings(
@@ -353,7 +356,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         p[Keys.ShowDuration] = s.thumbnails.showVideoDuration
         p[Keys.ShowFileType] = s.thumbnails.showFileType
         p[Keys.MarkFavorites] = s.thumbnails.markFavorites
-        p[Keys.GridColumns] = s.thumbnails.gridColumns
+        p[Keys.GridColumnsChoice] = s.thumbnails.gridColumns
         p[Keys.ShareSanitized] = s.operations.shareWithoutLocationByDefault
         p[Keys.KeepModified] = s.operations.keepLastModifiedWhenPossible
         p[Keys.SkipDeleteConfirmation] = s.operations.skipAppDeleteConfirmation
@@ -519,7 +522,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     t.bool("showVideoDuration", true),
                     t.bool("showFileType", true),
                     t.bool("markFavorites", true),
-                    t.optInt("gridColumns", 3),
+                    t.optInt("gridColumns", AutoGridColumns),
                 ),
             operations =
                 OperationSettings(
@@ -570,7 +573,9 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         val ShowDuration = booleanPreferencesKey("thumbnails.duration")
         val ShowFileType = booleanPreferencesKey("thumbnails.file_type")
         val MarkFavorites = booleanPreferencesKey("thumbnails.favorite")
-        val GridColumns = intPreferencesKey("thumbnails.columns")
+        // The legacy "thumbnails.columns" key was written on every launch, so it cannot tell an
+        // explicit choice from the old default; only deliberate choices land in this key.
+        val GridColumnsChoice = intPreferencesKey("thumbnails.columns.choice")
         val ShareSanitized = booleanPreferencesKey("operations.share_sanitized")
         val KeepModified = booleanPreferencesKey("operations.keep_modified")
         val SkipDeleteConfirmation = booleanPreferencesKey("operations.skip_delete_confirmation")

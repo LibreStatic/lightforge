@@ -33,6 +33,23 @@ class TimelineDensityStateTest {
     }
 
     @Test
+    fun automaticColumnsFollowWidthUntilTheUserAdjusts() {
+        val state = TimelineDensityState(0, 0, 0)
+        state.seedFromPreferredColumns(columns = null, widthDp = 411)
+        assertEquals(3, state.columns(411))
+        // Unfolded inner display next to the rail (~730 dp) targets ~128 dp tiles.
+        state.seedFromPreferredColumns(columns = null, widthDp = 730)
+        assertEquals(5, state.columns(730))
+        state.seedFromPreferredColumns(columns = null, widthDp = 1000)
+        assertEquals(7, state.columns(1000))
+        assertFalse(state.userAdjusted)
+        assertTrue(state.changeDensity(delta = 1, anchorIndex = 0))
+        assertTrue(state.userAdjusted)
+        state.seedFromPreferredColumns(columns = null, widthDp = 1000)
+        assertEquals(9, state.columns(1000))
+    }
+
+    @Test
     fun changeDensityCanReachTwoColumnFloorAndStopThere() {
         val state = TimelineDensityState(0, 0, 0)
         assertFalse(state.changeDensity(delta = -1, anchorIndex = 0))

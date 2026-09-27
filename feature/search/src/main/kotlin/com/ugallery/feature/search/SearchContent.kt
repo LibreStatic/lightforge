@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.ugallery.core.search.MediaSearchHit
 import com.ugallery.core.designsystem.GalleryIcons
+import com.ugallery.core.designsystem.GalleryGridMetrics
 import com.ugallery.core.designsystem.MediaTileBadges
 import com.ugallery.core.designsystem.R as DesignR
 import com.ugallery.core.designsystem.GalleryExpressiveIconButton
@@ -321,7 +322,7 @@ private fun SearchResultsGrid(
     )
     BoxWithConstraints(modifier) {
         val gap = 8.dp
-        val columns = ((maxWidth + gap) / (128.dp + gap)).toInt().coerceAtLeast(1)
+        val columns = GalleryGridMetrics.adaptiveColumns(maxWidth)
         val thumbnailSizePx = with(LocalDensity.current) {
             ((maxWidth - gap * (columns - 1)) / columns).roundToPx()
         }.coerceAtLeast(1)

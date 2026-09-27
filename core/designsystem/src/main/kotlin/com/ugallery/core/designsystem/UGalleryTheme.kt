@@ -37,6 +37,13 @@ object GalleryGridMetrics {
     val CompactCell = 112.dp
     val MediumCell = 92.dp
     val ExpandedCell = 88.dp
+
+    /** Target tile size for width-driven media grids (~3 columns compact, 5–7 expanded). */
+    val TargetCell = 128.dp
+
+    /** Default column count for a media grid of [width], never below three columns. */
+    fun adaptiveColumns(width: Dp): Int =
+        ((width + Gap) / (TargetCell + Gap)).toInt().coerceAtLeast(3)
 }
 
 enum class GalleryWindowClass { Compact, Medium, Expanded }

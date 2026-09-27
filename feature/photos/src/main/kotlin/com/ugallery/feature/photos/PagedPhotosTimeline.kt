@@ -95,8 +95,10 @@ fun AdaptivePagedPhotosTimeline(
         densityState.seedFromPreferredColumns(preferredColumns, widthDp)
         val columns = densityState.columns(widthDp)
         if (onDensityChange != null) {
+            // Persist only deliberate pinch/button changes; the automatic width-driven
+            // default must not be frozen into an explicit preference.
             LaunchedEffect(columns) {
-                if (columns in 2..13) onDensityChange(columns)
+                if (densityState.userAdjusted && columns in 2..13) onDensityChange(columns)
             }
         }
         val leadingIndex = state.firstVisibleItemIndex

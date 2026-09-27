@@ -103,7 +103,7 @@
     <string name="pet_restore">Restaurar rótulos de animais</string>
     <string name="settings_page_ai">Análise local</string>
     <string name="settings_back">Voltar</string>
-    <string name="settings_summary_columns">%1$d colunas</string>
+    <string name="settings_grid_columns_auto">Automático</string><string name="settings_summary_columns_auto">Colunas automáticas</string><string name="settings_summary_columns">%1$d colunas</string>
     <string name="settings_summary_enabled">%1$d de %2$d ativadas</string>
     <string name="settings_summary_on">Sim</string>
     <string name="settings_summary_off">Não</string>

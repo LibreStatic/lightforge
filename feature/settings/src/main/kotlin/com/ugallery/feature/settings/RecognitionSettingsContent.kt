@@ -63,6 +63,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.state.ToggleableState
+import com.ugallery.core.preferences.AutoGridColumns
 import com.ugallery.core.preferences.GallerySettings
 import com.ugallery.core.preferences.FolderSelectionMode
 import com.ugallery.core.preferences.FolderSelectionPolicy
@@ -359,7 +360,11 @@ private fun SettingsCategoryList(
         settings.operations.skipAppDeleteConfirmation,
     )
     val securityOn = settings.security.appLockEnabled || settings.security.destructiveActionLockEnabled
-    val columnsSummary = stringResource(R.string.settings_summary_columns, settings.thumbnails.gridColumns)
+    val columnsSummary = if (settings.thumbnails.gridColumns == AutoGridColumns) {
+        stringResource(R.string.settings_summary_columns_auto)
+    } else {
+        stringResource(R.string.settings_summary_columns, settings.thumbnails.gridColumns)
+    }
     val enabledPattern = stringResource(R.string.settings_summary_enabled)
     val onLabel = stringResource(R.string.settings_summary_on)
     val offLabel = stringResource(R.string.settings_summary_off)
@@ -1176,8 +1181,17 @@ private fun ThumbnailsSection(
     SettingsSwitchRow(stringResource(R.string.settings_mark_favorites), settings.thumbnails.markFavorites) {
         onSettingsChange { current -> current.copy(thumbnails = current.thumbnails.copy(markFavorites = it)) }
     }
-    SettingsValueRow(stringResource(R.string.settings_grid_columns), settings.thumbnails.gridColumns.toString()) {
-        val next = if (settings.thumbnails.gridColumns >= 8) 2 else settings.thumbnails.gridColumns + 1
+    val columns = settings.thumbnails.gridColumns
+    SettingsValueRow(
+        stringResource(R.string.settings_grid_columns),
+        if (columns == AutoGridColumns) stringResource(R.string.settings_grid_columns_auto) else columns.toString(),
+    ) {
+        // Automatic -> 2..8 -> Automatic.
+        val next = when {
+            columns == AutoGridColumns -> 2
+            columns >= 8 -> AutoGridColumns
+            else -> columns + 1
+        }
         onSettingsChange { current -> current.copy(thumbnails = current.thumbnails.copy(gridColumns = next)) }
     }
 }

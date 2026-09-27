@@ -124,7 +124,7 @@
     <string name="local_analysis_opt_out_accept">Enable local analysis</string>
     <string name="local_analysis_opt_out_decline">Not now</string>
     <string name="settings_back">Back</string>
-    <string name="settings_summary_columns">%1$d columns</string>
+    <string name="settings_grid_columns_auto">Automatic</string><string name="settings_summary_columns_auto">Automatic columns</string><string name="settings_summary_columns">%1$d columns</string>
     <string name="settings_summary_enabled">%1$d of %2$d on</string>
     <string name="settings_summary_on">On</string>
     <string name="settings_summary_off">Off</string>

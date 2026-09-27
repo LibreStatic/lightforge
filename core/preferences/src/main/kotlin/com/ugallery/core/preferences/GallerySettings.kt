@@ -142,8 +142,12 @@ data class ThumbnailSettings(
     val showVideoDuration: Boolean = true,
     val showFileType: Boolean = true,
     val markFavorites: Boolean = true,
-    val gridColumns: Int = 3,
+    /** Explicit grid column count (2..13), or [AutoGridColumns] to follow the window width. */
+    val gridColumns: Int = AutoGridColumns,
 )
+
+/** Sentinel for [ThumbnailSettings.gridColumns]: pick columns from the available width. */
+const val AutoGridColumns = 0
 
 data class OperationSettings(
     val shareWithoutLocationByDefault: Boolean = false,

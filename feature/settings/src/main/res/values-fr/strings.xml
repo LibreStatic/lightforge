@@ -103,7 +103,7 @@
     <string name="pet_restore">Restaurer les libellés</string>
     <string name="settings_page_ai">Analyse locale</string>
     <string name="settings_back">Retour</string>
-    <string name="settings_summary_columns">%1$d colonnes</string>
+    <string name="settings_grid_columns_auto">Automatique</string><string name="settings_summary_columns_auto">Colonnes automatiques</string><string name="settings_summary_columns">%1$d colonnes</string>
     <string name="settings_summary_enabled">%1$d sur %2$d activées</string>
     <string name="settings_summary_on">Oui</string>
     <string name="settings_summary_off">Non</string>

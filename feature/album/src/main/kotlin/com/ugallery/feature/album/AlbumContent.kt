@@ -49,6 +49,7 @@ import androidx.paging.compose.LazyPagingItems
 import com.ugallery.core.database.AlbumMediaFilter
 import com.ugallery.core.database.AlbumSort
 import com.ugallery.core.designsystem.GalleryStateContent
+import com.ugallery.core.designsystem.GalleryGridMetrics
 import com.ugallery.core.designsystem.GalleryIcons
 import com.ugallery.core.designsystem.MediaSelectionOverlay
 import com.ugallery.core.designsystem.RetainGridThumbnailViewport
@@ -217,7 +218,7 @@ fun AlbumContent(
             else -> BoxWithConstraints(Modifier.fillMaxSize()) {
                 val gridState = rememberLazyGridState()
                 val gap = 4.dp
-                val columns = ((maxWidth + gap) / (104.dp + gap)).toInt().coerceAtLeast(1)
+                val columns = GalleryGridMetrics.adaptiveColumns(maxWidth)
                 val thumbnailSizePx = with(LocalDensity.current) {
                     ((maxWidth - gap * (columns - 1)) / columns).roundToPx()
                 }.coerceAtLeast(1)
