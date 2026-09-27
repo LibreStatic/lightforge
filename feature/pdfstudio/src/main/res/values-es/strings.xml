@@ -260,4 +260,13 @@
     <string name="pdf_rotatepage_this">Rotar esta página</string>
     <string name="pdf_rotatepage_selected">Rotar páginas seleccionadas</string>
     <string name="pdf_export_selected">Exportar estas</string>
+    <string name="pdf_shortcuts">Atajos de teclado</string>
+    <string name="pdf_shortcut_duplicate">Duplicar</string>
+    <string name="pdf_shortcut_zoom_in">Acercar</string>
+    <string name="pdf_shortcut_zoom_out">Alejar</string>
+    <string name="pdf_shortcut_nudge">Mover 1 mm</string>
+    <string name="pdf_shortcut_nudge_large">Mover 10 mm</string>
+    <string name="pdf_status_snap">Ajuste %1$s</string>
+    <string name="pdf_status_snap_off">Ajuste desactivado</string>
+    <string name="pdf_hover_tooltip">Arrastrar para mover · Doble clic para ajustar</string>
 </resources>

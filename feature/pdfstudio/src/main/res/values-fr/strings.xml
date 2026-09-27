@@ -260,4 +260,13 @@
     <string name="pdf_rotatepage_this">Faire pivoter cette page</string>
     <string name="pdf_rotatepage_selected">Faire pivoter les pages sélectionnées</string>
     <string name="pdf_export_selected">Exporter celles-ci</string>
+    <string name="pdf_shortcuts">Raccourcis clavier</string>
+    <string name="pdf_shortcut_duplicate">Dupliquer</string>
+    <string name="pdf_shortcut_zoom_in">Zoomer</string>
+    <string name="pdf_shortcut_zoom_out">Dézoomer</string>
+    <string name="pdf_shortcut_nudge">Déplacer de 1 mm</string>
+    <string name="pdf_shortcut_nudge_large">Déplacer de 10 mm</string>
+    <string name="pdf_status_snap">Alignement %1$s</string>
+    <string name="pdf_status_snap_off">Alignement désactivé</string>
+    <string name="pdf_hover_tooltip">Glisser pour déplacer · Double-clic pour ajuster</string>
 </resources>

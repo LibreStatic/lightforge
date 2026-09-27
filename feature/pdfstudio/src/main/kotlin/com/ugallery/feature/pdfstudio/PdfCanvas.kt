@@ -4,6 +4,8 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
@@ -18,6 +20,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
@@ -36,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.io.File
 import kotlin.math.max
+import kotlinx.coroutines.delay
 
 @Composable
 internal fun PdfBitmap(
@@ -277,7 +281,51 @@ internal fun PageThumbnail(page: PdfPage, vm: PdfStudioViewModel, modifier: Modi
     }
 }
 
+/** Fixed-height band reserved at the bottom of the canvas workspace for the page/zoom badges (or
+ * the contextual toolbar in their place) — shared by [PdfCanvas] and the ruler wrapper
+ * ([PdfCanvasWithRulers]) in `PdfRulers.kt` so both agree on exactly how tall the page box is. */
+internal val PdfCanvasBadgeBandHeight = 64.dp
+
+/** The page box's on-screen size (before zoom/pan) for a canvas laid out in `maxWidth` x
+ * `maxHeight`: fit within the available space above [PdfCanvasBadgeBandHeight], preserving the
+ * page's aspect ratio, never smaller than 80dp wide. Pulled out of [PdfCanvas] so the ruler
+ * wrapper can compute the exact same page box without duplicating (and risking drifting from) the
+ * formula. */
+internal fun pdfCanvasPageBoxSize(
+    maxWidth: androidx.compose.ui.unit.Dp,
+    maxHeight: androidx.compose.ui.unit.Dp,
+    page: PdfPage,
+): Pair<androidx.compose.ui.unit.Dp, androidx.compose.ui.unit.Dp> {
+    val width =
+        minOf(
+                maxWidth - 24.dp,
+                (maxHeight - 24.dp - PdfCanvasBadgeBandHeight) * (page.width / page.height).toFloat(),
+            )
+            .coerceAtLeast(80.dp)
+    val height = width * (page.height / page.width).toFloat()
+    return width to height
+}
+
 private val ZOOM_LEVELS = listOf(.5f, 1f, 2f)
+
+/** Maps the subset of [androidx.compose.ui.input.key.Key] the editor's shortcuts care about to
+ * the plain string labels [PdfEditorCommands] matches against, so that mapping itself stays a
+ * pure, JVM-testable function independent of Compose's Key type. */
+private fun keyChordLabel(key: androidx.compose.ui.input.key.Key): String? =
+    when (key) {
+        androidx.compose.ui.input.key.Key.Z -> "Z"
+        androidx.compose.ui.input.key.Key.D -> "D"
+        androidx.compose.ui.input.key.Key.E -> "E"
+        androidx.compose.ui.input.key.Key.Zero -> "0"
+        androidx.compose.ui.input.key.Key.Equals -> "="
+        androidx.compose.ui.input.key.Key.Minus -> "-"
+        androidx.compose.ui.input.key.Key.NumPadAdd -> "NumPadAdd"
+        androidx.compose.ui.input.key.Key.NumPadSubtract -> "NumPadSubtract"
+        androidx.compose.ui.input.key.Key.Slash -> "/"
+        androidx.compose.ui.input.key.Key.Delete -> "Delete"
+        androidx.compose.ui.input.key.Key.Backspace -> "Backspace"
+        else -> null
+    }
 
 @Composable
 internal fun PdfCanvas(
@@ -290,6 +338,7 @@ internal fun PdfCanvas(
     pageCount: Int = 1,
     onAdjustImage: () -> Unit,
     onReplaceImage: () -> Unit = {},
+    commands: PdfEditorCommandDispatcher? = null,
 ) {
     val current by vm.state.collectAsStateWithLifecycle()
     val viewport by rememberUpdatedState(current)
@@ -312,33 +361,43 @@ internal fun PdfCanvas(
                 .onPreviewKeyEvent { event ->
                     if (busy || event.type != androidx.compose.ui.input.key.KeyEventType.KeyDown)
                         false
-                    else if (
-                        event.isCtrlPressed && event.key == androidx.compose.ui.input.key.Key.Z
-                    ) {
-                        if (event.isShiftPressed) vm.redo() else vm.undo()
-                        true
-                    } else {
-                        val step =
-                            if (event.isShiftPressed) 10.0
-                            else if (current.project?.snap == true) 5.0 else 1.0
-                        when (event.key) {
-                            androidx.compose.ui.input.key.Key.DirectionLeft -> {
-                                vm.moveImage(-step, 0.0)
-                                true
+                    else {
+                        val chordKey = keyChordLabel(event.key)
+                        val command =
+                            if (chordKey != null)
+                                PdfEditorCommands.forChord(
+                                    PdfKeyChord(chordKey, event.isCtrlPressed, event.isShiftPressed)
+                                )
+                                    ?: (if (!event.isCtrlPressed) PdfEditorCommands.forDeleteKey(chordKey)
+                                        else null)
+                            else null
+                        if (command != null && commands != null) {
+                            commands.dispatch(command)
+                            true
+                        } else {
+                            // Arrow-key nudge (Phase F2 item C): always 1 mm, Shift+arrow 10 mm,
+                            // regardless of the project's snap-to-grid setting — snap only governs
+                            // pointer drag, not the keyboard's fine-grained nudge.
+                            val step = if (event.isShiftPressed) 10.0 else 1.0
+                            when (event.key) {
+                                androidx.compose.ui.input.key.Key.DirectionLeft -> {
+                                    vm.moveImage(-step, 0.0)
+                                    true
+                                }
+                                androidx.compose.ui.input.key.Key.DirectionRight -> {
+                                    vm.moveImage(step, 0.0)
+                                    true
+                                }
+                                androidx.compose.ui.input.key.Key.DirectionUp -> {
+                                    vm.moveImage(0.0, -step)
+                                    true
+                                }
+                                androidx.compose.ui.input.key.Key.DirectionDown -> {
+                                    vm.moveImage(0.0, step)
+                                    true
+                                }
+                                else -> false
                             }
-                            androidx.compose.ui.input.key.Key.DirectionRight -> {
-                                vm.moveImage(step, 0.0)
-                                true
-                            }
-                            androidx.compose.ui.input.key.Key.DirectionUp -> {
-                                vm.moveImage(0.0, -step)
-                                true
-                            }
-                            androidx.compose.ui.input.key.Key.DirectionDown -> {
-                                vm.moveImage(0.0, step)
-                                true
-                            }
-                            else -> false
                         }
                     }
                 }
@@ -359,15 +418,8 @@ internal fun PdfCanvas(
             // — for the page/zoom badges (or, while an image is selected, the contextual toolbar
             // in their place). Reserved unconditionally so switching selection never changes the
             // page's own fit size (no jump).
-            val badgeBandHeight = 64.dp
-            val width =
-                minOf(
-                        maxWidth - 24.dp,
-                        (maxHeight - 24.dp - badgeBandHeight) *
-                            (page.width / page.height).toFloat(),
-                    )
-                    .coerceAtLeast(80.dp)
-            val height = width * (page.height / page.width).toFloat()
+            val badgeBandHeight = PdfCanvasBadgeBandHeight
+            val (width, height) = pdfCanvasPageBoxSize(maxWidth, maxHeight, page)
             // Shared across every image below: only one drag is ever active at a time, so a
             // single pair of hoisted states is enough to draw the guide overlay/chip for whichever
             // image is currently moving; hoisted here (not inside the images branch) so the
@@ -422,6 +474,23 @@ internal fun PdfCanvas(
                             remember(i.id, i.x, i.y) {
                                 mutableStateOf(androidx.compose.ui.geometry.Offset.Zero)
                             }
+                        // Phase F2 item C: a delayed hover outline/tooltip is pointer/mouse-only
+                        // (hoverable only ever fires for non-touch pointers in Compose), so touch
+                        // behavior is unaffected; double-click below is a plain elapsed-time check
+                        // on the existing single-click handler rather than a second gesture
+                        // detector, so it can never race the drag-to-move detector on the same
+                        // Box.
+                        val hoverSource = remember(i.id) { MutableInteractionSource() }
+                        val hovered by hoverSource.collectIsHoveredAsState()
+                        var showHoverTooltip by remember(i.id) { mutableStateOf(false) }
+                        LaunchedEffect(hovered, busy) {
+                            showHoverTooltip = false
+                            if (hovered && !busy) {
+                                delay(600)
+                                showHoverTooltip = true
+                            }
+                        }
+                        var lastClickAtMs by remember(i.id) { mutableStateOf(0L) }
                         Box(
                             Modifier.absoluteOffset(
                                     x = width * (i.x / page.width).toFloat(),
@@ -452,8 +521,28 @@ internal fun PdfCanvas(
                                             drawRect(PdfPaperTokens.GuideOuter, style = Stroke(6.dp.toPx()))
                                             drawRect(PdfPaperTokens.GuideInner, style = Stroke(2.dp.toPx()))
                                         }
+                                    else if (hovered && !busy)
+                                        Modifier.drawWithContent {
+                                            drawContent()
+                                            // Thinner and dashed, so a hovered-but-unselected image
+                                            // is never mistaken for the selection outline above.
+                                            val dash =
+                                                PathEffect.dashPathEffect(
+                                                    floatArrayOf(6.dp.toPx(), 4.dp.toPx()),
+                                                    0f,
+                                                )
+                                            drawRect(
+                                                PdfPaperTokens.GuideOuter,
+                                                style = Stroke(3.dp.toPx(), pathEffect = dash),
+                                            )
+                                            drawRect(
+                                                PdfPaperTokens.GuideInner,
+                                                style = Stroke(1.dp.toPx(), pathEffect = dash),
+                                            )
+                                        }
                                     else Modifier
                                 )
+                                .hoverable(hoverSource, enabled = !busy)
                                 .semantics {
                                     contentDescription = imageLabel
                                     this.selected = imageSelected
@@ -471,6 +560,11 @@ internal fun PdfCanvas(
                                 .clickable(enabled = !busy) {
                                     focus.requestFocus()
                                     vm.selectImage(n)
+                                    val now = android.os.SystemClock.uptimeMillis()
+                                    // Double-click (pointer): select (above) + open Adjust,
+                                    // matching the existing "Resize image n" -> Adjust action.
+                                    if (now - lastClickAtMs < 350) onAdjustImage()
+                                    lastClickAtMs = now
                                 }
                                 .pointerInput(i, busy) {
                                     if (!busy)
@@ -542,6 +636,22 @@ internal fun PdfCanvas(
                                 Modifier.fillMaxSize(),
                                 PdfPreviewPolicy.side(page.images.size, thumbnail = false),
                             )
+                            // Delayed pointer-hover tooltip (Phase F2 item C): only for a
+                            // non-selected image (the selected one already has the resize/corner
+                            // handles for feedback), and never on touch (hovered is pointer-only).
+                            if (showHoverTooltip && selected != n && !busy)
+                                Surface(
+                                    modifier = Modifier.align(Alignment.TopCenter).offset(y = (-28).dp),
+                                    color = MaterialTheme.colorScheme.inverseSurface,
+                                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                                    shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
+                                ) {
+                                    Text(
+                                        stringResource(R.string.pdf_hover_tooltip),
+                                        Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        style = MaterialTheme.typography.labelSmall,
+                                    )
+                                }
                             // Every handle's 48dp touch target is CENTERED on its image vertex
                             // (overflowing the image bounds), not inset inside it — so it never
                             // covers the photo underneath, matching the other three below. Only
@@ -786,7 +896,7 @@ private fun PdfHandleDot() {
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun PdfZoomBadge(
+internal fun PdfZoomBadge(
     zoomPercent: Int,
     busy: Boolean,
     onZoom: (Float) -> Unit,

@@ -260,4 +260,13 @@
     <string name="pdf_rotatepage_this">Rotate this page</string>
     <string name="pdf_rotatepage_selected">Rotate selected pages</string>
     <string name="pdf_export_selected">Export these</string>
+    <string name="pdf_shortcuts">Keyboard shortcuts</string>
+    <string name="pdf_shortcut_duplicate">Duplicate</string>
+    <string name="pdf_shortcut_zoom_in">Zoom in</string>
+    <string name="pdf_shortcut_zoom_out">Zoom out</string>
+    <string name="pdf_shortcut_nudge">Move 1 mm</string>
+    <string name="pdf_shortcut_nudge_large">Move 10 mm</string>
+    <string name="pdf_status_snap">Snap %1$s</string>
+    <string name="pdf_status_snap_off">Snap off</string>
+    <string name="pdf_hover_tooltip">Drag to move · Double-click to adjust</string>
 </resources>

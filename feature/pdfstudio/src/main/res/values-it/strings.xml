@@ -260,4 +260,13 @@
     <string name="pdf_rotatepage_this">Ruota questa pagina</string>
     <string name="pdf_rotatepage_selected">Ruota le pagine selezionate</string>
     <string name="pdf_export_selected">Esporta queste</string>
+    <string name="pdf_shortcuts">Scorciatoie da tastiera</string>
+    <string name="pdf_shortcut_duplicate">Duplica</string>
+    <string name="pdf_shortcut_zoom_in">Ingrandisci</string>
+    <string name="pdf_shortcut_zoom_out">Riduci</string>
+    <string name="pdf_shortcut_nudge">Sposta di 1 mm</string>
+    <string name="pdf_shortcut_nudge_large">Sposta di 10 mm</string>
+    <string name="pdf_status_snap">Allineamento %1$s</string>
+    <string name="pdf_status_snap_off">Allineamento disattivato</string>
+    <string name="pdf_hover_tooltip">Trascina per spostare · Doppio clic per regolare</string>
 </resources>

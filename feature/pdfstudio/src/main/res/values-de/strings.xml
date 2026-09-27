@@ -260,4 +260,13 @@
     <string name="pdf_rotatepage_this">Diese Seite drehen</string>
     <string name="pdf_rotatepage_selected">Ausgewählte Seiten drehen</string>
     <string name="pdf_export_selected">Diese exportieren</string>
+    <string name="pdf_shortcuts">Tastenkombinationen</string>
+    <string name="pdf_shortcut_duplicate">Duplizieren</string>
+    <string name="pdf_shortcut_zoom_in">Vergrößern</string>
+    <string name="pdf_shortcut_zoom_out">Verkleinern</string>
+    <string name="pdf_shortcut_nudge">Um 1 mm verschieben</string>
+    <string name="pdf_shortcut_nudge_large">Um 10 mm verschieben</string>
+    <string name="pdf_status_snap">Einrasten %1$s</string>
+    <string name="pdf_status_snap_off">Einrasten aus</string>
+    <string name="pdf_hover_tooltip">Ziehen zum Verschieben · Doppelklick zum Anpassen</string>
 </resources>

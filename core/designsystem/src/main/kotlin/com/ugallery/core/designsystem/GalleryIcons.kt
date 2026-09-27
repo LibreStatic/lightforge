@@ -78,6 +78,8 @@ import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Receipt
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Photo
+import androidx.compose.material.icons.rounded.Keyboard
+import androidx.compose.material.icons.rounded.Straighten
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -168,6 +170,8 @@ val GalleryIconContentCopy: ImageVector get() = Icons.Rounded.ContentCopy
 val GalleryIconReceipt: ImageVector get() = Icons.Rounded.Receipt
 val GalleryIconGridView: ImageVector get() = Icons.Rounded.GridView
 val GalleryIconPhoto: ImageVector get() = Icons.Rounded.Photo
+val GalleryIconKeyboard: ImageVector get() = Icons.Rounded.Keyboard
+val GalleryIconStraighten: ImageVector get() = Icons.Rounded.Straighten
 
 /**
  * Standard gallery icon composable with Material 3 defaults:
@@ -274,4 +278,6 @@ object GalleryIcons {
     val Receipt get() = GalleryIconReceipt
     val GridView get() = GalleryIconGridView
     val Photo get() = GalleryIconPhoto
+    val Keyboard get() = GalleryIconKeyboard
+    val Straighten get() = GalleryIconStraighten
 }

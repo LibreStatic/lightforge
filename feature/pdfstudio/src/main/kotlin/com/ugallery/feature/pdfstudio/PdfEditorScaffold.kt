@@ -101,6 +101,7 @@ internal fun PdfEditorTopBar(
     onQueue: () -> Unit,
     onDetails: () -> Unit,
     onPortable: () -> Unit,
+    onShowShortcuts: () -> Unit = {},
     watchedJob: PdfExportJob? = null,
     onReopenProgress: () -> Unit = {},
 ) {
@@ -218,6 +219,16 @@ internal fun PdfEditorTopBar(
                                     onPortable()
                                 },
                             )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.pdf_shortcuts)) },
+                                leadingIcon = {
+                                    Icon(GalleryIcons.Keyboard, contentDescription = null)
+                                },
+                                onClick = {
+                                    showActions = false
+                                    onShowShortcuts()
+                                },
+                            )
                         }
                     }
                 }
@@ -291,6 +302,7 @@ internal fun PdfEditorBody(
     onLaunchImport: () -> Unit,
     onAdjustImage: () -> Unit,
     onReplaceImage: () -> Unit,
+    commands: PdfEditorCommandDispatcher,
     modifier: Modifier = Modifier,
     feedback: @Composable () -> Unit,
 ) {
@@ -311,6 +323,7 @@ internal fun PdfEditorBody(
             onLaunchImport = onLaunchImport,
             onAdjustImage = onAdjustImage,
             onReplaceImage = onReplaceImage,
+            commands = commands,
             modifier = modifier,
             feedback = feedback,
         )
@@ -330,17 +343,27 @@ internal fun PdfEditorBody(
                     ) {
                         PdfPagesPanel(vm, state, onDeletePages, onExportSelectedPages, columns = 2)
                     }
-                PdfCanvas(
-                    project.pages[state.page],
-                    state.image,
-                    vm,
-                    Modifier.weight(1f).fillMaxHeight(),
-                    state.editorLocked,
-                    pageIndex = state.page,
-                    pageCount = project.pages.size,
-                    onAdjustImage = onAdjustImage,
-                    onReplaceImage = onReplaceImage,
-                )
+                Column(Modifier.weight(1f).fillMaxHeight()) {
+                    // Item A: rulers along the canvas in expanded modes only, and only when the
+                    // canvas keeps at least 120dp of height afterward (matches the existing probe
+                    // threshold at 840x320 — see PdfRulers's own height budget check).
+                    val showRulers = sidePanelsVisible
+                    PdfCanvasWithRulers(
+                        page = project.pages[state.page],
+                        selected = state.image,
+                        vm = vm,
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        busy = state.editorLocked,
+                        pageIndex = state.page,
+                        pageCount = project.pages.size,
+                        onAdjustImage = onAdjustImage,
+                        onReplaceImage = onReplaceImage,
+                        commands = commands,
+                        showRulers = showRulers,
+                    )
+                    if (sidePanelsVisible)
+                        PdfStatusBar(state = state, project = project, commands = commands)
+                }
                 // Item 1b: nothing is drawn under the hinge itself, so the rail+canvas pane and
                 // the inspector pane sit on either side of a spacer sized to the hinge bounds
                 // instead of a hairline seam running through live content.
@@ -460,6 +483,7 @@ private fun PdfTabletopEditorBody(
     onLaunchImport: () -> Unit,
     onAdjustImage: () -> Unit,
     onReplaceImage: () -> Unit,
+    commands: PdfEditorCommandDispatcher,
     modifier: Modifier,
     feedback: @Composable () -> Unit,
 ) {
@@ -471,16 +495,20 @@ private fun PdfTabletopEditorBody(
             val hingeHeight = fold?.hingeHeight ?: 0.dp
             Column(Modifier.fillMaxSize()) {
                 Box(Modifier.fillMaxWidth().height(topHeight)) {
-                    PdfCanvas(
-                        project.pages[state.page],
-                        state.image,
-                        vm,
-                        Modifier.fillMaxSize(),
-                        state.editorLocked,
+                    // Scope A: the tabletop canvas half gets rulers too, but only if that half is
+                    // tall enough to spare the room (same 120dp floor as the other expanded modes).
+                    PdfCanvasWithRulers(
+                        page = project.pages[state.page],
+                        selected = state.image,
+                        vm = vm,
+                        modifier = Modifier.fillMaxSize(),
+                        busy = state.editorLocked,
                         pageIndex = state.page,
                         pageCount = project.pages.size,
                         onAdjustImage = onAdjustImage,
                         onReplaceImage = onReplaceImage,
+                        commands = commands,
+                        showRulers = topHeight >= 120.dp + PdfRulerDefaults.Thickness,
                     )
                 }
                 if (hingeHeight > 0.dp) Spacer(Modifier.fillMaxWidth().height(hingeHeight))
@@ -846,6 +874,147 @@ internal fun PdfPageStrip(vm: PdfStudioViewModel, s: PdfStudioState, project: Pd
                     Icon(GalleryIcons.Plus, contentDescription = null)
                 }
             }
+        }
+    }
+}
+
+/**
+ * Status bar under the canvas in expanded modes (Phase F2 item B): page indicator, the current
+ * snap-grid state, the same zoom control as the compact badge band, and a Fit page action — all
+ * reusing Phase C's own badge strings ([R.string.pdf_page_indicator], [R.string.pdf_zoom_percent],
+ * [R.string.pdf_fit_view]) so the two surfaces never drift apart. Compact keeps the existing
+ * floating badge band inside the canvas unchanged.
+ */
+@Composable
+internal fun PdfStatusBar(
+    state: PdfStudioState,
+    project: PdfProject,
+    commands: PdfEditorCommandDispatcher,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                stringResource(
+                    R.string.pdf_page_indicator,
+                    state.page + 1,
+                    project.pages.size.coerceAtLeast(1),
+                ),
+                style = MaterialTheme.typography.labelMedium,
+            )
+            PdfStatusDot()
+            Text(
+                if (project.snap) stringResource(R.string.pdf_status_snap, "5 mm")
+                else stringResource(R.string.pdf_status_snap_off),
+                style = MaterialTheme.typography.labelMedium,
+            )
+            PdfStatusDot()
+            val zoomOutLabel = stringResource(R.string.pdf_shortcut_zoom_out)
+            IconButton(
+                onClick = { commands.dispatch(PdfEditorCommand.ZoomOut) },
+                enabled = !state.editorLocked,
+                modifier = Modifier.size(32.dp).semantics { contentDescription = zoomOutLabel },
+            ) {
+                Icon(GalleryIcons.Minus, contentDescription = null, modifier = Modifier.size(18.dp))
+            }
+            Text(
+                stringResource(R.string.pdf_zoom_percent, (state.zoom * 100).toInt()),
+                style = MaterialTheme.typography.labelMedium,
+            )
+            val zoomInLabel = stringResource(R.string.pdf_shortcut_zoom_in)
+            IconButton(
+                onClick = { commands.dispatch(PdfEditorCommand.ZoomIn) },
+                enabled = !state.editorLocked,
+                modifier = Modifier.size(32.dp).semantics { contentDescription = zoomInLabel },
+            ) {
+                Icon(GalleryIcons.Plus, contentDescription = null, modifier = Modifier.size(18.dp))
+            }
+            PdfStatusDot()
+            TextButton(
+                onClick = { commands.dispatch(PdfEditorCommand.FitPage) },
+                enabled = !state.editorLocked,
+            ) {
+                Text(stringResource(R.string.pdf_fit_view))
+            }
+            Spacer(Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun PdfStatusDot() {
+    Text(" · ", style = MaterialTheme.typography.labelMedium)
+}
+
+/**
+ * Ctrl+/ opens this: every keyboard shortcut mapped to its action, plus the pointer-only hover
+ * behavior (Phase F2 item C). A [ModalBottomSheet] (compact/expanded-without-side-panels) or the
+ * same content in a plain [androidx.compose.material3.Dialog] on wide/expanded windows, where a
+ * sheet sliding up from the bottom edge reads oddly next to a two/three-pane layout.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun PdfShortcutsSheet(expanded: Boolean, onDismiss: () -> Unit) {
+    val rows =
+        listOf(
+            "Ctrl+Z" to R.string.pdf_undo,
+            "Ctrl+Shift+Z" to R.string.pdf_redo,
+            "Ctrl+D" to R.string.pdf_shortcut_duplicate,
+            "Delete" to R.string.pdf_delete_image,
+            "Ctrl+E" to R.string.pdf_export,
+            "Ctrl+0" to R.string.pdf_fit_view,
+            "Ctrl+=" to R.string.pdf_shortcut_zoom_in,
+            "Ctrl+-" to R.string.pdf_shortcut_zoom_out,
+            "Ctrl+/" to R.string.pdf_shortcuts,
+            "←/→/↑/↓" to R.string.pdf_shortcut_nudge,
+            "Shift+←/→/↑/↓" to R.string.pdf_shortcut_nudge_large,
+        )
+    val content: @Composable () -> Unit = {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp)) {
+            Text(stringResource(R.string.pdf_shortcuts), style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.height(8.dp))
+            rows.forEach { (chord, labelRes) ->
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(stringResource(labelRes), Modifier.weight(1f))
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
+                    ) {
+                        Text(
+                            chord,
+                            Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    }
+                }
+            }
+        }
+    }
+    if (expanded) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+            ) {
+                Box(Modifier.heightIn(max = 520.dp)) { content() }
+            }
+        }
+    } else {
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        ) {
+            content()
         }
     }
 }
