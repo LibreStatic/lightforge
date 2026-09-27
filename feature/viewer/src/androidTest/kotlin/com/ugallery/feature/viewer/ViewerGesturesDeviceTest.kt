@@ -10,6 +10,8 @@ import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
@@ -82,14 +84,15 @@ class ViewerGesturesDeviceTest {
             }
         }
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val firstPosition = context.getString(R.string.viewer_thumbnail_position, 1, 3)
+        val firstPosition = viewerThumbnailDescription(context.resources, media(1))
         compose.onNode(hasTestTag(VIEWER_CHROME_SCRIM_TEST_TAG)).assertDoesNotExist()
-        compose.onNode(hasContentDescription(firstPosition)).assertExists()
+        // Fixtures share a capture minute, so every thumbnail carries the same label.
+        compose.onAllNodes(hasContentDescription(firstPosition)).onFirst().assertExists()
 
         compose.onRoot().performTouchInput { click(center) }
         compose.mainClock.advanceTimeBy(300)
         compose.waitForIdle()
-        compose.onNode(hasContentDescription(firstPosition)).assertDoesNotExist()
+        compose.onAllNodes(hasContentDescription(firstPosition)).assertCountEquals(0)
         compose.onRoot().performTouchInput { click(center) }
         compose.mainClock.advanceTimeBy(300)
         compose.waitForIdle()
@@ -380,7 +383,7 @@ class ViewerGesturesDeviceTest {
 
         compose.onNode(hasContentDescription(context.getString(R.string.viewer_close_video_timeline))).performClick()
         compose.onNode(hasTestTag(VIDEO_FRAME_SCRUBBER_TEST_TAG)).assertDoesNotExist()
-        compose.onNode(hasContentDescription(context.getString(R.string.viewer_thumbnail_position, 1, 1))).performClick()
+        compose.onNode(hasContentDescription(viewerThumbnailDescription(context.resources, item))).performClick()
         compose.onNode(hasTestTag(VIDEO_FRAME_SCRUBBER_TEST_TAG)).assertExists()
 
         controller.close()

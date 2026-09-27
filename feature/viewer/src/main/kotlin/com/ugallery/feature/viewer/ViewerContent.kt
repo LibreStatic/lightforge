@@ -62,6 +62,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -825,7 +826,9 @@ private fun ViewerFilmstrip(
     ) {
         itemsIndexed(items, key = { _, item -> item.viewerId }) { index, item ->
             val selected = index == selectedIndex
-            val position = stringResource(R.string.viewer_thumbnail_position, index + 1, items.size)
+            // The filmstrip only holds a paged window of the scope, so an "N of M" total would be
+            // misleading (R-05); announce the kind and date, plus selected state, instead.
+            val position = viewerThumbnailDescription(LocalContext.current.resources, item)
             if (selected && expandedVideo != null) {
                 VideoFrameScrubber(
                     config = expandedVideo,
@@ -863,6 +866,7 @@ private fun ViewerFilmstrip(
                         }
                         .semantics {
                             contentDescription = position
+                            this.selected = selected
                             onClick(label = position) {
                                 if (selected && item.kind == MediaKind.Video && onSelectedVideoTap != null) {
                                     onSelectedVideoTap()
@@ -1580,3 +1584,13 @@ private const val VIDEO_CHROME_AUTO_HIDE_FADE_MILLIS = 700
 internal const val VIEWER_CHROME_SCRIM_TEST_TAG = "viewer_chrome_scrim"
 internal const val VIDEO_LEGACY_SEEK_BAR_TEST_TAG = "video_legacy_seek_bar"
 internal const val VIDEO_FRAME_SCRUBBER_TEST_TAG = "video_frame_scrubber"
+
+/** Accessibility label for a filmstrip thumbnail: media kind and capture time, no window total. */
+internal fun viewerThumbnailDescription(resources: android.content.res.Resources, item: ViewerMedia): String {
+    val date = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT)
+        .format(java.util.Date(item.timelineSortMillis))
+    return resources.getString(
+        if (item.kind == MediaKind.Video) R.string.viewer_thumbnail_video else R.string.viewer_thumbnail_photo,
+        date,
+    )
+}
