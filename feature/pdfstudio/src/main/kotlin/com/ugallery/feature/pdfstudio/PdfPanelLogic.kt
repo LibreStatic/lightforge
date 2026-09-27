@@ -96,6 +96,39 @@ internal object PdfCustomSize {
     fun validate(widthMm: Double?, heightMm: Double?): Result = Result(check(widthMm), check(heightMm))
 }
 
+/**
+ * Shared drag-reorder target math for the Phase C page strip and the Phase D pages grid: given
+ * the dragged item's live center and every visible item's center, finds which item the drag is
+ * now nearest to and returns its index in [order] — the position the drop should land on. Plain
+ * doubles (not a Compose `Offset`) so this has ordinary JVM test coverage; the strip's 1D case is
+ * just every center sharing the same y.
+ *
+ * [excludeKeys] drops non-reorderable items from the search (the grid's trailing "add page"
+ * tile), so a drop near the end lands on the last real item instead of resolving to no match at
+ * all — [fallback] only fires when a resolvable item is not found and to be safe (e.g. every key
+ * is excluded).
+ */
+internal object PdfDragReorder {
+    fun nearestIndex(
+        order: List<String>,
+        centers: List<Pair<String, Pair<Double, Double>>>,
+        selfCenter: Pair<Double, Double>,
+        excludeKeys: Set<String> = emptySet(),
+        fallback: Int,
+    ): Int {
+        val nearestKey =
+            centers
+                .filter { it.first !in excludeKeys }
+                .minByOrNull { (_, c) ->
+                    val dx = c.first - selfCenter.first
+                    val dy = c.second - selfCenter.second
+                    dx * dx + dy * dy
+                }
+                ?.first
+        return nearestKey?.let { key -> order.indexOf(key) }?.takeIf { it >= 0 } ?: fallback
+    }
+}
+
 /** Pure math for the Adjust panel's 2D crop-focus viewport: dragging/keyboard nudging moves the
  * focus point within 0..1 on each axis; formatting is left to the caller (localized string). */
 internal object PdfCropFocus {

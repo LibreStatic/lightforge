@@ -145,12 +145,19 @@ object PdfGeometry {
         )
     }
 
-    /** As [constrain], but clamps x/y to the full physical page instead of the margin box —
-     * only [align]'s `relativeToMargins = false` path uses this, since every other caller
-     * (drag, resize, grid) is meant to respect margins. */
-    private fun constrainToPage(i: PdfImage, p: PdfPage): PdfImage {
-        val scale =
-            min(1.0, min((p.width - 2 * p.margin) / i.width, (p.height - 2 * p.margin) / i.height))
+    /**
+     * As [constrain], but clamps x/y to the full physical page instead of the margin box.
+     * Margins are a *guide*, not a hard wall, for manual per-image edits — move ([moveImage]/
+     * [moveImageTo]), resize ([resize], [resizeFromCorner]) and align's `relativeToMargins =
+     * false` path all use this, so a user can deliberately place or size an image right up to
+     * the page edge. Layout-driven re-fits (grid Arrange, and re-fitting every image after a
+     * paper/margin/custom-size change) keep using [constrain] instead, since those are the
+     * project's own layout rules, not a one-off manual placement.
+     */
+    fun constrainToPage(i: PdfImage, p: PdfPage): PdfImage {
+        // Scale down only if it can't fit the physical page at all (never the margin box —
+        // that's the whole point of this variant).
+        val scale = min(1.0, min(p.width / i.width, p.height / i.height))
         val w = i.width * scale
         val h = i.height * scale
         return i.copy(
@@ -171,7 +178,8 @@ object PdfGeometry {
         require(width.isFinite() && height.isFinite() && width > 0 && height > 0)
         val w = if (i.locked && !widthChanged) height * i.width / i.height else width
         val h = if (i.locked && widthChanged) width * i.height / i.width else height
-        return constrain(i.copy(width = w, height = h), p)
+        // Manual resize (steppers, corner-drag equivalent): margins are a guide, not a wall.
+        return constrainToPage(i.copy(width = w, height = h), p)
     }
 
     /** Which corner a resize handle drag is anchored to; the opposite corner stays fixed. */
@@ -280,10 +288,12 @@ object PdfGeometry {
         var h = if (i.locked && widthChanged) width * i.height / i.width else height
         val anchorX = if (corner == Corner.TopLeft || corner == Corner.BottomLeft) right else i.x
         val anchorY = if (corner == Corner.TopLeft || corner == Corner.TopRight) bottom else i.y
-        val roomX = if (corner == Corner.TopLeft || corner == Corner.BottomLeft) anchorX - p.margin
-                    else p.width - p.margin - anchorX
-        val roomY = if (corner == Corner.TopLeft || corner == Corner.TopRight) anchorY - p.margin
-                    else p.height - p.margin - anchorY
+        // Manual corner-drag resize: margins are a guide, not a wall — room runs to the
+        // physical page edge, not the margin box (matches [resize] and [moveImage]).
+        val roomX = if (corner == Corner.TopLeft || corner == Corner.BottomLeft) anchorX
+                    else p.width - anchorX
+        val roomY = if (corner == Corner.TopLeft || corner == Corner.TopRight) anchorY
+                    else p.height - anchorY
         val scale =
             listOf(1.0, roomX / w, roomY / h).filter { it.isFinite() }.minOrNull()?.coerceAtLeast(0.0)
                 ?: 1.0

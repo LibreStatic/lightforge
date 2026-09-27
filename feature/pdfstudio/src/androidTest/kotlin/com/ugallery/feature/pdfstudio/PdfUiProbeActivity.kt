@@ -174,6 +174,19 @@ class PdfUiProbeActivity : ComponentActivity() {
                                             "contextualToolbarDelete",
                                             contrast(c.errorContainer, c.onErrorContainer),
                                         )
+                                        // Phase D review fix (R9): the panels' ModalBottomSheet
+                                        // container carries helper text (onSurfaceVariant — the
+                                        // imported-page note, the custom-size preview caption)
+                                        // and inline validation errors (error) directly, not
+                                        // through a *Container role pair.
+                                        .put(
+                                            "sheetContainerText",
+                                            contrast(c.surfaceContainerLow, c.onSurfaceVariant),
+                                        )
+                                        .put(
+                                            "sheetContainerError",
+                                            contrast(c.surfaceContainerLow, c.error),
+                                        )
                                         .toString()
                                 )
                         }

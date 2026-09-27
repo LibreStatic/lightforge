@@ -43,6 +43,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
@@ -264,6 +265,7 @@ internal fun PdfEditorBody(
     panel: Int,
     onPanelChange: (Int) -> Unit,
     onDeletePages: () -> Unit,
+    onExportSelectedPages: () -> Unit,
     onPortable: () -> Unit,
     onShowQueue: () -> Unit,
     onLaunchImport: () -> Unit,
@@ -282,7 +284,7 @@ internal fun PdfEditorBody(
                             .verticalScroll(rememberScrollState())
                             .padding(8.dp)
                     ) {
-                        PdfPagesPanel(vm, state, onDeletePages, columns = 2)
+                        PdfPagesPanel(vm, state, onDeletePages, onExportSelectedPages, columns = 2)
                     }
                 PdfCanvas(
                     project.pages[state.page],
@@ -310,7 +312,14 @@ internal fun PdfEditorBody(
             }
             if (!layout.expanded || panel == 3) {
                 if (panel >= 0)
-                    ModalBottomSheet(onDismissRequest = { onPanelChange(-1) }) {
+                    ModalBottomSheet(
+                        onDismissRequest = { onPanelChange(-1) },
+                        // Fully expanded (D4 review fix): a partially expanded sheet hid the
+                        // Layout panel's sticky "Apply to / Arrange" row and the Pages panel's
+                        // selection contextual bar below the fold. M3 still renders the drag
+                        // handle by default, so 'Drag handle' stays reachable for the scripts.
+                        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                    ) {
                         Column(
                             Modifier.fillMaxWidth()
                                 .heightIn(max = 520.dp)
@@ -318,7 +327,7 @@ internal fun PdfEditorBody(
                                 .padding(16.dp)
                         ) {
                             when (panel) {
-                                0 -> PdfPagesPanel(vm, state, onDeletePages)
+                                0 -> PdfPagesPanel(vm, state, onDeletePages, onExportSelectedPages)
                                 1 ->
                                     InsertControls(
                                         state,
@@ -614,21 +623,31 @@ internal fun PdfPageStrip(vm: PdfStudioViewModel, s: PdfStudioState, project: Pd
                                     )
                                 },
                                 onDragEnd = {
-                                    // The real on-screen pitch (item size + spacing) between two
-                                    // consecutive laid-out items, not a guessed dp literal that
-                                    // would silently desync if the thumbnail size or spacing ever
-                                    // changes. Falls back to this item's own measured size (still
-                                    // real, just missing the inter-item gap) if only one item is
-                                    // currently visible/laid out.
+                                    // Shared with the Pages grid (PdfDragReorder, R8): the target
+                                    // is whichever visible item's center the drag now sits
+                                    // nearest to, excluding the trailing "add page" tile so a
+                                    // drop past the last page still resolves to the last page
+                                    // (R3) instead of silently doing nothing.
                                     val visible = listState.layoutInfo.visibleItemsInfo
-                                    val slotPx =
-                                        if (visible.size >= 2) visible[1].offset - visible[0].offset
-                                        else visible.firstOrNull()?.size ?: with(this) { 64.dp.toPx() }.toInt()
-                                    val steps =
-                                        (dragOffsetX / slotPx)
-                                            .let { if (it >= 0) kotlin.math.floor(it) else kotlin.math.ceil(it) }
-                                            .toInt()
-                                    val target = (index + steps).coerceIn(0, project.pages.lastIndex)
+                                    val self = visible.firstOrNull { it.key == page.id }
+                                    val target =
+                                        if (self != null) {
+                                            val cx = (self.offset + dragOffsetX + self.size / 2).toDouble()
+                                            val order = project.pages.map { it.id }
+                                            val centers =
+                                                visible.mapNotNull { item ->
+                                                    (item.key as? String)?.let { key ->
+                                                        key to ((item.offset + item.size / 2).toDouble() to 0.0)
+                                                    }
+                                                }
+                                            PdfDragReorder.nearestIndex(
+                                                order,
+                                                centers,
+                                                cx to 0.0,
+                                                excludeKeys = setOf("add-page"),
+                                                fallback = index,
+                                            )
+                                        } else index
                                     dragging = null
                                     dragOffsetX = 0f
                                     if (target != index) vm.reorderPage(index, target)

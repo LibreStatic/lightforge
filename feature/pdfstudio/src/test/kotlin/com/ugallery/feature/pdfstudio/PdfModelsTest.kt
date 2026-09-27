@@ -28,12 +28,15 @@ class PdfModelsTest {
     }
 
     @Test
-    fun resizeRetainsRatioAndStaysInsideMargins() {
+    fun resizeRetainsRatioAndReachesThePageEdgeNotJustMargins() {
+        // R4 review fix: manual resize treats margins as a guide, not a wall, so an oversized
+        // request is only capped by the physical page (constrainToPage), not the margin box.
         val page = PdfPage()
         val i = PdfGeometry.resize(image(), page, 800.0, 40.0, true)
         assertEquals(2.0, i.width / i.height, .000001)
-        assertTrue(i.x + i.width <= 200.000001)
-        assertTrue(i.y >= 10)
+        assertTrue(i.x + i.width <= page.width + .000001)
+        assertTrue(i.y + i.height <= page.height + .000001)
+        assertTrue(i.x >= 0 && i.y >= 0)
     }
 
     @Test
@@ -189,6 +192,51 @@ class PdfModelsTest {
             assertEquals(align.name, old.x, explicit.x, .0001)
             assertEquals(align.name, old.y, explicit.y, .0001)
         }
+    }
+
+    @Test
+    fun constrainToPageAllowsPlacementInsideMarginsButNotPastTheEdge() {
+        val page = PdfPage(width = 210.0, height = 297.0, margin = 10.0)
+        // 3mm from the top-left page edge: inside the physical page but inside the margin band
+        // (margin = 10mm) too — constrain() would have pushed this out to x=y=10.
+        val i = image().copy(x = 3.0, y = 3.0, width = 40.0, height = 20.0)
+        val result = PdfGeometry.constrainToPage(i, page)
+        assertEquals(3.0, result.x, .0001)
+        assertEquals(3.0, result.y, .0001)
+        // Still can't escape the physical page.
+        val overflow = image().copy(x = -50.0, y = -50.0, width = 40.0, height = 20.0)
+        val clamped = PdfGeometry.constrainToPage(overflow, page)
+        assertEquals(0.0, clamped.x, .0001)
+        assertEquals(0.0, clamped.y, .0001)
+    }
+
+    @Test
+    fun resizeCanGrowPastTheMarginBoxUpToThePageEdge() {
+        val page = PdfPage(width = 210.0, height = 297.0, margin = 10.0)
+        // Anchored at the page's top-left physical corner (inside the margin band); growing width
+        // to 205mm only overflows the *margin* box (210 - 2*10 = 190), not the physical page.
+        val i = image().copy(x = 0.0, y = 0.0, width = 80.0, height = 40.0, locked = false)
+        val resized = PdfGeometry.resize(i, page, 205.0, 40.0, true)
+        assertEquals(205.0, resized.width, .0001)
+    }
+
+    @Test
+    fun resizeFromCornerCanGrowPastTheMarginBoxUpToThePageEdge() {
+        val page = PdfPage(width = 210.0, height = 297.0, margin = 10.0)
+        val i = image().copy(x = 0.0, y = 0.0, width = 80.0, height = 40.0, locked = false)
+        val resized = PdfGeometry.resizeFromCorner(i, page, PdfGeometry.Corner.BottomRight, 125.0, 0.0)
+        // 80 + 125 = 205mm, which only fits if the room was computed to the page edge (210mm),
+        // not the margin box (190mm available from x=0).
+        assertEquals(205.0, resized.width, .0001)
+    }
+
+    @Test
+    fun moveImageToReachesThePageEdgeNotJustTheMarginBox() {
+        val page = PdfPage(width = 210.0, height = 297.0, margin = 10.0)
+        val i = image().copy(width = 40.0, height = 20.0)
+        val atEdge = PdfGeometry.constrainToPage(i.copy(x = 0.0, y = 0.0), page)
+        assertEquals(0.0, atEdge.x, .0001)
+        assertEquals(0.0, atEdge.y, .0001)
     }
 
     @Test

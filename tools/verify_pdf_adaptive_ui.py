@@ -85,7 +85,7 @@ for width,height,font,locale,dark,rtl in cases:
     # Phase C: the canvas's floating page/zoom badges and drag measurement chip carry text, so
     # they need the text threshold; the contextual toolbar (icon buttons only) and its Delete
     # action (an icon-only errorContainer/onErrorContainer button) need only the icon threshold.
-    for key in ('surface','primary','secondaryContainer','surfaceContainer','surfaceVariantText','surfacePrimaryText','canvasBadge','snapMeasurementChip'):assert theme[key]>=4.5,(key,theme)
+    for key in ('surface','primary','secondaryContainer','surfaceContainer','surfaceVariantText','surfacePrimaryText','canvasBadge','snapMeasurementChip','sheetContainerText','sheetContainerError'):assert theme[key]>=4.5,(key,theme)
     for key in ('outline','contextualToolbar','contextualToolbarDelete'):assert theme[key]>=3,(key,theme)
     assert theme['dynamic']==args.dynamic
     (out/(name+'-theme.json')).write_text(json.dumps(theme,indent=2)+'\n')
@@ -109,8 +109,14 @@ for width,height,font,locale,dark,rtl in cases:
     dismiss_to_editor(ls['pdf_project_actions'])
     if width < 840*font:tap(ls['pdf_pages'])
     page_tree,_=dump()
-    if not any(n.get('text')==ls['pdf_addpage'] for n in page_tree.iter('node')):
-        # Material sheets can initially be partially expanded on short windows.
+    # The "Add page" grid tile exposes its label as a contentDescription, not element text (R1
+    # review fix), so the presence check must accept either; only tap the drag handle when it is
+    # actually present — Pages panel sheets now open fully expanded (D4), and in the expanded
+    # (>=840dp) layout there is no sheet/drag handle at all, so tapping it unconditionally could
+    # fail or hit an unrelated control.
+    addpage_visible=any(n.get('text')==ls['pdf_addpage'] or n.get('content-desc')==ls['pdf_addpage'] for n in page_tree.iter('node'))
+    handle_present=any(n.get('text')=='Drag handle' or n.get('content-desc')=='Drag handle' for n in page_tree.iter('node'))
+    if not addpage_visible and handle_present:
         tap('Drag handle')
     tap(ls['pdf_addpage']);assert state()['pages']==2,state()
     dismiss_to_editor(ls['pdf_project_actions'])

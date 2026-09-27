@@ -220,4 +220,7 @@
     <string name="pdf_align_relative_margins">Par rapport aux marges</string>
     <string name="pdf_reset">Réinitialiser</string>
     <string name="pdf_asset_pixel_size">%1$d × %2$d px</string>
+    <string name="pdf_rotatepage_this">Faire pivoter cette page</string>
+    <string name="pdf_rotatepage_selected">Faire pivoter les pages sélectionnées</string>
+    <string name="pdf_export_selected">Exporter celles-ci</string>
 </resources>

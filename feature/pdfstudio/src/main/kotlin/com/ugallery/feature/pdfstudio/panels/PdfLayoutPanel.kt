@@ -2,18 +2,24 @@ package com.ugallery.feature.pdfstudio
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlin.math.min
 
 private val UNIT_LABELS = listOf("mm", "cm", "in", "px")
@@ -43,7 +49,10 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
             },
             enabled = !s.editorLocked,
         ) {
-            Text(stringResource(R.string.pdf_rotatepage))
+            // Distinct from the Pages panel's bulk "Rotate selected pages" (R7 review fix): the
+            // expanded layout can show both panels at once, and identical text would be
+            // ambiguous for uiautomator/TalkBack.
+            Text(stringResource(R.string.pdf_rotatepage_this))
         }
         return
     }
@@ -55,8 +64,16 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
     // secondaryContainer) card — the only allowed color source for the paper swatch is
     // PdfPaperTokens, never a literal.
     Text(stringResource(R.string.pdf_paper), style = MaterialTheme.typography.labelLarge)
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
-        items(PdfPaperPresets.presets, key = { it.id }) { preset ->
+    // D2 review fix: a LazyRow inside a sheet clipped its trailing card ("Custom") at the sheet's
+    // edge with no scroll affordance, and card labels ("Letter", "10 × 15", "Square") clipped at
+    // narrow widths. A wrapping FlowRow means every card is always fully visible, at any width or
+    // font scale, with no horizontal-scroll discoverability problem.
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+    ) {
+        PdfPaperPresets.presets.forEach { preset ->
             val selected = preset.id == selectedPreset
             PdfPaperCard(
                 label = preset.label,
@@ -73,16 +90,14 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
                 }
             }
         }
-        item(key = PdfPaperPresets.CUSTOM) {
-            PdfPaperCard(
-                label = stringResource(R.string.pdf_paper_custom),
-                widthMm = if (landscape) page.height else page.width,
-                heightMm = if (landscape) page.width else page.height,
-                selected = selectedPreset == PdfPaperPresets.CUSTOM,
-                enabled = !s.editorLocked,
-            ) {
-                showCustomSize = true
-            }
+        PdfPaperCard(
+            label = stringResource(R.string.pdf_paper_custom),
+            widthMm = if (landscape) page.height else page.width,
+            heightMm = if (landscape) page.width else page.height,
+            selected = selectedPreset == PdfPaperPresets.CUSTOM,
+            enabled = !s.editorLocked,
+        ) {
+            showCustomSize = true
         }
     }
 
@@ -150,7 +165,11 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
 
     Spacer(Modifier.height(8.dp))
     Text(stringResource(R.string.pdf_grid_template), style = MaterialTheme.typography.labelLarge)
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+    ) {
         PdfLayoutTemplates.TEMPLATES.forEach { template ->
             val columns = PdfLayoutTemplates.columnsFor(template, landscape)
             val selected = columns == p.columns
@@ -213,15 +232,18 @@ private fun PdfPaperCard(
         if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer
     val content =
         if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
+    // D2/R6 review fix: fixed 72dp clipped labels ("Lette", "10 ×", "Squa") once font scale grew
+    // past 1x. The card grows with font scale and the label gets a second line + shrink-to-fit
+    // instead of a hard truncation.
+    val fontScale = LocalDensity.current.fontScale.coerceIn(1f, 1.6f)
     Surface(
         color = container,
         contentColor = content,
         shape = RoundedCornerShape(12.dp),
         modifier =
-            Modifier.width(72.dp)
-                .heightIn(min = 96.dp)
-                .clickable(enabled = enabled, onClick = onClick)
-                .semantics2(label),
+            Modifier.width(76.dp * fontScale)
+                .heightIn(min = 96.dp * fontScale)
+                .selectableTile(label, selected, enabled, onClick),
     ) {
         Column(
             Modifier.padding(8.dp).fillMaxWidth(),
@@ -234,7 +256,13 @@ private fun PdfPaperCard(
                     .background(PdfPaperTokens.Paper, RoundedCornerShape(1.dp)),
             )
             Spacer(Modifier.height(4.dp))
-            Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1, textAlign = TextAlign.Center)
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 2,
+                textAlign = TextAlign.Center,
+                autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = MaterialTheme.typography.labelSmall.fontSize),
+            )
         }
     }
 }
@@ -256,11 +284,12 @@ private fun PdfTemplateTile(
         if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
     val label = stringResource(R.string.pdf_template_photos, template)
     val rows = (template + columns - 1) / columns
+    val fontScale = LocalDensity.current.fontScale.coerceIn(1f, 1.6f)
     Surface(
         color = container,
         contentColor = content,
         shape = RoundedCornerShape(8.dp),
-        modifier = Modifier.size(56.dp).clickable(enabled = enabled, onClick = onClick).semantics2(label),
+        modifier = Modifier.size(56.dp * fontScale).selectableTile(label, selected, enabled, onClick),
     ) {
         Column(Modifier.padding(6.dp).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             repeat(rows) { r ->

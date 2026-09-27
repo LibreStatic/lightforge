@@ -13,6 +13,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
@@ -73,53 +74,90 @@ internal fun PdfAdjustPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
             )
     }
 
-    Row {
-        PdfStepperField(
-            "X",
-            image.x / f,
-            unitLabel,
-            step = 1.0,
-            min = 0.0,
-            max = page.width / f,
-            enabled = !s.editorLocked,
-            modifier = Modifier.weight(1f),
-            onValue = { n -> vm.imageEdit { PdfGeometry.constrain(it.copy(x = n * f), page) } },
-        )
-        PdfStepperField(
-            "Y",
-            image.y / f,
-            unitLabel,
-            step = 1.0,
-            min = 0.0,
-            max = page.height / f,
-            enabled = !s.editorLocked,
-            modifier = Modifier.weight(1f),
-            onValue = { n -> vm.imageEdit { PdfGeometry.constrain(it.copy(y = n * f), page) } },
-        )
-    }
-    Row {
-        PdfStepperField(
-            stringResource(R.string.pdf_width),
-            image.width / f,
-            unitLabel,
-            step = 1.0,
-            min = 1.0 / f,
-            max = page.width / f,
-            enabled = !s.editorLocked,
-            modifier = Modifier.weight(1f),
-            onValue = { n -> if (n > 0) vm.imageEdit { PdfGeometry.resize(it, page, n * f, it.height, true) } },
-        )
-        PdfStepperField(
-            stringResource(R.string.pdf_height),
-            image.height / f,
-            unitLabel,
-            step = 1.0,
-            min = 1.0 / f,
-            max = page.height / f,
-            enabled = !s.editorLocked,
-            modifier = Modifier.weight(1f),
-            onValue = { n -> if (n > 0) vm.imageEdit { PdfGeometry.resize(it, page, it.width, n * f, false) } },
-        )
+    // D1 review fix: at compact widths (and always at large font scale) a fixed 2-column grid
+    // squeezed each PdfStepperField's text box so narrow the typed value wasn't visible and its
+    // label word-split ("Widt/h"). Two columns are only used once each field's own text box would
+    // actually get >= ~120dp*fontScale — otherwise every stepper gets the full row width.
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val fontScale = LocalDensity.current.fontScale.coerceIn(1f, 2f)
+        val minFieldTextWidth = 120.dp * fontScale
+        val stepperButtons = 48.dp * 4 // two [-]/[+] pairs, one per field, in a two-column row
+        val twoColumns = maxWidth >= (minFieldTextWidth * 2 + stepperButtons + 24.dp)
+        @Composable
+        fun stepperRow(
+            first: @Composable (Modifier) -> Unit,
+            second: @Composable (Modifier) -> Unit,
+        ) {
+            if (twoColumns) {
+                Row(Modifier.fillMaxWidth()) {
+                    first(Modifier.weight(1f))
+                    second(Modifier.weight(1f))
+                }
+            } else {
+                Column(Modifier.fillMaxWidth()) {
+                    first(Modifier.fillMaxWidth())
+                    second(Modifier.fillMaxWidth())
+                }
+            }
+        }
+        Column(Modifier.fillMaxWidth()) {
+            stepperRow(
+                { m ->
+                    PdfStepperField(
+                        "X",
+                        image.x / f,
+                        unitLabel,
+                        step = 1.0,
+                        min = 0.0,
+                        max = page.width / f,
+                        enabled = !s.editorLocked,
+                        modifier = m,
+                        onValue = { n -> vm.imageEdit { PdfGeometry.constrainToPage(it.copy(x = n * f), page) } },
+                    )
+                },
+                { m ->
+                    PdfStepperField(
+                        "Y",
+                        image.y / f,
+                        unitLabel,
+                        step = 1.0,
+                        min = 0.0,
+                        max = page.height / f,
+                        enabled = !s.editorLocked,
+                        modifier = m,
+                        onValue = { n -> vm.imageEdit { PdfGeometry.constrainToPage(it.copy(y = n * f), page) } },
+                    )
+                },
+            )
+            stepperRow(
+                { m ->
+                    PdfStepperField(
+                        stringResource(R.string.pdf_width),
+                        image.width / f,
+                        unitLabel,
+                        step = 1.0,
+                        min = 1.0 / f,
+                        max = page.width / f,
+                        enabled = !s.editorLocked,
+                        modifier = m,
+                        onValue = { n -> if (n > 0) vm.imageEdit { PdfGeometry.resize(it, page, n * f, it.height, true) } },
+                    )
+                },
+                { m ->
+                    PdfStepperField(
+                        stringResource(R.string.pdf_height),
+                        image.height / f,
+                        unitLabel,
+                        step = 1.0,
+                        min = 1.0 / f,
+                        max = page.height / f,
+                        enabled = !s.editorLocked,
+                        modifier = m,
+                        onValue = { n -> if (n > 0) vm.imageEdit { PdfGeometry.resize(it, page, it.width, n * f, false) } },
+                    )
+                },
+            )
+        }
     }
 
     val lockLabel = stringResource(R.string.pdf_lockratio)
@@ -257,6 +295,15 @@ private fun PdfCropFocusViewport(vm: PdfStudioViewModel, image: PdfImage, enable
             PdfCropFocus.percent(image.focusY),
         )
     val label = stringResource(R.string.pdf_crop_focus)
+    // Live drag position for visual feedback only; the actual undo-tracked commit happens once,
+    // at drag end/cancel (R2 review fix) — a per-pointer-event commit was flooding undo with one
+    // step per frame, the same trap `moveImage`'s own live overlay + `moveImageTo` on release
+    // avoids on the canvas.
+    var liveFocusX by remember(image.asset) { mutableStateOf(image.focusX) }
+    var liveFocusY by remember(image.asset) { mutableStateOf(image.focusY) }
+    var dragging by remember { mutableStateOf(false) }
+    val shownFocusX = if (dragging) liveFocusX else image.focusX
+    val shownFocusY = if (dragging) liveFocusY else image.focusY
     Column {
         Text(label, style = MaterialTheme.typography.labelLarge)
         Box(
@@ -290,17 +337,28 @@ private fun PdfCropFocusViewport(vm: PdfStudioViewModel, image: PdfImage, enable
                 }
                 .pointerInput(image.asset, enabled) {
                     if (!enabled) return@pointerInput
-                    detectDragGestures { change, dragAmount ->
+                    detectDragGestures(
+                        onDragStart = {
+                            liveFocusX = image.focusX
+                            liveFocusY = image.focusY
+                            dragging = true
+                        },
+                        onDragEnd = {
+                            dragging = false
+                            if (liveFocusX != image.focusX || liveFocusY != image.focusY)
+                                vm.setSelectedImageFocus(liveFocusX, liveFocusY)
+                        },
+                        onDragCancel = { dragging = false },
+                    ) { change, dragAmount ->
                         change.consume()
-                        val dx = dragAmount.x / size.width.toFloat()
-                        val dy = dragAmount.y / size.height.toFloat()
-                        vm.moveSelectedImageFocus(dx.toDouble(), dy.toDouble())
+                        liveFocusX = PdfCropFocus.move(liveFocusX, dragAmount.x / size.width.toFloat().toDouble())
+                        liveFocusY = PdfCropFocus.move(liveFocusY, dragAmount.y / size.height.toFloat().toDouble())
                     }
                 },
         ) {
             PdfBitmap(vm.repository.file(image.asset), 0, PdfFit.Cover, .5, .5, Modifier.fillMaxSize())
             androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-                val center = Offset(image.focusX.toFloat() * size.width, image.focusY.toFloat() * size.height)
+                val center = Offset(shownFocusX.toFloat() * size.width, shownFocusY.toFloat() * size.height)
                 drawCircle(PdfPaperTokens.GuideOuter, radius = 14f, center = center, style = Stroke(width = 5f))
                 drawCircle(PdfPaperTokens.GuideInner, radius = 14f, center = center, style = Stroke(width = 2f))
             }

@@ -4,7 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -44,6 +46,7 @@ internal fun PdfPagesPanel(
     vm: PdfStudioViewModel,
     s: PdfStudioState,
     delete: () -> Unit,
+    exportSelected: () -> Unit = {},
     columns: Int = 3,
 ) {
     val p = s.project ?: return
@@ -88,12 +91,22 @@ internal fun PdfPagesPanel(
     }
 
     if (selectionMode) {
-        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             OutlinedButton(onClick = vm::duplicateSelectedPages, enabled = !s.editorLocked) {
                 Text(stringResource(R.string.pdf_duplicatepage))
             }
             OutlinedButton(onClick = vm::rotateSelectedPages, enabled = !s.editorLocked) {
-                Text(stringResource(R.string.pdf_rotatepage))
+                // Distinct from the Layout panel's "Rotate this page" (R7 review fix).
+                Text(stringResource(R.string.pdf_rotatepage_selected))
+            }
+            OutlinedButton(
+                onClick = exportSelected,
+                enabled = !s.editorLocked && s.selectedPages.isNotEmpty(),
+            ) {
+                Text(stringResource(R.string.pdf_export_selected))
             }
             // A validated Material role pair (errorContainer/onErrorContainer), matching the
             // canvas contextual toolbar's own Delete action.
@@ -184,17 +197,30 @@ internal fun PdfPagesPanel(
                                         val self = visible.firstOrNull { it.key == page.id }
                                         val target =
                                             if (self != null) {
-                                                val cx = self.offset.x + dragOffsetX + self.size.width / 2
-                                                val cy = self.offset.y + dragOffsetY + self.size.height / 2
-                                                visible
-                                                    .filter { it.key is String }
-                                                    .minByOrNull { item ->
-                                                        val icx = item.offset.x + item.size.width / 2
-                                                        val icy = item.offset.y + item.size.height / 2
-                                                        (icx - cx) * (icx - cx) + (icy - cy) * (icy - cy)
+                                                val cx =
+                                                    (self.offset.x + dragOffsetX + self.size.width / 2).toDouble()
+                                                val cy =
+                                                    (self.offset.y + dragOffsetY + self.size.height / 2).toDouble()
+                                                val order = p.pages.map { it.id }
+                                                val centers =
+                                                    visible.mapNotNull { item ->
+                                                        (item.key as? String)?.let { key ->
+                                                            key to
+                                                                ((item.offset.x + item.size.width / 2).toDouble() to
+                                                                    (item.offset.y + item.size.height / 2).toDouble())
+                                                        }
                                                     }
-                                                    ?.let { p.pages.indexOfFirst { pg -> pg.id == it.key } }
-                                                    ?: index
+                                                // The trailing "add page" tile is not a
+                                                // reorderable slot — excluding it means a drop
+                                                // near the end resolves to the last real page
+                                                // (R3), not a silent no-op.
+                                                PdfDragReorder.nearestIndex(
+                                                    order,
+                                                    centers,
+                                                    cx to cy,
+                                                    excludeKeys = setOf("add-page"),
+                                                    fallback = index,
+                                                )
                                             } else index
                                         dragging = null
                                         dragOffsetX = 0f
@@ -289,10 +315,9 @@ internal fun PdfPagesPanel(
     }
 
     if (!selectionMode) {
+        // "Select" already lives in the header (D3 review fix) — only the directly reachable
+        // per-current-page actions belong here.
         FlowRow(Modifier.padding(top = 8.dp)) {
-            TextButton(onClick = { vm.setPagesSelectionMode(true) }, enabled = !s.editorLocked) {
-                Text(stringResource(R.string.pdf_select_mode))
-            }
             TextButton(onClick = vm::duplicatePage, enabled = !s.editorLocked && p.pages.size < 100) {
                 Text(stringResource(R.string.pdf_duplicatepage))
             }
@@ -311,3 +336,21 @@ internal fun PdfPagesPanel(
  */
 internal fun Modifier.semantics2(description: String): Modifier =
     this.then(Modifier.semantics { contentDescription = description })
+
+/**
+ * One semantics node for a single-choice tile (a paper card, a template tile): role RadioButton,
+ * `selected` state, and [label] as the sole contentDescription — the merged-semantics
+ * `.clickable().semantics2()` pattern above left role/selected unset (R5 review fix), so
+ * TalkBack/uiautomator only ever saw a bare label with no selection state. `clearAndSetSemantics`
+ * replaces whatever [androidx.compose.foundation.clickable] would otherwise contribute, so the
+ * click action is re-declared explicitly here.
+ */
+internal fun Modifier.selectableTile(label: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit): Modifier =
+    this.then(
+        Modifier.clearAndSetSemantics {
+            contentDescription = label
+            role = Role.RadioButton
+            this.selected = selected
+            if (enabled) onClick(label = null) { onClick(); true }
+        }
+    ).clickable(enabled = enabled, onClick = onClick)

@@ -581,7 +581,8 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
                 x = kotlin.math.round(x / 5) * 5
                 y = kotlin.math.round(y / 5) * 5
             }
-            PdfGeometry.constrain(image.copy(x = x, y = y), page)
+            // Manual move: margins are a guide (snap can still pull to them), not a wall.
+            PdfGeometry.constrainToPage(image.copy(x = x, y = y), page)
         }
     }
 
@@ -592,7 +593,7 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
      */
     fun moveImageTo(x: Double, y: Double) {
         val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
-        imageEdit { PdfGeometry.constrain(it.copy(x = x, y = y), page) }
+        imageEdit { PdfGeometry.constrainToPage(it.copy(x = x, y = y), page) }
     }
 
     fun pageEdit(transform: (PdfPage) -> PdfPage) = update { p ->
@@ -802,6 +803,12 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
     /** Nudges the selected image's crop focus by [dx]/[dy] (Phase D's 2D crop-focus viewport). */
     fun moveSelectedImageFocus(dx: Double, dy: Double) = imageEdit {
         it.copy(focusX = PdfCropFocus.move(it.focusX, dx), focusY = PdfCropFocus.move(it.focusY, dy))
+    }
+
+    /** Commits the crop-focus viewport's drag as a single undo step, once at drag end/cancel —
+     * the viewport itself tracks the live position locally while dragging. */
+    fun setSelectedImageFocus(x: Double, y: Double) = imageEdit {
+        it.copy(focusX = x.coerceIn(0.0, 1.0), focusY = y.coerceIn(0.0, 1.0))
     }
 
     /** Moves the selected image one step forward in stacking order (toward the front). */

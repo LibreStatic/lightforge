@@ -213,6 +213,11 @@ fun PdfStudioScreen(
                         panel = panel,
                         onPanelChange = { panel = it },
                         onDeletePages = { deletePages = true },
+                        onExportSelectedPages = {
+                            // The export sheet already defaults its page choice to Selected
+                            // whenever state.selectedPages is non-empty (R10 review fix).
+                            exporting = true
+                        },
                         onPortable = {
                             vm.portable()
                             showQueue = true

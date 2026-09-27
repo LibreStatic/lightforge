@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -25,6 +26,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ugallery.core.designsystem.GalleryIcons
 
 /**
@@ -72,8 +74,22 @@ internal fun PdfStepperField(
         OutlinedTextField(
             draft.text,
             { draft = draft.edit(it) },
-            label = { Text(label) },
-            suffix = { Text(unit, style = MaterialTheme.typography.bodyMedium) },
+            // D1 review fix: a plain wrapping Text label mid-word-split ("Widt/h") once the box
+            // got narrow; single line + shrink-to-fit keeps it legible instead, and never eats
+            // into the value's own space (the label floats above the value, not beside it).
+            label = {
+                Text(
+                    label,
+                    maxLines = 1,
+                    softWrap = false,
+                    autoSize =
+                        TextAutoSize.StepBased(
+                            minFontSize = 9.sp,
+                            maxFontSize = MaterialTheme.typography.bodyLarge.fontSize,
+                        ),
+                )
+            },
+            suffix = { Text(unit, style = MaterialTheme.typography.bodyMedium, maxLines = 1, softWrap = false) },
             singleLine = true,
             enabled = enabled,
             modifier =

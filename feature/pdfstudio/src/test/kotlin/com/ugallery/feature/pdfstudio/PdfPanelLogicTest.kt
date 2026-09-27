@@ -58,6 +58,41 @@ class PdfPanelLogicTest {
         assertEquals(33, PdfCropFocus.percent(0.333))
     }
 
+    @Test fun dragReorderFindsNearestCenterAmongCandidates() {
+        val order = listOf("a", "b", "c")
+        val centers =
+            listOf("a" to (0.0 to 0.0), "b" to (100.0 to 0.0), "c" to (200.0 to 0.0))
+        assertEquals(1, PdfDragReorder.nearestIndex(order, centers, 90.0 to 0.0, fallback = 0))
+        assertEquals(2, PdfDragReorder.nearestIndex(order, centers, 500.0 to 0.0, fallback = 0))
+        assertEquals(0, PdfDragReorder.nearestIndex(order, centers, -500.0 to 0.0, fallback = 0))
+    }
+
+    @Test fun dragReorderExcludesKeysSoDroppingNearTheEndLandsOnTheLastRealItem() {
+        val order = listOf("a", "b", "c")
+        val centers =
+            listOf(
+                "a" to (0.0 to 0.0),
+                "b" to (100.0 to 0.0),
+                "c" to (200.0 to 0.0),
+                "add-page" to (300.0 to 0.0),
+            )
+        // Nearest the add-page tile, but it's excluded — must resolve to the last real page,
+        // not -1 (order.indexOf("add-page") would be -1 and silently no-op the reorder).
+        val target =
+            PdfDragReorder.nearestIndex(
+                order,
+                centers,
+                290.0 to 0.0,
+                excludeKeys = setOf("add-page"),
+                fallback = -1,
+            )
+        assertEquals(2, target)
+    }
+
+    @Test fun dragReorderFallsBackWhenNothingResolvable() {
+        assertEquals(3, PdfDragReorder.nearestIndex(emptyList(), emptyList(), 0.0 to 0.0, fallback = 3))
+    }
+
     @Test fun paperPresetsMatchRegardlessOfOrientation() {
         assertEquals(PdfPaperPresets.A4, PdfPaperPresets.matching(210.0, 297.0))
         assertEquals(PdfPaperPresets.A4, PdfPaperPresets.matching(297.0, 210.0))
