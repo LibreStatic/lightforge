@@ -88,6 +88,41 @@ class PdfModelsTest {
     }
 
     @Test
+    fun resizeFromBottomRightCornerMatchesLegacySingleHandle() {
+        val page = PdfPage()
+        val viaCorner =
+            PdfGeometry.resizeFromCorner(image(), page, PdfGeometry.Corner.BottomRight, 20.0, 10.0)
+        val viaResize = PdfGeometry.resize(image(), page, 100.0, 50.0, true)
+        assertEquals(viaResize.width, viaCorner.width, .0001)
+        assertEquals(viaResize.height, viaCorner.height, .0001)
+        assertEquals(viaResize.x, viaCorner.x, .0001)
+        assertEquals(viaResize.y, viaCorner.y, .0001)
+    }
+
+    @Test
+    fun resizeFromTopLeftCornerKeepsOppositeCornerFixed() {
+        val page = PdfPage()
+        val i = image().copy(x = 50.0, y = 50.0, width = 80.0, height = 40.0)
+        val right = i.x + i.width
+        val bottom = i.y + i.height
+        val resized = PdfGeometry.resizeFromCorner(i, page, PdfGeometry.Corner.TopLeft, -10.0, -10.0)
+        assertEquals(right, resized.x + resized.width, .0001)
+        assertEquals(bottom, resized.y + resized.height, .0001)
+        assertTrue(resized.width > i.width)
+    }
+
+    @Test
+    fun resizeFromCornerNeverProducesNonFiniteOrNegativeSize() {
+        val page = PdfPage()
+        val i = image()
+        for (corner in PdfGeometry.Corner.entries) {
+            val resized = PdfGeometry.resizeFromCorner(i, page, corner, -1000.0, -1000.0)
+            assertTrue(resized.width.isFinite() && resized.width > 0)
+            assertTrue(resized.height.isFinite() && resized.height > 0)
+        }
+    }
+
+    @Test
     fun constrainedExtremeRatioIsFinite() {
         for (n in 1..1000) {
             val i =

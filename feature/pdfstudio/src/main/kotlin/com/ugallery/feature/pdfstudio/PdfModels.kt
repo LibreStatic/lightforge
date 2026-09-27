@@ -158,6 +158,59 @@ object PdfGeometry {
         return constrain(i.copy(width = w, height = h), p)
     }
 
+    /** Which corner a resize handle drag is anchored to; the opposite corner stays fixed. */
+    enum class Corner {
+        TopLeft,
+        TopRight,
+        BottomLeft,
+        BottomRight,
+    }
+
+    /**
+     * Resizes [i] by dragging [corner], keeping the opposite corner fixed in page space. Used by
+     * the canvas's four corner handles; [Corner.BottomRight] matches the pre-existing single-handle
+     * behavior exactly (anchor at top-left, width/height grow to the right/down).
+     */
+    fun resizeFromCorner(
+        i: PdfImage,
+        p: PdfPage,
+        corner: Corner,
+        dxMm: Double,
+        dyMm: Double,
+    ): PdfImage {
+        val right = i.x + i.width
+        val bottom = i.y + i.height
+        var width = i.width
+        var height = i.height
+        var widthChanged = true
+        when (corner) {
+            Corner.BottomRight -> {
+                width = i.width + dxMm
+                height = i.height + dyMm
+            }
+            Corner.BottomLeft -> {
+                width = i.width - dxMm
+                height = i.height + dyMm
+            }
+            Corner.TopRight -> {
+                width = i.width + dxMm
+                height = i.height - dyMm
+                widthChanged = false
+            }
+            Corner.TopLeft -> {
+                width = i.width - dxMm
+                height = i.height - dyMm
+                widthChanged = false
+            }
+        }
+        width = width.coerceAtLeast(.1)
+        height = height.coerceAtLeast(.1)
+        val resized = resize(i, p, width, height, widthChanged)
+        val x = if (corner == Corner.TopLeft || corner == Corner.BottomLeft) right - resized.width else i.x
+        val y = if (corner == Corner.TopLeft || corner == Corner.TopRight) bottom - resized.height else i.y
+        return constrain(resized.copy(x = x, y = y), p)
+    }
+
     fun grid(p: PdfPage, columns: Int, gap: Double): PdfPage {
         require(columns in 1..6 && gap in 0.0..30.0)
         if (p.images.isEmpty()) return p

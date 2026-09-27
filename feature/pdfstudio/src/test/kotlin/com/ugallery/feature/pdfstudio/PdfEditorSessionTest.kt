@@ -103,4 +103,48 @@ class PdfEditorSessionTest {
         val p = project()
         assertEquals(p.pages[0].id, PdfEditorSessionCodec.decode("", p).pageId)
     }
+
+    @Test
+    fun perPageViewportsRoundTrip() {
+        val p = project()
+        val s =
+            PdfEditorSession(
+                pageId = p.pages[0].id,
+                viewports =
+                    mapOf(
+                        p.pages[0].id to PdfViewport(2f, 5f, -5f),
+                        p.pages[1].id to PdfViewport(1f, 0f, 0f),
+                    ),
+            )
+        val decoded = PdfEditorSessionCodec.decode(PdfEditorSessionCodec.encode(s), p)
+        assertEquals(s.viewports, decoded.viewports)
+    }
+
+    @Test
+    fun viewportsFromRemovedPagesAreDropped() {
+        val p = project()
+        val s = PdfEditorSession(viewports = mapOf("missing" to PdfViewport(2f))).normalized(p)
+        assertTrue(s.viewports.isEmpty())
+    }
+
+    @Test
+    fun sessionWithoutViewportsFieldFallsBackToLegacyZoomPan() {
+        // Simulates a session encoded before Phase C: no top-level "viewports" key at all.
+        val p = project()
+        val legacy =
+            org.json.JSONObject()
+                .put("version", 1)
+                .put("page", p.pages[1].id)
+                .put("image", org.json.JSONObject.NULL)
+                .put("selected", org.json.JSONArray())
+                .put("zoom", 2.0)
+                .put("panX", 3.0)
+                .put("panY", -4.0)
+                .put("undo", org.json.JSONArray())
+                .put("redo", org.json.JSONArray())
+                .toString()
+        val decoded = PdfEditorSessionCodec.decode(legacy, p)
+        assertEquals(PdfViewport(2f, 3f, -4f), decoded.viewportFor(p.pages[1].id))
+        assertEquals(PdfViewport(), decoded.viewportFor(p.pages[0].id))
+    }
 }

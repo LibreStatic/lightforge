@@ -70,6 +70,11 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
     val state = mutable.asStateFlow()
     private val undo = ArrayDeque<PdfProject>()
     private val redo = ArrayDeque<PdfProject>()
+    /**
+     * Per-page zoom/pan (Phase C item 6): keyed by page id, seeded from the restored session and
+     * updated by [viewport]. [selectPage] reads from here instead of resetting to 1x/centered.
+     */
+    private var pageViewports: Map<String, PdfViewport> = emptyMap()
     private var task: Job? = null
     private var autosave: Job? = null
     internal val publishPicker = PdfPublishPicker(saved)
@@ -321,7 +326,9 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         setProject(p)
         undo.addAll(session.undo)
         redo.addAll(session.redo)
+        pageViewports = session.viewports
         val page = p.pages.indexOfFirst { it.id == session.pageId }.coerceAtLeast(0)
+        val viewport = session.viewportFor(p.pages[page].id)
         mutable.update {
             it.copy(
                 page = page,
@@ -329,9 +336,9 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
                 selectedPages = session.selectedPages,
                 canUndo = undo.isNotEmpty(),
                 canRedo = redo.isNotEmpty(),
-                zoom = session.zoom,
-                panX = session.panX,
-                panY = session.panY,
+                zoom = viewport.zoom,
+                panX = viewport.panX,
+                panY = viewport.panY,
             )
         }
     }
@@ -339,8 +346,13 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
     private fun session(): PdfEditorSession {
         val s = mutable.value
         val p = s.project
+        val currentPageId = p?.pages?.getOrNull(s.page)?.id
+        val viewports =
+            if (currentPageId != null)
+                pageViewports + (currentPageId to PdfViewport(s.zoom, s.panX, s.panY))
+            else pageViewports
         return PdfEditorSession(
-            pageId = p?.pages?.getOrNull(s.page)?.id,
+            pageId = currentPageId,
             imageId = p?.pages?.getOrNull(s.page)?.images?.getOrNull(s.image)?.id,
             selectedPages = s.selectedPages,
             undo = undo.toList(),
@@ -348,6 +360,7 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
             zoom = s.zoom,
             panX = s.panX,
             panY = s.panY,
+            viewports = viewports,
         )
     }
 
@@ -379,6 +392,7 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
     private fun setProject(p: PdfProject?) {
         undo.clear()
         redo.clear()
+        pageViewports = emptyMap()
         saved["projectId"] = p?.id
         val previous = mutable.value
         mutable.value =
@@ -497,7 +511,19 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
     fun selectPage(n: Int) {
         val p = mutable.value.project ?: return
         if (mutable.value.editorLocked || n !in p.pages.indices) return
-        mutable.update { it.copy(page = n, image = -1, zoom = 1f, panX = 0f, panY = 0f) }
+        // Phase C item 6: the viewport is per page now, so switching pages restores whatever
+        // zoom/pan that page last had (1x/centered the first time it is visited) instead of
+        // always resetting to 1x/centered.
+        val viewport = pageViewports[p.pages[n].id] ?: PdfViewport()
+        mutable.update {
+            it.copy(
+                page = n,
+                image = -1,
+                zoom = viewport.zoom,
+                panX = viewport.panX,
+                panY = viewport.panY,
+            )
+        }
         scheduleSave()
     }
 
@@ -523,12 +549,12 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         // project can be swapped or torn down under it, so pan/zoom stays enabled through
         // background work (export queueing, gallery retry/discard) but not through those.
         if (mutable.value.editorLocked || !listOf(zoom, panX, panY).all { it.isFinite() }) return
-        mutable.update {
-            it.copy(
-                zoom = zoom.coerceIn(.5f, 4f),
-                panX = panX.coerceIn(-10_000f, 10_000f),
-                panY = panY.coerceIn(-10_000f, 10_000f),
-            )
+        val z = zoom.coerceIn(.5f, 4f)
+        val x = panX.coerceIn(-10_000f, 10_000f)
+        val y = panY.coerceIn(-10_000f, 10_000f)
+        mutable.update { it.copy(zoom = z, panX = x, panY = y) }
+        mutable.value.project?.pages?.getOrNull(mutable.value.page)?.id?.let { pageId ->
+            pageViewports = pageViewports + (pageId to PdfViewport(z, x, y))
         }
         scheduleSave()
     }
@@ -545,6 +571,16 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
             }
             PdfGeometry.constrain(image.copy(x = x, y = y), page)
         }
+    }
+
+    /**
+     * Commits a drag-to-move as an absolute page-space position (as opposed to [moveImage]'s
+     * relative delta), used once at drag release after the canvas has already resolved the 5 mm
+     * grid and any active snap guide. Still a single [imageEdit]/undo step.
+     */
+    fun moveImageTo(x: Double, y: Double) {
+        val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
+        imageEdit { PdfGeometry.constrain(it.copy(x = x, y = y), page) }
     }
 
     fun pageEdit(transform: (PdfPage) -> PdfPage) = update { p ->
@@ -594,6 +630,111 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         if (next !in p.pages.indices) return
         update { it.copy(pages = it.pages.toMutableList().apply { add(next, removeAt(s.page)) }) }
         selectPage(next)
+    }
+
+    /** Reorders the page at [from] to [to] (page strip drag-and-drop), one undo step. */
+    fun reorderPage(from: Int, to: Int) {
+        val s = mutable.value
+        val p = s.project ?: return
+        if (from !in p.pages.indices || to !in p.pages.indices || from == to) return
+        val movingCurrent = s.page == from
+        update { it.copy(pages = it.pages.toMutableList().apply { add(to, removeAt(from)) }) }
+        if (movingCurrent) selectPage(to)
+        else {
+            // Keep the current page selected by identity, its index may have shifted.
+            val id = p.pages[s.page].id
+            mutable.value.project?.pages?.indexOfFirst { it.id == id }?.takeIf { it >= 0 }?.let {
+                mutable.update { state -> state.copy(page = it) }
+            }
+        }
+    }
+
+    /** Rotates the selected image 90°, keeping it centered on its previous frame. */
+    fun rotateSelectedImage() = imageEdit {
+        val page = mutable.value.project!!.pages[mutable.value.page]
+        PdfGeometry.constrain(
+            it.copy(width = it.height, height = it.width, rotation = (it.rotation + 90) % 360),
+            page,
+        )
+    }
+
+    /** Toggles the selected image between Contain (Fit) and Cover (Crop/Fill). */
+    fun toggleSelectedImageFit() = imageEdit {
+        it.copy(fit = if (it.fit == PdfFit.Cover) PdfFit.Contain else PdfFit.Cover)
+    }
+
+    enum class Align {
+        Left,
+        Center,
+        Right,
+        Top,
+        Middle,
+        Bottom,
+    }
+
+    /** Aligns the selected image relative to the page (its margins define the left/top/right/bottom). */
+    fun alignSelectedImage(align: Align) = pageEdit { page ->
+        val n = mutable.value.image
+        if (n !in page.images.indices) return@pageEdit page
+        val i = page.images[n]
+        val x =
+            when (align) {
+                Align.Left -> page.margin
+                Align.Center -> (page.width - i.width) / 2
+                Align.Right -> page.width - page.margin - i.width
+                else -> i.x
+            }
+        val y =
+            when (align) {
+                Align.Top -> page.margin
+                Align.Middle -> (page.height - i.height) / 2
+                Align.Bottom -> page.height - page.margin - i.height
+                else -> i.y
+            }
+        page.copy(images = page.images.mapIndexed { m, img -> if (m == n) img.copy(x = x, y = y) else img })
+    }
+
+    /** Moves the selected image one step forward in stacking order (toward the front). */
+    fun bringSelectedImageForward() {
+        val n = mutable.value.image
+        val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
+        if (n < 0 || n >= page.images.lastIndex) return
+        pageEdit { p -> p.copy(images = p.images.toMutableList().apply { add(n + 1, removeAt(n)) }) }
+        selectImage(n + 1)
+    }
+
+    /** Moves the selected image one step backward in stacking order (toward the back). */
+    fun sendSelectedImageBackward() {
+        val n = mutable.value.image
+        if (n <= 0) return
+        pageEdit { page ->
+            page.copy(images = page.images.toMutableList().apply { add(n - 1, removeAt(n)) })
+        }
+        selectImage(n - 1)
+    }
+
+    /** Moves the selected image to the very front (top) of the stacking order. */
+    fun bringSelectedImageToFront() {
+        val n = mutable.value.image
+        if (n < 0) return
+        pageEdit { it.copy(images = it.images.toMutableList().apply { add(removeAt(n)) }) }
+        selectImage((mutable.value.project?.pages?.getOrNull(mutable.value.page)?.images?.lastIndex) ?: -1)
+    }
+
+    /** Moves the selected image to the very back (bottom) of the stacking order. */
+    fun sendSelectedImageToBack() {
+        val n = mutable.value.image
+        if (n < 0) return
+        pageEdit { it.copy(images = it.images.toMutableList().apply { add(0, removeAt(n)) }) }
+        selectImage(0)
+    }
+
+    /** Deletes the selected image (error-role action in the contextual toolbar), one undo step. */
+    fun deleteSelectedImage() {
+        val n = mutable.value.image
+        if (n < 0) return
+        pageEdit { it.copy(images = it.images.filterIndexed { m, _ -> m != n }) }
+        selectImage(-1)
     }
 
     fun beginImport(portable: Boolean): Boolean {
