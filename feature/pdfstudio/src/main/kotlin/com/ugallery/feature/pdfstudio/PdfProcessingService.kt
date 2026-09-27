@@ -9,6 +9,7 @@ import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.io.MemoryUsageSetting
 import com.tom_roush.pdfbox.pdmodel.*
 import com.tom_roush.pdfbox.pdmodel.common.PDRectangle
+import com.tom_roush.pdfbox.pdmodel.font.PDType0Font
 import com.tom_roush.pdfbox.pdmodel.graphics.image.*
 import com.tom_roush.pdfbox.util.Matrix
 import java.io.*
@@ -31,6 +32,9 @@ open class PdfProcessingService : Service() {
             // Only the isolated renderer terminates; a dead Binder releases host worker threads.
             android.os.Process.killProcess(android.os.Process.myPid())
         }
+
+        /** Conventional single-spacing line height as a multiple of point size (Phase G1a). */
+        private const val LINE_HEIGHT_FACTOR = 1.2f
     }
 
     private val cancelled = ConcurrentHashMap<String, AtomicBoolean>()
@@ -167,6 +171,13 @@ open class PdfProcessingService : Service() {
                                             // decoded
                                             // pixels.
                                             val images = mutableMapOf<String, PDImageXObject>()
+                                            // Fonts (Phase G1a): one PDType0Font per family/
+                                            // weight combination actually used, shared across
+                                            // every page/text — same caching shape as [images].
+                                            val fonts =
+                                                mutableMapOf<
+                                                    Pair<PdfFontFamily, PdfFontWeight>, PDType0Font
+                                                >()
                                             PdfSourcePages(document) { hash ->
                                                     stream(hash).use {
                                                         PDDocument.load(
@@ -188,222 +199,16 @@ open class PdfProcessingService : Service() {
                                                             )
                                                         } else {
                                                             imported.close()
-                                                            val pt = 72f / 25.4f
-                                                            val dest =
-                                                                PDPage(
-                                                                    PDRectangle(
-                                                                        (p.width * pt).toFloat(),
-                                                                        (p.height * pt).toFloat(),
-                                                                    )
-                                                                )
-                                                            document.addPage(dest)
-                                                            PDPageContentStream(document, dest)
-                                                                .use { canvas ->
-                                                                    p.images.forEach { i ->
-                                                                        check(!flag.get()) {
-                                                                            "Cancelled"
-                                                                        }
-                                                                        val asset =
-                                                                            project.assets.first {
-                                                                                it.hash == i.asset
-                                                                            }
-                                                                        val image =
-                                                                            images.getOrPut(
-                                                                                i.asset
-                                                                            ) {
-                                                                                if (
-                                                                                    asset.mime ==
-                                                                                        "image/jpeg" &&
-                                                                                        !compact
-                                                                                ) {
-                                                                                    stream(i.asset)
-                                                                                        .use {
-                                                                                            JPEGFactory
-                                                                                                .createFromStream(
-                                                                                                    document,
-                                                                                                    it,
-                                                                                                )
-                                                                                        }
-                                                                                } else {
-                                                                                    val options =
-                                                                                        BitmapFactory
-                                                                                            .Options()
-                                                                                            .apply {
-                                                                                                inJustDecodeBounds =
-                                                                                                    true
-                                                                                            }
-                                                                                    stream(i.asset)
-                                                                                        .use {
-                                                                                            BitmapFactory
-                                                                                                .decodeStream(
-                                                                                                    it,
-                                                                                                    null,
-                                                                                                    options,
-                                                                                                )
-                                                                                        }
-                                                                                    require(
-                                                                                        options
-                                                                                            .outWidth >
-                                                                                            0 &&
-                                                                                            options
-                                                                                                .outHeight >
-                                                                                                0
-                                                                                    )
-                                                                                    val maxSide =
-                                                                                        if (compact)
-                                                                                            1600
-                                                                                        else 8192
-                                                                                    options
-                                                                                        .inJustDecodeBounds =
-                                                                                        false
-                                                                                    options
-                                                                                        .inSampleSize =
-                                                                                        1
-                                                                                    while (
-                                                                                        max(
-                                                                                            options
-                                                                                                .outWidth,
-                                                                                            options
-                                                                                                .outHeight,
-                                                                                        ) /
-                                                                                            options
-                                                                                                .inSampleSize >
-                                                                                            maxSide ||
-                                                                                            options
-                                                                                                .outWidth
-                                                                                                .toLong() /
-                                                                                                options
-                                                                                                    .inSampleSize *
-                                                                                                options
-                                                                                                    .outHeight /
-                                                                                                options
-                                                                                                    .inSampleSize >
-                                                                                                16_000_000
-                                                                                    ) options
-                                                                                        .inSampleSize *=
-                                                                                        2
-                                                                                    if (
-                                                                                        !compact &&
-                                                                                            options
-                                                                                                .inSampleSize !=
-                                                                                                1
-                                                                                    )
-                                                                                        throw PdfOperationFailure(
-                                                                                            PdfFailure
-                                                                                                .LimitExceeded
-                                                                                        )
-                                                                                    val bitmap =
-                                                                                        stream(
-                                                                                                i
-                                                                                                    .asset
-                                                                                            )
-                                                                                            .use {
-                                                                                                BitmapFactory
-                                                                                                    .decodeStream(
-                                                                                                        it,
-                                                                                                        null,
-                                                                                                        options,
-                                                                                                    )
-                                                                                            }
-                                                                                            ?: error(
-                                                                                                "Image decode failed"
-                                                                                            )
-                                                                                    var rotated =
-                                                                                        bitmap
-                                                                                    try {
-
-                                                                                        if (compact)
-                                                                                            JPEGFactory
-                                                                                                .createFromImage(
-                                                                                                    document,
-                                                                                                    rotated,
-                                                                                                    .75f,
-                                                                                                )
-                                                                                        else
-                                                                                            LosslessFactory
-                                                                                                .createFromImage(
-                                                                                                    document,
-                                                                                                    rotated,
-                                                                                                )
-                                                                                    } finally {
-                                                                                        if (
-                                                                                            rotated !==
-                                                                                                bitmap
-                                                                                        )
-                                                                                            rotated
-                                                                                                .recycle()
-                                                                                        bitmap
-                                                                                            .recycle()
-                                                                                    }
-                                                                                }
-                                                                            }
-                                                                        val swapped =
-                                                                            (asset.orientation >=
-                                                                                5) xor
-                                                                                (i.rotation % 180 !=
-                                                                                    0)
-                                                                        val iw =
-                                                                            if (swapped)
-                                                                                image.height
-                                                                            else image.width
-                                                                        val ih =
-                                                                            if (swapped) image.width
-                                                                            else image.height
-                                                                        val scale =
-                                                                            if (
-                                                                                i.fit ==
-                                                                                    PdfFit.Cover
-                                                                            )
-                                                                                max(
-                                                                                    i.width / iw,
-                                                                                    i.height / ih,
-                                                                                )
-                                                                            else
-                                                                                min(
-                                                                                    i.width / iw,
-                                                                                    i.height / ih,
-                                                                                )
-                                                                        val w = iw * scale
-                                                                        val h = ih * scale
-                                                                        val x =
-                                                                            i.x +
-                                                                                (i.width - w) *
-                                                                                    i.focusX
-                                                                        val y =
-                                                                            i.y +
-                                                                                (i.height - h) *
-                                                                                    i.focusY
-                                                                        canvas.saveGraphicsState()
-                                                                        canvas.addRect(
-                                                                            (i.x * pt).toFloat(),
-                                                                            ((p.height -
-                                                                                    i.y -
-                                                                                    i.height) * pt)
-                                                                                .toFloat(),
-                                                                            (i.width * pt)
-                                                                                .toFloat(),
-                                                                            (i.height * pt)
-                                                                                .toFloat(),
-                                                                        )
-                                                                        canvas.clip()
-                                                                        canvas.drawImage(
-                                                                            image,
-                                                                            orientationMatrix(
-                                                                                asset.orientation,
-                                                                                i.rotation,
-                                                                                (x * pt).toFloat(),
-                                                                                ((p.height -
-                                                                                        y -
-                                                                                        h) * pt)
-                                                                                    .toFloat(),
-                                                                                (w * pt).toFloat(),
-                                                                                (h * pt).toFloat(),
-                                                                            ),
-                                                                        )
-                                                                        canvas
-                                                                            .restoreGraphicsState()
-                                                                    }
-                                                                }
+                                                            renderCanvasPage(
+                                                                document = document,
+                                                                project = project,
+                                                                p = p,
+                                                                compact = compact,
+                                                                images = images,
+                                                                fonts = fonts,
+                                                                flag = flag,
+                                                                stream = ::stream,
+                                                            )
                                                         }
                                                         progress?.onPage(
                                                             pageIndex + 1,
@@ -423,6 +228,186 @@ open class PdfProcessingService : Service() {
                         }
                     }
                 }
+        }
+
+    /** One PDF page's own content stream: images and texts interleaved in [PdfLayers] paint
+     * order. Extracted from the pre-Phase-G1a per-image loop unchanged (see [drawImage]) so
+     * adding the text layer doesn't change existing image export behavior. */
+    private fun renderCanvasPage(
+        document: PDDocument,
+        project: PdfProject,
+        p: PdfPage,
+        compact: Boolean,
+        images: MutableMap<String, PDImageXObject>,
+        fonts: MutableMap<Pair<PdfFontFamily, PdfFontWeight>, PDType0Font>,
+        flag: AtomicBoolean,
+        stream: (String) -> InputStream,
+    ) {
+        val pt = 72f / 25.4f
+        val dest = PDPage(PDRectangle((p.width * pt).toFloat(), (p.height * pt).toFloat()))
+        document.addPage(dest)
+        PDPageContentStream(document, dest).use { canvas ->
+            PdfLayers.order(p).forEach { element ->
+                check(!flag.get()) { "Cancelled" }
+                when (element) {
+                    is PdfLayers.Element.Img ->
+                        drawImage(document, canvas, project, p, element.image, pt, compact, images, stream)
+                    is PdfLayers.Element.Txt -> drawText(document, canvas, p, element.text, pt, fonts)
+                }
+            }
+        }
+    }
+
+    /** Draws one image, exactly as before Phase G1a (only extracted into its own function so it
+     * can interleave with [drawText] via [renderCanvasPage]/[PdfLayers]). */
+    private fun drawImage(
+        document: PDDocument,
+        canvas: PDPageContentStream,
+        project: PdfProject,
+        p: PdfPage,
+        i: PdfImage,
+        pt: Float,
+        compact: Boolean,
+        images: MutableMap<String, PDImageXObject>,
+        stream: (String) -> InputStream,
+    ) {
+        val asset = project.assets.first { it.hash == i.asset }
+        val image =
+            images.getOrPut(i.asset) {
+                if (asset.mime == "image/jpeg" && !compact) {
+                    stream(i.asset).use { JPEGFactory.createFromStream(document, it) }
+                } else {
+                    val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    stream(i.asset).use { BitmapFactory.decodeStream(it, null, options) }
+                    require(options.outWidth > 0 && options.outHeight > 0)
+                    val maxSide = if (compact) 1600 else 8192
+                    options.inJustDecodeBounds = false
+                    options.inSampleSize = 1
+                    while (
+                        max(options.outWidth, options.outHeight) / options.inSampleSize > maxSide ||
+                            options.outWidth.toLong() / options.inSampleSize *
+                                options.outHeight / options.inSampleSize > 16_000_000
+                    )
+                        options.inSampleSize *= 2
+                    if (!compact && options.inSampleSize != 1)
+                        throw PdfOperationFailure(PdfFailure.LimitExceeded)
+                    val bitmap =
+                        stream(i.asset).use { BitmapFactory.decodeStream(it, null, options) }
+                            ?: error("Image decode failed")
+                    var rotated = bitmap
+                    try {
+                        if (compact) JPEGFactory.createFromImage(document, rotated, .75f)
+                        else LosslessFactory.createFromImage(document, rotated)
+                    } finally {
+                        if (rotated !== bitmap) rotated.recycle()
+                        bitmap.recycle()
+                    }
+                }
+            }
+        val swapped = (asset.orientation >= 5) xor (i.rotation % 180 != 0)
+        val iw = if (swapped) image.height else image.width
+        val ih = if (swapped) image.width else image.height
+        val scale = if (i.fit == PdfFit.Cover) max(i.width / iw, i.height / ih) else min(i.width / iw, i.height / ih)
+        val w = iw * scale
+        val h = ih * scale
+        val x = i.x + (i.width - w) * i.focusX
+        val y = i.y + (i.height - h) * i.focusY
+        canvas.saveGraphicsState()
+        canvas.addRect(
+            (i.x * pt).toFloat(),
+            ((p.height - i.y - i.height) * pt).toFloat(),
+            (i.width * pt).toFloat(),
+            (i.height * pt).toFloat(),
+        )
+        canvas.clip()
+        canvas.drawImage(
+            image,
+            orientationMatrix(
+                asset.orientation,
+                i.rotation,
+                (x * pt).toFloat(),
+                ((p.height - y - h) * pt).toFloat(),
+                (w * pt).toFloat(),
+                (h * pt).toFloat(),
+            ),
+        )
+        canvas.restoreGraphicsState()
+    }
+
+    /**
+     * Draws one text box (Phase G1a): word-wraps [text]'s string to the box width with
+     * [PdfTextWrap] (shared, pure line-breaking — Compose will call the same function in G1b),
+     * clips to the box like [drawImage] does, and positions the first baseline using the font's
+     * own ascent metric (`PDFontDescriptor.getAscent()`, in 1/1000 em — the same metric backing
+     * `hhea`/`OS2` ascent that Compose's `TextMeasurer` reads), so both renderers place the same
+     * text at the same spot. Lines use a fixed 1.2x line-height multiple of the point size — a
+     * conventional single-spacing value chosen so short boxes still fit at least one line.
+     */
+    private fun drawText(
+        document: PDDocument,
+        canvas: PDPageContentStream,
+        p: PdfPage,
+        text: PdfText,
+        pt: Float,
+        fonts: MutableMap<Pair<PdfFontFamily, PdfFontWeight>, PDType0Font>,
+    ) {
+        val font = font(document, fonts, text.font, text.weight)
+        val sizePt = text.sizePt.toFloat()
+        fun measure(s: String) = font.getStringWidth(s) / 1000f * sizePt
+        val boxLeft = (text.x * pt).toFloat()
+        val boxWidth = (text.width * pt).toFloat()
+        val boxHeight = (text.height * pt).toFloat()
+        // Top edge of the box, measured from the PDF page's bottom-left origin (same convention
+        // as drawImage's addRect above).
+        val boxTop = ((p.height - text.y) * pt).toFloat()
+        val lineHeight = sizePt * LINE_HEIGHT_FACTOR
+        val maxLines = (boxHeight / lineHeight).toInt().coerceAtLeast(0)
+        val lines = PdfTextWrap.wrap(text.text, boxWidth, maxLines, ::measure)
+        if (lines.isEmpty()) return
+        val (r, g, b) = PdfPaperTokens.rgb(text.ink)
+        canvas.saveGraphicsState()
+        canvas.addRect(boxLeft, boxTop - boxHeight, boxWidth, boxHeight)
+        canvas.clip()
+        canvas.setNonStrokingColor(r, g, b)
+        val ascent = (font.fontDescriptor?.ascent ?: 800f) / 1000f * sizePt
+        var baseline = boxTop - ascent
+        for (line in lines) {
+            val lineWidth = measure(line)
+            val x =
+                when (text.align) {
+                    PdfTextAlign.Start -> boxLeft
+                    PdfTextAlign.Center -> boxLeft + (boxWidth - lineWidth) / 2f
+                    PdfTextAlign.End -> boxLeft + boxWidth - lineWidth
+                }
+            canvas.beginText()
+            canvas.setFont(font, sizePt)
+            canvas.newLineAtOffset(x, baseline)
+            canvas.showText(line)
+            canvas.endText()
+            baseline -= lineHeight
+        }
+        canvas.restoreGraphicsState()
+    }
+
+    /** One embedded PDType0Font per family/weight, loaded from the bundled asset TTF and cached
+     * in [cache] for the life of the export (like [images] above). `embedSubset = true` so the
+     * exported PDF only carries the glyphs it actually uses. */
+    private fun font(
+        document: PDDocument,
+        cache: MutableMap<Pair<PdfFontFamily, PdfFontWeight>, PDType0Font>,
+        family: PdfFontFamily,
+        weight: PdfFontWeight,
+    ): PDType0Font =
+        cache.getOrPut(family to weight) {
+            val name =
+                when (family to weight) {
+                    PdfFontFamily.Sans to PdfFontWeight.Regular -> "fonts/NotoSans-Regular.ttf"
+                    PdfFontFamily.Sans to PdfFontWeight.Bold -> "fonts/NotoSans-Bold.ttf"
+                    PdfFontFamily.Serif to PdfFontWeight.Regular -> "fonts/NotoSerif-Regular.ttf"
+                    PdfFontFamily.Serif to PdfFontWeight.Bold -> "fonts/NotoSerif-Bold.ttf"
+                    else -> error("Unreachable: every PdfFontFamily x PdfFontWeight combination is listed above")
+                }
+            assets.open(name).use { PDType0Font.load(document, it, true) }
         }
 
     private fun budgetedOutput(

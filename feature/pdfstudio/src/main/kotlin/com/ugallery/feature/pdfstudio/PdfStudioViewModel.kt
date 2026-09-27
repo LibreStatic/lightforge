@@ -828,6 +828,51 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         )
     }
 
+    /**
+     * Adds a default text box to the current page — centered, 12pt Sans Regular Black, in front
+     * of everything already on the page (Phase G1a's minimal API; the canvas/inspector UI to
+     * place, resize and style it comes in Phase G1b). A no-op with a failure message on an
+     * imported-PDF page (texts aren't allowed there) or when [text] has an unsupported character,
+     * so it never silently produces a project that fails [PdfProject.validate]. A single undo
+     * step, like every other [pageEdit].
+     */
+    fun addText(text: String) {
+        val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
+        if (page.source != null) {
+            mutable.update { it.copy(message = R.string.pdf_error) }
+            return
+        }
+        if (PdfTextSupport.check(text).isFailure) {
+            mutable.update { it.copy(message = PdfFailure.UnsupportedGlyph.message) }
+            return
+        }
+        pageEdit { p ->
+            val width = 100.0
+            val height = 40.0
+            p.copy(
+                texts =
+                    p.texts +
+                        PdfText(
+                            text = text,
+                            x = ((p.width - width) / 2).coerceAtLeast(0.0),
+                            y = ((p.height - height) / 2).coerceAtLeast(0.0),
+                            width = width.coerceAtMost(p.width),
+                            height = height.coerceAtMost(p.height),
+                            z = PdfLayers.nextZ(p),
+                        )
+            )
+        }
+    }
+
+    /** Applies [transform] to the text with [id] on the current page, one undo step. A no-op if
+     * [id] no longer exists (e.g. it was removed by a concurrent undo). */
+    fun textEdit(id: String, transform: (PdfText) -> PdfText) = pageEdit { p ->
+        p.copy(texts = p.texts.map { if (it.id == id) transform(it) else it })
+    }
+
+    /** Removes the text with [id] from the current page, one undo step. */
+    fun removeText(id: String) = pageEdit { p -> p.copy(texts = p.texts.filterNot { it.id == id }) }
+
     fun addPage() {
         val next = mutable.value.page + 1
         update { p -> p.copy(pages = p.pages.toMutableList().apply { add(next, PdfPage()) }) }
