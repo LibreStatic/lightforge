@@ -6,6 +6,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -53,27 +56,17 @@ class SearchLayoutDeviceTest {
     }
 
     @Test
-    fun expandedSearchDiscoveryUsesTheResponsiveScreenGutter() {
+    fun focusingSearchKeepsOneFieldSoTypingIsNotLost() {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         compose.setContent {
             MaterialTheme { SearchUnderTest() }
         }
 
         compose.onNodeWithText(context.getString(R.string.search_hint)).performClick()
-        compose.waitUntil(timeoutMillis = 5_000) {
-            compose.onAllNodesWithTag(SEARCH_EXPANDED_DISCOVERY_HEADING_TEST_TAG)
-                .fetchSemanticsNodes().isNotEmpty()
-        }
-
-        val rootWidth = compose.onAllNodes(isRoot()).fetchSemanticsNodes()
-            .maxOf { it.boundsInRoot.width }
-        val expectedGutter = with(compose.density) {
-            searchHorizontalGutter(rootWidth.toDp()).toPx()
-        }
-        val headingLeft = compose.onNodeWithTag(SEARCH_EXPANDED_DISCOVERY_HEADING_TEST_TAG)
-            .fetchSemanticsNode().boundsInRoot.left
-
-        assertEquals(expectedGutter, headingLeft, 0.5f)
+        compose.onAllNodes(hasSetTextAction()).assertCountEquals(1)
+        compose.onAllNodes(hasSetTextAction())[0].performTextInput("leche")
+        compose.onAllNodes(hasSetTextAction()).assertCountEquals(1)
+        compose.onNodeWithText("leche").assertExists()
     }
 }
 

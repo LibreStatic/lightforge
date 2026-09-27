@@ -28,7 +28,6 @@ import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
-import androidx.compose.material3.ExpandedFullScreenSearchBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -43,12 +42,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -78,14 +78,12 @@ import com.ugallery.core.thumbnail.ThumbnailPrefetchCandidate
 import com.ugallery.core.thumbnail.ThumbnailRequest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
 
 private const val PAGINATION_PREFETCH_DISTANCE = 3
 internal const val SEARCH_RESULTS_GRID_TEST_TAG = "search_results_grid"
 internal const val SEARCH_LOADING_ROW_TEST_TAG = "search_loading_row"
 internal const val SEARCH_LOADING_INDICATOR_TEST_TAG = "search_loading_indicator"
 internal const val SEARCH_CONTENT_COLUMN_TEST_TAG = "search_content_column"
-internal const val SEARCH_EXPANDED_DISCOVERY_HEADING_TEST_TAG = "search_expanded_discovery_heading"
 
 internal fun searchHorizontalGutter(width: Dp) =
     maxOf(GallerySpacing.Xl, galleryAdaptiveLayoutInfo(width).gutter)
@@ -124,26 +122,41 @@ fun SearchContent(
     var showDetectedContent by rememberSaveable { mutableStateOf(false) }
     val textFieldState = rememberTextFieldState(query)
     val searchBarState = rememberSearchBarState()
-    val coroutineScope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
     val currentQuery by rememberUpdatedState(query)
+    // Values sent to onQueryChange that the caller has not echoed back yet. While typing fast,
+    // a stale echo ("le") can arrive after newer keystrokes ("lec"); writing it back into the
+    // field dropped characters (R-04), so only genuinely external queries replace the text.
+    val pendingEchoes = remember { ArrayDeque<String>() }
     LaunchedEffect(query) {
-        if (textFieldState.text.toString() != query) {
+        val echoIndex = pendingEchoes.indexOf(query)
+        if (echoIndex >= 0) {
+            repeat(echoIndex + 1) { pendingEchoes.removeFirst() }
+        } else if (textFieldState.text.toString() != query) {
+            pendingEchoes.clear()
             textFieldState.edit { replace(0, length, query) }
         }
     }
     LaunchedEffect(textFieldState) {
         snapshotFlow { textFieldState.text.toString() }.collectLatest { text ->
-            if (text != currentQuery) onQueryChange(text)
+            if (text != currentQuery) {
+                pendingEchoes.addLast(text)
+                onQueryChange(text)
+            }
         }
     }
     val inputField: @Composable () -> Unit = {
+        // A single field that never expands: the collapsed->expanded swap moved the IME
+        // connection mid-typing and dropped or reordered keystrokes (R-04). Discovery is
+        // already shown inline below the field while the query is blank.
         SearchBarDefaults.InputField(
-            textFieldState = textFieldState,
-            searchBarState = searchBarState,
+            state = textFieldState,
+            expanded = false,
+            onExpandedChange = {},
             onSearch = {
                 if (it.isNotBlank()) {
                     onSearch()
-                    coroutineScope.launch { searchBarState.animateToCollapsed() }
+                    focusManager.clearFocus()
                 }
             },
             placeholder = { Text(stringResource(R.string.search_hint)) },
@@ -177,32 +190,6 @@ fun SearchContent(
             inputField = inputField,
             modifier = Modifier.fillMaxWidth(),
         )
-        ExpandedFullScreenSearchBar(
-            state = searchBarState,
-            inputField = inputField,
-            modifier = Modifier.background(MaterialTheme.colorScheme.surface),
-            colors = SearchBarDefaults.colors(
-                containerColor = Color.Transparent,
-            ),
-        ) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(horizontal = horizontalGutter),
-            ) {
-                SearchDiscovery(
-                    onPresetSearch = { label ->
-                        onPresetSearch(label)
-                        coroutineScope.launch { searchBarState.animateToCollapsed() }
-                    },
-                    onOpenPlaces = onOpenPlaces,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = GallerySpacing.Lg),
-                    headingModifier = Modifier.testTag(SEARCH_EXPANDED_DISCOVERY_HEADING_TEST_TAG),
-                )
-            }
-        }
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 16.dp)) {
             item {
                 val label = stringResource(R.string.search_photos)
