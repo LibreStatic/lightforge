@@ -86,6 +86,17 @@ class PdfOperationDeadlineTest {
                 )
         }
 
+    /**
+     * A noncooperative engine whose host-side deadline matches the fixture service's shortened one,
+     * so a watchdog kill at that deadline is this call's own overrun (RendererUnavailable), not a
+     * collateral death to retry.
+     */
+    private fun stallingEngine(long: Boolean = false) =
+        IsolatedPdfEngine(
+            fixture(true, long),
+            operationTimeoutMillis = { if (long) 60_000L else 4_000L },
+        )
+
     @Test
     fun threeNoncooperativeExportsReleaseHostWorkersAndSuccessorsRender(): Unit = runBlocking {
         val host = Process.myPid()
@@ -96,7 +107,7 @@ class PdfOperationDeadlineTest {
                 val error =
                     runCatching {
                             withTimeout(15_000) {
-                                IsolatedPdfEngine(fixture(true))
+                                stallingEngine()
                                     .export(
                                         PdfProject(name = "Deadline"),
                                         emptyList(),
@@ -138,7 +149,7 @@ class PdfOperationDeadlineTest {
                 val error =
                     runCatching {
                             withTimeout(15_000) {
-                                val engine = IsolatedPdfEngine(fixture(true))
+                                val engine = stallingEngine()
                                 if (preview) engine.preview(source, 0, output)
                                 else engine.inspect(source)
                             }

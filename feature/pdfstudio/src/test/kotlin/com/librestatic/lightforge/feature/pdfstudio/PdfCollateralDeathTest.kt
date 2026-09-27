@@ -19,6 +19,13 @@ class PdfCollateralDeathTest {
     }
 
     @Test
+    fun `the host and the renderer share one per-operation deadline`() {
+        assertEquals(300_000L, pdfOperationTimeoutMillis("export"))
+        assertEquals(60_000L, pdfOperationTimeoutMillis("inspect"))
+        assertEquals(60_000L, pdfOperationTimeoutMillis("preview"))
+    }
+
+    @Test
     fun `an interrupted operation keeps its own persisted code`() {
         assertEquals(PdfFailure.Interrupted, PdfFailure.persisted(PdfFailure.Interrupted.name))
         assertEquals(

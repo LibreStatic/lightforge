@@ -33,6 +33,12 @@ class IsolatedPdfEngine(
                 ParcelFileDescriptor.MODE_READ_WRITE,
         )
     },
+    /**
+     * The renderer's own per-operation deadline ([PdfProcessingService.operationTimeoutMillis]);
+     * it decides whether a process death was this call's overrun or a collateral one. A fixture
+     * that shortens the service's deadline must pass the same value here.
+     */
+    private val operationTimeoutMillis: (String) -> Long = ::pdfOperationTimeoutMillis,
 ) : PdfEngine {
     private val storage = PdfStorageBudget(freeBytes)
 
@@ -42,10 +48,11 @@ class IsolatedPdfEngine(
      * [PdfFailure.Interrupted] so callers can reschedule it instead of treating it as permanent.
      */
     private suspend fun <T> execute(
+        operation: String,
         id: String = newId(),
-        timeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS,
         block: (IPdfProcessor) -> T,
     ): T {
+        val timeoutMillis = operationTimeoutMillis(operation)
         var attempt = 0
         while (true) {
             val started = SystemClock.elapsedRealtime()
@@ -134,9 +141,6 @@ class IsolatedPdfEngine(
         }
 
     companion object {
-        // Mirrors PdfProcessingService.operationTimeoutMillis.
-        private const val DEFAULT_TIMEOUT_MILLIS = 60_000L
-        private const val EXPORT_TIMEOUT_MILLIS = 300_000L
         private val workers =
             java.util.concurrent.Executors.newFixedThreadPool(2) { task ->
                 Thread(task, "pdf-binder").apply { isDaemon = true }
@@ -147,7 +151,7 @@ class IsolatedPdfEngine(
             }
     }
 
-    override suspend fun inspect(file: File): List<PdfPage> = execute { service ->
+    override suspend fun inspect(file: File): List<PdfPage> = execute("inspect") { service ->
         ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { fd ->
             val json = org.json.JSONObject(service.inspect(fd))
             if (json.has("error"))
@@ -171,7 +175,7 @@ class IsolatedPdfEngine(
     override suspend fun preview(file: File, page: Int, output: File) {
         storage.beforeWrite(output)
         try {
-            execute { service ->
+            execute("preview") { service ->
                 ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { input ->
                     openOutput(output).use { out ->
                         val error = service.preview(input, page, 1024, out)
@@ -195,7 +199,7 @@ class IsolatedPdfEngine(
         storage.beforeWrite(output)
         val jobId = newId()
         try {
-            execute(jobId, EXPORT_TIMEOUT_MILLIS) { service ->
+            execute("export", jobId) { service ->
                 val fds = mutableListOf<ParcelFileDescriptor>()
                 try {
                     project.validate()

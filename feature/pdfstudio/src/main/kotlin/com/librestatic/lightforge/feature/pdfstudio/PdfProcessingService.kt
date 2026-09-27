@@ -22,7 +22,7 @@ import org.json.*
 open class PdfProcessingService : Service() {
     // Intent extras and imported files cannot change these process-lifetime limits.
     protected open fun operationTimeoutMillis(operation: String): Long =
-        if (operation == "export") 300_000L else 60_000L
+        pdfOperationTimeoutMillis(operation)
 
     protected fun <T> bounded(operation: String, id: String = newId(), block: () -> T): T =
         watchdog.run(id, operationTimeoutMillis(operation), block)
@@ -477,3 +477,10 @@ open class PdfProcessingService : Service() {
             PdfFailure.MemoryPressure.name
         }
 }
+
+/**
+ * Production per-operation renderer deadline, shared by the watchdog in [PdfProcessingService]
+ * and the host-side collateral-death check in [IsolatedPdfEngine] so the two can never disagree.
+ */
+internal fun pdfOperationTimeoutMillis(operation: String): Long =
+    if (operation == "export") 300_000L else 60_000L
