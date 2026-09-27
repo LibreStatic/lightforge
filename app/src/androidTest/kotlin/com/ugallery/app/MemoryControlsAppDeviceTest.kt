@@ -406,12 +406,15 @@ class MemoryControlsAppDeviceTest {
             device.waitForIdle()
             val expanded = context.resources.configuration.screenWidthDp >= 840
             if (expanded) {
-                awaitTag("rail-memory-controls")
-                click("rail-memory-controls")
+                // The rail holds root destinations only; memory controls live in Collections.
+                awaitTag("rail-collections")
+                click("rail-collections")
+                awaitTag("collections-memory-controls")
+                click("collections-memory-controls")
                 awaitTag("memory-controls-screen")
                 capture("rail-entry")
                 click("memory-controls-back")
-                // Rail is a root entry, not a stale return to a previous story.
+                // Collections entry is a root entry, not a stale return to a previous story.
                 assertTrue(
                     device.wait(
                         Until.hasObject(By.text(context.getString(R.string.nav_collections))),

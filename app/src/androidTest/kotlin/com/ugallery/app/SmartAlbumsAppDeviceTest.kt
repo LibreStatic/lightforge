@@ -243,30 +243,22 @@ class SmartAlbumsAppDeviceTest {
             count(2)
             click("smart-back")
             click("smart-back")
-            val expanded = context.resources.configuration.screenWidthDp >= 840
-            if (expanded)
-                assertTrue(
-                    "Expanded sidebar must expose smart albums",
-                    device.wait(Until.hasObject(By.res("rail-smart-albums")), 15000),
-                )
-            else
+            // The expanded rail only holds root destinations; smart albums live in Collections.
+            val railCollections = device.findObject(By.res("rail-collections"))
+            if (railCollections != null) {
+                railCollections.click()
+                device.waitForIdle()
+            } else {
                 assertTrue(
                     device.wait(
                         Until.hasObject(By.text(context.getString(R.string.nav_collections))),
                         15000,
                     )
                 )
-            val rail = device.findObject(By.res("rail-smart-albums"))
-            val railUsed = rail != null
-            if (expanded) assertTrue(railUsed)
-            capture("navigation-entry")
-            if (rail != null) {
-                rail.click()
-                device.waitForIdle()
-            } else {
+                capture("navigation-entry")
                 clickText(context.getString(R.string.nav_collections))
-                click("collections-smart-albums")
             }
+            click("collections-smart-albums")
             click("smart-album-$owned")
             count(2)
             capture("reopened")

@@ -5,7 +5,10 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -14,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.CircularProgressIndicator
@@ -83,6 +87,11 @@ internal fun GalleryBottomDock(
     }
 }
 
+/**
+ * Expanded-width navigation rail. Per Material 3 adaptive guidance it mirrors the bottom bar's
+ * root destinations (Photos, Collections, Search) and adds Create as the header action plus
+ * Updates/Settings in the footer; secondary shortcuts live in Collections, not here.
+ */
 @Composable
 internal fun GalleryExpandedRail(
     route: SurfaceRoute,
@@ -97,20 +106,34 @@ internal fun GalleryExpandedRail(
     modifier: Modifier = Modifier,
 ) {
     Surface(modifier.width(120.dp).fillMaxHeight(), color = MaterialTheme.colorScheme.surface) {
+        // Scroll is a safety net for short windows; the footer sits at the bottom otherwise.
+        BoxWithConstraints(Modifier.fillMaxHeight()) {
+        val viewportHeight = maxHeight
         Column(
-            Modifier.fillMaxHeight().verticalScroll(rememberScrollState()).padding(vertical = 12.dp),
+            Modifier.verticalScroll(rememberScrollState()).heightIn(min = viewportHeight)
+                .padding(vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            RailItem(GalleryIcons.Image, stringResource(R.string.nav_photos), route == SurfaceRoute.Root && selectedRoot == RootTab.Photos) { onRoot(RootTab.Photos) }
-            RailItem(GalleryIcons.Collections, stringResource(R.string.nav_collections), route == SurfaceRoute.Root && selectedRoot == RootTab.Collections) { onRoot(RootTab.Collections) }
-            RailItem(GalleryIcons.Plus, stringResource(R.string.nav_create), false, onClick = onCreate)
-            RailItem(GalleryIcons.Collections, stringResource(R.string.publication_recoveries_title), route == SurfaceRoute.PublicationRecoveries, tag = "rail-publication-recoveries") { onRoute(SurfaceRoute.PublicationRecoveries) }
+            val createLabel = stringResource(R.string.nav_create)
+            FloatingActionButton(
+                onClick = onCreate,
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.padding(bottom = 12.dp).testTag("rail-create")
+                    .semantics { testTagsAsResourceId = true },
+            ) {
+                Icon(GalleryIcons.Plus, contentDescription = createLabel)
+            }
+            RailItem(GalleryIcons.Image, stringResource(R.string.nav_photos), route == SurfaceRoute.Root && selectedRoot == RootTab.Photos, tag = "rail-photos") { onRoot(RootTab.Photos) }
+            RailItem(GalleryIcons.Collections, stringResource(R.string.nav_collections), route == SurfaceRoute.Root && selectedRoot == RootTab.Collections, tag = "rail-collections") { onRoot(RootTab.Collections) }
+            RailItem(GalleryIcons.Ask, stringResource(R.string.nav_ask), route == SurfaceRoute.Root && selectedRoot == RootTab.Search, tag = "rail-search") { onRoot(RootTab.Search) }
+            Spacer(Modifier.weight(1f).heightIn(min = 12.dp))
             HorizontalDivider(Modifier.padding(horizontal = 30.dp, vertical = 8.dp))
-            RailItem(GalleryIcons.Ask, stringResource(R.string.nav_ask), route == SurfaceRoute.Root && selectedRoot == RootTab.Search) { onRoot(RootTab.Search) }
             RailItem(
                 icon = GalleryIcons.Notifications,
                 label = stringResource(R.string.nav_updates),
                 isSelected = route == SurfaceRoute.Updates,
+                tag = "rail-updates",
                 badgeCount = activeExportCount,
                 progress = activeExportProgress,
                 contentDescription = activeExportDescription,
@@ -119,18 +142,8 @@ internal fun GalleryExpandedRail(
                     else onRoute(SurfaceRoute.Updates)
                 },
             )
-            RailItem(GalleryIcons.Collections, stringResource(com.ugallery.feature.collections.R.string.memory_controls_title), route == SurfaceRoute.MemoryControls, tag = "rail-memory-controls") { onRoute(SurfaceRoute.MemoryControls) }
-            RailItem(GalleryIcons.Collections, stringResource(com.ugallery.feature.collections.R.string.smart_title), route == SurfaceRoute.SmartAlbums, tag = "rail-smart-albums") { onRoute(SurfaceRoute.SmartAlbums) }
-            RailItem(GalleryIcons.Collections, stringResource(com.ugallery.feature.collections.R.string.stacks_title), route == SurfaceRoute.Stacks) { onRoute(SurfaceRoute.Stacks) }
-            RailItem(GalleryIcons.Collections, stringResource(com.ugallery.feature.collections.R.string.documents_title), route == SurfaceRoute.Documents) { onRoute(SurfaceRoute.Documents) }
-            RailItem(GalleryIcons.Collections, stringResource(com.ugallery.feature.pdfstudio.R.string.pdf_studio), route == SurfaceRoute.PdfStudio) { onRoute(SurfaceRoute.PdfStudio) }
-            RailItem(GalleryIcons.Collections, stringResource(com.ugallery.feature.places.R.string.places_title), route == SurfaceRoute.OfflinePlaces, tag = "rail-offline-places") { onRoute(SurfaceRoute.OfflinePlaces) }
-            RailItem(GalleryIcons.Folder, stringResource(com.ugallery.feature.ownsync.R.string.own_sync_title), route == SurfaceRoute.OwnSync, tag = "rail-own-sync") { onRoute(SurfaceRoute.OwnSync) }
-            RailItem(GalleryIcons.Folder, stringResource(com.ugallery.feature.localsharing.R.string.peer_title), route == SurfaceRoute.LocalSharing, tag = "rail-local-sharing") { onRoute(SurfaceRoute.LocalSharing) }
-            RailItem(GalleryIcons.Collections, stringResource(com.ugallery.feature.petrecognition.R.string.pet_title), route == SurfaceRoute.PetIdentity, tag = "rail-pet-identity") { onRoute(SurfaceRoute.PetIdentity) }
-            RailItem(GalleryIcons.Folder, stringResource(R.string.nav_on_device), route == SurfaceRoute.DeviceFolders) { onRoute(SurfaceRoute.DeviceFolders) }
-            RailItem(GalleryIcons.Archive, stringResource(R.string.nav_archive), route == SurfaceRoute.Archive) { onRoute(SurfaceRoute.Archive) }
-            RailItem(GalleryIcons.Trash, stringResource(R.string.nav_trash), route == SurfaceRoute.Trash) { onRoute(SurfaceRoute.Trash) }
+            RailItem(GalleryIcons.Settings, stringResource(R.string.nav_settings), route == SurfaceRoute.Settings, tag = "rail-settings") { onRoute(SurfaceRoute.Settings) }
+        }
         }
     }
 }
@@ -148,7 +161,8 @@ private fun RailItem(
     onClick: () -> Unit,
 ) {
     Column(
-        Modifier.fillMaxWidth().then(if (tag != null) Modifier.testTag(tag) else Modifier).clickable(role = Role.Tab, onClick = onClick)
+        Modifier.fillMaxWidth().then(if (tag != null) Modifier.testTag(tag) else Modifier)
+.clickable(role = Role.Tab, onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 6.dp).semantics {
                 testTagsAsResourceId = true
                 selected = isSelected
