@@ -52,6 +52,17 @@ import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Error
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.DragIndicator
+import androidx.compose.material.icons.automirrored.rounded.RotateRight
+import androidx.compose.material.icons.rounded.AlignHorizontalCenter
+import androidx.compose.material.icons.automirrored.rounded.AlignHorizontalLeft
+import androidx.compose.material.icons.automirrored.rounded.AlignHorizontalRight
+import androidx.compose.material.icons.rounded.AlignVerticalTop
+import androidx.compose.material.icons.rounded.AlignVerticalCenter
+import androidx.compose.material.icons.rounded.AlignVerticalBottom
+import androidx.compose.material.icons.rounded.FlipToFront
+import androidx.compose.material.icons.rounded.FlipToBack
+import androidx.compose.material.icons.rounded.ZoomIn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -116,6 +127,17 @@ val GalleryIconOpenInNew: ImageVector get() = Icons.AutoMirrored.Rounded.OpenInN
 val GalleryIconCheckCircle: ImageVector get() = Icons.Rounded.CheckCircle
 val GalleryIconError: ImageVector get() = Icons.Rounded.Error
 val GalleryIconHistory: ImageVector get() = Icons.Rounded.History
+val GalleryIconDragIndicator: ImageVector get() = Icons.Rounded.DragIndicator
+val GalleryIconRotateRight: ImageVector get() = Icons.AutoMirrored.Rounded.RotateRight
+val GalleryIconAlignHorizontalLeft: ImageVector get() = Icons.AutoMirrored.Rounded.AlignHorizontalLeft
+val GalleryIconAlignHorizontalCenter: ImageVector get() = Icons.Rounded.AlignHorizontalCenter
+val GalleryIconAlignHorizontalRight: ImageVector get() = Icons.AutoMirrored.Rounded.AlignHorizontalRight
+val GalleryIconAlignVerticalTop: ImageVector get() = Icons.Rounded.AlignVerticalTop
+val GalleryIconAlignVerticalCenter: ImageVector get() = Icons.Rounded.AlignVerticalCenter
+val GalleryIconAlignVerticalBottom: ImageVector get() = Icons.Rounded.AlignVerticalBottom
+val GalleryIconFlipToFront: ImageVector get() = Icons.Rounded.FlipToFront
+val GalleryIconFlipToBack: ImageVector get() = Icons.Rounded.FlipToBack
+val GalleryIconZoomIn: ImageVector get() = Icons.Rounded.ZoomIn
 
 /**
  * Standard gallery icon composable with Material 3 defaults:
@@ -196,4 +218,15 @@ object GalleryIcons {
     val CheckCircle get() = GalleryIconCheckCircle
     val Error get() = GalleryIconError
     val History get() = GalleryIconHistory
+    val DragIndicator get() = GalleryIconDragIndicator
+    val RotateRight get() = GalleryIconRotateRight
+    val AlignHorizontalLeft get() = GalleryIconAlignHorizontalLeft
+    val AlignHorizontalCenter get() = GalleryIconAlignHorizontalCenter
+    val AlignHorizontalRight get() = GalleryIconAlignHorizontalRight
+    val AlignVerticalTop get() = GalleryIconAlignVerticalTop
+    val AlignVerticalCenter get() = GalleryIconAlignVerticalCenter
+    val AlignVerticalBottom get() = GalleryIconAlignVerticalBottom
+    val FlipToFront get() = GalleryIconFlipToFront
+    val FlipToBack get() = GalleryIconFlipToBack
+    val ZoomIn get() = GalleryIconZoomIn
 }
