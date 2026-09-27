@@ -14,8 +14,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -50,6 +50,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ugallery.core.designsystem.GalleryIcons
 import com.ugallery.core.designsystem.GalleryLoadingIndicator
 import com.ugallery.core.designsystem.GalleryTopAppBar
@@ -63,10 +64,10 @@ import com.ugallery.core.designsystem.GalleryTopAppBar
  * The title must always stay legible: a bare [GalleryTopAppBar] gives it only whatever width is
  * left over after the navigation icon and the actions row measure themselves, which can reach
  * zero once Undo/Redo/Export/overflow (and Export's own label) don't fit — exactly what happened
- * at narrow widths and large font scales. So this reserves a minimum for the title first and caps
- * the actions row to whatever's left, collapsing Export from a labelled button to an icon-only
- * button (same contentDescription) when that reserved budget is tight; Undo/Redo/overflow always
- * stay as icon buttons since they are core and already at their minimum size.
+ * at narrow widths and large font scales. So Export collapses from a labelled button to an
+ * icon-only button (same contentDescription) whenever its label would leave the title below its
+ * minimum width; Undo/Redo/overflow always stay as icon buttons since they are core and already at
+ * their minimum size. The actions row is never width-capped, so no action is ever clipped.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,11 +98,13 @@ internal fun PdfEditorTopBar(
         // regardless of font scale; only text-bearing controls (title and a labelled Export
         // button) grow with it, so the budget below scales just the parts that actually do.
         val iconSlot = 48.dp
-        val reservedForIcons = iconSlot * 4 // nav + Undo + Redo + overflow
-        val minTitleWidth = maxOf(96.dp, maxWidth * 0.35f)
-        val exportLabelBudget = 96.dp * fontScale.coerceAtLeast(1f)
-        val exportCollapsed = maxWidth - reservedForIcons - minTitleWidth < exportLabelBudget
-        val actionsBudget = (maxWidth - minTitleWidth - reservedForIcons).coerceAtLeast(iconSlot)
+        // nav + Undo + Redo + overflow, plus the app bar's own start/end/title insets.
+        val fixedChrome = iconSlot * 4 + 24.dp
+        val minTitleWidth = 96.dp * fontScale.coerceIn(1f, 1.5f)
+        // A labelled filled button: 24dp horizontal padding on each side plus the label.
+        val exportLabelWidth = 48.dp + 56.dp * fontScale.coerceAtLeast(1f)
+        // Collapse Export to an icon before the title would drop below its minimum width.
+        val exportCollapsed = maxWidth - fixedChrome - exportLabelWidth < minTitleWidth
         GalleryTopAppBar(
             title = project.name,
             subtitle = subtitle,
@@ -109,10 +112,7 @@ internal fun PdfEditorTopBar(
             navigationContentDescription = stringResource(R.string.pdf_projects),
             onTitleClick = onRename,
             actions = {
-                Row(
-                    Modifier.widthIn(max = actionsBudget),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     if (state.backgroundBusy) {
                         GalleryLoadingIndicator(Modifier.size(20.dp).padding(end = 8.dp))
                     }
@@ -320,11 +320,18 @@ internal fun PdfEditorBody(
                     onClick = { onPanelChange(n) },
                     icon = { Icon(tab.first, contentDescription = null) },
                     label = {
+                        // One line that shrinks to fit: at large font scales a wrapping label
+                        // would break inside words ("Página/s"), which reads as broken UI.
                         Text(
                             stringResource(tab.second),
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
+                            maxLines = 1,
+                            softWrap = false,
                             textAlign = TextAlign.Center,
+                            autoSize =
+                                TextAutoSize.StepBased(
+                                    minFontSize = 9.sp,
+                                    maxFontSize = MaterialTheme.typography.labelMedium.fontSize,
+                                ),
                         )
                     },
                     enabled = !state.editorLocked,
