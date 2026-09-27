@@ -36,6 +36,18 @@ class PdfExportQueue(private val context: Context) {
     suspend fun get(id: String): PdfExportJob? = dao.get(id)
 
     /**
+     * Every job (any phase, including an already-[PdfExportPhase.Published] one) bound to [uri].
+     * Used to make a retried destination-first [enqueue] idempotent: if an earlier attempt already
+     * committed the row durably before the caller could observe that (e.g. process death right
+     * after, whether or not the worker had finished by the time of the retry), this lets the caller
+     * recognize its own prior success instead of treating "DestinationInUse"/"DestinationNotEmpty"
+     * as a new failure. Includes the real manifest (unlike [jobs], whose query blanks it for list
+     * display).
+     */
+    suspend fun jobsForDestination(uri: Uri): List<PdfExportJob> =
+        withContext(Dispatchers.IO) { dao.all().filter { it.destination == uri.toString() } }
+
+    /**
      * @param destination when non-null, the job is created already bound to this document (the
      *   "destination first" flow): it skips [PdfExportPhase.Ready] entirely and the worker
      *   publishes directly once rendering finishes. This reuses the same grant acquisition and

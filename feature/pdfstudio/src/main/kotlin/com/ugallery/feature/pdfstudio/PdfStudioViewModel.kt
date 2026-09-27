@@ -119,7 +119,6 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
     init {
         saved.get<String>("projectId")?.let { open(it) }
         refreshLastDestinationLabel()
-        resumePublication()
         resumeImport()
         viewModelScope.launch { galleryIntake.deliveries.collect { resumeGallery() } }
         viewModelScope.launch { exportQueue.jobs.collect(::followExport) }
@@ -129,7 +128,15 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
                     mutable.update { it.copy(message = R.string.pdf_queue_recovery_error) }
                 }
         }
-        viewModelScope.launch { scanForUnwatchedOutcome() }
+        // Deterministic order in one coroutine: resume any outstanding publish/export-draft
+        // delivery (which can itself enqueue a job) and let it fully finish before deciding which
+        // job, if any, finished unwatched - otherwise scanForUnwatchedOutcome could race a
+        // publication that is still in flight and either miss it or double-report it.
+        viewModelScope.launch {
+            resumePublication()
+            publishing?.join()
+            scanForUnwatchedOutcome()
+        }
     }
 
     /**
@@ -854,31 +861,96 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         // Independent of editor busy state: ActivityResult delivery must never be dropped.
         publishing =
             viewModelScope.launch {
-                try {
-                    if (isDraftPickerId(request.first)) {
-                        val draft = exportDraftStore.take()
-                        val snapshot = draft?.let { buildDraftSnapshot(it) }
-                        if (draft != null && snapshot != null) {
-                            watchedExport =
-                                exportQueue.enqueue(snapshot, draft.compact, destination = Uri.parse(uri)).id
-                            mutable.update { it.copy(message = R.string.pdf_queue_added) }
-                            rememberDestination(Uri.parse(uri))
-                        }
-                    } else {
-                        val existing = requireNotNull(exportQueue.get(request.first))
-                        if (existing.destination != uri)
-                            exportQueue.publish(request.first, Uri.parse(uri))
-                        rememberDestination(Uri.parse(uri))
-                    }
-                    // A matching durable row already owns the result, even after worker failure.
-                    publishPicker.acknowledge(request)
-                } catch (e: CancellationException) {
-                    throw e // leave saved delivery available to a recreated ViewModel
-                } catch (e: Exception) {
-                    reportFailure(e)
-                    publishPicker.acknowledge(request)
-                }
+                if (isDraftPickerId(request.first)) resumeDraftExport(request, uri)
+                else resumeLegacyPublish(request, uri)
             }
+    }
+
+    /**
+     * A destination was picked for a not-yet-rendered draft. This must be safe to re-run from
+     * scratch after process death at *any* point: [exportDraftStore.peek] (not `take`) so the draft
+     * is only cleared once [PdfExportQueue.enqueue] has durably committed, never before — clearing
+     * it first and dying before the commit would silently lose an export the user already picked a
+     * destination for, with nothing left to retry from. On enqueue failure, neither the draft nor
+     * the picker request is cleared, so a recreated ViewModel (or [restartNewExport]) retries the
+     * exact same enqueue rather than the app quietly forgetting it.
+     */
+    private suspend fun resumeDraftExport(request: Pair<String, String?>, uri: String) {
+        val draft = exportDraftStore.peek()
+        if (draft == null) {
+            // Nothing left to recover from (already cleared by a completed attempt, or never
+            // written) and there is no way to reconstruct it: free the picker rather than wedging
+            // it forever, but this path should be unreachable now that success always clears the
+            // draft itself.
+            publishPicker.acknowledge(request)
+            return
+        }
+        val snapshot = buildDraftSnapshot(draft)
+        if (snapshot == null) {
+            reportFailure(IllegalStateException("Project removed"))
+            exportDraftStore.discard()
+            publishPicker.acknowledge(request)
+            return
+        }
+        try {
+            val destination = Uri.parse(uri)
+            val job = enqueueDraftIdempotently(snapshot, draft, destination)
+            watchedExport = job.id
+            mutable.update { it.copy(message = R.string.pdf_queue_added) }
+            rememberDestination(destination)
+            // Only now: the row is durably committed, so there is nothing left to lose.
+            exportDraftStore.discard()
+            publishPicker.acknowledge(request)
+        } catch (e: CancellationException) {
+            throw e // leave the draft and the saved delivery available to a recreated ViewModel
+        } catch (e: Exception) {
+            reportFailure(e) // surfaced as an issue card; draft and request stay recoverable
+        }
+    }
+
+    /**
+     * [PdfExportQueue.enqueue] with [destination] can fail with "DestinationInUse" (or, if the
+     * first attempt's worker already started writing, "DestinationNotEmpty") purely because an
+     * earlier call for this same draft already committed before this retry ran. In that case the
+     * live job already bound to [destination] *is* this export, not a conflicting one: recognize it
+     * by decoding its (real, non-blanked) manifest and comparing project ids, and treat it as
+     * success instead of reporting a spurious failure. Any other cause rethrows.
+     */
+    private suspend fun enqueueDraftIdempotently(
+        snapshot: PdfProject,
+        draft: PdfExportDraft,
+        destination: Uri,
+    ): PdfExportJob =
+        try {
+            exportQueue.enqueue(snapshot, draft.compact, destination = destination)
+        } catch (e: IllegalArgumentException) {
+            if (e.message !in setOf("DestinationInUse", "DestinationNotEmpty")) throw e
+            // Prefer an already-Published row for this destination (the earlier attempt fully
+            // finished); otherwise any row of ours still live and holding it.
+            val candidates = exportQueue.jobsForDestination(destination)
+            val existing =
+                candidates.firstOrNull { it.phase == PdfExportPhase.Published }
+                    ?: candidates.firstOrNull { it.keepsSources }
+            val ownProject =
+                existing != null &&
+                    runCatching { PdfCodec.decode(existing.manifest).id == draft.projectId }
+                        .getOrDefault(false)
+            existing?.takeIf { ownProject } ?: throw e
+        }
+
+    private suspend fun resumeLegacyPublish(request: Pair<String, String?>, uri: String) {
+        try {
+            val existing = requireNotNull(exportQueue.get(request.first))
+            if (existing.destination != uri) exportQueue.publish(request.first, Uri.parse(uri))
+            rememberDestination(Uri.parse(uri))
+            // A matching durable row already owns the result, even after worker failure.
+            publishPicker.acknowledge(request)
+        } catch (e: CancellationException) {
+            throw e // leave saved delivery available to a recreated ViewModel
+        } catch (e: Exception) {
+            reportFailure(e)
+            publishPicker.acknowledge(request)
+        }
     }
 
     /** The project a not-yet-rendered [draft] should export, honoring any edits made since. */
