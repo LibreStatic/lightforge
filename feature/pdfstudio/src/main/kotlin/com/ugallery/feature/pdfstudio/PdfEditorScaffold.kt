@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -21,6 +22,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,9 +43,12 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ugallery.core.designsystem.GalleryIcons
 import com.ugallery.core.designsystem.GalleryLoadingIndicator
@@ -51,9 +56,17 @@ import com.ugallery.core.designsystem.GalleryTopAppBar
 
 /**
  * Editor top bar: back, tappable project title (opens rename), an autosave subtitle, Undo/Redo,
- * a filled Export action, and an overflow limited to the less frequent actions. Replaces the
+ * an Export action, and an overflow limited to the less frequent actions. Replaces the
  * always-visible project-name field and the manual Save action; autosave (`scheduleSave`) covers
  * persistence and `persistCurrent` flushes it on the way out.
+ *
+ * The title must always stay legible: a bare [GalleryTopAppBar] gives it only whatever width is
+ * left over after the navigation icon and the actions row measure themselves, which can reach
+ * zero once Undo/Redo/Export/overflow (and Export's own label) don't fit — exactly what happened
+ * at narrow widths and large font scales. So this reserves a minimum for the title first and caps
+ * the actions row to whatever's left, collapsing Export from a labelled button to an icon-only
+ * button (same contentDescription) when that reserved budget is tight; Undo/Redo/overflow always
+ * stay as icon buttons since they are core and already at their minimum size.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,70 +91,101 @@ internal fun PdfEditorTopBar(
                 PdfSaveState.Idle, PdfSaveState.Saved -> R.string.pdf_savestate_saved
             }
         )
-    GalleryTopAppBar(
-        title = project.name,
-        subtitle = subtitle,
-        onBack = onBack,
-        navigationContentDescription = stringResource(R.string.pdf_projects),
-        onTitleClick = onRename,
-        actions = {
-            if (state.backgroundBusy) {
-                GalleryLoadingIndicator(Modifier.size(20.dp).padding(end = 8.dp))
-            }
-            val undoLabel = stringResource(R.string.pdf_undo)
-            IconButton(
-                onClick = onUndo,
-                enabled = state.canUndo && !state.editorLocked,
-                modifier = Modifier.semantics { contentDescription = undoLabel },
-            ) {
-                Icon(GalleryIcons.Undo, contentDescription = null)
-            }
-            val redoLabel = stringResource(R.string.pdf_redo)
-            IconButton(
-                onClick = onRedo,
-                enabled = state.canRedo && !state.editorLocked,
-                modifier = Modifier.semantics { contentDescription = redoLabel },
-            ) {
-                Icon(GalleryIcons.Redo, contentDescription = null)
-            }
-            Button(onClick = onExport, enabled = !state.editorLocked) {
-                Text(stringResource(R.string.pdf_export))
-            }
-            Box {
-                val actionsLabel = stringResource(R.string.pdf_project_actions)
-                IconButton(
-                    onClick = { showActions = true },
-                    modifier = Modifier.semantics { contentDescription = actionsLabel },
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val fontScale = LocalDensity.current.fontScale
+        // Icon buttons (nav, Undo, Redo, overflow) keep their 48dp minimum touch target
+        // regardless of font scale; only text-bearing controls (title and a labelled Export
+        // button) grow with it, so the budget below scales just the parts that actually do.
+        val iconSlot = 48.dp
+        val reservedForIcons = iconSlot * 4 // nav + Undo + Redo + overflow
+        val minTitleWidth = maxOf(96.dp, maxWidth * 0.35f)
+        val exportLabelBudget = 96.dp * fontScale.coerceAtLeast(1f)
+        val exportCollapsed = maxWidth - reservedForIcons - minTitleWidth < exportLabelBudget
+        val actionsBudget = (maxWidth - minTitleWidth - reservedForIcons).coerceAtLeast(iconSlot)
+        GalleryTopAppBar(
+            title = project.name,
+            subtitle = subtitle,
+            onBack = onBack,
+            navigationContentDescription = stringResource(R.string.pdf_projects),
+            onTitleClick = onRename,
+            actions = {
+                Row(
+                    Modifier.widthIn(max = actionsBudget),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(GalleryIcons.More, contentDescription = null)
+                    if (state.backgroundBusy) {
+                        GalleryLoadingIndicator(Modifier.size(20.dp).padding(end = 8.dp))
+                    }
+                    val undoLabel = stringResource(R.string.pdf_undo)
+                    IconButton(
+                        onClick = onUndo,
+                        enabled = state.canUndo && !state.editorLocked,
+                        modifier = Modifier.semantics { contentDescription = undoLabel },
+                    ) {
+                        Icon(GalleryIcons.Undo, contentDescription = null)
+                    }
+                    val redoLabel = stringResource(R.string.pdf_redo)
+                    IconButton(
+                        onClick = onRedo,
+                        enabled = state.canRedo && !state.editorLocked,
+                        modifier = Modifier.semantics { contentDescription = redoLabel },
+                    ) {
+                        Icon(GalleryIcons.Redo, contentDescription = null)
+                    }
+                    val exportLabel = stringResource(R.string.pdf_export)
+                    if (exportCollapsed) {
+                        FilledIconButton(
+                            onClick = onExport,
+                            enabled = !state.editorLocked,
+                            modifier = Modifier.semantics { contentDescription = exportLabel },
+                        ) {
+                            Icon(GalleryIcons.Download, contentDescription = null)
+                        }
+                    } else {
+                        Button(onClick = onExport, enabled = !state.editorLocked) {
+                            Text(exportLabel, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                    Box {
+                        val actionsLabel = stringResource(R.string.pdf_project_actions)
+                        IconButton(
+                            onClick = { showActions = true },
+                            modifier = Modifier.semantics { contentDescription = actionsLabel },
+                        ) {
+                            Icon(GalleryIcons.More, contentDescription = null)
+                        }
+                        DropdownMenu(
+                            expanded = showActions,
+                            onDismissRequest = { showActions = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.pdf_queue)) },
+                                onClick = {
+                                    showActions = false
+                                    onQueue()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.pdf_project_details)) },
+                                onClick = {
+                                    showActions = false
+                                    onDetails()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.pdf_portable)) },
+                                enabled = !state.editorLocked,
+                                onClick = {
+                                    showActions = false
+                                    onPortable()
+                                },
+                            )
+                        }
+                    }
                 }
-                DropdownMenu(expanded = showActions, onDismissRequest = { showActions = false }) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.pdf_queue)) },
-                        onClick = {
-                            showActions = false
-                            onQueue()
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.pdf_project_details)) },
-                        onClick = {
-                            showActions = false
-                            onDetails()
-                        },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.pdf_portable)) },
-                        enabled = !state.editorLocked,
-                        onClick = {
-                            showActions = false
-                            onPortable()
-                        },
-                    )
-                }
-            }
-        },
-    )
+            },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -264,37 +308,27 @@ internal fun PdfEditorBody(
             }
         }
     }
-    if (!layout.expanded && layout.compactChrome) {
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            contentColor = MaterialTheme.colorScheme.onSurface,
-        ) {
-            Row(
-                Modifier.fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                pdfToolBarTabs().forEachIndexed { n, tab ->
-                    FilterChip(
-                        selected = panel == n,
-                        onClick = { onPanelChange(n) },
-                        enabled = !state.editorLocked,
-                        label = { Text(stringResource(tab.second), maxLines = 1) },
-                        modifier = Modifier.heightIn(min = 48.dp),
-                    )
-                }
-            }
-        }
-    } else if (!layout.expanded)
+    // A single NavigationBar for all four destinations at every width/font scale: it evenly
+    // divides the available width among the items instead of a horizontally-scrolling chip row,
+    // so labels wrap to a second line (never clipped at the edge with no scroll affordance) even
+    // at 200% font, while keeping 48dp touch targets and the same tappable-by-text labels.
+    if (!layout.expanded)
         NavigationBar {
             pdfToolBarTabs().forEachIndexed { n, tab ->
                 NavigationBarItem(
                     selected = panel == n,
                     onClick = { onPanelChange(n) },
                     icon = { Icon(tab.first, contentDescription = null) },
-                    label = { Text(stringResource(tab.second)) },
+                    label = {
+                        Text(
+                            stringResource(tab.second),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center,
+                        )
+                    },
                     enabled = !state.editorLocked,
+                    modifier = Modifier.heightIn(min = 48.dp),
                 )
             }
         }
