@@ -30,7 +30,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 /** Ruler sizing shared between the layout (to decide whether rulers fit at all) and the drawing
  * itself. */
 internal object PdfRulerDefaults {
-    val Thickness = 20.dp
+    // Phase F review fix (MINOR): 20dp only fit a single rotated digit before the label ran past
+    // the ruler band and got clipped by the Surface's own shape ("120" showed only its "1"). 28dp
+    // gives a 3-4 digit label (e.g. "1000" at 200% font) room to draw horizontally instead (see
+    // PdfLeftRuler below), which is both simpler and safer than tuning rotated-text geometry.
+    val Thickness = 28.dp
     /** Below this many dp of *canvas* height left over once rulers are subtracted, rulers hide
      * instead — matches the pre-existing 840x320 probe threshold (item A). */
     val MinCanvasHeight = 120.dp
@@ -235,6 +239,10 @@ private fun PdfLeftRuler(
                         color = labelColor
                         textSize = with(density) { 9.sp.toPx() }
                         isAntiAlias = true
+                        // Right-aligns each label against the ruler's inner edge (see the
+                        // non-rotated drawText call below); the top ruler keeps the Paint default
+                        // (LEFT) since it anchors from the tick going rightward instead.
+                        textAlign = android.graphics.Paint.Align.RIGHT
                     }
                 ticks.forEach { tick ->
                     val y = (originYPx + tick.positionMm * dpPerMm * density.density).toFloat()
@@ -245,12 +253,18 @@ private fun PdfLeftRuler(
                         end = androidx.compose.ui.geometry.Offset(size.width, y),
                         strokeWidth = 1f,
                     )
-                    if (tick.major) {
-                        canvas.nativeCanvas.save()
-                        canvas.nativeCanvas.rotate(-90f, 2f, y)
-                        canvas.nativeCanvas.drawText(formatTickLabel(tick.labelUnits), 2f, y, paint)
-                        canvas.nativeCanvas.restore()
-                    }
+                    // Phase F review fix (MINOR): drawn horizontally and right-aligned against
+                    // the ruler's inner edge (nearest the canvas) rather than rotated -90°, which
+                    // previously clipped every label down to its first digit once it ran past the
+                    // (then 20dp) band width. Right-aligning also keeps labels closest to the tick
+                    // they belong to, matching the top ruler's left-aligned-from-the-tick style.
+                    if (tick.major)
+                        canvas.nativeCanvas.drawText(
+                            formatTickLabel(tick.labelUnits),
+                            size.width - 4f,
+                            y - 3f,
+                            paint,
+                        )
                 }
             }
         }

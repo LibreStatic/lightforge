@@ -213,6 +213,13 @@ class PdfUiProbeActivity : ComponentActivity() {
                                             "hoverTooltip",
                                             contrast(c.inverseSurface, c.inverseOnSurface),
                                         )
+                                        // Phase F item 3 addition: the Media panel's grid-cell
+                                        // placeholder background (no thumbnail decoded yet, or a
+                                        // document icon) and its custom-action content color.
+                                        .put(
+                                            "mediaThumbnail",
+                                            contrast(c.surfaceContainerHighest, c.onSurfaceVariant),
+                                        )
                                         .toString()
                                 )
                         }

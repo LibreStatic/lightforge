@@ -74,14 +74,34 @@ internal class PdfGalleryIntake(context: Context) {
     private val db = PdfProjectDatabase.get(context)
     val deliveries = db.galleryDeliveries().observe()
 
-    suspend fun stage(id: String, name: String, sources: List<Uri>) =
+    suspend fun stage(
+        id: String,
+        name: String,
+        sources: List<Uri>,
+        targetProjectId: String? = null,
+        targetPageId: String? = null,
+        placementX: Double? = null,
+        placementY: Double? = null,
+    ) =
         withContext(Dispatchers.IO) {
             require(id.isNotBlank() && id.length <= 80)
             require(name.isNotBlank() && name.length <= 80)
             require(sources.size in 1..100)
+            require((targetProjectId == null) == (targetPageId == null))
+            require((placementX == null) == (placementY == null))
+            require(placementX == null || targetPageId != null)
             val uris = sources.map(Uri::toString)
             require(uris.sumOf { it.toByteArray().size } <= 128 * 1024)
-            val row = PdfGalleryDelivery(id, name, JSONArray(uris).toString())
+            val row =
+                PdfGalleryDelivery(
+                    id,
+                    name,
+                    JSONArray(uris).toString(),
+                    targetProjectId = targetProjectId,
+                    targetPageId = targetPageId,
+                    placementX = placementX,
+                    placementY = placementY,
+                )
             db.withTransaction {
                 val existing = db.galleryDeliveries().get(id)
                 require(existing == null || existing.uris == row.uris)

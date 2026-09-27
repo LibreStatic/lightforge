@@ -99,7 +99,7 @@ for width,height,font,locale,dark,rtl in cases:
     # Phase C: the canvas's floating page/zoom badges and drag measurement chip carry text, so
     # they need the text threshold; the contextual toolbar (icon buttons only) and its Delete
     # action (an icon-only errorContainer/onErrorContainer button) need only the icon threshold.
-    for key in ('surface','primary','secondaryContainer','surfaceContainer','surfaceVariantText','surfacePrimaryText','canvasBadge','snapMeasurementChip','sheetContainerText','sheetContainerError','historyDot','ruler','statusBar','hoverTooltip'):assert theme[key]>=4.5,(key,theme)
+    for key in ('surface','primary','secondaryContainer','surfaceContainer','surfaceVariantText','surfacePrimaryText','canvasBadge','snapMeasurementChip','sheetContainerText','sheetContainerError','historyDot','ruler','statusBar','hoverTooltip','mediaThumbnail'):assert theme[key]>=4.5,(key,theme)
     for key in ('outline','contextualToolbar','contextualToolbarDelete','shortcutKeycap'):assert theme[key]>=3,(key,theme)
     assert theme['dynamic']==args.dynamic
     (out/(name+'-theme.json')).write_text(json.dumps(theme,indent=2)+'\n')
@@ -182,7 +182,7 @@ if args.folds:
         offenders=[n.get('content-desc') or n.get('text') for n in clickable if intersects(bounds(n))]
         assert not offenders,(name,'clickable node(s) under the hinge',offenders)
         theme=json.loads(shell('run-as',pkg,'cat','files/pdf-ui-theme.json'))
-        for key in ('surface','primary','secondaryContainer','surfaceContainer','ruler','statusBar','hoverTooltip'):assert theme[key]>=4.5,(name,key,theme)
+        for key in ('surface','primary','secondaryContainer','surfaceContainer','ruler','statusBar','hoverTooltip','mediaThumbnail'):assert theme[key]>=4.5,(name,key,theme)
         for key in ('outline','contextualToolbar','shortcutKeycap'):assert theme[key]>=3,(name,key,theme)
         row=dict(case=name,orientation=orientation,canvasBounds=canvas,hingeBoundsPx=list(hinge_px),noClickableUnderHinge=True,canvasOnOneSide=True)
         fold_results.append(row);print('FOLD CASE PASS: '+json.dumps(row,sort_keys=True),flush=True)

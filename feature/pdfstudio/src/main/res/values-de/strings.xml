@@ -269,4 +269,14 @@
     <string name="pdf_status_snap">Einrasten %1$s</string>
     <string name="pdf_status_snap_off">Einrasten aus</string>
     <string name="pdf_hover_tooltip">Ziehen zum Verschieben · Doppelklick zum Anpassen</string>
+    <string name="pdf_media">Medien</string>
+    <string name="pdf_media_all">Alle</string>
+    <string name="pdf_media_photos">Fotos</string>
+    <string name="pdf_media_documents">Dokumente</string>
+    <string name="pdf_media_in_project">In diesem Projekt</string>
+    <string name="pdf_media_add_to_page">Zur aktuellen Seite hinzufügen</string>
+    <string name="pdf_media_empty_title">Noch keine Medien</string>
+    <string name="pdf_media_empty_body">Hinzugefügte Fotos und Dokumente werden hier angezeigt.</string>
+    <string name="pdf_media_loading">Medien werden geladen…</string>
+    <string name="pdf_media_item_label">%1$s. Zur aktuellen Seite hinzufügen</string>
 </resources>

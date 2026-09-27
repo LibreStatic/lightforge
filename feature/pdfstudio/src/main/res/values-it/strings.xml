@@ -269,4 +269,14 @@
     <string name="pdf_status_snap">Allineamento %1$s</string>
     <string name="pdf_status_snap_off">Allineamento disattivato</string>
     <string name="pdf_hover_tooltip">Trascina per spostare · Doppio clic per regolare</string>
+    <string name="pdf_media">Contenuti multimediali</string>
+    <string name="pdf_media_all">Tutti</string>
+    <string name="pdf_media_photos">Foto</string>
+    <string name="pdf_media_documents">Documenti</string>
+    <string name="pdf_media_in_project">In questo progetto</string>
+    <string name="pdf_media_add_to_page">Aggiungi alla pagina corrente</string>
+    <string name="pdf_media_empty_title">Nessun contenuto ancora</string>
+    <string name="pdf_media_empty_body">Le foto e i documenti aggiunti compariranno qui.</string>
+    <string name="pdf_media_loading">Caricamento contenuti…</string>
+    <string name="pdf_media_item_label">%1$s. Aggiungi alla pagina corrente</string>
 </resources>

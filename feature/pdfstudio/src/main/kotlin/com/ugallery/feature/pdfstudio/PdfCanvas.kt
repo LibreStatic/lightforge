@@ -1,6 +1,7 @@
 package com.ugallery.feature.pdfstudio
 
 import androidx.compose.foundation.*
+import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
@@ -14,6 +15,7 @@ import com.ugallery.core.designsystem.GalleryIcons
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draganddrop.toAndroidDragEvent
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
@@ -27,6 +29,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
@@ -428,6 +433,13 @@ internal fun PdfCanvas(
                 remember(page.id) { mutableStateOf<PdfSnapGuides.SnapResult?>(null) }
             var dragOffsetMm by
                 remember(page.id) { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
+            // Phase F item 3: the page box's own coordinates, captured so the drag & drop target
+            // below can convert a drop's root-space position into this box's local (unscaled)
+            // space regardless of the current zoom/pan graphicsLayer - windowToLocal accounts for
+            // the full transform chain, matching how the pointer-drag handlers below already
+            // treat local offsets as page pixels (pxPerMm).
+            var pageBoxCoordinates by remember(page.id) { mutableStateOf<LayoutCoordinates?>(null) }
+            val pxPerMmForDrop = with(density) { width.toPx() } / page.width
             // Physical print preview uses explicit white paper / black ink, a 21:1 contrast pair.
             // Shifted up by half the reserved badge band so the page is centered in the space
             // actually available above that band, not in the full (band-including) workspace.
@@ -444,6 +456,35 @@ internal fun PdfCanvas(
                     // workspace behind it; the page keeps its rectangular clip afterward.
                     .shadow(elevation = 6.dp, shape = androidx.compose.ui.graphics.RectangleShape, clip = false)
                     .background(PdfPaperTokens.Paper)
+                    .onGloballyPositioned { pageBoxCoordinates = it }
+                    .dragAndDropTarget(
+                        shouldStartDragAndDrop = { !busy && page.source == null },
+                        target =
+                            remember(page.id) {
+                                object : androidx.compose.ui.draganddrop.DragAndDropTarget {
+                                    override fun onDrop(
+                                        event: androidx.compose.ui.draganddrop.DragAndDropEvent
+                                    ): Boolean {
+                                        val uri = pdfMediaDropUri(event) ?: return false
+                                        val coords = pageBoxCoordinates ?: return false
+                                        // The raw Android DragEvent's x/y are window-relative (the
+                                        // ComposeView fills the window here), so windowToLocal
+                                        // converts straight to this box's own space, correctly
+                                        // accounting for the zoom/pan graphicsLayer above.
+                                        val dragEvent = event.toAndroidDragEvent()
+                                        val windowOffset =
+                                            androidx.compose.ui.geometry.Offset(dragEvent.x, dragEvent.y)
+                                        val local = coords.windowToLocal(windowOffset)
+                                        vm.insertMedia(
+                                            uri,
+                                            local.x / pxPerMmForDrop,
+                                            local.y / pxPerMmForDrop,
+                                        )
+                                        return true
+                                    }
+                                }
+                            },
+                    )
                     .clipToBounds(),
                 // PDF coordinates are physical, not reading-direction relative.
                 contentAlignment = AbsoluteAlignment.TopLeft,

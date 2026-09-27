@@ -49,6 +49,10 @@ fun PdfStudioScreen(
     // work without pdfstudio depending on androidx.window. The default keeps every existing
     // caller (tests, PdfUiProbeActivity) on the hinge-less path.
     foldInfo: com.ugallery.core.designsystem.GalleryFoldInfo? = null,
+    // Phase F item 3: the app's gallery + Documents data behind the expanded/hinge inspector's
+    // Media tab and the compact bottom-nav Media panel. Null (the default) hides that tab/panel
+    // entirely, so every probe/test that doesn't pass one keeps working unchanged.
+    mediaSource: PdfMediaSource? = null,
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val projects by vm.projects.collectAsStateWithLifecycle()
@@ -268,6 +272,7 @@ fun PdfStudioScreen(
                         },
                         commands = commands,
                         modifier = Modifier.weight(1f),
+                        mediaSource = mediaSource,
                     ) {
                         PdfFeedbackOverlay(
                             state = state,

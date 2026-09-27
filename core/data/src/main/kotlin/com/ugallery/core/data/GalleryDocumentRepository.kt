@@ -35,6 +35,10 @@ class GalleryDocumentRepository(
 
     fun observe(key: MediaKey) = dao.observe(key.volumeName, key.mediaStoreId)
 
+    /** Bounded, non-paged list of the most recent eligible documents (PDF Studio's Media panel,
+     * Phase F item 3 - a scrollable grid, not an infinite timeline, so it never needs Paging). */
+    suspend fun recent(limit: Int = 200): List<DocumentRow> = dao.recent(limit)
+
     fun pages(category: DocumentCategory, query: String) =
         Pager(
                 PagingConfig(

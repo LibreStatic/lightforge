@@ -63,6 +63,16 @@ interface DocumentDao {
     )
     fun page(category: String, search: String): androidx.paging.PagingSource<Int, DocumentRow>
 
+    /** Bounded, non-paged list for surfaces that just need "the most recent eligible documents"
+     * without a scrolling PagingSource (PDF Studio's Media panel, Phase F item 3). */
+    @Query(
+        DocumentProjection +
+            DocumentFrom +
+            DocumentEligible +
+            " ORDER BY m.timelineSortMillis DESC, m.mediaStoreId DESC, m.volumeName DESC LIMIT :limit"
+    )
+    suspend fun recent(limit: Int): List<DocumentRow>
+
     @Query("SELECT COUNT(*) " + DocumentFrom + DocumentEligible)
     fun count(): kotlinx.coroutines.flow.Flow<Long>
 

@@ -2358,7 +2358,28 @@ internal fun ProductionGalleryApp(
                         },
                     )
                 }
-                SurfaceRoute.PdfStudio -> com.ugallery.feature.pdfstudio.PdfStudioScreen(
+                SurfaceRoute.PdfStudio -> {
+                val pdfLimitedBody = stringResource(com.ugallery.feature.photos.R.string.limited_access_body)
+                val pdfManageLabel = stringResource(com.ugallery.feature.photos.R.string.manage_access_action)
+                val pdfDeniedBody = stringResource(com.ugallery.feature.photos.R.string.permission_body)
+                val pdfDeniedLabel = stringResource(com.ugallery.feature.photos.R.string.grant_access_action)
+                val pdfMediaSource = remember {
+                    AppPdfMediaSource(
+                        context = context,
+                        documentRepository = viewModel.documentRepository,
+                        access = viewModel.access,
+                        wording = PdfMediaAccessWording(pdfLimitedBody, pdfManageLabel, pdfDeniedBody, pdfDeniedLabel),
+                        onRequestAccess = ::requestAccess,
+                    )
+                }
+                LaunchedEffect(access, pdfLimitedBody, pdfManageLabel, pdfDeniedBody, pdfDeniedLabel) {
+                    pdfMediaSource.updateAccess(
+                        access,
+                        PdfMediaAccessWording(pdfLimitedBody, pdfManageLabel, pdfDeniedBody, pdfDeniedLabel),
+                        ::requestAccess,
+                    )
+                }
+                com.ugallery.feature.pdfstudio.PdfStudioScreen(
                 onExit = { route = if (pdfReturnToDocuments) SurfaceRoute.Documents else SurfaceRoute.Root },
                 initialUris = pendingPdfSources.map(android.net.Uri::parse),
                 initialRequestId = pendingPdfRequestId,
@@ -2366,7 +2387,10 @@ internal fun ProductionGalleryApp(
                 // Phase F item 1: same GalleryFoldInfo the video editor receives, so PDF Studio
                 // can lay out hinge-aware and tabletop postures instead of only reacting to width.
                 foldInfo = adaptiveInfo.foldInfo,
+                // Phase F item 3: the app's gallery + Documents data behind the Media panel.
+                mediaSource = pdfMediaSource,
             )
+                }
             SurfaceRoute.Collage -> {
                 fun closeCollage() { viewModel.clearCreationCollage(); rootTab = collageReturnRootTab; route = collageReturnRoute }
                 if (creationCollageRestoring) Column(Modifier.fillMaxSize()) {

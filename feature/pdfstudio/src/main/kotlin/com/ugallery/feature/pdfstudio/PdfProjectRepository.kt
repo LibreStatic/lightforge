@@ -214,6 +214,33 @@ class PdfProjectRepository(
                     return@withLock load(receipt.projectId)
                         ?: throw PdfOperationFailure(PdfFailure.ImportTargetMissing)
                 }
+                val targetProjectId = row.targetProjectId
+                if (targetProjectId != null) {
+                    // Media panel tap/drop (Phase F item 3): append durably into the CURRENT
+                    // project/page instead of creating a new project, reusing the same
+                    // receipts/all-or-nothing/undo machinery as every other import path.
+                    val (project, session) =
+                        loadEditor(targetProjectId)
+                            ?: throw PdfOperationFailure(PdfFailure.ImportTargetMissing)
+                    val pageIndex = project.pages.indexOfFirst { it.id == row.targetPageId }
+                    if (pageIndex < 0) throw PdfOperationFailure(PdfFailure.ImportTargetMissing)
+                    val placement =
+                        if (row.placementX != null && row.placementY != null)
+                            row.placementX to row.placementY
+                        else null
+                    return@withLock importUnlocked(
+                        project,
+                        row.sources(),
+                        pageIndex,
+                        progress,
+                        row.id,
+                        session.copy(
+                            undo = (session.undo + project).takeLast(40),
+                            redo = emptyList(),
+                        ),
+                        placement = placement,
+                    )
+                }
                 importUnlocked(
                     PdfProject(name = row.name),
                     row.sources(),
@@ -233,6 +260,10 @@ class PdfProjectRepository(
         requestId: String? = null,
         editor: PdfEditorSession? = null,
         galleryLayout: Boolean = false,
+        /** Explicit top-left placement in page millimeters (Media panel drag & drop, Phase F item
+         * 3), used only for a single-image target import instead of the default incremental
+         * offset. Ignored for gallery/PDF batch imports and constrained to the page afterward. */
+        placement: Pair<Double, Double>? = null,
     ): PdfProject {
         require(uris.isNotEmpty() && uris.size <= 100)
         cleanInterruptedImports()
@@ -330,17 +361,16 @@ class PdfProjectRepository(
                                 imageTarget
                             }
                         val page = pages[target]
-                        require(page.images.size < 24)
-                        val w = minOf(85.0, page.width - 2 * page.margin)
+                        require(PdfMediaPlacement.hasRoomForOneMore(page.images.size))
+                        val (w, h) = PdfMediaPlacement.fitSize(page.width, page.margin, a.width, a.height)
+                        // [placement], when given, is the drop point's page-space CENTER (Media
+                        // panel drag & drop); convert to the top-left PdfImage stores.
+                        val (x, y) =
+                            placement?.let { (cx, cy) -> PdfMediaPlacement.centerToTopLeft(cx, cy, w, h) }
+                                ?: PdfMediaPlacement.autoSlotTopLeft(page.images.size, page.margin)
                         val image =
                             PdfGeometry.constrain(
-                                PdfImage(
-                                    asset = hash,
-                                    x = page.margin + minOf(page.images.size * 6, 30),
-                                    y = page.margin + minOf(page.images.size * 6, 30),
-                                    width = w,
-                                    height = w * a.height / a.width,
-                                ),
+                                PdfImage(asset = hash, x = x, y = y, width = w, height = h),
                                 page,
                             )
                         pages[target] = page.copy(images = page.images + image)

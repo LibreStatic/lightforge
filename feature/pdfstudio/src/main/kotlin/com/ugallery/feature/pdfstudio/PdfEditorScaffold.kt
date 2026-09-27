@@ -2,6 +2,7 @@ package com.ugallery.feature.pdfstudio
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyRow
@@ -58,6 +59,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -304,6 +306,7 @@ internal fun PdfEditorBody(
     onReplaceImage: () -> Unit,
     commands: PdfEditorCommandDispatcher,
     modifier: Modifier = Modifier,
+    mediaSource: PdfMediaSource? = null,
     feedback: @Composable () -> Unit,
 ) {
     // Phase F item 1: a horizontal separating fold (device half-opened, laid flat) puts the
@@ -325,12 +328,36 @@ internal fun PdfEditorBody(
             onReplaceImage = onReplaceImage,
             commands = commands,
             modifier = modifier,
+            mediaSource = mediaSource,
             feedback = feedback,
         )
         return
     }
-    val sidePanelsVisible =
-        layout.mode == PdfStudioLayoutMode.ExpandedThreePane || layout.mode == PdfStudioLayoutMode.HingeSplit
+    // Phase F review fix (HingeSplit blocker): a vertical separating hinge gets its own layout,
+    // whose pane widths are derived from the fold's actual left/right bounds instead of the fixed
+    // 220/280dp rail/inspector widths below — those fixed widths made the canvas cross the hinge
+    // whenever it didn't land near the middle of the window. The canvas (with rulers) goes alone
+    // in whichever side is larger; the pages rail + inspector share the other, smaller side.
+    if (layout.mode == PdfStudioLayoutMode.HingeSplit) {
+        PdfHingeSplitEditorBody(
+            vm = vm,
+            state = state,
+            project = project,
+            layout = layout,
+            onDeletePages = onDeletePages,
+            onExportSelectedPages = onExportSelectedPages,
+            onPortable = onPortable,
+            onLaunchImport = onLaunchImport,
+            onAdjustImage = onAdjustImage,
+            onReplaceImage = onReplaceImage,
+            commands = commands,
+            modifier = modifier,
+            mediaSource = mediaSource,
+            feedback = feedback,
+        )
+        return
+    }
+    val sidePanelsVisible = layout.mode == PdfStudioLayoutMode.ExpandedThreePane
     Box(modifier) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxSize()) {
@@ -364,13 +391,6 @@ internal fun PdfEditorBody(
                     if (sidePanelsVisible)
                         PdfStatusBar(state = state, project = project, commands = commands)
                 }
-                // Item 1b: nothing is drawn under the hinge itself, so the rail+canvas pane and
-                // the inspector pane sit on either side of a spacer sized to the hinge bounds
-                // instead of a hairline seam running through live content.
-                if (layout.mode == PdfStudioLayoutMode.HingeSplit) {
-                    val hingeWidth = layout.foldInfo?.hingeWidth ?: 0.dp
-                    if (hingeWidth > 0.dp) Spacer(Modifier.width(hingeWidth).fillMaxHeight())
-                }
                 if (sidePanelsVisible)
                     Column(
                         Modifier.width(280.dp)
@@ -378,13 +398,10 @@ internal fun PdfEditorBody(
                             .verticalScroll(rememberScrollState())
                             .padding(12.dp)
                     ) {
-                        InsertControls(state, portable = onPortable, import = onLaunchImport)
-                        // Expanded right column shows Adjust when an image is selected,
-                        // otherwise Layout (Phase D) — not both stacked.
-                        if (state.image >= 0) PdfAdjustPanel(vm, state) else PdfLayoutPanel(vm, state)
+                        PdfInspectorColumn(vm, state, project, mediaSource, onPortable, onLaunchImport)
                     }
             }
-            if (!layout.expanded || panel == 3) {
+            if (!layout.expanded || panel == 3 || panel == 4) {
                 if (panel >= 0)
                     ModalBottomSheet(
                         onDismissRequest = { onPanelChange(-1) },
@@ -413,6 +430,7 @@ internal fun PdfEditorBody(
                                     )
                                 2 -> PdfLayoutPanel(vm, state)
                                 3 -> PdfAdjustPanel(vm, state)
+                                4 -> PdfMediaPanel(vm, state, mediaSource)
                             }
                         }
                     }
@@ -437,7 +455,7 @@ internal fun PdfEditorBody(
     // at 200% font, while keeping 48dp touch targets and the same tappable-by-text labels.
     if (!layout.expanded)
         NavigationBar {
-            pdfToolBarTabs().forEachIndexed { n, tab ->
+            pdfToolBarTabs(hasMediaSource = mediaSource != null).forEachIndexed { n, tab ->
                 NavigationBarItem(
                     selected = panel == n,
                     onClick = { onPanelChange(n) },
@@ -464,6 +482,141 @@ internal fun PdfEditorBody(
         }
 }
 
+/** The expanded/hinge inspector's contents (Insert controls + Page/Photo/Media tabs + the
+ * selected panel), factored out of [PdfEditorBody] so [PdfHingeSplitEditorBody] can lay it out in
+ * its own, fold-derived pane instead of duplicating this logic. */
+@Composable
+private fun PdfInspectorColumn(
+    vm: PdfStudioViewModel,
+    state: PdfStudioState,
+    project: PdfProject,
+    mediaSource: PdfMediaSource?,
+    onPortable: () -> Unit,
+    onLaunchImport: () -> Unit,
+) {
+    InsertControls(state, portable = onPortable, import = onLaunchImport)
+    // Expanded/hinge inspector tabs (Phase F item 3): Page / Photo / Media. Photo only exists
+    // while an image is selected, and Media only when a PdfMediaSource was passed in; a manual
+    // pick on either sticks until the selection changes (mirrors the existing Adjust-follows-
+    // selection rule).
+    var inspectorTab by rememberSaveable(project.pages[state.page].id) { mutableStateOf(0) }
+    LaunchedEffect(state.image) { if (state.image >= 0) inspectorTab = 1 }
+    val tabs =
+        buildList {
+            add(stringResource(R.string.pdf_design) to 0)
+            if (state.image >= 0) add(stringResource(R.string.pdf_adjust) to 1)
+            if (mediaSource != null) add(stringResource(R.string.pdf_media) to 2)
+        }
+    if (tabs.size > 1) {
+        val selected = tabs.indexOfFirst { it.second == inspectorTab }.coerceAtLeast(0)
+        com.ugallery.core.designsystem.GalleryExpressiveChoiceGroup(
+            labels = tabs.map { it.first },
+            selectedIndex = selected,
+            onSelect = { inspectorTab = tabs[it].second },
+            minimumItemWidth = 72.dp,
+        )
+        Spacer(Modifier.height(8.dp))
+    }
+    when {
+        inspectorTab == 2 && mediaSource != null -> PdfMediaPanel(vm, state, mediaSource)
+        inspectorTab == 1 && state.image >= 0 -> PdfAdjustPanel(vm, state)
+        else -> PdfLayoutPanel(vm, state)
+    }
+}
+
+/**
+ * HingeSplit posture (Phase F review fix, BLOCKER): a vertical separating hinge splits the window
+ * into a left region `[0, hinge.left]` and a right region `[hinge.right, width]`; nothing is ever
+ * drawn on the hinge itself. Unlike the fixed 220/280dp rail/inspector widths the hinge-less
+ * [PdfEditorBody] path uses, both region widths here come straight from [layout]'s [foldInfo], so
+ * the canvas can never cross the hinge regardless of where it physically sits. The canvas (with
+ * rulers) goes alone in whichever region is larger; the pages rail + inspector share the other,
+ * smaller region in one scrollable column (both already fit in [PdfStudioLayoutPolicy]'s
+ * `MinHingePaneDp` floor, so stacking them is always legible, unlike trying to fit them
+ * side-by-side in a possibly-280dp-wide pane).
+ */
+@Composable
+private fun PdfHingeSplitEditorBody(
+    vm: PdfStudioViewModel,
+    state: PdfStudioState,
+    project: PdfProject,
+    layout: PdfStudioLayoutPolicy,
+    onDeletePages: () -> Unit,
+    onExportSelectedPages: () -> Unit,
+    onPortable: () -> Unit,
+    onLaunchImport: () -> Unit,
+    onAdjustImage: () -> Unit,
+    onReplaceImage: () -> Unit,
+    commands: PdfEditorCommandDispatcher,
+    modifier: Modifier = Modifier,
+    mediaSource: PdfMediaSource? = null,
+    feedback: @Composable () -> Unit,
+) {
+    Box(modifier) {
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val fold = layout.foldInfo
+            val leftWidth = fold?.left ?: (maxWidth / 2)
+            val rightWidth = fold?.right?.let { maxWidth - it } ?: (maxWidth / 2)
+            val hingeWidth = fold?.hingeWidth ?: 0.dp
+            val canvasOnLeft = leftWidth >= rightWidth
+
+            @Composable
+            fun CanvasPane(w: androidx.compose.ui.unit.Dp) {
+                Column(Modifier.width(w).fillMaxHeight()) {
+                    PdfCanvasWithRulers(
+                        page = project.pages[state.page],
+                        selected = state.image,
+                        vm = vm,
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        busy = state.editorLocked,
+                        pageIndex = state.page,
+                        pageCount = project.pages.size,
+                        onAdjustImage = onAdjustImage,
+                        onReplaceImage = onReplaceImage,
+                        commands = commands,
+                        showRulers = true,
+                    )
+                    PdfStatusBar(state = state, project = project, commands = commands)
+                }
+            }
+
+            @Composable
+            fun ToolsPane(w: androidx.compose.ui.unit.Dp) {
+                Column(
+                    Modifier.width(w)
+                        .fillMaxHeight()
+                        .verticalScroll(rememberScrollState())
+                        .padding(12.dp)
+                ) {
+                    PdfPagesPanel(vm, state, onDeletePages, onExportSelectedPages, columns = 2)
+                    Spacer(Modifier.height(12.dp))
+                    PdfInspectorColumn(vm, state, project, mediaSource, onPortable, onLaunchImport)
+                }
+            }
+
+            Row(Modifier.fillMaxSize()) {
+                if (canvasOnLeft) {
+                    CanvasPane(leftWidth)
+                    if (hingeWidth > 0.dp) Spacer(Modifier.width(hingeWidth).fillMaxHeight())
+                    ToolsPane(rightWidth)
+                } else {
+                    ToolsPane(leftWidth)
+                    if (hingeWidth > 0.dp) Spacer(Modifier.width(hingeWidth).fillMaxHeight())
+                    CanvasPane(rightWidth)
+                }
+            }
+            Box(
+                Modifier.align(Alignment.BottomCenter)
+                    .padding(12.dp)
+                    .heightIn(max = maxHeight * 0.6f)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                feedback()
+            }
+        }
+    }
+}
+
 /** Tabletop posture (Phase F item 1c): the device is half-opened and laid flat, so the canvas
  * sits in the top half, the page strip + tool tabs + the selected panel's content sit in the
  * bottom half, and a spacer sized to the hinge keeps the crease itself free of controls or
@@ -485,6 +638,7 @@ private fun PdfTabletopEditorBody(
     onReplaceImage: () -> Unit,
     commands: PdfEditorCommandDispatcher,
     modifier: Modifier,
+    mediaSource: PdfMediaSource? = null,
     feedback: @Composable () -> Unit,
 ) {
     var panel by remember { mutableStateOf(0) }
@@ -515,7 +669,7 @@ private fun PdfTabletopEditorBody(
                 Column(Modifier.fillMaxWidth().weight(1f)) {
                     PdfPageStrip(vm, state, project)
                     NavigationBar {
-                        pdfToolBarTabs().forEachIndexed { n, tab ->
+                        pdfToolBarTabs(hasMediaSource = mediaSource != null).forEachIndexed { n, tab ->
                             NavigationBarItem(
                                 selected = panel == n,
                                 onClick = { panel = n },
@@ -549,6 +703,7 @@ private fun PdfTabletopEditorBody(
                             1 -> InsertControls(state, portable = onPortable, import = onLaunchImport)
                             2 -> PdfLayoutPanel(vm, state)
                             3 -> PdfAdjustPanel(vm, state)
+                            4 -> PdfMediaPanel(vm, state, mediaSource)
                         }
                     }
                 }
@@ -565,13 +720,16 @@ private fun PdfTabletopEditorBody(
     }
 }
 
-private fun pdfToolBarTabs() =
-    listOf(
-        GalleryIcons.Layers to R.string.pdf_pages,
-        GalleryIcons.Plus to R.string.pdf_insert,
-        GalleryIcons.Grid to R.string.pdf_design,
-        GalleryIcons.Tune to R.string.pdf_adjust,
-    )
+private fun pdfToolBarTabs(hasMediaSource: Boolean = false) =
+    buildList {
+        add(GalleryIcons.Layers to R.string.pdf_pages)
+        add(GalleryIcons.Plus to R.string.pdf_insert)
+        add(GalleryIcons.Grid to R.string.pdf_design)
+        add(GalleryIcons.Tune to R.string.pdf_adjust)
+        // Phase F item 3: only shown in the compact bottom-navigation bar when a PdfMediaSource
+        // was passed in, matching the expanded/hinge inspector's Media tab gating.
+        if (hasMediaSource) add(GalleryIcons.PhotoLibrary to R.string.pdf_media)
+    }
 
 /**
  * Contextual toolbar shown above the page strip while an image is selected (Phase C item 4):
@@ -788,6 +946,24 @@ internal fun PdfPageStrip(vm: PdfStudioViewModel, s: PdfStudioState, project: Pd
                                 }
                         }
                         .clickable(enabled = !s.editorLocked) { vm.selectPage(index) }
+                        // Phase F item 3: dropping a Media panel item on a page thumbnail in the
+                        // rail inserts it into THAT page, auto-placed (no coordinate math needed,
+                        // unlike a canvas drop — see PdfCanvas's dragAndDropTarget).
+                        .dragAndDropTarget(
+                            shouldStartDragAndDrop = { !s.editorLocked },
+                            target =
+                                remember(page.id) {
+                                    object : androidx.compose.ui.draganddrop.DragAndDropTarget {
+                                        override fun onDrop(
+                                            event: androidx.compose.ui.draganddrop.DragAndDropEvent
+                                        ): Boolean {
+                                            val uri = pdfMediaDropUri(event) ?: return false
+                                            vm.insertMediaIntoPage(uri, index)
+                                            return true
+                                        }
+                                    }
+                                },
+                        )
                         .pointerInput(page.id, project.pages.size) {
                             detectDragGesturesAfterLongPress(
                                 onDragStart = {
@@ -896,7 +1072,15 @@ internal fun PdfStatusBar(
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
     ) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+            // Phase F review fix (MAJOR): a fixed-width hinge pane (as narrow as ~280dp) could be
+            // tighter than every status item's combined natural width, which previously wrapped
+            // "Fit page" mid-word ("Fit pag/e") since nothing here could shrink or scroll.
+            // horizontalScroll keeps every item whole and readable at any pane width/font scale
+            // instead of wrapping or clipping; softWrap=false + maxLines=1 on each Text is the
+            // belt-and-suspenders that guarantees no individual label ever breaks a word either.
+            Modifier.fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
@@ -906,12 +1090,16 @@ internal fun PdfStatusBar(
                     project.pages.size.coerceAtLeast(1),
                 ),
                 style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                softWrap = false,
             )
             PdfStatusDot()
             Text(
                 if (project.snap) stringResource(R.string.pdf_status_snap, "5 mm")
                 else stringResource(R.string.pdf_status_snap_off),
                 style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                softWrap = false,
             )
             PdfStatusDot()
             val zoomOutLabel = stringResource(R.string.pdf_shortcut_zoom_out)
@@ -925,6 +1113,8 @@ internal fun PdfStatusBar(
             Text(
                 stringResource(R.string.pdf_zoom_percent, (state.zoom * 100).toInt()),
                 style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                softWrap = false,
             )
             val zoomInLabel = stringResource(R.string.pdf_shortcut_zoom_in)
             IconButton(
@@ -935,13 +1125,14 @@ internal fun PdfStatusBar(
                 Icon(GalleryIcons.Plus, contentDescription = null, modifier = Modifier.size(18.dp))
             }
             PdfStatusDot()
-            TextButton(
+            val fitViewLabel = stringResource(R.string.pdf_fit_view)
+            IconButton(
                 onClick = { commands.dispatch(PdfEditorCommand.FitPage) },
                 enabled = !state.editorLocked,
+                modifier = Modifier.size(32.dp).semantics { contentDescription = fitViewLabel },
             ) {
-                Text(stringResource(R.string.pdf_fit_view))
+                Icon(GalleryIcons.FitScreen, contentDescription = null, modifier = Modifier.size(18.dp))
             }
-            Spacer(Modifier.weight(1f))
         }
     }
 }

@@ -3,6 +3,7 @@ package com.ugallery.feature.pdfstudio
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -181,6 +182,23 @@ internal fun PdfPagesPanel(
                         if (selectionMode) vm.selectExportPage(page.id, page.id !in s.selectedPages)
                         else vm.selectPage(index)
                     }
+                    // Phase F item 3: dropping a Media panel item on a page card in this rail
+                    // inserts it into that page, auto-placed.
+                    .dragAndDropTarget(
+                        shouldStartDragAndDrop = { !selectionMode && !s.editorLocked },
+                        target =
+                            remember(page.id) {
+                                object : androidx.compose.ui.draganddrop.DragAndDropTarget {
+                                    override fun onDrop(
+                                        event: androidx.compose.ui.draganddrop.DragAndDropEvent
+                                    ): Boolean {
+                                        val uri = pdfMediaDropUri(event) ?: return false
+                                        vm.insertMediaIntoPage(uri, index)
+                                        return true
+                                    }
+                                }
+                            },
+                    )
                     .then(
                         if (selectionMode || s.editorLocked) Modifier
                         else

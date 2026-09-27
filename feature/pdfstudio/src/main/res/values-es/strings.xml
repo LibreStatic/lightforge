@@ -269,4 +269,14 @@
     <string name="pdf_status_snap">Ajuste %1$s</string>
     <string name="pdf_status_snap_off">Ajuste desactivado</string>
     <string name="pdf_hover_tooltip">Arrastrar para mover · Doble clic para ajustar</string>
+    <string name="pdf_media">Multimedia</string>
+    <string name="pdf_media_all">Todo</string>
+    <string name="pdf_media_photos">Fotos</string>
+    <string name="pdf_media_documents">Documentos</string>
+    <string name="pdf_media_in_project">En este proyecto</string>
+    <string name="pdf_media_add_to_page">Agregar a la página actual</string>
+    <string name="pdf_media_empty_title">Todavía no hay elementos</string>
+    <string name="pdf_media_empty_body">Las fotos y los documentos que agregues aparecerán acá.</string>
+    <string name="pdf_media_loading">Cargando multimedia…</string>
+    <string name="pdf_media_item_label">%1$s. Agregar a la página actual</string>
 </resources>

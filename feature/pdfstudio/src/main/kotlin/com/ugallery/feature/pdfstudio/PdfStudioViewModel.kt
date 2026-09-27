@@ -543,6 +543,73 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         mutable.update { it.copy(message = R.string.pdf_queue_added) }
     }
 
+    /**
+     * Media panel tap-insert or drag & drop (Phase F item 3): stages a gallery delivery targeted
+     * at the CURRENT project/page (v9's `gallery_deliveries.targetProjectId`/`targetPageId`/
+     * `placementX`/`placementY`), then lets the existing [resumeGallery] pipeline durably append
+     * it — same receipts/all-or-nothing/idempotency/one-undo-step guarantees as every other
+     * import path, and `restoreEditor` simply refreshes the already-open project in place since
+     * the target IS the open project. [placementXMm]/[placementYMm], when given, are the drop
+     * point's page-space CENTER (screen->mm conversion is the canvas/rail's job); null means
+     * "auto-place" (the repository's existing next-slot heuristic).
+     */
+    fun insertMedia(uri: Uri, placementXMm: Double? = null, placementYMm: Double? = null) {
+        insertMediaIntoPage(uri, mutable.value.page, placementXMm, placementYMm)
+    }
+
+    /** Same as [insertMedia] but targets an explicit page index (dropping onto a page thumbnail
+     * in the rail rather than onto the canvas), always auto-placed. */
+    fun insertMediaIntoPage(
+        uri: Uri,
+        pageIndex: Int,
+        placementXMm: Double? = null,
+        placementYMm: Double? = null,
+    ) {
+        val project = mutable.value.project ?: return
+        val pageId = project.pages.getOrNull(pageIndex)?.id ?: return
+        viewModelScope.launch {
+            try {
+                galleryIntake.stage(
+                    id = "media-${newId()}",
+                    name = project.name,
+                    sources = listOf(uri),
+                    targetProjectId = project.id,
+                    targetPageId = pageId,
+                    placementX = placementXMm,
+                    placementY = placementYMm,
+                )
+                resumeGallery()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                reportFailure(e)
+            }
+        }
+    }
+
+    /** Media panel "In this project" chip (Phase F item 3): re-inserts an asset the project
+     * already owns by content hash onto the current page, with no copy and no gallery-intake
+     * round trip — it is a plain edit, so it goes through [pageEdit]/[update] like every other
+     * canvas edit (one undo step, autosave, the same [PdfProject.validate] limit checks). */
+    fun insertOwnAsset(hash: String) {
+        val project = mutable.value.project ?: return
+        val asset = project.assets.firstOrNull { it.hash == hash } ?: return
+        if (asset.width <= 0 || asset.height <= 0) return
+        val page = project.pages.getOrNull(mutable.value.page) ?: return
+        if (!PdfMediaPlacement.hasRoomForOneMore(page.images.size)) {
+            mutable.update { it.copy(message = R.string.pdf_failure_limit) }
+            return
+        }
+        pageEdit { editedPage ->
+            val page = editedPage
+            val (w, h) = PdfMediaPlacement.fitSize(page.width, page.margin, asset.width, asset.height)
+            val (x, y) = PdfMediaPlacement.autoSlotTopLeft(page.images.size, page.margin)
+            val image =
+                PdfGeometry.constrainToPage(PdfImage(asset = hash, x = x, y = y, width = w, height = h), page)
+            page.copy(images = page.images + image)
+        }
+    }
+
     fun update(transform: (PdfProject) -> PdfProject) {
         val old = mutable.value.project ?: return
         if (mutable.value.editorLocked) return

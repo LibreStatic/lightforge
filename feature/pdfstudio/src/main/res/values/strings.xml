@@ -269,4 +269,14 @@
     <string name="pdf_status_snap">Snap %1$s</string>
     <string name="pdf_status_snap_off">Snap off</string>
     <string name="pdf_hover_tooltip">Drag to move · Double-click to adjust</string>
+    <string name="pdf_media">Media</string>
+    <string name="pdf_media_all">All</string>
+    <string name="pdf_media_photos">Photos</string>
+    <string name="pdf_media_documents">Documents</string>
+    <string name="pdf_media_in_project">In this project</string>
+    <string name="pdf_media_add_to_page">Add to current page</string>
+    <string name="pdf_media_empty_title">No media yet</string>
+    <string name="pdf_media_empty_body">Photos and documents you add will appear here.</string>
+    <string name="pdf_media_loading">Loading media…</string>
+    <string name="pdf_media_item_label">%1$s. Add to current page</string>
 </resources>

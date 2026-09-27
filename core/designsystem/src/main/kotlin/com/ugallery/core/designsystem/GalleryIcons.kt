@@ -80,6 +80,8 @@ import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Photo
 import androidx.compose.material.icons.rounded.Keyboard
 import androidx.compose.material.icons.rounded.Straighten
+import androidx.compose.material.icons.rounded.PhotoLibrary
+import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -172,6 +174,8 @@ val GalleryIconGridView: ImageVector get() = Icons.Rounded.GridView
 val GalleryIconPhoto: ImageVector get() = Icons.Rounded.Photo
 val GalleryIconKeyboard: ImageVector get() = Icons.Rounded.Keyboard
 val GalleryIconStraighten: ImageVector get() = Icons.Rounded.Straighten
+val GalleryIconPhotoLibrary: ImageVector get() = Icons.Rounded.PhotoLibrary
+val GalleryIconAddPhotoAlternate: ImageVector get() = Icons.Rounded.AddPhotoAlternate
 
 /**
  * Standard gallery icon composable with Material 3 defaults:
@@ -280,4 +284,6 @@ object GalleryIcons {
     val Photo get() = GalleryIconPhoto
     val Keyboard get() = GalleryIconKeyboard
     val Straighten get() = GalleryIconStraighten
+    val PhotoLibrary get() = GalleryIconPhotoLibrary
+    val AddPhotoAlternate get() = GalleryIconAddPhotoAlternate
 }
