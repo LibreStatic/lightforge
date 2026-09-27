@@ -268,6 +268,22 @@
     <string name="pdf_shortcut_zoom_out">Zoom out</string>
     <string name="pdf_shortcut_nudge">Move 1 mm</string>
     <string name="pdf_shortcut_nudge_large">Move 10 mm</string>
+    <string name="pdf_shortcut_select_all">Select all elements</string>
+    <string name="pdf_shortcut_toggle_selection">Add/remove from selection</string>
+    <string name="pdf_shortcut_exit_selection">Exit selection</string>
+    <!-- Phase G2: canvas multi-selection contextual bar and group inspector. -->
+    <plurals name="pdf_elements_selected">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
+    <string name="pdf_multiselect_add">Add to selection</string>
+    <string name="pdf_multiselect_remove">Remove from selection</string>
+    <string name="pdf_multiselect_exit">Exit multi-select</string>
+    <string name="pdf_distribute">Distribute</string>
+    <string name="pdf_distribute_horizontal">Distribute horizontally</string>
+    <string name="pdf_distribute_vertical">Distribute vertically</string>
+    <string name="pdf_distribute_needs_three">Select 3 or more to distribute</string>
+    <string name="pdf_group_selection_bar">Selection actions</string>
     <string name="pdf_status_snap">Snap %1$s</string>
     <string name="pdf_status_snap_off">Snap off</string>
     <string name="pdf_hover_tooltip">Drag to move · Double-click to adjust</string>

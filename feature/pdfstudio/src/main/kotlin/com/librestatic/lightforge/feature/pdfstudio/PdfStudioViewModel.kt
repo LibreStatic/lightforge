@@ -28,6 +28,18 @@ data class PdfStudioState(
      * reads instead of branching on both fields itself.
      */
     val selectedTextId: String? = null,
+    /**
+     * The multi-selection (Phase G2): element ids (images and texts, sharing one id space via
+     * [PdfLayers.elementId]) currently selected as a group. Kept in sync with [image]/
+     * [selectedTextId] — when it holds exactly one id, those two fields point at that same
+     * element, exactly as before multi-select existed; every existing single-selection call site
+     * therefore keeps working unchanged. [multiSelectMode] is the separate "explicitly in a
+     * multi-select session" flag (entered by long-press or Ctrl+A, exited by tapping empty page
+     * area/Escape/Back): [selectedIds] can hold a single id while this is true (right after a
+     * long-press, before a second tap adds anything), so the two are not simply redundant.
+     */
+    val selectedIds: Set<String> = emptySet(),
+    val multiSelectMode: Boolean = false,
     /** Edge-triggered "just added by Insert → Text" signal (Phase G1b): set once by [addText],
      * consumed once by the canvas (which opens inline editing then calls
      * [PdfStudioViewModel.newTextOpened]) so a later recomposition or re-selecting the same text
@@ -91,6 +103,12 @@ data class PdfStudioState(
         get() =
             selectedTextId?.let(PdfElementRef::Text)
                 ?: image.takeIf { it >= 0 }?.let(PdfElementRef::Image)
+
+    /** True once the contextual multi-select toolbar/group inspector should show (Phase G2): a
+     * multi-select session with 2+ members. A lone long-pressed element ([selectedIds].size == 1)
+     * still shows the ordinary single-element inspector/toolbar. */
+    val groupSelected: Boolean
+        get() = multiSelectMode && selectedIds.size >= 2
 }
 
 class PdfStudioViewModel(application: Application, private val saved: SavedStateHandle) :
@@ -696,14 +714,28 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
     private fun apply(p: PdfProject) {
         mutable.update {
             val page = p.pages[it.page.coerceIn(0, p.pages.lastIndex)]
+            // Multi-selection pruning (Phase G2): drop any id that no longer exists on this page
+            // (deleted directly, or a page change/undo/redo swapped the page out from under it —
+            // like [selectedTextId] already did for the single-selection case below).
+            val prunedIds = it.selectedIds.intersect(elementIds(page))
+            val (groupImage, groupText) = selectionFields(page, prunedIds)
             it.copy(
                 project = p,
                 page = it.page.coerceIn(0, p.pages.lastIndex),
-                image = it.image.coerceAtMost(page.images.lastIndex),
+                // While a real multi-selection (or a lone long-pressed element) is tracked, it is
+                // now the source of truth for image/selectedTextId; otherwise fall back to the
+                // pre-G2 clamp/prune so every call site that never touches selectedIds (most of
+                // this file) is unaffected.
+                image = if (it.selectedIds.isEmpty()) it.image.coerceAtMost(page.images.lastIndex) else groupImage,
                 // A selected text can vanish out from under a concurrent undo/redo (or simply be
                 // deleted); unlike the image index (which just clamps), an id has nothing sane to
                 // clamp to, so it's cleared instead of possibly pointing at an unrelated text.
-                selectedTextId = it.selectedTextId?.takeIf { id -> page.texts.any { t -> t.id == id } },
+                selectedTextId =
+                    if (it.selectedIds.isEmpty())
+                        it.selectedTextId?.takeIf { id -> page.texts.any { t -> t.id == id } }
+                    else groupText,
+                selectedIds = prunedIds,
+                multiSelectMode = it.multiSelectMode && prunedIds.isNotEmpty(),
                 canUndo = undo.isNotEmpty(),
                 canRedo = redo.isNotEmpty(),
                 selectedPages = it.selectedPages.intersect(p.pages.map { page -> page.id }.toSet()),
@@ -711,6 +743,247 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
             )
         }
         scheduleSave()
+    }
+
+    /** Every element id (image or text) on [page] — the two kinds share one id space via
+     * [PdfLayers.elementId]. */
+    private fun elementIds(page: PdfPage): Set<String> =
+        page.images.mapTo(mutableSetOf<String>()) { it.id }.apply { addAll(page.texts.map { it.id }) }
+
+    /** The single-selection (image, text) fields [ids] maps to: both null/`-1` when [ids] doesn't
+     * hold exactly one id, otherwise whichever kind that one id belongs to on [page]. Shared by
+     * every selection-mutating function below and by [apply]'s pruning so the two single-selection
+     * fields always agree with [PdfStudioState.selectedIds] whenever it holds exactly one id. */
+    private fun selectionFields(page: PdfPage, ids: Set<String>): Pair<Int, String?> {
+        val single = ids.singleOrNull() ?: return -1 to null
+        val imageIndex = page.images.indexOfFirst { it.id == single }
+        return if (imageIndex >= 0) imageIndex to null
+        else -1 to single.takeIf { id -> page.texts.any { it.id == id } }
+    }
+
+    private fun setSelection(page: PdfPage, ids: Set<String>, multiMode: Boolean) {
+        val (imageIndex, textId) = selectionFields(page, ids)
+        mutable.update {
+            it.copy(selectedIds = ids, multiSelectMode = multiMode, image = imageIndex, selectedTextId = textId)
+        }
+        scheduleSave()
+    }
+
+    /** Long-press an element (Phase G2): starts a multi-select session containing just that one
+     * element — a further tap on another element (see [toggleMultiSelect]) adds it. */
+    fun enterMultiSelect(id: String) {
+        val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
+        if (mutable.value.editorLocked || id !in elementIds(page)) return
+        setSelection(page, setOf(id), multiMode = true)
+    }
+
+    /** Tap on an element while already in a multi-select session (Phase G2): toggles its
+     * membership. Exits the session automatically once the last id is removed. A no-op outside a
+     * multi-select session — a plain tap then goes through [selectImage]/[selectText] instead. */
+    fun toggleMultiSelect(id: String) {
+        val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
+        if (mutable.value.editorLocked || !mutable.value.multiSelectMode || id !in elementIds(page)) return
+        val current = mutable.value.selectedIds
+        val next = if (id in current) current - id else current + id
+        setSelection(page, next, multiMode = next.isNotEmpty())
+    }
+
+    /** Ctrl+A / "Select all" (Phase G2): selects every element on the current page as a group. */
+    fun selectAllOnPage() {
+        val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
+        if (mutable.value.editorLocked) return
+        val all = elementIds(page)
+        if (all.isEmpty()) return
+        setSelection(page, all, multiMode = true)
+    }
+
+    /** A pointer marquee drag (Phase G2) replaces the whole selection with [ids] (may be empty —
+     * an empty marquee just clears it without entering multi-select mode), and Shift/Ctrl+click
+     * toggling routes through here too via the caller computing the next set. Always enters
+     * multi-select mode when more than one id ends up selected. */
+    fun setMultiSelection(ids: Set<String>) {
+        val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
+        if (mutable.value.editorLocked) return
+        val next = ids.intersect(elementIds(page))
+        setSelection(page, next, multiMode = next.size > 1 || (next.isNotEmpty() && mutable.value.multiSelectMode))
+    }
+
+    /** Tap on empty page area / Escape / Back while in a multi-select session (Phase G2): clears
+     * the whole selection and exits the session. */
+    fun exitMultiSelect() {
+        if (mutable.value.selectedIds.isEmpty() && !mutable.value.multiSelectMode &&
+            mutable.value.image < 0 && mutable.value.selectedTextId == null
+        )
+            return
+        mutable.update {
+            it.copy(selectedIds = emptySet(), multiSelectMode = false, image = -1, selectedTextId = null)
+        }
+        scheduleSave()
+    }
+
+    /** The current group's members as (id, bounds) pairs — images then texts, matching
+     * [PdfLayers.order]'s tie-break. Used by every group operation below. Empty when fewer than 2
+     * ids are selected (those go through the ordinary single-element path instead). */
+    private fun groupMembers(page: PdfPage): List<Pair<String, PdfArrange.Bounds>> {
+        val ids = mutable.value.selectedIds
+        if (ids.size < 2) return emptyList()
+        val images = page.images.filter { it.id in ids }.map { it.id to PdfArrange.boundsOf(it) }
+        val texts = page.texts.filter { it.id in ids }.map { it.id to PdfArrange.boundsOf(it) }
+        return images + texts
+    }
+
+    /**
+     * Moves the whole group by ([dx], [dy]) mm — one undo step — clamped ([PdfArrange.clampGroupMove])
+     * so every member stays on the page. Falls back to [moveSelected] (single element) when fewer
+     * than 2 are selected, so the canvas's keyboard-nudge and drag-end handlers can call this
+     * unconditionally without checking selection size themselves. Used both for the arrow-key
+     * group nudge and for committing a group drag's total delta at drag end (mirroring the
+     * single-image drag pattern: a live preview is drawn locally by the canvas, and only the final
+     * delta is committed here, in ONE call).
+     */
+    fun moveSelectionBy(dx: Double, dy: Double) {
+        val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
+        val members = groupMembers(page)
+        if (members.isEmpty()) {
+            moveSelected(dx, dy)
+            return
+        }
+        val (cdx, cdy) = PdfArrange.clampGroupMove(dx, dy, members.map { it.second }, page.width, page.height)
+        if (cdx == 0.0 && cdy == 0.0) return
+        val ids = members.map { it.first }.toSet()
+        pageEdit { p ->
+            p.copy(
+                images = p.images.map { if (it.id in ids) it.copy(x = it.x + cdx, y = it.y + cdy) else it },
+                texts = p.texts.map { if (it.id in ids) it.copy(x = it.x + cdx, y = it.y + cdy) else it },
+            )
+        }
+    }
+
+    /** Deletes every selected element as ONE undo step (Phase G2); falls back to [deleteSelected]
+     * (single element) when fewer than 2 are selected. Exits multi-select afterward. */
+    fun deleteGroupSelection() {
+        val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
+        val ids = mutable.value.selectedIds
+        if (ids.size < 2) {
+            deleteSelected()
+            return
+        }
+        pageEdit { p ->
+            p.copy(
+                images = p.images.filterNot { it.id in ids },
+                texts = p.texts.filterNot { it.id in ids },
+            )
+        }
+        exitMultiSelect()
+    }
+
+    /**
+     * Duplicates every selected element as ONE undo step (Phase G2), offset like the single-element
+     * [duplicateSelected], and selects the copies as the new group. Falls back to
+     * [duplicateSelected] when fewer than 2 are selected.
+     */
+    fun duplicateGroupSelection() {
+        val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
+        val ids = mutable.value.selectedIds
+        if (ids.size < 2) {
+            duplicateSelected()
+            return
+        }
+        val offset = 8.0
+        val imageCopies = page.images.filter { it.id in ids }.map { it.copy(id = newId()) }
+        var nextZ = PdfLayers.nextZ(page)
+        val textCopies =
+            page.texts.filter { it.id in ids }.map {
+                val copy = it.copy(id = newId(), z = nextZ)
+                nextZ += 1
+                copy
+            }
+        pageEdit { p ->
+            val withImages =
+                p.copy(
+                    images =
+                        p.images +
+                            imageCopies.map { PdfGeometry.constrainToPage(it.copy(x = it.x + offset, y = it.y + offset), p) }
+                )
+            withImages.copy(
+                texts =
+                    withImages.texts +
+                        textCopies.map {
+                            PdfGeometry.constrainTextToPage(it.copy(x = it.x + offset, y = it.y + offset), withImages)
+                        }
+            )
+        }
+        val copyIds = imageCopies.map { it.id }.toSet() + textCopies.map { it.id }.toSet()
+        val updatedPage = mutable.value.project?.pages?.getOrNull(mutable.value.page)
+        if (updatedPage != null) setSelection(updatedPage, copyIds.intersect(elementIds(updatedPage)), multiMode = true)
+    }
+
+    /**
+     * Aligns every selected element to [align] relative to the GROUP's own bounding box (Phase
+     * G2) — as opposed to [alignSelectedImage]/[alignSelectedText]'s page/margins reference frame
+     * for a single element. One undo step. A no-op with fewer than 2 selected (the single-element
+     * Align menu already covers that case with its own reference frame).
+     */
+    fun alignGroupSelection(align: PdfGeometry.Align) {
+        val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
+        val members = groupMembers(page)
+        if (members.isEmpty()) return
+        val group = PdfArrange.union(members.map { it.second })
+        val deltas = members.associate { (id, bounds) -> id to PdfArrange.alignDelta(bounds, group, align) }
+        pageEdit { p ->
+            p.copy(
+                images =
+                    p.images.map { img ->
+                        deltas[img.id]?.let { (dx, dy) ->
+                            PdfGeometry.constrainToPage(img.copy(x = img.x + dx, y = img.y + dy), p)
+                        } ?: img
+                    },
+                texts =
+                    p.texts.map { txt ->
+                        deltas[txt.id]?.let { (dx, dy) ->
+                            PdfGeometry.constrainTextToPage(txt.copy(x = txt.x + dx, y = txt.y + dy), p)
+                        } ?: txt
+                    },
+            )
+        }
+    }
+
+    /**
+     * Distributes every selected element with equal gaps along [orientation] (Phase G2) — one
+     * undo step, a no-op with fewer than 3 selected (enforced by [PdfArrange.distributeHorizontal]/
+     * [distributeVertical] returning an empty map, so the UI's own "needs 3+" disabled state is
+     * just a courtesy, not the only guard).
+     */
+    fun distributeGroupSelection(orientation: PdfSnapGuides.Orientation) {
+        val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
+        val members = groupMembers(page)
+        if (members.size < 3) return
+        val newLead =
+            if (orientation == PdfSnapGuides.Orientation.Horizontal) PdfArrange.distributeHorizontal(members)
+            else PdfArrange.distributeVertical(members)
+        if (newLead.isEmpty()) return
+        pageEdit { p ->
+            p.copy(
+                images =
+                    p.images.map { img ->
+                        newLead[img.id]?.let { lead ->
+                            val moved =
+                                if (orientation == PdfSnapGuides.Orientation.Horizontal) img.copy(x = lead)
+                                else img.copy(y = lead)
+                            PdfGeometry.constrainToPage(moved, p)
+                        } ?: img
+                    },
+                texts =
+                    p.texts.map { txt ->
+                        newLead[txt.id]?.let { lead ->
+                            val moved =
+                                if (orientation == PdfSnapGuides.Orientation.Horizontal) txt.copy(x = lead)
+                                else txt.copy(y = lead)
+                            PdfGeometry.constrainTextToPage(moved, p)
+                        } ?: txt
+                    },
+            )
+        }
     }
 
     fun undo() {
@@ -743,6 +1016,10 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
                 page = n,
                 image = -1,
                 selectedTextId = null,
+                // A page change prunes the multi-selection entirely (Phase G2): it's a different
+                // page's elements now.
+                selectedIds = emptySet(),
+                multiSelectMode = false,
                 zoom = viewport.zoom,
                 panX = viewport.panX,
                 panY = viewport.panY,
@@ -754,7 +1031,17 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
     fun selectImage(n: Int) {
         val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
         if (mutable.value.editorLocked || n !in -1..page.images.lastIndex) return
-        mutable.update { it.copy(image = n, selectedTextId = null) }
+        val id = page.images.getOrNull(n)?.id
+        mutable.update {
+            it.copy(
+                image = n,
+                selectedTextId = null,
+                // A plain tap (as opposed to long-press/toggle) always replaces the selection with
+                // just this element and leaves any multi-select session (Phase G2).
+                selectedIds = if (id != null) setOf(id) else emptySet(),
+                multiSelectMode = false,
+            )
+        }
         scheduleSave()
     }
 
@@ -764,7 +1051,14 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
     fun selectText(id: String?) {
         val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
         if (mutable.value.editorLocked || (id != null && page.texts.none { it.id == id })) return
-        mutable.update { it.copy(image = -1, selectedTextId = id) }
+        mutable.update {
+            it.copy(
+                image = -1,
+                selectedTextId = id,
+                selectedIds = if (id != null) setOf(id) else emptySet(),
+                multiSelectMode = false,
+            )
+        }
         scheduleSave()
     }
 

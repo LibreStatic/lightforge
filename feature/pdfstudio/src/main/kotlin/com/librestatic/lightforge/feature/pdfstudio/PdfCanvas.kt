@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -414,20 +415,29 @@ internal fun PdfCanvas(
                             // pointer drag, not the keyboard's fine-grained nudge.
                             val step = if (event.isShiftPressed) 10.0 else 1.0
                             when (event.key) {
+                                // Phase G2: a group nudges together (moveSelectionBy falls back to
+                                // the single-element moveSelected itself when fewer than 2 are
+                                // selected, so this one call covers both cases).
                                 androidx.compose.ui.input.key.Key.DirectionLeft -> {
-                                    vm.moveSelected(-step, 0.0)
+                                    vm.moveSelectionBy(-step, 0.0)
                                     true
                                 }
                                 androidx.compose.ui.input.key.Key.DirectionRight -> {
-                                    vm.moveSelected(step, 0.0)
+                                    vm.moveSelectionBy(step, 0.0)
                                     true
                                 }
                                 androidx.compose.ui.input.key.Key.DirectionUp -> {
-                                    vm.moveSelected(0.0, -step)
+                                    vm.moveSelectionBy(0.0, -step)
                                     true
                                 }
                                 androidx.compose.ui.input.key.Key.DirectionDown -> {
-                                    vm.moveSelected(0.0, step)
+                                    vm.moveSelectionBy(0.0, step)
+                                    true
+                                }
+                                // Escape (Phase G2): exits a multi-select session (a no-op
+                                // otherwise, per exitMultiSelect's own guard).
+                                androidx.compose.ui.input.key.Key.Escape -> {
+                                    vm.exitMultiSelect()
                                     true
                                 }
                                 else -> false
@@ -473,6 +483,14 @@ internal fun PdfCanvas(
             // treat local offsets as page pixels (pxPerMm).
             var pageBoxCoordinates by remember(page.id) { mutableStateOf<LayoutCoordinates?>(null) }
             val pxPerMmForDrop = with(density) { width.toPx() } / page.width
+            // Marquee drag-select (Phase G2 item 2): a long-press + drag on EMPTY page area (an
+            // element under the finger/pointer consumes its own long-press first via
+            // PdfImageElement/PdfTextElement's combinedClickable, so this never fires over one)
+            // selects every element whose bounds intersect the dragged rectangle. Long-press
+            // rather than a plain drag, so it never fights the existing single-finger pan gesture
+            // ([detectTransformGestures] below, which already owns plain drags on this same Box).
+            var marqueeStart by remember(page.id) { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
+            var marqueeEnd by remember(page.id) { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
             // Physical print preview uses explicit white paper / black ink, a 21:1 contrast pair.
             // Shifted up by half the reserved badge band so the page is centered in the space
             // actually available above that band, not in the full (band-including) workspace.
@@ -490,6 +508,57 @@ internal fun PdfCanvas(
                     .shadow(elevation = 6.dp, shape = androidx.compose.ui.graphics.RectangleShape, clip = false)
                     .background(PdfPaperTokens.Paper)
                     .onGloballyPositioned { pageBoxCoordinates = it }
+                    .pointerInput(page.id, busy) {
+                        if (!busy)
+                            detectTapGestures(
+                                // Tap on empty page area (Phase G2): exits a multi-select session.
+                                // Only reached when no element under the tap already consumed it.
+                                onTap = { if (current.multiSelectMode) vm.exitMultiSelect() }
+                            )
+                    }
+                    .pointerInput(page.id, busy) {
+                        if (!busy)
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = { offset ->
+                                    marqueeStart = offset
+                                    marqueeEnd = offset
+                                },
+                                onDragEnd = {
+                                    val start = marqueeStart
+                                    val end = marqueeEnd
+                                    if (start != null && end != null) {
+                                        val minXmm = minOf(start.x, end.x) / pxPerMmForDrop
+                                        val maxXmm = maxOf(start.x, end.x) / pxPerMmForDrop
+                                        val minYmm = minOf(start.y, end.y) / pxPerMmForDrop
+                                        val maxYmm = maxOf(start.y, end.y) / pxPerMmForDrop
+                                        val hitIds =
+                                            (page.images.filter { i ->
+                                                i.x < maxXmm &&
+                                                    i.x + i.width > minXmm &&
+                                                    i.y < maxYmm &&
+                                                    i.y + i.height > minYmm
+                                            }.map { it.id } +
+                                                page.texts.filter { t ->
+                                                    t.x < maxXmm &&
+                                                        t.x + t.width > minXmm &&
+                                                        t.y < maxYmm &&
+                                                        t.y + t.height > minYmm
+                                                }.map { it.id })
+                                                .toSet()
+                                        if (hitIds.isNotEmpty()) vm.setMultiSelection(hitIds)
+                                    }
+                                    marqueeStart = null
+                                    marqueeEnd = null
+                                },
+                                onDragCancel = {
+                                    marqueeStart = null
+                                    marqueeEnd = null
+                                },
+                            ) { change, _ ->
+                                change.consume()
+                                marqueeEnd = change.position
+                            }
+                    }
                     .dragAndDropTarget(
                         shouldStartDragAndDrop = { !busy && page.source == null },
                         target =
@@ -554,6 +623,8 @@ internal fun PdfCanvas(
                                     activeSnap = activeSnapState,
                                     dragOffsetMm = dragOffsetMmState,
                                     onAdjustImage = onAdjustImage,
+                                    multiSelectMode = current.multiSelectMode,
+                                    inGroupSelection = element.image.id in current.selectedIds,
                                 )
                             }
                             is PdfLayers.Element.Txt -> {
@@ -572,8 +643,63 @@ internal fun PdfCanvas(
                                     activeSnap = activeSnapState,
                                     dragOffsetMm = dragOffsetMmState,
                                     onAdjust = onAdjustImage,
+                                    multiSelectMode = current.multiSelectMode,
+                                    inGroupSelection = element.text.id in current.selectedIds,
                                 )
                             }
+                        }
+                    }
+                }
+                // Phase G2: the marquee rectangle being dragged, and the persistent group
+                // bounding outline once 2+ elements are selected — both drawn as an overlay ON
+                // TOP of every element (last child = highest z), in the same local px space as
+                // the elements above (this Box's own graphicsLayer already applies zoom/pan), so
+                // no extra coordinate conversion is needed beyond page-mm -> px via pxPerMmForDrop.
+                Canvas(Modifier.matchParentSize()) {
+                    val start = marqueeStart
+                    val end = marqueeEnd
+                    if (start != null && end != null) {
+                        val topLeft =
+                            androidx.compose.ui.geometry.Offset(minOf(start.x, end.x), minOf(start.y, end.y))
+                        val rectSize =
+                            androidx.compose.ui.geometry.Size(
+                                kotlin.math.abs(end.x - start.x),
+                                kotlin.math.abs(end.y - start.y),
+                            )
+                        val dash = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx()), 0f)
+                        drawRect(
+                            PdfPaperTokens.GuideOuter,
+                            topLeft,
+                            rectSize,
+                            style = Stroke(3.dp.toPx(), pathEffect = dash),
+                        )
+                        drawRect(
+                            PdfPaperTokens.GuideInner,
+                            topLeft,
+                            rectSize,
+                            style = Stroke(1.dp.toPx(), pathEffect = dash),
+                        )
+                    }
+                    if (current.groupSelected) {
+                        val imgBounds =
+                            page.images.filter { it.id in current.selectedIds }.map(PdfArrange::boundsOf)
+                        val txtBounds =
+                            page.texts.filter { it.id in current.selectedIds }.map(PdfArrange::boundsOf)
+                        if (imgBounds.isNotEmpty() || txtBounds.isNotEmpty()) {
+                            val group = PdfArrange.groupBounds(imgBounds, txtBounds)
+                            val out = 4.dp.toPx()
+                            val topLeft =
+                                androidx.compose.ui.geometry.Offset(
+                                    (group.x * pxPerMmForDrop).toFloat() - out,
+                                    (group.y * pxPerMmForDrop).toFloat() - out,
+                                )
+                            val rectSize =
+                                androidx.compose.ui.geometry.Size(
+                                    (group.width * pxPerMmForDrop).toFloat() + 2 * out,
+                                    (group.height * pxPerMmForDrop).toFloat() + 2 * out,
+                                )
+                            drawRect(PdfPaperTokens.GuideOuter, topLeft, rectSize, style = Stroke(3.dp.toPx()))
+                            drawRect(PdfPaperTokens.GuideInner, topLeft, rectSize, style = Stroke(1.dp.toPx()))
                         }
                     }
                 }
@@ -613,7 +739,11 @@ internal fun PdfCanvas(
                         }
                     }
                 }
-                if (selected in page.images.indices && !busy) {
+                if (current.groupSelected && !busy) {
+                    // Phase G2: 2+ elements selected replaces the single-element toolbar with the
+                    // group's own — same reserved band, never overlapping the canvas/handles.
+                    PdfMultiSelectBar(vm = vm, count = current.selectedIds.size)
+                } else if (selected in page.images.indices && !busy) {
                     PdfImageContextualToolbar(vm = vm, onReplace = onReplaceImage)
                 } else if (current.selectedTextId != null && !busy) {
                     PdfTextContextualToolbar(
@@ -677,6 +807,8 @@ private fun PdfImageElement(
     activeSnap: MutableState<PdfSnapGuides.SnapResult?>,
     dragOffsetMm: MutableState<androidx.compose.ui.geometry.Offset?>,
     onAdjustImage: () -> Unit,
+    multiSelectMode: Boolean = false,
+    inGroupSelection: Boolean = false,
 ) {
     var activeSnap by activeSnap
     var dragOffsetMm by dragOffsetMm
@@ -684,6 +816,8 @@ private fun PdfImageElement(
         val imageLabel = stringResource(R.string.pdf_image_label, n + 1)
                         val resizeLabel = stringResource(R.string.pdf_resize_label, n + 1)
                         val adjustLabel = stringResource(R.string.pdf_adjust)
+                        val addToSelectionLabel = stringResource(R.string.pdf_multiselect_add)
+                        val removeFromSelectionLabel = stringResource(R.string.pdf_multiselect_remove)
                         val imageSelected = selected == n
                         val density = androidx.compose.ui.platform.LocalDensity.current
                         val pxPerMm = with(density) { width.toPx() } / page.width
@@ -744,6 +878,33 @@ private fun PdfImageElement(
                                             drawRect(PdfPaperTokens.GuideOuter, style = Stroke(6.dp.toPx()))
                                             drawRect(PdfPaperTokens.GuideInner, style = Stroke(2.dp.toPx()))
                                         }
+                                    else if (inGroupSelection && !imageSelected)
+                                        // Per-member thin outline for a group member that isn't
+                                        // ALSO the single-selection (i.e. groups of 2+): drawn
+                                        // OUTSIDE the image bounds like every other selection
+                                        // outline here, so it never covers content.
+                                        Modifier.drawWithContent {
+                                            drawContent()
+                                            val out = 3.dp.toPx()
+                                            val topLeft = androidx.compose.ui.geometry.Offset(-out, -out)
+                                            val outlined =
+                                                androidx.compose.ui.geometry.Size(
+                                                    size.width + 2 * out,
+                                                    size.height + 2 * out,
+                                                )
+                                            drawRect(
+                                                PdfPaperTokens.GuideOuter,
+                                                topLeft,
+                                                outlined,
+                                                style = Stroke(4.dp.toPx()),
+                                            )
+                                            drawRect(
+                                                PdfPaperTokens.GuideInner,
+                                                topLeft,
+                                                outlined,
+                                                style = Stroke(1.5.dp.toPx()),
+                                            )
+                                        }
                                     else if (hovered && !busy)
                                         Modifier.drawWithContent {
                                             drawContent()
@@ -768,27 +929,58 @@ private fun PdfImageElement(
                                 .hoverable(hoverSource, enabled = !busy)
                                 .semantics {
                                     contentDescription = imageLabel
-                                    this.selected = imageSelected
+                                    this.selected = imageSelected || inGroupSelection
                                     customActions =
                                         if (busy) emptyList()
                                         else
-                                            listOf(
-                                                CustomAccessibilityAction(adjustLabel) {
-                                                    vm.selectImage(n)
-                                                    onAdjustImage()
-                                                    true
-                                                }
-                                            )
+                                            buildList {
+                                                add(
+                                                    CustomAccessibilityAction(adjustLabel) {
+                                                        vm.selectImage(n)
+                                                        onAdjustImage()
+                                                        true
+                                                    }
+                                                )
+                                                // Phase G2 a11y: TalkBack equivalent of long-press
+                                                // (enter/add) and tap-to-toggle while already in a
+                                                // multi-select session.
+                                                add(
+                                                    CustomAccessibilityAction(
+                                                        if (inGroupSelection) removeFromSelectionLabel
+                                                        else addToSelectionLabel
+                                                    ) {
+                                                        if (multiSelectMode) vm.toggleMultiSelect(i.id)
+                                                        else vm.enterMultiSelect(i.id)
+                                                        true
+                                                    }
+                                                )
+                                            }
                                 }
-                                .clickable(enabled = !busy) {
-                                    focus.requestFocus()
-                                    vm.selectImage(n)
-                                    val now = android.os.SystemClock.uptimeMillis()
-                                    // Double-click (pointer): select (above) + open Adjust,
-                                    // matching the existing "Resize image n" -> Adjust action.
-                                    if (now - lastClickAtMs < 350) onAdjustImage()
-                                    lastClickAtMs = now
-                                }
+                                .combinedClickable(
+                                    enabled = !busy,
+                                    onLongClick = {
+                                        // Phase G2: long-press starts (or adds this element to) a
+                                        // multi-select session instead of the ordinary single
+                                        // selection.
+                                        focus.requestFocus()
+                                        if (multiSelectMode) vm.toggleMultiSelect(i.id)
+                                        else vm.enterMultiSelect(i.id)
+                                    },
+                                    onClick = {
+                                        focus.requestFocus()
+                                        if (multiSelectMode) {
+                                            vm.toggleMultiSelect(i.id)
+                                        } else {
+                                            vm.selectImage(n)
+                                            val now = android.os.SystemClock.uptimeMillis()
+                                            // Double-click (pointer): select (above) + open
+                                            // Adjust, matching the existing "Resize image n" ->
+                                            // Adjust action.
+                                            if (now - lastClickAtMs < 350) onAdjustImage()
+                                            lastClickAtMs = now
+                                        }
+                                    },
+                                )
                                 .pointerInput(i, busy) {
                                     if (!busy)
                                         detectDragGestures(
@@ -1144,6 +1336,8 @@ private fun PdfTextElement(
     activeSnap: MutableState<PdfSnapGuides.SnapResult?>,
     dragOffsetMm: MutableState<androidx.compose.ui.geometry.Offset?>,
     onAdjust: () -> Unit,
+    multiSelectMode: Boolean = false,
+    inGroupSelection: Boolean = false,
 ) {
     var activeSnap by activeSnap
     var dragOffsetMm by dragOffsetMm
@@ -1157,6 +1351,8 @@ private fun PdfTextElement(
         stringResource(R.string.pdf_text_label, t.text.take(60).replace('\n', ' '))
     val editLabel = stringResource(R.string.pdf_edit)
     val adjustLabel = stringResource(R.string.pdf_adjust)
+    val addToSelectionLabel = stringResource(R.string.pdf_multiselect_add)
+    val removeFromSelectionLabel = stringResource(R.string.pdf_multiselect_remove)
     var delta by remember(t.id, t.x, t.y) { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
     var lastClickAtMs by remember(t.id) { mutableStateOf(0L) }
     Box(
@@ -1196,11 +1392,23 @@ private fun PdfTextElement(
                         // Drawn before the content so the corner handles (children) stay on top.
                         drawContent()
                     }
+                else if (inGroupSelection && !isSelected)
+                    // As the image twin above: a thinner per-member outline, outside the box, for
+                    // a group member that isn't ALSO the lone single-selection.
+                    Modifier.drawWithContent {
+                        drawContent()
+                        val out = 3.dp.toPx()
+                        val topLeft = androidx.compose.ui.geometry.Offset(-out, -out)
+                        val outlined =
+                            androidx.compose.ui.geometry.Size(size.width + 2 * out, size.height + 2 * out)
+                        drawRect(PdfPaperTokens.GuideOuter, topLeft, outlined, style = Stroke(4.dp.toPx()))
+                        drawRect(PdfPaperTokens.GuideInner, topLeft, outlined, style = Stroke(1.5.dp.toPx()))
+                    }
                 else Modifier
             )
             .semantics {
                 contentDescription = textLabel
-                this.selected = isSelected
+                this.selected = isSelected || inGroupSelection
                 customActions =
                     if (busy) emptyList()
                     else
@@ -1215,16 +1423,33 @@ private fun PdfTextElement(
                                 onAdjust()
                                 true
                             },
+                            CustomAccessibilityAction(
+                                if (inGroupSelection) removeFromSelectionLabel else addToSelectionLabel
+                            ) {
+                                if (multiSelectMode) vm.toggleMultiSelect(t.id) else vm.enterMultiSelect(t.id)
+                                true
+                            },
                         )
             }
-            .clickable(enabled = !busy) {
-                focus.requestFocus()
-                vm.selectText(t.id)
-                val now = android.os.SystemClock.uptimeMillis()
-                // Double-click/double-tap: select (above) + enter inline editing.
-                if (now - lastClickAtMs < 350) onEditingTextChange(t.id)
-                lastClickAtMs = now
-            }
+            .combinedClickable(
+                enabled = !busy,
+                onLongClick = {
+                    focus.requestFocus()
+                    if (multiSelectMode) vm.toggleMultiSelect(t.id) else vm.enterMultiSelect(t.id)
+                },
+                onClick = {
+                    focus.requestFocus()
+                    if (multiSelectMode) {
+                        vm.toggleMultiSelect(t.id)
+                    } else {
+                        vm.selectText(t.id)
+                        val now = android.os.SystemClock.uptimeMillis()
+                        // Double-click/double-tap: select (above) + enter inline editing.
+                        if (now - lastClickAtMs < 350) onEditingTextChange(t.id)
+                        lastClickAtMs = now
+                    }
+                },
+            )
             .pointerInput(t.id, busy, isEditing) {
                 if (!busy && !isEditing)
                     detectDragGestures(

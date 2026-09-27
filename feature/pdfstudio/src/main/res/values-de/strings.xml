@@ -268,6 +268,21 @@
     <string name="pdf_shortcut_zoom_out">Verkleinern</string>
     <string name="pdf_shortcut_nudge">Um 1 mm verschieben</string>
     <string name="pdf_shortcut_nudge_large">Um 10 mm verschieben</string>
+    <string name="pdf_shortcut_select_all">Alle Elemente auswählen</string>
+    <string name="pdf_shortcut_toggle_selection">Zur Auswahl hinzufügen oder entfernen</string>
+    <string name="pdf_shortcut_exit_selection">Auswahl verlassen</string>
+    <plurals name="pdf_elements_selected">
+        <item quantity="one">%1$d ausgewählt</item>
+        <item quantity="other">%1$d ausgewählt</item>
+    </plurals>
+    <string name="pdf_multiselect_add">Zur Auswahl hinzufügen</string>
+    <string name="pdf_multiselect_remove">Aus der Auswahl entfernen</string>
+    <string name="pdf_multiselect_exit">Mehrfachauswahl verlassen</string>
+    <string name="pdf_distribute">Verteilen</string>
+    <string name="pdf_distribute_horizontal">Horizontal verteilen</string>
+    <string name="pdf_distribute_vertical">Vertikal verteilen</string>
+    <string name="pdf_distribute_needs_three">Wähle 3 oder mehr aus, um zu verteilen</string>
+    <string name="pdf_group_selection_bar">Auswahlaktionen</string>
     <string name="pdf_status_snap">Einrasten %1$s</string>
     <string name="pdf_status_snap_off">Einrasten aus</string>
     <string name="pdf_hover_tooltip">Ziehen zum Verschieben · Doppelklick zum Anpassen</string>

@@ -26,9 +26,15 @@ class PdfEditorCommandTest {
 
     @Test
     fun unknownChordsAndBareKeysWithoutCtrlAreNotCommands() {
-        assertNull(PdfEditorCommands.forChord(chord("A")))
+        assertNull(PdfEditorCommands.forChord(chord("Q")))
         assertNull(PdfEditorCommands.forChord(chord("D", ctrl = false)))
         assertNull(PdfEditorCommands.forChord(chord("/", ctrl = false)))
+        assertNull(PdfEditorCommands.forChord(chord("A", ctrl = false)))
+    }
+
+    @Test
+    fun selectAllChord() {
+        assertEquals(PdfEditorCommand.SelectAll, PdfEditorCommands.forChord(chord("A")))
     }
 
     @Test

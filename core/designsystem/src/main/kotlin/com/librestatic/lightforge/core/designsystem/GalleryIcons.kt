@@ -166,6 +166,12 @@ val GalleryIconLink: ImageVector get() = Icons.Rounded.Link
 val GalleryIconLinkOff: ImageVector get() = Icons.Rounded.LinkOff
 val GalleryIconSwapHoriz: ImageVector get() = Icons.Rounded.SwapHoriz
 val GalleryIconSwapVert: ImageVector get() = Icons.Rounded.SwapVert
+// material-icons-core (the only icon set this project allows — no material-icons-extended) has
+// no dedicated "distribute spacing" glyph; SwapHoriz/SwapVert's arrows-between-two-things shape
+// is the closest stand-in available, reused here under its own semantic name so a future proper
+// glyph can replace just these two lines without touching call sites.
+val GalleryIconDistributeHorizontal: ImageVector get() = Icons.Rounded.SwapHoriz
+val GalleryIconDistributeVertical: ImageVector get() = Icons.Rounded.SwapVert
 val GalleryIconChecklist: ImageVector get() = Icons.Rounded.Checklist
 val GalleryIconSelectAll: ImageVector get() = Icons.Rounded.SelectAll
 val GalleryIconCenterFocusStrong: ImageVector get() = Icons.Rounded.CenterFocusStrong
@@ -284,6 +290,8 @@ object GalleryIcons {
     val LinkOff get() = GalleryIconLinkOff
     val SwapHoriz get() = GalleryIconSwapHoriz
     val SwapVert get() = GalleryIconSwapVert
+    val DistributeHorizontal get() = GalleryIconDistributeHorizontal
+    val DistributeVertical get() = GalleryIconDistributeVertical
     val Checklist get() = GalleryIconChecklist
     val SelectAll get() = GalleryIconSelectAll
     val CenterFocusStrong get() = GalleryIconCenterFocusStrong

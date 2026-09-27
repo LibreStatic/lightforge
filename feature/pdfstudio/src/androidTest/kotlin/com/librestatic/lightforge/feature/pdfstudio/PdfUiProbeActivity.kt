@@ -123,6 +123,10 @@ class PdfUiProbeActivity : ComponentActivity() {
         // can screenshot/exercise the tab without any real gallery data. Absent `fakeMedia` keeps
         // mediaSource null (the tab hidden), matching every existing probe run byte-for-byte.
         val fakeMedia = intent.getBooleanExtra("fakeMedia", false)
+        // Phase G2: opt-in second fixture element (a text box), so verify_pdf_adaptive_ui.py's
+        // --multi flow has two elements to long-press/tap into a multi-selection. Absent `multi`
+        // keeps the fixture at exactly the one image every existing probe run already expects.
+        val multiFixture = intent.getBooleanExtra("multi", false)
         super.onCreate(savedInstanceState)
         lifecycleScope.launch {
             if (vm.state.value.project == null) {
@@ -143,6 +147,10 @@ class PdfUiProbeActivity : ComponentActivity() {
                 File(filesDir, "pdf-ui-project").writeText(p.id)
                 vm.open(p.id)
                 while (vm.state.value.busy) delay(20)
+                if (multiFixture) {
+                    vm.addText("B")
+                    while (vm.state.value.busy) delay(20)
+                }
                 vm.selectImage(0)
             }
             vm.state.collect { current ->
@@ -169,6 +177,12 @@ class PdfUiProbeActivity : ComponentActivity() {
                                 current.project?.pages?.getOrNull(current.page)?.texts?.size ?: 0,
                             )
                             .put("selectedTextId", current.selectedTextId)
+                            // Phase G2: lets verify_pdf_adaptive_ui.py's --multi flow assert a
+                            // long-press + tap actually built a 2-element group (and that Align/
+                            // Undo leave a consistent selection) without a screenshot diff,
+                            // mirroring currentPageImages/currentPageTexts above.
+                            .put("selectedCount", current.selectedIds.size)
+                            .put("groupSelected", current.groupSelected)
                             .toString()
                     )
             }
@@ -260,6 +274,19 @@ class PdfUiProbeActivity : ComponentActivity() {
                                         )
                                         .put(
                                             "contextualToolbarDelete",
+                                            contrast(c.errorContainer, c.onErrorContainer),
+                                        )
+                                        // Phase G2: the multi-select contextual bar (same
+                                        // secondaryContainer/onSecondaryContainer pair as the
+                                        // canvas badges above, reused for its own "N selected"
+                                        // announcement) and its Delete action (errorContainer/
+                                        // onErrorContainer, same pair as contextualToolbarDelete).
+                                        .put(
+                                            "multiSelectBar",
+                                            contrast(c.secondaryContainer, c.onSecondaryContainer),
+                                        )
+                                        .put(
+                                            "multiSelectBarDelete",
                                             contrast(c.errorContainer, c.onErrorContainer),
                                         )
                                         // Phase D review fix (R9): the panels' ModalBottomSheet

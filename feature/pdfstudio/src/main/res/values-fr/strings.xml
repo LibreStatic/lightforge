@@ -268,6 +268,21 @@
     <string name="pdf_shortcut_zoom_out">Dézoomer</string>
     <string name="pdf_shortcut_nudge">Déplacer de 1 mm</string>
     <string name="pdf_shortcut_nudge_large">Déplacer de 10 mm</string>
+    <string name="pdf_shortcut_select_all">Sélectionner tous les éléments</string>
+    <string name="pdf_shortcut_toggle_selection">Ajouter ou retirer de la sélection</string>
+    <string name="pdf_shortcut_exit_selection">Quitter la sélection</string>
+    <plurals name="pdf_elements_selected">
+        <item quantity="one">%1$d sélectionné</item>
+        <item quantity="other">%1$d sélectionnés</item>
+    </plurals>
+    <string name="pdf_multiselect_add">Ajouter à la sélection</string>
+    <string name="pdf_multiselect_remove">Retirer de la sélection</string>
+    <string name="pdf_multiselect_exit">Quitter la sélection multiple</string>
+    <string name="pdf_distribute">Distribuer</string>
+    <string name="pdf_distribute_horizontal">Distribuer horizontalement</string>
+    <string name="pdf_distribute_vertical">Distribuer verticalement</string>
+    <string name="pdf_distribute_needs_three">Sélectionnez 3 éléments ou plus pour distribuer</string>
+    <string name="pdf_group_selection_bar">Actions de sélection</string>
     <string name="pdf_status_snap">Alignement %1$s</string>
     <string name="pdf_status_snap_off">Alignement désactivé</string>
     <string name="pdf_hover_tooltip">Glisser pour déplacer · Double-clic pour ajuster</string>

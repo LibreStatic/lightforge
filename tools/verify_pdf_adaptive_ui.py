@@ -2,7 +2,7 @@
 """Exercise the real PDF screen in constrained native parents; never modify device settings."""
 import argparse, json, re, subprocess, time, xml.etree.ElementTree as ET
 from pathlib import Path
-p=argparse.ArgumentParser();p.add_argument('--serial',required=True);p.add_argument('--output',required=True);p.add_argument('--dynamic',action='store_true');p.add_argument('--folds',action='store_true');p.add_argument('--media',action='store_true');p.add_argument('--text',action='store_true');args=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--serial',required=True);p.add_argument('--output',required=True);p.add_argument('--dynamic',action='store_true');p.add_argument('--folds',action='store_true');p.add_argument('--media',action='store_true');p.add_argument('--text',action='store_true');p.add_argument('--multi',action='store_true');args=p.parse_args()
 out=Path(args.output);out.mkdir(parents=True,exist_ok=True)
 b=['rtk','proxy','adb','-s',args.serial];pkg='com.librestatic.lightforge.feature.pdfstudio.test'
 def adb(*a): return subprocess.check_output(b+list(a),timeout=45)
@@ -41,6 +41,17 @@ def tap(label):
     assert r>x and d>y, (label,n.attrib)
     # Menus and sheets animate in; give them time before the next dump.
     shell('input','tap',str((x+r)//2),str((y+d)//2));time.sleep(.7)
+def long_press(label):
+    # Phase G2: `input swipe` with identical start/end coordinates and a duration long enough to
+    # clear the long-press timeout is the standard ADB-only way to synthesize a long-press (no
+    # separate "long tap" verb exists in the `input` tool).
+    root,_=dump();n=node_for(root,label)
+    parents={c:p for p in root.iter() for c in p}
+    while n.get('clickable')!='true' and n in parents:n=parents[n]
+    assert n.get('enabled')=='true', (label,n.attrib)
+    x,y,r,d=bounds(n)
+    cx,cy=(x+r)//2,(y+d)//2
+    shell('input','swipe',str(cx),str(cy),str(cx),str(cy),'600');time.sleep(.6)
 def dismiss_to_editor(label):
     for _ in range(5):
         root,_=dump()
@@ -318,10 +329,56 @@ if args.text:
         row=dict(case=name,textAdded=True,contentCommitted=True,contentUndoKeepsElement=True,secondUndoRemovesText=True)
         text_results.append(row);print('TEXT CASE PASS: '+json.dumps(row,sort_keys=True),flush=True)
         cleanup()
+multi_results=[]
+if args.multi:
+    # Phase G2: long-press the fixture image to enter multi-select, tap the fixture text to add
+    # it (2 selected -> the group bar appears), Align left, then undo, on both a compact (360dp)
+    # and an expanded (840dp, always-visible inspector) width - mirrors --text's two-width shape.
+    for width,height in ((840,640),(360,640)):
+        name=f'multi-{width}x{height}'
+        shell('run-as',pkg,'rm','-f','files/pdf-ui-state.json')
+        subprocess.run(b+['shell','run-as',pkg,'tee','files/pdf-ui-config.json'],input=json.dumps(dict(width=width,font=1,locale='en')).encode(),stdout=subprocess.DEVNULL,check=True)
+        shell('am','start','-W','-n',pkg+'/com.librestatic.lightforge.feature.pdfstudio.PdfUiProbeActivity',
+              '--ei','width',str(width),'--ei','height',str(height),'--ef','font','1','--es','locale','en',
+              '--ez','dark','false','--ez','rtl','false','--ez','dynamic',str(args.dynamic).lower(),'--ez','multi','true')
+        wait_ready();time.sleep(.5);ls=labels('en')
+        snap(name+'-baseline')
+        image_label=ls['pdf_image_label'].replace('%1$d','1').replace('%d','1')
+        text_label=ls['pdf_text_label'].replace('%1$s','B').replace('%s','B')
+        long_press(image_label)
+        for _ in range(20):
+            if state().get('selectedCount',0)==1 and state().get('busy') is False:break
+            time.sleep(.2)
+        assert state()['selectedCount']==1,state()
+        tap(text_label)
+        for _ in range(20):
+            if state().get('groupSelected'):break
+            time.sleep(.2)
+        assert state()['selectedCount']==2 and state()['groupSelected'],state()
+        root=snap(name+'-2-selected')
+        # The bar's own "N selected" plural literal text (not a contentDescription - see
+        # PdfMultiSelectBar) is the visible, screenshot-reviewable proof the bar is showing.
+        assert any(n.get('text')=='2 selected' for n in root.iter('node')),'2 selected bar not shown'
+        theme=json.loads(shell('run-as',pkg,'cat','files/pdf-ui-theme.json'))
+        assert theme['multiSelectBar']>=4.5,(name,theme)
+        assert theme['multiSelectBarDelete']>=4.5,(name,theme)
+        tap(ls['pdf_toolbar_align'])
+        tap(ls['pdf_align_left'])
+        time.sleep(.3)
+        assert state()['groupSelected'],state()
+        snap(name+'-aligned')
+        tap(ls['pdf_undo'])
+        for _ in range(20):
+            if not state().get('busy'):break
+            time.sleep(.2)
+        row=dict(case=name,enteredMultiSelect=True,groupBarShown=True,alignApplied=True,undoOk=True)
+        multi_results.append(row);print('MULTI CASE PASS: '+json.dumps(row,sort_keys=True),flush=True)
+        cleanup()
 assert device_settings()==settings_before, 'Device settings changed'
 (out/'device-settings.json').write_text(json.dumps(settings_before,indent=2)+'\n')
 (out/'results.json').write_text(json.dumps(results,indent=2)+'\n')
 if args.folds:(out/'fold-results.json').write_text(json.dumps(fold_results,indent=2)+'\n')
 if args.media and media_result:(out/'media-result.json').write_text(json.dumps(media_result,indent=2)+'\n')
 if args.text and text_results:(out/'text-results.json').write_text(json.dumps(text_results,indent=2)+'\n')
-print(f'ADAPTIVE UI PASS: {len(cases)} native parent configurations; accessible actions; title edit/undo; page add/undo; '+('dynamic' if args.dynamic else 'static')+' light/dark contrast; fixture projects removed; device settings unchanged'+(f'; {len(fold_results)} synthetic-fold cases' if args.folds else '')+('; media panel exercised' if args.media else '')+(f'; {len(text_results)} text-layer cases' if args.text else ''))
+if args.multi and multi_results:(out/'multi-results.json').write_text(json.dumps(multi_results,indent=2)+'\n')
+print(f'ADAPTIVE UI PASS: {len(cases)} native parent configurations; accessible actions; title edit/undo; page add/undo; '+('dynamic' if args.dynamic else 'static')+' light/dark contrast; fixture projects removed; device settings unchanged'+(f'; {len(fold_results)} synthetic-fold cases' if args.folds else '')+('; media panel exercised' if args.media else '')+(f'; {len(text_results)} text-layer cases' if args.text else '')+(f'; {len(multi_results)} multi-select cases' if args.multi else ''))

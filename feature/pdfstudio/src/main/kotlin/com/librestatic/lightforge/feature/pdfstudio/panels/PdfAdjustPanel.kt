@@ -40,6 +40,12 @@ private val UNIT_LABELS = listOf("mm", "cm", "in", "px")
 internal fun PdfAdjustPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
     val project = s.project ?: return
     val page = project.pages[s.page]
+    // Phase G2: 2+ elements selected as a group replaces this panel's content with the compact
+    // group inspector — same "Adjust" tab/sheet slot as the single-element inspector below.
+    if (s.groupSelected) {
+        PdfGroupInspector(vm, s)
+        return
+    }
     // Item 5: a selected text replaces this panel's content with the text inspector instead of
     // the image one — same "Adjust" tab/sheet slot, just different content for the selection kind.
     val selectedText = s.selectedTextId?.let { id -> page.texts.firstOrNull { it.id == id } }
@@ -693,6 +699,77 @@ private fun PdfTextInspector(vm: PdfStudioViewModel, s: PdfStudioState, page: Pd
         }
         TextButton(onClick = vm::deleteSelected, enabled = !s.editorLocked) {
             Text(stringResource(R.string.pdf_delete_text))
+        }
+    }
+}
+
+/**
+ * Compact group inspector (Phase G2 item 4): shown in the "Adjust" tab/sheet slot in place of the
+ * single-element inspector whenever 2+ elements are selected — element count, Align (relative to
+ * the selection's own bounding box), Distribute (disabled with a reason below 3 selected), and
+ * Delete (error role pair). Duplicate lives on the canvas's [PdfMultiSelectBar] only, to keep this
+ * compact panel to what the plan calls out (count + Align/Distribute/Delete).
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun PdfGroupInspector(vm: PdfStudioViewModel, s: PdfStudioState) {
+    val count = s.selectedIds.size
+    Text(
+        androidx.compose.ui.res.pluralStringResource(R.plurals.pdf_elements_selected, count, count),
+        style = MaterialTheme.typography.titleMedium,
+    )
+    Spacer(Modifier.height(8.dp))
+    FlowRow {
+        var showAlign by remember { mutableStateOf(false) }
+        Box {
+            TextButton(onClick = { showAlign = true }, enabled = !s.editorLocked) {
+                Text(stringResource(R.string.pdf_toolbar_align))
+            }
+            DropdownMenu(expanded = showAlign, onDismissRequest = { showAlign = false }) {
+                alignEntries().forEach { (align, label) ->
+                    DropdownMenuItem(
+                        text = { Text(stringResource(label)) },
+                        onClick = {
+                            showAlign = false
+                            vm.alignGroupSelection(align)
+                        },
+                    )
+                }
+            }
+        }
+        var showDistribute by remember { mutableStateOf(false) }
+        Box {
+            TextButton(onClick = { showDistribute = true }, enabled = !s.editorLocked) {
+                Text(stringResource(R.string.pdf_distribute))
+            }
+            DropdownMenu(expanded = showDistribute, onDismissRequest = { showDistribute = false }) {
+                val canDistribute = count >= 3
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.pdf_distribute_horizontal)) },
+                    enabled = canDistribute,
+                    onClick = {
+                        showDistribute = false
+                        vm.distributeGroupSelection(PdfSnapGuides.Orientation.Horizontal)
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.pdf_distribute_vertical)) },
+                    enabled = canDistribute,
+                    onClick = {
+                        showDistribute = false
+                        vm.distributeGroupSelection(PdfSnapGuides.Orientation.Vertical)
+                    },
+                )
+                if (!canDistribute)
+                    Text(
+                        stringResource(R.string.pdf_distribute_needs_three),
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                    )
+            }
+        }
+        TextButton(onClick = vm::deleteGroupSelection, enabled = !s.editorLocked) {
+            Text(stringResource(R.string.pdf_delete))
         }
     }
 }

@@ -69,6 +69,7 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -950,6 +951,133 @@ internal fun PdfImageContextualToolbar(
 private val PAGE_STRIP_HEIGHT = 96.dp
 
 /**
+ * Contextual toolbar for a 2+ element multi-selection (Phase G2), replacing
+ * [PdfImageContextualToolbar]/`PdfTextContextualToolbar` in the same reserved badge band: an
+ * announced "N selected" count, group Align (relative to the selection's own bounding box —
+ * [PdfStudioViewModel.alignGroupSelection]), Distribute horizontally/vertically (disabled with a
+ * reason below 3 selected), Duplicate, Delete (error role pair) and a Done button that exits the
+ * multi-select session ([PdfStudioViewModel.exitMultiSelect]).
+ */
+@Composable
+internal fun PdfMultiSelectBar(vm: PdfStudioViewModel, count: Int, modifier: Modifier = Modifier) {
+    var showAlign by remember { mutableStateOf(false) }
+    var showDistribute by remember { mutableStateOf(false) }
+    val barLabel = stringResource(R.string.pdf_group_selection_bar)
+    Surface(
+        modifier =
+            modifier.semantics {
+                contentDescription = barLabel
+                liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite
+            },
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+        tonalElevation = 3.dp,
+    ) {
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                androidx.compose.ui.res.pluralStringResource(R.plurals.pdf_elements_selected, count, count),
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(end = 8.dp),
+            )
+            Box {
+                val alignLabel = stringResource(R.string.pdf_toolbar_align)
+                IconButton(
+                    onClick = { showAlign = true },
+                    modifier = Modifier.semantics { contentDescription = alignLabel },
+                ) {
+                    Icon(GalleryIcons.AlignHorizontalCenter, contentDescription = null)
+                }
+                DropdownMenu(expanded = showAlign, onDismissRequest = { showAlign = false }) {
+                    alignEntriesForGroup().forEach { (align, label) ->
+                        DropdownMenuItem(
+                            text = { Text(stringResource(label)) },
+                            onClick = {
+                                showAlign = false
+                                vm.alignGroupSelection(align)
+                            },
+                        )
+                    }
+                }
+            }
+            Box {
+                val distributeLabel = stringResource(R.string.pdf_distribute)
+                IconButton(
+                    onClick = { showDistribute = true },
+                    modifier = Modifier.semantics { contentDescription = distributeLabel },
+                ) {
+                    Icon(GalleryIcons.DistributeHorizontal, contentDescription = null)
+                }
+                DropdownMenu(expanded = showDistribute, onDismissRequest = { showDistribute = false }) {
+                    val canDistribute = count >= 3
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.pdf_distribute_horizontal)) },
+                        enabled = canDistribute,
+                        onClick = {
+                            showDistribute = false
+                            vm.distributeGroupSelection(PdfSnapGuides.Orientation.Horizontal)
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.pdf_distribute_vertical)) },
+                        enabled = canDistribute,
+                        onClick = {
+                            showDistribute = false
+                            vm.distributeGroupSelection(PdfSnapGuides.Orientation.Vertical)
+                        },
+                    )
+                    if (!canDistribute)
+                        Text(
+                            stringResource(R.string.pdf_distribute_needs_three),
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        )
+                }
+            }
+            val duplicateLabel = stringResource(R.string.pdf_shortcut_duplicate)
+            IconButton(
+                onClick = vm::duplicateGroupSelection,
+                modifier = Modifier.semantics { contentDescription = duplicateLabel },
+            ) {
+                Icon(GalleryIcons.ContentCopy, contentDescription = null)
+            }
+            val deleteLabel = stringResource(R.string.pdf_delete)
+            androidx.compose.material3.FilledTonalIconButton(
+                onClick = vm::deleteGroupSelection,
+                colors =
+                    androidx.compose.material3.IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    ),
+                modifier = Modifier.semantics { contentDescription = deleteLabel },
+            ) {
+                Icon(GalleryIcons.Trash, contentDescription = null)
+            }
+            val doneLabel = stringResource(R.string.pdf_multiselect_exit)
+            IconButton(
+                onClick = vm::exitMultiSelect,
+                modifier = Modifier.semantics { contentDescription = doneLabel },
+            ) {
+                Icon(GalleryIcons.Close, contentDescription = null)
+            }
+        }
+    }
+}
+
+private fun alignEntriesForGroup() =
+    listOf(
+        PdfGeometry.Align.Left to R.string.pdf_align_left,
+        PdfGeometry.Align.Center to R.string.pdf_align_center,
+        PdfGeometry.Align.Right to R.string.pdf_align_right,
+        PdfGeometry.Align.Top to R.string.pdf_align_top,
+        PdfGeometry.Align.Middle to R.string.pdf_align_middle,
+        PdfGeometry.Align.Bottom to R.string.pdf_align_bottom,
+    )
+
+/**
  * Horizontal page strip under the canvas, above the bottom tool bar (Phase C item 3): numbered
  * thumbnails with the current page outlined, a trailing "Add page" tile, and long-press drag to
  * reorder. Complements (does not replace) the existing Pages panel/sheet, which stays the full
@@ -1246,6 +1374,9 @@ internal fun PdfShortcutsSheet(expanded: Boolean, onDismiss: () -> Unit) {
             "Ctrl+/" to R.string.pdf_shortcuts,
             "←/→/↑/↓" to R.string.pdf_shortcut_nudge,
             "Shift+←/→/↑/↓" to R.string.pdf_shortcut_nudge_large,
+            "Ctrl+A" to R.string.pdf_shortcut_select_all,
+            "Shift/Ctrl+Click" to R.string.pdf_shortcut_toggle_selection,
+            "Escape" to R.string.pdf_shortcut_exit_selection,
         )
     val content: @Composable () -> Unit = {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(16.dp)) {

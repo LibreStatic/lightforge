@@ -17,6 +17,8 @@ internal enum class PdfEditorCommand {
     ZoomIn,
     ZoomOut,
     ShowShortcuts,
+    /** Ctrl+A (Phase G2): selects every element on the current page as a group. */
+    SelectAll,
 }
 
 /** A keyboard chord in a form plain enough to unit-test without any Compose/Android KeyEvent
@@ -40,6 +42,7 @@ internal object PdfEditorCommands {
             "=", "Plus", "NumPadAdd" -> PdfEditorCommand.ZoomIn
             "-", "Minus", "NumPadSubtract" -> PdfEditorCommand.ZoomOut
             "/", "Slash" -> PdfEditorCommand.ShowShortcuts
+            "A" -> PdfEditorCommand.SelectAll
             else -> null
         }
     }
@@ -66,13 +69,16 @@ internal class PdfEditorCommandDispatcher(
         when (command) {
             PdfEditorCommand.Undo -> vm.undo()
             PdfEditorCommand.Redo -> vm.redo()
-            PdfEditorCommand.DuplicateSelection -> vm.duplicateSelected()
-            PdfEditorCommand.DeleteSelection -> vm.deleteSelectedImage()
+            // Both group ops fall back to the single-element path themselves when fewer than 2
+            // elements are selected, so routing through them here covers both cases.
+            PdfEditorCommand.DuplicateSelection -> vm.duplicateGroupSelection()
+            PdfEditorCommand.DeleteSelection -> vm.deleteGroupSelection()
             PdfEditorCommand.OpenExportSheet -> onOpenExportSheet()
             PdfEditorCommand.FitPage -> vm.viewport(1f, 0f, 0f)
             PdfEditorCommand.ZoomIn -> vm.zoomBy(1.25f)
             PdfEditorCommand.ZoomOut -> vm.zoomBy(0.8f)
             PdfEditorCommand.ShowShortcuts -> onShowShortcuts()
+            PdfEditorCommand.SelectAll -> vm.selectAllOnPage()
         }
     }
 }
