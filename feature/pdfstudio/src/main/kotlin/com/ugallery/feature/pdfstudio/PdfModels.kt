@@ -322,10 +322,19 @@ object PdfGeometry {
         )
     }
 
-    fun grid(p: PdfPage, columns: Int, gap: Double): PdfPage {
+    /**
+     * Arranges [p]'s images into a [columns]-wide grid. [rowsHint], when given, comes from the
+     * grid-template tile the user picked (see [PdfLayoutTemplates.rowsFor]) so that templates
+     * sharing a column count — 4 (2×2 in portrait) vs 6 (2×3) — still produce differently
+     * proportioned frames instead of both collapsing to `ceil(imageCount / columns)` rows. It is
+     * always widened to fit every image (never clipped), so a hint smaller than the image count
+     * only affects frame height/width, never drops images off the page. Phase F item 0.
+     */
+    fun grid(p: PdfPage, columns: Int, gap: Double, rowsHint: Int? = null): PdfPage {
         require(columns in 1..6 && gap in 0.0..30.0)
         if (p.images.isEmpty()) return p
-        val rows = (p.images.size + columns - 1) / columns
+        val minRows = (p.images.size + columns - 1) / columns
+        val rows = maxOf(rowsHint?.takeIf { it > 0 } ?: minRows, minRows)
         val w = (p.width - 2 * p.margin - gap * (columns - 1)) / columns
         val h = (p.height - 2 * p.margin - gap * (rows - 1)) / rows
         require(w > 0 && h > 0)

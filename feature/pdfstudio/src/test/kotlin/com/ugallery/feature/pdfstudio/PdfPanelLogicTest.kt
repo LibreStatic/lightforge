@@ -32,6 +32,37 @@ class PdfPanelLogicTest {
         PdfLayoutTemplates.columnsFor(3, landscape = true)
     }
 
+    @Test fun rowsForDistinguishesTemplatesSharingAColumnCount() {
+        // 4 and 6 share 2 columns in portrait but must differ in rows (Phase F item 0).
+        assertEquals(2, PdfLayoutTemplates.columnsFor(4, landscape = false))
+        assertEquals(2, PdfLayoutTemplates.columnsFor(6, landscape = false))
+        assertEquals(2, PdfLayoutTemplates.rowsFor(4, landscape = false))
+        assertEquals(3, PdfLayoutTemplates.rowsFor(6, landscape = false))
+        // And 3 and 9 share 3 columns in landscape but differ in rows.
+        assertEquals(3, PdfLayoutTemplates.columnsFor(9, landscape = true))
+        assertEquals(3, PdfLayoutTemplates.columnsFor(6, landscape = true))
+        assertEquals(3, PdfLayoutTemplates.rowsFor(9, landscape = true))
+        assertEquals(2, PdfLayoutTemplates.rowsFor(6, landscape = true))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rowsForRejectsUnsupportedTemplate() {
+        PdfLayoutTemplates.rowsFor(3, landscape = true)
+    }
+
+    @Test fun unambiguousMatchIsNullWhenSeveralTemplatesShareAColumnCount() {
+        // Portrait: columns == 1 matches both template 1 and template 2; columns == 2 matches
+        // both template 4 and template 6 — the carry-over bug from the plan's Phase F item 0.
+        assertNull(PdfLayoutTemplates.unambiguousMatch(1, landscape = false))
+        assertNull(PdfLayoutTemplates.unambiguousMatch(2, landscape = false))
+        assertEquals(9, PdfLayoutTemplates.unambiguousMatch(3, landscape = false))
+        // Landscape: columns == 2 matches both template 2 and template 4; columns == 3 matches
+        // both template 6 and template 9.
+        assertNull(PdfLayoutTemplates.unambiguousMatch(2, landscape = true))
+        assertNull(PdfLayoutTemplates.unambiguousMatch(3, landscape = true))
+        assertEquals(1, PdfLayoutTemplates.unambiguousMatch(1, landscape = true))
+    }
+
     @Test fun customSizeValidatesRangeAndFinite() {
         assertTrue(PdfCustomSize.validate(210.0, 297.0).isValid)
         assertFalse(PdfCustomSize.validate(10.0, 297.0).isValid)

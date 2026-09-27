@@ -7,6 +7,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -24,6 +26,23 @@ import kotlin.math.min
 
 private val UNIT_LABELS = listOf("mm", "cm", "in", "px")
 
+/** Flattens the per-page template selection map (page id -> template) to a savable list of
+ * primitives (Phase F item 0), so the explicit tile choice survives configuration changes and
+ * process death like the rest of the panel's UI state. */
+private val PdfTemplateSelectionSaver: Saver<androidx.compose.runtime.snapshots.SnapshotStateMap<String, Int>, List<Any>> =
+    Saver(
+        save = { map -> map.entries.flatMap { listOf(it.key, it.value) } },
+        restore = { flat ->
+            val map = mutableStateMapOf<String, Int>()
+            var i = 0
+            while (i + 1 < flat.size) {
+                map[flat[i] as String] = flat[i + 1] as Int
+                i += 2
+            }
+            map
+        },
+    )
+
 /**
  * Layout panel (Phase D item 2): visual paper cards with proportional mini previews, an
  * orientation segmented control, margin/gap steppers, visual grid-template tiles, a Snap switch,
@@ -36,6 +55,10 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
     val page = p.pages[s.page]
     var showCustomSize by remember { mutableStateOf(false) }
     var applyToAllPages by remember { mutableStateOf(false) }
+    // Phase F item 0: which grid-template tile the user explicitly tapped, per page id, so that
+    // templates sharing a column count (4 and 6 both use 2 columns in portrait) don't both show
+    // as selected. Falls back to the columns-derived match only when it is unambiguous.
+    val selectedTemplateByPage = rememberSaveable(saver = PdfTemplateSelectionSaver) { mutableStateMapOf() }
 
     Text(stringResource(R.string.pdf_design), style = MaterialTheme.typography.titleMedium)
 
@@ -165,6 +188,8 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
 
     Spacer(Modifier.height(8.dp))
     Text(stringResource(R.string.pdf_grid_template), style = MaterialTheme.typography.labelLarge)
+    val selectedTemplate = selectedTemplateByPage[page.id]
+        ?: PdfLayoutTemplates.unambiguousMatch(p.columns, landscape)
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -172,8 +197,9 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
     ) {
         PdfLayoutTemplates.TEMPLATES.forEach { template ->
             val columns = PdfLayoutTemplates.columnsFor(template, landscape)
-            val selected = columns == p.columns
+            val selected = selectedTemplate == template
             PdfTemplateTile(template, columns, landscape, selected, !s.editorLocked) {
+                selectedTemplateByPage[page.id] = template
                 vm.update { it.copy(columns = columns) }
             }
         }
@@ -206,7 +232,10 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
                 enabled = !s.editorLocked,
             )
             Button(
-                onClick = { vm.applyLayout(applyToAllPages) { PdfGeometry.grid(it, p.columns, p.gap) } },
+                onClick = {
+                    val rowsHint = selectedTemplate?.let { PdfLayoutTemplates.rowsFor(it, landscape) }
+                    vm.applyLayout(applyToAllPages) { PdfGeometry.grid(it, p.columns, p.gap, rowsHint) }
+                },
                 enabled = !s.editorLocked,
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             ) {

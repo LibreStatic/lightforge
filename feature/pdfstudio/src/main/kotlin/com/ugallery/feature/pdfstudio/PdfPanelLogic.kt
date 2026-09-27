@@ -59,6 +59,32 @@ internal object PdfLayoutTemplates {
             9 -> 3
             else -> throw IllegalArgumentException("Unsupported template: $template")
         }
+
+    /**
+     * Row count for [template], so 4 (2×2 in portrait) and 6 (2×3 in portrait) — which share the
+     * same 2-column layout — still produce differently proportioned image frames when arranged
+     * via [PdfGeometry.grid]'s `rowsHint`. Phase F item 0.
+     */
+    fun rowsFor(template: Int, landscape: Boolean): Int =
+        when (template) {
+            1 -> 1
+            2 -> if (landscape) 1 else 2
+            4 -> 2
+            6 -> if (landscape) 2 else 3
+            9 -> 3
+            else -> throw IllegalArgumentException("Unsupported template: $template")
+        }
+
+    /**
+     * Which template tile (if any) unambiguously corresponds to [columns] at the given
+     * orientation. Several templates can share a column count (4 and 6 both use 2 columns in
+     * portrait; 1 and 2-portrait both use 1), so a column-count match alone cannot say which tile
+     * to highlight as selected — used only as a fallback until the user explicitly taps a tile
+     * (see the per-page/per-sheet `selectedTemplate` UI state in PdfLayoutPanel.kt and
+     * PdfLibraryScreen.kt's new-project sheet). Phase F item 0.
+     */
+    fun unambiguousMatch(columns: Int, landscape: Boolean): Int? =
+        TEMPLATES.filter { columnsFor(it, landscape) == columns }.singleOrNull()
 }
 
 /** Inline validation for the custom page-size sheet: min 20 mm, max 2000 mm (matches

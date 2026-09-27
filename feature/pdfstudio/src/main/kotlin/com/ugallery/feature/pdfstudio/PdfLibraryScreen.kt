@@ -467,7 +467,14 @@ private fun PdfNewProjectSheet(
     var name by rememberSaveable(template) { mutableStateOf("") }
     var paper by rememberSaveable(template) { mutableStateOf(template?.paper ?: PdfPaperPresets.A4) }
     var landscape by rememberSaveable(template) { mutableStateOf(template?.landscape ?: false) }
-    var columns by rememberSaveable(template) { mutableIntStateOf(template?.columns ?: 2) }
+    // Phase F item 0: track which grid-template tile is explicitly selected instead of deriving
+    // it from a column count, since several tiles share a column count (4 and 6 both use 2
+    // columns in portrait) and would otherwise both show as selected. Falls back to the
+    // columns-derived match only when it is unambiguous.
+    var selectedTemplate by rememberSaveable(template) {
+        mutableStateOf(template?.let { PdfLayoutTemplates.unambiguousMatch(it.columns, it.landscape) })
+    }
+    val columns = selectedTemplate?.let { PdfLayoutTemplates.columnsFor(it, landscape) } ?: (template?.columns ?: 2)
     val margin = template?.margin ?: 10.0
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
@@ -516,8 +523,8 @@ private fun PdfNewProjectSheet(
             ) {
                 PdfLayoutTemplates.TEMPLATES.forEach { count ->
                     val templateColumns = PdfLayoutTemplates.columnsFor(count, landscape)
-                    PdfTemplateTile(count, templateColumns, landscape, templateColumns == columns, true) {
-                        columns = templateColumns
+                    PdfTemplateTile(count, templateColumns, landscape, selectedTemplate == count, true) {
+                        selectedTemplate = count
                     }
                 }
             }

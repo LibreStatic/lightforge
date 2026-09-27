@@ -59,6 +59,34 @@ class PdfModelsTest {
         }
     }
 
+    @Test
+    fun gridRowsHintDistinguishesTemplatesSharingAColumnCount() {
+        // 4 (2x2) and 6 (2x3) both use 2 columns in portrait; without a rows hint they'd both
+        // collapse to ceil(imageCount / columns) rows and produce identical frame heights
+        // (Phase F item 0 carry-over bug).
+        val page = PdfPage(images = List(4) { image() })
+        val asFour = PdfGeometry.grid(page, columns = 2, gap = 4.0, rowsHint = 2)
+        val asSix = PdfGeometry.grid(page, columns = 2, gap = 4.0, rowsHint = 3)
+        assertEquals(4, asFour.images.size)
+        assertEquals(4, asSix.images.size)
+        assertTrue(asFour.images[0].height > asSix.images[0].height)
+        asFour.images.forEach { assertTrue(it.y + it.height <= page.height + .000001) }
+        asSix.images.forEach { assertTrue(it.y + it.height <= page.height + .000001) }
+    }
+
+    @Test
+    fun gridRowsHintNeverDropsImagesBelowItsCapacity() {
+        // A rows hint smaller than what the image count needs (e.g. applying the 4-photo
+        // template to a page that already has 7 images) must still fit every image, never clip.
+        val page = PdfPage(images = List(7) { image() })
+        val p = PdfGeometry.grid(page, columns = 2, gap = 4.0, rowsHint = 2)
+        assertEquals(7, p.images.size)
+        p.images.forEach {
+            assertTrue(it.y + it.height <= page.height + .000001)
+            assertTrue(it.x + it.width <= page.width + .000001)
+        }
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsInvalidGeometry() {
         project().copy(pages = listOf(PdfPage(width = Double.NaN))).validate()
