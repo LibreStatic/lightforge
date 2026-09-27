@@ -39,6 +39,63 @@ data class PdfImage(
     val focusY: Double = .5,
     val locked: Boolean = true,
     val rotation: Int = 0,
+    /** Paint order (Phase G1a) — see [PdfLayers]. Defaults to 0, the value every image encoded
+     * before texts existed decodes with, so a v1 project's stacking (list order, images only)
+     * is unchanged. */
+    val z: Int = 0,
+)
+
+/** Simple text-layer font family (Phase G1a). Bundled as Noto Sans / Noto Serif, Regular and
+ * Bold only — see `feature/pdfstudio/src/main/assets/fonts/`. */
+enum class PdfFontFamily {
+    Sans,
+    Serif,
+}
+
+enum class PdfFontWeight {
+    Regular,
+    Bold,
+}
+
+/** Horizontal text alignment within [PdfText]'s box. Distinct from [PdfGeometry.Align], which
+ * aligns a whole element relative to the page/margins; `Start` is always the physical left edge —
+ * the page is never mirrored, including in RTL locales. */
+enum class PdfTextAlign {
+    Start,
+    Center,
+    End,
+}
+
+/** Fixed print-space ink palette for the text layer. Never resolved through the Material theme —
+ * see [PdfPaperTokens], the only file allowed to turn these into actual color values, for both
+ * Compose (editor, Phase G1b) and the isolated PDFBox renderer. */
+enum class PdfInk {
+    Black,
+    DarkGray,
+    Red,
+    Blue,
+    Green,
+}
+
+/**
+ * A simple text box (Phase G1a). Geometry (`x`/`y`/`width`/`height`) uses the same page-space mm
+ * coordinates as [PdfImage]. Not allowed on an imported-PDF page ([PdfPage.source] != null) — see
+ * [PdfProject.validate].
+ */
+data class PdfText(
+    val id: String = newId(),
+    val text: String,
+    val x: Double = 10.0,
+    val y: Double = 10.0,
+    val width: Double = 100.0,
+    val height: Double = 40.0,
+    val sizePt: Double = 12.0,
+    val font: PdfFontFamily = PdfFontFamily.Sans,
+    val weight: PdfFontWeight = PdfFontWeight.Regular,
+    val align: PdfTextAlign = PdfTextAlign.Center,
+    val ink: PdfInk = PdfInk.Black,
+    /** Paint order (Phase G1a) — see [PdfLayers]. */
+    val z: Int = 0,
 )
 
 data class PdfPage(
@@ -50,7 +107,44 @@ data class PdfPage(
     val source: String? = null,
     val sourcePage: Int = 0,
     val rotation: Int = 0,
+    /** Text layer (Phase G1a). Always empty on an imported-PDF page ([source] != null) — see
+     * [PdfProject.validate]. Serialized by [PdfCodec] version 2; a version-1 project decodes with
+     * an empty list, unchanged from before texts existed. */
+    val texts: List<PdfText> = emptyList(),
 )
+
+/**
+ * Shared paint order for a page's images and texts (Phase G1a). The simplest robust option that
+ * lets the two element kinds interleave without a separate ordering list to keep in sync with
+ * [PdfPage.images]/[PdfPage.texts]: each element carries its own `z` int, and paint order is
+ * simply "sort by `z`". Ties keep each list's own relative order, images before texts — so a v1
+ * project, where every image defaults to `z == 0` and no texts exist, paints exactly as it always
+ * did. A future Layer menu (Phase G1b: bring forward/back) only has to change one element's `z`
+ * (e.g. `max(every other z) + 1` to bring to front, `min(...) - 1` to send to back); nothing else
+ * needs to move.
+ */
+object PdfLayers {
+    sealed interface Element {
+        val z: Int
+
+        data class Img(val image: PdfImage) : Element {
+            override val z get() = image.z
+        }
+
+        data class Txt(val text: PdfText) : Element {
+            override val z get() = text.z
+        }
+    }
+
+    /** [page]'s images and texts, interleaved in paint order (back to front). */
+    fun order(page: PdfPage): List<Element> =
+        (page.images.map(Element::Img) + page.texts.map(Element::Txt)).sortedBy { it.z }
+
+    /** The `z` a newly added element should use to paint in front of everything already on
+     * [page]. */
+    fun nextZ(page: PdfPage): Int =
+        (page.images.asSequence().map { it.z } + page.texts.asSequence().map { it.z }).maxOrNull()?.plus(1) ?: 0
+}
 
 data class PdfProject(
     val id: String = newId(),
@@ -84,7 +178,10 @@ data class PdfProject(
         require(pages.map { it.id }.distinct().size == pages.size)
         pages.forEach { p ->
             require(p.id.matches(Regex("[a-zA-Z0-9-]{1,80}")))
-            require(p.images.map { it.id }.distinct().size == p.images.size)
+            // Ids are unique across BOTH element kinds (Phase G1a): they share one id space so a
+            // Layer menu or a selection set can reference either kind without a type tag.
+            val elementIds = p.images.map { it.id } + p.texts.map { it.id }
+            require(elementIds.distinct().size == elementIds.size)
             require(
                 p.width.isFinite() &&
                     p.height.isFinite() &&
@@ -96,12 +193,16 @@ data class PdfProject(
                     p.margin.isFinite() &&
                     p.margin in 0.0..min(p.width, p.height) / 4
             )
-            require(p.images.size <= 24 && p.sourcePage >= 0)
+            // 24-element cap now counts images AND texts together (Phase G1a).
+            require(p.images.size + p.texts.size <= 24 && p.sourcePage >= 0)
             p.source?.let { hash ->
                 require(
                     hash in known &&
                         assets.first { it.hash == hash }.mime == "application/pdf" &&
-                        p.images.isEmpty()
+                        p.images.isEmpty() &&
+                        // Imported PDF pages keep their original vector content; the text layer is
+                        // only for pages this app lays out itself.
+                        p.texts.isEmpty()
                 )
             }
             p.images.forEach { i ->
@@ -126,6 +227,21 @@ data class PdfProject(
                         i.focusY in 0.0..1.0 &&
                         i.rotation in setOf(0, 90, 180, 270)
                 )
+            }
+            p.texts.forEach { t ->
+                require(t.id.matches(Regex("[a-zA-Z0-9-]{1,80}")))
+                require(t.text.isNotEmpty() && t.text.length <= 2000)
+                require(PdfTextSupport.check(t.text).isSuccess)
+                require(listOf(t.x, t.y, t.width, t.height, t.sizePt).all(Double::isFinite))
+                require(
+                    t.x >= 0 &&
+                        t.y >= 0 &&
+                        t.width > 0 &&
+                        t.height > 0 &&
+                        t.x + t.width <= p.width + .001 &&
+                        t.y + t.height <= p.height + .001
+                )
+                require(t.sizePt in 6.0..144.0)
             }
         }
     }

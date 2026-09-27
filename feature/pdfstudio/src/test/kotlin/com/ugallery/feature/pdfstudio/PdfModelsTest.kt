@@ -317,6 +317,172 @@ class PdfModelsTest {
     }
 
     @Test
+    fun textJsonRoundTrip() {
+        val p =
+            project()
+                .copy(
+                    pages =
+                        listOf(
+                            PdfPage(
+                                images = listOf(image()),
+                                texts =
+                                    listOf(
+                                        PdfText(
+                                            text = "Hello, Ελλάδα, Россия",
+                                            x = 5.0,
+                                            y = 6.0,
+                                            width = 90.0,
+                                            height = 30.0,
+                                            sizePt = 18.0,
+                                            font = PdfFontFamily.Serif,
+                                            weight = PdfFontWeight.Bold,
+                                            align = PdfTextAlign.End,
+                                            ink = PdfInk.Blue,
+                                            z = 3,
+                                        )
+                                    ),
+                            )
+                        )
+                )
+        assertEquals(p, PdfCodec.decode(PdfCodec.encode(p)))
+    }
+
+    @Test
+    fun combinedElementCountOfTwentyFourIsTheHardLimit() {
+        val page = PdfPage(images = List(20) { image() }, texts = List(4) { PdfText(text = "x") })
+        project().copy(pages = listOf(page)).validate()
+        val overflowByOneText =
+            page.copy(texts = page.texts + PdfText(text = "y"))
+        assertTrue(
+            runCatching { project().copy(pages = listOf(overflowByOneText)).validate() }.isFailure
+        )
+        val overflowByOneImage = page.copy(images = page.images + image())
+        assertTrue(
+            runCatching { project().copy(pages = listOf(overflowByOneImage)).validate() }.isFailure
+        )
+    }
+
+    @Test
+    fun textsAreNotAllowedOnAnImportedPdfPage() {
+        val pdfHash = "b".repeat(64)
+        val p =
+            project()
+                .copy(
+                    assets = project().assets + PdfAsset(pdfHash, "application/pdf"),
+                    pages =
+                        listOf(
+                            PdfPage(source = pdfHash, texts = listOf(PdfText(text = "not allowed")))
+                        ),
+                )
+        assertTrue(runCatching { p.validate() }.isFailure)
+    }
+
+    @Test
+    fun rejectsOutOfRangeTextSizeAndBounds() {
+        assertTrue(
+            runCatching {
+                    project()
+                        .copy(pages = listOf(PdfPage(texts = listOf(PdfText(text = "x", sizePt = 5.0)))))
+                        .validate()
+                }
+                .isFailure
+        )
+        assertTrue(
+            runCatching {
+                    project()
+                        .copy(
+                            pages =
+                                listOf(
+                                    PdfPage(
+                                        texts =
+                                            listOf(
+                                                PdfText(
+                                                    text = "x",
+                                                    x = 190.0,
+                                                    width = 50.0,
+                                                    height = 10.0,
+                                                )
+                                            )
+                                    )
+                                )
+                        )
+                        .validate()
+                }
+                .isFailure
+        )
+    }
+
+    @Test
+    fun rejectsTextLengthOutsideOneToTwoThousandCharacters() {
+        assertTrue(
+            runCatching {
+                    project().copy(pages = listOf(PdfPage(texts = listOf(PdfText(text = ""))))).validate()
+                }
+                .isFailure
+        )
+        assertTrue(
+            runCatching {
+                    project()
+                        .copy(pages = listOf(PdfPage(texts = listOf(PdfText(text = "x".repeat(2001))))))
+                        .validate()
+                }
+                .isFailure
+        )
+        // Exactly at the limit is fine.
+        project().copy(pages = listOf(PdfPage(texts = listOf(PdfText(text = "x".repeat(2000)))))).validate()
+    }
+
+    @Test
+    fun rejectsUnsupportedGlyphsAtValidationTime() {
+        assertTrue(
+            runCatching {
+                    project()
+                        .copy(pages = listOf(PdfPage(texts = listOf(PdfText(text = "مرحبا")))))
+                        .validate()
+                }
+                .isFailure
+        )
+    }
+
+    @Test
+    fun elementIdsAreUniqueAcrossImagesAndTexts() {
+        val sharedId = "shared-id"
+        val page =
+            PdfPage(
+                images = listOf(image().copy(id = sharedId)),
+                texts = listOf(PdfText(id = sharedId, text = "x")),
+            )
+        assertTrue(runCatching { project().copy(pages = listOf(page)).validate() }.isFailure)
+    }
+
+    @Test
+    fun paintOrderSortsByZKeepingImagesBeforeTextsOnTies() {
+        val a = image().copy(id = "a", z = 0)
+        val b = image().copy(id = "b", z = 2)
+        val t1 = PdfText(id = "t1", text = "one", z = 0)
+        val t2 = PdfText(id = "t2", text = "two", z = 1)
+        val page = PdfPage(images = listOf(a, b), texts = listOf(t1, t2))
+        val order = PdfLayers.order(page)
+        val ids =
+            order.map {
+                when (it) {
+                    is PdfLayers.Element.Img -> it.image.id
+                    is PdfLayers.Element.Txt -> it.text.id
+                }
+            }
+        // z=0: image "a" then text "t1" (images-before-texts tie-break); then z=1 "t2"; then z=2 "b".
+        assertEquals(listOf("a", "t1", "t2", "b"), ids)
+    }
+
+    @Test
+    fun nextZIsOneMoreThanTheHighestExistingZ() {
+        val page =
+            PdfPage(images = listOf(image().copy(z = 5)), texts = listOf(PdfText(text = "x", z = 2)))
+        assertEquals(6, PdfLayers.nextZ(page))
+        assertEquals(0, PdfLayers.nextZ(PdfPage()))
+    }
+
+    @Test
     fun constrainedExtremeRatioIsFinite() {
         for (n in 1..1000) {
             val i =

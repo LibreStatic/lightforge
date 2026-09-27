@@ -4,11 +4,17 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 object PdfCodec {
+    /** Bumped from 1 in Phase G1a to add the text layer and the images'/texts' shared `z` paint
+     * order (see [PdfLayers]). [decode] still accepts a version-1 payload unchanged (no `z`, no
+     * `texts`) — every new field below has a default that reproduces the old, images-only
+     * behavior. Any version outside 1..2 is rejected outright, not silently upgraded. */
+    private const val CURRENT_VERSION = 2
+
     fun encode(p: PdfProject): String =
         JSONObject()
             .apply {
                 put("format", "com.ugallery.pdf-project")
-                put("version", 1)
+                put("version", CURRENT_VERSION)
                 put("id", p.id)
                 put("name", p.name)
                 put("unit", p.unit.name)
@@ -58,7 +64,28 @@ object PdfCodec {
                                                 put("fy", i.focusY)
                                                 put("locked", i.locked)
                                                 put("rotation", i.rotation)
+                                                put("z", i.z)
                                             }
+                                        }
+                                    ),
+                                )
+                                put(
+                                    "texts",
+                                    JSONArray(
+                                        page.texts.map { t ->
+                                            JSONObject()
+                                                .put("id", t.id)
+                                                .put("text", t.text)
+                                                .put("x", t.x)
+                                                .put("y", t.y)
+                                                .put("w", t.width)
+                                                .put("h", t.height)
+                                                .put("size", t.sizePt)
+                                                .put("font", t.font.name)
+                                                .put("weight", t.weight.name)
+                                                .put("align", t.align.name)
+                                                .put("ink", t.ink.name)
+                                                .put("z", t.z)
                                         }
                                     ),
                                 )
@@ -72,7 +99,8 @@ object PdfCodec {
     fun decode(raw: String): PdfProject {
         require(raw.length <= 2_000_000)
         val o = JSONObject(raw)
-        require(o.getString("format") == "com.ugallery.pdf-project" && o.getInt("version") == 1)
+        val version = o.getInt("version")
+        require(o.getString("format") == "com.ugallery.pdf-project" && version in 1..CURRENT_VERSION)
         val a = o.getJSONArray("assets")
         val pages = o.getJSONArray("pages")
         return PdfProject(
@@ -123,8 +151,31 @@ object PdfCodec {
                                         focusY = i.getDouble("fy"),
                                         locked = i.getBoolean("locked"),
                                         rotation = i.optInt("rotation"),
+                                        z = i.optInt("z", 0),
                                     )
                                 },
+                            // Absent entirely in a version-1 payload — decodes to no texts, same
+                            // as an images-only project always used to look.
+                            texts =
+                                page.optJSONArray("texts")?.let { texts ->
+                                    List(texts.length()) { x ->
+                                        val t = texts.getJSONObject(x)
+                                        PdfText(
+                                            id = t.getString("id"),
+                                            text = t.getString("text"),
+                                            x = t.getDouble("x"),
+                                            y = t.getDouble("y"),
+                                            width = t.getDouble("w"),
+                                            height = t.getDouble("h"),
+                                            sizePt = t.getDouble("size"),
+                                            font = PdfFontFamily.valueOf(t.getString("font")),
+                                            weight = PdfFontWeight.valueOf(t.getString("weight")),
+                                            align = PdfTextAlign.valueOf(t.getString("align")),
+                                            ink = PdfInk.valueOf(t.getString("ink")),
+                                            z = t.optInt("z", 0),
+                                        )
+                                    }
+                                } ?: emptyList(),
                         )
                     },
             )
