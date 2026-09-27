@@ -297,7 +297,9 @@ class PdfKeyboardPointerDeviceTest {
         return requireNotNull(found)
     }
     private fun focusedControl(label: String): Boolean = windowNodes().any { node ->
-        node.isFocused && node.isEnabled && node.isClickable && nodes(node).any { it.text?.toString() == label }
+        // Icon-only controls expose their label as a content description rather than text.
+        node.isFocused && node.isEnabled && node.isClickable &&
+            nodes(node).any { it.text?.toString() == label || it.contentDescription?.toString() == label }
     }
     private fun key(code: Int, meta: Int = 0) {
         val now = SystemClock.uptimeMillis()

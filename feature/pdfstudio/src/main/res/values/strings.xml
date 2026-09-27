@@ -113,7 +113,7 @@
     <string name="pdf_export">Export</string>
     <string name="pdf_savestate_saving">Saving…</string>
     <string name="pdf_savestate_saved">Saved · just now</string>
-    <string name="pdf_savestate_error">Couldn't save</string>
+    <string name="pdf_savestate_error">Couldn\'t save</string>
     <string name="pdf_duplicateproject">Duplicate project</string>
     <string name="pdf_deleteproject_action">Delete project</string>
     <plurals name="pdf_delete_pages_action">

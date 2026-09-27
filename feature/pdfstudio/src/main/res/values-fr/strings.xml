@@ -112,8 +112,8 @@
     <string name="pdf_failure_interrupted">Le processeur PDF a redémarré pendant l’opération. Les exportations reprennent automatiquement ; pour les autres actions, réessayez.</string>
     <string name="pdf_export">Exporter</string>
     <string name="pdf_savestate_saving">Enregistrement…</string>
-    <string name="pdf_savestate_saved">Enregistré · à l'instant</string>
-    <string name="pdf_savestate_error">Échec de l'enregistrement</string>
+    <string name="pdf_savestate_saved">Enregistré · à l\'instant</string>
+    <string name="pdf_savestate_error">Échec de l\'enregistrement</string>
     <string name="pdf_duplicateproject">Dupliquer le projet</string>
     <string name="pdf_deleteproject_action">Supprimer le projet</string>
     <plurals name="pdf_delete_pages_action">

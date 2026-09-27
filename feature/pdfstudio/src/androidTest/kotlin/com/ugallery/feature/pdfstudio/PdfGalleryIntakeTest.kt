@@ -145,7 +145,7 @@ class PdfGalleryIntakeTest {
                     20
                 )
             }
-            assertEquals(PdfFailure.UnsupportedFormat.name, db.galleryDeliveries().get(id)!!.error)
+            assertEquals(PdfFailure.UnsupportedFormat.name, db.galleryDeliveries().get(id)!!.failure())
             assertNull(db.imports().get(id))
             assertEquals(before, db.projects().all().map { it.id }.toSet())
             png(source)

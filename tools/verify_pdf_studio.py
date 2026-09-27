@@ -10,6 +10,9 @@ expected = None
 for locale in ["values", "values-es", "values-fr", "values-pt", "values-it", "values-de"]:
     strings = {n.attrib["name"]: "".join(n.itertext()) for n in ET.parse(resources / locale / "strings.xml").getroot()}
     assert all(v.strip() for v in strings.values()), locale
+    # aapt2 rejects bare apostrophes/quotes; they must be escaped as \' and \".
+    bare = [k for k, v in strings.items() if re.search(r"(?<!\\)['\"]", v)]
+    assert not bare, f"{locale}: unescaped apostrophe/quote in {bare}"
     signatures = {k: sorted(re.findall(r"%[0-9]+\$[dsf]", v)) for k,v in strings.items()}
     if expected is None: expected = signatures
     else: assert signatures == expected, locale

@@ -86,7 +86,7 @@ for width,height,font,locale,dark,rtl in cases:
     assert theme['dynamic']==args.dynamic
     (out/(name+'-theme.json')).write_text(json.dumps(theme,indent=2)+'\n')
     # Export is a filled top-bar action now; the overflow only holds the less frequent actions.
-    assert visible(ls['pdf_export'])
+    node_for(root,ls['pdf_export'])
     tap(ls['pdf_project_actions']);menu=snap(name+'-menu');node_for(menu,ls['pdf_queue']);node_for(menu,ls['pdf_portable'])
     tap(ls['pdf_project_details']);details=snap(name+'-details');node_for(details,ls['pdf_name'])
     # Edit actual title, then undo through the top bar's own Undo button; reopening must reflect
@@ -97,9 +97,9 @@ for width,height,font,locale,dark,rtl in cases:
     assert edited!=initial['name'] and edited.replace('X','',1)==initial['name'],state()
     dismiss_to_editor(ls['pdf_project_actions'])
     tap(ls['pdf_undo']);assert state()['name']==initial['name'],state()
-    if any(n.get('class')=='android.widget.EditText' for n in root.iter('node')):
-        editor=snap(name+'-undo-editor')
-        assert any(n.get('text')==initial['name'] for n in editor.iter('node') if n.get('class')=='android.widget.EditText'), 'Inline title did not follow undo'
+    # The title lives in the top app bar (tap to rename), not in an inline text field.
+    editor=snap(name+'-undo-editor')
+    assert any(n.get('text')==initial['name'] and n.get('class')!='android.widget.EditText' for n in editor.iter('node')), 'Top bar title did not follow undo'
     tap(ls['pdf_project_actions']);tap(ls['pdf_project_details']);restored=snap(name+'-restored')
     assert any(n.get('text')==initial['name'] for n in restored.iter('node') if n.get('class')=='android.widget.EditText')
     dismiss_to_editor(ls['pdf_project_actions'])
