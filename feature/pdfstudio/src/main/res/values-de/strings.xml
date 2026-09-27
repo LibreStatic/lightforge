@@ -252,6 +252,9 @@
     <string name="pdf_intake_replace_photo">Foto ersetzen</string>
     <string name="pdf_intake_remove_retry">Entfernen &amp; erneut versuchen</string>
     <string name="pdf_order_badge">Position %1$d</string>
+    <string name="pdf_library_rename_blank">Namen eingeben</string>
+    <string name="pdf_library_rename_too_long">Maximal 80 Zeichen</string>
+    <string name="pdf_library_duplicate_suffix">%1$s (Kopie)</string>
     <string name="pdf_reset">Zurücksetzen</string>
     <string name="pdf_asset_pixel_size">%1$d × %2$d px</string>
     <string name="pdf_rotatepage_this">Diese Seite drehen</string>

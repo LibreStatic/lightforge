@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
@@ -27,16 +28,30 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-/** Visual treatment shared by every selectable media grid. */
+/**
+ * Visual treatment shared by every selectable media grid.
+ *
+ * [order] shows the item's 1-based pick order instead of a plain checkmark, for a caller whose
+ * selection order matters (e.g. "Create PDF" from the gallery, where tap order becomes page
+ * order). Passing null (the default, and every existing caller) keeps the plain checkmark; this
+ * never changes behavior for a caller that does not opt in.
+ */
 @Composable
-fun MediaSelectionOverlay(selected: Boolean, modifier: Modifier = Modifier) {
+fun MediaSelectionOverlay(selected: Boolean, modifier: Modifier = Modifier, order: Int? = null) {
     if (!selected) return
+    val orderedDescription =
+        order?.let { stringResource(R.string.media_tile_selected_position, it) }
     Box(
         modifier
             .fillMaxSize()
@@ -44,16 +59,27 @@ fun MediaSelectionOverlay(selected: Boolean, modifier: Modifier = Modifier) {
             .testTag("media_selection_indicator")
     ) {
         Surface(
-            modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(28.dp),
+            modifier =
+                Modifier.align(Alignment.TopEnd).padding(8.dp).size(28.dp).let {
+                    if (orderedDescription != null)
+                        it.semantics { contentDescription = orderedDescription }
+                    else it
+                },
             shape = CircleShape,
             color = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary,
         ) {
-            Icon(
-                imageVector = GalleryIcons.Check,
-                contentDescription = null,
-                modifier = Modifier.padding(5.dp),
-            )
+            if (order != null) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(order.toString(), fontSize = 13.sp)
+                }
+            } else {
+                Icon(
+                    imageVector = GalleryIcons.Check,
+                    contentDescription = null,
+                    modifier = Modifier.padding(5.dp),
+                )
+            }
         }
     }
 }

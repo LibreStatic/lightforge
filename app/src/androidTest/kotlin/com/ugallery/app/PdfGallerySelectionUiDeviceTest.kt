@@ -143,10 +143,11 @@ class PdfGallerySelectionUiDeviceTest {
             assertTrue(device.wait(Until.hasObject(By.text(selectedThree)), 10_000))
             capture("selection")
             val more = context.getString(com.ugallery.feature.viewer.R.string.viewer_more)
-            val pdfStudio = context.getString(com.ugallery.feature.pdfstudio.R.string.pdf_studio)
+            val createPdf = context.getString(com.ugallery.feature.pdfstudio.R.string.pdf_selection_create_pdf)
             // "Create PDF" is a promoted icon-only action in the selection bar (Phase E), no
-            // longer inside the overflow menu.
-            device.findObject(By.desc(pdfStudio)).click()
+            // longer inside the overflow menu; its accessible label is "Create PDF", distinct
+            // from the studio's own title ("PDF Studio") used elsewhere in this flow.
+            device.findObject(By.desc(createPdf)).click()
             val project =
                 withTimeout(40_000) {
                     while (true) {

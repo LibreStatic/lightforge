@@ -91,10 +91,19 @@ class PdfProjectRepository(
     )
 
     /** Page count, on-disk asset bytes and the cover page id, for the library list card. */
+    /** Hash -> on-disk byte size. A hash is a content address (sha256 of the asset file), so its
+     * size never changes once written; caching it means an autosave (which calls [summarize] on
+     * every save, not only when assets change) never re-stats every asset file it already knows
+     * about. Entries for assets [delete] has removed are simply never looked up again. */
+    private val assetSizeCache = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    private fun assetSize(hash: String): Long =
+        assetSizeCache.getOrPut(hash) { runCatching { file(hash).length() }.getOrDefault(0L) }
+
     private fun summarize(p: PdfProject): ProjectSummary =
         ProjectSummary(
             pageCount = p.pages.size,
-            sourceBytes = p.usedAssets().sumOf { hash -> runCatching { file(hash).length() }.getOrDefault(0L) },
+            sourceBytes = p.usedAssets().sumOf(::assetSize),
             coverPageId = p.pages.firstOrNull()?.id,
         )
 
@@ -102,6 +111,14 @@ class PdfProjectRepository(
      * Backfills [PdfProjectRow.pageCount]/[sourceBytes]/[coverPageId] for rows saved before the
      * v9 migration (pageCount = 0 marks them pending). Safe to call repeatedly and off the main
      * thread; the library screen triggers it once per load.
+     *
+     * A real [save] always computes a fresh, correct summary from whatever is currently open, so
+     * it must never be clobbered by this lazy pass computed from a manifest read earlier and
+     * possibly now stale (e.g. the project was opened and edited while backfill was still
+     * running). [PdfProjectDao.updateSummaryIfPending]'s `WHERE pageCount = 0` guard makes that
+     * race harmless without needing the global storage lock: a project's real pageCount is never
+     * 0 (every project has at least one page), so the conditional update simply misses rows a
+     * concurrent save has already summarized correctly, leaving them alone.
      */
     suspend fun backfillSummaries() =
         withContext(Dispatchers.IO) {
@@ -111,7 +128,7 @@ class PdfProjectRepository(
                     val project = runCatching { PdfCodec.decode(row.manifest) }.getOrNull() ?: return@forEach
                     if (project.pages.isEmpty()) return@forEach
                     val summary = summarize(project)
-                    dao.updateSummary(row.id, summary.pageCount, summary.sourceBytes, summary.coverPageId)
+                    dao.updateSummaryIfPending(row.id, summary.pageCount, summary.sourceBytes, summary.coverPageId)
                 }
         }
 

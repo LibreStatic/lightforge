@@ -94,7 +94,7 @@ class PdfImportInboxTest {
             }
         val migrated =
             androidx.room.Room.databaseBuilder(context, PdfProjectDatabase::class.java, name)
-                .addMigrations(PdfProjectDatabase.MIGRATION_6_7, PdfProjectDatabase.MIGRATION_7_8)
+                .addMigrations(*PdfProjectDatabase.ALL_MIGRATIONS)
                 .build()
         try {
             assertEquals(receipt, migrated.imports().get(receipt.requestId))

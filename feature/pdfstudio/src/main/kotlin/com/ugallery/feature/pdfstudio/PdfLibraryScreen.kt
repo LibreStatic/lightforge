@@ -418,6 +418,17 @@ private fun PdfLibraryCardThumbnail(projectId: String, vm: PdfStudioViewModel) {
 @Composable
 private fun PdfRenameProjectDialog(initial: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     var text by remember { mutableStateOf(initial) }
+    // Surfaced as validation, not silently enforced: a blank name or one over 80 characters shows
+    // why Done is disabled instead of truncating/no-oping without telling the user (Phase E review
+    // finding).
+    val blank = text.isBlank()
+    val tooLong = text.length > 80
+    val errorMessage =
+        when {
+            blank -> stringResource(R.string.pdf_library_rename_blank)
+            tooLong -> stringResource(R.string.pdf_library_rename_too_long)
+            else -> null
+        }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.pdf_library_rename_title)) },
@@ -427,10 +438,12 @@ private fun PdfRenameProjectDialog(initial: String, onDismiss: () -> Unit, onCon
                 onValueChange = { text = it },
                 singleLine = true,
                 label = { Text(stringResource(R.string.pdf_name)) },
+                isError = errorMessage != null,
+                supportingText = errorMessage?.let { { Text(it) } },
             )
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(text) }, enabled = text.isNotBlank()) {
+            TextButton(onClick = { onConfirm(text) }, enabled = errorMessage == null) {
                 Text(stringResource(R.string.pdf_done))
             }
         },

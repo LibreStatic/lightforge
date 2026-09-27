@@ -86,6 +86,9 @@ fun AdaptivePagedPhotosTimeline(
     cropThumbnails: Boolean = true,
     onDensityChange: ((Int) -> Unit)? = null,
     isMediaSelected: (TimelineMedia) -> Boolean = { false },
+    /** 1-based pick order for a selection whose order matters (e.g. Create PDF); null (the
+     * default) keeps the plain checkmark badge. */
+    selectionOrder: (TimelineMedia) -> Int? = { null },
     focusReturn: TimelineFocusReturn? = null,
     onFocusReturnConsumed: (TimelineFocusReturn) -> Unit = {},
 ) {
@@ -128,6 +131,7 @@ fun AdaptivePagedPhotosTimeline(
             onMediaSelectionChange = onMediaSelectionChange,
             cropThumbnails = cropThumbnails,
             isMediaSelected = isMediaSelected,
+            selectionOrder = selectionOrder,
             focusReturn = focusReturn,
             onFocusReturnConsumed = onFocusReturnConsumed,
         )
@@ -147,6 +151,7 @@ fun PagedPhotosTimeline(
     onMediaSelectionChange: (TimelineMedia, Boolean) -> Unit = { _, _ -> },
     cropThumbnails: Boolean = true,
     isMediaSelected: (TimelineMedia) -> Boolean = { false },
+    selectionOrder: (TimelineMedia) -> Int? = { null },
     focusReturn: TimelineFocusReturn? = null,
     onFocusReturnConsumed: (TimelineFocusReturn) -> Unit = {},
 ) {
@@ -208,6 +213,7 @@ fun PagedPhotosTimeline(
                     },
                     cropToFill = cropThumbnails,
                     selected = isMediaSelected(entry.value),
+                    selectionOrder = selectionOrder(entry.value),
                     focusReturn = focusReturn?.takeIf { request ->
                         !state.isScrollInProgress && request.key == entry.value.key &&
                             state.layoutInfo.visibleItemsInfo.any { it.index == index }
@@ -285,6 +291,7 @@ private fun TimelineThumbnail(
     onLongClick: () -> Unit,
     cropToFill: Boolean = true,
     selected: Boolean = false,
+    selectionOrder: Int? = null,
     focusReturn: TimelineFocusReturn? = null,
     onFocusReturnConsumed: (TimelineFocusReturn) -> Unit = {},
 ) {
@@ -399,7 +406,7 @@ private fun TimelineThumbnail(
                 }
             }
         }
-        MediaSelectionOverlay(selected)
+        MediaSelectionOverlay(selected, order = selectionOrder)
     }
 }
 

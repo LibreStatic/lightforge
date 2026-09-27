@@ -34,15 +34,7 @@ class PdfEditorPersistenceTest {
         }
         val db =
             Room.databaseBuilder(context, PdfProjectDatabase::class.java, name)
-                .addMigrations(
-                    PdfProjectDatabase.MIGRATION_1_2,
-                    PdfProjectDatabase.MIGRATION_2_3,
-                    PdfProjectDatabase.MIGRATION_3_4,
-                    PdfProjectDatabase.MIGRATION_4_5,
-                    PdfProjectDatabase.MIGRATION_5_6,
-                    PdfProjectDatabase.MIGRATION_6_7,
-                    PdfProjectDatabase.MIGRATION_7_8,
-                )
+                .addMigrations(*PdfProjectDatabase.ALL_MIGRATIONS)
                 .build()
         try {
             val row = db.projects().get(p.id)!!
@@ -100,13 +92,7 @@ class PdfEditorPersistenceTest {
         }
         val db =
             Room.databaseBuilder(context, PdfProjectDatabase::class.java, name)
-                .addMigrations(
-                    PdfProjectDatabase.MIGRATION_3_4,
-                    PdfProjectDatabase.MIGRATION_4_5,
-                    PdfProjectDatabase.MIGRATION_5_6,
-                    PdfProjectDatabase.MIGRATION_6_7,
-                    PdfProjectDatabase.MIGRATION_7_8,
-                )
+                .addMigrations(*PdfProjectDatabase.ALL_MIGRATIONS)
                 .build()
         try {
             assertEquals(project, PdfCodec.decode(db.projects().get(project.id)!!.manifest))
@@ -165,12 +151,7 @@ class PdfEditorPersistenceTest {
         }
         val db =
             Room.databaseBuilder(context, PdfProjectDatabase::class.java, name)
-                .addMigrations(
-                    PdfProjectDatabase.MIGRATION_4_5,
-                    PdfProjectDatabase.MIGRATION_5_6,
-                    PdfProjectDatabase.MIGRATION_6_7,
-                    PdfProjectDatabase.MIGRATION_7_8,
-                )
+                .addMigrations(*PdfProjectDatabase.ALL_MIGRATIONS)
                 .build()
         try {
             val row = db.exports().get(id)!!
@@ -203,15 +184,7 @@ class PdfEditorPersistenceTest {
             repo.delete(unrelated.id)
             val fresh =
                 Room.databaseBuilder(context, PdfProjectDatabase::class.java, "pdf-projects.db")
-                    .addMigrations(
-                        PdfProjectDatabase.MIGRATION_1_2,
-                        PdfProjectDatabase.MIGRATION_2_3,
-                        PdfProjectDatabase.MIGRATION_3_4,
-                        PdfProjectDatabase.MIGRATION_4_5,
-                        PdfProjectDatabase.MIGRATION_5_6,
-                        PdfProjectDatabase.MIGRATION_6_7,
-                        PdfProjectDatabase.MIGRATION_7_8,
-                    )
+                    .addMigrations(*PdfProjectDatabase.ALL_MIGRATIONS)
                     .build()
             try {
                 val row = fresh.projects().get(p.id)!!

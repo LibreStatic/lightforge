@@ -38,6 +38,14 @@ interface PdfProjectDao {
     )
     suspend fun updateSummary(id: String, pageCount: Int, sourceBytes: Long, coverPageId: String?)
 
+    /** Same as [updateSummary], but only when the row is still pending backfill (pageCount = 0).
+     * A concurrent [put] from a real save (which always computes a correct, current summary)
+     * must never be clobbered by a lazy backfill computed from a stale manifest read earlier. */
+    @Query(
+        "UPDATE projects SET pageCount = :pageCount, sourceBytes = :sourceBytes, coverPageId = :coverPageId WHERE id = :id AND pageCount = 0"
+    )
+    suspend fun updateSummaryIfPending(id: String, pageCount: Int, sourceBytes: Long, coverPageId: String?)
+
     @Query("DELETE FROM projects WHERE id = :id") suspend fun delete(id: String)
 }
 
@@ -147,7 +155,12 @@ abstract class PdfProjectDatabase : RoomDatabase() {
                     db.execSQL(
                         "ALTER TABLE projects ADD COLUMN sourceBytes INTEGER NOT NULL DEFAULT 0"
                     )
-                    db.execSQL("ALTER TABLE projects ADD COLUMN coverPageId TEXT")
+                    // Room's schema validator expects the literal `DEFAULT NULL` clause here
+                    // because the entity carries @ColumnInfo(defaultValue = "NULL") (needed so a
+                    // future ALTER-based migration on this column stays well-defined); a bare
+                    // `ADD COLUMN coverPageId TEXT` leaves dflt_value unset, which Room treats as
+                    // a schema mismatch even though both are semantically "no value yet".
+                    db.execSQL("ALTER TABLE projects ADD COLUMN coverPageId TEXT DEFAULT NULL")
                     // Existing rows are backfilled lazily off the main thread (see
                     // PdfProjectRepository.backfillSummaries); pageCount = 0 marks them as pending.
                     db.execSQL("ALTER TABLE gallery_deliveries ADD COLUMN targetProjectId TEXT")
@@ -156,6 +169,26 @@ abstract class PdfProjectDatabase : RoomDatabase() {
                     db.execSQL("ALTER TABLE gallery_deliveries ADD COLUMN placementY REAL")
                 }
             }
+
+        /**
+         * The single source of truth for every migration this database has ever needed, in order.
+         * Both [get] (production) and every androidTest Room builder use this array, so adding a
+         * new migration here is the only place it needs to be registered — a test builder that
+         * hand-lists a subset can no longer silently fall behind (see the v8->v9 review finding:
+         * four androidTest builders each hard-coded their own migration list and stopped at
+         * MIGRATION_7_8, so every one of them broke the moment MIGRATION_8_9 was added).
+         */
+        val ALL_MIGRATIONS: Array<androidx.room.migration.Migration> =
+            arrayOf(
+                MIGRATION_1_2,
+                MIGRATION_2_3,
+                MIGRATION_3_4,
+                MIGRATION_4_5,
+                MIGRATION_5_6,
+                MIGRATION_6_7,
+                MIGRATION_7_8,
+                MIGRATION_8_9,
+            )
 
         @Volatile private var instance: PdfProjectDatabase? = null
 
@@ -168,16 +201,7 @@ abstract class PdfProjectDatabase : RoomDatabase() {
                                 PdfProjectDatabase::class.java,
                                 "pdf-projects.db",
                             )
-                            .addMigrations(
-                                MIGRATION_1_2,
-                                MIGRATION_2_3,
-                                MIGRATION_3_4,
-                                MIGRATION_4_5,
-                                MIGRATION_5_6,
-                                MIGRATION_6_7,
-                                MIGRATION_7_8,
-                                MIGRATION_8_9,
-                            )
+                            .addMigrations(*ALL_MIGRATIONS)
                             .build()
                             .also { instance = it }
                 }

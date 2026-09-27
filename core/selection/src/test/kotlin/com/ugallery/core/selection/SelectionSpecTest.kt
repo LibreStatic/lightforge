@@ -118,5 +118,33 @@ class SelectionSpecTest {
         SelectionChunker(source).forEachChunk(SelectionSpec.queryAll(MediaQuery()), 10) {}
     }
 
+    /**
+     * `Explicit.keys` is typed `Set<MediaKey>`, but callers that need tap order (e.g. UGallery's
+     * PDF Studio "Create PDF" numbered badges — see ProductionGalleryApp's `pdfSelectionOrder`)
+     * rely on it actually being tap-order-preserving underneath, since `explicit()`/`toggle()` go
+     * through `toSet()`/`toMutableSet()`, which the Kotlin stdlib backs with a LinkedHashSet. This
+     * pins that behavior down as a deliberate contract: if a future change swaps in a plain
+     * `HashSet` (or anything else that reorders), this test catches it before a caller silently
+     * starts showing wrong page-order numbers.
+     */
+    @Test
+    fun `explicit selection keeps tap order, not insertion-hash order`() {
+        val tapped = listOf(key(5), key(1), key(9), key(3))
+        assertEquals(tapped, SelectionSpec.explicit(tapped).keys.toList())
+    }
+
+    @Test
+    fun `toggle appends newly selected keys at the end and preserves the rest`() {
+        var selection: SelectionSpec = SelectionSpec.explicit(listOf(key(1), key(2)))
+        selection = SelectionReducer.toggle(selection, key(3))
+        assertEquals(listOf(key(1), key(2), key(3)), (selection as SelectionSpec.Explicit).keys.toList())
+
+        // Deselecting and reselecting moves that key to the end, matching what the user would
+        // expect from tapping it again: it becomes the new last page, not reinserted in place.
+        selection = SelectionReducer.toggle(selection, key(1))
+        selection = SelectionReducer.toggle(selection, key(1))
+        assertEquals(listOf(key(2), key(3), key(1)), (selection as SelectionSpec.Explicit).keys.toList())
+    }
+
     private fun key(id: Long) = MediaKey("external_primary", id)
 }

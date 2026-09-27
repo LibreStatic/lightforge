@@ -3,4 +3,5 @@
     <string name="media_tile_archived">Archiviert</string>
     <string name="media_tile_favorite_description">Favorit</string>
     <string name="media_tile_file_type_description">Dateityp %1$s</string>
+    <string name="media_tile_selected_position">Ausgewählt, Position %1$d</string>
 </resources>

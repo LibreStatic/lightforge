@@ -519,7 +519,11 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
 
     fun duplicate(id: String) = operation {
         val p = requireNotNull(repository.load(id))
-        repository.save(p.copy(id = newId()))
+        val name =
+            getApplication<Application>()
+                .getString(R.string.pdf_library_duplicate_suffix, p.name)
+                .take(80)
+        repository.save(p.copy(id = newId(), name = name))
     }
 
     /** Rename from the library list (Phase E); the project is never open while the library is

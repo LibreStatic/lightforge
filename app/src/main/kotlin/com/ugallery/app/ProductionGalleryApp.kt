@@ -384,6 +384,16 @@ internal fun ProductionGalleryApp(
     val albumRename by viewModel.albumRename.collectAsState()
     val albumDelete by viewModel.albumDelete.collectAsState()
     val selection by viewModel.selection.collectAsState()
+    // 1-based pick order for the timeline's "Create PDF" badges (Phase E): SelectionSpec.Explicit
+    // is backed by a LinkedHashSet (see SelectionReducer.toggle/SelectionSpec.explicit), so its
+    // iteration order IS tap order — this only surfaces it, it does not change the selection
+    // model. Empty whenever the current selection is not eligible to become a PDF, so it never
+    // shows misleading numbers on a selection headed somewhere else (album, trash, share, ...).
+    val pdfSelectionOrder = remember(selection, viewModel) {
+        val explicit = selection as? com.ugallery.core.selection.SelectionSpec.Explicit
+        if (explicit == null || viewModel.selectedPdfSources().isEmpty()) emptyMap()
+        else explicit.keys.withIndex().associate { (index, key) -> key to index + 1 }
+    }
     var pdfReturnToDocuments by rememberSaveable { mutableStateOf(false) }
     var pendingPdfSources by rememberSaveable { mutableStateOf(arrayListOf<String>()) }
     var pendingPdfRequestId by rememberSaveable { mutableStateOf(java.util.UUID.randomUUID().toString()) }
@@ -1368,6 +1378,7 @@ internal fun ProductionGalleryApp(
                         isMediaSelected = { media ->
                             SelectionReducer.isSelected(selection, media.key)
                         },
+                        selectionOrder = { media -> pdfSelectionOrder[media.key] },
                         onMediaSelectionChange = viewModel::setMediaSelected,
                         preferredColumns = gallerySettings.thumbnails.gridColumns.takeIf { it != com.ugallery.core.preferences.AutoGridColumns },
                         cropThumbnails = gallerySettings.thumbnails.cropToFill,
@@ -3674,7 +3685,7 @@ private fun SelectionActions(
             if (canCreatePdf) GalleryExpressiveIconButton(onClick = onPdfStudio) {
                 Icon(
                     com.ugallery.core.designsystem.GalleryIcons.PictureAsPdf,
-                    contentDescription = stringResource(com.ugallery.feature.pdfstudio.R.string.pdf_studio),
+                    contentDescription = stringResource(com.ugallery.feature.pdfstudio.R.string.pdf_selection_create_pdf),
                 )
             }
             GalleryExpressiveIconButton(onClick = onShare, enabled = canShare) {
