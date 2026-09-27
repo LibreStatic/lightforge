@@ -77,7 +77,7 @@ fun PdfStudioScreen(
     var panel by rememberSaveable { mutableIntStateOf(-1) }
     var exporting by rememberSaveable { mutableStateOf(false) }
     var deletePages by remember { mutableStateOf(false) }
-    var deleteProject by remember { mutableStateOf<String?>(null) }
+    var deleteProject by remember { mutableStateOf<PdfProjectRow?>(null) }
     val imports =
         rememberLauncherForActivityResult(
             ActivityResultContracts.OpenMultipleDocuments(),
@@ -160,6 +160,15 @@ fun PdfStudioScreen(
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
             it?.let(vm::replaceSelectedImageAsset)
         }
+    // "Replace photo" on a failed gallery intake (Phase E item 5): remembers which delivery/source
+    // to swap, then lets the batch retry once a replacement is picked.
+    var replaceGalleryTarget by rememberSaveable { mutableStateOf<Pair<String, Int>?>(null) }
+    val replaceGallerySource =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            val target = replaceGalleryTarget
+            replaceGalleryTarget = null
+            if (uri != null && target != null) vm.replaceGallerySource(target.first, target.second, uri)
+        }
     // library() always works now (it joins whatever operation is in flight itself), so Back must
     // never be conditionally gated here or it can look tappable while doing nothing.
     BackHandler(project != null) { vm.library() }
@@ -177,15 +186,17 @@ fun PdfStudioScreen(
         ) {
             Column(Modifier.fillMaxSize()) {
                 if (project == null) {
-                    PdfLibraryTopBar(onBack = onExit, onQueue = { showQueue = true })
+                    PdfLibraryTopBar(onBack = onExit, onQueue = { showQueue = true }, exportJobs = exportJobs)
                     PdfLibraryScreen(
                         vm = vm,
                         projects = projects,
                         busy = state.editorLocked,
                         pendingImport = pendingImport,
-                        onNewProject = { vm.newProject(initialName) },
+                        defaultName = initialName,
                         onImportProject = { launchImport(true) },
                         onDeleteProject = { deleteProject = it },
+                        onRenameProject = { row, name -> vm.renameProject(row.id, name) },
+                        onExportProject = { vm.portableFor(it.id); showQueue = true },
                     )
                 } else {
                     PdfEditorTopBar(
@@ -248,6 +259,21 @@ fun PdfStudioScreen(
                             },
                             onRetryGallery = vm::retryGallery,
                             onDiscardGallery = vm::discardGallery,
+                            onReplaceGallerySource = { delivery ->
+                                delivery.failedSource()?.let { number ->
+                                    replaceGalleryTarget = delivery.id to number
+                                    try {
+                                        replaceGallerySource.launch(arrayOf("image/*"))
+                                    } catch (e: Exception) {
+                                        replaceGalleryTarget = null
+                                    }
+                                }
+                            },
+                            onRemoveGallerySource = { delivery ->
+                                delivery.failedSource()?.let { number ->
+                                    vm.removeGallerySource(delivery.id, number)
+                                }
+                            },
                             onSaveExport = ::saveExport,
                             onDismissMessage = vm::dismissMessage,
                             onCancelBusy = vm::cancel,
@@ -322,13 +348,13 @@ fun PdfStudioScreen(
             deletePages = false
         }
     }
-    deleteProject?.let { id ->
+    deleteProject?.let { row ->
         Confirm(
-            R.string.pdf_deleteproject,
+            stringResource(R.string.pdf_library_delete_confirm, row.name),
             stringResource(R.string.pdf_deleteproject_action),
             { deleteProject = null },
         ) {
-            vm.delete(id)
+            vm.delete(row.id)
             deleteProject = null
         }
     }

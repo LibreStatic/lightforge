@@ -187,6 +187,11 @@ class PdfUiProbeActivity : ComponentActivity() {
                                             "sheetContainerError",
                                             contrast(c.surfaceContainerLow, c.error),
                                         )
+                                        // Phase E addition: the library top bar's export-history
+                                        // dot (Badge default role pair, error/onError) and the
+                                        // library card's metadata row (surface/onSurfaceVariant is
+                                        // already covered by surfaceVariantText above).
+                                        .put("historyDot", contrast(c.error, c.onError))
                                         .toString()
                                 )
                         }

@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import kotlin.math.min
 
 enum class PdfSaveState {
     Idle,
@@ -129,6 +130,9 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         saved.get<String>("projectId")?.let { open(it) }
         refreshLastDestinationLabel()
         resumeImport()
+        // v9 backfill (Phase E): rows saved before the pageCount/sourceBytes/coverPageId columns
+        // existed carry pageCount = 0; compute and persist them once, off the main thread.
+        viewModelScope.launch { runCatching { repository.backfillSummaries() } }
         viewModelScope.launch { galleryIntake.deliveries.collect { resumeGallery() } }
         viewModelScope.launch { exportQueue.jobs.collect(::followExport) }
         viewModelScope.launch {
@@ -313,8 +317,56 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         }
     }
 
-    fun newProject(name: String) = operation {
-        val p = PdfProject(name = name)
+    /** "Replace photo" on a failed gallery delivery: swap the rejected source, then retry the
+     * whole batch (all-or-nothing, per the Phase E product decision). */
+    fun replaceGallerySource(id: String, index: Int, replacement: Uri) {
+        if (activeGallery == id) return
+        viewModelScope.launch {
+            try {
+                galleryIntake.replaceSource(id, index, replacement)
+                resumeGallery()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                reportFailure(e)
+            }
+        }
+    }
+
+    /** "Remove & retry" on a failed gallery delivery: drop the rejected source, then retry the
+     * remaining sources as a batch. */
+    fun removeGallerySource(id: String, index: Int) {
+        if (activeGallery == id) return
+        viewModelScope.launch {
+            try {
+                galleryIntake.removeSource(id, index)
+                resumeGallery()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                reportFailure(e)
+            }
+        }
+    }
+
+    /**
+     * Creates a new project from the "New project" sheet (Phase E item 3). [widthMm]/[heightMm]
+     * are in portrait orientation; [landscape] swaps them. [columns] seeds the photos-per-page
+     * grid template (see [PdfLayoutTemplates]) via [PdfGeometry.grid] on the initial blank page.
+     */
+    fun newProject(
+        name: String,
+        widthMm: Double = 210.0,
+        heightMm: Double = 297.0,
+        landscape: Boolean = false,
+        columns: Int = 2,
+        gap: Double = 4.0,
+        margin: Double = 10.0,
+    ) = operation {
+        val w = if (landscape) heightMm else widthMm
+        val h = if (landscape) widthMm else heightMm
+        val page = PdfPage(width = w, height = h, margin = margin.coerceAtMost(min(w, h) / 4))
+        val p = PdfProject(name = name, pages = listOf(page), columns = columns, gap = gap)
         repository.save(p)
         setProject(p)
     }
@@ -468,6 +520,23 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
     fun duplicate(id: String) = operation {
         val p = requireNotNull(repository.load(id))
         repository.save(p.copy(id = newId()))
+    }
+
+    /** Rename from the library list (Phase E); the project is never open while the library is
+     * shown, so this never has to reconcile with in-memory editor state. */
+    fun renameProject(id: String, name: String) = operation {
+        val trimmed = name.trim().take(80)
+        if (trimmed.isEmpty()) return@operation
+        val p = requireNotNull(repository.load(id))
+        repository.save(p.copy(name = trimmed))
+    }
+
+    /** "Export project file" from a library card's overflow menu, for a project that is not the
+     * one currently open (see [portable] for that case). */
+    fun portableFor(id: String) = operation(lock = false) {
+        val p = requireNotNull(repository.load(id))
+        watchedExport = exportQueue.enqueue(p, compact = false, portable = true).id
+        mutable.update { it.copy(message = R.string.pdf_queue_added) }
     }
 
     fun update(transform: (PdfProject) -> PdfProject) {

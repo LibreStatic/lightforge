@@ -218,6 +218,40 @@
     <string name="pdf_crop_focus_down">Move focus down</string>
     <string name="pdf_align_relative_page">Relative to page</string>
     <string name="pdf_align_relative_margins">Relative to margins</string>
+    <string name="pdf_library_search_hint">Search projects</string>
+    <string name="pdf_library_sort">Sort</string>
+    <string name="pdf_library_sort_recent">Recent</string>
+    <string name="pdf_library_sort_name">Name</string>
+    <string name="pdf_library_empty_headline">Create your first PDF</string>
+    <string name="pdf_library_empty_body">Make PDFs from photos, receipts and documents — on this device</string>
+    <string name="pdf_library_template_photo_grid">Photo grid</string>
+    <string name="pdf_library_template_receipts">Receipts</string>
+    <string name="pdf_library_template_prints">Prints 10 × 15</string>
+    <string name="pdf_library_rename">Rename</string>
+    <string name="pdf_library_rename_title">Rename project</string>
+    <string name="pdf_library_export_project">Export project file</string>
+    <string name="pdf_library_delete_confirm">Delete “%1$s”? This can\'t be undone.</string>
+    <string name="pdf_library_more_actions">More actions for %1$s</string>
+    <plurals name="pdf_library_card_summary">
+        <item quantity="one">%1$d page · %2$s · %3$s</item>
+        <item quantity="other">%1$d pages · %2$s · %3$s</item>
+    </plurals>
+    <string name="pdf_library_history_needs_action">Exports, action needed</string>
+    <string name="pdf_new_project_title">New project</string>
+    <string name="pdf_new_project_create">Create</string>
+    <string name="pdf_selection_create_pdf">Create PDF</string>
+    <string name="pdf_selection_pdf_hint">Order = page order · up to 24 per page</string>
+    <plurals name="pdf_intake_title">
+        <item quantity="one">Adding %1$d photo</item>
+        <item quantity="other">Adding %1$d photos</item>
+    </plurals>
+    <string name="pdf_intake_progress">%1$d of %2$d copied</string>
+    <string name="pdf_intake_item_done">Copied</string>
+    <string name="pdf_intake_item_inprogress">Copying</string>
+    <string name="pdf_intake_item_failed">Failed</string>
+    <string name="pdf_intake_replace_photo">Replace photo</string>
+    <string name="pdf_intake_remove_retry">Remove &amp; retry</string>
+    <string name="pdf_order_badge">Position %1$d</string>
     <string name="pdf_reset">Reset</string>
     <string name="pdf_asset_pixel_size">%1$d × %2$d px</string>
     <string name="pdf_rotatepage_this">Rotate this page</string>

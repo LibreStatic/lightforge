@@ -11,12 +11,17 @@ data class PdfProjectRow(
     val updated: Long,
     val manifest: String,
     @ColumnInfo(defaultValue = "''") val editor: String = "",
+    @ColumnInfo(defaultValue = "0") val pageCount: Int = 0,
+    @ColumnInfo(defaultValue = "0") val sourceBytes: Long = 0,
+    @ColumnInfo(defaultValue = "NULL") val coverPageId: String? = null,
 )
 
+/** Row returned by the list query: the heavy [PdfProjectRow.manifest]/[PdfProjectRow.editor] blobs
+ * are left as empty strings so the library list does not decode every project's manifest. */
 @Dao
 interface PdfProjectDao {
     @Query(
-        "SELECT id, name, updated, '' AS manifest, '' AS editor FROM projects ORDER BY updated DESC"
+        "SELECT id, name, updated, '' AS manifest, '' AS editor, pageCount, sourceBytes, coverPageId FROM projects ORDER BY updated DESC"
     )
     fun observe(): Flow<List<PdfProjectRow>>
 
@@ -24,7 +29,14 @@ interface PdfProjectDao {
 
     @Query("SELECT * FROM projects WHERE id = :id") suspend fun get(id: String): PdfProjectRow?
 
+    @Query("SELECT * FROM projects WHERE pageCount = 0") suspend fun withoutSummary(): List<PdfProjectRow>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun put(row: PdfProjectRow)
+
+    @Query(
+        "UPDATE projects SET pageCount = :pageCount, sourceBytes = :sourceBytes, coverPageId = :coverPageId WHERE id = :id"
+    )
+    suspend fun updateSummary(id: String, pageCount: Int, sourceBytes: Long, coverPageId: String?)
 
     @Query("DELETE FROM projects WHERE id = :id") suspend fun delete(id: String)
 }
@@ -39,7 +51,7 @@ interface PdfProjectDao {
             PdfImportDelivery::class,
             PdfGalleryDelivery::class,
         ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 abstract class PdfProjectDatabase : RoomDatabase() {
@@ -126,6 +138,25 @@ abstract class PdfProjectDatabase : RoomDatabase() {
                 }
             }
 
+        val MIGRATION_8_9 =
+            object : androidx.room.migration.Migration(8, 9) {
+                override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                    db.execSQL(
+                        "ALTER TABLE projects ADD COLUMN pageCount INTEGER NOT NULL DEFAULT 0"
+                    )
+                    db.execSQL(
+                        "ALTER TABLE projects ADD COLUMN sourceBytes INTEGER NOT NULL DEFAULT 0"
+                    )
+                    db.execSQL("ALTER TABLE projects ADD COLUMN coverPageId TEXT")
+                    // Existing rows are backfilled lazily off the main thread (see
+                    // PdfProjectRepository.backfillSummaries); pageCount = 0 marks them as pending.
+                    db.execSQL("ALTER TABLE gallery_deliveries ADD COLUMN targetProjectId TEXT")
+                    db.execSQL("ALTER TABLE gallery_deliveries ADD COLUMN targetPageId TEXT")
+                    db.execSQL("ALTER TABLE gallery_deliveries ADD COLUMN placementX REAL")
+                    db.execSQL("ALTER TABLE gallery_deliveries ADD COLUMN placementY REAL")
+                }
+            }
+
         @Volatile private var instance: PdfProjectDatabase? = null
 
         fun get(context: Context): PdfProjectDatabase =
@@ -145,6 +176,7 @@ abstract class PdfProjectDatabase : RoomDatabase() {
                                 MIGRATION_5_6,
                                 MIGRATION_6_7,
                                 MIGRATION_7_8,
+                                MIGRATION_8_9,
                             )
                             .build()
                             .also { instance = it }

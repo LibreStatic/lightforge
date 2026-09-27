@@ -12,6 +12,7 @@ import com.ugallery.core.designsystem.GalleryIcons
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
@@ -171,6 +172,74 @@ internal fun GallerySourceStrip(delivery: PdfGalleryDelivery) {
                     )
                 }
                 if (rejected) Badge(Modifier.align(Alignment.TopEnd).padding(2.dp))
+            }
+        }
+    }
+}
+
+/** Ordered thumbnail strip for the non-blocking intake card (Phase E item 5): each source shows
+ * done / in-progress state as [copied] advances. Copied items get a check mark, the one actively
+ * being copied gets a small progress ring, and the rest are dimmed as pending. */
+@Composable
+internal fun PdfIntakeStrip(delivery: PdfGalleryDelivery, copied: Int) {
+    val sources = remember(delivery.uris) { delivery.sources() }
+    androidx.compose.foundation.lazy.LazyRow(
+        Modifier.fillMaxWidth().padding(top = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        items(sources.size) { index ->
+            val number = index + 1
+            val done = number <= copied
+            val inProgress = number == copied + 1
+            val resolver = androidx.compose.ui.platform.LocalContext.current.contentResolver
+            val uri = sources[index]
+            val bitmap by
+                produceState<android.graphics.Bitmap?>(null, uri) {
+                    value =
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            runCatching {
+                                    resolver.loadThumbnail(uri, android.util.Size(144, 144), null)
+                                }
+                                .getOrNull()
+                        }
+                }
+            val statusLabel =
+                stringResource(
+                    when {
+                        done -> R.string.pdf_intake_item_done
+                        inProgress -> R.string.pdf_intake_item_inprogress
+                        else -> R.string.pdf_gallery_source
+                    }
+                )
+            val description = if (!done && !inProgress) stringResource(R.string.pdf_gallery_source, number) else "$number: $statusLabel"
+            Box(
+                Modifier.size(48.dp)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clearAndSetSemantics { contentDescription = description }
+            ) {
+                bitmap?.let {
+                    Image(
+                        it.asImageBitmap(),
+                        contentDescription = null,
+                        modifier =
+                            Modifier.fillMaxSize().let { m -> if (!done && !inProgress) m.alpha(0.4f) else m },
+                        contentScale = ContentScale.Crop,
+                    )
+                }
+                when {
+                    done ->
+                        Icon(
+                            GalleryIcons.CheckCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.align(Alignment.BottomEnd).size(16.dp),
+                        )
+                    inProgress ->
+                        androidx.compose.material3.CircularProgressIndicator(
+                            Modifier.align(Alignment.BottomEnd).size(16.dp),
+                            strokeWidth = 2.dp,
+                        )
+                }
             }
         }
     }

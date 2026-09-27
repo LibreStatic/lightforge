@@ -42,7 +42,7 @@ class PdfKeyboardPointerDeviceTest {
         // Refuse to migrate a retained fixture database merely by starting this input test.
         val existingDatabase = context.getDatabasePath("pdf-projects.db")
         if (existingDatabase.exists()) SQLiteDatabase.openDatabase(existingDatabase.path, null, SQLiteDatabase.OPEN_READONLY).use {
-            check(it.version == 8) { "Existing PDF database requires separate migration acceptance" }
+            check(it.version == 9) { "Existing PDF database requires separate migration acceptance" }
         }
         val uuid = requireNotNull(InstrumentationRegistry.getArguments().getString("fixtureUuid"))
         require(UUID.fromString(uuid).toString() == uuid)

@@ -13,6 +13,11 @@ data class PdfGalleryDelivery(
     val name: String,
     val uris: String,
     val error: String? = null,
+    // Used from Phase F onward to place a Media-panel drop on a specific project/page/position.
+    val targetProjectId: String? = null,
+    val targetPageId: String? = null,
+    val placementX: Double? = null,
+    val placementY: Double? = null,
 ) {
     fun sources(): List<Uri> {
         val array = JSONArray(uris)
@@ -45,6 +50,11 @@ interface PdfGalleryDeliveryDao {
 
     @Query("UPDATE gallery_deliveries SET error = :error WHERE id = :id")
     suspend fun error(id: String, error: String?)
+
+    /** Edits the pending sources list (Replace photo / Remove & retry) and clears any failure in
+     * the same statement, since both actions are followed by an immediate retry of the batch. */
+    @Query("UPDATE gallery_deliveries SET uris = :uris, error = NULL WHERE id = :id")
+    suspend fun updateUris(id: String, uris: String)
 
     @Query("DELETE FROM gallery_deliveries WHERE id = :id") suspend fun delete(id: String)
 }
@@ -92,6 +102,41 @@ internal class PdfGalleryIntake(context: Context) {
     suspend fun retry(id: String) = db.galleryDeliveries().error(id, null)
 
     suspend fun discard(id: String) = db.galleryDeliveries().delete(id)
+
+    /**
+     * "Replace photo": swaps the rejected source at [index] (1-based, matching
+     * [PdfGalleryDelivery.failedSource]) for [replacement] and clears the failure so the whole
+     * batch retries. The all-or-nothing model never partially commits, so this is the only way to
+     * recover a batch whose failure names an unsupported/damaged source.
+     */
+    suspend fun replaceSource(id: String, index: Int, replacement: Uri) =
+        withContext(Dispatchers.IO) {
+            val row = db.galleryDeliveries().get(id) ?: return@withContext
+            val sources = row.sources().toMutableList()
+            val position = index - 1
+            if (position !in sources.indices) return@withContext
+            sources[position] = replacement
+            db.galleryDeliveries()
+                .updateUris(id, JSONArray(sources.map(Uri::toString)).toString())
+        }
+
+    /**
+     * "Remove & retry": drops the rejected source at [index] (1-based) from the pending delivery
+     * and clears the failure so the remaining sources retry as a batch. Discards the whole
+     * delivery instead if that was its only source.
+     */
+    suspend fun removeSource(id: String, index: Int) =
+        withContext(Dispatchers.IO) {
+            val row = db.galleryDeliveries().get(id) ?: return@withContext
+            val sources = row.sources().toMutableList()
+            val position = index - 1
+            if (position !in sources.indices) return@withContext
+            sources.removeAt(position)
+            if (sources.isEmpty()) db.galleryDeliveries().delete(id)
+            else
+                db.galleryDeliveries()
+                    .updateUris(id, JSONArray(sources.map(Uri::toString)).toString())
+        }
 
     suspend fun process(
         row: PdfGalleryDelivery,

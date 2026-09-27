@@ -59,4 +59,14 @@ dependencies {
     testImplementation("org.json:json:20240303")
     androidTestImplementation(libs.androidx.test.ext)
     androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.room.testing)
+}
+
+// The Room asset-copy task otherwise snapshots the schema directory before KSP exports a
+// newly introduced version. Order generation and export before packaging migration fixtures.
+tasks.matching { it.name == "copyRoomSchemasToAndroidTestAssetsDebugAndroidTest" }.configureEach {
+    dependsOn("kspDebugKotlin", "copyRoomSchemas")
+}
+tasks.matching { it.name == "copyRoomSchemas" }.configureEach {
+    mustRunAfter("kspDebugKotlin")
 }

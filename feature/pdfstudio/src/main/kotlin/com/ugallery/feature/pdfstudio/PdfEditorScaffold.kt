@@ -32,6 +32,8 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -225,18 +227,35 @@ internal fun PdfEditorTopBar(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun PdfLibraryTopBar(onBack: () -> Unit, onQueue: () -> Unit) {
+internal fun PdfLibraryTopBar(
+    onBack: () -> Unit,
+    onQueue: () -> Unit,
+    exportJobs: List<PdfExportJob> = emptyList(),
+) {
+    // A dot appears only when an export needs the user's attention: it failed, or it is a
+    // legacy "Ready" job from before destination-first export (Phase B) that still needs a
+    // destination chosen. A running/queued/published job never lights the dot.
+    val needsAction =
+        exportJobs.any { it.phase in setOf(PdfExportPhase.Failed, PdfExportPhase.Ready) }
     GalleryTopAppBar(
         title = stringResource(R.string.pdf_studio),
         onBack = onBack,
         navigationContentDescription = stringResource(R.string.pdf_close),
         actions = {
-            val queueLabel = stringResource(R.string.pdf_queue)
+            val queueLabel =
+                if (needsAction) stringResource(R.string.pdf_library_history_needs_action)
+                else stringResource(R.string.pdf_queue)
             IconButton(
                 onClick = onQueue,
                 modifier = Modifier.semantics { contentDescription = queueLabel },
             ) {
-                Icon(GalleryIcons.History, contentDescription = null)
+                if (needsAction) {
+                    BadgedBox(badge = { Badge() }) {
+                        Icon(GalleryIcons.History, contentDescription = null)
+                    }
+                } else {
+                    Icon(GalleryIcons.History, contentDescription = null)
+                }
             }
         },
     )

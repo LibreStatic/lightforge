@@ -218,6 +218,40 @@
     <string name="pdf_crop_focus_down">Fokus nach unten verschieben</string>
     <string name="pdf_align_relative_page">Relativ zur Seite</string>
     <string name="pdf_align_relative_margins">Relativ zu den Rändern</string>
+    <string name="pdf_library_search_hint">Projekte durchsuchen</string>
+    <string name="pdf_library_sort">Sortieren</string>
+    <string name="pdf_library_sort_recent">Zuletzt verwendet</string>
+    <string name="pdf_library_sort_name">Name</string>
+    <string name="pdf_library_empty_headline">Erstelle dein erstes PDF</string>
+    <string name="pdf_library_empty_body">Erstelle PDFs aus Fotos, Belegen und Dokumenten – auf diesem Gerät</string>
+    <string name="pdf_library_template_photo_grid">Fotoraster</string>
+    <string name="pdf_library_template_receipts">Belege</string>
+    <string name="pdf_library_template_prints">Abzüge 10 × 15</string>
+    <string name="pdf_library_rename">Umbenennen</string>
+    <string name="pdf_library_rename_title">Projekt umbenennen</string>
+    <string name="pdf_library_export_project">Projektdatei exportieren</string>
+    <string name="pdf_library_delete_confirm">„%1$s“ löschen? Dies kann nicht rückgängig gemacht werden.</string>
+    <string name="pdf_library_more_actions">Weitere Aktionen für %1$s</string>
+    <plurals name="pdf_library_card_summary">
+        <item quantity="one">%1$d Seite · %2$s · %3$s</item>
+        <item quantity="other">%1$d Seiten · %2$s · %3$s</item>
+    </plurals>
+    <string name="pdf_library_history_needs_action">Exporte, Aktion erforderlich</string>
+    <string name="pdf_new_project_title">Neues Projekt</string>
+    <string name="pdf_new_project_create">Erstellen</string>
+    <string name="pdf_selection_create_pdf">PDF erstellen</string>
+    <string name="pdf_selection_pdf_hint">Reihenfolge = Seitenreihenfolge · bis zu 24 pro Seite</string>
+    <plurals name="pdf_intake_title">
+        <item quantity="one">%1$d Foto wird hinzugefügt</item>
+        <item quantity="other">%1$d Fotos werden hinzugefügt</item>
+    </plurals>
+    <string name="pdf_intake_progress">%1$d von %2$d kopiert</string>
+    <string name="pdf_intake_item_done">Kopiert</string>
+    <string name="pdf_intake_item_inprogress">Wird kopiert</string>
+    <string name="pdf_intake_item_failed">Fehlgeschlagen</string>
+    <string name="pdf_intake_replace_photo">Foto ersetzen</string>
+    <string name="pdf_intake_remove_retry">Entfernen &amp; erneut versuchen</string>
+    <string name="pdf_order_badge">Position %1$d</string>
     <string name="pdf_reset">Zurücksetzen</string>
     <string name="pdf_asset_pixel_size">%1$d × %2$d px</string>
     <string name="pdf_rotatepage_this">Diese Seite drehen</string>

@@ -71,6 +71,13 @@ import androidx.compose.material.icons.rounded.Checklist
 import androidx.compose.material.icons.rounded.SelectAll
 import androidx.compose.material.icons.rounded.CenterFocusStrong
 import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.material.icons.rounded.PictureAsPdf
+import androidx.compose.material.icons.rounded.Sort
+import androidx.compose.material.icons.rounded.DriveFileRenameOutline
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Receipt
+import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.Photo
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -154,6 +161,13 @@ val GalleryIconChecklist: ImageVector get() = Icons.Rounded.Checklist
 val GalleryIconSelectAll: ImageVector get() = Icons.Rounded.SelectAll
 val GalleryIconCenterFocusStrong: ImageVector get() = Icons.Rounded.CenterFocusStrong
 val GalleryIconMinus: ImageVector get() = Icons.Rounded.Remove
+val GalleryIconPictureAsPdf: ImageVector get() = Icons.Rounded.PictureAsPdf
+val GalleryIconSort: ImageVector get() = Icons.Rounded.Sort
+val GalleryIconRename: ImageVector get() = Icons.Rounded.DriveFileRenameOutline
+val GalleryIconContentCopy: ImageVector get() = Icons.Rounded.ContentCopy
+val GalleryIconReceipt: ImageVector get() = Icons.Rounded.Receipt
+val GalleryIconGridView: ImageVector get() = Icons.Rounded.GridView
+val GalleryIconPhoto: ImageVector get() = Icons.Rounded.Photo
 
 /**
  * Standard gallery icon composable with Material 3 defaults:
@@ -253,4 +267,11 @@ object GalleryIcons {
     val SelectAll get() = GalleryIconSelectAll
     val CenterFocusStrong get() = GalleryIconCenterFocusStrong
     val Minus get() = GalleryIconMinus
+    val PictureAsPdf get() = GalleryIconPictureAsPdf
+    val Sort get() = GalleryIconSort
+    val Rename get() = GalleryIconRename
+    val ContentCopy get() = GalleryIconContentCopy
+    val Receipt get() = GalleryIconReceipt
+    val GridView get() = GalleryIconGridView
+    val Photo get() = GalleryIconPhoto
 }

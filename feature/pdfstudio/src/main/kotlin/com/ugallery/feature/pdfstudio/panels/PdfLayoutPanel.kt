@@ -220,7 +220,7 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
  * cards). Only [PdfPaperTokens.Paper] supplies the literal white; the card itself is a Material
  * role pair (secondaryContainer/onSecondaryContainer when selected, surfaceContainer otherwise). */
 @Composable
-private fun PdfPaperCard(
+internal fun PdfPaperCard(
     label: String,
     widthMm: Double,
     heightMm: Double,
@@ -270,7 +270,7 @@ private fun PdfPaperCard(
 /** A photos-per-page template tile with a mini grid preview, mapped to a column count by
  * [PdfLayoutTemplates.columnsFor]. */
 @Composable
-private fun PdfTemplateTile(
+internal fun PdfTemplateTile(
     template: Int,
     columns: Int,
     landscape: Boolean,

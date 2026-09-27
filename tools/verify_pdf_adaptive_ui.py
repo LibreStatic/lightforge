@@ -85,7 +85,7 @@ for width,height,font,locale,dark,rtl in cases:
     # Phase C: the canvas's floating page/zoom badges and drag measurement chip carry text, so
     # they need the text threshold; the contextual toolbar (icon buttons only) and its Delete
     # action (an icon-only errorContainer/onErrorContainer button) need only the icon threshold.
-    for key in ('surface','primary','secondaryContainer','surfaceContainer','surfaceVariantText','surfacePrimaryText','canvasBadge','snapMeasurementChip','sheetContainerText','sheetContainerError'):assert theme[key]>=4.5,(key,theme)
+    for key in ('surface','primary','secondaryContainer','surfaceContainer','surfaceVariantText','surfacePrimaryText','canvasBadge','snapMeasurementChip','sheetContainerText','sheetContainerError','historyDot'):assert theme[key]>=4.5,(key,theme)
     for key in ('outline','contextualToolbar','contextualToolbarDelete'):assert theme[key]>=3,(key,theme)
     assert theme['dynamic']==args.dynamic
     (out/(name+'-theme.json')).write_text(json.dumps(theme,indent=2)+'\n')

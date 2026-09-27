@@ -66,13 +66,54 @@ class PdfProjectRepository(
             (value.usedAssets() + (session?.usedAssets() ?: emptySet())).all { file(it).isFile }
         )
         val encoded = session?.let(PdfEditorSessionCodec::encode) ?: previous?.editor.orEmpty()
+        val summary = summarize(value)
         database.withTransaction {
             dao.put(
-                PdfProjectRow(value.id, value.name, value.updated, PdfCodec.encode(value), encoded)
+                PdfProjectRow(
+                    value.id,
+                    value.name,
+                    value.updated,
+                    PdfCodec.encode(value),
+                    encoded,
+                    summary.pageCount,
+                    summary.sourceBytes,
+                    summary.coverPageId,
+                )
             )
             requestId?.let { database.imports().put(PdfImportReceipt(it, value.id)) }
         }
     }
+
+    private data class ProjectSummary(
+        val pageCount: Int,
+        val sourceBytes: Long,
+        val coverPageId: String?,
+    )
+
+    /** Page count, on-disk asset bytes and the cover page id, for the library list card. */
+    private fun summarize(p: PdfProject): ProjectSummary =
+        ProjectSummary(
+            pageCount = p.pages.size,
+            sourceBytes = p.usedAssets().sumOf { hash -> runCatching { file(hash).length() }.getOrDefault(0L) },
+            coverPageId = p.pages.firstOrNull()?.id,
+        )
+
+    /**
+     * Backfills [PdfProjectRow.pageCount]/[sourceBytes]/[coverPageId] for rows saved before the
+     * v9 migration (pageCount = 0 marks them pending). Safe to call repeatedly and off the main
+     * thread; the library screen triggers it once per load.
+     */
+    suspend fun backfillSummaries() =
+        withContext(Dispatchers.IO) {
+            dao.withoutSummary()
+                .filter { it.manifest.isNotEmpty() }
+                .forEach { row ->
+                    val project = runCatching { PdfCodec.decode(row.manifest) }.getOrNull() ?: return@forEach
+                    if (project.pages.isEmpty()) return@forEach
+                    val summary = summarize(project)
+                    dao.updateSummary(row.id, summary.pageCount, summary.sourceBytes, summary.coverPageId)
+                }
+        }
 
     suspend fun delete(id: String, protected: Set<String> = emptySet()) =
         withContext(Dispatchers.IO) {

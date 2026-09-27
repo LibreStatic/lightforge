@@ -420,6 +420,7 @@ internal fun ProductionGalleryApp(
     val documentRepository by viewModel.documentRepository.collectAsState()
     val documentCount by viewModel.documentCount.collectAsState()
     val documentError = stringResource(com.ugallery.feature.collections.R.string.documents_error)
+    val pdfSelectionHint = stringResource(com.ugallery.feature.pdfstudio.R.string.pdf_selection_pdf_hint)
     val archiveCount by viewModel.archiveCount.collectAsState()
     val activityEvents by viewModel.activity.collectAsState()
     val highlights by viewModel.highlights.collectAsState()
@@ -2486,6 +2487,10 @@ internal fun ProductionGalleryApp(
                             pendingPdfRequestId = java.util.UUID.randomUUID().toString()
                             pendingPdfSources = ArrayList(viewModel.selectedPdfSources().map { it.toString() })
                             route = SurfaceRoute.PdfStudio
+                            // The gallery selection does not track tap order (SelectionSpec.Explicit
+                            // is a plain Set): pages land in the gallery's own display order, so the
+                            // handoff says so explicitly instead of implying a numbered pick order.
+                            appScope.launch { snackbarHostState.showSnackbar(pdfSelectionHint) }
                         },
                         canCreatePdf = viewModel.selectedPdfSources().isNotEmpty(),
                         canCreateMemory = viewModel.canCreateSelectionVideo(),
@@ -2940,7 +2945,7 @@ internal fun ProductionGalleryApp(
                     }, modifier = Modifier.fillMaxWidth().semantics { testTagsAsResourceId = true }.testTag("create-gif"),
                 ) { Text(stringResource(com.ugallery.feature.collage.R.string.creation_gif_title)) }
                 TextButton(onClick = { showCreateMenu = false; pdfReturnToDocuments = false; route = SurfaceRoute.PdfStudio }, modifier = Modifier.fillMaxWidth()) {
-                    Icon(GalleryIcons.Collections, contentDescription = null)
+                    Icon(GalleryIcons.PictureAsPdf, contentDescription = null)
                     Text(stringResource(com.ugallery.feature.pdfstudio.R.string.pdf_studio), Modifier.padding(start = 12.dp))
                 }
                 TextButton(
@@ -3637,12 +3642,6 @@ private fun SelectionActions(
                         modifier = Modifier.semantics { testTagsAsResourceId = true }.testTag("selection-create-collage"),
                     )
                     DropdownMenuItem(
-                        text = { Text(stringResource(com.ugallery.feature.pdfstudio.R.string.pdf_studio)) },
-                        onClick = { menuExpanded = false; onPdfStudio() },
-                        enabled = canCreatePdf,
-                        leadingIcon = { Icon(GalleryIcons.Collections, contentDescription = null) },
-                    )
-                    DropdownMenuItem(
                         text = { Text(stringResource(R.string.archive_move)) },
                         onClick = { menuExpanded = false; onArchive() },
                         leadingIcon = { Icon(GalleryIcons.Archive, contentDescription = null) },
@@ -3668,6 +3667,15 @@ private fun SelectionActions(
         ) {
             GalleryExpressiveIconButton(onClick = onAddToAlbum) {
                 Icon(GalleryIcons.Album, contentDescription = stringResource(R.string.selection_add_album))
+            }
+            // Promoted from the overflow menu (Phase E): "Create PDF" is common enough from a
+            // photo/receipt/document selection that it deserves a clear, always-visible action
+            // rather than living one tap deeper.
+            if (canCreatePdf) GalleryExpressiveIconButton(onClick = onPdfStudio) {
+                Icon(
+                    com.ugallery.core.designsystem.GalleryIcons.PictureAsPdf,
+                    contentDescription = stringResource(com.ugallery.feature.pdfstudio.R.string.pdf_studio),
+                )
             }
             GalleryExpressiveIconButton(onClick = onShare, enabled = canShare) {
                 Icon(GalleryIcons.Share, contentDescription = stringResource(R.string.selection_share))

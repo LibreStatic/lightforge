@@ -31,9 +31,16 @@ private val WATCHED_PROGRESS_PHASES =
 
 @Composable
 internal fun Confirm(title: Int, confirmLabel: String, dismiss: () -> Unit, confirm: () -> Unit) {
+    Confirm(stringResource(title), confirmLabel, dismiss, confirm)
+}
+
+/** Overload for confirmations that name the specific target (e.g. "Delete “My project”?")
+ * instead of a generic string resource. */
+@Composable
+internal fun Confirm(title: String, confirmLabel: String, dismiss: () -> Unit, confirm: () -> Unit) {
     AlertDialog(
         onDismissRequest = dismiss,
-        title = { Text(stringResource(title)) },
+        title = { Text(title) },
         confirmButton = { TextButton(onClick = confirm) { Text(confirmLabel) } },
         dismissButton = {
             TextButton(onClick = dismiss) { Text(stringResource(R.string.pdf_cancel)) }
@@ -63,6 +70,8 @@ internal fun PdfFeedbackOverlay(
     onDiscardIntake: () -> Unit,
     onRetryGallery: (String) -> Unit,
     onDiscardGallery: (String) -> Unit,
+    onReplaceGallerySource: (PdfGalleryDelivery) -> Unit = {},
+    onRemoveGallerySource: (PdfGalleryDelivery) -> Unit = {},
     onSaveExport: (PdfExportJob) -> Unit,
     onDismissMessage: () -> Unit,
     onCancelBusy: () -> Unit,
@@ -90,6 +99,40 @@ internal fun PdfFeedbackOverlay(
                 }
             }
         }
+        // A pending delivery (no error yet) that is actively being copied: a determinate,
+        // non-blocking card with an ordered thumbnail strip, replacing the generic busy text for
+        // this specific operation. Editing/navigation stay available; only this delivery's own
+        // Retry/Discard-equivalents are gated on it finishing or failing.
+        galleryRows
+            .firstOrNull { it.error == null }
+            ?.takeIf { state.busy && state.progress != null }
+            ?.let { delivery ->
+                val progress = state.progress
+                IssueCard {
+                    val total = progress?.second ?: delivery.sources().size
+                    val copied = progress?.first ?: 0
+                    Text(
+                        androidx.compose.ui.res.pluralStringResource(
+                            R.plurals.pdf_intake_title,
+                            total,
+                            total,
+                        )
+                    )
+                    LinearProgressIndicator(
+                        progress = { copied.toFloat() / total.coerceAtLeast(1) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            stringResource(R.string.pdf_intake_progress, copied, total),
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(onClick = onCancelBusy) { Text(stringResource(R.string.pdf_cancel)) }
+                    }
+                    PdfIntakeStrip(delivery, copied)
+                }
+            }
         galleryRows
             .firstOrNull { it.error != null }
             ?.let { delivery ->
@@ -128,6 +171,30 @@ internal fun PdfFeedbackOverlay(
                                 ),
                         ) {
                             Text(stringResource(R.string.pdf_gallery_discard))
+                        }
+                        // Only offered when the failure names a specific rejected source: both
+                        // actions edit the pending delivery and retry (never a partial commit).
+                        if (delivery.failedSource() != null) {
+                            TextButton(
+                                onClick = { onReplaceGallerySource(delivery) },
+                                enabled = !state.editorLocked,
+                                colors =
+                                    ButtonDefaults.textButtonColors(
+                                        contentColor = LocalContentColor.current
+                                    ),
+                            ) {
+                                Text(stringResource(R.string.pdf_intake_replace_photo))
+                            }
+                            TextButton(
+                                onClick = { onRemoveGallerySource(delivery) },
+                                enabled = !state.editorLocked,
+                                colors =
+                                    ButtonDefaults.textButtonColors(
+                                        contentColor = LocalContentColor.current
+                                    ),
+                            ) {
+                                Text(stringResource(R.string.pdf_intake_remove_retry))
+                            }
                         }
                     }
                 }
@@ -173,7 +240,10 @@ internal fun PdfFeedbackOverlay(
                 }
             }
         }
-        if (state.busy) {
+        // The richer gallery-intake card above already covers this same `busy` window with more
+        // specific copy and a thumbnail strip; showing both would duplicate the progress bar.
+        val intakeCardShown = galleryRows.any { it.error == null } && state.progress != null
+        if (state.busy && !intakeCardShown) {
             IssueCard {
                 LinearProgressIndicator(Modifier.fillMaxWidth())
                 Row(verticalAlignment = Alignment.CenterVertically) {
