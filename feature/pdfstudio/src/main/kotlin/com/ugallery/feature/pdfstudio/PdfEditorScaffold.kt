@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.TextAutoSize
@@ -293,10 +294,34 @@ internal fun PdfEditorBody(
     modifier: Modifier = Modifier,
     feedback: @Composable () -> Unit,
 ) {
+    // Phase F item 1: a horizontal separating fold (device half-opened, laid flat) puts the
+    // canvas in the top half and every tool (page strip + tool bar + panel content) in the
+    // bottom half, with nothing drawn on the crease. This is a distinct composition from the
+    // side-by-side rail/canvas/inspector Row below, which the hinge-less and vertical-hinge
+    // (HingeSplit) modes share.
+    if (layout.mode == PdfStudioLayoutMode.Tabletop) {
+        PdfTabletopEditorBody(
+            vm = vm,
+            state = state,
+            project = project,
+            layout = layout,
+            onDeletePages = onDeletePages,
+            onExportSelectedPages = onExportSelectedPages,
+            onPortable = onPortable,
+            onLaunchImport = onLaunchImport,
+            onAdjustImage = onAdjustImage,
+            onReplaceImage = onReplaceImage,
+            modifier = modifier,
+            feedback = feedback,
+        )
+        return
+    }
+    val sidePanelsVisible =
+        layout.mode == PdfStudioLayoutMode.ExpandedThreePane || layout.mode == PdfStudioLayoutMode.HingeSplit
     Box(modifier) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxSize()) {
-                if (layout.expanded)
+                if (sidePanelsVisible)
                     Column(
                         Modifier.width(220.dp)
                             .fillMaxHeight()
@@ -316,7 +341,14 @@ internal fun PdfEditorBody(
                     onAdjustImage = onAdjustImage,
                     onReplaceImage = onReplaceImage,
                 )
-                if (layout.expanded)
+                // Item 1b: nothing is drawn under the hinge itself, so the rail+canvas pane and
+                // the inspector pane sit on either side of a spacer sized to the hinge bounds
+                // instead of a hairline seam running through live content.
+                if (layout.mode == PdfStudioLayoutMode.HingeSplit) {
+                    val hingeWidth = layout.foldInfo?.hingeWidth ?: 0.dp
+                    if (hingeWidth > 0.dp) Spacer(Modifier.width(hingeWidth).fillMaxHeight())
+                }
+                if (sidePanelsVisible)
                     Column(
                         Modifier.width(280.dp)
                             .fillMaxHeight()
@@ -407,6 +439,102 @@ internal fun PdfEditorBody(
                 )
             }
         }
+}
+
+/** Tabletop posture (Phase F item 1c): the device is half-opened and laid flat, so the canvas
+ * sits in the top half, the page strip + tool tabs + the selected panel's content sit in the
+ * bottom half, and a spacer sized to the hinge keeps the crease itself free of controls or
+ * canvas content. Unlike the compact bottom-sheet flow, the panel content renders inline (a
+ * sheet sliding up from the bottom edge of a horizontally split screen has nowhere sensible to
+ * anchor). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PdfTabletopEditorBody(
+    vm: PdfStudioViewModel,
+    state: PdfStudioState,
+    project: PdfProject,
+    layout: PdfStudioLayoutPolicy,
+    onDeletePages: () -> Unit,
+    onExportSelectedPages: () -> Unit,
+    onPortable: () -> Unit,
+    onLaunchImport: () -> Unit,
+    onAdjustImage: () -> Unit,
+    onReplaceImage: () -> Unit,
+    modifier: Modifier,
+    feedback: @Composable () -> Unit,
+) {
+    var panel by remember { mutableStateOf(0) }
+    Box(modifier) {
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val fold = layout.foldInfo
+            val topHeight = fold?.top?.coerceIn(0.dp, maxHeight) ?: (maxHeight / 2)
+            val hingeHeight = fold?.hingeHeight ?: 0.dp
+            Column(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxWidth().height(topHeight)) {
+                    PdfCanvas(
+                        project.pages[state.page],
+                        state.image,
+                        vm,
+                        Modifier.fillMaxSize(),
+                        state.editorLocked,
+                        pageIndex = state.page,
+                        pageCount = project.pages.size,
+                        onAdjustImage = onAdjustImage,
+                        onReplaceImage = onReplaceImage,
+                    )
+                }
+                if (hingeHeight > 0.dp) Spacer(Modifier.fillMaxWidth().height(hingeHeight))
+                Column(Modifier.fillMaxWidth().weight(1f)) {
+                    PdfPageStrip(vm, state, project)
+                    NavigationBar {
+                        pdfToolBarTabs().forEachIndexed { n, tab ->
+                            NavigationBarItem(
+                                selected = panel == n,
+                                onClick = { panel = n },
+                                icon = { Icon(tab.first, contentDescription = null) },
+                                label = {
+                                    Text(
+                                        stringResource(tab.second),
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        textAlign = TextAlign.Center,
+                                        autoSize =
+                                            TextAutoSize.StepBased(
+                                                minFontSize = 9.sp,
+                                                maxFontSize = MaterialTheme.typography.labelMedium.fontSize,
+                                            ),
+                                    )
+                                },
+                                enabled = !state.editorLocked,
+                                modifier = Modifier.heightIn(min = 48.dp),
+                            )
+                        }
+                    }
+                    Column(
+                        Modifier.fillMaxWidth()
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState())
+                            .padding(12.dp)
+                    ) {
+                        when (panel) {
+                            0 -> PdfPagesPanel(vm, state, onDeletePages, onExportSelectedPages)
+                            1 -> InsertControls(state, portable = onPortable, import = onLaunchImport)
+                            2 -> PdfLayoutPanel(vm, state)
+                            3 -> PdfAdjustPanel(vm, state)
+                        }
+                    }
+                }
+            }
+            Box(
+                Modifier.align(Alignment.BottomCenter)
+                    .padding(12.dp)
+                    .heightIn(max = maxHeight * 0.6f)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                feedback()
+            }
+        }
+    }
 }
 
 private fun pdfToolBarTabs() =

@@ -2363,6 +2363,9 @@ internal fun ProductionGalleryApp(
                 initialUris = pendingPdfSources.map(android.net.Uri::parse),
                 initialRequestId = pendingPdfRequestId,
                 onInitialUrisConsumed = { pendingPdfSources = arrayListOf() },
+                // Phase F item 1: same GalleryFoldInfo the video editor receives, so PDF Studio
+                // can lay out hinge-aware and tabletop postures instead of only reacting to width.
+                foldInfo = adaptiveInfo.foldInfo,
             )
             SurfaceRoute.Collage -> {
                 fun closeCollage() { viewModel.clearCreationCollage(); rootTab = collageReturnRootTab; route = collageReturnRoute }

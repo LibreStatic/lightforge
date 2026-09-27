@@ -44,6 +44,11 @@ fun PdfStudioScreen(
     initialUris: List<android.net.Uri> = emptyList(),
     initialRequestId: String? = null,
     onInitialUrisConsumed: () -> Unit = {},
+    // Phase F item 1: the app passes its GalleryFoldInfo the same way it does for the video
+    // editor (ProductionGalleryApp.kt's VideoEditorContent call), so foldable/tabletop layouts
+    // work without pdfstudio depending on androidx.window. The default keeps every existing
+    // caller (tests, PdfUiProbeActivity) on the hinge-less path.
+    foldInfo: com.ugallery.core.designsystem.GalleryFoldInfo? = null,
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val projects by vm.projects.collectAsStateWithLifecycle()
@@ -178,6 +183,7 @@ fun PdfStudioScreen(
                 maxWidth.value,
                 maxHeight.value,
                 androidx.compose.ui.platform.LocalDensity.current.fontScale,
+                foldInfo,
             )
         Surface(
             Modifier.fillMaxSize(),
