@@ -187,4 +187,88 @@ class PdfExportQueueTest {
             repo.delete(p.id)
         }
     }
+
+    private fun createTestDocument(name: String): Uri {
+        val root =
+            android.provider.DocumentsContract.buildDocumentUri(PdfTestDocumentsProvider.AUTHORITY, "root")
+        val uri =
+            requireNotNull(
+                android.provider.DocumentsContract.createDocument(
+                    context.contentResolver,
+                    root,
+                    "application/pdf",
+                    name,
+                )
+            )
+        context.grantUriPermission(
+            context.packageName,
+            uri,
+            android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                android.content.Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
+        )
+        return uri
+    }
+
+    @Test
+    fun destinationFirstEnqueueSkipsReadyAndPublishesDirectly(): Unit = runBlocking {
+        val p = fixture()
+        var job: PdfExportJob? = null
+        var uri: Uri? = null
+        try {
+            uri = createTestDocument("destination-first.pdf")
+            job = queue.enqueue(p, false, destination = uri)
+            assertEquals(uri.toString(), job.destination)
+            var sawReady = false
+            withTimeout(45_000) {
+                while (true) {
+                    val row = requireNotNull(queue.get(job.id))
+                    if (row.phase == PdfExportPhase.Ready) sawReady = true
+                    if (row.phase == PdfExportPhase.Published) break
+                    check(row.phase != PdfExportPhase.Failed) { row.error.orEmpty() }
+                    delay(50)
+                }
+            }
+            // The whole point of "destination first" is that a job created with a destination
+            // never passes through Ready waiting for a Save tap.
+            assertFalse(sawReady)
+            val bytes = context.contentResolver.openInputStream(uri)!!.use { it.readBytes() }
+            assertTrue(bytes.isNotEmpty())
+            assertFalse(queue.output(job.id).exists())
+        } finally {
+            job?.let {
+                if (queue.get(it.id)?.phase != PdfExportPhase.Published) queue.cancel(it.id)
+                queue.remove(it.id)
+            }
+            uri?.let { android.provider.DocumentsContract.deleteDocument(context.contentResolver, it) }
+            repo.delete(p.id)
+        }
+    }
+
+    @Test
+    fun destinationFirstEnqueueRejectsADestinationAnotherLiveJobOwns(): Unit = runBlocking {
+        val p = fixture()
+        var first: PdfExportJob? = null
+        var uri: Uri? = null
+        try {
+            uri = createTestDocument("shared-destination.pdf")
+            first = queue.enqueue(p, false, destination = uri)
+            // The first job still owns this destination (not Published/Cancelled yet), so a second
+            // enqueue targeting the same URI must be rejected exactly like a second `publish()`
+            // call would be, instead of racing the same document from two live jobs.
+            try {
+                queue.enqueue(p, false, destination = uri)
+                fail("Expected the destination to be reported as already in use")
+            } catch (e: IllegalArgumentException) {
+                assertEquals("DestinationInUse", e.message)
+            }
+        } finally {
+            first?.let {
+                if (queue.get(it.id)?.phase != PdfExportPhase.Published) queue.cancel(it.id)
+                queue.remove(it.id)
+            }
+            uri?.let { android.provider.DocumentsContract.deleteDocument(context.contentResolver, it) }
+            repo.delete(p.id)
+        }
+    }
 }

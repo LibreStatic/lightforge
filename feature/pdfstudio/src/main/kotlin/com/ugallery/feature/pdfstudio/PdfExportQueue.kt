@@ -35,10 +35,18 @@ class PdfExportQueue(private val context: Context) {
 
     suspend fun get(id: String): PdfExportJob? = dao.get(id)
 
+    /**
+     * @param destination when non-null, the job is created already bound to this document (the
+     *   "destination first" flow): it skips [PdfExportPhase.Ready] entirely and the worker
+     *   publishes directly once rendering finishes. This reuses the same grant acquisition and
+     *   DestinationInUse guard as [publish], so a destination picked before rendering starts is
+     *   just as safe as one picked afterwards.
+     */
     suspend fun enqueue(
         project: PdfProject,
         compact: Boolean,
         portable: Boolean = false,
+        destination: Uri? = null,
     ): PdfExportJob =
         withContext(Dispatchers.IO) {
             val snapshot =
@@ -59,11 +67,27 @@ class PdfExportQueue(private val context: Context) {
                     if (portable) snapshot.assets.size + 1 else snapshot.pages.size,
                     now,
                     now,
+                    destination = destination?.toString(),
                     portable = portable,
                 )
             lock.withLock {
                 val repo = PdfProjectRepository(context)
                 require(snapshot.usedAssets().all { repo.file(it).isFile })
+                if (destination != null) {
+                    require(
+                        context.contentResolver.openInputStream(destination)?.use {
+                            it.read() == -1
+                        } == true
+                    ) {
+                        "DestinationNotEmpty"
+                    }
+                    require(
+                        dao.all().none { it.destination == destination.toString() && it.keepsSources }
+                    ) {
+                        "DestinationInUse"
+                    }
+                    acquireGrant(destination)
+                }
                 dao.put(row)
             }
             schedule(row)
