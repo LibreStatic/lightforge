@@ -87,4 +87,27 @@ object PdfSnapGuides {
     /** Snaps [image]'s top-left against the page's center/margins and every image in [others]. */
     fun snap(image: PdfImage, page: PdfPage, others: List<PdfImage>, thresholdMm: Double = 2.0): SnapResult =
         snap(image.x, image.y, image.width, image.height, candidates(page, others), thresholdMm)
+
+    /**
+     * Single pure resolution step for a drag-to-move gesture, shared by the canvas's live guide
+     * overlay/measurement chip and its onDragEnd commit so the two can never disagree: the
+     * project's 5 mm grid (when [gridMm] is non-null, i.e. the project's Snap setting is on)
+     * rounds the candidate position first, then guides snap within [thresholdMm] regardless of
+     * that setting.
+     */
+    fun resolveDrag(
+        candidateX: Double,
+        candidateY: Double,
+        width: Double,
+        height: Double,
+        candidates: List<GuideLine>,
+        gridMm: Double? = null,
+        thresholdMm: Double = 2.0,
+    ): SnapResult {
+        val gridX =
+            if (gridMm != null) kotlin.math.round(candidateX / gridMm) * gridMm else candidateX
+        val gridY =
+            if (gridMm != null) kotlin.math.round(candidateY / gridMm) * gridMm else candidateY
+        return snap(gridX, gridY, width, height, candidates, thresholdMm)
+    }
 }

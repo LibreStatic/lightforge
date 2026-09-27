@@ -123,6 +123,95 @@ class PdfModelsTest {
     }
 
     @Test
+    fun resizeFromCornerKeepsAnchorFixedEvenWhenOverflowForcesAShrink() {
+        val page = PdfPage(width = 210.0, height = 297.0, margin = 10.0)
+        val i = image().copy(x = 150.0, y = 150.0, width = 40.0, height = 30.0)
+        val right = i.x + i.width
+        val bottom = i.y + i.height
+        for (corner in PdfGeometry.Corner.entries) {
+            // A huge drag toward the anchor requests a size that cannot fit the page from that
+            // anchor; the anchor corner itself must still land exactly where it started.
+            val resized = PdfGeometry.resizeFromCorner(i, page, corner, -1000.0, -1000.0)
+            when (corner) {
+                PdfGeometry.Corner.TopLeft -> {
+                    assertEquals(right, resized.x + resized.width, .0001)
+                    assertEquals(bottom, resized.y + resized.height, .0001)
+                }
+                PdfGeometry.Corner.TopRight -> {
+                    assertEquals(i.x, resized.x, .0001)
+                    assertEquals(bottom, resized.y + resized.height, .0001)
+                }
+                PdfGeometry.Corner.BottomLeft -> {
+                    assertEquals(right, resized.x + resized.width, .0001)
+                    assertEquals(i.y, resized.y, .0001)
+                }
+                PdfGeometry.Corner.BottomRight -> {
+                    assertEquals(i.x, resized.x, .0001)
+                    assertEquals(i.y, resized.y, .0001)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun alignRightAndBottomOnAnOverWideImageStaysWithinMargins() {
+        val page = PdfPage(width = 210.0, height = 297.0, margin = 10.0)
+        // Wider/taller than the margin box: page.width - 2*margin = 190 < 250.
+        val wide = image().copy(width = 250.0, height = 40.0)
+        val right = PdfGeometry.align(wide, page, PdfGeometry.Align.Right)
+        assertTrue("Right align must not produce a negative x", right.x >= 0)
+        assertTrue(right.x >= page.margin - .0001)
+        val bottom = PdfGeometry.align(wide.copy(width = 40.0, height = 250.0), page, PdfGeometry.Align.Bottom)
+        assertTrue("Bottom align must not produce a negative y", bottom.y >= 0)
+        project().copy(pages = listOf(page.copy(images = listOf(right)))).validate()
+        project().copy(pages = listOf(page.copy(images = listOf(bottom)))).validate()
+    }
+
+    @Test
+    fun alignCenterAndLeftTopRoundTrip() {
+        val page = PdfPage(width = 210.0, height = 297.0, margin = 10.0)
+        val i = image().copy(width = 40.0, height = 20.0)
+        val centered = PdfGeometry.align(i, page, PdfGeometry.Align.Center)
+        assertEquals((page.width - i.width) / 2, centered.x, .0001)
+        val left = PdfGeometry.align(i, page, PdfGeometry.Align.Left)
+        assertEquals(page.margin, left.x, .0001)
+        val top = PdfGeometry.align(i, page, PdfGeometry.Align.Top)
+        assertEquals(page.margin, top.y, .0001)
+    }
+
+    @Test
+    fun replaceAssetKeepsFrameGeometry() {
+        val oldAsset = PdfAsset(hash, "image/jpeg", 800, 400)
+        val newHash = "b".repeat(64)
+        val newAsset = PdfAsset(newHash, "image/jpeg", 800, 400)
+        val i = image().copy(x = 12.0, y = 34.0, width = 80.0, height = 40.0, rotation = 90)
+        val replaced = PdfGeometry.replaceAsset(i, oldAsset, newAsset)
+        assertEquals(newHash, replaced.asset)
+        assertEquals(i.x, replaced.x, .0001)
+        assertEquals(i.y, replaced.y, .0001)
+        assertEquals(i.width, replaced.width, .0001)
+        assertEquals(i.height, replaced.height, .0001)
+        assertEquals(i.rotation, replaced.rotation)
+        assertEquals(i.fit, replaced.fit)
+    }
+
+    @Test
+    fun replaceAssetResetsFocusOnlyWhenCoverAndAspectDiffers() {
+        val square = PdfAsset(hash, "image/jpeg", 400, 400)
+        val wide = PdfAsset("b".repeat(64), "image/jpeg", 1600, 400)
+        val i = image().copy(fit = PdfFit.Cover, focusX = .1, focusY = .9)
+        val differentAspect = PdfGeometry.replaceAsset(i, square, wide)
+        assertEquals(.5, differentAspect.focusX, .0001)
+        assertEquals(.5, differentAspect.focusY, .0001)
+        val sameAspect = PdfGeometry.replaceAsset(i, square, square.copy(hash = "c".repeat(64)))
+        assertEquals(.1, sameAspect.focusX, .0001)
+        assertEquals(.9, sameAspect.focusY, .0001)
+        val containFit = PdfGeometry.replaceAsset(i.copy(fit = PdfFit.Contain), square, wide)
+        assertEquals(.1, containFit.focusX, .0001)
+        assertEquals(.9, containFit.focusY, .0001)
+    }
+
+    @Test
     fun constrainedExtremeRatioIsFinite() {
         for (n in 1..1000) {
             val i =

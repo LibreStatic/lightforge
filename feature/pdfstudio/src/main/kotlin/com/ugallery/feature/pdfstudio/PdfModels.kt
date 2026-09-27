@@ -166,10 +166,51 @@ object PdfGeometry {
         BottomRight,
     }
 
+    /** Relative-to-page alignment target for the canvas's Align menu. */
+    enum class Align {
+        Left,
+        Center,
+        Right,
+        Top,
+        Middle,
+        Bottom,
+    }
+
+    /**
+     * Aligns [i] relative to [p]'s margins, then [constrain]s the result. Routing through
+     * [constrain] matters: Right/Bottom (or any image wider/taller than the margin box) would
+     * otherwise land at a negative x/y, which fails [PdfProject.validate] downstream.
+     */
+    fun align(i: PdfImage, p: PdfPage, align: Align): PdfImage {
+        val x =
+            when (align) {
+                Align.Left -> p.margin
+                Align.Center -> (p.width - i.width) / 2
+                Align.Right -> p.width - p.margin - i.width
+                else -> i.x
+            }
+        val y =
+            when (align) {
+                Align.Top -> p.margin
+                Align.Middle -> (p.height - i.height) / 2
+                Align.Bottom -> p.height - p.margin - i.height
+                else -> i.y
+            }
+        return constrain(i.copy(x = x, y = y), p)
+    }
+
     /**
      * Resizes [i] by dragging [corner], keeping the opposite corner fixed in page space. Used by
      * the canvas's four corner handles; [Corner.BottomRight] matches the pre-existing single-handle
      * behavior exactly (anchor at top-left, width/height grow to the right/down).
+     */
+    /**
+     * Resizes [i] by dragging [corner], keeping the opposite corner ("the anchor") fixed in page
+     * space no matter what — including when the requested size would overflow the page, where
+     * routing through [resize]/[constrain] (which clamp x/y independently of which corner is
+     * being dragged) used to let the anchor drift. Instead this scales width/height to the room
+     * actually available *from the anchor* to the page's far margin, then derives x/y purely from
+     * the anchor and the (possibly shrunk) size, so the anchor corner never moves.
      */
     fun resizeFromCorner(
         i: PdfImage,
@@ -205,10 +246,40 @@ object PdfGeometry {
         }
         width = width.coerceAtLeast(.1)
         height = height.coerceAtLeast(.1)
-        val resized = resize(i, p, width, height, widthChanged)
-        val x = if (corner == Corner.TopLeft || corner == Corner.BottomLeft) right - resized.width else i.x
-        val y = if (corner == Corner.TopLeft || corner == Corner.TopRight) bottom - resized.height else i.y
-        return constrain(resized.copy(x = x, y = y), p)
+        var w = if (i.locked && !widthChanged) height * i.width / i.height else width
+        var h = if (i.locked && widthChanged) width * i.height / i.width else height
+        val anchorX = if (corner == Corner.TopLeft || corner == Corner.BottomLeft) right else i.x
+        val anchorY = if (corner == Corner.TopLeft || corner == Corner.TopRight) bottom else i.y
+        val roomX = if (corner == Corner.TopLeft || corner == Corner.BottomLeft) anchorX - p.margin
+                    else p.width - p.margin - anchorX
+        val roomY = if (corner == Corner.TopLeft || corner == Corner.TopRight) anchorY - p.margin
+                    else p.height - p.margin - anchorY
+        val scale =
+            listOf(1.0, roomX / w, roomY / h).filter { it.isFinite() }.minOrNull()?.coerceAtLeast(0.0)
+                ?: 1.0
+        w = (w * scale).coerceAtLeast(.1)
+        h = (h * scale).coerceAtLeast(.1)
+        val x = if (corner == Corner.TopLeft || corner == Corner.BottomLeft) anchorX - w else anchorX
+        val y = if (corner == Corner.TopLeft || corner == Corner.TopRight) anchorY - h else anchorY
+        return i.copy(x = x, y = y, width = w, height = h)
+    }
+
+    /**
+     * Swaps [i]'s asset for [newAsset] (replacing [oldAsset]) while keeping its frame geometry
+     * (x/y/width/height/rotation/fit) — the core of the canvas's contextual Replace action. If the
+     * fit is Cover and the new asset's aspect ratio differs noticeably from the old one, the crop
+     * focus resets to center so an off-center crop tuned for the old photo doesn't carry over onto
+     * different content framed at the same spot.
+     */
+    fun replaceAsset(i: PdfImage, oldAsset: PdfAsset, newAsset: PdfAsset): PdfImage {
+        fun aspect(a: PdfAsset) = if (a.height != 0) a.width.toDouble() / a.height else 1.0
+        val resetFocus =
+            i.fit == PdfFit.Cover && kotlin.math.abs(aspect(oldAsset) - aspect(newAsset)) > .01
+        return i.copy(
+            asset = newAsset.hash,
+            focusX = if (resetFocus) .5 else i.focusX,
+            focusY = if (resetFocus) .5 else i.focusY,
+        )
     }
 
     fun grid(p: PdfPage, columns: Int, gap: Double): PdfPage {

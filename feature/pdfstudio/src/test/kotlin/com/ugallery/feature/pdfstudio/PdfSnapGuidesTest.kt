@@ -61,6 +61,44 @@ class PdfSnapGuidesTest {
     }
 
     @Test
+    fun resolveDragAppliesGridBeforeGuides() {
+        val page = PdfPage(width = 210.0, height = 297.0)
+        val candidates = PdfSnapGuides.candidates(page, emptyList())
+        // 83 rounds to 85 on a 5 mm grid; 85 is then within 2mm of nothing here, so it should
+        // land exactly on the grid value, not the raw candidate.
+        val result = PdfSnapGuides.resolveDrag(83.0, 20.0, 10.0, 10.0, candidates, gridMm = 5.0)
+        assertEquals(85.0, result.x, .0001)
+    }
+
+    @Test
+    fun resolveDragWithoutGridStillAppliesGuides() {
+        val page = PdfPage(width = 210.0, height = 297.0)
+        val candidates = PdfSnapGuides.candidates(page, emptyList())
+        // width=10 keeps the center/right edges (109/114) well outside the threshold, so only
+        // the left edge (104, 1mm from the page-center guide at 105) can match.
+        val result = PdfSnapGuides.resolveDrag(104.0, 20.0, 10.0, 30.0, candidates, gridMm = null)
+        assertEquals(105.0, result.x, .0001)
+        assertNotNull(result.vertical)
+    }
+
+    @Test
+    fun resolveDragMatchesManualGridThenGuideComposition() {
+        // The exact composition the canvas's onDragEnd used to do manually, to prove
+        // resolveDrag(..., gridMm = 5.0) is equivalent (live drag and commit can never disagree
+        // since both now call the same function).
+        val page = PdfPage(width = 210.0, height = 297.0)
+        val candidateX = 83.3
+        val candidateY = 19.6
+        val manualGridX = kotlin.math.round(candidateX / 5) * 5
+        val manualGridY = kotlin.math.round(candidateY / 5) * 5
+        val candidates = PdfSnapGuides.candidates(page, emptyList())
+        val manual = PdfSnapGuides.snap(manualGridX, manualGridY, 10.0, 10.0, candidates)
+        val viaHelper = PdfSnapGuides.resolveDrag(candidateX, candidateY, 10.0, 10.0, candidates, gridMm = 5.0)
+        assertEquals(manual.x, viaHelper.x, .0001)
+        assertEquals(manual.y, viaHelper.y, .0001)
+    }
+
+    @Test
     fun bestMatchIsTheClosestGuideNotTheFirst() {
         val page = PdfPage()
         val a = image(x = 50.0, y = 0.0)
