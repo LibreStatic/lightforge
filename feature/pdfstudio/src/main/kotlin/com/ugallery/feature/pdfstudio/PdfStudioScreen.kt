@@ -81,6 +81,18 @@ fun PdfStudioScreen(
     var showDetails by rememberSaveable { mutableStateOf(false) }
     var panel by rememberSaveable { mutableIntStateOf(-1) }
     var exporting by rememberSaveable { mutableStateOf(false) }
+    var showShortcuts by rememberSaveable { mutableStateOf(false) }
+    // Phase F2 item C: one dispatcher shared by the top bar's Undo/Redo/Export, the shortcuts
+    // sheet's rows (informational there) and the canvas's keyboard handler, so a shortcut and its
+    // equivalent button can never invoke subtly different logic.
+    val commands =
+        remember(vm) {
+            PdfEditorCommandDispatcher(
+                vm = vm,
+                onOpenExportSheet = { exporting = true },
+                onShowShortcuts = { showShortcuts = true },
+            )
+        }
     var deletePages by remember { mutableStateOf(false) }
     var deleteProject by remember { mutableStateOf<PdfProjectRow?>(null) }
     val imports =
@@ -177,6 +189,9 @@ fun PdfStudioScreen(
     // library() always works now (it joins whatever operation is in flight itself), so Back must
     // never be conditionally gated here or it can look tappable while doing nothing.
     BackHandler(project != null) { vm.library() }
+    // Mirrors the BoxWithConstraints-scoped `layout.expanded` below for the shortcuts sheet, which
+    // renders outside that scope (alongside the other top-level sheets/dialogs).
+    var expandedLayout by remember { mutableStateOf(false) }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val layout =
             PdfStudioLayoutPolicy.forSize(
@@ -185,6 +200,7 @@ fun PdfStudioScreen(
                 androidx.compose.ui.platform.LocalDensity.current.fontScale,
                 foldInfo,
             )
+        SideEffect { expandedLayout = layout.expanded }
         Surface(
             Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.surface,
@@ -210,15 +226,16 @@ fun PdfStudioScreen(
                         state = state,
                         onBack = vm::library,
                         onRename = { showDetails = true },
-                        onUndo = vm::undo,
-                        onRedo = vm::redo,
-                        onExport = { exporting = true },
+                        onUndo = { commands.dispatch(PdfEditorCommand.Undo) },
+                        onRedo = { commands.dispatch(PdfEditorCommand.Redo) },
+                        onExport = { commands.dispatch(PdfEditorCommand.OpenExportSheet) },
                         onQueue = { showQueue = true },
                         onDetails = { showDetails = true },
                         onPortable = {
                             vm.portable()
                             showQueue = true
                         },
+                        onShowShortcuts = { commands.dispatch(PdfEditorCommand.ShowShortcuts) },
                         watchedJob = watchedJob,
                         onReopenProgress = { progressHidden = false },
                     )
@@ -249,6 +266,7 @@ fun PdfStudioScreen(
                                 vm.importLaunchFailed(e)
                             }
                         },
+                        commands = commands,
                         modifier = Modifier.weight(1f),
                     ) {
                         PdfFeedbackOverlay(
@@ -331,6 +349,8 @@ fun PdfStudioScreen(
                 onDone = vm::dismissResult,
             )
         }
+    if (showShortcuts)
+        PdfShortcutsSheet(expanded = expandedLayout, onDismiss = { showShortcuts = false })
     if (exporting && project != null)
         PdfExportSheet(
             project = project,

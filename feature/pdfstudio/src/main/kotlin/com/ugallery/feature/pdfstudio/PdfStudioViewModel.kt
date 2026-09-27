@@ -644,6 +644,36 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         scheduleSave()
     }
 
+    /**
+     * Ctrl+D (Phase F2 item C): duplicates the selected image right after itself, offset a few mm
+     * so the copy is visibly distinct and immediately selected, or duplicates the current page
+     * when no image is selected. Either way, a single undo step.
+     */
+    fun duplicateSelected() {
+        val n = mutable.value.image
+        val page = mutable.value.project?.pages?.getOrNull(mutable.value.page)
+        if (n >= 0 && page != null) {
+            val source = page.images.getOrNull(n) ?: return
+            val offset = 8.0
+            val copy =
+                PdfGeometry.constrainToPage(
+                    source.copy(id = newId(), x = source.x + offset, y = source.y + offset),
+                    page,
+                )
+            pageEdit { p -> p.copy(images = p.images.toMutableList().apply { add(n + 1, copy) }) }
+            selectImage(n + 1)
+        } else {
+            duplicatePage()
+        }
+    }
+
+    /** Ctrl+=/Ctrl+- (Phase F2 item C): multiplies the current zoom by [factor], same clamping and
+     * per-page viewport memory as [viewport]. */
+    fun zoomBy(factor: Float) {
+        val s = mutable.value
+        viewport(s.zoom * factor, s.panX, s.panY)
+    }
+
     fun moveImage(dx: Double, dy: Double) {
         val p = mutable.value.project ?: return
         val page = p.pages[mutable.value.page]
