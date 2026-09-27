@@ -36,7 +36,8 @@ def tap(label):
     assert n.get('enabled')=='true', (label,n.attrib)
     x,y,r,d=bounds(n)
     assert r>x and d>y, (label,n.attrib)
-    shell('input','tap',str((x+r)//2),str((y+d)//2));time.sleep(.25)
+    # Menus and sheets animate in; give them time before the next dump.
+    shell('input','tap',str((x+r)//2),str((y+d)//2));time.sleep(.7)
 def dismiss_to_editor(label):
     for _ in range(5):
         root,_=dump()
