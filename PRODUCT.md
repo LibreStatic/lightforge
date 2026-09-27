@@ -59,7 +59,7 @@ A gallery that scales to quarter-million-item libraries on-device, with local ML
 ## Brand Commitments
 
 - App name: Lightforge Studio (launcher label: "Lightforge"; application id `com.librestatic.lightforge`)
-- Non-commercial use only
+- Open source (Apache-2.0); commercial distribution allowed with one feature set for GitHub and Google Play (ADR-044)
 - No [redacted] trade dress, code, or resources copied; functional parity with own identity
 - Local-first, privacy-first positioning
 - English-first strings with full localization support

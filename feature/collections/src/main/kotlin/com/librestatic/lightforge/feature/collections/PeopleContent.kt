@@ -138,7 +138,7 @@ fun PeopleContent(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-        item(span = fullSpan) { Text(stringResource(R.string.people_noncommercial_notice), style = MaterialTheme.typography.bodyMedium) }
+        item(span = fullSpan) { Text(stringResource(R.string.people_on_device_notice), style = MaterialTheme.typography.bodyMedium) }
         item(span = fullSpan) { Text(stringResource(R.string.people_privacy), color = MaterialTheme.colorScheme.primary) }
         if (!state.consentGranted) {
             item(span = fullSpan) { GalleryExpressiveButton(onClick = onEnable, modifier = Modifier.testTag("people_enable")) {

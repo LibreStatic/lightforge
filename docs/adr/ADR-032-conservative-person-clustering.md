@@ -1,6 +1,6 @@
 # ADR-032 — Conservative local person clustering with persistent corrections
 
-Status: accepted for non-commercial activation; commercial activation requires a new compatible corpus gate  
+Status: accepted for non-commercial activation; commercial activation requires a new compatible corpus gate (see ADR-044)  
 Date: 2026-08-18
 
 ## Context

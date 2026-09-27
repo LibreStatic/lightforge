@@ -33,7 +33,7 @@ class PeopleContentDeviceTest {
     val compose = createComposeRule()
 
     @Test
-    fun peopleAndMeControlsAreExplicitAndNonCommercial() {
+    fun peopleAndMeControlsAreExplicitAndOnDevice() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         var consent by mutableStateOf(false)
         var selected by mutableStateOf<PersonCardUi?>(null)
@@ -77,7 +77,7 @@ class PeopleContentDeviceTest {
             }
         }
 
-        compose.onNode(hasText(context.getString(R.string.people_noncommercial_notice))).assertIsDisplayed()
+        compose.onNode(hasText(context.getString(R.string.people_on_device_notice))).assertIsDisplayed()
         compose.onNode(hasText(context.getString(R.string.people_enable))).performClick()
         compose.onNode(hasText(context.resources.getQuantityString(R.plurals.people_progress, 12, 12))).assertIsDisplayed()
         compose.onNode(hasText(context.getString(R.string.people_status_detecting_faces))).assertIsDisplayed()
