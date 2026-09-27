@@ -29,6 +29,21 @@ internal enum class PdfLibrarySort {
     Name,
 }
 
+/** Pure filter/sort for the library list, split out from the composable so it has a plain JVM
+ * unit test (see PdfLibraryScreenTest). Name search is case-insensitive substring; Name sort is
+ * case-insensitive too, so "abc" and "ABC" interleave by their natural order, not ASCII order. */
+internal fun filterAndSortProjects(
+    projects: List<PdfProjectRow>,
+    query: String,
+    sort: PdfLibrarySort,
+): List<PdfProjectRow> =
+    projects.filter { it.name.contains(query, ignoreCase = true) }.let { list ->
+        when (sort) {
+            PdfLibrarySort.Recent -> list.sortedByDescending { it.updated }
+            PdfLibrarySort.Name -> list.sortedBy { it.name.lowercase() }
+        }
+    }
+
 /** The three quick-start templates offered from the empty state and prefilled into the New
  * project sheet (Phase E item 2/3): Photo grid (A4 portrait, 2 columns), Receipts (A4 portrait,
  * 1 column, narrow margins) and Prints 10x15 (10x15 cm, 1 photo per page). */
@@ -90,17 +105,7 @@ internal fun ColumnScope.PdfLibraryScreen(
     } else {
         FlowRowActions(busy, pendingImport, onNewProject = { openNewProject(null) }, onImportProject = onImportProject)
         PdfLibrarySearchAndSort(query, { query = it }, sort, { sort = it })
-        val visible =
-            remember(projects, query, sort) {
-                projects
-                    .filter { it.name.contains(query, ignoreCase = true) }
-                    .let { list ->
-                        when (sort) {
-                            PdfLibrarySort.Recent -> list.sortedByDescending { it.updated }
-                            PdfLibrarySort.Name -> list.sortedBy { it.name.lowercase() }
-                        }
-                    }
-            }
+        val visible = remember(projects, query, sort) { filterAndSortProjects(projects, query, sort) }
         LazyColumn(
             Modifier.weight(1f).padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
