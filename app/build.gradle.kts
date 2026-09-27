@@ -89,6 +89,8 @@ val verbatimLicenseCopies = listOf(
         "app/src/main/assets/licenses/rife-ncnn-vulkan-MIT.txt",
     "docs/models/licenses/SFACE_APACHE_2.0.txt" to
         "app/src/main/assets/licenses/SFace-Apache-2.0.txt",
+    "feature/pdfstudio/src/main/assets/fonts/OFL.txt" to
+        "app/src/main/assets/licenses/Noto-OFL-1.1.txt",
 )
 
 val verifyVerbatimLicenseCopies by tasks.registering(Exec::class) {
