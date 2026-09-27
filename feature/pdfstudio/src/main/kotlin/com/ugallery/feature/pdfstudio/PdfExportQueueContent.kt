@@ -177,6 +177,23 @@ private fun PdfExportJobCard(
     OutlinedCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
             Text(job.projectName, style = MaterialTheme.typography.titleMedium)
+            val typeLabel =
+                stringResource(
+                    if (job.portable) R.string.pdf_export_type_project else R.string.pdf_export_type_pdf
+                )
+            val destinationLabel =
+                job.destination?.let { uri ->
+                    var label by remember(uri) { mutableStateOf<String?>(null) }
+                    androidx.compose.runtime.LaunchedEffect(uri) {
+                        label = resolveDestinationLabel(context.applicationContext, Uri.parse(uri), "")
+                    }
+                    label?.takeIf(String::isNotBlank)
+                }
+            Text(
+                if (destinationLabel != null) "$typeLabel · $destinationLabel" else typeLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Text(
                 stringResource(
                     when (job.phase) {

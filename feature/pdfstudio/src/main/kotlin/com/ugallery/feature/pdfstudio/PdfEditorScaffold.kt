@@ -1,6 +1,12 @@
 package com.ugallery.feature.pdfstudio
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -10,6 +16,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -17,6 +24,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -274,6 +289,8 @@ internal fun PdfEditorBody(
                     vm,
                     Modifier.weight(1f).fillMaxHeight(),
                     state.editorLocked,
+                    pageIndex = state.page,
+                    pageCount = project.pages.size,
                     onAdjustImage = onAdjustImage,
                 )
                 if (layout.expanded)
@@ -325,8 +342,18 @@ internal fun PdfEditorBody(
             ) {
                 feedback()
             }
+            // Drawn as an overlay (not inserted into the Column below) so the canvas never
+            // resizes/jumps when a selection appears or clears.
+            if (state.image >= 0 && !state.editorLocked)
+                PdfImageContextualToolbar(
+                    vm = vm,
+                    modifier =
+                        Modifier.align(Alignment.BottomCenter)
+                            .padding(bottom = if (layout.expanded) 12.dp else 96.dp),
+                )
         }
     }
+    if (!layout.expanded) PdfPageStrip(vm, state, project)
     // A single NavigationBar for all four destinations at every width/font scale: it evenly
     // divides the available width among the items instead of a horizontally-scrolling chip row,
     // so labels wrap to a second line (never clipped at the edge with no scroll affordance) even
@@ -367,3 +394,263 @@ private fun pdfToolBarTabs() =
         GalleryIcons.Grid to R.string.pdf_design,
         GalleryIcons.Tune to R.string.pdf_adjust,
     )
+
+/**
+ * Contextual toolbar shown above the page strip while an image is selected (Phase C item 4):
+ * Crop/Fit, Rotate, Align, Layer and Delete. Replace (re-picking the asset while keeping frame
+ * geometry) was left out of this phase: it needs its own import-picker wiring and a "keep
+ * geometry" contract with the repository that did not fit safely in the same change as the rest
+ * of this toolbar; the existing Adjust panel remains the way to swap an image's crop/fit today.
+ * Reuses the existing "Adjust" custom action (pdf_adjust) and the panel it opens, which stays the
+ * definitive place for numeric edits; this row is the quick, mouse/touch-first path.
+ */
+@Composable
+private fun PdfImageContextualToolbar(vm: PdfStudioViewModel, modifier: Modifier = Modifier) {
+    var showAlign by remember { mutableStateOf(false) }
+    var showLayer by remember { mutableStateOf(false) }
+    Surface(
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+        tonalElevation = 3.dp,
+    ) {
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 4.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val cropFitLabel = stringResource(R.string.pdf_toolbar_cropfit)
+            IconButton(
+                onClick = vm::toggleSelectedImageFit,
+                modifier = Modifier.semantics { contentDescription = cropFitLabel },
+            ) {
+                Icon(GalleryIcons.Crop, contentDescription = null)
+            }
+            val rotateLabel = stringResource(R.string.pdf_rotate)
+            IconButton(
+                onClick = vm::rotateSelectedImage,
+                modifier = Modifier.semantics { contentDescription = rotateLabel },
+            ) {
+                Icon(GalleryIcons.RotateRight, contentDescription = null)
+            }
+            Box {
+                val alignLabel = stringResource(R.string.pdf_toolbar_align)
+                IconButton(
+                    onClick = { showAlign = true },
+                    modifier = Modifier.semantics { contentDescription = alignLabel },
+                ) {
+                    Icon(GalleryIcons.AlignHorizontalCenter, contentDescription = null)
+                }
+                DropdownMenu(expanded = showAlign, onDismissRequest = { showAlign = false }) {
+                    val entries =
+                        listOf(
+                            PdfStudioViewModel.Align.Left to R.string.pdf_align_left,
+                            PdfStudioViewModel.Align.Center to R.string.pdf_align_center,
+                            PdfStudioViewModel.Align.Right to R.string.pdf_align_right,
+                            PdfStudioViewModel.Align.Top to R.string.pdf_align_top,
+                            PdfStudioViewModel.Align.Middle to R.string.pdf_align_middle,
+                            PdfStudioViewModel.Align.Bottom to R.string.pdf_align_bottom,
+                        )
+                    entries.forEach { (align, label) ->
+                        DropdownMenuItem(
+                            text = { Text(stringResource(label)) },
+                            onClick = {
+                                showAlign = false
+                                vm.alignSelectedImage(align)
+                            },
+                        )
+                    }
+                }
+            }
+            Box {
+                val layerLabel = stringResource(R.string.pdf_toolbar_layer)
+                IconButton(
+                    onClick = { showLayer = true },
+                    modifier = Modifier.semantics { contentDescription = layerLabel },
+                ) {
+                    Icon(GalleryIcons.Layers, contentDescription = null)
+                }
+                DropdownMenu(expanded = showLayer, onDismissRequest = { showLayer = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.pdf_layer_forward)) },
+                        onClick = {
+                            showLayer = false
+                            vm.bringSelectedImageForward()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.pdf_layer_backward)) },
+                        onClick = {
+                            showLayer = false
+                            vm.sendSelectedImageBackward()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.pdf_front)) },
+                        onClick = {
+                            showLayer = false
+                            vm.bringSelectedImageToFront()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.pdf_backlayer)) },
+                        onClick = {
+                            showLayer = false
+                            vm.sendSelectedImageToBack()
+                        },
+                    )
+                }
+            }
+            val deleteLabel = stringResource(R.string.pdf_delete_image)
+            IconButton(
+                onClick = vm::deleteSelectedImage,
+                colors =
+                    androidx.compose.material3.IconButtonDefaults.iconButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    ),
+                modifier = Modifier.semantics { contentDescription = deleteLabel },
+            ) {
+                Icon(GalleryIcons.Trash, contentDescription = null)
+            }
+        }
+    }
+}
+
+/** Fixed height of [PdfPageStrip], also used to keep the contextual toolbar floating above it. */
+private val PAGE_STRIP_HEIGHT = 96.dp
+
+/**
+ * Horizontal page strip under the canvas, above the bottom tool bar (Phase C item 3): numbered
+ * thumbnails with the current page outlined, a trailing "Add page" tile, and long-press drag to
+ * reorder. Complements (does not replace) the existing Pages panel/sheet, which stays the full
+ * management surface (multi-select, duplicate, delete...).
+ */
+@Composable
+internal fun PdfPageStrip(vm: PdfStudioViewModel, s: PdfStudioState, project: PdfProject) {
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    var dragging by remember { mutableStateOf<String?>(null) }
+    var dragOffsetX by remember { mutableStateOf(0f) }
+    val listState = rememberLazyListState()
+    Surface(color = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface) {
+        LazyRow(
+            state = listState,
+            modifier = Modifier.fillMaxWidth().height(PAGE_STRIP_HEIGHT),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(project.pages, key = { it.id }) { page ->
+                val index = project.pages.indexOf(page)
+                val isCurrent = index == s.page
+                val thumbLabel =
+                    if (isCurrent)
+                        stringResource(R.string.pdf_page_thumb_selected, index + 1, project.pages.size)
+                    else stringResource(R.string.pdf_page_indicator, index + 1, project.pages.size)
+                val moveLeftLabel = stringResource(R.string.pdf_move_left)
+                val moveRightLabel = stringResource(R.string.pdf_move_right)
+                Box(
+                    Modifier.width(56.dp)
+                        .fillMaxHeight()
+                        .graphicsLayer {
+                            translationX = if (dragging == page.id) dragOffsetX else 0f
+                            shadowElevation = if (dragging == page.id) 8f else 0f
+                        }
+                        .then(
+                            if (isCurrent)
+                                Modifier.border(
+                                    2.dp,
+                                    MaterialTheme.colorScheme.primary,
+                                    androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
+                                )
+                            else Modifier
+                        )
+                        .clearAndSetSemantics {
+                            contentDescription = thumbLabel
+                            selected = isCurrent
+                            role = Role.Button
+                            onClick(label = null) {
+                                vm.selectPage(index)
+                                true
+                            }
+                            customActions =
+                                buildList {
+                                    if (index > 0)
+                                        add(
+                                            androidx.compose.ui.semantics.CustomAccessibilityAction(
+                                                moveLeftLabel
+                                            ) {
+                                                vm.reorderPage(index, index - 1)
+                                                true
+                                            }
+                                        )
+                                    if (index < project.pages.lastIndex)
+                                        add(
+                                            androidx.compose.ui.semantics.CustomAccessibilityAction(
+                                                moveRightLabel
+                                            ) {
+                                                vm.reorderPage(index, index + 1)
+                                                true
+                                            }
+                                        )
+                                }
+                        }
+                        .clickable(enabled = !s.editorLocked) { vm.selectPage(index) }
+                        .pointerInput(page.id, project.pages.size) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = {
+                                    dragging = page.id
+                                    dragOffsetX = 0f
+                                    haptics.performHapticFeedback(
+                                        androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress
+                                    )
+                                },
+                                onDragEnd = {
+                                    val slot = 64.dp
+                                    val slotPx =
+                                        with(this) { slot.toPx() }
+                                    val steps = (dragOffsetX / slotPx).let { if (it >= 0) kotlin.math.floor(it) else kotlin.math.ceil(it) }.toInt()
+                                    val target = (index + steps).coerceIn(0, project.pages.lastIndex)
+                                    dragging = null
+                                    dragOffsetX = 0f
+                                    if (target != index) vm.reorderPage(index, target)
+                                },
+                                onDragCancel = {
+                                    dragging = null
+                                    dragOffsetX = 0f
+                                },
+                            ) { change, drag ->
+                                change.consume()
+                                dragOffsetX += drag.x
+                            }
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        PageThumbnail(page, vm, Modifier.size(40.dp, 52.dp))
+                        Text(
+                            "${index + 1}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color =
+                                if (isCurrent) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            item(key = "add-page") {
+                val atLimit = project.pages.size >= 100
+                val addLabel =
+                    if (atLimit) stringResource(R.string.pdf_addpage_limit)
+                    else stringResource(R.string.pdf_addpage)
+                Box(
+                    Modifier.width(56.dp)
+                        .fillMaxHeight()
+                        .semantics { contentDescription = addLabel }
+                        .clickable(enabled = !s.editorLocked && !atLimit, onClick = vm::addPage),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(GalleryIcons.Plus, contentDescription = null)
+                }
+            }
+        }
+    }
+}

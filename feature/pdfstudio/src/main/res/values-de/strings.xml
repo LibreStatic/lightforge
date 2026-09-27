@@ -74,7 +74,7 @@
     <string name="pdf_queue_running">PDF-Seiten werden vorbereitet</string>
     <string name="pdf_queue_ready">Bereit zum Speichern</string>
     <string name="pdf_queue_publishing">Ziel wird geschrieben und geprüft</string>
-    <string name="pdf_queue_published">Gespeichert und geprüft</string>
+    <string name="pdf_queue_published">Gespeichert</string>
     <string name="pdf_queue_failed">Export fehlgeschlagen. Erneut versuchen oder anderes Ziel wählen.</string>
     <string name="pdf_queue_cancelled">Abgebrochen</string>
     <string name="pdf_queue_recovery_error">Wiederherstellung der Warteschlange fehlgeschlagen. Studio erneut öffnen.</string>
@@ -156,4 +156,25 @@
         <item quantity="other">%1$d Seiten</item>
     </plurals>
     <string name="pdf_export_quality_card_label">%1$s, %2$s</string>
+    <string name="pdf_page_indicator">Seite %1$d von %2$d</string>
+    <string name="pdf_page_thumb_selected">Seite %1$d von %2$d, ausgewählt</string>
+    <string name="pdf_zoom_percent">%1$d%%</string>
+    <string name="pdf_move_left">Nach links verschieben</string>
+    <string name="pdf_move_right">Nach rechts verschieben</string>
+    <string name="pdf_addpage_limit">Maximum von 100 Seiten erreicht</string>
+    <string name="pdf_toolbar_cropfit">Zuschneiden / Anpassen</string>
+    <string name="pdf_toolbar_align">Ausrichten</string>
+    <string name="pdf_align_left">Links ausrichten</string>
+    <string name="pdf_align_center">Horizontal zentrieren</string>
+    <string name="pdf_align_right">Rechts ausrichten</string>
+    <string name="pdf_align_top">Oben ausrichten</string>
+    <string name="pdf_align_middle">Vertikal zentrieren</string>
+    <string name="pdf_align_bottom">Unten ausrichten</string>
+    <string name="pdf_toolbar_layer">Ebene</string>
+    <string name="pdf_layer_forward">Nach vorne holen</string>
+    <string name="pdf_layer_backward">Nach hinten schicken</string>
+    <string name="pdf_delete_image">Bild löschen</string>
+    <string name="pdf_snap_measurement">↔ %1$s · ↕ %2$s</string>
+    <string name="pdf_export_type_pdf">PDF</string>
+    <string name="pdf_export_type_project">Projektdatei</string>
 </resources>
