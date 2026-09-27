@@ -48,6 +48,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -433,11 +436,20 @@ private fun SearchDiscovery(
         } }
         item {
             if (onOpenPlaces != null) {
-                TextButton(
-                    onClick = onOpenPlaces,
-                    modifier = Modifier.semantics { heading() }.testTag("search-open-places"),
+                // Same start edge and typography as the other section headers (R-07); a chevron
+                // marks it as the entry to Places instead of TextButton padding.
+                Row(
+                    Modifier
+                        .semantics { heading() }
+                        .testTag("search-open-places")
+                        .clip(MaterialTheme.shapes.small)
+                        .clickable(role = Role.Button, onClick = onOpenPlaces)
+                        .heightIn(min = 48.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(stringResource(R.string.search_places), style = MaterialTheme.typography.titleMedium)
+                    Icon(GalleryIcons.ChevronForward, contentDescription = null)
                 }
             } else {
                 Text(stringResource(R.string.search_places), style = MaterialTheme.typography.titleMedium)

@@ -5,6 +5,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.Redo
 import androidx.compose.material.icons.automirrored.rounded.Undo
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
@@ -58,6 +59,7 @@ import androidx.compose.ui.unit.dp
  */
 
 val GalleryIconBack: ImageVector get() = Icons.AutoMirrored.Rounded.ArrowBack
+val GalleryIconChevronForward: ImageVector get() = Icons.AutoMirrored.Rounded.KeyboardArrowRight
 val GalleryIconMore: ImageVector get() = Icons.Rounded.MoreVert
 val GalleryIconGrid: ImageVector get() = Icons.Rounded.GridOn
 val GalleryIconCollections: ImageVector get() = Icons.Rounded.Collections
@@ -130,6 +132,7 @@ fun GalleryIcon(
  */
 object GalleryIcons {
     val Back get() = GalleryIconBack
+    val ChevronForward get() = GalleryIconChevronForward
     val More get() = GalleryIconMore
     val Grid get() = GalleryIconGrid
     val Collections get() = GalleryIconCollections
