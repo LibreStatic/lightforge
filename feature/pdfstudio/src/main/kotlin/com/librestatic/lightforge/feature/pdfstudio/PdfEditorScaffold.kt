@@ -548,8 +548,12 @@ private fun PdfInspectorColumn(
     // Round-2 fix: this used to key only on state.image, so selecting a TEXT (not an image) left
     // the tab list without an "Adjust" entry at all in expanded/hinge layouts - state.selected
     // (Phase G1b's generalized image-or-text selection) covers both.
-    val hasElementSelected = state.selected != null
-    LaunchedEffect(state.selected) { if (hasElementSelected) inspectorTab = 1 }
+    // Fix-round item 2: a 2+ group selection sets state.image = -1 / selectedTextId = null (so
+    // state.selected reads null), which used to make the "Adjust" tab vanish entirely right when
+    // it's needed most - PdfAdjustPanel already routes to the compact group inspector for
+    // groupSelected, so it only had to be reachable.
+    val hasElementSelected = state.selected != null || state.groupSelected
+    LaunchedEffect(state.selected, state.groupSelected) { if (hasElementSelected) inspectorTab = 1 }
     val tabs =
         buildList {
             add(stringResource(R.string.pdf_design) to 0)

@@ -90,7 +90,9 @@ import androidx.compose.material.icons.rounded.FormatAlignRight
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
 /**
@@ -166,12 +168,77 @@ val GalleryIconLink: ImageVector get() = Icons.Rounded.Link
 val GalleryIconLinkOff: ImageVector get() = Icons.Rounded.LinkOff
 val GalleryIconSwapHoriz: ImageVector get() = Icons.Rounded.SwapHoriz
 val GalleryIconSwapVert: ImageVector get() = Icons.Rounded.SwapVert
-// material-icons-core (the only icon set this project allows — no material-icons-extended) has
-// no dedicated "distribute spacing" glyph; SwapHoriz/SwapVert's arrows-between-two-things shape
-// is the closest stand-in available, reused here under its own semantic name so a future proper
-// glyph can replace just these two lines without touching call sites.
-val GalleryIconDistributeHorizontal: ImageVector get() = Icons.Rounded.SwapHoriz
-val GalleryIconDistributeVertical: ImageVector get() = Icons.Rounded.SwapVert
+
+// Fix-round item 5: material-icons-core (the only icon set this project allows — no material-
+// icons-extended) has no dedicated "distribute spacing" glyph, and SwapHoriz/SwapVert's crossed-
+// arrows shape reads as "swap", not "distribute" — confusing next to the group Align menu's own
+// arrow icon. Hand-built instead, in the same 24x24 viewport/rounded-corner spirit as the bundled
+// Rounded set: three equal blocks with equal gaps between them (Material Symbols' own
+// "horizontal_distribute"/"vertical_distribute" use the same three-equal-gaps motif), no new
+// dependency.
+private val GalleryIconDistributeHorizontalCustom: ImageVector by lazy {
+    ImageVector.Builder(
+            name = "DistributeHorizontal",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f,
+        )
+        .apply {
+            path(fill = SolidColor(Color.Black)) {
+                // Three vertical bars, evenly spaced, equal width/gaps: "space these evenly".
+                moveTo(3f, 4f)
+                lineTo(6f, 4f)
+                lineTo(6f, 20f)
+                lineTo(3f, 20f)
+                close()
+                moveTo(10.5f, 4f)
+                lineTo(13.5f, 4f)
+                lineTo(13.5f, 20f)
+                lineTo(10.5f, 20f)
+                close()
+                moveTo(18f, 4f)
+                lineTo(21f, 4f)
+                lineTo(21f, 20f)
+                lineTo(18f, 20f)
+                close()
+            }
+        }
+        .build()
+}
+
+private val GalleryIconDistributeVerticalCustom: ImageVector by lazy {
+    ImageVector.Builder(
+            name = "DistributeVertical",
+            defaultWidth = 24.dp,
+            defaultHeight = 24.dp,
+            viewportWidth = 24f,
+            viewportHeight = 24f,
+        )
+        .apply {
+            path(fill = SolidColor(Color.Black)) {
+                // Same motif, rotated: three horizontal bars, evenly spaced.
+                moveTo(4f, 3f)
+                lineTo(20f, 3f)
+                lineTo(20f, 6f)
+                lineTo(4f, 6f)
+                close()
+                moveTo(4f, 10.5f)
+                lineTo(20f, 10.5f)
+                lineTo(20f, 13.5f)
+                lineTo(4f, 13.5f)
+                close()
+                moveTo(4f, 18f)
+                lineTo(20f, 18f)
+                lineTo(20f, 21f)
+                lineTo(4f, 21f)
+                close()
+            }
+        }
+        .build()
+}
+val GalleryIconDistributeHorizontal: ImageVector get() = GalleryIconDistributeHorizontalCustom
+val GalleryIconDistributeVertical: ImageVector get() = GalleryIconDistributeVerticalCustom
 val GalleryIconChecklist: ImageVector get() = Icons.Rounded.Checklist
 val GalleryIconSelectAll: ImageVector get() = Icons.Rounded.SelectAll
 val GalleryIconCenterFocusStrong: ImageVector get() = Icons.Rounded.CenterFocusStrong

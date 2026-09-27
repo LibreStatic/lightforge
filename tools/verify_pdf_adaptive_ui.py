@@ -165,7 +165,8 @@ if args.folds:
         shell('am','start','-W','-n',pkg+'/com.librestatic.lightforge.feature.pdfstudio.PdfUiProbeActivity',
               '--ei','width',str(width),'--ei','height',str(height),'--ef','font','1','--es','locale','en',
               '--ez','dark','false','--ez','rtl','false','--ez','dynamic',str(args.dynamic).lower(),
-              '--es','fold',orientation,'--ei','hingePx',str(hinge_dp),'--ef','foldPos',str(fold_pos))
+              '--es','fold',orientation,'--ei','hingePx',str(hinge_dp),'--ef','foldPos',str(fold_pos),
+              '--ez','multi','true')
         wait_ready();time.sleep(.5);ls=labels('en')
         root=None
         for _ in range(20):
@@ -198,7 +199,26 @@ if args.folds:
         theme=json.loads(shell('run-as',pkg,'cat','files/pdf-ui-theme.json'))
         for key in ('surface','primary','secondaryContainer','surfaceContainer','ruler','statusBar','hoverTooltip','mediaThumbnail'):assert theme[key]>=4.5,(name,key,theme)
         for key in ('outline','contextualToolbar','shortcutKeycap'):assert theme[key]>=3,(name,key,theme)
-        row=dict(case=name,orientation=orientation,canvasBounds=canvas,hingeBoundsPx=list(hinge_px),noClickableUnderHinge=True,canvasOnOneSide=True)
+        # Fix-round item 4: the multi-select bar (and per-member/group outlines) must never sit on
+        # the fold either - long-press the fixture image, tap the fixture text to form a 2-element
+        # group, and check the "N selected" bar's own bounds the same way as every clickable node
+        # above.
+        image_label=ls['pdf_image_label'].replace('%1$d','1').replace('%d','1')
+        text_label=ls['pdf_text_label'].replace('%1$s','B').replace('%s','B')
+        long_press(image_label)
+        for _ in range(20):
+            if state().get('selectedCount',0)==1:break
+            time.sleep(.2)
+        tap(text_label)
+        for _ in range(20):
+            if state().get('groupSelected'):break
+            time.sleep(.2)
+        assert state().get('selectedCount')==2 and state().get('groupSelected'),(name,state())
+        root2=snap(name+'-2-selected')
+        bar_nodes=[n for n in root2.iter('node') if n.get('text')=='2 selected']
+        assert bar_nodes,(name,'2 selected bar not shown in this fold layout')
+        assert not intersects(bounds(bar_nodes[0])),(name,'multi-select bar overlaps the hinge',bounds(bar_nodes[0]),hinge_px)
+        row=dict(case=name,orientation=orientation,canvasBounds=canvas,hingeBoundsPx=list(hinge_px),noClickableUnderHinge=True,canvasOnOneSide=True,multiSelectBarOffHinge=True)
         fold_results.append(row);print('FOLD CASE PASS: '+json.dumps(row,sort_keys=True),flush=True)
         cleanup()
 media_result=None
@@ -332,16 +352,25 @@ if args.text:
 multi_results=[]
 if args.multi:
     # Phase G2: long-press the fixture image to enter multi-select, tap the fixture text to add
-    # it (2 selected -> the group bar appears), Align left, then undo, on both a compact (360dp)
-    # and an expanded (840dp, always-visible inspector) width - mirrors --text's two-width shape.
-    for width,height in ((840,640),(360,640)):
-        name=f'multi-{width}x{height}'
+    # it (2 selected -> the group bar appears), Align left, then undo. The base compact/expanded
+    # widths mirror --text's two-width shape; the 200%-font and RTL cases are Fix-round item 9 -
+    # the Done/close button must stay reachable (scroll or wrap) and Align-left must remain
+    # PHYSICAL left even in RTL (never mirrored), matching the existing base UI cases' own
+    # physicalCoordinates check.
+    multi_cases=[
+        (840,640,1,'en',False),  # expanded, always-visible inspector
+        (360,640,1,'en',False),  # compact
+        (360,640,2,'en',False),  # 200% font scale
+        (360,640,1,'en',True),   # RTL (pseudo-locale layout direction; page coords never mirror)
+    ]
+    for width,height,font,locale,rtl in multi_cases:
+        name=f'multi-{width}x{height}-font{font}{"-rtl" if rtl else ""}'
         shell('run-as',pkg,'rm','-f','files/pdf-ui-state.json')
-        subprocess.run(b+['shell','run-as',pkg,'tee','files/pdf-ui-config.json'],input=json.dumps(dict(width=width,font=1,locale='en')).encode(),stdout=subprocess.DEVNULL,check=True)
+        subprocess.run(b+['shell','run-as',pkg,'tee','files/pdf-ui-config.json'],input=json.dumps(dict(width=width,font=font,locale=locale)).encode(),stdout=subprocess.DEVNULL,check=True)
         shell('am','start','-W','-n',pkg+'/com.librestatic.lightforge.feature.pdfstudio.PdfUiProbeActivity',
-              '--ei','width',str(width),'--ei','height',str(height),'--ef','font','1','--es','locale','en',
-              '--ez','dark','false','--ez','rtl','false','--ez','dynamic',str(args.dynamic).lower(),'--ez','multi','true')
-        wait_ready();time.sleep(.5);ls=labels('en')
+              '--ei','width',str(width),'--ei','height',str(height),'--ef','font',str(font),'--es','locale',locale,
+              '--ez','dark','false','--ez','rtl',str(rtl).lower(),'--ez','dynamic',str(args.dynamic).lower(),'--ez','multi','true')
+        wait_ready();time.sleep(.5);ls=labels(locale)
         snap(name+'-baseline')
         image_label=ls['pdf_image_label'].replace('%1$d','1').replace('%d','1')
         text_label=ls['pdf_text_label'].replace('%1$s','B').replace('%s','B')
@@ -358,20 +387,33 @@ if args.multi:
         root=snap(name+'-2-selected')
         # The bar's own "N selected" plural literal text (not a contentDescription - see
         # PdfMultiSelectBar) is the visible, screenshot-reviewable proof the bar is showing.
-        assert any(n.get('text')=='2 selected' for n in root.iter('node')),'2 selected bar not shown'
+        bar_count_nodes=[n for n in root.iter('node') if n.get('text') and 'selected' in n.get('text')]
+        assert bar_count_nodes,(name,'no "N selected" bar text shown')
+        # Fix-round item 9: the Done/close button (pdf_multiselect_exit content-desc) must stay
+        # reachable - present in the tree at all (the bar's Row is horizontally scrollable if it
+        # doesn't fit) even at 200% font / RTL, not just at 100% en.
+        done_label=ls['pdf_multiselect_exit']
+        assert any(n.get('content-desc')==done_label for n in root.iter('node')),(name,'Done button not reachable')
         theme=json.loads(shell('run-as',pkg,'cat','files/pdf-ui-theme.json'))
         assert theme['multiSelectBar']>=4.5,(name,theme)
         assert theme['multiSelectBarDelete']>=4.5,(name,theme)
-        tap(ls['pdf_toolbar_align'])
+        align_label=ls['pdf_toolbar_align']
+        tap(align_label)
         tap(ls['pdf_align_left'])
         time.sleep(.3)
         assert state()['groupSelected'],state()
-        snap(name+'-aligned')
+        aligned_root=snap(name+'-aligned')
+        # Physical-left check (Fix-round item 9): Align-left must land both members at the SAME
+        # physical x - regardless of RTL layout direction - by reading their bounds back from the
+        # accessibility tree (both elements' left edges coincide on screen).
+        img_bounds=bounds(node_for(aligned_root,image_label))
+        txt_bounds=bounds(node_for(aligned_root,text_label))
+        assert abs(img_bounds[0]-txt_bounds[0])<=3,(name,'Align left did not land on the same physical x',img_bounds,txt_bounds)
         tap(ls['pdf_undo'])
         for _ in range(20):
             if not state().get('busy'):break
             time.sleep(.2)
-        row=dict(case=name,enteredMultiSelect=True,groupBarShown=True,alignApplied=True,undoOk=True)
+        row=dict(case=name,enteredMultiSelect=True,groupBarShown=True,alignApplied=True,undoOk=True,doneReachable=True,physicalLeftAlign=True)
         multi_results.append(row);print('MULTI CASE PASS: '+json.dumps(row,sort_keys=True),flush=True)
         cleanup()
 assert device_settings()==settings_before, 'Device settings changed'

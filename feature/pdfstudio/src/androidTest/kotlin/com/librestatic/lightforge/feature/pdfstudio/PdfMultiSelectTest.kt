@@ -315,4 +315,43 @@ class PdfMultiSelectTest {
         val page = vm.state.value.project!!.pages[0]
         vm.state.value.selectedIds.forEach { id -> assertTrue(page.images.any { it.id == id }) }
     }
+
+    /**
+     * Fix-round item 3: Shift/Ctrl+click routes through [PdfStudioViewModel.toggleSelectionWithModifier]
+     * rather than the plain tap path — real ADB input can't hold a keyboard modifier during a
+     * synthetic tap, so this covers the VM-level routing directly (mirroring the plan's own
+     * fallback: "if untestable on device, add a unit-testable routing function").
+     */
+    @Test
+    fun toggleSelectionWithModifierStartsAGroupFromASingleSelection(): Unit = runBlocking {
+        val vm = openFreshProject()
+        onMain {
+            vm.update { p ->
+                p.copy(assets = p.assets + PdfAsset(hash = "a".repeat(64), mime = "image/jpeg", width = 10, height = 10))
+            }
+        }
+        idle(vm)
+        val ids = addImages(vm, 2)
+        // Plain single-select on the first image (as an ordinary tap would do) - not yet in a
+        // multi-select session.
+        onMain { vm.selectImage(0) }
+        idle(vm)
+        assertFalse(vm.state.value.multiSelectMode)
+        assertEquals(setOf(ids[0]), vm.state.value.selectedIds)
+
+        // Modifier-click the second image: forms a 2-element group from the prior single
+        // selection plus this one, entering multi-select mode - the conventional desktop "add to
+        // selection" gesture, distinct from a plain tap (which would replace the selection) and
+        // from long-press (which would start a group from just the long-pressed element alone).
+        onMain { vm.toggleSelectionWithModifier(ids[1]) }
+        idle(vm)
+        assertTrue(vm.state.value.groupSelected)
+        assertEquals(ids.toSet(), vm.state.value.selectedIds)
+
+        // Modifier-clicking an already-selected member while ALREADY in a multi-select session
+        // removes it (same as toggleMultiSelect) rather than starting a new group.
+        onMain { vm.toggleSelectionWithModifier(ids[1]) }
+        idle(vm)
+        assertEquals(setOf(ids[0]), vm.state.value.selectedIds)
+    }
 }

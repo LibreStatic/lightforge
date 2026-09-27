@@ -788,6 +788,30 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         setSelection(page, next, multiMode = next.isNotEmpty())
     }
 
+    /**
+     * Fix-round item 3: a mouse/keyboard Shift+click or Ctrl+click on an element toggles its
+     * membership — while already in a multi-select session this is exactly [toggleMultiSelect];
+     * otherwise it starts one from whatever was singly selected (if anything, via
+     * [PdfStudioState.selected]) plus [id], matching the conventional desktop "add to selection"
+     * gesture (Figma/Keynote-style) rather than discarding the prior single selection the way
+     * [enterMultiSelect] (long-press) intentionally does.
+     */
+    fun toggleSelectionWithModifier(id: String) {
+        if (mutable.value.editorLocked) return
+        if (mutable.value.multiSelectMode) {
+            toggleMultiSelect(id)
+            return
+        }
+        val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
+        val currentId =
+            when (val ref = mutable.value.selected) {
+                is PdfElementRef.Image -> page.images.getOrNull(ref.index)?.id
+                is PdfElementRef.Text -> ref.id
+                null -> null
+            }
+        setMultiSelection(if (currentId == id) setOf(id) else setOfNotNull(currentId, id))
+    }
+
     /** Ctrl+A / "Select all" (Phase G2): selects every element on the current page as a group. */
     fun selectAllOnPage() {
         val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
@@ -887,6 +911,14 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         val ids = mutable.value.selectedIds
         if (ids.size < 2) {
             duplicateSelected()
+            return
+        }
+        // Fix-round item 8: check the 24-elements-per-page cap for ALL N copies up front, instead
+        // of letting pageEdit's own validate() reject the whole batch and fall through to the
+        // generic pdf_error message — this surfaces the specific "page is full" reason, matching
+        // every other place this cap is enforced (addText, the Media panel insert).
+        if (!PdfMediaPlacement.hasRoomForOneMore(page.images.size + page.texts.size + ids.size - 1)) {
+            mutable.update { it.copy(message = PdfFailure.PageFull.message) }
             return
         }
         val offset = 8.0

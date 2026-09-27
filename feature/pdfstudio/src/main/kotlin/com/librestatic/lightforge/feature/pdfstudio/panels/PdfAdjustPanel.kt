@@ -768,7 +768,17 @@ internal fun PdfGroupInspector(vm: PdfStudioViewModel, s: PdfStudioState) {
                     )
             }
         }
-        TextButton(onClick = vm::deleteGroupSelection, enabled = !s.editorLocked) {
+        // Fix-round item 7: same validated errorContainer/onErrorContainer role pair as
+        // PdfMultiSelectBar's own Delete action, not a plain TextButton with no error affordance.
+        FilledTonalButton(
+            onClick = vm::deleteGroupSelection,
+            enabled = !s.editorLocked,
+            colors =
+                ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                ),
+        ) {
             Text(stringResource(R.string.pdf_delete))
         }
     }

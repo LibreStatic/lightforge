@@ -33,6 +33,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isCtrlPressed
+import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -476,6 +480,28 @@ internal fun PdfCanvas(
             val dragOffsetMmState =
                 remember(page.id) { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
             var dragOffsetMm by dragOffsetMmState
+            // Fix-round item 1: the live pixel delta shared by every member of a 2+ group drag —
+            // hoisted the same way as activeSnapState/dragOffsetMmState above, so whichever
+            // member's pointer is actually moving updates the ONE state every member's own
+            // graphicsLayer reads.
+            val groupDragDeltaState =
+                remember(page.id) { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
+            // Recomputed on every recomposition (selection/page content changes) rather than
+            // memoized: pages here top out at 24 elements, so this is cheap, and memoizing against
+            // the right keys (selectedIds AND every member's own x/y/width/height) would be more
+            // failure-prone than just recomputing.
+            val groupDrag: PdfGroupDragContext? =
+                if (current.groupSelected) {
+                    val ids = current.selectedIds
+                    PdfGroupDragContext(
+                        memberBounds =
+                            page.images.filter { it.id in ids }.map(PdfArrange::boundsOf) +
+                                page.texts.filter { it.id in ids }.map(PdfArrange::boundsOf),
+                        nonMemberImages = page.images.filterNot { it.id in ids },
+                        nonMemberTexts = page.texts.filterNot { it.id in ids },
+                        delta = groupDragDeltaState,
+                    )
+                } else null
             // Phase F item 3: the page box's own coordinates, captured so the drag & drop target
             // below can convert a drop's root-space position into this box's local (unscaled)
             // space regardless of the current zoom/pan graphicsLayer - windowToLocal accounts for
@@ -625,6 +651,7 @@ internal fun PdfCanvas(
                                     onAdjustImage = onAdjustImage,
                                     multiSelectMode = current.multiSelectMode,
                                     inGroupSelection = element.image.id in current.selectedIds,
+                                    groupDrag = groupDrag,
                                 )
                             }
                             is PdfLayers.Element.Txt -> {
@@ -645,6 +672,7 @@ internal fun PdfCanvas(
                                     onAdjust = onAdjustImage,
                                     multiSelectMode = current.multiSelectMode,
                                     inGroupSelection = element.text.id in current.selectedIds,
+                                    groupDrag = groupDrag,
                                 )
                             }
                         }
@@ -698,8 +726,18 @@ internal fun PdfCanvas(
                                     (group.width * pxPerMmForDrop).toFloat() + 2 * out,
                                     (group.height * pxPerMmForDrop).toFloat() + 2 * out,
                                 )
-                            drawRect(PdfPaperTokens.GuideOuter, topLeft, rectSize, style = Stroke(3.dp.toPx()))
-                            drawRect(PdfPaperTokens.GuideInner, topLeft, rectSize, style = Stroke(1.dp.toPx()))
+                            // Fix-round item 6: dashed (visually distinct from every per-member
+                            // solid outline, and from the marquee's own dashed rectangle above by
+                            // its position — it only ever appears once the drag ends and members
+                            // already have their own outlines) plus the same "reads on white paper
+                            // too" outer black ring as the per-member outlines.
+                            drawGroupOutline(
+                                topLeft = topLeft,
+                                boxSize = rectSize,
+                                bandWidth = 3.dp,
+                                centerlineWidth = 1.dp,
+                                dashed = true,
+                            )
                         }
                     }
                 }
@@ -788,6 +826,124 @@ internal fun PdfCanvas(
     }
 }
 
+/**
+ * Fix-round item 1: shared context for a RIGID group drag, hoisted once per recomposition (not
+ * once per element) so every selected member reads the exact same live delta — dragging any one
+ * member moves the whole group together, snapped/clamped against the group's own bounding box (as
+ * a single rigid body), never each member independently. Non-null only while [PdfStudioState]
+ * actually has a 2+ group ([PdfStudioState.groupSelected]); [PdfImageElement]/[PdfTextElement]
+ * fall back to their pre-existing single-element drag entirely when this is null.
+ */
+internal class PdfGroupDragContext(
+    val memberBounds: List<PdfArrange.Bounds>,
+    val nonMemberImages: List<PdfImage>,
+    val nonMemberTexts: List<PdfText>,
+    val delta: MutableState<androidx.compose.ui.geometry.Offset?>,
+)
+
+/**
+ * Snaps the GROUP's own bounding box (never an individual dragged member's bounds, which would
+ * incorrectly show snap lines to the member's own edges) against [PdfGroupDragContext]'s non-
+ * member elements, then clamps so every member stays on the page — shared by both
+ * [PdfImageElement]'s and [PdfTextElement]'s group-drag path so a rigid group move can never
+ * resolve differently depending on which member is actually being dragged. Returns the resolved
+ * [PdfSnapGuides.SnapResult] (group-space x/y, for the guide overlay/measurement chip) alongside
+ * the clamped mm delta every member should move by.
+ */
+private fun resolveGroupDrag(
+    page: PdfPage,
+    group: PdfGroupDragContext,
+    rawDeltaMmX: Double,
+    rawDeltaMmY: Double,
+    gridMm: Double?,
+    thresholdMm: Double,
+): Pair<PdfSnapGuides.SnapResult, Pair<Double, Double>> {
+    val bounds = PdfArrange.union(group.memberBounds)
+    val candidates = PdfSnapGuides.candidatesFor(page, group.nonMemberImages, group.nonMemberTexts)
+    val snap =
+        PdfSnapGuides.resolveDrag(
+            bounds.x + rawDeltaMmX,
+            bounds.y + rawDeltaMmY,
+            bounds.width,
+            bounds.height,
+            candidates,
+            gridMm,
+            thresholdMm,
+        )
+    val clamped =
+        PdfArrange.clampGroupMove(snap.x - bounds.x, snap.y - bounds.y, group.memberBounds, page.width, page.height)
+    return snap to clamped
+}
+
+/**
+ * Fix-round item 6: draws a selection outline that reads against ANY content — plain white paper,
+ * a black-ink text box, or a colored/dark photo — not just the latter two the plain white+black
+ * double stroke ([PdfPaperTokens.GuideOuter]/[GuideInner]) alone is legible against. A pure white
+ * stroke is invisible directly on white paper, so a THIRD, thin black ring is added at the OUTER
+ * edge of the white band: black ring (visible on white paper) -> white band (visible on dark
+ * content) -> black centerline (always visible, same as the pre-existing double stroke). Used by
+ * the group-selection outlines (Fix-round item 1/6); the pre-existing single-element selection
+ * outline is left exactly as it was; it isn't in scope here and already has its own tests/mockups.
+ */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawGroupOutline(
+    topLeft: androidx.compose.ui.geometry.Offset,
+    boxSize: androidx.compose.ui.geometry.Size,
+    bandWidth: androidx.compose.ui.unit.Dp,
+    centerlineWidth: androidx.compose.ui.unit.Dp,
+    dashed: Boolean = false,
+) {
+    val dash =
+        if (dashed) PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx()), 0f) else null
+    val bandPx = bandWidth.toPx()
+    val ringOut = bandPx / 2
+    val ringTopLeft = androidx.compose.ui.geometry.Offset(topLeft.x - ringOut, topLeft.y - ringOut)
+    val ringSize = androidx.compose.ui.geometry.Size(boxSize.width + 2 * ringOut, boxSize.height + 2 * ringOut)
+    drawRect(PdfPaperTokens.GuideInner, ringTopLeft, ringSize, style = Stroke(1.dp.toPx(), pathEffect = dash))
+    drawRect(PdfPaperTokens.GuideOuter, topLeft, boxSize, style = Stroke(bandPx, pathEffect = dash))
+    drawRect(PdfPaperTokens.GuideInner, topLeft, boxSize, style = Stroke(centerlineWidth.toPx(), pathEffect = dash))
+}
+
+/** As the 4-argument [drawGroupOutline], but for a [drawWithContent] whose content fills this
+ * scope entirely (a per-element outline, [outsideBy] beyond the content's own bounds) rather than
+ * an arbitrary rectangle within a larger canvas (the group bounding box uses the other overload
+ * directly). */
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawGroupOutline(
+    outsideBy: androidx.compose.ui.unit.Dp,
+    bandWidth: androidx.compose.ui.unit.Dp,
+    centerlineWidth: androidx.compose.ui.unit.Dp,
+    dashed: Boolean = false,
+) {
+    val out = outsideBy.toPx()
+    drawGroupOutline(
+        topLeft = androidx.compose.ui.geometry.Offset(-out, -out),
+        boxSize = androidx.compose.ui.geometry.Size(size.width + 2 * out, size.height + 2 * out),
+        bandWidth = bandWidth,
+        centerlineWidth = centerlineWidth,
+        dashed = dashed,
+    )
+}
+
+/**
+ * Fix-round item 3: tracks whether the pointer press that is about to produce a click was
+ * accompanied by Shift or Ctrl, into [state], for [PdfImageElement]/[PdfTextElement]'s `onClick`
+ * to read a moment later at release. `combinedClickable` doesn't expose keyboard modifiers itself,
+ * so this is a second, non-consuming `pointerInput` alongside it (Compose dispatches the same
+ * event to every `pointerInput` on a node, so this never blocks `combinedClickable`'s own tap/
+ * long-press/drag recognition — it only ever reads, never calls `change.consume()`).
+ */
+private fun Modifier.trackClickModifiers(state: MutableState<Boolean>): Modifier =
+    this.pointerInput(Unit) {
+        awaitPointerEventScope {
+            while (true) {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                if (event.type == PointerEventType.Press) {
+                    val mods = event.keyboardModifiers
+                    state.value = mods.isCtrlPressed || mods.isShiftPressed
+                }
+            }
+        }
+    }
+
 /** One selectable/draggable/resizable image element on the canvas (Phase G1b: extracted out of
  * [PdfCanvas]'s single per-image loop so it can be interleaved with [PdfTextElement] in
  * [PdfLayers.order] — same body as before the extraction, unchanged). */
@@ -809,6 +965,7 @@ private fun PdfImageElement(
     onAdjustImage: () -> Unit,
     multiSelectMode: Boolean = false,
     inGroupSelection: Boolean = false,
+    groupDrag: PdfGroupDragContext? = null,
 ) {
     var activeSnap by activeSnap
     var dragOffsetMm by dragOffsetMm
@@ -848,6 +1005,7 @@ private fun PdfImageElement(
                             }
                         }
                         var lastClickAtMs by remember(i.id) { mutableStateOf(0L) }
+                        val clickModifierHeld = remember(i.id) { mutableStateOf(false) }
                         Box(
                             Modifier.absoluteOffset(
                                     x = width * (i.x / page.width).toFloat(),
@@ -858,13 +1016,24 @@ private fun PdfImageElement(
                                     height * (i.height / page.height).toFloat(),
                                 )
                                 .graphicsLayer {
-                                    val snap = activeSnap
-                                    if (snap != null) {
-                                        translationX = ((snap.x - i.x) * pxPerMm).toFloat()
-                                        translationY = ((snap.y - i.y) * pxPerMm).toFloat()
+                                    // Fix-round item 1: a group member (2+ selected) always
+                                    // translates by the shared group delta, regardless of which
+                                    // member's own finger/pointer is actually driving the drag —
+                                    // this is what makes the whole selection move together as one
+                                    // rigid body instead of only the dragged element.
+                                    val groupDelta = if (inGroupSelection) groupDrag?.delta?.value else null
+                                    if (groupDelta != null) {
+                                        translationX = groupDelta.x
+                                        translationY = groupDelta.y
                                     } else {
-                                        translationX = delta.x
-                                        translationY = delta.y
+                                        val snap = activeSnap
+                                        if (snap != null) {
+                                            translationX = ((snap.x - i.x) * pxPerMm).toFloat()
+                                            translationY = ((snap.y - i.y) * pxPerMm).toFloat()
+                                        } else {
+                                            translationX = delta.x
+                                            translationY = delta.y
+                                        }
                                     }
                                 }
                                 .then(
@@ -879,30 +1048,19 @@ private fun PdfImageElement(
                                             drawRect(PdfPaperTokens.GuideInner, style = Stroke(2.dp.toPx()))
                                         }
                                     else if (inGroupSelection && !imageSelected)
-                                        // Per-member thin outline for a group member that isn't
-                                        // ALSO the single-selection (i.e. groups of 2+): drawn
-                                        // OUTSIDE the image bounds like every other selection
-                                        // outline here, so it never covers content.
+                                        // Per-member outline for a group member that isn't ALSO
+                                        // the single-selection (i.e. groups of 2+): drawn OUTSIDE
+                                        // the image bounds like every other selection outline
+                                        // here, so it never covers content or the corner handles.
+                                        // Fix-round item 6: drawGroupOutline's extra outer black
+                                        // ring keeps this visible on plain white paper, not just on
+                                        // dark/colored photos.
                                         Modifier.drawWithContent {
                                             drawContent()
-                                            val out = 3.dp.toPx()
-                                            val topLeft = androidx.compose.ui.geometry.Offset(-out, -out)
-                                            val outlined =
-                                                androidx.compose.ui.geometry.Size(
-                                                    size.width + 2 * out,
-                                                    size.height + 2 * out,
-                                                )
-                                            drawRect(
-                                                PdfPaperTokens.GuideOuter,
-                                                topLeft,
-                                                outlined,
-                                                style = Stroke(4.dp.toPx()),
-                                            )
-                                            drawRect(
-                                                PdfPaperTokens.GuideInner,
-                                                topLeft,
-                                                outlined,
-                                                style = Stroke(1.5.dp.toPx()),
+                                            drawGroupOutline(
+                                                outsideBy = 3.dp,
+                                                bandWidth = 4.dp,
+                                                centerlineWidth = 1.5.dp,
                                             )
                                         }
                                     else if (hovered && !busy)
@@ -927,6 +1085,7 @@ private fun PdfImageElement(
                                     else Modifier
                                 )
                                 .hoverable(hoverSource, enabled = !busy)
+                                .trackClickModifiers(clickModifierHeld)
                                 .semantics {
                                     contentDescription = imageLabel
                                     this.selected = imageSelected || inGroupSelection
@@ -968,7 +1127,13 @@ private fun PdfImageElement(
                                     },
                                     onClick = {
                                         focus.requestFocus()
-                                        if (multiSelectMode) {
+                                        if (clickModifierHeld.value) {
+                                            // Fix-round item 3: Shift/Ctrl+click toggles
+                                            // membership — starting a group from whatever was
+                                            // singly selected, if anything, when not already in a
+                                            // multi-select session.
+                                            vm.toggleSelectionWithModifier(i.id)
+                                        } else if (multiSelectMode) {
                                             vm.toggleMultiSelect(i.id)
                                         } else {
                                             vm.selectImage(n)
@@ -981,24 +1146,99 @@ private fun PdfImageElement(
                                         }
                                     },
                                 )
-                                .pointerInput(i, busy) {
+                                .pointerInput(i, busy, inGroupSelection, groupDrag) {
                                     if (!busy)
                                         detectDragGestures(
                                             onDragStart = {
                                                 focus.requestFocus()
-                                                vm.selectImage(n)
+                                                // Fix-round item 1: dragging a member of an
+                                                // existing 2+ group must NOT collapse the
+                                                // selection down to just this element — the whole
+                                                // point is that the group moves together.
+                                                if (!(inGroupSelection && groupDrag != null))
+                                                    vm.selectImage(n)
                                             },
                                             onDragEnd = {
                                                 val move = delta
                                                 delta = androidx.compose.ui.geometry.Offset.Zero
+                                                val group = groupDrag
+                                                if (inGroupSelection && group != null) {
+                                                    val (_, clampedMm) =
+                                                        resolveGroupDrag(
+                                                            page,
+                                                            group,
+                                                            move.x / pxPerMm,
+                                                            move.y / pxPerMm,
+                                                            gridMm = 5.0.takeIf { snapEnabled },
+                                                            thresholdMm = snapThresholdMm,
+                                                        )
+                                                    group.delta.value = null
+                                                    activeSnap = null
+                                                    dragOffsetMm = null
+                                                    // One committed VM call = one undo step for
+                                                    // the WHOLE group, not per member.
+                                                    vm.moveSelectionBy(clampedMm.first, clampedMm.second)
+                                                } else {
+                                                    val others =
+                                                        page.images.filterIndexed { m, _ -> m != n }
+                                                    val candidateX = i.x + move.x / pxPerMm
+                                                    val candidateY = i.y + move.y / pxPerMm
+                                                    // Same resolution the live overlay/chip below
+                                                    // already computed every frame, so the
+                                                    // committed position always equals what was
+                                                    // last shown.
+                                                    val result =
+                                                        PdfSnapGuides.resolveDrag(
+                                                            candidateX,
+                                                            candidateY,
+                                                            i.width,
+                                                            i.height,
+                                                            PdfSnapGuides.candidatesFor(page, others, page.texts),
+                                                            gridMm = 5.0.takeIf { snapEnabled },
+                                                            thresholdMm = snapThresholdMm,
+                                                        )
+                                                    activeSnap = null
+                                                    dragOffsetMm = null
+                                                    vm.moveImageTo(result.x, result.y)
+                                                }
+                                            },
+                                            onDragCancel = {
+                                                delta = androidx.compose.ui.geometry.Offset.Zero
+                                                if (inGroupSelection) groupDrag?.delta?.value = null
+                                                activeSnap = null
+                                                dragOffsetMm = null
+                                            },
+                                        ) { change, drag ->
+                                            change.consume()
+                                            delta += drag
+                                            val group = groupDrag
+                                            if (inGroupSelection && group != null) {
+                                                val (snap, clampedMm) =
+                                                    resolveGroupDrag(
+                                                        page,
+                                                        group,
+                                                        delta.x / pxPerMm,
+                                                        delta.y / pxPerMm,
+                                                        gridMm = 5.0.takeIf { snapEnabled },
+                                                        thresholdMm = snapThresholdMm,
+                                                    )
+                                                activeSnap = snap
+                                                group.delta.value =
+                                                    androidx.compose.ui.geometry.Offset(
+                                                        (clampedMm.first * pxPerMm).toFloat(),
+                                                        (clampedMm.second * pxPerMm).toFloat(),
+                                                    )
+                                                dragOffsetMm =
+                                                    androidx.compose.ui.geometry.Offset(
+                                                        clampedMm.first.toFloat(),
+                                                        clampedMm.second.toFloat(),
+                                                    )
+                                            } else {
                                                 val others =
                                                     page.images.filterIndexed { m, _ -> m != n }
-                                                val candidateX = i.x + move.x / pxPerMm
-                                                val candidateY = i.y + move.y / pxPerMm
-                                                // Same resolution the live overlay/chip below
-                                                // already computed every frame, so the committed
-                                                // position always equals what was last shown.
-                                                val result =
+                                                val candidateX = i.x + delta.x / pxPerMm
+                                                val candidateY = i.y + delta.y / pxPerMm
+                                                activeSnap =
                                                     PdfSnapGuides.resolveDrag(
                                                         candidateX,
                                                         candidateY,
@@ -1008,37 +1248,12 @@ private fun PdfImageElement(
                                                         gridMm = 5.0.takeIf { snapEnabled },
                                                         thresholdMm = snapThresholdMm,
                                                     )
-                                                activeSnap = null
-                                                dragOffsetMm = null
-                                                vm.moveImageTo(result.x, result.y)
-                                            },
-                                            onDragCancel = {
-                                                delta = androidx.compose.ui.geometry.Offset.Zero
-                                                activeSnap = null
-                                                dragOffsetMm = null
-                                            },
-                                        ) { change, drag ->
-                                            change.consume()
-                                            delta += drag
-                                            val others =
-                                                page.images.filterIndexed { m, _ -> m != n }
-                                            val candidateX = i.x + delta.x / pxPerMm
-                                            val candidateY = i.y + delta.y / pxPerMm
-                                            activeSnap =
-                                                PdfSnapGuides.resolveDrag(
-                                                    candidateX,
-                                                    candidateY,
-                                                    i.width,
-                                                    i.height,
-                                                    PdfSnapGuides.candidatesFor(page, others, page.texts),
-                                                    gridMm = 5.0.takeIf { snapEnabled },
-                                                    thresholdMm = snapThresholdMm,
-                                                )
-                                            dragOffsetMm =
-                                                androidx.compose.ui.geometry.Offset(
-                                                    (delta.x / pxPerMm).toFloat(),
-                                                    (delta.y / pxPerMm).toFloat(),
-                                                )
+                                                dragOffsetMm =
+                                                    androidx.compose.ui.geometry.Offset(
+                                                        (delta.x / pxPerMm).toFloat(),
+                                                        (delta.y / pxPerMm).toFloat(),
+                                                    )
+                                            }
                                         }
                                 }
                         ) {
@@ -1338,6 +1553,7 @@ private fun PdfTextElement(
     onAdjust: () -> Unit,
     multiSelectMode: Boolean = false,
     inGroupSelection: Boolean = false,
+    groupDrag: PdfGroupDragContext? = null,
 ) {
     var activeSnap by activeSnap
     var dragOffsetMm by dragOffsetMm
@@ -1355,6 +1571,7 @@ private fun PdfTextElement(
     val removeFromSelectionLabel = stringResource(R.string.pdf_multiselect_remove)
     var delta by remember(t.id, t.x, t.y) { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
     var lastClickAtMs by remember(t.id) { mutableStateOf(0L) }
+    val clickModifierHeld = remember(t.id) { mutableStateOf(false) }
     Box(
         Modifier.absoluteOffset(
                 x = width * (t.x / page.width).toFloat(),
@@ -1365,7 +1582,14 @@ private fun PdfTextElement(
                 height * (t.height / page.height).toFloat(),
             )
             .graphicsLayer {
-                if (isSelected) {
+                // Fix-round item 1: as PdfImageElement's twin above — a group member always
+                // translates by the shared rigid-body delta, whichever member is actually being
+                // dragged.
+                val groupDelta = if (inGroupSelection) groupDrag?.delta?.value else null
+                if (groupDelta != null) {
+                    translationX = groupDelta.x
+                    translationY = groupDelta.y
+                } else if (isSelected) {
                     val snap = activeSnap
                     if (snap != null) {
                         translationX = ((snap.x - t.x) * pxPerMm).toFloat()
@@ -1393,16 +1617,12 @@ private fun PdfTextElement(
                         drawContent()
                     }
                 else if (inGroupSelection && !isSelected)
-                    // As the image twin above: a thinner per-member outline, outside the box, for
-                    // a group member that isn't ALSO the lone single-selection.
+                    // As the image twin above: a per-member outline, outside the box, for a group
+                    // member that isn't ALSO the lone single-selection — drawGroupOutline's extra
+                    // outer black ring (Fix-round item 6) keeps it visible on plain white paper.
                     Modifier.drawWithContent {
                         drawContent()
-                        val out = 3.dp.toPx()
-                        val topLeft = androidx.compose.ui.geometry.Offset(-out, -out)
-                        val outlined =
-                            androidx.compose.ui.geometry.Size(size.width + 2 * out, size.height + 2 * out)
-                        drawRect(PdfPaperTokens.GuideOuter, topLeft, outlined, style = Stroke(4.dp.toPx()))
-                        drawRect(PdfPaperTokens.GuideInner, topLeft, outlined, style = Stroke(1.5.dp.toPx()))
+                        drawGroupOutline(outsideBy = 3.dp, bandWidth = 4.dp, centerlineWidth = 1.5.dp)
                     }
                 else Modifier
             )
@@ -1431,6 +1651,7 @@ private fun PdfTextElement(
                             },
                         )
             }
+            .trackClickModifiers(clickModifierHeld)
             .combinedClickable(
                 enabled = !busy,
                 onLongClick = {
@@ -1439,7 +1660,10 @@ private fun PdfTextElement(
                 },
                 onClick = {
                     focus.requestFocus()
-                    if (multiSelectMode) {
+                    if (clickModifierHeld.value) {
+                        // Fix-round item 3: Shift/Ctrl+click toggles membership.
+                        vm.toggleSelectionWithModifier(t.id)
+                    } else if (multiSelectMode) {
                         vm.toggleMultiSelect(t.id)
                     } else {
                         vm.selectText(t.id)
@@ -1450,20 +1674,88 @@ private fun PdfTextElement(
                     }
                 },
             )
-            .pointerInput(t.id, busy, isEditing) {
+            .pointerInput(t.id, busy, isEditing, inGroupSelection, groupDrag) {
                 if (!busy && !isEditing)
                     detectDragGestures(
                         onDragStart = {
                             focus.requestFocus()
-                            vm.selectText(t.id)
+                            // Fix-round item 1: as PdfImageElement's twin above — never collapse
+                            // an existing 2+ group down to just this text when dragging it.
+                            if (!(inGroupSelection && groupDrag != null)) vm.selectText(t.id)
                         },
                         onDragEnd = {
                             val move = delta
                             delta = androidx.compose.ui.geometry.Offset.Zero
+                            val group = groupDrag
+                            if (inGroupSelection && group != null) {
+                                val (_, clampedMm) =
+                                    resolveGroupDrag(
+                                        page,
+                                        group,
+                                        move.x / pxPerMm,
+                                        move.y / pxPerMm,
+                                        gridMm = 5.0.takeIf { snapEnabled },
+                                        thresholdMm = snapThresholdMm,
+                                    )
+                                group.delta.value = null
+                                activeSnap = null
+                                dragOffsetMm = null
+                                vm.moveSelectionBy(clampedMm.first, clampedMm.second)
+                            } else {
+                                val otherTexts = page.texts.filter { it.id != t.id }
+                                val candidateX = t.x + move.x / pxPerMm
+                                val candidateY = t.y + move.y / pxPerMm
+                                val result =
+                                    PdfSnapGuides.resolveDrag(
+                                        candidateX,
+                                        candidateY,
+                                        t.width,
+                                        t.height,
+                                        PdfSnapGuides.candidatesFor(page, page.images, otherTexts),
+                                        gridMm = 5.0.takeIf { snapEnabled },
+                                        thresholdMm = snapThresholdMm,
+                                    )
+                                activeSnap = null
+                                dragOffsetMm = null
+                                vm.moveTextTo(result.x, result.y)
+                            }
+                        },
+                        onDragCancel = {
+                            delta = androidx.compose.ui.geometry.Offset.Zero
+                            if (inGroupSelection) groupDrag?.delta?.value = null
+                            activeSnap = null
+                            dragOffsetMm = null
+                        },
+                    ) { change, drag ->
+                        change.consume()
+                        delta += drag
+                        val group = groupDrag
+                        if (inGroupSelection && group != null) {
+                            val (snap, clampedMm) =
+                                resolveGroupDrag(
+                                    page,
+                                    group,
+                                    delta.x / pxPerMm,
+                                    delta.y / pxPerMm,
+                                    gridMm = 5.0.takeIf { snapEnabled },
+                                    thresholdMm = snapThresholdMm,
+                                )
+                            activeSnap = snap
+                            group.delta.value =
+                                androidx.compose.ui.geometry.Offset(
+                                    (clampedMm.first * pxPerMm).toFloat(),
+                                    (clampedMm.second * pxPerMm).toFloat(),
+                                )
+                            dragOffsetMm =
+                                androidx.compose.ui.geometry.Offset(
+                                    clampedMm.first.toFloat(),
+                                    clampedMm.second.toFloat(),
+                                )
+                        } else {
                             val otherTexts = page.texts.filter { it.id != t.id }
-                            val candidateX = t.x + move.x / pxPerMm
-                            val candidateY = t.y + move.y / pxPerMm
-                            val result =
+                            val candidateX = t.x + delta.x / pxPerMm
+                            val candidateY = t.y + delta.y / pxPerMm
+                            activeSnap =
                                 PdfSnapGuides.resolveDrag(
                                     candidateX,
                                     candidateY,
@@ -1473,36 +1765,12 @@ private fun PdfTextElement(
                                     gridMm = 5.0.takeIf { snapEnabled },
                                     thresholdMm = snapThresholdMm,
                                 )
-                            activeSnap = null
-                            dragOffsetMm = null
-                            vm.moveTextTo(result.x, result.y)
-                        },
-                        onDragCancel = {
-                            delta = androidx.compose.ui.geometry.Offset.Zero
-                            activeSnap = null
-                            dragOffsetMm = null
-                        },
-                    ) { change, drag ->
-                        change.consume()
-                        delta += drag
-                        val otherTexts = page.texts.filter { it.id != t.id }
-                        val candidateX = t.x + delta.x / pxPerMm
-                        val candidateY = t.y + delta.y / pxPerMm
-                        activeSnap =
-                            PdfSnapGuides.resolveDrag(
-                                candidateX,
-                                candidateY,
-                                t.width,
-                                t.height,
-                                PdfSnapGuides.candidatesFor(page, page.images, otherTexts),
-                                gridMm = 5.0.takeIf { snapEnabled },
-                                thresholdMm = snapThresholdMm,
-                            )
-                        dragOffsetMm =
-                            androidx.compose.ui.geometry.Offset(
-                                (delta.x / pxPerMm).toFloat(),
-                                (delta.y / pxPerMm).toFloat(),
-                            )
+                            dragOffsetMm =
+                                androidx.compose.ui.geometry.Offset(
+                                    (delta.x / pxPerMm).toFloat(),
+                                    (delta.y / pxPerMm).toFloat(),
+                                )
+                        }
                     }
             }
     ) {
