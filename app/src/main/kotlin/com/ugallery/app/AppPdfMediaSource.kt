@@ -8,7 +8,9 @@ import android.os.CancellationSignal
 import android.provider.MediaStore
 import android.util.Size
 import com.ugallery.core.data.GalleryDocumentRepository
+import com.ugallery.core.data.GalleryQueryMediaRepository
 import com.ugallery.core.model.LibraryAccess
+import com.ugallery.core.preferences.LibrarySettings
 import com.ugallery.feature.pdfstudio.PdfMediaAccess
 import com.ugallery.feature.pdfstudio.PdfMediaAccessState
 import com.ugallery.feature.pdfstudio.PdfMediaFilter
@@ -22,6 +24,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 
 /** The gallery's own permission wording (feature/photos's strings), threaded in by the composition
@@ -33,11 +36,25 @@ internal data class PdfMediaAccessWording(
     val deniedActionLabel: String,
 )
 
+/** Per-scope item caps for the Media panel's bounded (non-paged) list — a scrollable grid, not an
+ * infinite timeline, so these are generous constants rather than page sizes. */
+private object PdfMediaCaps {
+    const val Photos = 200
+    const val Documents = 200
+    /** Split roughly evenly across both when the "All" chip is selected. */
+    const val AllPhotos = 100
+    const val AllDocuments = 100
+}
+
 /**
- * PDF Studio's Media panel (Phase F item 3), implemented here over the app's own gallery media
- * (MediaStore, directly - the Photos timeline's Room index is a curated/derived view and would
- * exclude items PDF Studio should still be able to insert) and [GalleryDocumentRepository]'s
- * Documents collection, so feature/pdfstudio never depends on a data module directly.
+ * PDF Studio's Media panel (Phase F item 3), implemented here over the app's own gallery data so
+ * feature/pdfstudio never depends on a data module directly. Photos come from
+ * [GalleryQueryMediaRepository.recentImages] against the SAME Room `media_items` index (and the
+ * SAME [LibrarySettings] — excluded folders, archive exclusion, isAccessible/isTrashed) the Photos
+ * timeline itself queries — never raw MediaStore, which would ignore the user's exclusions
+ * entirely (review fix: "hidden must mean hidden"). Documents come from
+ * [GalleryDocumentRepository]'s Documents collection, which already applies the same isAccessible/
+ * isTrashed/archive filtering ([com.ugallery.core.database.DocumentEntities]'s `DocumentFrom`).
  *
  * [access]/[onRequestAccess] mirror exactly what [com.ugallery.feature.photos.LibraryPhotosRoute]
  * already shows for the Photos timeline (`limited_access_body`/`manage_access_action` in
@@ -47,6 +64,8 @@ internal data class PdfMediaAccessWording(
 internal class AppPdfMediaSource(
     private val context: Context,
     private val documentRepository: StateFlow<GalleryDocumentRepository?>,
+    private val queryMediaRepository: StateFlow<GalleryQueryMediaRepository?>,
+    private val librarySettings: StateFlow<LibrarySettings>,
     access: StateFlow<LibraryAccess>,
     wording: PdfMediaAccessWording,
     onRequestAccess: () -> Unit,
@@ -86,54 +105,34 @@ internal class AppPdfMediaSource(
     override fun items(filter: PdfMediaFilter): Flow<List<PdfMediaItem>> = flow {
         emit(
             when (filter.scope) {
-                PdfMediaScope.All -> photos(200) + documents(100)
-                PdfMediaScope.Photos -> photos(200)
-                PdfMediaScope.Documents -> documents(200)
+                PdfMediaScope.All -> photos(PdfMediaCaps.AllPhotos) + documents(PdfMediaCaps.AllDocuments)
+                PdfMediaScope.Photos -> photos(PdfMediaCaps.Photos)
+                PdfMediaScope.Documents -> documents(PdfMediaCaps.Documents)
             }
         )
     }
 
-    private suspend fun photos(limit: Int): List<PdfMediaItem> =
-        withContext(Dispatchers.IO) {
-            val items = mutableListOf<PdfMediaItem>()
-            val projection =
-                arrayOf(
-                    MediaStore.Images.Media._ID,
-                    MediaStore.Images.Media.DISPLAY_NAME,
-                    MediaStore.Images.Media.WIDTH,
-                    MediaStore.Images.Media.HEIGHT,
-                )
-            runCatching {
-                context.contentResolver.query(
-                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                    projection,
-                    null,
-                    null,
-                    "${MediaStore.Images.Media.DATE_MODIFIED} DESC LIMIT $limit",
+    private suspend fun photos(limit: Int): List<PdfMediaItem> {
+        val repository = queryMediaRepository.first() ?: return emptyList()
+        return withContext(Dispatchers.IO) {
+            repository.recentImages(librarySettings.value, limit).map { media ->
+                val key = media.key
+                val uri =
+                    ContentUris.withAppendedId(
+                        MediaStore.Images.Media.getContentUri(key.volumeName),
+                        key.mediaStoreId,
+                    )
+                PdfMediaItem(
+                    key = "photo:${key.volumeName}:${key.mediaStoreId}",
+                    uri = uri,
+                    displayName = media.displayName ?: "",
+                    isDocument = false,
+                    width = media.width,
+                    height = media.height,
                 )
             }
-                .getOrNull()
-                ?.use { cursor ->
-                    val idCol = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
-                    val nameCol = cursor.getColumnIndex(MediaStore.Images.Media.DISPLAY_NAME)
-                    val wCol = cursor.getColumnIndex(MediaStore.Images.Media.WIDTH)
-                    val hCol = cursor.getColumnIndex(MediaStore.Images.Media.HEIGHT)
-                    while (cursor.moveToNext()) {
-                        val id = cursor.getLong(idCol)
-                        val uri = ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, id)
-                        items +=
-                            PdfMediaItem(
-                                key = "photo:$id",
-                                uri = uri,
-                                displayName = if (nameCol >= 0) cursor.getString(nameCol) ?: "" else "",
-                                isDocument = false,
-                                width = if (wCol >= 0) cursor.getInt(wCol) else 0,
-                                height = if (hCol >= 0) cursor.getInt(hCol) else 0,
-                            )
-                    }
-                }
-            items
         }
+    }
 
     private suspend fun documents(limit: Int): List<PdfMediaItem> {
         val repository = documentRepository.first() ?: return emptyList()
@@ -159,15 +158,24 @@ internal class AppPdfMediaSource(
 
     override suspend fun thumbnail(item: PdfMediaItem, sizePx: Int): Bitmap? =
         withContext(Dispatchers.IO) {
-            runCatching {
-                    if (android.os.Build.VERSION.SDK_INT >= 29)
-                        context.contentResolver.loadThumbnail(
-                            item.uri,
-                            Size(sizePx, sizePx),
-                            CancellationSignal(),
-                        )
-                    else null
+            if (android.os.Build.VERSION.SDK_INT < 29) return@withContext null
+            val signal = CancellationSignal()
+            try {
+                // Wires this coroutine's own cancellation (the Media panel leaving composition,
+                // or a newer request for the same grid cell) through to the platform decode, so a
+                // cancelled thumbnail load actually stops the underlying I/O/decode instead of
+                // completing uselessly in the background.
+                suspendCancellableCoroutine { continuation ->
+                    continuation.invokeOnCancellation { signal.cancel() }
+                    val bitmap =
+                        runCatching {
+                                context.contentResolver.loadThumbnail(item.uri, Size(sizePx, sizePx), signal)
+                            }
+                            .getOrNull()
+                    continuation.resumeWith(Result.success(bitmap))
                 }
-                .getOrNull()
+            } catch (e: android.os.OperationCanceledException) {
+                null
+            }
         }
 }

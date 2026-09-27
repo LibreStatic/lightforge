@@ -2,7 +2,7 @@
 """Exercise the real PDF screen in constrained native parents; never modify device settings."""
 import argparse, json, re, subprocess, time, xml.etree.ElementTree as ET
 from pathlib import Path
-p=argparse.ArgumentParser();p.add_argument('--serial',required=True);p.add_argument('--output',required=True);p.add_argument('--dynamic',action='store_true');p.add_argument('--folds',action='store_true');args=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--serial',required=True);p.add_argument('--output',required=True);p.add_argument('--dynamic',action='store_true');p.add_argument('--folds',action='store_true');p.add_argument('--media',action='store_true');args=p.parse_args()
 out=Path(args.output);out.mkdir(parents=True,exist_ok=True)
 b=['rtk','proxy','adb','-s',args.serial];pkg='com.ugallery.feature.pdfstudio.test'
 def adb(*a): return subprocess.check_output(b+list(a),timeout=45)
@@ -187,8 +187,54 @@ if args.folds:
         row=dict(case=name,orientation=orientation,canvasBounds=canvas,hingeBoundsPx=list(hinge_px),noClickableUnderHinge=True,canvasOnOneSide=True)
         fold_results.append(row);print('FOLD CASE PASS: '+json.dumps(row,sort_keys=True),flush=True)
         cleanup()
+media_result=None
+if args.media:
+    # Phase F item 3 review fix: exercises the Media panel (chips/tiles labeled and 48dp, tap ->
+    # image appended, undo -> removed) via PdfUiProbeActivity's `fakeMedia` fake PdfMediaSource -
+    # no real gallery data or permissions needed. 840x640 (no fold) puts the panel in the
+    # expanded inspector's Page/Media tab row.
+    name='media-840x640'
+    shell('run-as',pkg,'rm','-f','files/pdf-ui-state.json')
+    subprocess.run(b+['shell','run-as',pkg,'tee','files/pdf-ui-config.json'],input=json.dumps(dict(width=840,font=1,locale='en')).encode(),stdout=subprocess.DEVNULL,check=True)
+    shell('am','start','-W','-n',pkg+'/com.ugallery.feature.pdfstudio.PdfUiProbeActivity',
+          '--ei','width','840','--ei','height','640','--ef','font','1','--es','locale','en',
+          '--ez','dark','false','--ez','rtl','false','--ez','dynamic',str(args.dynamic).lower(),
+          '--ez','fakeMedia','true')
+    baseline=wait_ready();time.sleep(.5);ls=labels('en')
+    assert baseline.get('currentPageImages',0)==0,baseline
+    root=None
+    for _ in range(20):
+        root=snap(name)
+        if any(n.get('content-desc')==ls['pdf_canvas_label'] for n in root.iter('node')):break
+        time.sleep(.5)
+    tap(ls['pdf_media']);tab=snap(name+'-tab')
+    # Chips: every one is present, labeled, and at least a 48dp touch target.
+    for chip_key in ('pdf_media_all','pdf_media_photos','pdf_media_documents','pdf_media_in_project'):
+        chip=node_for(tab,ls[chip_key]);x,y,r,d=bounds(chip)
+        assert (r-x)>=44 and (d-y)>=44, (chip_key,'chip below 48dp target',chip.attrib) # dp vs px slack
+    # Tiles: the fake source's items are labeled "<name>. Add to current page" and >=48dp.
+    item_label=ls['pdf_media_item_label'].replace('%1$s','Fake photo 0')
+    tile=node_for(tab,item_label);tx,ty,tr,td=bounds(tile)
+    pixels=int.from_bytes((out/(name+'-tab.png')).read_bytes()[16:20],'big');px_per_dp=pixels/840
+    assert (tr-tx)>=48*px_per_dp*0.9 and (td-ty)>=48*px_per_dp*0.9, ('tile below 48dp target',tile.attrib)
+    # Tap the tile: the current page must gain exactly one image.
+    tap(item_label)
+    for _ in range(30):
+        if state().get('currentPageImages',0)==1:break
+        time.sleep(.2)
+    assert state()['currentPageImages']==1,state()
+    # Undo removes it again.
+    tap(ls['pdf_undo'])
+    for _ in range(30):
+        if state().get('currentPageImages',0)==0:break
+        time.sleep(.2)
+    assert state()['currentPageImages']==0,state()
+    media_result=dict(case=name,chipsLabeled=True,tilesLabeledAndSized=True,tapAppendsImage=True,undoRemovesImage=True)
+    print('MEDIA CASE PASS: '+json.dumps(media_result,sort_keys=True),flush=True)
+    cleanup()
 assert device_settings()==settings_before, 'Device settings changed'
 (out/'device-settings.json').write_text(json.dumps(settings_before,indent=2)+'\n')
 (out/'results.json').write_text(json.dumps(results,indent=2)+'\n')
 if args.folds:(out/'fold-results.json').write_text(json.dumps(fold_results,indent=2)+'\n')
-print(f'ADAPTIVE UI PASS: {len(cases)} native parent configurations; accessible actions; title edit/undo; page add/undo; '+('dynamic' if args.dynamic else 'static')+' light/dark contrast; fixture projects removed; device settings unchanged'+(f'; {len(fold_results)} synthetic-fold cases' if args.folds else ''))
+if args.media and media_result:(out/'media-result.json').write_text(json.dumps(media_result,indent=2)+'\n')
+print(f'ADAPTIVE UI PASS: {len(cases)} native parent configurations; accessible actions; title edit/undo; page add/undo; '+('dynamic' if args.dynamic else 'static')+' light/dark contrast; fixture projects removed; device settings unchanged'+(f'; {len(fold_results)} synthetic-fold cases' if args.folds else '')+('; media panel exercised' if args.media else ''))

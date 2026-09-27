@@ -22,6 +22,57 @@ import java.util.Locale
 import kotlinx.coroutines.*
 import org.json.JSONObject
 
+/**
+ * Phase F item 3 review fix: a trivial, self-contained [PdfMediaSource] so the Media panel can be
+ * screenshotted/exercised by the probe/scripts without any real gallery data or permissions. Every
+ * item is in-memory and every thumbnail is a generated solid-color bitmap (never touches
+ * ContentResolver), so this has none of the privacy/permission concerns the real app-side
+ * implementation does.
+ */
+private class PdfFakeMediaSource : PdfMediaSource {
+    override val access =
+        kotlinx.coroutines.flow.MutableStateFlow(PdfMediaAccess(PdfMediaAccessState.Full))
+
+    private val photos =
+        List(4) { n ->
+            PdfMediaItem(
+                key = "fake-photo-$n",
+                uri = Uri.parse("content://pdf-ui-probe/photo/$n"),
+                displayName = "Fake photo $n",
+                isDocument = false,
+                width = 64,
+                height = 64,
+            )
+        }
+    private val documents =
+        List(2) { n ->
+            PdfMediaItem(
+                key = "fake-doc-$n",
+                uri = Uri.parse("content://pdf-ui-probe/document/$n"),
+                displayName = "Fake document $n",
+                isDocument = true,
+                width = 64,
+                height = 64,
+            )
+        }
+
+    override fun items(filter: PdfMediaFilter) =
+        kotlinx.coroutines.flow.flowOf(
+            when (filter.scope) {
+                PdfMediaScope.All -> photos + documents
+                PdfMediaScope.Photos -> photos
+                PdfMediaScope.Documents -> documents
+            }
+        )
+
+    override suspend fun thumbnail(item: PdfMediaItem, sizePx: Int): Bitmap {
+        val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val hue = (item.key.hashCode().and(0xff)) / 255f * 360f
+        bitmap.eraseColor(android.graphics.Color.HSVToColor(floatArrayOf(hue, 0.5f, 0.8f)))
+        return bitmap
+    }
+}
+
 /** Real native screen in bounded parent constraints; only the test APK exposes this entry point. */
 class PdfUiProbeActivity : ComponentActivity() {
     private val vm by lazy { ViewModelProvider(this)[PdfStudioViewModel::class.java] }
@@ -56,6 +107,10 @@ class PdfUiProbeActivity : ComponentActivity() {
         val foldOrientation = intent.getStringExtra("fold")
         val hingeDp = intent.getIntExtra("hingePx", 0)
         val foldPos = intent.getFloatExtra("foldPos", 0.5f)
+        // Phase F item 3 review fix: opt-in fake Media panel source, so verify_pdf_adaptive_ui.py
+        // can screenshot/exercise the tab without any real gallery data. Absent `fakeMedia` keeps
+        // mediaSource null (the tab hidden), matching every existing probe run byte-for-byte.
+        val fakeMedia = intent.getBooleanExtra("fakeMedia", false)
         super.onCreate(savedInstanceState)
         lifecycleScope.launch {
             if (vm.state.value.project == null) {
@@ -87,6 +142,13 @@ class PdfUiProbeActivity : ComponentActivity() {
                             .put("name", current.project?.name)
                             .put("busy", current.busy)
                             .put("canUndo", current.canUndo)
+                            // Phase F item 3 review fix: lets verify_pdf_adaptive_ui.py's --media
+                            // flow assert a Media panel tap actually appended an image (and undo
+                            // removed it) without a screenshot diff.
+                            .put(
+                                "currentPageImages",
+                                current.project?.pages?.getOrNull(current.page)?.images?.size ?: 0,
+                            )
                             .toString()
                     )
             }
@@ -253,8 +315,14 @@ class PdfUiProbeActivity : ComponentActivity() {
                                     )
                                 }
                             }
+                        val mediaSource = remember { if (fakeMedia) PdfFakeMediaSource() else null }
                         Box(Modifier.width(width.dp).height(height.dp)) {
-                            PdfStudioScreen(onExit = { finish() }, vm = vm, foldInfo = foldInfo)
+                            PdfStudioScreen(
+                                onExit = { finish() },
+                                vm = vm,
+                                foldInfo = foldInfo,
+                                mediaSource = mediaSource,
+                            )
                         }
                     }
                 }

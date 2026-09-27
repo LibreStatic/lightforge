@@ -91,6 +91,7 @@
     <string name="pdf_failure_missing">O arquivo ou destino não está mais disponível.</string>
     <string name="pdf_failure_format">Arquivo incompatível. Escolha JPEG, PNG, WebP ou PDF.</string>
     <string name="pdf_failure_limit">Esta operação excede o limite do projeto ou da importação.</string>
+    <string name="pdf_failure_page_full">Esta página já tem o máximo de 24 fotos.</string>
     <string name="pdf_failure_storage">O armazenamento está cheio. Libere espaço e tente novamente.</string>
     <string name="pdf_failure_renderer">O processador de PDF parou. Tente novamente.</string>
     <string name="pdf_failure_encrypted">Este PDF está protegido por senha. Importe uma cópia desbloqueada.</string>

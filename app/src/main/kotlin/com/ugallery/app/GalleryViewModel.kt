@@ -371,6 +371,12 @@ class GalleryViewModel @Inject constructor(
     /** Opt-in "Free up space" analysis; both run under the full-library charging/foreground gate. */
     private val cleanupAnalysisTasks = listOf(MlTaskType.ExactDuplicates, MlTaskType.Similarity)
     private val gallerySettingsRepository = GallerySettingsRepository(application)
+    /** PDF Studio's Media panel Photos scope (Phase F item 3): the same [LibrarySettings] the
+     * Photos timeline queries with, so excluded folders / archive exclusion stay in sync live. */
+    val librarySettings =
+        gallerySettingsRepository.settings
+            .map { it.library }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, com.ugallery.core.preferences.LibrarySettings())
     val gallerySettings = gallerySettingsRepository.settings.stateIn(
         viewModelScope,
         SharingStarted.Eagerly,
@@ -602,6 +608,12 @@ class GalleryViewModel @Inject constructor(
 
     val documentRepository = runtime.map { active ->
         active?.let { com.ugallery.core.data.GalleryDocumentRepository(it.database) }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    /** PDF Studio's Media panel Photos scope (Phase F item 3), so it can query the SAME
+     * isAccessible/isTrashed/archive/excluded-folder-filtered set the Photos timeline itself
+     * uses, instead of unfiltered MediaStore. */
+    val queryMediaRepository = runtime.map { active ->
+        active?.let { com.ugallery.core.data.GalleryQueryMediaRepository(it.database) }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
     val documentCount = runtime.filterNotNull().flatMapLatest {
         com.ugallery.core.data.GalleryDocumentRepository(it.database).count()

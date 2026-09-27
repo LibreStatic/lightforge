@@ -91,6 +91,7 @@
     <string name="pdf_failure_missing">The file or destination is no longer available.</string>
     <string name="pdf_failure_format">Unsupported file. Choose JPEG, PNG, WebP or PDF.</string>
     <string name="pdf_failure_limit">This operation exceeds the project or import limit.</string>
+    <string name="pdf_failure_page_full">This page already has the maximum of 24 photos.</string>
     <string name="pdf_failure_storage">Storage is full. Free some space and try again.</string>
     <string name="pdf_failure_renderer">The PDF processor stopped. Try again.</string>
     <string name="pdf_failure_encrypted">This PDF is password-protected. Import an unlocked copy.</string>

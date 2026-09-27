@@ -53,6 +53,19 @@ data class PdfStudioState(
     val panX: Float = 0f,
     val panY: Float = 0f,
     val saveState: PdfSaveState = PdfSaveState.Idle,
+    /**
+     * Phase F item 3 review fix (MAJOR): a single-image Media panel insert into the currently
+     * open project must NOT set [editorLocked] (back/navigation/zoom/other pages stay usable, and
+     * only the background progress chip shows - [backgroundBusy]), but the project's CONTENT
+     * still must not be mutated by anything else while the insert's slow copy is in flight, since
+     * [PdfProjectRepository.importMediaIntoPage] computes its append against whatever is
+     * authoritative at commit time and [PdfStudioViewModel.restoreEditor] then replaces the
+     * in-memory project wholesale with that committed result - a concurrent edit that never made
+     * it to that snapshot would simply vanish. [update]/[pageEdit] and [scheduleSave] check this
+     * flag (distinct from [editorLocked]) to serialize project mutation without blocking
+     * navigation.
+     */
+    val mutationLocked: Boolean = false,
 ) {
     /** Busy purely from background work (export queueing, gallery retry/discard, autosave). */
     val backgroundBusy: Boolean
@@ -251,8 +264,20 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
                         null
                     } ?: return@launch
                 if (mutable.value.busy) return@launch
-                operation {
+                // Phase F item 3 review fix (MAJOR): a targeted single-image delivery (Media
+                // panel tap/drop into the currently open project) must not set editorLocked - the
+                // editor, navigation and zoom stay usable, only the background progress chip
+                // shows (state.backgroundBusy). A batch gallery selection (no target: it always
+                // builds a brand-new project nothing else could be editing yet) keeps the
+                // original locking behavior unchanged.
+                val targeted = row.targetProjectId != null
+                operation(lock = !targeted) {
                     activeGallery = row.id
+                    // mutationLocked (distinct from editorLocked) blocks project-content edits
+                    // and autosave writes for the duration (see PdfStudioState.mutationLocked's
+                    // doc) so the append this computes can never be clobbered by, or itself
+                    // clobber, a concurrent edit - without disabling navigation/zoom.
+                    if (targeted) mutable.update { it.copy(mutationLocked = true) }
                     try {
                         autosave?.cancelAndJoin()
                         persistCurrent()
@@ -285,6 +310,7 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
                         )
                         throw e
                     } finally {
+                        if (targeted) mutable.update { it.copy(mutationLocked = false) }
                         activeGallery = null
                     }
                 }
@@ -430,6 +456,16 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
 
     private fun scheduleSave() {
         val project = mutable.value.project ?: return
+        // Phase F item 3 review fix: scheduleSave captures `project`/`editor` NOW but only
+        // writes them ~400ms later. A view-only change (viewport()/selectPage(), neither of
+        // which check mutationLocked since they don't touch project content) could still queue a
+        // stale write that lands after a targeted Media insert commits its own, newer project to
+        // disk - silently reverting the insert. Simplest safe fix: never schedule a write while a
+        // background insert has the project content locked; nothing is lost since mutationLocked
+        // also blocks every actual content edit, so there is nothing new to persist here besides
+        // (at most) view state, which restoreEditor's own session already covers once the insert
+        // finishes.
+        if (mutable.value.mutationLocked) return
         val editor = session()
         autosave?.cancel()
         // A pinch/pan gesture calls scheduleSave() on every frame; flipping saveState to Saving
@@ -612,7 +648,7 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
 
     fun update(transform: (PdfProject) -> PdfProject) {
         val old = mutable.value.project ?: return
-        if (mutable.value.editorLocked) return
+        if (mutable.value.editorLocked || mutable.value.mutationLocked) return
         runCatching { transform(old).validate() }
             .onSuccess { next ->
                 if (next == old) return@onSuccess

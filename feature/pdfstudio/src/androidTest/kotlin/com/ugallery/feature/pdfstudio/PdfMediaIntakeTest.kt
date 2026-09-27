@@ -106,12 +106,15 @@ class PdfMediaIntakeTest {
             try {
                 repo.importGallery(row) { _, _ -> }
                 fail("A 25th image on one page must be rejected")
-            } catch (e: IllegalArgumentException) {
-                // Expected: PdfProject.validate()'s existing <= 24 per-page limit, the same
-                // localized-failure surface every other over-limit import already relies on
-                // (PdfFailure.InvalidInput).
+            } catch (e: PdfOperationFailure) {
+                // Review fix (device fail): the per-page limit used to surface wrapped as
+                // PdfSourceFailure("Source 1"), a generic per-source read failure the issue card
+                // rendered as an unhelpful "file couldn't be read" message. It must instead be a
+                // clear, dedicated PdfFailure.PageFull the UI can render as "page is full".
+                assertEquals(PdfFailure.PageFull, e.failure)
             }
-            // All-or-nothing: the page still has exactly the 24 images it started with.
+            // All-or-nothing: the page still has exactly the 24 images it started with, and the
+            // failure never touched the source file at all (checked BEFORE any copy).
             assertEquals(24, requireNotNull(repo.load(project.id)).pages.single().images.size)
         } finally {
             project.let { repo.delete(it.id) }

@@ -216,29 +216,19 @@ class PdfProjectRepository(
                 }
                 val targetProjectId = row.targetProjectId
                 if (targetProjectId != null) {
-                    // Media panel tap/drop (Phase F item 3): append durably into the CURRENT
-                    // project/page instead of creating a new project, reusing the same
-                    // receipts/all-or-nothing/undo machinery as every other import path.
-                    val (project, session) =
-                        loadEditor(targetProjectId)
-                            ?: throw PdfOperationFailure(PdfFailure.ImportTargetMissing)
-                    val pageIndex = project.pages.indexOfFirst { it.id == row.targetPageId }
-                    if (pageIndex < 0) throw PdfOperationFailure(PdfFailure.ImportTargetMissing)
+                    val targetPageId =
+                        row.targetPageId ?: throw PdfOperationFailure(PdfFailure.ImportTargetMissing)
                     val placement =
                         if (row.placementX != null && row.placementY != null)
                             row.placementX to row.placementY
                         else null
-                    return@withLock importUnlocked(
-                        project,
-                        row.sources(),
-                        pageIndex,
-                        progress,
+                    return@withLock importMediaIntoPage(
+                        targetProjectId,
+                        targetPageId,
+                        row.sources().single(),
+                        placement,
                         row.id,
-                        session.copy(
-                            undo = (session.undo + project).takeLast(40),
-                            redo = emptyList(),
-                        ),
-                        placement = placement,
+                        progress,
                     )
                 }
                 importUnlocked(
@@ -251,6 +241,168 @@ class PdfProjectRepository(
                 )
             }
         }
+
+    /**
+     * Media panel tap/drop (Phase F item 3): appends a single image durably into the CURRENT
+     * project/page instead of creating a new project - same receipts/all-or-nothing/undo
+     * machinery as every other import path, but deliberately NOT [importUnlocked]: that function
+     * mutates a project snapshot taken once at entry, which is fine for a batch import into a
+     * brand-new project (nothing else can be editing it), but wrong here, since the caller keeps
+     * the editor unlocked during this call (only a background progress chip shows) so the user
+     * can keep editing while a slow source copies. This method copies the source FIRST, then
+     * re-reads the project/page fresh from disk right before appending and saving, so a
+     * concurrent edit/autosave that happened during the copy is never clobbered - the append
+     * always lands on top of whatever is truly latest. The whole call stays serialized against
+     * every other save/import through [lock] (the caller already holds it), so no interleaved
+     * write can corrupt the project file itself either way.
+     */
+    private suspend fun importMediaIntoPage(
+        targetProjectId: String,
+        targetPageId: String,
+        uri: Uri,
+        placement: Pair<Double, Double>?,
+        requestId: String,
+        progress: (Int, Int) -> Unit,
+    ): PdfProject {
+        // Fail fast, before touching the source at all, if the target is already full: avoids an
+        // unnecessary copy and - the point of the review finding - avoids the limit surfacing as
+        // a per-source read failure (PdfSourceFailure) instead of a clear, dedicated message.
+        val start =
+            loadEditor(targetProjectId) ?: throw PdfOperationFailure(PdfFailure.ImportTargetMissing)
+        val startPage =
+            start.first.pages.find { it.id == targetPageId }
+                ?: throw PdfOperationFailure(PdfFailure.ImportTargetMissing)
+        if (startPage.source != null) throw PdfOperationFailure(PdfFailure.UnsupportedFormat)
+        if (!PdfMediaPlacement.hasRoomForOneMore(startPage.images.size))
+            throw PdfOperationFailure(PdfFailure.PageFull)
+
+        cleanInterruptedImports()
+        val staging = File(root, "import-${newId()}").apply { mkdirs() }
+        var createdFile: File? = null
+        var committed = false
+        return try {
+            val dest = File(staging, "source-0")
+            var total = 0L
+            context.contentResolver.openInputStream(uri).use { source ->
+                requireNotNull(source)
+                FileOutputStream(dest).use { out ->
+                    val buffer = ByteArray(64 * 1024)
+                    while (true) {
+                        currentCoroutineContext().ensureActive()
+                        val count = source.read(buffer)
+                        if (count < 0) break
+                        total += count
+                        if (total > 250L * 1024 * 1024)
+                            throw PdfOperationFailure(PdfFailure.LimitExceeded)
+                        storage.beforeWrite(dest, count.toLong())
+                        out.write(buffer, 0, count)
+                        sourceChunk(total)
+                    }
+                    out.fd.sync()
+                }
+            }
+            val hash = sha256(dest)
+            val header = ByteArray(PdfImageSignature.LENGTH)
+            val read =
+                dest.inputStream().use { input ->
+                    var filled = 0
+                    while (filled < header.size) {
+                        val n = input.read(header, filled, header.size - filled)
+                        if (n < 0) break
+                        filled += n
+                    }
+                    filled
+                }
+            val signature = PdfImageSignature.of(header, read)
+            // A dropped PDF document (Documents scope of the Media panel) has nowhere sensible to
+            // land as an appended IMAGE on an existing page; the Media panel only offers images
+            // for insertion by construction, but guard it here too rather than silently misusing
+            // a whole PDF as image bytes.
+            if (signature == PdfImageSignature.PDF) throw PdfOperationFailure(PdfFailure.UnsupportedFormat)
+            val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(dest.path, o)
+            val mime =
+                PdfImageSignature.accept(header, read, o.outMimeType, o.outWidth, o.outHeight)
+                    ?: throw PdfOperationFailure(PdfFailure.UnsupportedFormat)
+            val orientation =
+                runCatching {
+                        androidx.exifinterface.media
+                            .ExifInterface(dest)
+                            .getAttributeInt(
+                                androidx.exifinterface.media.ExifInterface.TAG_ORIENTATION,
+                                1,
+                            )
+                    }
+                    .getOrDefault(1)
+                    .coerceIn(1, 8)
+            val a =
+                PdfAsset(
+                    hash,
+                    mime,
+                    if (orientation >= 5) o.outHeight else o.outWidth,
+                    if (orientation >= 5) o.outWidth else o.outHeight,
+                    orientation,
+                )
+            val final = file(hash)
+            if (!final.exists()) {
+                check(dest.renameTo(final))
+                createdFile = final
+            } else dest.delete()
+            progress(1, 1)
+
+            // Re-fetch the FRESHEST project/session now, right before mutating - never build on
+            // the possibly-stale snapshot read above; the copy above can take long enough for the
+            // user to have edited (and autosaved) the very same project in the meantime.
+            val (freshProject, freshSession) =
+                loadEditor(targetProjectId) ?: throw PdfOperationFailure(PdfFailure.ImportTargetMissing)
+            val freshPageIndex = freshProject.pages.indexOfFirst { it.id == targetPageId }
+            if (freshPageIndex < 0) throw PdfOperationFailure(PdfFailure.ImportTargetMissing)
+            val freshPage = freshProject.pages[freshPageIndex]
+            if (freshPage.source != null) throw PdfOperationFailure(PdfFailure.UnsupportedFormat)
+            if (!PdfMediaPlacement.hasRoomForOneMore(freshPage.images.size))
+                throw PdfOperationFailure(PdfFailure.PageFull)
+            val (w, h) = PdfMediaPlacement.fitSize(freshPage.width, freshPage.margin, a.width, a.height)
+            // [placement], when given, is the drop point's page-space CENTER (Media panel drag &
+            // drop); convert to the top-left PdfImage stores.
+            val (x, y) =
+                placement?.let { (cx, cy) -> PdfMediaPlacement.centerToTopLeft(cx, cy, w, h) }
+                    ?: PdfMediaPlacement.autoSlotTopLeft(freshPage.images.size, freshPage.margin)
+            val image = PdfGeometry.constrain(PdfImage(asset = hash, x = x, y = y, width = w, height = h), freshPage)
+            val updatedPage = freshPage.copy(images = freshPage.images + image)
+            val updatedPages =
+                freshProject.pages.toMutableList().also { it[freshPageIndex] = updatedPage }
+            val updatedAssets =
+                if (freshProject.assets.any { it.hash == hash }) freshProject.assets
+                else freshProject.assets + a
+            val next = freshProject.copy(pages = updatedPages, assets = updatedAssets).validate()
+            currentCoroutineContext().ensureActive()
+            withContext(NonCancellable) {
+                saveUnlocked(
+                    next,
+                    freshSession.copy(
+                        undo = (freshSession.undo + freshProject).takeLast(40),
+                        redo = emptyList(),
+                    ),
+                    requestId,
+                )
+                committed = true
+            }
+            next
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: PdfOperationFailure) {
+            // A clear, dedicated failure (limit reached, target missing, unsupported format) -
+            // never re-wrapped as a generic per-source read failure (the review's device-fail
+            // finding: the per-page limit used to surface as "Source 1" instead of this).
+            if (!committed) createdFile?.delete()
+            throw e
+        } catch (e: Exception) {
+            if (!committed) createdFile?.delete()
+            throw PdfSourceFailure(1, e)
+        } finally {
+            staging.deleteRecursively()
+        }
+    }
 
     private suspend fun importUnlocked(
         p: PdfProject,

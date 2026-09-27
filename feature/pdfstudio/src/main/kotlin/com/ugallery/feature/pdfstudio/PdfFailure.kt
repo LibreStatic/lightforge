@@ -9,6 +9,10 @@ enum class PdfFailure(val message: Int) {
     MissingFile(R.string.pdf_failure_missing),
     UnsupportedFormat(R.string.pdf_failure_format),
     LimitExceeded(R.string.pdf_failure_limit),
+    /** Specifically "this page already has the max photos allowed" (Media panel insert, Phase F
+     * item 3 review fix): distinct from the generic [LimitExceeded] so the issue card can say
+     * exactly what's full instead of the generic "exceeds the project or import limit" text. */
+    PageFull(R.string.pdf_failure_page_full),
     StorageFull(R.string.pdf_failure_storage),
     MemoryPressure(R.string.pdf_failure_memory),
     RendererUnavailable(R.string.pdf_failure_renderer),

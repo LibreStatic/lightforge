@@ -202,10 +202,15 @@ private fun PdfMediaThumbnail(
     if (dragUri != null)
         modifier =
             modifier.dragAndDropSource { _ ->
+                // Privacy review fix (BLOCKER): DRAG_FLAG_GLOBAL let this content:// URI be
+                // dropped into another app's window in split screen, which could read a photo the
+                // user never explicitly shared with it. This drag is local to our own window
+                // only (flags = 0, no DRAG_FLAG_GLOBAL/GRANT_READ), so PdfCanvas's own
+                // dragAndDropTarget is the only possible destination.
                 DragAndDropTransferData(
                     android.content.ClipData.newUri(null, "pdf-media", dragUri),
                     dragUri,
-                    android.view.View.DRAG_FLAG_GLOBAL,
+                    0,
                 )
             }
     Box(

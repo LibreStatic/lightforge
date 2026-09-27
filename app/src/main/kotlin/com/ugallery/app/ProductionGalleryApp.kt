@@ -2367,6 +2367,8 @@ internal fun ProductionGalleryApp(
                     AppPdfMediaSource(
                         context = context,
                         documentRepository = viewModel.documentRepository,
+                        queryMediaRepository = viewModel.queryMediaRepository,
+                        librarySettings = viewModel.librarySettings,
                         access = viewModel.access,
                         wording = PdfMediaAccessWording(pdfLimitedBody, pdfManageLabel, pdfDeniedBody, pdfDeniedLabel),
                         onRequestAccess = ::requestAccess,

@@ -555,10 +555,27 @@ private fun PdfHingeSplitEditorBody(
     Box(modifier) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val fold = layout.foldInfo
-            val leftWidth = fold?.left ?: (maxWidth / 2)
-            val rightWidth = fold?.right?.let { maxWidth - it } ?: (maxWidth / 2)
+            // Device review fix: derive both pane widths from the SAME pure function
+            // (PdfHingeSplitGeometry.compute), which floors every width and subtracts an explicit
+            // 8dp gap from the hinge-facing edge, instead of using the hinge's raw bounds
+            // directly (that used to leave zero margin for dp->px rounding to shave the canvas
+            // a fraction of a pixel into the hinge band).
+            val panes =
+                if (fold != null)
+                    PdfHingeSplitGeometry.compute(maxWidth.value, fold.left.value, fold.right.value)
+                else PdfHingeSplitGeometry.compute(maxWidth.value, maxWidth.value / 2, maxWidth.value / 2)
             val hingeWidth = fold?.hingeWidth ?: 0.dp
-            val canvasOnLeft = leftWidth >= rightWidth
+            val canvasOnLeft = panes.canvasOnLeft
+            // The gap subtracted on each side of the hinge leaves the Row narrower than the full
+            // window; giving that slack to the pane drawn SECOND (below, always sized by
+            // `rightWidth` regardless of canvasOnLeft) is always safe - that pane's far edge is
+            // the window's own outer edge, never the hinge - and avoids a dead empty strip at the
+            // trailing edge instead.
+            val leftoverDp =
+                (maxWidth.value - panes.leftWidthDp - panes.rightWidthDp - hingeWidth.value)
+                    .coerceAtLeast(0f)
+            val leftWidth = panes.leftWidthDp.dp
+            val rightWidth = (panes.rightWidthDp + leftoverDp).dp
 
             @Composable
             fun CanvasPane(w: androidx.compose.ui.unit.Dp) {

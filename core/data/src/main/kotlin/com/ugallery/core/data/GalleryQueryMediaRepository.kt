@@ -7,12 +7,35 @@ import androidx.paging.map
 import androidx.sqlite.db.SimpleSQLiteQuery
 import com.ugallery.core.database.GalleryDatabase
 import com.ugallery.core.model.TimelineMedia
+import com.ugallery.core.preferences.LibrarySettings
 import com.ugallery.core.selection.MediaQuery
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 /** Paged media for deterministic local smart collections used by the Photos highlight carousel. */
 class GalleryQueryMediaRepository(private val database: GalleryDatabase) {
+    /**
+     * Bounded, non-paged list of the most recent images, honoring EXACTLY the same
+     * isAccessible/isTrashed/archive-exclusion/excluded-folder filtering the Photos timeline
+     * itself applies for [settings] (PDF Studio's Media panel, Phase F item 3 review fix: the
+     * panel had been querying MediaStore directly, which could surface hidden/archived/excluded
+     * photos the user deliberately hid from the timeline - "hidden must mean hidden"). Not paged:
+     * the Media panel is a bounded, scrollable grid, not an infinite timeline.
+     */
+    suspend fun recentImages(settings: LibrarySettings, limit: Int): List<TimelineMedia> {
+        // Force Images so the SQL-level LIMIT (applied inside GalleryTimelineQuery.stacked, after
+        // every isAccessible/isTrashed/archive/folder filter) doesn't get spent on videos the
+        // Media panel would just filter back out - everything else (sort, grouping, folder
+        // rules) is still the caller's own settings.
+        val imagesOnly =
+            if (settings.filter == com.ugallery.core.preferences.LibraryFilter.Images) settings
+            else settings.copy(filter = com.ugallery.core.preferences.LibraryFilter.Images)
+        return database
+            .libraryDao()
+            .stackTimelineSelection(GalleryTimelineQuery.stacked(imagesOnly, limit = limit))
+            .map { it.toTimelineMedia() }
+    }
+
     fun media(query: MediaQuery): Flow<PagingData<TimelineMedia>> {
         require(query.scope == MediaQuery.Scope.Timeline)
         return Pager(
