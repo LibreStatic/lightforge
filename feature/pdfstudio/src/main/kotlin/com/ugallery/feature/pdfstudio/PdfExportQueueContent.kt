@@ -71,13 +71,19 @@ internal fun PdfExportHistoryDialog(
     onSave: (PdfExportJob) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        // decorFitsSystemWindows = false: this window draws edge-to-edge on its own terms (API
+        // 35+ no longer guarantees the old "auto-inset" dialog default), so the content below
+        // explicitly pads for the system bars with windowInsetsPadding instead of relying on it.
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
         Surface(
             Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface,
         ) {
-            Column(Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.systemBars)) {
                 var showOverflow by remember { mutableStateOf(false) }
                 GalleryTopAppBar(
                     title = stringResource(R.string.pdf_queue),
@@ -223,6 +229,12 @@ private fun PdfExportJobCard(
                 if (job.phase == PdfExportPhase.Published && job.destination != null) {
                     val uri = Uri.parse(job.destination)
                     TextButton(onClick = { openPdf(context, uri, vm::reportOpenFailed) }) {
+                        Icon(
+                            GalleryIcons.OpenInNew,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.pdf_open))
                     }
                     TextButton(onClick = { sharePdf(context, uri, vm::reportOpenFailed) }) {

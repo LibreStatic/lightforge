@@ -25,6 +25,12 @@ def dump():
         except (subprocess.CalledProcessError,ET.ParseError):time.sleep(.4)
     raise AssertionError('Accessibility observer failed; inspect same live Activity')
 def match(n,label):return n.get('text')==label or n.get('content-desc')==label
+# The quality cards compose their own contentDescription as "<label>, <estimate>" (so TalkBack
+# reads the live size estimate, not just the label) instead of exposing exactly the bare label.
+def match_prefix(n,label):
+    text=n.get('text') or n.get('content-desc') or ''
+    return text==label or text.startswith(label+', ')
+def visible_prefix(label):return any(match_prefix(n,label) for n in dump()[0].iter('node'))
 def tap_where(predicate):
     root,_=dump();parents={c:p for p in root.iter() for c in p};matches=[]
     for n in root.iter('node'):
@@ -116,7 +122,7 @@ def pdf():
     if jobs and jobs[0]['verified']:return
     if not jobs:
         # Export is a filled top-bar action, opening the destination-first export sheet.
-        if not visible('Compact'):tap('Export')
+        if not visible_prefix('Compact'):tap('Export')
         snap('quality-dialog')
         if args.baseline:
             switches=[n for n in dump()[0].iter('node') if n.get('checkable')=='true']
@@ -125,11 +131,13 @@ def pdf():
             tap_where(lambda n:n.get('checkable')=='true')
         else:
             # The Original/Compact quality picker is two selectable cards now, not a single
-            # switch; each card is one checkable node owning its own "Original"/"Compact" label.
+            # switch; each card is one checkable node owning its own contentDescription, composed
+            # as "Original, <estimate>" / "Compact, <estimate>" so TalkBack reads the live size
+            # estimate too, not just the label.
             def labeled_cards():
-                return [n for n in dump()[0].iter('node') if n.get('checkable')=='true' and any(match(c,'Compact') for c in n.iter('node'))]
+                return [n for n in dump()[0].iter('node') if n.get('checkable')=='true' and match_prefix(n,'Compact')]
             cards=labeled_cards();assert len(cards)==1,'Label must belong to the checkable card'
-            if cards[0].get('checked')!='true':tap('Compact')
+            if cards[0].get('checked')!='true':tap_where(lambda n:match_prefix(n,'Compact'))
             cards=labeled_cards()
             assert len(cards)==1 and cards[0].get('checked')=='true' and cards[0].get('clickable')=='true' and cards[0].get('NAF')!='true'
             x,y,r,d=map(int,re.findall(r'\d+',cards[0].get('bounds')));assert r>x and d>y

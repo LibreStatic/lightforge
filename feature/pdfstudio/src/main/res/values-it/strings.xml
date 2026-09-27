@@ -153,4 +153,5 @@
         <item quantity="one">%1$d pagina</item>
         <item quantity="other">%1$d pagine</item>
     </plurals>
+    <string name="pdf_export_quality_card_label">%1$s, %2$s</string>
 </resources>

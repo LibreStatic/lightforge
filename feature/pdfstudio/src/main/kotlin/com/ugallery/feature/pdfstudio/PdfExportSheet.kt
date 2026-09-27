@@ -63,7 +63,9 @@ internal fun PdfExportSheet(
     }
     val filenameValid = filename.isNotBlank()
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.fillMaxWidth()) {
+        // The filename field can open the IME; imePadding keeps the sticky Cancel/Export row (and
+        // the rest of the sheet) above the keyboard instead of letting it cover the row.
+        Column(Modifier.fillMaxWidth().imePadding()) {
             Column(
                 Modifier.weight(1f, fill = false)
                     .verticalScroll(rememberScrollState())
@@ -209,13 +211,20 @@ private fun QualityCard(
         if (selected)
             Modifier.border(2.dp, MaterialTheme.colorScheme.secondary, RoundedCornerShape(12.dp))
         else Modifier
+    val estimateText =
+        estimate?.let { stringResource(R.string.pdf_export_size_estimate, it) }
+            ?: stringResource(R.string.pdf_export_size_calculating)
+    // Composed explicitly (rather than left to rely on the selectable node's default descendant
+    // merge) so TalkBack always reads the live size estimate along with the label, not just
+    // "Original"/"Compact": the previous explicit contentDescription = label hid it entirely.
+    val description = stringResource(R.string.pdf_export_quality_card_label, label, estimateText)
     Column(
         modifier
             .heightIn(min = 48.dp)
             .background(container, RoundedCornerShape(12.dp))
             .then(borderModifier)
             .selectable(selected = selected, onClick = onSelect, role = Role.RadioButton)
-            .semantics { contentDescription = label }
+            .semantics { contentDescription = description }
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -223,12 +232,7 @@ private fun QualityCard(
             if (selected) GalleryIcon(GalleryIcons.CheckCircle, contentDescription = null, tint = onContainer)
             Text(label, style = MaterialTheme.typography.titleMedium, color = onContainer)
         }
-        Text(
-            estimate?.let { stringResource(R.string.pdf_export_size_estimate, it) }
-                ?: stringResource(R.string.pdf_export_size_calculating),
-            color = onContainer,
-            style = MaterialTheme.typography.bodyMedium,
-        )
+        Text(estimateText, color = onContainer, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -306,7 +310,11 @@ internal fun PdfExportResultSheet(
                 )
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onOpen) { Text(stringResource(R.string.pdf_open)) }
+                OutlinedButton(onClick = onOpen) {
+                    Icon(GalleryIcons.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.pdf_open))
+                }
                 OutlinedButton(onClick = onShare) { Text(stringResource(R.string.pdf_share)) }
                 Spacer(Modifier.weight(1f))
                 GalleryExpressiveButton(onClick = onDone) { Text(stringResource(R.string.pdf_done)) }
