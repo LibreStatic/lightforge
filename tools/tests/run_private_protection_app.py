@@ -19,15 +19,15 @@ import threading
 import time
 import uuid
 
-PACKAGE = "com.ugallery.app.demo.pdfacceptance"
+PACKAGE = "com.librestatic.lightforge.demo.pdfacceptance"
 TEST_PACKAGE = PACKAGE + ".test"
-CLASS = "com.ugallery.app.PrivateProtectionAppDeviceTest"
+CLASS = "com.librestatic.lightforge.PrivateProtectionAppDeviceTest"
 COMPONENT = TEST_PACKAGE + "/androidx.test.runner.AndroidJUnitRunner"
-AVD = "UGallery_M2_API30"
+AVD = "Lightforge_M2_API30"
 SERIAL = "emulator-5554"  # Backward-compatible default only; commands use args.serial.
 LANES = {
     SERIAL: (AVD, 30, "ro.kernel.qemu.avd_name"),
-    "127.0.0.1:5563": ("UGallery_PDF_API35", 35, "ro.boot.qemu.avd_name"),
+    "127.0.0.1:5563": ("Lightforge_PDF_API35", 35, "ro.boot.qemu.avd_name"),
 }
 SCENARIOS = {
     "legacy": ("bootstrapOwnedLegacyVault", "legacyVaultMigratesThroughProductionUiAndReopens", ("OPEN", "MIGRATION", "REOPEN")),

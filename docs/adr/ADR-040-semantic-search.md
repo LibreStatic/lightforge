@@ -9,7 +9,7 @@ Semantic text-image search needs a CLIP-compatible image and text encoder in one
 
 ## Decision
 
-UGallery ships a fixed, first-party catalog of immutable TinyCLIP LiteRT packages. The app selects the best technically compatible package for the device and automatically downloads it only over validated unmetered Wi-Fi. A user may explicitly allow another connected network, keep multiple packages, choose any technically compatible package despite a recommendation warning, delete packages individually, or disable semantic search without deleting them.
+Lightforge ships a fixed, first-party catalog of immutable TinyCLIP LiteRT packages. The app selects the best technically compatible package for the device and automatically downloads it only over validated unmetered Wi-Fi. A user may explicitly allow another connected network, keep multiple packages, choose any technically compatible package despite a recommendation warning, delete packages individually, or disable semantic search without deleting them.
 
 Each archive is downloaded resumably from the allowlisted GitHub release hosts, checked against its exact size and SHA-256 digest, verified with the embedded P-256 public key, extracted through a strict file allowlist into staging, and atomically installed. Custom URLs and unsigned sources are not supported.
 

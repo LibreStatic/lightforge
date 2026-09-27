@@ -1,16 +1,16 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
-    <application android:name="com.ugallery.feature.pdfstudio.PdfTestApplication">
-        <service android:name="com.ugallery.feature.pdfstudio.PdfDeadlineTestService" android:exported="false" android:isolatedProcess="true" android:process=":pdf_deadline_test" />
-        <activity android:name="com.ugallery.feature.pdfstudio.PdfFlowProbeActivity" android:theme="@android:style/Theme.Material.NoActionBar" android:exported="true" />
-        <activity android:name="com.ugallery.feature.pdfstudio.PdfUiProbeActivity" android:theme="@android:style/Theme.Material.NoActionBar" android:exported="true" />
-        <activity android:name="com.ugallery.feature.pdfstudio.PdfImportProbeActivity" android:exported="true" />
-        <activity android:name="com.ugallery.feature.pdfstudio.PdfPickerProbeActivity" android:exported="true" />
+    <application android:name="com.librestatic.lightforge.feature.pdfstudio.PdfTestApplication">
+        <service android:name="com.librestatic.lightforge.feature.pdfstudio.PdfDeadlineTestService" android:exported="false" android:isolatedProcess="true" android:process=":pdf_deadline_test" />
+        <activity android:name="com.librestatic.lightforge.feature.pdfstudio.PdfFlowProbeActivity" android:theme="@android:style/Theme.Material.NoActionBar" android:exported="true" />
+        <activity android:name="com.librestatic.lightforge.feature.pdfstudio.PdfUiProbeActivity" android:theme="@android:style/Theme.Material.NoActionBar" android:exported="true" />
+        <activity android:name="com.librestatic.lightforge.feature.pdfstudio.PdfImportProbeActivity" android:exported="true" />
+        <activity android:name="com.librestatic.lightforge.feature.pdfstudio.PdfPickerProbeActivity" android:exported="true" />
         <provider android:name="androidx.startup.InitializationProvider" android:authorities="${applicationId}.androidx-startup" tools:node="merge">
             <meta-data android:name="androidx.work.WorkManagerInitializer" tools:node="remove" />
         </provider>
-        <provider android:name="com.ugallery.feature.pdfstudio.PdfTestDocumentsProvider" android:authorities="com.ugallery.feature.pdfstudio.test.documents" android:exported="true" android:permission="android.permission.MANAGE_DOCUMENTS" android:grantUriPermissions="true">
+        <provider android:name="com.librestatic.lightforge.feature.pdfstudio.PdfTestDocumentsProvider" android:authorities="com.librestatic.lightforge.feature.pdfstudio.test.documents" android:exported="true" android:permission="android.permission.MANAGE_DOCUMENTS" android:grantUriPermissions="true">
             <intent-filter><action android:name="android.content.action.DOCUMENTS_PROVIDER" /></intent-filter>
         </provider>
-        <activity android:name="com.ugallery.feature.pdfstudio.PdfInputProbeActivity" android:theme="@android:style/Theme.Material.NoActionBar" android:exported="false" />
+        <activity android:name="com.librestatic.lightforge.feature.pdfstudio.PdfInputProbeActivity" android:theme="@android:style/Theme.Material.NoActionBar" android:exported="false" />
     </application>
 </manifest>

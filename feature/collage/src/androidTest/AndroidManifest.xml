@@ -1,9 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
-        <activity android:name="com.ugallery.feature.collage.CreationCollageLifecycleActivity"
+        <activity android:name="com.librestatic.lightforge.feature.collage.CreationCollageLifecycleActivity"
             android:exported="false" android:theme="@android:style/Theme.Material.Light.NoActionBar" />
-        <provider android:name="com.ugallery.feature.collage.CreationCollageTestProvider"
-            android:authorities="com.ugallery.feature.collage.test.creationfixture"
+        <provider android:name="com.librestatic.lightforge.feature.collage.CreationCollageTestProvider"
+            android:authorities="com.librestatic.lightforge.feature.collage.test.creationfixture"
             android:exported="false" android:grantUriPermissions="false" />
     </application>
 </manifest>

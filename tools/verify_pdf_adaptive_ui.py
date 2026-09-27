@@ -4,7 +4,7 @@ import argparse, json, re, subprocess, time, xml.etree.ElementTree as ET
 from pathlib import Path
 p=argparse.ArgumentParser();p.add_argument('--serial',required=True);p.add_argument('--output',required=True);p.add_argument('--dynamic',action='store_true');p.add_argument('--folds',action='store_true');p.add_argument('--media',action='store_true');args=p.parse_args()
 out=Path(args.output);out.mkdir(parents=True,exist_ok=True)
-b=['rtk','proxy','adb','-s',args.serial];pkg='com.ugallery.feature.pdfstudio.test'
+b=['rtk','proxy','adb','-s',args.serial];pkg='com.librestatic.lightforge.feature.pdfstudio.test'
 def adb(*a): return subprocess.check_output(b+list(a),timeout=45)
 def shell(*a): return adb('shell',*a).decode().strip()
 def state(): return json.loads(subprocess.check_output(b+['shell','run-as',pkg,'cat','files/pdf-ui-state.json'],stderr=subprocess.DEVNULL,timeout=10))
@@ -57,7 +57,7 @@ def snap(name):
     (out/(name+'.png')).write_bytes(adb('exec-out','screencap','-p'));return root
 def cleanup():
     shell('am','force-stop',pkg)
-    result=shell('am','instrument','-w','-e','phase','ui-cleanup',pkg+'/com.ugallery.feature.pdfstudio.PdfRecoveryProbeRunner')
+    result=shell('am','instrument','-w','-e','phase','ui-cleanup',pkg+'/com.librestatic.lightforge.feature.pdfstudio.PdfRecoveryProbeRunner')
     assert 'PDF RECOVERY UI-CLEANUP PASS' in result,result
     time.sleep(.3)
 def labels(locale):
@@ -81,7 +81,7 @@ for width,height,font,locale,dark,rtl in cases:
     name=f'{width}x{height}-font{font}-{locale}-'+('dark' if dark else 'light')+('-rtl' if rtl else '')
     shell('run-as',pkg,'rm','-f','files/pdf-ui-state.json')
     subprocess.run(b+['shell','run-as',pkg,'tee','files/pdf-ui-config.json'], input=json.dumps(dict(width=width,font=font,locale=locale)).encode(),stdout=subprocess.DEVNULL,check=True)
-    shell('am','start','-W','-n',pkg+'/com.ugallery.feature.pdfstudio.PdfUiProbeActivity','--ei','width',str(width),'--ei','height',str(height),'--ef','font',str(font),'--es','locale',locale,'--ez','dark',str(dark).lower(),'--ez','rtl',str(rtl).lower(),'--ez','dynamic',str(args.dynamic).lower())
+    shell('am','start','-W','-n',pkg+'/com.librestatic.lightforge.feature.pdfstudio.PdfUiProbeActivity','--ei','width',str(width),'--ei','height',str(height),'--ef','font',str(font),'--es','locale',locale,'--ez','dark',str(dark).lower(),'--ez','rtl',str(rtl).lower(),'--ez','dynamic',str(args.dynamic).lower())
     initial=wait_ready();time.sleep(.5);ls=labels(locale)
     # The previous case's activity can still be on screen for a moment; wait for this case's
     # canvas (in this case's locale) before taking the reference snapshot.
@@ -148,7 +148,7 @@ if args.folds:
     for width,height,orientation,hinge_dp,fold_pos,name in fold_cases:
         shell('run-as',pkg,'rm','-f','files/pdf-ui-state.json')
         subprocess.run(b+['shell','run-as',pkg,'tee','files/pdf-ui-config.json'],input=json.dumps(dict(width=width,font=1,locale='en')).encode(),stdout=subprocess.DEVNULL,check=True)
-        shell('am','start','-W','-n',pkg+'/com.ugallery.feature.pdfstudio.PdfUiProbeActivity',
+        shell('am','start','-W','-n',pkg+'/com.librestatic.lightforge.feature.pdfstudio.PdfUiProbeActivity',
               '--ei','width',str(width),'--ei','height',str(height),'--ef','font','1','--es','locale','en',
               '--ez','dark','false','--ez','rtl','false','--ez','dynamic',str(args.dynamic).lower(),
               '--es','fold',orientation,'--ei','hingePx',str(hinge_dp),'--ef','foldPos',str(fold_pos))
@@ -196,7 +196,7 @@ if args.media:
     name='media-840x640'
     shell('run-as',pkg,'rm','-f','files/pdf-ui-state.json')
     subprocess.run(b+['shell','run-as',pkg,'tee','files/pdf-ui-config.json'],input=json.dumps(dict(width=840,font=1,locale='en')).encode(),stdout=subprocess.DEVNULL,check=True)
-    shell('am','start','-W','-n',pkg+'/com.ugallery.feature.pdfstudio.PdfUiProbeActivity',
+    shell('am','start','-W','-n',pkg+'/com.librestatic.lightforge.feature.pdfstudio.PdfUiProbeActivity',
           '--ei','width','840','--ei','height','640','--ef','font','1','--es','locale','en',
           '--ez','dark','false','--ez','rtl','false','--ez','dynamic',str(args.dynamic).lower(),
           '--ez','fakeMedia','true')

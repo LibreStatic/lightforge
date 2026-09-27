@@ -42,7 +42,7 @@ def main() -> None:
     args = parser.parse_args()
     zip_path = args.zip_path.resolve(strict=True)
 
-    with tempfile.TemporaryDirectory(prefix="ugallery-private-identity-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="lightforge-private-identity-") as temporary:
         extracted = Path(temporary)
         with zipfile.ZipFile(zip_path) as archive:
             members = safe_members(archive)

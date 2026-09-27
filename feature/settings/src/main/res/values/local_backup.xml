@@ -3,14 +3,14 @@
     <string name="local_backup_title">Local file backup</string>
     <string name="local_backup_back">Back</string>
     <string name="local_backup_scope">Includes the exact bytes of files you select: photos, videos and documents. Albums, stacks, memories, people, preferences and private-vault contents are not included. This is not a complete library backup.</string>
-    <string name="local_backup_local_hint">Choose storage on this device or a connected USB drive. No network service is used by UGallery. Keep the backup until you have checked your restored files.</string>
+    <string name="local_backup_local_hint">Choose storage on this device or a connected USB drive. No network service is used by Lightforge. Keep the backup until you have checked your restored files.</string>
     <string name="local_backup_select">Select original files</string>
     <string name="local_backup_selected">Selected files: %1$d</string>
     <string name="local_backup_create">Create and verify backup</string>
     <string name="local_backup_open">Open and verify backup</string>
     <string name="local_backup_working">Working… Keep this screen open.</string>
     <string name="local_backup_cancelled">Cancelled. Files created by this operation were removed.</string>
-    <string name="local_backup_cleanup_failed">Cleanup was incomplete. Check the selected destination for an incomplete backup or a UGallery-restored folder before trying again.</string>
+    <string name="local_backup_cleanup_failed">Cleanup was incomplete. Check the selected destination for an incomplete backup or a Lightforge-restored folder before trying again.</string>
     <string name="local_backup_failed">Operation failed. Check available space, access and backup integrity, then try again. Existing originals were not changed.</string>
     <string name="local_backup_verified">Backup integrity verified. Review before restoring.</string>
     <string name="local_backup_exported">Backup saved and destination bytes verified.</string>
@@ -33,12 +33,12 @@
         <item quantity="other">%d originals</item>
     </plurals>
     <string name="local_backup_more">And %1$d more files</string>
-    <string name="local_backup_restore_hint">Restore copies into a new UGallery-restored folder. Existing files are not overwritten or deleted. Organization and preferences will not be changed.</string>
+    <string name="local_backup_restore_hint">Restore copies into a new Lightforge-restored folder. Existing files are not overwritten or deleted. Organization and preferences will not be changed.</string>
     <string name="local_backup_restore">Restore copies</string>
     <string name="local_backup_choose_folder">Choose restore folder</string>
     <string name="local_backup_cancel_hint">Cancel the operation and remove only the files it created? Leaving this screen or restarting the app interrupts the operation.</string>
     <string name="local_backup_continue">Keep working</string>
-    <string name="local_backup_interrupted">A previous operation was interrupted. Check the selected destination for an incomplete backup or UGallery-restored folder. No automatic cleanup or completion is assumed after an app restart.</string>
+    <string name="local_backup_interrupted">A previous operation was interrupted. Check the selected destination for an incomplete backup or Lightforge-restored folder. No automatic cleanup or completion is assumed after an app restart.</string>
     <string name="local_backup_organization_scope">Back up the exact bytes of selected photos, videos and documents. Optionally include organization linked to those files. The review lists partial collections and unresolved people. Private-vault content is excluded. This is not a complete library backup.</string>
     <string name="local_backup_include_organization">Include linked organization</string>
     <string name="local_backup_review_version">Verified backup · format version %1$d</string>

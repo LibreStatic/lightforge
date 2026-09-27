@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.feature.semanticsearch"
+    namespace = "com.librestatic.lightforge.feature.semanticsearch"
     compileSdk = 37
     defaultConfig {
         minSdk = 30

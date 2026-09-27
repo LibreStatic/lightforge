@@ -11,7 +11,7 @@
 #include "rife/rife.h"
 
 namespace {
-constexpr const char* TAG = "UGalleryRife";
+constexpr const char* TAG = "LightforgeRife";
 std::mutex gpu_mutex;
 int gpu_users = 0;
 
@@ -104,7 +104,7 @@ bool rgb_to_bitmap(JNIEnv* env, const ncnn::Mat& image, jobject bitmap) {
 }
 
 extern "C" JNIEXPORT jlong JNICALL
-Java_com_ugallery_core_frameinterpolation_RifeFrameInterpolator_nativeCreate(
+Java_com_librestatic_lightforge_core_frameinterpolation_RifeFrameInterpolator_nativeCreate(
     JNIEnv* env, jobject, jstring model_dir, jboolean prefer_vulkan
 ) {
     const char* raw = env->GetStringUTFChars(model_dir, nullptr);
@@ -120,7 +120,7 @@ Java_com_ugallery_core_frameinterpolation_RifeFrameInterpolator_nativeCreate(
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_ugallery_core_frameinterpolation_RifeFrameInterpolator_nativeUsesVulkan(
+Java_com_librestatic_lightforge_core_frameinterpolation_RifeFrameInterpolator_nativeUsesVulkan(
     JNIEnv*, jobject, jlong handle
 ) {
     auto* engine = reinterpret_cast<Engine*>(handle);
@@ -128,7 +128,7 @@ Java_com_ugallery_core_frameinterpolation_RifeFrameInterpolator_nativeUsesVulkan
 }
 
 extern "C" JNIEXPORT jint JNICALL
-Java_com_ugallery_core_frameinterpolation_RifeFrameInterpolator_nativeInterpolate(
+Java_com_librestatic_lightforge_core_frameinterpolation_RifeFrameInterpolator_nativeInterpolate(
     JNIEnv* env, jobject, jlong handle, jobject first, jobject second, jfloat timestep, jobject output
 ) {
     auto* engine = reinterpret_cast<Engine*>(handle);
@@ -152,7 +152,7 @@ Java_com_ugallery_core_frameinterpolation_RifeFrameInterpolator_nativeInterpolat
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_ugallery_core_frameinterpolation_RifeFrameInterpolator_nativeClose(
+Java_com_librestatic_lightforge_core_frameinterpolation_RifeFrameInterpolator_nativeClose(
     JNIEnv*, jobject, jlong handle
 ) {
     delete reinterpret_cast<Engine*>(handle);

@@ -1,4 +1,4 @@
-package com.ugallery.pdfprovider.fixture;
+package com.librestatic.lightforge.pdfprovider.fixture;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -12,8 +12,8 @@ import org.json.JSONObject;
 
 /** Test APK only: grant/revoke exactly its own fixture documents to the instrumentation package. */
 public final class ControlActivity extends Activity {
-    static final String AUTHORITY = "com.ugallery.pdfprovider.fixture.documents";
-    static final String TARGET = "com.ugallery.feature.pdfstudio.test";
+    static final String AUTHORITY = "com.librestatic.lightforge.pdfprovider.fixture.documents";
+    static final String TARGET = "com.librestatic.lightforge.feature.pdfstudio.test";
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         String action = getIntent().getStringExtra("action");

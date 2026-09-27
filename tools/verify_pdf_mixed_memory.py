@@ -17,7 +17,7 @@ p.add_argument("--serial", required=True)
 p.add_argument("--output", required=True, type=Path)
 a = p.parse_args()
 a.output.mkdir(parents=True, exist_ok=True)
-pkg = "com.ugallery.app.pdfacceptance"
+pkg = "com.librestatic.lightforge.pdfacceptance"
 adb = ["rtk", "proxy", "adb", "-s", a.serial]
 
 def shell(*args):
@@ -31,7 +31,7 @@ existing = subprocess.run(adb + ["shell", "run-as", pkg, "test", "-d", "files/pd
 assert existing.returncode == 1, "Inspect the existing fixture; do not restart a live workload"
 log = (a.output / "instrumentation.log").open("w")
 process = subprocess.Popen(adb + ["shell", "am", "instrument", "-w", "-e", "class",
-    "com.ugallery.app.PdfMixedMemoryDeviceTest", pkg + ".test/androidx.test.runner.AndroidJUnitRunner"], stdout=log, stderr=subprocess.STDOUT)
+    "com.librestatic.lightforge.PdfMixedMemoryDeviceTest", pkg + ".test/androidx.test.runner.AndroidJUnitRunner"], stdout=log, stderr=subprocess.STDOUT)
 (a.output / "observer.json").write_text(json.dumps({"instrumentationObserverPid": process.pid, "serial": a.serial}) + "\n")
 started = time.monotonic()
 while True:

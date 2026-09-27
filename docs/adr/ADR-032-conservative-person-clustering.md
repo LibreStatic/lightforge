@@ -7,7 +7,7 @@ Date: 2026-08-18
 
 M4 requires incremental local grouping over compact SFace embeddings, zero hidden cloud work,
 bounded memory, conservative automatic merges and manual corrections that survive reclustering.
-Loading all embeddings or all face IDs is forbidden. The user confirmed UGallery is non-commercial, which is compatible with the available DigiFace-derived R-UDA research corpus for this M4 gate.
+Loading all embeddings or all face IDs is forbidden. The user confirmed Lightforge is non-commercial, which is compatible with the available DigiFace-derived R-UDA research corpus for this M4 gate.
 
 ## Decision
 

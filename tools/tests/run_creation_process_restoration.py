@@ -20,32 +20,32 @@ import time
 import uuid
 import xml.etree.ElementTree as ET
 
-PACKAGE = "com.ugallery.app.pdfacceptance"
-ACTIVITY = PACKAGE + "/com.ugallery.app.MainActivity"
+PACKAGE = "com.librestatic.lightforge.pdfacceptance"
+ACTIVITY = PACKAGE + "/com.librestatic.lightforge.MainActivity"
 TEST_PACKAGE = PACKAGE + ".test"
 RUNNER = TEST_PACKAGE + "/androidx.test.runner.AndroidJUnitRunner"
-TEST = "com.ugallery.app.CreationProcessRestorationAppDeviceTest#seedOwnedPhotosForHostProcessRestoration"
-MOTION_TEST = "com.ugallery.app.CreationProcessRestorationAppDeviceTest#seedOwnedMotionForHostProcessRestoration"
-MOTION_VERIFY_TEST = "com.ugallery.app.CreationProcessRestorationAppDeviceTest#verifyOwnedMotionHasNoSavedKeyFrame"
-VIDEO_EDITOR_TEST = "com.ugallery.app.CreationProcessRestorationAppDeviceTest#seedOwnedVideoForHostProcessRestoration"
-MANUAL_MEMORY_VERIFY_TEST = "com.ugallery.app.CreationProcessRestorationAppDeviceTest#verifyOwnedManualMemoryAfterProcessRestoration"
-COLLAGE_PUBLICATION_SEED = "com.ugallery.app.CollagePublicationProcessAppDeviceTest#seedOwnedCollagePublicationForHost"
-COLLAGE_PUBLICATION_VERIFY = "com.ugallery.app.CollagePublicationProcessAppDeviceTest#verifyOwnedCollagePublicationBeforeSourceCleanup"
-GIF_PUBLICATION_SEED = "com.ugallery.app.GifPublicationProcessAppDeviceTest#seedOwnedGifPublicationForHost"
-GIF_PUBLICATION_VERIFY = "com.ugallery.app.GifPublicationProcessAppDeviceTest#verifyOwnedGifPublicationBeforeSourceCleanup"
+TEST = "com.librestatic.lightforge.CreationProcessRestorationAppDeviceTest#seedOwnedPhotosForHostProcessRestoration"
+MOTION_TEST = "com.librestatic.lightforge.CreationProcessRestorationAppDeviceTest#seedOwnedMotionForHostProcessRestoration"
+MOTION_VERIFY_TEST = "com.librestatic.lightforge.CreationProcessRestorationAppDeviceTest#verifyOwnedMotionHasNoSavedKeyFrame"
+VIDEO_EDITOR_TEST = "com.librestatic.lightforge.CreationProcessRestorationAppDeviceTest#seedOwnedVideoForHostProcessRestoration"
+MANUAL_MEMORY_VERIFY_TEST = "com.librestatic.lightforge.CreationProcessRestorationAppDeviceTest#verifyOwnedManualMemoryAfterProcessRestoration"
+COLLAGE_PUBLICATION_SEED = "com.librestatic.lightforge.CollagePublicationProcessAppDeviceTest#seedOwnedCollagePublicationForHost"
+COLLAGE_PUBLICATION_VERIFY = "com.librestatic.lightforge.CollagePublicationProcessAppDeviceTest#verifyOwnedCollagePublicationBeforeSourceCleanup"
+GIF_PUBLICATION_SEED = "com.librestatic.lightforge.GifPublicationProcessAppDeviceTest#seedOwnedGifPublicationForHost"
+GIF_PUBLICATION_VERIFY = "com.librestatic.lightforge.GifPublicationProcessAppDeviceTest#verifyOwnedGifPublicationBeforeSourceCleanup"
 MOTION_PUBLICATION_SCENARIOS = ("motion-frame-publication", "motion-clip-publication")
-MOTION_PUBLICATION_SEED = "com.ugallery.app.MotionPublicationProcessAppDeviceTest#seedOwnedMotionPublicationForHost"
-MOTION_PUBLICATION_VERIFY = "com.ugallery.app.MotionPublicationProcessAppDeviceTest#verifyOwnedMotionPublicationBeforeSourceCleanup"
+MOTION_PUBLICATION_SEED = "com.librestatic.lightforge.MotionPublicationProcessAppDeviceTest#seedOwnedMotionPublicationForHost"
+MOTION_PUBLICATION_VERIFY = "com.librestatic.lightforge.MotionPublicationProcessAppDeviceTest#verifyOwnedMotionPublicationBeforeSourceCleanup"
 SCENARIOS = ("memory-video", "collage-draft", "gif-draft", "motion-draft", "video-editor-draft", "manual-memory-draft", "manual-memory-commit", "collage-publication", "gif-publication", *MOTION_PUBLICATION_SCENARIOS)
-COLLAGE_OUTPUT_PATH = "Pictures/UGallery/Collage/"
-GIF_OUTPUT_PATH = "Pictures/UGallery/GIF/"
-MOTION_IMAGE_PATH = "Pictures/UGallery/Motion/"
-MOTION_VIDEO_PATH = "Movies/UGallery/Motion/"
-VIDEO_EDITOR_OUTPUT_PATH = "Movies/UGallery/"
-MEMORY_VIDEO_OUTPUT_PATH = "Movies/UGallery/Memories/"
+COLLAGE_OUTPUT_PATH = "Pictures/Lightforge/Collage/"
+GIF_OUTPUT_PATH = "Pictures/Lightforge/GIF/"
+MOTION_IMAGE_PATH = "Pictures/Lightforge/Motion/"
+MOTION_VIDEO_PATH = "Movies/Lightforge/Motion/"
+VIDEO_EDITOR_OUTPUT_PATH = "Movies/Lightforge/"
+MEMORY_VIDEO_OUTPUT_PATH = "Movies/Lightforge/Memories/"
 CREATION_OUTPUT_PATHS = (COLLAGE_OUTPUT_PATH, GIF_OUTPUT_PATH, MOTION_IMAGE_PATH, MOTION_VIDEO_PATH, VIDEO_EDITOR_OUTPUT_PATH, MEMORY_VIDEO_OUTPUT_PATH)
-DEVICES = {"emulator-5554": ("UGallery_M2_API30", "30"),
-           "127.0.0.1:5563": ("UGallery_PDF_API35", "35")}
+DEVICES = {"emulator-5554": ("Lightforge_M2_API30", "30"),
+           "127.0.0.1:5563": ("Lightforge_PDF_API35", "35")}
 FIELDS = ("_id", "_display_name", "relative_path", "owner_package_name",
           "generation_added", "generation_modified", "is_pending")
 
@@ -58,7 +58,7 @@ def require(condition, message):
 def observer_remote_path(digest):
     require(isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{64}", digest),
             "Exact observer SHA256 is required")
-    return "/data/local/tmp/ugallery-ui-observer-" + digest + ".jar"
+    return "/data/local/tmp/lightforge-ui-observer-" + digest + ".jar"
 
 
 def real_display_receipt(output, expected_path):
@@ -327,7 +327,7 @@ def collage_publication_destination_row(destination):
     require(match is not None and destination["ownerPackage"] == PACKAGE and destination["relativePath"] == COLLAGE_OUTPUT_PATH
             and destination["mimeType"] == "image/png" and destination["pending"] is False and destination["trashed"] is False,
             "Collage destination is not the exact owned published PNG")
-    require(isinstance(destination["displayName"], str) and re.fullmatch(r"UGallery-collage-[0-9a-f-]{36}\.png", destination["displayName"]),
+    require(isinstance(destination["displayName"], str) and re.fullmatch(r"Lightforge-collage-[0-9a-f-]{36}\.png", destination["displayName"]),
             "Unexpected collage destination name")
     for field in ("generationAdded", "generationModified", "sizeBytes"):
         require(type(destination[field]) is int and destination[field] >= 0, "Invalid collage destination generation/size")
@@ -401,7 +401,7 @@ def gif_publication_destination_row(destination):
     require(match is not None and destination["ownerPackage"] == PACKAGE and destination["relativePath"] == GIF_OUTPUT_PATH
             and destination["mimeType"] == "image/gif" and destination["pending"] is False and destination["trashed"] is False,
             "GIF destination is not the exact owned published GIF")
-    require(isinstance(destination["displayName"], str) and re.fullmatch(r"UGallery-GIF-[0-9a-f-]{36}\.gif", destination["displayName"]),
+    require(isinstance(destination["displayName"], str) and re.fullmatch(r"Lightforge-GIF-[0-9a-f-]{36}\.gif", destination["displayName"]),
             "Unexpected gif destination name")
     for field in ("generationAdded", "generationModified", "sizeBytes"):
         require(type(destination[field]) is int and destination[field] >= 0, "Invalid gif destination generation/size")
@@ -426,7 +426,7 @@ def verify_gif_publication_gate(output, fixture_uuid, pid, uid):
     require(type(gate["deadlineElapsedRealtimeMillis"]) is int and gate["deadlineElapsedRealtimeMillis"] > 0,
             "GIF gate deadline missing")
     gif_publication_destination_row(gate["destination"])
-    require(gate["destination"]["displayName"] == "UGallery-GIF-" + gate["token"] + ".gif", "GIF filename/token differs")
+    require(gate["destination"]["displayName"] == "Lightforge-GIF-" + gate["token"] + ".gif", "GIF filename/token differs")
     require(isinstance(gate["renderSha256"], str) and re.fullmatch(r"[0-9a-f]{64}", gate["renderSha256"])
             and type(gate["renderSizeBytes"]) is int and gate["renderSizeBytes"] == gate["destination"]["sizeBytes"],
             "GIF gate render identity differs")
@@ -479,7 +479,7 @@ def motion_publication_destination_row(destination, kind):
     require(match is not None and destination["ownerPackage"] == PACKAGE and destination["relativePath"] == path
             and destination["mimeType"] == mime and destination["pending"] is False and destination["trashed"] is False,
             "Motion destination is not the exact owned published Motion")
-    require(isinstance(destination["displayName"], str) and re.fullmatch(r"UGallery-Motion-[0-9a-f-]{36}\." + suffix, destination["displayName"]),
+    require(isinstance(destination["displayName"], str) and re.fullmatch(r"Lightforge-Motion-[0-9a-f-]{36}\." + suffix, destination["displayName"]),
             "Unexpected motion destination name")
     for field in ("generationAdded", "generationModified", "sizeBytes"):
         require(type(destination[field]) is int and destination[field] >= 0, "Invalid motion destination generation/size")
@@ -505,7 +505,7 @@ def verify_motion_publication_gate(output, fixture_uuid, pid, uid, kind):
     require(type(gate["deadlineElapsedRealtimeMillis"]) is int and gate["deadlineElapsedRealtimeMillis"] > 0,
             "Motion gate deadline missing")
     motion_publication_destination_row(gate["destination"], kind)
-    require(gate["destination"]["displayName"] == "UGallery-Motion-" + gate["token"] + (".jpg" if kind == "Frame" else ".mp4"), "Motion filename/token differs")
+    require(gate["destination"]["displayName"] == "Lightforge-Motion-" + gate["token"] + (".jpg" if kind == "Frame" else ".mp4"), "Motion filename/token differs")
     require(isinstance(gate["renderSha256"], str) and re.fullmatch(r"[0-9a-f]{64}", gate["renderSha256"])
             and type(gate["renderSizeBytes"]) is int and gate["renderSizeBytes"] == gate["destination"]["sizeBytes"],
             "Motion gate render identity differs")
@@ -759,9 +759,9 @@ class Probe:
         require(isinstance(pid, int) and pid > 1, "Invalid target PID")
         # adb exec-out does not preserve the remote cat exit status on every emulator.
         # A marker proves run-as actually executed test; denied/missing commands are not death.
-        script = f'test -d /proc/{pid}; status=$?; printf "UGALLERY_PROC_STATUS:%s\\n" "$status"; exit "$status"'
+        script = f'test -d /proc/{pid}; status=$?; printf "LIGHTFORGE_PROC_STATUS:%s\\n" "$status"; exit "$status"'
         output, code = self.shell("run-as", PACKAGE, "sh", "-c", script, check=False)
-        require(code in (0, 1) and output.strip() == f"UGALLERY_PROC_STATUS:{code}",
+        require(code in (0, 1) and output.strip() == f"LIGHTFORGE_PROC_STATUS:{code}",
                 "Invalid process-directory observation; death unconfirmed")
         return code == 0
 
@@ -1236,12 +1236,12 @@ class Probe:
                                                timeout=min(35, remaining), check=False, include_stderr=True)
             else:
                 output, code, error = self.shell("env", "CLASSPATH=/system/framework/uiautomator.jar:" + observer_path,
-                                               "app_process", "/system/bin", "com.ugallery.tools.RealDisplayDump", path,
+                                               "app_process", "/system/bin", "com.librestatic.lightforge.tools.RealDisplayDump", path,
                                                timeout=min(35, remaining), check=False, include_stderr=True)
             builtin_null = observer_path is None and code == 0 and output.strip() == "" and error.strip() == null_root
             real_display_null = observer_path is not None and code == 1 and output == "" and re.fullmatch(
                 r"java\.lang\.IllegalStateException: Null active accessibility root\n"
-                r"\tat com\.ugallery\.tools\.RealDisplayDump\.main\(RealDisplayDump\.java:36\)\n"
+                r"\tat com\.lightforge\.tools\.RealDisplayDump\.main\(RealDisplayDump\.java:36\)\n"
                 r"\tat com\.android\.internal\.os\.RuntimeInit\.nativeFinishInit\(Native Method\)\n"
                 r"\tat com\.android\.internal\.os\.RuntimeInit\.main\(RuntimeInit\.java:[0-9]+\)\n?", error) is not None
             if builtin_null or real_display_null:

@@ -1,5 +1,5 @@
 <resources>
-    <style name="Theme.UGallery" parent="android:style/Theme.Material.Light.NoActionBar">
+    <style name="Theme.Lightforge" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowActionModeOverlay">true</item>

@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <permission android:name="com.ugallery.feature.widget.test.permission.RUNTIME_FIXTURE" android:protectionLevel="signature" />
-    <queries><package android:name="com.ugallery.core.mediastore.test" /></queries>
+    <permission android:name="com.librestatic.lightforge.feature.widget.test.permission.RUNTIME_FIXTURE" android:protectionLevel="signature" />
+    <queries><package android:name="com.librestatic.lightforge.core.mediastore.test" /></queries>
     <application>
-        <provider android:name="com.ugallery.feature.widget.GalleryWidgetPermissionFixtureProvider"
-            android:authorities="com.ugallery.feature.widget.test.permissionfixture"
+        <provider android:name="com.librestatic.lightforge.feature.widget.GalleryWidgetPermissionFixtureProvider"
+            android:authorities="com.librestatic.lightforge.feature.widget.test.permissionfixture"
             android:exported="true" android:grantUriPermissions="false"
-            android:permission="com.ugallery.feature.widget.test.permission.RUNTIME_FIXTURE" />
-        <activity android:name="com.ugallery.feature.widget.GalleryWidgetHostProbeActivity"
+            android:permission="com.librestatic.lightforge.feature.widget.test.permission.RUNTIME_FIXTURE" />
+        <activity android:name="com.librestatic.lightforge.feature.widget.GalleryWidgetHostProbeActivity"
             android:exported="false" android:theme="@android:style/Theme.Material.Light.NoActionBar" />
     </application>
 </manifest>

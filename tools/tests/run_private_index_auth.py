@@ -14,14 +14,14 @@ import time
 import uuid
 import xml.etree.ElementTree as ET
 
-PACKAGE = "com.ugallery.feature.privatealbum.test"
-CLASS = "com.ugallery.feature.privatealbum.PrivateAuthenticatedIndexSessionDeviceTest"
+PACKAGE = "com.librestatic.lightforge.feature.privatealbum.test"
+CLASS = "com.librestatic.lightforge.feature.privatealbum.PrivateAuthenticatedIndexSessionDeviceTest"
 METHOD = "authenticatedIndexClosesReopensAndRetainsPreparedCiphertext"
 CLEANUP = "cleanupUuidAliasesAfterInterruptedFixture"
 
 LANES = {
-    "emulator-5554": ("UGallery_M2_API30", "30", "ro.kernel.qemu.avd_name"),
-    "127.0.0.1:5563": ("UGallery_PDF_API35", "35", "ro.boot.qemu.avd_name"),
+    "emulator-5554": ("Lightforge_M2_API30", "30", "ro.kernel.qemu.avd_name"),
+    "127.0.0.1:5563": ("Lightforge_PDF_API35", "35", "ro.boot.qemu.avd_name"),
 }
 
 
@@ -67,7 +67,7 @@ def require(condition, message):
 def observer_remote_path(digest):
     require(isinstance(digest, str) and re.fullmatch(r"[0-9a-f]{64}", digest),
             "Exact observer SHA256 is required")
-    return "/data/local/tmp/ugallery-ui-observer-" + digest + ".jar"
+    return "/data/local/tmp/lightforge-ui-observer-" + digest + ".jar"
 
 
 def real_display_receipt(output, expected_path):
@@ -182,7 +182,7 @@ class Runner:
         self.dumps.append(path)
         observer = self.guard_observer()
         output, code, error = self.shell("env", "CLASSPATH=/system/framework/uiautomator.jar:" + observer,
-            "app_process", "/system/bin", "com.ugallery.tools.RealDisplayDump", path,
+            "app_process", "/system/bin", "com.librestatic.lightforge.tools.RealDisplayDump", path,
             timeout=35, check=False, include_stderr=True)
         require(code == 0 and not error.strip(), "Active-display dump did not finish successfully; XML not read")
         # Validate the fresh receipt before touching the output file.

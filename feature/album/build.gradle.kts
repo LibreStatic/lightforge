@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.feature.album"
+    namespace = "com.librestatic.lightforge.feature.album"
     compileSdk = 37
 
     defaultConfig {

@@ -16,7 +16,7 @@ People with large personal photo and video libraries (100,000-250,000 items) who
 
 ## Product Purpose
 
-UGallery is a 100% native Android gallery app that makes managing massive local photo/video libraries fast, private, and reliable. It exists because stock gallery apps and cloud-dependent solutions do not handle 250k-item libraries well, and users increasingly want privacy without sacrificing organization. Success means: the gallery works without connectivity, handles 250k items without ANR/OOM, provides ML-powered organization (faces, places, semantic search) on-device, and never sends user data to any server.
+Lightforge is a 100% native Android gallery app that makes managing massive local photo/video libraries fast, private, and reliable. It exists because stock gallery apps and cloud-dependent solutions do not handle 250k-item libraries well, and users increasingly want privacy without sacrificing organization. Success means: the gallery works without connectivity, handles 250k items without ANR/OOM, provides ML-powered organization (faces, places, semantic search) on-device, and never sends user data to any server.
 
 ## Positioning
 
@@ -58,7 +58,7 @@ A gallery that scales to quarter-million-item libraries on-device, with local ML
 
 ## Brand Commitments
 
-- App name: Lightforge Studio (launcher label: "Lightforge"; package id `com.ugallery.app` and on-device folders such as `Movies/UGallery` stay unchanged for upgrade and restore compatibility)
+- App name: Lightforge Studio (launcher label: "Lightforge"; application id `com.librestatic.lightforge`)
 - Non-commercial use only
 - No [redacted] trade dress, code, or resources copied; functional parity with own identity
 - Local-first, privacy-first positioning

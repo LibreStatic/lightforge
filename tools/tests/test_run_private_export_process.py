@@ -16,10 +16,10 @@ class Guards(unittest.TestCase):
     def test_foreign_receipt(self):
         for value in ({'fixture':'other'}, {},[],None):
             with self.subTest(value=value),self.assertRaises(RuntimeError):validate_receipt(value,ID)
-    def test_live_pid_not_death(self):self.assertFalse(process_absent_result('UGALLERY_PROC_STATUS:0\n',0))
-    def test_confirmed_absent(self):self.assertTrue(process_absent_result('UGALLERY_PROC_STATUS:1\n',1))
+    def test_live_pid_not_death(self):self.assertFalse(process_absent_result('LIGHTFORGE_PROC_STATUS:0\n',0))
+    def test_confirmed_absent(self):self.assertTrue(process_absent_result('LIGHTFORGE_PROC_STATUS:1\n',1))
     def test_empty_timeout_denied_not_death(self):
-        for stdout,code in (('',1),('',0),('Permission denied',1),('UGALLERY_PROC_STATUS:1',124),('UGALLERY_PROC_STATUS:0',1)):
+        for stdout,code in (('',1),('',0),('Permission denied',1),('LIGHTFORGE_PROC_STATUS:1',124),('LIGHTFORGE_PROC_STATUS:0',1)):
             with self.subTest(stdout=stdout,code=code),self.assertRaises(RuntimeError):process_absent_result(stdout,code)
     def test_missing_receipt_is_explicit(self):
         require_missing_receipt(1,'cat: files/fixture.json: No such file or directory','files/fixture.json')

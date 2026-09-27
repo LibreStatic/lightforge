@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <uses-permission android:name="com.ugallery.feature.widget.test.permission.RUNTIME_FIXTURE" />
+    <uses-permission android:name="com.librestatic.lightforge.feature.widget.test.permission.RUNTIME_FIXTURE" />
     <queries>
-        <package android:name="com.ugallery.feature.widget.test" />
-        <provider android:authorities="com.ugallery.feature.widget.test.permissionfixture" />
+        <package android:name="com.librestatic.lightforge.feature.widget.test" />
+        <provider android:authorities="com.librestatic.lightforge.feature.widget.test.permissionfixture" />
     </queries>
     <application>
-        <activity android:name="com.ugallery.core.mediastore.WidgetRuntimeHostActivity"
+        <activity android:name="com.librestatic.lightforge.core.mediastore.WidgetRuntimeHostActivity"
             android:exported="false" android:theme="@android:style/Theme.Material.Light.NoActionBar" />
     </application>
 </manifest>

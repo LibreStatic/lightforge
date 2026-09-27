@@ -3,8 +3,8 @@
 Generate deterministic fixtures:
 
 ```bash
-python tools/testdata/generate_media_dataset.py /tmp/ugallery-10k --count 10000 --materialize
-tools/testdata/seed_device.sh /tmp/ugallery-10k emulator-5554
+python tools/testdata/generate_media_dataset.py /tmp/lightforge-10k --count 10000 --materialize
+tools/testdata/seed_device.sh /tmp/lightforge-10k emulator-5554
 ```
 
 Run smoke benchmarks:

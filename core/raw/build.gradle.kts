@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.core.raw"
+    namespace = "com.librestatic.lightforge.core.raw"
     compileSdk = 37
     ndkVersion = "27.1.12297006"
 

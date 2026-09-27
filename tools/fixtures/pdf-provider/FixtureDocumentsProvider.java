@@ -1,4 +1,4 @@
-package com.ugallery.pdfprovider.fixture;
+package com.librestatic.lightforge.pdfprovider.fixture;
 
 import android.database.Cursor;
 import android.database.MatrixCursor;

@@ -18,7 +18,7 @@ p.add_argument("--output", required=True, type=Path)
 p.add_argument("--baseline", action="store_true")
 args = p.parse_args()
 args.output.mkdir(parents=True, exist_ok=True)
-pkg = "com.ugallery.feature.pdfstudio.test"
+pkg = "com.librestatic.lightforge.feature.pdfstudio.test"
 adb = ["rtk", "proxy", "adb", "-s", args.serial]
 
 
@@ -36,7 +36,7 @@ assert existing.returncode == 1, "Inspect the existing probe; never restart a li
 phase = "image-memory-baseline" if args.baseline else "image-memory"
 log = (args.output / "instrumentation.log").open("w")
 process = subprocess.Popen(adb + ["shell", "am", "instrument", "-w", "-e", "phase", phase,
-                                pkg + "/com.ugallery.feature.pdfstudio.PdfRecoveryProbeRunner"],
+                                pkg + "/com.librestatic.lightforge.feature.pdfstudio.PdfRecoveryProbeRunner"],
                            stdout=log, stderr=subprocess.STDOUT)
 deadline = time.monotonic() + 120
 while True:

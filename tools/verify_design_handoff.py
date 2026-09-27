@@ -94,7 +94,7 @@ def build_inventory() -> tuple[dict[str, object], list[str]]:
         }
 
     inventory: dict[str, object] = {
-        "schema": "ugallery.design-handoff-inventory.v1",
+        "schema": "lightforge.design-handoff-inventory.v1",
         "entryFile": f"docs/mock/screens/{manifest['entryFile']}",
         "screenCount": len(actual),
         "files": dict(sorted(files.items())),

@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.feature.widget"
+    namespace = "com.librestatic.lightforge.feature.widget"
     compileSdk = 37
     defaultConfig {
         minSdk = 30

@@ -1,6 +1,6 @@
 plugins { alias(libs.plugins.android.library) }
 android {
-    namespace = "com.ugallery.core.remotestorage"
+    namespace = "com.librestatic.lightforge.core.remotestorage"
     compileSdk = 37
     defaultConfig { minSdk = 30; testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"; consumerProguardFiles("consumer-rules.pro") }
     buildTypes { create("benchmark") { initWith(getByName("release")) } }

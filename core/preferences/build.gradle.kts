@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.core.preferences"
+    namespace = "com.librestatic.lightforge.core.preferences"
     compileSdk = 37
     defaultConfig { minSdk = 30 }
     compileOptions {

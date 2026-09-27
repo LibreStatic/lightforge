@@ -5,10 +5,10 @@ from pathlib import Path
 import xml.etree.ElementTree as ET
 import run_creation_process_restoration as shared
 
-PACKAGE = "com.ugallery.feature.privatealbum.test"
-ACTIVITY = PACKAGE + "/com.ugallery.feature.privatealbum.PrivateExportProcessActivity"
-DEVICES = {"emulator-5554": ("UGallery_M2_API30", "30", "ro.kernel.qemu.avd_name"),
-           "127.0.0.1:5563": ("UGallery_PDF_API35", "35", "ro.boot.qemu.avd_name")}
+PACKAGE = "com.librestatic.lightforge.feature.privatealbum.test"
+ACTIVITY = PACKAGE + "/com.librestatic.lightforge.feature.privatealbum.PrivateExportProcessActivity"
+DEVICES = {"emulator-5554": ("Lightforge_M2_API30", "30", "ro.kernel.qemu.avd_name"),
+           "127.0.0.1:5563": ("Lightforge_PDF_API35", "35", "ro.boot.qemu.avd_name")}
 OBSERVER_SHA = "a8c8d1fec35e6477e05cff19c2c828583411bbafadbacc26d9757185804ddbe0"
 shared.PACKAGE = PACKAGE
 shared.TEST_PACKAGE = PACKAGE
@@ -30,7 +30,7 @@ def validate_receipt(value, identity):
     return value
 
 def process_absent_result(stdout, code):
-    require(code in (0, 1) and stdout.strip() == f"UGALLERY_PROC_STATUS:{code}", "Process observation is not authoritative")
+    require(code in (0, 1) and stdout.strip() == f"LIGHTFORGE_PROC_STATUS:{code}", "Process observation is not authoritative")
     return code == 1
 
 def observer_xml_path(identity, counter):
@@ -118,7 +118,7 @@ class Run:
     def tree(self):
         self.counter+=1;path=observer_xml_path(self.id,self.counter);self.dumps.append(path)
         observer=shared.observer_remote_path(OBSERVER_SHA)
-        stdout,code,stderr=self.shell('env','CLASSPATH=/system/framework/uiautomator.jar:'+observer,'app_process','/system/bin','com.ugallery.tools.RealDisplayDump',path,timeout=40)
+        stdout,code,stderr=self.shell('env','CLASSPATH=/system/framework/uiautomator.jar:'+observer,'app_process','/system/bin','com.librestatic.lightforge.tools.RealDisplayDump',path,timeout=40)
         require(code==0 and not stderr, "UI observer failed")
         proof=shared.real_display_receipt(stdout,path)
         xml=self.call('exec-out','cat',path)[0];nodes=list(ET.fromstring(xml).iter('node'))
@@ -163,7 +163,7 @@ class Run:
         self.shell('am','kill','--user','0',PACKAGE)
         until=time.monotonic()+15
         while True:
-            script=f'test -d /proc/{old}; status=$?; printf "UGALLERY_PROC_STATUS:%s\\n" "$status"; exit "$status"'
+            script=f'test -d /proc/{old}; status=$?; printf "LIGHTFORGE_PROC_STATUS:%s\\n" "$status"; exit "$status"'
             stdout,code,_=self.shell('run-as',PACKAGE,'sh','-c',script,check=False)
             if process_absent_result(stdout,code):break
             require(time.monotonic()<until,"Old process remains live; no repeat kill")

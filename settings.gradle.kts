@@ -14,7 +14,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "UGallery"
+rootProject.name = "Lightforge"
 
 include(
     ":app",

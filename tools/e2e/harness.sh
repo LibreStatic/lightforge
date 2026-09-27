@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
-# UGallery E2E harness — dependency-free bash + adb + uiautomator.
+# Lightforge E2E harness — dependency-free bash + adb + uiautomator.
 #
 #   source tools/e2e/harness.sh
 #
@@ -89,8 +89,8 @@ if [ -z "${BASH_VERSION:-}" ]; then
 fi
 
 SHOTS="${SHOTS:-/home/user/ugallery/docs/e2e-screenshots}"
-PKG="${PKG:-com.ugallery.app.debug}"
-ACTIVITY="${ACTIVITY:-com.ugallery.app.MainActivity}"
+PKG="${PKG:-com.librestatic.lightforge.debug}"
+ACTIVITY="${ACTIVITY:-com.librestatic.lightforge.MainActivity}"
 E2E_TAP_SETTLE="${E2E_TAP_SETTLE:-1.5}"   # seconds to wait after a tap
 E2E_SCROLL_STEP="${E2E_SCROLL_STEP:-260}" # px per scroll increment (small on purpose)
 E2E_SCROLL_MAX="${E2E_SCROLL_MAX:-25}"    # bounded passes, never an infinite loop

@@ -5,7 +5,7 @@
     <string name="cleanup_back">Colecciones</string>
     <string name="cleanup_analysis_off">La detección de duplicados y fotos borrosas está desactivada. Activala para analizar tu biblioteca en este dispositivo.</string>
     <string name="cleanup_analysis_enable">Activar análisis</string>
-    <string name="cleanup_analysis_hint">El análisis se ejecuta en este dispositivo mientras carga, o con UGallery abierta y batería suficiente. Los resultados aparecen a medida que avanza.</string>
+    <string name="cleanup_analysis_hint">El análisis se ejecuta en este dispositivo mientras carga, o con Lightforge abierta y batería suficiente. Los resultados aparecen a medida que avanza.</string>
     <string name="cleanup_duplicates_title">Duplicados exactos</string>
     <string name="cleanup_keep">Conservar</string>
     <string name="cleanup_trash_copies">Mover copias a la papelera</string>

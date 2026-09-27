@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.feature.petrecognition"
+    namespace = "com.librestatic.lightforge.feature.petrecognition"
     compileSdk = 37
     defaultConfig {
         minSdk = 30

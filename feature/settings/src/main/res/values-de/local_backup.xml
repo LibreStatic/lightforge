@@ -3,14 +3,14 @@
     <string name="local_backup_title">Lokale Dateisicherung</string>
     <string name="local_backup_back">Zurück</string>
     <string name="local_backup_scope">Enthält die exakten Bytes ausgewählter Dateien: Fotos, Videos und Dokumente. Alben, Stapel, Erinnerungen, Personen, Einstellungen und private Tresorinhalte sind nicht enthalten. Dies ist keine vollständige Mediathek-Sicherung.</string>
-    <string name="local_backup_local_hint">Wähle Gerätespeicher oder ein angeschlossenes USB-Laufwerk. UGallery verwendet keine Netzwerkdienste. Behalte die Sicherung, bis du die wiederhergestellten Dateien geprüft hast.</string>
+    <string name="local_backup_local_hint">Wähle Gerätespeicher oder ein angeschlossenes USB-Laufwerk. Lightforge verwendet keine Netzwerkdienste. Behalte die Sicherung, bis du die wiederhergestellten Dateien geprüft hast.</string>
     <string name="local_backup_select">Originaldateien auswählen</string>
     <string name="local_backup_selected">Ausgewählte Dateien: %1$d</string>
     <string name="local_backup_create">Sicherung erstellen und prüfen</string>
     <string name="local_backup_open">Sicherung öffnen und prüfen</string>
     <string name="local_backup_working">Verarbeitung… Lass diesen Bildschirm geöffnet.</string>
     <string name="local_backup_cancelled">Abgebrochen. Die von diesem Vorgang erstellten Dateien wurden entfernt.</string>
-    <string name="local_backup_cleanup_failed">Bereinigung unvollständig. Prüfe das Ziel auf eine unvollständige Sicherung oder einen UGallery-restored-Ordner, bevor du es erneut versuchst.</string>
+    <string name="local_backup_cleanup_failed">Bereinigung unvollständig. Prüfe das Ziel auf eine unvollständige Sicherung oder einen Lightforge-restored-Ordner, bevor du es erneut versuchst.</string>
     <string name="local_backup_failed">Vorgang fehlgeschlagen. Prüfe Speicherplatz, Zugriff und Integrität der Sicherung. Vorhandene Originale wurden nicht geändert.</string>
     <string name="local_backup_verified">Integrität geprüft. Vor der Wiederherstellung Inhalt prüfen.</string>
     <string name="local_backup_exported">Sicherung gespeichert und Zielbytes geprüft.</string>
@@ -33,12 +33,12 @@
         <item quantity="other">%d Originale</item>
     </plurals>
     <string name="local_backup_more">Und %1$d weitere Dateien</string>
-    <string name="local_backup_restore_hint">Stellt Kopien in einem neuen UGallery-restored-Ordner wieder her. Vorhandene Dateien werden weder überschrieben noch gelöscht. Organisation und Einstellungen bleiben unverändert.</string>
+    <string name="local_backup_restore_hint">Stellt Kopien in einem neuen Lightforge-restored-Ordner wieder her. Vorhandene Dateien werden weder überschrieben noch gelöscht. Organisation und Einstellungen bleiben unverändert.</string>
     <string name="local_backup_restore">Kopien wiederherstellen</string>
     <string name="local_backup_choose_folder">Zielordner auswählen</string>
     <string name="local_backup_cancel_hint">Abbrechen und nur die von diesem Vorgang erstellten Dateien entfernen? Das Verlassen des Bildschirms oder ein App-Neustart unterbricht den Vorgang.</string>
     <string name="local_backup_continue">Fortsetzen</string>
-    <string name="local_backup_interrupted">Ein vorheriger Vorgang wurde unterbrochen. Prüfe das Ziel auf eine unvollständige Sicherung oder einen UGallery-restored-Ordner. Nach einem Neustart wird weder Bereinigung noch Abschluss vorausgesetzt.</string>
+    <string name="local_backup_interrupted">Ein vorheriger Vorgang wurde unterbrochen. Prüfe das Ziel auf eine unvollständige Sicherung oder einen Lightforge-restored-Ordner. Nach einem Neustart wird weder Bereinigung noch Abschluss vorausgesetzt.</string>
     <string name="local_backup_organization_scope">Sichert die exakten Bytes ausgewählter Fotos, Videos und Dokumente. Die zugehörige Organisation ist optional. Die Prüfung zeigt unvollständige Sammlungen und ungeklärte Personen. Der private Tresor ist ausgeschlossen. Dies ist keine vollständige Mediathek-Sicherung.</string>
     <string name="local_backup_include_organization">Zugehörige Organisation einschließen</string>
     <string name="local_backup_review_version">Geprüfte Sicherung · Formatversion %1$d</string>

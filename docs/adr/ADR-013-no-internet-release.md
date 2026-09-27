@@ -5,7 +5,7 @@
 
 ## Context
 
-UGallery must remain native, offline, scalable to 100k–250k local items, and correct under public Android permissions and storage APIs.
+Lightforge must remain native, offline, scalable to 100k–250k local items, and correct under public Android permissions and storage APIs.
 
 ## Decision
 

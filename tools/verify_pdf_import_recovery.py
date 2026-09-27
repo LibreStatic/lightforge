@@ -13,7 +13,7 @@ parser.add_argument("--resume", action="store_true", help="Continue an existing 
 parser.add_argument("--portable", action="store_true", help="Exercise the portable ZIP project source contract")
 args = parser.parse_args()
 base = ["rtk", "proxy", "adb", "-s", args.serial]
-package = "com.ugallery.feature.pdfstudio.test"
+package = "com.librestatic.lightforge.feature.pdfstudio.test"
 
 
 def shell(*args):
@@ -74,7 +74,7 @@ if not args.resume:
     shell("am", "force-stop", package)
     for name in ("created", "saved", "checkpoint", "done"):
         shell("run-as", package, "rm", "-f", "files/pdf-import-" + name + ".json")
-    shell("am", "start", "-W", "-n", package + "/com.ugallery.feature.pdfstudio.PdfImportProbeActivity", "--ez", "portable", str(args.portable).lower())
+    shell("am", "start", "-W", "-n", package + "/com.librestatic.lightforge.feature.pdfstudio.PdfImportProbeActivity", "--ez", "portable", str(args.portable).lower())
 checkpoint = await_marker("checkpoint", lambda x: bool(x.get("name")))
 created = await_marker("created", lambda x: True)
 if any(n.get("text") == "Choose import source" for n in nodes()):

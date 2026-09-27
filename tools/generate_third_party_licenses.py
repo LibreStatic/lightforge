@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the offline dependency-license catalog shipped in UGallery."""
+"""Generate the offline dependency-license catalog shipped in Lightforge."""
 
 from __future__ import annotations
 

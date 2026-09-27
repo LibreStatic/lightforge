@@ -27,7 +27,7 @@ def main() -> None:
             bucket.mkdir(exist_ok=True)
             (bucket / f"fixture-{index:06d}.png").write_bytes(PNG)
     manifest = {
-        "schema": "ugallery.synthetic-media.v1",
+        "schema": "lightforge.synthetic-media.v1",
         "count": args.count,
         "materialized": args.materialize,
         "buckets": 32,

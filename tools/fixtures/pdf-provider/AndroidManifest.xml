@@ -1,8 +1,8 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.ugallery.pdfprovider.fixture">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.librestatic.lightforge.pdfprovider.fixture">
     <uses-sdk android:minSdkVersion="30" android:targetSdkVersion="30" />
     <application android:label="PDF provider fixture" android:testOnly="true" android:debuggable="true" android:allowBackup="false" android:theme="@android:style/Theme.Material.NoActionBar">
         <activity android:name=".ControlActivity" android:exported="true" />
-        <provider android:name=".FixtureDocumentsProvider" android:authorities="com.ugallery.pdfprovider.fixture.documents" android:exported="true" android:permission="android.permission.MANAGE_DOCUMENTS" android:grantUriPermissions="true">
+        <provider android:name=".FixtureDocumentsProvider" android:authorities="com.librestatic.lightforge.pdfprovider.fixture.documents" android:exported="true" android:permission="android.permission.MANAGE_DOCUMENTS" android:grantUriPermissions="true">
             <intent-filter><action android:name="android.content.action.DOCUMENTS_PROVIDER" /></intent-filter>
         </provider>
     </application>

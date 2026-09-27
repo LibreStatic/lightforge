@@ -1,4 +1,4 @@
-package com.ugallery.mediaprovider.fixture;
+package com.librestatic.lightforge.mediaprovider.fixture;
 
 import android.app.Activity;
 import android.content.ClipData;
@@ -20,8 +20,8 @@ import org.json.JSONObject;
 
 /** Test-only owner UID. Real URI grants; documents never accept caller writes. */
 public final class ControlActivity extends Activity {
-    static final String AUTHORITY = "com.ugallery.mediaprovider.fixture.documents";
-    static final String TARGET = "com.ugallery.app.pdfacceptance";
+    static final String AUTHORITY = "com.librestatic.lightforge.mediaprovider.fixture.documents";
+    static final String TARGET = "com.librestatic.lightforge.pdfacceptance";
     static final String SEED_SHA256 = "ca9dc6afcd80d25b6d70c9057312e8584b9a59c1ac642d8beff3c1a50fa82861";
     static final long SEED_SIZE = 145922L;
     static String uuid(String value) {

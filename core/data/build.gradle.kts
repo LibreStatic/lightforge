@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.core.data"
+    namespace = "com.librestatic.lightforge.core.data"
     compileSdk = 37
 
     defaultConfig {

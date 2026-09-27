@@ -100,8 +100,8 @@ Every helper returns non-zero on failure and prints a line starting with
 
 | Var | Default | Meaning |
 | --- | --- | --- |
-| `PKG` | `com.ugallery.app.debug` | package under test |
-| `ACTIVITY` | `com.ugallery.app.MainActivity` | launch activity |
+| `PKG` | `com.librestatic.lightforge.debug` | package under test |
+| `ACTIVITY` | `com.librestatic.lightforge.MainActivity` | launch activity |
 | `SHOTS` | `docs/e2e-screenshots` | screenshot output directory |
 | `E2E_TAP_SETTLE` | `1.5` | seconds to wait after a tap |
 | `E2E_SCROLL_STEP` | `260` | px per scroll increment |
@@ -124,7 +124,7 @@ Every helper returns non-zero on failure and prints a line starting with
   often disabled at user level. Before a run:
 
   ```bash
-  adb shell pm enable com.ugallery.app.debug
+  adb shell pm enable com.librestatic.lightforge.debug
   adb shell input keyevent KEYCODE_WAKEUP
   adb shell input keyevent KEYCODE_MENU     # dismiss the keyguard
   ```

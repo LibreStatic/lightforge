@@ -6,12 +6,12 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.feature.pdfstudio"
+    namespace = "com.librestatic.lightforge.feature.pdfstudio"
     compileSdk = 37
     defaultConfig {
         minSdk = 30
         consumerProguardFiles("consumer-rules.pro")
-        testInstrumentationRunner = "com.ugallery.feature.pdfstudio.PdfRecoveryProbeRunner"
+        testInstrumentationRunner = "com.librestatic.lightforge.feature.pdfstudio.PdfRecoveryProbeRunner"
     }
     buildTypes {
         create("benchmark") { initWith(getByName("release")) }

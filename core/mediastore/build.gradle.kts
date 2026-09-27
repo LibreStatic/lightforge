@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.core.mediastore"
+    namespace = "com.librestatic.lightforge.core.mediastore"
     compileSdk = 37
 
     defaultConfig {

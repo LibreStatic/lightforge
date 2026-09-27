@@ -14,9 +14,9 @@ from types import SimpleNamespace
 import unittest
 from unittest import mock
 
-PACKAGE = "com.ugallery.app.pdfacceptance"
-LANES = {"emulator-5554": ("UGallery_M2_API30", "30"),
-         "127.0.0.1:5563": ("UGallery_PDF_API35", "35")}
+PACKAGE = "com.librestatic.lightforge.pdfacceptance"
+LANES = {"emulator-5554": ("Lightforge_M2_API30", "30"),
+         "127.0.0.1:5563": ("Lightforge_PDF_API35", "35")}
 
 
 class ExternalVideoTargetContractTest(unittest.TestCase):
@@ -91,12 +91,12 @@ class ExternalVideoTargetContractTest(unittest.TestCase):
                 self.assertFalse(self.import_marker.exists())
 
     def test_helper_api30_name_mismatch_rejected_before_probe(self):
-        self.write_helper(lanes={"emulator-5554": ("UGallery_PDF_API35", "30")})
+        self.write_helper(lanes={"emulator-5554": ("Lightforge_PDF_API35", "30")})
         self.invoke("emulator-5554", expected_error=RuntimeError)
         self.assertTrue(self.import_marker.exists())
 
     def test_helper_api35_sdk_mismatch_rejected_before_probe(self):
-        self.write_helper(lanes={"127.0.0.1:5563": ("UGallery_PDF_API35", "30")})
+        self.write_helper(lanes={"127.0.0.1:5563": ("Lightforge_PDF_API35", "30")})
         self.invoke("127.0.0.1:5563", expected_error=RuntimeError)
         self.assertTrue(self.import_marker.exists())
 
@@ -106,7 +106,7 @@ class ExternalVideoTargetContractTest(unittest.TestCase):
         self.assertTrue(self.import_marker.exists())
 
     def test_helper_package_mismatch_rejected_before_probe(self):
-        self.write_helper(package="com.ugallery.app.demo.pdfacceptance")
+        self.write_helper(package="com.librestatic.lightforge.demo.pdfacceptance")
         self.invoke("emulator-5554", expected_error=RuntimeError)
         self.assertTrue(self.import_marker.exists())
 
@@ -115,7 +115,7 @@ class ExternalVideoTargetContractTest(unittest.TestCase):
         class ExistingHelper:
             def task_ids(self, resumed=False):
                 output = self.shell("dumpsys", "activity", "activities", PACKAGE)[0]
-                activity = PACKAGE + "/com.ugallery.app.MainActivity"
+                activity = PACKAGE + "/com.librestatic.lightforge.MainActivity"
                 lines = [line for line in output.splitlines() if activity in line and
                          (not resumed or "ResumedActivity" in line)]
                 import re
@@ -131,29 +131,29 @@ class ExternalVideoTargetContractTest(unittest.TestCase):
         # Synthetic positive t1314 isolates the risk; the accepted API30 stale record was t-1.
         dump = ("ACTIVITY MANAGER ACTIVITIES (dumpsys activity activities)\n"
                 "  mLastPausedActivity: ActivityRecord{7ab8494 u0 " + PACKAGE +
-                "/com.ugallery.app.MainActivity t1314}\n")
+                "/com.librestatic.lightforge.MainActivity t1314}\n")
         self.assertEqual(set(), self.task_ids(dump))
         self.assertEqual(set(), self.task_ids(dump, resumed=True))
 
     def test_real_api30_history_and_resumed_shapes_keep_exact_task(self):
         # Record shapes retained from api30-same-fixture-final/commands.json event16.
         dump = ("ACTIVITY MANAGER ACTIVITIES (dumpsys activity activities)\n"
-                "    mResumedActivity: ActivityRecord{7ab8494 u0 " + PACKAGE + "/com.ugallery.app.MainActivity t1314}\n"
-                "    mLastPausedActivity: ActivityRecord{fe3fd5e u0 " + PACKAGE + "/com.ugallery.app.MainActivity t-1 f}}\n"
-                "      * Hist #0: ActivityRecord{7ab8494 u0 " + PACKAGE + "/com.ugallery.app.MainActivity t1314}\n"
-                "  ResumedActivity: ActivityRecord{7ab8494 u0 " + PACKAGE + "/com.ugallery.app.MainActivity t1314}\n")
+                "    mResumedActivity: ActivityRecord{7ab8494 u0 " + PACKAGE + "/com.librestatic.lightforge.MainActivity t1314}\n"
+                "    mLastPausedActivity: ActivityRecord{fe3fd5e u0 " + PACKAGE + "/com.librestatic.lightforge.MainActivity t-1 f}}\n"
+                "      * Hist #0: ActivityRecord{7ab8494 u0 " + PACKAGE + "/com.librestatic.lightforge.MainActivity t1314}\n"
+                "  ResumedActivity: ActivityRecord{7ab8494 u0 " + PACKAGE + "/com.librestatic.lightforge.MainActivity t1314}\n")
         self.assertEqual({1314}, self.task_ids(dump))
         self.assertEqual({1314}, self.task_ids(dump, resumed=True))
 
     def test_actual_api35_double_spaced_history_keeps_saved_task(self):
         # Actual post-death API35 event125: task and saved ActivityRecord remain present.
         dump = ("ACTIVITY MANAGER ACTIVITIES (dumpsys activity activities)\n"
-                "    * Hist  #0: ActivityRecord{27e2cf3 u0 " + PACKAGE + "/com.ugallery.app.MainActivity t677}\n")
+                "    * Hist  #0: ActivityRecord{27e2cf3 u0 " + PACKAGE + "/com.librestatic.lightforge.MainActivity t677}\n")
         self.assertEqual({677}, self.task_ids(dump))
 
     def test_unknown_dump_or_malformed_owned_history_never_proves_absence(self):
         for dump in ("Unknown command: activities\n", "", "ACTIVITY MANAGER ACTIVITIES (dumpsys activity activities)\n"
-                     " * Hist #0: ActivityRecord{abc u0 " + PACKAGE + "/com.ugallery.app.MainActivity tUNKNOWN}\n"):
+                     " * Hist #0: ActivityRecord{abc u0 " + PACKAGE + "/com.librestatic.lightforge.MainActivity tUNKNOWN}\n"):
             with self.subTest(dump=dump), self.assertRaises(RuntimeError):
                 self.task_ids(dump)
 

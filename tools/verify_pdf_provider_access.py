@@ -2,7 +2,7 @@
 """Exercise Android URI revocation from an independently installed provider UID."""
 import argparse,json,subprocess,time,uuid
 p=argparse.ArgumentParser();p.add_argument('--serial',required=True);p.add_argument('--baseline',action='store_true');args=p.parse_args()
-b=['rtk','proxy','adb','-s',args.serial,'shell'];consumer='com.ugallery.feature.pdfstudio.test';owner='com.ugallery.pdfprovider.fixture'
+b=['rtk','proxy','adb','-s',args.serial,'shell'];consumer='com.librestatic.lightforge.feature.pdfstudio.test';owner='com.librestatic.lightforge.pdfprovider.fixture'
 def shell(*a):return subprocess.check_output(b+list(a),text=True,timeout=90).strip()
 def control(action,doc='two'):
     nonce=str(uuid.uuid4())
@@ -17,14 +17,14 @@ def control(action,doc='two'):
         time.sleep(.1)
     raise AssertionError('Owner control not confirmed')
 def phase(name):
-    result=shell('am','instrument','-w','-e','phase',name,consumer+'/com.ugallery.feature.pdfstudio.PdfRecoveryProbeRunner')
+    result=shell('am','instrument','-w','-e','phase',name,consumer+'/com.librestatic.lightforge.feature.pdfstudio.PdfRecoveryProbeRunner')
     print(result,flush=True);assert 'PDF RECOVERY '+name.upper()+' PASS' in result
     time.sleep(.3)
 def phase_with_grant(name,action):
     log_path='/tmp/pdf-provider-'+name+'.log'
     shell('run-as',consumer,'rm','-f','files/pdf-provider-waiting','files/pdf-provider-ready')
     with open(log_path,'w') as log:
-        process=subprocess.Popen(b+['am','instrument','-w','-e','phase','provider-'+name,consumer+'/com.ugallery.feature.pdfstudio.PdfRecoveryProbeRunner'],stdout=log,stderr=subprocess.STDOUT)
+        process=subprocess.Popen(b+['am','instrument','-w','-e','phase','provider-'+name,consumer+'/com.librestatic.lightforge.feature.pdfstudio.PdfRecoveryProbeRunner'],stdout=log,stderr=subprocess.STDOUT)
         deadline=time.monotonic()+45
         while time.monotonic()<deadline:
             result=subprocess.run(b+['run-as',consumer,'cat','files/pdf-provider-waiting'],text=True,capture_output=True)

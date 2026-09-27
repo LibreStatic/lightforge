@@ -11,11 +11,11 @@ dependencyLocking {
 }
 
 android {
-    namespace = "com.ugallery.app"
+    namespace = "com.librestatic.lightforge"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.ugallery.app"
+        applicationId = "com.librestatic.lightforge"
         minSdk = 30
         targetSdk = 36
         versionCode = 2
@@ -38,7 +38,7 @@ android {
     buildTypes {
         debug {
             // Explicit acceptance installs must never replace the user's debug application/data.
-            applicationIdSuffix = if (providers.gradleProperty("ugallery.pdfAcceptance").orNull == "true") {
+            applicationIdSuffix = if (providers.gradleProperty("lightforge.pdfAcceptance").orNull == "true") {
                 ".pdfacceptance"
             } else {
                 ".debug"
@@ -46,7 +46,7 @@ android {
         }
         release {
             // Opt-in minified acceptance APK is isolated from every user's normal/debug install.
-            if (providers.gradleProperty("ugallery.remoteReleaseAcceptance").orNull == "true") {
+            if (providers.gradleProperty("lightforge.remoteReleaseAcceptance").orNull == "true") {
                 applicationIdSuffix = ".remoteacceptance"
                 signingConfig = signingConfigs.getByName("debug")
             }
@@ -79,8 +79,8 @@ android {
 }
 
 val verbatimLicenseCopies = listOf(
-    "LICENSE" to "app/src/main/assets/licenses/UGallery-Apache-2.0.txt",
-    "COPYRIGHT" to "app/src/main/assets/licenses/UGallery-Copyright.txt",
+    "LICENSE" to "app/src/main/assets/licenses/Lightforge-Apache-2.0.txt",
+    "COPYRIGHT" to "app/src/main/assets/licenses/Lightforge-Copyright.txt",
     "core/raw/third_party/libraw/LICENSE.LGPL" to "app/src/main/assets/licenses/LibRaw-LGPL.txt",
     "core/raw/third_party/libraw/LICENSE.CDDL" to "app/src/main/assets/licenses/LibRaw-CDDL.txt",
     "core/frame-interpolation/src/main/resources/META-INF/NCNN_LICENSE.txt" to

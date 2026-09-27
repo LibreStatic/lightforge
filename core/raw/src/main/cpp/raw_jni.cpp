@@ -68,7 +68,7 @@ int process(LibRaw& raw, std::string& error) {
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_ugallery_core_raw_LibRawBridge_nativeInspect(JNIEnv* env, jobject, jstring source) {
+Java_com_librestatic_lightforge_core_raw_LibRawBridge_nativeInspect(JNIEnv* env, jobject, jstring source) {
     std::unique_ptr<LibRaw, RawCloser> raw(new LibRaw());
     std::string error;
     if (!open(*raw, utf(env, source), error)) return env->NewStringUTF(("ERROR|" + error).c_str());
@@ -84,7 +84,7 @@ Java_com_ugallery_core_raw_LibRawBridge_nativeInspect(JNIEnv* env, jobject, jstr
 }
 
 extern "C" JNIEXPORT jobject JNICALL
-Java_com_ugallery_core_raw_LibRawBridge_nativeRender(
+Java_com_librestatic_lightforge_core_raw_LibRawBridge_nativeRender(
     JNIEnv* env, jobject, jstring source, jfloatArray settings, jint maxDimension) {
     std::unique_ptr<LibRaw, RawCloser> raw(new LibRaw());
     std::string error;
@@ -167,7 +167,7 @@ Java_com_ugallery_core_raw_LibRawBridge_nativeRender(
     }
     jintArray colors = env->NewIntArray(pixels);
     env->SetIntArrayRegion(colors, 0, pixels, argb.data());
-    jclass imageClass = env->FindClass("com/ugallery/core/raw/RawNativeImage");
+    jclass imageClass = env->FindClass("com/librestatic/lightforge/core/raw/RawNativeImage");
     jmethodID constructor = env->GetMethodID(imageClass, "<init>", "([III)V");
     jobject result = env->NewObject(imageClass, constructor, colors, image->width, image->height);
     LibRaw::dcraw_clear_mem(image);
@@ -176,7 +176,7 @@ Java_com_ugallery_core_raw_LibRawBridge_nativeRender(
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_ugallery_core_raw_LibRawBridge_nativeExportTiff(
+Java_com_librestatic_lightforge_core_raw_LibRawBridge_nativeExportTiff(
     JNIEnv* env, jobject, jstring source, jstring destination, jfloatArray settings) {
     std::unique_ptr<LibRaw, RawCloser> raw(new LibRaw());
     std::string error;

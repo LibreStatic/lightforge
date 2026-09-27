@@ -4,7 +4,7 @@ import argparse,json,re,subprocess,time,xml.etree.ElementTree as ET
 from pathlib import Path
 p=argparse.ArgumentParser();p.add_argument('--serial',required=True);p.add_argument('--output',required=True);p.add_argument('--resume',action='store_true');p.add_argument('--baseline',action='store_true');args=p.parse_args()
 out=Path(args.output);out.mkdir(parents=True,exist_ok=True)
-b=['rtk','proxy','adb','-s',args.serial];pkg='com.ugallery.feature.pdfstudio.test'
+b=['rtk','proxy','adb','-s',args.serial];pkg='com.librestatic.lightforge.feature.pdfstudio.test'
 def adb(*a):return subprocess.check_output(b+list(a),timeout=45)
 def shell(*a):return adb('shell',*a).decode().strip()
 def marker(name):return json.loads(shell('run-as',pkg,'cat','files/pdf-flow-'+name+'.json'))
@@ -96,8 +96,8 @@ checkpoint=out/'checkpoint.json'
 if not args.resume:
     assert not checkpoint.exists(),'Use --resume to retain the existing fixture'
     for name in ('state','done'):shell('run-as',pkg,'rm','-f','files/pdf-flow-'+name+'.json')
-    shell('am','start','-W','-n',pkg+'/com.ugallery.feature.pdfstudio.PdfFlowProbeActivity')
-    wait(lambda s:not s['busy']);cp={'step':0,'name':'UGallery-screen-flow-'+str(time.time_ns())};checkpoint.write_text(json.dumps(cp))
+    shell('am','start','-W','-n',pkg+'/com.librestatic.lightforge.feature.pdfstudio.PdfFlowProbeActivity')
+    wait(lambda s:not s['busy']);cp={'step':0,'name':'Lightforge-screen-flow-'+str(time.time_ns())};checkpoint.write_text(json.dumps(cp))
 else:cp=json.loads(checkpoint.read_text())
 def run(number,name,action):
     if cp['step']>=number:return

@@ -1,0 +1,1860 @@
+package com.librestatic.lightforge.feature.videoeditor
+
+import android.view.SurfaceView
+import android.net.Uri
+import androidx.annotation.StringRes
+import androidx.compose.foundation.systemGestureExclusion
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledIconToggleButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.RangeSlider
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.key
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.isTraversalGroup
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.traversalIndex
+import androidx.compose.ui.semantics.testTagsAsResourceId
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
+import com.librestatic.lightforge.feature.viewer.VideoViewerController
+import com.librestatic.lightforge.core.designsystem.GalleryFoldInfo
+import com.librestatic.lightforge.core.designsystem.GalleryFoldOrientation
+import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.designsystem.GallerySpacing
+import com.librestatic.lightforge.core.designsystem.GalleryWindowClass
+import com.librestatic.lightforge.core.designsystem.GalleryExpressiveChoiceGroup
+import com.librestatic.lightforge.core.designsystem.GalleryExpressiveButton
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryLoadingIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryMonoTypography
+import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
+import com.librestatic.lightforge.core.designsystem.galleryWindowClass
+import com.librestatic.lightforge.feature.viewer.VideoViewerState
+import com.librestatic.lightforge.core.editing.video.BuiltInLook
+import com.librestatic.lightforge.core.editing.video.CubeLut
+import com.librestatic.lightforge.core.editing.video.CustomLutOption
+import com.librestatic.lightforge.core.editing.video.HueBand
+import com.librestatic.lightforge.core.editing.video.LogInputProfile
+import com.librestatic.lightforge.core.editing.video.LogWheel
+import com.librestatic.lightforge.core.editing.video.LutReference
+import com.librestatic.lightforge.core.editing.video.RealtimeColorLut
+import com.librestatic.lightforge.core.editing.video.VideoColorGrade
+import com.librestatic.lightforge.core.editing.video.VideoColorGradeEffects
+import com.librestatic.lightforge.core.editing.video.VideoOutputQuality
+import com.librestatic.lightforge.core.editing.video.VideoDynamicRange
+import com.librestatic.lightforge.core.editing.video.VideoGeometry
+import com.librestatic.lightforge.core.editing.video.SlowMotionAudioMode
+import com.librestatic.lightforge.core.editing.video.SlowMotionSegment
+import com.librestatic.lightforge.core.editing.video.VideoAnnotationEffect
+import com.librestatic.lightforge.core.editing.video.VideoAnnotationLayer
+import com.librestatic.lightforge.core.editing.video.VideoExportPhase
+import com.librestatic.lightforge.core.editing.video.NormalizedPoint
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+
+private const val PreviewCubeSize = 17
+private const val GeometryPreviewDebounceMillis = 50L
+private val EditorChipModifier = Modifier.widthIn(min = 80.dp).heightIn(min = 48.dp)
+
+private data class VideoGradePreviewRequest(
+    val grade: VideoColorGrade,
+    val customLut: CubeLut?,
+)
+
+data class VideoEditorContentState(
+    val currentMillis: Long = 0,
+    val durationMillis: Long = 0,
+    val trimStartMillis: Long = 0,
+    val trimEndMillis: Long = 0,
+    val speed: Float = 1f,
+    val originalAudioVolume: Float = 1f,
+    val selectedMusicName: String? = null,
+    val selectedMusicUri: Uri? = null,
+    val musicVolume: Float = 0.6f,
+    val isExporting: Boolean = false,
+    val isDirty: Boolean = false,
+    val statusMessage: String? = null,
+    val colorGrade: VideoColorGrade = VideoColorGrade(),
+    val customLuts: List<CustomLutOption> = emptyList(),
+    val activeCustomLut: CubeLut? = null,
+    val outputQuality: VideoOutputQuality = VideoOutputQuality.H264Compatible,
+    val dynamicRange: VideoDynamicRange = VideoDynamicRange.SdrRec709,
+    val geometry: VideoGeometry = VideoGeometry(),
+    val logDetectionMessage: String? = null,
+    val isHevcMain10Available: Boolean = false,
+    val isHlgExportAvailable: Boolean = false,
+    val isHdr10ExportAvailable: Boolean = false,
+    val slowMotionSegments: List<SlowMotionSegment> = emptyList(),
+    val selectedSlowMotionSegmentId: String? = null,
+    val slowMotionMarkInMillis: Long? = null,
+    val exportProgress: Float? = null,
+    val exportPhase: VideoExportPhase? = null,
+    val usedSoftwareCodec: Boolean = false,
+    val annotations: List<VideoAnnotationLayer> = emptyList(),
+    val selectedAnnotationId: String? = null,
+    val annotationTrackingProgress: Float? = null,
+    val annotationTrackingCorrectionMillis: Long? = null,
+)
+
+private data class VideoAnnotationActions(
+    val add: (VideoAnnotationLayer) -> Unit,
+    val update: (VideoAnnotationLayer) -> Unit,
+    val erase: (List<NormalizedPoint>, Long) -> Unit,
+    val select: (String?) -> Unit,
+    val delete: (String) -> Unit,
+    val move: (String, Int) -> Unit,
+    val clear: () -> Unit,
+    val undo: () -> Unit,
+    val redo: () -> Unit,
+    val addKeyframe: (String, Long) -> Unit,
+    val track: (String, Long) -> Unit,
+    val cancelTracking: () -> Unit,
+)
+
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+@Composable
+fun VideoEditorContent(
+    sessionId: String,
+    state: VideoEditorContentState,
+    controller: VideoViewerController?,
+    onBack: () -> Unit,
+    onSaveCopy: () -> Unit,
+    onSpeedChange: (Float) -> Unit,
+    onOriginalVolumeChange: (Float) -> Unit,
+    onChooseMusic: () -> Unit,
+    onRemoveMusic: () -> Unit,
+    onMusicVolumeChange: (Float) -> Unit = {},
+    onSeek: (Long) -> Unit,
+    onTrimChange: (Long, Long) -> Unit,
+    onColorGradeChange: (VideoColorGrade) -> Unit = {},
+    onOutputQualityChange: (VideoOutputQuality) -> Unit = {},
+    onDynamicRangeChange: (VideoDynamicRange) -> Unit = {},
+    onGeometryChange: (VideoGeometry) -> Unit = {},
+    onImportLut: () -> Unit = {},
+    onMarkSlowMotionIn: (Long) -> Unit = {},
+    onMarkSlowMotionOut: (Long) -> Unit = {},
+    onSelectSlowMotionSegment: (String) -> Unit = {},
+    onUpdateSlowMotionSegment: (SlowMotionSegment) -> Unit = {},
+    onDeleteSlowMotionSegment: (String) -> Unit = {},
+    onAddAnnotation: (VideoAnnotationLayer) -> Unit = {},
+    onUpdateAnnotation: (VideoAnnotationLayer) -> Unit = {},
+    onEraseAnnotations: (List<NormalizedPoint>, Long) -> Unit = { _, _ -> },
+    onSelectAnnotation: (String?) -> Unit = {},
+    onDeleteAnnotation: (String) -> Unit = {},
+    onMoveAnnotation: (String, Int) -> Unit = { _, _ -> },
+    onClearAnnotations: () -> Unit = {},
+    onUndoAnnotation: () -> Unit = {},
+    onRedoAnnotation: () -> Unit = {},
+    onAddAnnotationKeyframe: (String, Long) -> Unit = { _, _ -> },
+    onTrackAnnotation: (String, Long) -> Unit = { _, _ -> },
+    onCancelAnnotationTracking: () -> Unit = {},
+    onCancelExport: () -> Unit = {},
+    onPositionCheckpoint: (Long) -> Unit = {},
+    foldInfo: GalleryFoldInfo? = null,
+    modifier: Modifier = Modifier,
+) {
+    require(sessionId.isNotBlank())
+    key(sessionId) {
+    var previewPositionMillis by rememberSaveable(sessionId) { mutableLongStateOf(state.currentMillis) }
+    var selectedTab by rememberSaveable(sessionId) { mutableIntStateOf(0) }
+    var annotationTool by rememberSaveable(sessionId, stateSaver = VideoAnnotationToolStateSaver) {
+        mutableStateOf(VideoAnnotationToolState())
+    }
+    val annotationActions = VideoAnnotationActions(
+        onAddAnnotation,
+        onUpdateAnnotation,
+        onEraseAnnotations,
+        onSelectAnnotation,
+        onDeleteAnnotation,
+        onMoveAnnotation,
+        onClearAnnotations,
+        onUndoAnnotation,
+        onRedoAnnotation,
+        onAddAnnotationKeyframe,
+        onTrackAnnotation,
+        onCancelAnnotationTracking,
+    )
+    val context = LocalContext.current
+    val musicController = remember(sessionId, state.selectedMusicUri) {
+        state.selectedMusicUri?.let { uri ->
+            VideoViewerController(context, initialLooping = true).also {
+                it.select(uri, autoplay = false)
+                it.setVolume(state.musicVolume)
+            }
+        }
+    }
+    DisposableEffect(musicController) { onDispose { musicController?.close() } }
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val latestState by rememberUpdatedState(state)
+    val checkpoint by rememberUpdatedState(onPositionCheckpoint)
+    DisposableEffect(controller, lifecycle) {
+        controller?.pause()
+        controller?.setLooping(true)
+        previewPositionMillis = videoEditorDraftPosition(
+            previewPositionMillis, state.trimStartMillis, state.trimEndMillis, state.durationMillis,
+        )
+        controller?.seekTo(previewPositionMillis)
+        onDispose { controller?.pause() }
+    }
+    DisposableEffect(controller, musicController, lifecycle) {
+        fun pauseAndCheckpoint() {
+            controller?.pause()
+            musicController?.pause()
+            val current = if (controller?.state?.value is VideoViewerState.Ready) {
+                controller.currentPositionMillis()
+            } else null
+            previewPositionMillis = videoEditorCheckpointPosition(
+                current, previewPositionMillis, latestState.trimStartMillis,
+                latestState.trimEndMillis, latestState.durationMillis,
+            )
+            checkpoint(previewPositionMillis)
+        }
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
+                pauseAndCheckpoint()
+            }
+        }
+        lifecycle.addObserver(observer)
+        if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) pauseAndCheckpoint()
+        onDispose {
+            lifecycle.removeObserver(observer)
+            pauseAndCheckpoint()
+        }
+    }
+    LaunchedEffect(controller, state.annotationTrackingCorrectionMillis) {
+        state.annotationTrackingCorrectionMillis?.let { position ->
+            previewPositionMillis = position
+            onSeek(position)
+            controller?.seekTo(position)
+            controller?.pause()
+        }
+    }
+    LaunchedEffect(
+        controller,
+        state.trimStartMillis,
+        state.trimEndMillis,
+        state.speed,
+        state.originalAudioVolume,
+        state.musicVolume,
+        musicController,
+        state.slowMotionSegments,
+    ) {
+        var appliedSpeed = Float.NaN
+        var appliedVolume = Float.NaN
+        while (true) {
+            val controllerReady = controller?.state?.value as? VideoViewerState.Ready
+            val position = if (controllerReady != null) controller?.currentPositionMillis() ?: previewPositionMillis
+                else previewPositionMillis
+            val trimEnd = state.trimEndMillis.takeIf { it > state.trimStartMillis }
+                ?: state.durationMillis
+            if (position < state.trimStartMillis || position >= trimEnd) {
+                controller?.seekTo(state.trimStartMillis)
+                previewPositionMillis = state.trimStartMillis
+            } else {
+                previewPositionMillis = position
+            }
+            val slowSegment = state.slowMotionSegments.firstOrNull {
+                previewPositionMillis in it.startMillis until it.endMillis
+            }
+            val desiredSpeed = slowSegment?.speed ?: state.speed
+            val desiredVolume = if (slowSegment?.audioMode == SlowMotionAudioMode.Muted) {
+                0f
+            } else state.originalAudioVolume
+            if (controller != null && desiredSpeed != appliedSpeed) {
+                controller.setPlaybackSpeed(desiredSpeed)
+                appliedSpeed = desiredSpeed
+            }
+            if (controller != null && desiredVolume != appliedVolume) {
+                controller.setVolume(desiredVolume)
+                appliedVolume = desiredVolume
+            }
+            if (musicController != null) {
+                musicController.setVolume(state.musicVolume)
+                val musicPosition = musicController.currentPositionMillis()
+                val desiredPosition = editedTimelinePosition(
+                    previewPositionMillis,
+                    state.trimStartMillis,
+                    state.speed,
+                    state.slowMotionSegments,
+                )
+                if (kotlin.math.abs(musicPosition - desiredPosition) > 350) {
+                    musicController.seekTo(desiredPosition)
+                }
+                val mainReady = controller?.state?.value as? VideoViewerState.Ready
+                if (mainReady?.isPlaying == true && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                    musicController.play()
+                } else musicController.pause()
+            }
+            delay(100)
+        }
+    }
+    val realtimeColorLut = remember(controller) {
+        controller?.let {
+            RealtimeColorLut(
+                VideoColorGradeEffects.buildPreviewCube(
+                    VideoColorGrade(),
+                    size = PreviewCubeSize,
+                ),
+            )
+        }
+    }
+    val realtimeAnnotations = remember(controller) { controller?.let { VideoAnnotationEffect(emptyList()) } }
+    var lastAppliedGeometry by remember(controller) { mutableStateOf<VideoGeometry?>(null) }
+    LaunchedEffect(controller, realtimeColorLut, realtimeAnnotations, state.geometry) {
+        if (controller != null && realtimeColorLut != null && realtimeAnnotations != null) {
+            // Installing Media3 effects rebuilds the preview chain. Apply the initial geometry
+            // immediately, then conflate rapid straighten/crop drags through coroutine cancellation.
+            if (lastAppliedGeometry != null && lastAppliedGeometry != state.geometry) {
+                delay(GeometryPreviewDebounceMillis)
+            }
+            controller.setVideoEffects(
+                VideoColorGradeEffects.geometryEffects(state.geometry) + realtimeColorLut + realtimeAnnotations,
+            )
+            lastAppliedGeometry = state.geometry
+        }
+    }
+    LaunchedEffect(controller, realtimeAnnotations, state.annotations) {
+        realtimeAnnotations?.updateLayers(state.annotations)
+        controller?.refreshVideoFrame()
+    }
+    val gradePreviewRequests = remember(controller) {
+        Channel<VideoGradePreviewRequest>(Channel.CONFLATED)
+    }
+    DisposableEffect(gradePreviewRequests) {
+        onDispose { gradePreviewRequests.close() }
+    }
+    // LUT generation is CPU-bound and cannot be cancelled mid-cube. A single conflated consumer
+    // prevents rapid slider events from creating stale work while still rendering during a drag.
+    LaunchedEffect(state.colorGrade, state.activeCustomLut) {
+        gradePreviewRequests.trySend(
+            VideoGradePreviewRequest(state.colorGrade, state.activeCustomLut),
+        )
+    }
+    LaunchedEffect(controller, gradePreviewRequests, realtimeColorLut) {
+        for (request in gradePreviewRequests) {
+            if (controller == null || realtimeColorLut == null) continue
+            runCatching {
+                val cube = withContext(Dispatchers.Default) {
+                    VideoColorGradeEffects.buildPreviewCube(
+                        request.grade,
+                        request.customLut,
+                        size = PreviewCubeSize,
+                    )
+                }
+                realtimeColorLut.updateCube(cube)
+                controller.refreshVideoFrame()
+            }
+        }
+    }
+    Scaffold(
+        modifier = modifier.testTag("video-editor-screen").semantics { testTagsAsResourceId = true },
+        topBar = {
+            VideoEditorTopBar(
+                foldInfo = foldInfo,
+                isExporting = state.isExporting,
+                onBack = onBack,
+                onSaveCopy = onSaveCopy,
+            )
+        },
+    ) { padding ->
+        BoxWithConstraints(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .background(MaterialTheme.colorScheme.background),
+        ) {
+            val leftInset = padding.calculateLeftPadding(LayoutDirection.Ltr)
+            val topInset = padding.calculateTopPadding()
+            val localFoldInfo = foldInfo?.takeIf(GalleryFoldInfo::isSeparating)?.let { fold ->
+                val localLeft = (fold.left - leftInset).coerceIn(0.dp, maxWidth)
+                val localRight = (fold.right - leftInset).coerceIn(localLeft, maxWidth)
+                val localTop = (fold.top - topInset).coerceIn(0.dp, maxHeight)
+                val localBottom = (fold.bottom - topInset).coerceIn(localTop, maxHeight)
+                fold.copy(
+                    left = localLeft,
+                    right = localRight,
+                    top = localTop,
+                    bottom = localBottom,
+                )
+            }
+            val preview: @Composable (Modifier) -> Unit = { previewModifier ->
+                VideoPreview(
+                    controller = controller,
+                    annotationsActive = selectedTab == AnnotationTabIndex,
+                    annotationTool = annotationTool,
+                    state = state,
+                    currentMillis = previewPositionMillis,
+                    onAddAnnotation = annotationActions.add,
+                    onEraseAnnotations = { points ->
+                        annotationActions.erase(points, previewPositionMillis)
+                    },
+                    modifier = previewModifier,
+                )
+            }
+            val editingPanel: @Composable (Modifier) -> Unit = { panelModifier ->
+                Surface(
+                    modifier = panelModifier
+                        .testTag(VideoEditorPanelTag)
+                        .semantics {
+                            isTraversalGroup = true
+                            traversalIndex = 1f
+                        },
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                ) {
+                    VideoEditingPanel(
+                        state = state,
+                        currentMillis = previewPositionMillis,
+                        onSeek = { position ->
+                            previewPositionMillis = videoEditorDraftPosition(
+                                position, state.trimStartMillis, state.trimEndMillis, state.durationMillis,
+                            )
+                            checkpoint(previewPositionMillis)
+                            onSeek(previewPositionMillis)
+                        },
+                        onTrimChange = onTrimChange,
+                        onSpeedChange = onSpeedChange,
+                        onOriginalVolumeChange = onOriginalVolumeChange,
+                        onChooseMusic = onChooseMusic,
+                        onRemoveMusic = onRemoveMusic,
+                        onMusicVolumeChange = onMusicVolumeChange,
+                        onColorGradeChange = onColorGradeChange,
+                        onOutputQualityChange = onOutputQualityChange,
+                        onDynamicRangeChange = onDynamicRangeChange,
+                        onGeometryChange = onGeometryChange,
+                        onImportLut = onImportLut,
+                        onMarkSlowMotionIn = onMarkSlowMotionIn,
+                        onMarkSlowMotionOut = onMarkSlowMotionOut,
+                        onSelectSlowMotionSegment = onSelectSlowMotionSegment,
+                        onUpdateSlowMotionSegment = onUpdateSlowMotionSegment,
+                        onDeleteSlowMotionSegment = onDeleteSlowMotionSegment,
+                        onCancelExport = onCancelExport,
+                        selectedTab = selectedTab,
+                        onTabChange = { selectedTab = it },
+                        annotationTool = annotationTool,
+                        onAnnotationToolChange = { annotationTool = it },
+                        annotationActions = annotationActions,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
+            var stackedPreviewFraction by rememberSaveable {
+                mutableFloatStateOf(DefaultLandscapePreviewFraction)
+            }
+            var sidePreviewFraction by rememberSaveable {
+                mutableFloatStateOf(DefaultExpandedPreviewFraction)
+            }
+            val density = LocalDensity.current
+            val availableHeight = maxHeight
+            when (videoEditorLayoutMode(maxWidth, maxHeight, localFoldInfo)) {
+                VideoEditorLayoutMode.ExpandedSideBySide -> {
+                    val resizableWidth = (maxWidth - ResizeHandleThickness).coerceAtLeast(1.dp)
+                    val resizableWidthPx = with(density) { resizableWidth.toPx() }
+                    Row(Modifier.fillMaxSize()) {
+                        preview(
+                            Modifier
+                                .width(resizableWidth * sidePreviewFraction)
+                                .fillMaxHeight(),
+                        )
+                        VideoPanelResizeHandle(
+                            fraction = sidePreviewFraction,
+                            orientation = Orientation.Horizontal,
+                            valueRange = MinExpandedPreviewFraction..MaxExpandedPreviewFraction,
+                            onDragDelta = { deltaPx ->
+                                sidePreviewFraction = (
+                                    sidePreviewFraction +
+                                        deltaPx / resizableWidthPx.coerceAtLeast(1f)
+                                    ).coerceIn(
+                                    MinExpandedPreviewFraction,
+                                    MaxExpandedPreviewFraction,
+                                )
+                            },
+                            onFractionChange = { sidePreviewFraction = it },
+                            modifier = Modifier.width(ResizeHandleThickness).fillMaxHeight(),
+                        )
+                        editingPanel(
+                            Modifier
+                                .width(resizableWidth * (1f - sidePreviewFraction))
+                                .fillMaxHeight(),
+                        )
+                    }
+                }
+
+                VideoEditorLayoutMode.SeparatingHorizontalFold -> {
+                    val fold = requireNotNull(localFoldInfo)
+                    Column(Modifier.fillMaxSize()) {
+                        preview(Modifier.fillMaxWidth().height(fold.top))
+                        Spacer(Modifier.fillMaxWidth().height(fold.hingeHeight))
+                        editingPanel(
+                            Modifier
+                                .fillMaxWidth()
+                                .height((availableHeight - fold.bottom).coerceAtLeast(0.dp)),
+                        )
+                    }
+                }
+
+                VideoEditorLayoutMode.SeparatingVerticalFold -> {
+                    val fold = requireNotNull(localFoldInfo)
+                    val pane = widestVerticalFoldPane(maxWidth, fold)
+                    Box(Modifier.fillMaxSize()) {
+                        Column(
+                            Modifier
+                                .width(pane.width)
+                                .fillMaxHeight()
+                                .align(if (pane.useStart) Alignment.CenterStart else Alignment.CenterEnd),
+                        ) {
+                            val resizableHeight = (availableHeight - ResizeHandleThickness).coerceAtLeast(1.dp)
+                            val resizableHeightPx = with(density) { resizableHeight.toPx() }
+                            preview(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(resizableHeight * stackedPreviewFraction),
+                            )
+                            VideoPanelResizeHandle(
+                                fraction = stackedPreviewFraction,
+                                orientation = Orientation.Vertical,
+                                valueRange = MinLandscapePreviewFraction..MaxLandscapePreviewFraction,
+                                onDragDelta = { deltaPx ->
+                                    stackedPreviewFraction = (
+                                        stackedPreviewFraction +
+                                            deltaPx / resizableHeightPx.coerceAtLeast(1f)
+                                        ).coerceIn(
+                                        MinLandscapePreviewFraction,
+                                        MaxLandscapePreviewFraction,
+                                    )
+                                },
+                                onFractionChange = { stackedPreviewFraction = it },
+                                modifier = Modifier.fillMaxWidth().height(ResizeHandleThickness),
+                            )
+                            editingPanel(Modifier.fillMaxWidth().weight(1f))
+                        }
+                    }
+                }
+
+                VideoEditorLayoutMode.StackedResizable -> {
+                    val resizableHeight = (maxHeight - ResizeHandleThickness).coerceAtLeast(1.dp)
+                    val resizableHeightPx = with(density) { resizableHeight.toPx() }
+                    Column(Modifier.fillMaxSize()) {
+                        preview(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(resizableHeight * stackedPreviewFraction),
+                        )
+                        VideoPanelResizeHandle(
+                            fraction = stackedPreviewFraction,
+                            orientation = Orientation.Vertical,
+                            valueRange = MinLandscapePreviewFraction..MaxLandscapePreviewFraction,
+                            onDragDelta = { deltaPx ->
+                                stackedPreviewFraction = (
+                                    stackedPreviewFraction +
+                                        deltaPx / resizableHeightPx.coerceAtLeast(1f)
+                                    ).coerceIn(
+                                    MinLandscapePreviewFraction,
+                                    MaxLandscapePreviewFraction,
+                                )
+                            },
+                            onFractionChange = { stackedPreviewFraction = it },
+                            modifier = Modifier.fillMaxWidth().height(ResizeHandleThickness),
+                        )
+                        editingPanel(Modifier.fillMaxWidth().weight(1f))
+                    }
+                }
+
+                VideoEditorLayoutMode.Stacked -> {
+                    val previewWeight = if (maxWidth >= 600.dp) 1.7f else 1.25f
+                    Column(Modifier.fillMaxSize()) {
+                        preview(Modifier.fillMaxWidth().weight(previewWeight))
+                        editingPanel(Modifier.fillMaxWidth().weight(1f))
+                    }
+                }
+            }
+        }
+    }
+}
+}
+
+@Composable
+private fun VideoEditorTopBar(
+    foldInfo: GalleryFoldInfo?,
+    isExporting: Boolean,
+    onBack: () -> Unit,
+    onSaveCopy: () -> Unit,
+) {
+    val topBar: @Composable (Modifier) -> Unit = { barModifier ->
+        GalleryTopAppBar(
+            title = stringResource(R.string.video_editor_title),
+            modifier = barModifier,
+            onBack = onBack,
+            navigationContentDescription = stringResource(R.string.video_editor_cancel),
+            actions = {
+                TextButton(onClick = onSaveCopy, enabled = !isExporting) {
+                    Text(stringResource(R.string.video_editor_save_copy))
+                }
+            },
+        )
+    }
+    val verticalFold = foldInfo?.takeIf {
+        it.isSeparating && it.orientation == GalleryFoldOrientation.Vertical
+    }
+    if (verticalFold == null) {
+        topBar(Modifier.fillMaxWidth())
+    } else {
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val pane = widestVerticalFoldPane(maxWidth, verticalFold)
+            Box(Modifier.fillMaxWidth()) {
+                topBar(
+                    Modifier
+                        .width(pane.width)
+                        .align(if (pane.useStart) Alignment.CenterStart else Alignment.CenterEnd),
+                )
+            }
+        }
+    }
+}
+
+private enum class VideoEditorLayoutMode {
+    ExpandedSideBySide,
+    SeparatingHorizontalFold,
+    SeparatingVerticalFold,
+    StackedResizable,
+    Stacked,
+}
+
+private data class VerticalFoldPane(
+    val width: androidx.compose.ui.unit.Dp,
+    val useStart: Boolean,
+)
+
+private val VideoAnnotationToolStateSaver = listSaver(
+    save = { tool: VideoAnnotationToolState ->
+        listOf(
+            tool.shape.name,
+            tool.appearance.name,
+            tool.color.toArgb(),
+            tool.strokeWidth,
+            tool.opacity,
+            tool.filled,
+            tool.intensity,
+            tool.eraser,
+        )
+    },
+    restore = { values ->
+        VideoAnnotationToolState(
+            shape = com.librestatic.lightforge.core.editing.video.VideoAnnotationShape.valueOf(values[0] as String),
+            appearance = com.librestatic.lightforge.core.editing.video.VideoAnnotationAppearance.valueOf(values[1] as String),
+            color = Color(values[2] as Int),
+            strokeWidth = values[3] as Float,
+            opacity = values[4] as Float,
+            filled = values[5] as Boolean,
+            intensity = values[6] as Float,
+            eraser = values[7] as Boolean,
+        )
+    },
+)
+
+private fun videoEditorLayoutMode(
+    width: androidx.compose.ui.unit.Dp,
+    height: androidx.compose.ui.unit.Dp,
+    foldInfo: GalleryFoldInfo?,
+): VideoEditorLayoutMode {
+    if (foldInfo?.isSeparating == true) {
+        return when (foldInfo.orientation) {
+            GalleryFoldOrientation.Horizontal -> VideoEditorLayoutMode.SeparatingHorizontalFold
+            GalleryFoldOrientation.Vertical -> VideoEditorLayoutMode.SeparatingVerticalFold
+        }
+    }
+    if (
+        galleryWindowClass(width) == GalleryWindowClass.Expanded &&
+        width >= height * ExpandedSidePanelAspectRatio
+    ) {
+        return VideoEditorLayoutMode.ExpandedSideBySide
+    }
+    return if (width > height) {
+        VideoEditorLayoutMode.StackedResizable
+    } else {
+        VideoEditorLayoutMode.Stacked
+    }
+}
+
+private fun widestVerticalFoldPane(
+    width: androidx.compose.ui.unit.Dp,
+    foldInfo: GalleryFoldInfo,
+): VerticalFoldPane {
+    val leftWidth = foldInfo.left.coerceIn(0.dp, width)
+    val rightWidth = (width - foldInfo.right.coerceIn(0.dp, width)).coerceAtLeast(0.dp)
+    return if (leftWidth >= rightWidth) {
+        VerticalFoldPane(width = leftWidth, useStart = true)
+    } else {
+        VerticalFoldPane(width = rightWidth, useStart = false)
+    }
+}
+
+private fun editedTimelinePosition(
+    sourcePositionMillis: Long,
+    trimStartMillis: Long,
+    baseSpeed: Float,
+    slowSegments: List<SlowMotionSegment>,
+): Long {
+    val target = sourcePositionMillis.coerceAtLeast(trimStartMillis)
+    var cursor = trimStartMillis
+    var outputMillis = 0.0
+    slowSegments.forEach { segment ->
+        if (target <= cursor) return outputMillis.toLong()
+        val normalEnd = minOf(target, segment.startMillis)
+        outputMillis += (normalEnd - cursor).coerceAtLeast(0) / baseSpeed.toDouble()
+        if (target <= segment.startMillis) return outputMillis.toLong()
+        val slowEnd = minOf(target, segment.endMillis)
+        outputMillis += (slowEnd - segment.startMillis).coerceAtLeast(0) / segment.speed.toDouble()
+        if (target <= segment.endMillis) return outputMillis.toLong()
+        cursor = segment.endMillis
+    }
+    outputMillis += (target - cursor).coerceAtLeast(0) / baseSpeed.toDouble()
+    return outputMillis.toLong()
+}
+
+@Composable
+private fun VideoPanelResizeHandle(
+    fraction: Float,
+    orientation: Orientation,
+    valueRange: ClosedFloatingPointRange<Float>,
+    onDragDelta: (Float) -> Unit,
+    onFractionChange: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val description = stringResource(R.string.video_editor_resize_panels)
+    val dragState = rememberDraggableState(onDelta = onDragDelta)
+    Box(
+        modifier
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .draggable(dragState, orientation)
+            .semantics {
+                contentDescription = description
+                progressBarRangeInfo = ProgressBarRangeInfo(
+                    fraction,
+                    valueRange,
+                )
+                setProgress { requested ->
+                    onFractionChange(requested.coerceIn(valueRange))
+                    true
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            (if (orientation == Orientation.Vertical) {
+                Modifier.width(52.dp).height(4.dp)
+            } else {
+                Modifier.width(4.dp).height(52.dp)
+            })
+                .background(
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                    MaterialTheme.shapes.extraSmall,
+                ),
+        )
+    }
+}
+
+@Composable
+private fun VideoEditingPanel(
+    state: VideoEditorContentState,
+    currentMillis: Long,
+    onSeek: (Long) -> Unit,
+    onTrimChange: (Long, Long) -> Unit,
+    onSpeedChange: (Float) -> Unit,
+    onOriginalVolumeChange: (Float) -> Unit,
+    onChooseMusic: () -> Unit,
+    onRemoveMusic: () -> Unit,
+    onMusicVolumeChange: (Float) -> Unit,
+    onColorGradeChange: (VideoColorGrade) -> Unit,
+    onOutputQualityChange: (VideoOutputQuality) -> Unit,
+    onDynamicRangeChange: (VideoDynamicRange) -> Unit,
+    onGeometryChange: (VideoGeometry) -> Unit,
+    onImportLut: () -> Unit,
+    onMarkSlowMotionIn: (Long) -> Unit,
+    onMarkSlowMotionOut: (Long) -> Unit,
+    onSelectSlowMotionSegment: (String) -> Unit,
+    onUpdateSlowMotionSegment: (SlowMotionSegment) -> Unit,
+    onDeleteSlowMotionSegment: (String) -> Unit,
+    onCancelExport: () -> Unit,
+    selectedTab: Int,
+    onTabChange: (Int) -> Unit,
+    annotationTool: VideoAnnotationToolState,
+    onAnnotationToolChange: (VideoAnnotationToolState) -> Unit,
+    annotationActions: VideoAnnotationActions,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier.fillMaxWidth()) {
+        VideoTimeline(
+                    state = state,
+                    currentMillis = currentMillis,
+                    onSeek = onSeek,
+                    onTrimChange = onTrimChange,
+                )
+        VideoControls(
+            state = state,
+            currentMillis = currentMillis,
+            onSpeedChange = onSpeedChange,
+            onOriginalVolumeChange = onOriginalVolumeChange,
+            onChooseMusic = onChooseMusic,
+            onRemoveMusic = onRemoveMusic,
+            onMusicVolumeChange = onMusicVolumeChange,
+            onColorGradeChange = onColorGradeChange,
+            onOutputQualityChange = onOutputQualityChange,
+            onDynamicRangeChange = onDynamicRangeChange,
+            onGeometryChange = onGeometryChange,
+            onImportLut = onImportLut,
+            onMarkSlowMotionIn = onMarkSlowMotionIn,
+            onMarkSlowMotionOut = onMarkSlowMotionOut,
+            onSelectSlowMotionSegment = onSelectSlowMotionSegment,
+            onUpdateSlowMotionSegment = onUpdateSlowMotionSegment,
+            onDeleteSlowMotionSegment = onDeleteSlowMotionSegment,
+            onCancelExport = onCancelExport,
+            selectedTab = selectedTab,
+            onTabChange = onTabChange,
+            annotationTool = annotationTool,
+            onAnnotationToolChange = onAnnotationToolChange,
+            annotationActions = annotationActions,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun VideoPreview(
+    controller: VideoViewerController?,
+    annotationsActive: Boolean,
+    annotationTool: VideoAnnotationToolState,
+    state: VideoEditorContentState,
+    currentMillis: Long,
+    onAddAnnotation: (VideoAnnotationLayer) -> Unit,
+    onEraseAnnotations: (List<NormalizedPoint>) -> Unit,
+    modifier: Modifier,
+) {
+    Box(
+        modifier
+            .testTag(VideoEditorPreviewTag)
+            .semantics {
+                isTraversalGroup = true
+                traversalIndex = 0f
+            }
+            .background(Color.Black),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (controller == null) {
+            Text(stringResource(R.string.video_editor_preview_unavailable), color = Color.White)
+            return
+        }
+        val description = stringResource(R.string.video_editor_preview_description)
+        val viewerState by controller.state.collectAsState()
+        key(controller) {
+            BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                val videoAspectRatio = (viewerState as? VideoViewerState.Ready)?.aspectRatio
+                val surfaceModifier = if (videoAspectRatio != null && videoAspectRatio > 0f) {
+                    val containerAspectRatio = maxWidth.value / maxHeight.value.coerceAtLeast(1f)
+                    if (videoAspectRatio >= containerAspectRatio) {
+                        Modifier.fillMaxWidth().aspectRatio(videoAspectRatio)
+                    } else {
+                        Modifier.fillMaxHeight().aspectRatio(
+                            videoAspectRatio,
+                            matchHeightConstraintsFirst = true,
+                        )
+                    }
+                } else {
+                    Modifier.fillMaxSize()
+                }
+                AndroidView(
+                    factory = { context -> SurfaceView(context).also(controller::attachSurface) },
+                    modifier = surfaceModifier.semantics { contentDescription = description },
+                )
+                VideoAnnotationGestureLayer(
+                    enabled = annotationsActive,
+                    tool = annotationTool,
+                    startMillis = state.trimStartMillis,
+                    endMillis = state.trimEndMillis.takeIf { it > state.trimStartMillis }
+                        ?: state.durationMillis,
+                    selectedLayer = state.annotations.firstOrNull { it.id == state.selectedAnnotationId },
+                    currentMillis = currentMillis,
+                    onAdd = {
+                        controller.pause()
+                        onAddAnnotation(it)
+                    },
+                    onErase = onEraseAnnotations,
+                    modifier = surfaceModifier,
+                )
+            }
+        }
+        when (val current = viewerState) {
+            is VideoViewerState.Ready -> Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                FilledIconButton(
+                    onClick = { if (current.isPlaying) controller.pause() else controller.play() },
+                    shapes = IconButtonDefaults.shapes(),
+                ) {
+                    Icon(
+                        if (current.isPlaying) GalleryIcons.Pause else GalleryIcons.Play,
+                        contentDescription = stringResource(
+                            if (current.isPlaying) R.string.video_editor_pause else R.string.video_editor_play,
+                        ),
+                    )
+                }
+                FilledIconToggleButton(
+                    checked = current.isLooping,
+                    onCheckedChange = controller::setLooping,
+                    shapes = IconButtonDefaults.toggleableShapes(),
+                ) {
+                    Icon(
+                        GalleryIcons.Repeat,
+                        contentDescription = stringResource(
+                            if (current.isLooping) {
+                                R.string.video_editor_disable_loop
+                            } else {
+                                R.string.video_editor_enable_loop
+                            },
+                        ),
+                    )
+                }
+            }
+            is VideoViewerState.Failure -> Surface(
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+            ) {
+                Text(
+                    stringResource(R.string.video_editor_preview_failed),
+                    Modifier.padding(horizontal = GallerySpacing.Md, vertical = GallerySpacing.Sm),
+                )
+            }
+            VideoViewerState.Idle, is VideoViewerState.Loading -> GalleryLoadingIndicator()
+            VideoViewerState.Released -> Unit
+        }
+        if ((viewerState as? VideoViewerState.Ready)?.usedSoftwareDecoder == true) {
+            Text(
+                text = stringResource(R.string.video_editor_software_decoder_warning),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(GallerySpacing.Md)
+                    .background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.medium)
+                    .padding(horizontal = GallerySpacing.Md, vertical = GallerySpacing.Sm),
+            )
+        }
+        DisposableEffect(controller) { onDispose { controller.attachSurface(null) } }
+    }
+}
+
+private const val DefaultLandscapePreviewFraction = 0.45f
+private const val DefaultExpandedPreviewFraction = 0.5f
+private const val AnnotationTabIndex = 5
+private const val MinLandscapePreviewFraction = 0.2f
+private const val MaxLandscapePreviewFraction = 0.7f
+private const val MinExpandedPreviewFraction = 0.42f
+private const val MaxExpandedPreviewFraction = 0.68f
+private const val ExpandedSidePanelAspectRatio = 1.2f
+private val ResizeHandleThickness = 48.dp
+private val WideColorControlsBreakpoint = 480.dp
+private val WideLogWheelsBreakpoint = 600.dp
+private const val VideoEditorPreviewTag = "video-editor-preview"
+private const val VideoEditorPanelTag = "video-editor-panel"
+private const val VideoExportProgressCardTag = "video-export-progress-card"
+private const val VideoExportProgressIndicatorTag = "video-export-progress-indicator"
+
+@Composable
+private fun VideoTimeline(
+    state: VideoEditorContentState,
+    currentMillis: Long,
+    onSeek: (Long) -> Unit,
+    onTrimChange: (Long, Long) -> Unit,
+) {
+    val duration = state.durationMillis.coerceAtLeast(1)
+    val trimStart = state.trimStartMillis.coerceIn(0, (duration - 1).coerceAtLeast(0))
+    val trimEnd = (state.trimEndMillis.takeIf { it > trimStart } ?: duration)
+        .coerceIn(trimStart + 1, duration)
+    val position = currentMillis.coerceIn(trimStart, trimEnd)
+    Column(Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Sm)) {
+        val positionDescription = stringResource(
+            R.string.video_editor_position_description,
+            formatVideoEditorDraftTime(position),
+            formatVideoEditorDraftTime(trimEnd),
+        )
+        Text(
+            positionDescription,
+            modifier = Modifier.testTag("video-editor-position-value"),
+            style = GalleryMonoTypography,
+        )
+        Slider(
+            value = position.toFloat(),
+            onValueChange = { onSeek(it.toLong()) },
+            valueRange = trimStart.toFloat()..trimEnd.toFloat(),
+            modifier = Modifier.fillMaxWidth().testTag("video-editor-position").semantics {
+                contentDescription = positionDescription
+            },
+        )
+        val trimDescription = stringResource(
+            R.string.video_editor_trim_description,
+            formatVideoEditorDraftTime(trimStart),
+            formatVideoEditorDraftTime(trimEnd),
+        )
+        Text(
+            trimDescription,
+            modifier = Modifier.testTag("video-editor-trim-value"),
+            style = GalleryMonoTypography,
+        )
+        RangeSlider(
+            value = trimStart.toFloat()..trimEnd.toFloat(),
+            onValueChange = { range -> onTrimChange(range.start.toLong(), range.endInclusive.toLong()) },
+            valueRange = 0f..duration.toFloat(),
+            // The start thumb rests on the left screen edge; keep it out of the back gesture (V-04).
+            modifier = Modifier.fillMaxWidth().systemGestureExclusion().testTag("video-editor-trim").semantics {
+                contentDescription = trimDescription
+            },
+        )
+    }
+}
+
+@Composable
+private fun VideoControls(
+    state: VideoEditorContentState,
+    currentMillis: Long,
+    onSpeedChange: (Float) -> Unit,
+    onOriginalVolumeChange: (Float) -> Unit,
+    onChooseMusic: () -> Unit,
+    onRemoveMusic: () -> Unit,
+    onMusicVolumeChange: (Float) -> Unit,
+    onColorGradeChange: (VideoColorGrade) -> Unit,
+    onOutputQualityChange: (VideoOutputQuality) -> Unit,
+    onDynamicRangeChange: (VideoDynamicRange) -> Unit,
+    onGeometryChange: (VideoGeometry) -> Unit,
+    onImportLut: () -> Unit,
+    onMarkSlowMotionIn: (Long) -> Unit,
+    onMarkSlowMotionOut: (Long) -> Unit,
+    onSelectSlowMotionSegment: (String) -> Unit,
+    onUpdateSlowMotionSegment: (SlowMotionSegment) -> Unit,
+    onDeleteSlowMotionSegment: (String) -> Unit,
+    onCancelExport: () -> Unit,
+    selectedTab: Int,
+    onTabChange: (Int) -> Unit,
+    annotationTool: VideoAnnotationToolState,
+    onAnnotationToolChange: (VideoAnnotationToolState) -> Unit,
+    annotationActions: VideoAnnotationActions,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier.fillMaxWidth().padding(bottom = GallerySpacing.Sm)) {
+        GalleryExpressiveChoiceGroup(
+            labels = listOf(
+                stringResource(R.string.video_editor_speed),
+                stringResource(R.string.video_editor_audio),
+                stringResource(R.string.video_editor_music),
+                stringResource(R.string.video_editor_color),
+                stringResource(R.string.video_editor_transform),
+                stringResource(R.string.video_editor_draw),
+                stringResource(R.string.video_editor_export),
+            ),
+            selectedIndex = selectedTab,
+            onSelect = onTabChange,
+            icons = listOf(
+                GalleryIcons.Speed,
+                GalleryIcons.Volume,
+                GalleryIcons.Music,
+                GalleryIcons.Palette,
+                GalleryIcons.Crop,
+                GalleryIcons.Edit,
+                GalleryIcons.Edit,
+            ),
+            minimumItemWidth = 112.dp,
+            modifier = Modifier.padding(horizontal = GallerySpacing.Md, vertical = GallerySpacing.Sm),
+        )
+        Box(Modifier.fillMaxWidth().weight(1f)) {
+            when (selectedTab) {
+                0 -> SlowMotionControls(
+                    state = state,
+                    currentMillis = currentMillis,
+                    onSpeedChange = onSpeedChange,
+                    onMarkIn = onMarkSlowMotionIn,
+                    onMarkOut = onMarkSlowMotionOut,
+                    onSelect = onSelectSlowMotionSegment,
+                    onUpdate = onUpdateSlowMotionSegment,
+                    onDelete = onDeleteSlowMotionSegment,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                1 -> Column(Modifier.fillMaxSize().padding(horizontal = GallerySpacing.Lg)) {
+                    Text(stringResource(R.string.video_editor_original_audio))
+                    val audioDescription = stringResource(R.string.video_editor_audio_description)
+                    Slider(
+                        value = state.originalAudioVolume,
+                        onValueChange = onOriginalVolumeChange,
+                        valueRange = 0f..1f,
+                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = audioDescription },
+                    )
+                }
+                2 -> Column(
+                    Modifier.fillMaxSize().padding(GallerySpacing.Md),
+                    verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+                ) {
+                    if (state.selectedMusicName == null) {
+                        OutlinedButton(onClick = onChooseMusic) {
+                            Icon(GalleryIcons.Music, contentDescription = null)
+                            Text(stringResource(R.string.video_editor_choose_music))
+                        }
+                    } else {
+                        Text(state.selectedMusicName)
+                        Text(stringResource(R.string.video_editor_music_volume))
+                        val musicVolumeDescription = stringResource(R.string.video_editor_music_volume)
+                        Slider(
+                            value = state.musicVolume,
+                            onValueChange = onMusicVolumeChange,
+                            valueRange = 0f..1f,
+                            modifier = Modifier.semantics {
+                                contentDescription = musicVolumeDescription
+                            },
+                        )
+                        TextButton(onClick = onRemoveMusic) {
+                            Text(stringResource(R.string.video_editor_remove_music))
+                        }
+                    }
+                }
+                3 -> ColorControls(state, onColorGradeChange, onImportLut, Modifier.fillMaxSize())
+                4 -> TransformControls(state.geometry, onGeometryChange, Modifier.fillMaxSize())
+                AnnotationTabIndex -> VideoAnnotationControls(
+                    state = state,
+                    currentMillis = currentMillis,
+                    tool = annotationTool,
+                    onToolChange = onAnnotationToolChange,
+                    onSelect = annotationActions.select,
+                    onUpdate = annotationActions.update,
+                    onDelete = annotationActions.delete,
+                    onMove = annotationActions.move,
+                    onClear = annotationActions.clear,
+                    onUndo = annotationActions.undo,
+                    onRedo = annotationActions.redo,
+                    onAddKeyframe = annotationActions.addKeyframe,
+                    onTrack = annotationActions.track,
+                    onCancelTracking = annotationActions.cancelTracking,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                6 -> ExportControls(
+                    state = state,
+                    onQualitySelected = onOutputQualityChange,
+                    onDynamicRangeSelected = onDynamicRangeChange,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        }
+        state.statusMessage?.let {
+            Surface(
+                modifier = Modifier.padding(horizontal = GallerySpacing.Lg),
+                shape = MaterialTheme.shapes.small,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            ) {
+                Text(it, Modifier.padding(horizontal = GallerySpacing.Md, vertical = GallerySpacing.Sm))
+            }
+        }
+        if (state.isExporting) {
+            VideoExportProgressCard(
+                progress = state.exportProgress,
+                phase = state.exportPhase,
+                onCancel = onCancelExport,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Md),
+            )
+        }
+    }
+}
+
+@Composable
+internal fun VideoExportProgressCard(
+    progress: Float?,
+    phase: VideoExportPhase?,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.testTag(VideoExportProgressCardTag),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(GallerySpacing.Lg),
+            verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+        ) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Md),
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.video_editor_export_in_progress),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Text(
+                        stringResource(phase.exportLabel()),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                progress?.let { value ->
+                    Text(
+                        stringResource(
+                            R.string.video_editor_export_progress_percent,
+                            (value.coerceIn(0f, 1f) * 100f).toInt(),
+                        ),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+            }
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = GallerySpacing.Xs)
+                    .testTag(VideoExportProgressIndicatorTag),
+            ) {
+                progress?.let { value ->
+                    GalleryProgressIndicator(
+                        progress = { value.coerceIn(0f, 1f) },
+                    )
+                } ?: GalleryIndeterminateProgressIndicator()
+            }
+            TextButton(
+                onClick = onCancel,
+                modifier = Modifier.align(Alignment.End),
+            ) {
+                Text(stringResource(R.string.video_editor_cancel_export))
+            }
+        }
+    }
+}
+
+@StringRes
+private fun VideoExportPhase?.exportLabel(): Int = when (this) {
+    VideoExportPhase.GeneratingFrames -> R.string.video_editor_export_generating_frames
+    VideoExportPhase.Rendering -> R.string.video_editor_export_rendering
+    VideoExportPhase.Publishing -> R.string.video_editor_export_publishing
+    VideoExportPhase.Verifying -> R.string.video_editor_export_verifying
+    VideoExportPhase.Completed -> R.string.video_editor_copy_saved
+    VideoExportPhase.Preparing, null -> R.string.video_editor_export_preparing
+}
+
+@Composable
+private fun SlowMotionControls(
+    state: VideoEditorContentState,
+    currentMillis: Long,
+    onSpeedChange: (Float) -> Unit,
+    onMarkIn: (Long) -> Unit,
+    onMarkOut: (Long) -> Unit,
+    onSelect: (String) -> Unit,
+    onUpdate: (SlowMotionSegment) -> Unit,
+    onDelete: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val selected = state.slowMotionSegments.firstOrNull { it.id == state.selectedSlowMotionSegmentId }
+    Column(
+        modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(GallerySpacing.Md),
+        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+    ) {
+        Text(stringResource(R.string.video_editor_base_speed), style = MaterialTheme.typography.titleSmall)
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+        ) {
+            listOf(0.25f, 0.5f, 1f, 1.5f, 2f, 4f).forEach { speed ->
+                FilterChip(
+                    selected = state.speed == speed,
+                    onClick = { onSpeedChange(speed) },
+                    label = { Text("${speed}×") },
+                    modifier = EditorChipModifier,
+                )
+            }
+        }
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+        ) {
+            GalleryExpressiveButton(
+                onClick = { onMarkIn(currentMillis) },
+                modifier = Modifier.widthIn(min = 104.dp).heightIn(min = 48.dp),
+            ) {
+                Text(stringResource(R.string.video_editor_mark_in))
+            }
+            GalleryExpressiveButton(
+                onClick = { onMarkOut(currentMillis) },
+                enabled = state.slowMotionMarkInMillis != null,
+                modifier = Modifier.widthIn(min = 104.dp).heightIn(min = 48.dp),
+            ) { Text(stringResource(R.string.video_editor_mark_out)) }
+        }
+        state.slowMotionMarkInMillis?.let {
+            Text(stringResource(R.string.video_editor_marked_in_at, formatMillis(it)))
+        }
+        if (state.slowMotionSegments.isNotEmpty()) {
+            Text(stringResource(R.string.video_editor_slow_segments), style = MaterialTheme.typography.titleSmall)
+            Row(
+                Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
+            ) {
+                state.slowMotionSegments.forEachIndexed { index, segment ->
+                    FilterChip(
+                        selected = segment.id == state.selectedSlowMotionSegmentId,
+                        onClick = { onSelect(segment.id) },
+                        label = { Text("${index + 1}: ${formatMillis(segment.startMillis)}–${formatMillis(segment.endMillis)}") },
+                        modifier = EditorChipModifier,
+                    )
+                }
+            }
+        }
+        selected?.let { segment ->
+            Text(stringResource(R.string.video_editor_segment_speed), style = MaterialTheme.typography.titleSmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
+                listOf(0.5f, 0.25f, 0.125f).forEach { speed ->
+                    FilterChip(
+                        selected = segment.speed == speed,
+                        onClick = { onUpdate(segment.copy(speed = speed)) },
+                        label = { Text("${speed}×") },
+                        modifier = EditorChipModifier,
+                    )
+                }
+            }
+            Text(stringResource(R.string.video_editor_segment_audio), style = MaterialTheme.typography.titleSmall)
+            Row(
+                Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
+            ) {
+                listOf(
+                    SlowMotionAudioMode.PreservePitch to R.string.video_editor_audio_preserve_pitch,
+                    SlowMotionAudioMode.Muted to R.string.video_editor_audio_muted,
+                    SlowMotionAudioMode.Varispeed to R.string.video_editor_audio_varispeed,
+                ).forEach { (mode, label) ->
+                    FilterChip(
+                        selected = segment.audioMode == mode,
+                        onClick = { onUpdate(segment.copy(audioMode = mode)) },
+                        label = { Text(stringResource(label)) },
+                        modifier = EditorChipModifier,
+                    )
+                }
+            }
+            TextButton(onClick = { onDelete(segment.id) }) {
+                Text(stringResource(R.string.video_editor_delete_segment))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ColorControls(
+    state: VideoEditorContentState,
+    onChange: (VideoColorGrade) -> Unit,
+    onImportLut: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val grade = state.colorGrade
+    var palette by rememberSaveable { mutableIntStateOf(0) }
+    var selectedBand by rememberSaveable { mutableIntStateOf(0) }
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        val useWideColorLayout = maxWidth >= WideColorControlsBreakpoint
+        val useWideLogLayout = maxWidth >= WideLogWheelsBreakpoint
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(GallerySpacing.Md),
+            verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+        ) {
+        state.logDetectionMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            FilterChip(
+                selected = grade.bypass,
+                onClick = { onChange(grade.copy(bypass = !grade.bypass)) },
+                label = { Text(stringResource(R.string.video_editor_bypass_grade)) },
+                modifier = EditorChipModifier,
+            )
+            TextButton(onClick = {
+                onChange(VideoColorGrade(
+                    inputProfile = grade.inputProfile,
+                    profileWasAutoDetected = grade.profileWasAutoDetected,
+                ))
+            }) { Text(stringResource(R.string.video_editor_reset_grade)) }
+        }
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(
+                R.string.video_editor_camera to 0,
+                R.string.video_editor_primaries to 1,
+                R.string.video_editor_log_wheels to 2,
+                R.string.video_editor_color_bands to 3,
+                R.string.video_editor_luts to 4,
+            ).forEach { (label, index) ->
+                FilterChip(
+                    selected = palette == index,
+                    onClick = { palette = index },
+                    label = { Text(stringResource(label)) },
+                    modifier = EditorChipModifier,
+                )
+            }
+        }
+        when (palette) {
+            0 -> {
+                Text(stringResource(R.string.video_editor_input_profile), style = MaterialTheme.typography.titleSmall)
+                Text(
+                    stringResource(R.string.video_editor_log_curve_only_note),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                val profileChip: @Composable (LogInputProfile) -> Unit = { profile ->
+                    FilterChip(
+                        selected = grade.inputProfile == profile,
+                        onClick = {
+                            onChange(
+                                grade.copy(
+                                    inputProfile = profile,
+                                    profileWasAutoDetected = false,
+                                ),
+                            )
+                        },
+                        label = { Text(stringResource(profile.labelResource())) },
+                        modifier = EditorChipModifier,
+                    )
+                }
+                if (useWideColorLayout) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
+                    ) {
+                        LogInputProfile.entries.forEach { profile -> profileChip(profile) }
+                    }
+                } else {
+                    Row(
+                        Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        LogInputProfile.entries.forEach { profile -> profileChip(profile) }
+                    }
+                }
+            }
+            1 -> {
+                val firstColumn: @Composable () -> Unit = {
+                    GradeSlider(stringResource(R.string.video_editor_exposure), grade.exposureEv, -5f..5f) { onChange(grade.copy(exposureEv = it)) }
+                    GradeSlider(stringResource(R.string.video_editor_temperature), grade.temperature, -1f..1f) { onChange(grade.copy(temperature = it)) }
+                    GradeSlider(stringResource(R.string.video_editor_tint), grade.tint, -1f..1f) { onChange(grade.copy(tint = it)) }
+                }
+                val secondColumn: @Composable () -> Unit = {
+                    GradeSlider(stringResource(R.string.video_editor_contrast), grade.contrast, -1f..1f) { onChange(grade.copy(contrast = it)) }
+                    GradeSlider(stringResource(R.string.video_editor_pivot), grade.pivot, 0.05f..0.95f) { onChange(grade.copy(pivot = it)) }
+                    GradeSlider(stringResource(R.string.video_editor_saturation), grade.saturation, -1f..1f) { onChange(grade.copy(saturation = it)) }
+                }
+                if (useWideColorLayout) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Lg),
+                    ) {
+                        Column(Modifier.weight(1f), content = { firstColumn() })
+                        Column(Modifier.weight(1f), content = { secondColumn() })
+                    }
+                } else {
+                    firstColumn()
+                    secondColumn()
+                }
+            }
+            2 -> {
+                val wheelControls: @Composable (Modifier, Int, LogWheel, (LogWheel) -> Unit) -> Unit =
+                    { wheelModifier, label, wheel, update ->
+                        LogWheelControls(
+                            label = label,
+                            wheel = wheel,
+                            onChange = update,
+                            modifier = wheelModifier,
+                        )
+                    }
+                if (useWideLogLayout) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+                    ) {
+                        wheelControls(Modifier.weight(1f), R.string.video_editor_shadows, grade.logWheels.shadows) {
+                            onChange(grade.copy(logWheels = grade.logWheels.copy(shadows = it)))
+                        }
+                        wheelControls(Modifier.weight(1f), R.string.video_editor_midtones, grade.logWheels.midtones) {
+                            onChange(grade.copy(logWheels = grade.logWheels.copy(midtones = it)))
+                        }
+                        wheelControls(Modifier.weight(1f), R.string.video_editor_highlights, grade.logWheels.highlights) {
+                            onChange(grade.copy(logWheels = grade.logWheels.copy(highlights = it)))
+                        }
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+                        wheelControls(Modifier.fillMaxWidth(), R.string.video_editor_shadows, grade.logWheels.shadows) {
+                            onChange(grade.copy(logWheels = grade.logWheels.copy(shadows = it)))
+                        }
+                        wheelControls(Modifier.fillMaxWidth(), R.string.video_editor_midtones, grade.logWheels.midtones) {
+                            onChange(grade.copy(logWheels = grade.logWheels.copy(midtones = it)))
+                        }
+                        wheelControls(Modifier.fillMaxWidth(), R.string.video_editor_highlights, grade.logWheels.highlights) {
+                            onChange(grade.copy(logWheels = grade.logWheels.copy(highlights = it)))
+                        }
+                    }
+                }
+            }
+            3 -> {
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    HueBand.entries.forEachIndexed { index, band ->
+                        FilterChip(
+                            selected = selectedBand == index,
+                            onClick = { selectedBand = index },
+                            label = { Text(stringResource(band.labelResource())) },
+                            modifier = EditorChipModifier,
+                        )
+                    }
+                }
+                val adjustment = grade.hueBands.first { it.band == HueBand.entries[selectedBand] }
+                GradeSlider(stringResource(R.string.video_editor_hue), adjustment.hueShiftDegrees, -45f..45f) { value ->
+                    onChange(grade.copy(hueBands = grade.hueBands.map { if (it.band == adjustment.band) it.copy(hueShiftDegrees = value) else it }))
+                }
+                GradeSlider(stringResource(R.string.video_editor_saturation), adjustment.saturation, -1f..1f) { value ->
+                    onChange(grade.copy(hueBands = grade.hueBands.map { if (it.band == adjustment.band) it.copy(saturation = value) else it }))
+                }
+                GradeSlider(stringResource(R.string.video_editor_luminance), adjustment.luminance, -1f..1f) { value ->
+                    onChange(grade.copy(hueBands = grade.hueBands.map { if (it.band == adjustment.band) it.copy(luminance = value) else it }))
+                }
+            }
+            4 -> {
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    BuiltInLook.entries.forEach { look ->
+                        FilterChip(
+                            selected = grade.lut.builtIn == look && grade.lut.customId == null,
+                            onClick = { onChange(grade.copy(lut = LutReference(builtIn = look, intensity = grade.lut.intensity))) },
+                            label = { Text(stringResource(look.labelResource())) },
+                            modifier = EditorChipModifier,
+                        )
+                    }
+                    state.customLuts.forEach { lut ->
+                        FilterChip(
+                            selected = grade.lut.customId == lut.id,
+                            onClick = { onChange(grade.copy(lut = LutReference(customId = lut.id, intensity = grade.lut.intensity))) },
+                            label = { Text(lut.displayName) },
+                            modifier = EditorChipModifier,
+                        )
+                    }
+                }
+                GradeSlider(stringResource(R.string.video_editor_lut_intensity), grade.lut.intensity, 0f..1f) {
+                    onChange(grade.copy(lut = grade.lut.copy(intensity = it)))
+                }
+                OutlinedButton(onClick = onImportLut) { Text(stringResource(R.string.video_editor_import_lut)) }
+            }
+        }
+    }
+    }
+}
+
+@Composable
+private fun LogWheelControls(
+    @StringRes label: Int,
+    wheel: LogWheel,
+    onChange: (LogWheel) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) {
+        Column(
+            Modifier.padding(GallerySpacing.Md),
+            verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
+        ) {
+            Text(stringResource(label), style = MaterialTheme.typography.titleSmall)
+            GradeSlider(stringResource(R.string.video_editor_level), wheel.level, -1f..1f) {
+                onChange(wheel.copy(level = it))
+            }
+            GradeSlider(stringResource(R.string.video_editor_band_red), wheel.red, -1f..1f) {
+                onChange(wheel.copy(red = it))
+            }
+            GradeSlider(stringResource(R.string.video_editor_band_green), wheel.green, -1f..1f) {
+                onChange(wheel.copy(green = it))
+            }
+            GradeSlider(stringResource(R.string.video_editor_band_blue), wheel.blue, -1f..1f) {
+                onChange(wheel.copy(blue = it))
+            }
+        }
+    }
+}
+
+@Composable
+private fun GradeSlider(label: String, value: Float, range: ClosedFloatingPointRange<Float>, onChange: (Float) -> Unit) {
+    var liveValue by remember(label) { mutableFloatStateOf(value) }
+    LaunchedEffect(value) { liveValue = value }
+    Column {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, style = MaterialTheme.typography.labelLarge)
+            Text("%.2f".format(liveValue), style = GalleryMonoTypography)
+        }
+        Slider(
+            value = liveValue,
+            onValueChange = {
+                liveValue = it
+                onChange(it)
+            },
+            valueRange = range,
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = label },
+        )
+    }
+}
+
+@Composable
+private fun ExportControls(
+    state: VideoEditorContentState,
+    onQualitySelected: (VideoOutputQuality) -> Unit,
+    onDynamicRangeSelected: (VideoDynamicRange) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier.verticalScroll(rememberScrollState()).padding(GallerySpacing.Md),
+        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+    ) {
+        Text(stringResource(R.string.video_editor_output_quality), style = MaterialTheme.typography.titleSmall)
+        VideoOutputQuality.entries.forEach { quality ->
+            FilterChip(
+                selected = state.outputQuality == quality,
+                onClick = { onQualitySelected(quality) },
+                enabled = quality != VideoOutputQuality.HevcMain10 || state.isHevcMain10Available,
+                label = { Text(stringResource(if (quality == VideoOutputQuality.HevcMain10) R.string.video_editor_hevc_10bit else R.string.video_editor_h264)) },
+                modifier = EditorChipModifier,
+            )
+        }
+        if (!state.isHevcMain10Available) Text(
+            stringResource(R.string.video_editor_hevc_unavailable),
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Text(stringResource(R.string.video_editor_dynamic_range), style = MaterialTheme.typography.titleSmall)
+        VideoDynamicRange.entries.forEach { dynamicRange ->
+            val label = when (dynamicRange) {
+                VideoDynamicRange.SdrRec709 -> R.string.video_editor_dynamic_range_sdr
+                VideoDynamicRange.HdrHlg -> R.string.video_editor_dynamic_range_hlg
+                VideoDynamicRange.Hdr10Pq -> R.string.video_editor_dynamic_range_hdr10
+            }
+            FilterChip(
+                selected = state.dynamicRange == dynamicRange,
+                onClick = { onDynamicRangeSelected(dynamicRange) },
+                enabled = when (dynamicRange) {
+                    VideoDynamicRange.SdrRec709 -> true
+                    VideoDynamicRange.HdrHlg -> state.isHlgExportAvailable
+                    VideoDynamicRange.Hdr10Pq -> state.isHdr10ExportAvailable
+                },
+                label = { Text(stringResource(label)) },
+                modifier = EditorChipModifier,
+            )
+        }
+        Surface(
+            shape = MaterialTheme.shapes.small,
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        ) {
+            Text(
+                text = stringResource(
+                    if (state.dynamicRange == VideoDynamicRange.SdrRec709) {
+                        R.string.video_editor_dynamic_range_sdr_description
+                    } else {
+                        R.string.video_editor_dynamic_range_hdr_description
+                    },
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(GallerySpacing.Md),
+            )
+        }
+        if (!state.isHlgExportAvailable && !state.isHdr10ExportAvailable) Text(
+            stringResource(R.string.video_editor_hdr_unavailable),
+            style = MaterialTheme.typography.bodySmall,
+        )
+    }
+}
+
+@Composable
+private fun TransformControls(
+    geometry: VideoGeometry,
+    onChange: (VideoGeometry) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val fineRotation = ((geometry.rotationDegrees + 45f) % 90f + 90f) % 90f - 45f
+    val quarterRotation = geometry.rotationDegrees - fineRotation
+    val horizontalCropDescription = stringResource(R.string.video_editor_crop_horizontal)
+    val verticalCropDescription = stringResource(R.string.video_editor_crop_vertical)
+    val straightenDescription = stringResource(R.string.video_editor_straighten)
+    Column(
+        modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(GallerySpacing.Md),
+        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+    ) {
+        Text(stringResource(R.string.video_editor_crop_horizontal), style = MaterialTheme.typography.labelLarge)
+        RangeSlider(
+            value = geometry.left..geometry.right,
+            onValueChange = {
+                val left = it.start.coerceAtMost(it.endInclusive - 0.02f).coerceAtLeast(0f)
+                val right = it.endInclusive.coerceAtLeast(left + 0.02f).coerceAtMost(1f)
+                onChange(geometry.copy(left = left, right = right))
+            },
+            valueRange = 0f..1f,
+            modifier = Modifier.semantics {
+                contentDescription = horizontalCropDescription
+            },
+        )
+        Text(stringResource(R.string.video_editor_crop_vertical), style = MaterialTheme.typography.labelLarge)
+        RangeSlider(
+            value = geometry.top..geometry.bottom,
+            onValueChange = {
+                val top = it.start.coerceAtMost(it.endInclusive - 0.02f).coerceAtLeast(0f)
+                val bottom = it.endInclusive.coerceAtLeast(top + 0.02f).coerceAtMost(1f)
+                onChange(geometry.copy(top = top, bottom = bottom))
+            },
+            valueRange = 0f..1f,
+            modifier = Modifier.semantics {
+                contentDescription = verticalCropDescription
+            },
+        )
+        Text(stringResource(R.string.video_editor_straighten), style = MaterialTheme.typography.labelLarge)
+        Slider(
+            value = fineRotation,
+            onValueChange = {
+                onChange(geometry.copy(rotationDegrees = normalizeVideoRotation(quarterRotation + it)))
+            },
+            valueRange = -45f..45f,
+            modifier = Modifier.semantics {
+                contentDescription = straightenDescription
+            },
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
+            verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
+        ) {
+            OutlinedButton(onClick = {
+                val rotated = normalizeVideoRotation(geometry.rotationDegrees + 90f)
+                onChange(geometry.copy(rotationDegrees = rotated))
+            }) { Text(stringResource(R.string.video_editor_rotate_90)) }
+            FilterChip(
+                selected = geometry.flipHorizontal,
+                onClick = { onChange(geometry.copy(flipHorizontal = !geometry.flipHorizontal)) },
+                label = { Text(stringResource(R.string.video_editor_flip_horizontal)) },
+                modifier = EditorChipModifier,
+            )
+            TextButton(onClick = { onChange(VideoGeometry()) }) {
+                Text(stringResource(R.string.video_editor_reset_transform))
+            }
+        }
+    }
+}
+
+private fun normalizeVideoRotation(value: Float): Float {
+    var result = value
+    while (result > 315f) result -= 360f
+    while (result < -45f) result += 360f
+    return result
+}
+
+/** Slow-motion marker positions, rounded to the nearest second like the duration badge. */
+private fun formatMillis(value: Long): String {
+    val seconds = ((value + 500) / 1_000).coerceAtLeast(0)
+    return "%d:%02d".format(seconds / 60, seconds % 60)
+}
+
+@StringRes
+private fun HueBand.labelResource(): Int = when (this) {
+    HueBand.Red -> R.string.video_editor_band_red
+    HueBand.Orange -> R.string.video_editor_band_orange
+    HueBand.Yellow -> R.string.video_editor_band_yellow
+    HueBand.Green -> R.string.video_editor_band_green
+    HueBand.Cyan -> R.string.video_editor_band_cyan
+    HueBand.Blue -> R.string.video_editor_band_blue
+    HueBand.Purple -> R.string.video_editor_band_purple
+    HueBand.Magenta -> R.string.video_editor_band_magenta
+}
+
+@StringRes
+private fun BuiltInLook.labelResource(): Int = when (this) {
+    BuiltInLook.None -> R.string.video_editor_look_none
+    BuiltInLook.Clean709 -> R.string.video_editor_look_clean
+    BuiltInLook.WarmFilm -> R.string.video_editor_look_warm
+    BuiltInLook.CoolFilm -> R.string.video_editor_look_cool
+    BuiltInLook.Bleach -> R.string.video_editor_look_bleach
+    BuiltInLook.TealOrange -> R.string.video_editor_look_teal_orange
+    BuiltInLook.Monochrome -> R.string.video_editor_look_monochrome
+}
+
+@StringRes
+fun LogInputProfile.labelResource(): Int = when (this) {
+    LogInputProfile.Standard -> R.string.video_editor_profile_standard
+    LogInputProfile.AppleLog -> R.string.video_editor_profile_apple_log
+    LogInputProfile.SonySLog2 -> R.string.video_editor_profile_sony_slog2
+    LogInputProfile.SonySLog3 -> R.string.video_editor_profile_sony_slog3
+    LogInputProfile.CanonLog2 -> R.string.video_editor_profile_canon_log2
+    LogInputProfile.CanonLog3 -> R.string.video_editor_profile_canon_log3
+    LogInputProfile.PanasonicVLog -> R.string.video_editor_profile_panasonic_vlog
+    LogInputProfile.DjiDLog -> R.string.video_editor_profile_dji_dlog
+    LogInputProfile.FujifilmFLog -> R.string.video_editor_profile_fujifilm_flog
+    LogInputProfile.FujifilmFLog2 -> R.string.video_editor_profile_fujifilm_flog2
+    LogInputProfile.NikonNLog -> R.string.video_editor_profile_nikon_nlog
+    LogInputProfile.BlackmagicFilmGen5 -> R.string.video_editor_profile_blackmagic_film_gen5
+    LogInputProfile.ArriLogC3 -> R.string.video_editor_profile_arri_logc3
+    LogInputProfile.ArriLogC4 -> R.string.video_editor_profile_arri_logc4
+    LogInputProfile.RedLog3G10 -> R.string.video_editor_profile_red_log3g10
+}

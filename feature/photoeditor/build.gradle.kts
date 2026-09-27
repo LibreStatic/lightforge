@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.feature.photoeditor"
+    namespace = "com.librestatic.lightforge.feature.photoeditor"
     compileSdk = 37
 
     defaultConfig {

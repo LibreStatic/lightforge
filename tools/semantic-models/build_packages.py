@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert the approved TinyCLIP checkpoints into UGallery LiteRT packages."""
+"""Convert the approved TinyCLIP checkpoints into Lightforge LiteRT packages."""
 
 from __future__ import annotations
 
@@ -73,7 +73,7 @@ def build(model_id: str, checkpoint: str, revision: str, output: Path, private_k
     (work / "special_tokens_map.json").unlink(missing_ok=True)
     (work / "NOTICE.txt").write_text(
         f"Checkpoint: {checkpoint}@{revision}\nLicense: MIT (TinyCLIP project/model card).\n"
-        "Converted to LiteRT for on-device use by UGallery.\n",
+        "Converted to LiteRT for on-device use by Lightforge.\n",
         encoding="utf-8",
     )
     archive = output / f"{model_id}-1.0.0.ugmodel"

@@ -69,7 +69,7 @@ class RealDisplayRootWaitTest(unittest.TestCase):
             "org/json/JSONObject.java": """package org.json; public class JSONObject {
                 public JSONObject put(String key, Object value) { return this; }
             }""",
-            "com/ugallery/tools/RealDisplayDump.java": cls.text,
+            "com/librestatic/lightforge/tools/RealDisplayDump.java": cls.text,
         }
         # Use the actual acquisition statements from main, including its terminal exception.
         # This also executes the original one-shot implementation when selecting pristine source.
@@ -77,11 +77,11 @@ class RealDisplayRootWaitTest(unittest.TestCase):
         if match is None:
             raise AssertionError("Real acquisition block no longer matches the reviewed contract")
         block = "automation.waitForIdle(1000, 10000);\n" + match[1]
-        files["com/ugallery/tools/RootWaitHarness.java"] = """package com.ugallery.tools;
+        files["com/librestatic/lightforge/tools/RootWaitHarness.java"] = """package com.librestatic.lightforge.tools;
             import android.app.UiAutomation;
             import android.view.accessibility.AccessibilityNodeInfo;
             import android.os.SystemClock;
-            """ + ("import static com.ugallery.tools.RealDisplayDump.awaitActiveRoot;" if "awaitActiveRoot(automation)" in block else "") + """
+            """ + ("import static com.librestatic.lightforge.tools.RealDisplayDump.awaitActiveRoot;" if "awaitActiveRoot(automation)" in block else "") + """
             public class RootWaitHarness {
                 static AccessibilityNodeInfo acquire(UiAutomation automation) {
                     AccessibilityNodeInfo root;
@@ -132,7 +132,7 @@ class RealDisplayRootWaitTest(unittest.TestCase):
             raise AssertionError(result.stdout + result.stderr)
 
     def run_case(self, name):
-        result = subprocess.run(["rtk", "proxy", "java", "-cp", str(self.root / "classes"), "com.ugallery.tools.RootWaitHarness", name],
+        result = subprocess.run(["rtk", "proxy", "java", "-cp", str(self.root / "classes"), "com.librestatic.lightforge.tools.RootWaitHarness", name],
                                 text=True, capture_output=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn(name + ": PASS", result.stdout)

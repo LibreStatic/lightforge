@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.benchmark"
+    namespace = "com.librestatic.lightforge.benchmark"
     compileSdk = 37
     targetProjectPath = ":app"
 

@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.feature.subjectclip"
+    namespace = "com.librestatic.lightforge.feature.subjectclip"
     compileSdk = 37
     defaultConfig {
         minSdk = 30

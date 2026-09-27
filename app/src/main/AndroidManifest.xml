@@ -21,7 +21,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROCESSING" />
 
     <application
-        android:name=".UGalleryApplication"
+        android:name=".LightforgeApplication"
         android:allowBackup="false"
         android:fullBackupContent="@xml/private_backup_exclusions"
         android:dataExtractionRules="@xml/private_data_extraction_rules"
@@ -31,7 +31,7 @@
         android:networkSecurityConfig="@xml/network_security_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.UGallery">
+        android:theme="@style/Theme.Lightforge">
         <!-- ORT 1.29 ships a telemetry provider; disable it before any app/engine initialization. -->
         <!-- This merger removal marker is not an instantiated runtime component. -->
         <provider android:name="ai.onnxruntime.TelemetryInitializer" tools:node="remove" tools:ignore="MissingClass" />

@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.core.frameinterpolation"
+    namespace = "com.librestatic.lightforge.core.frameinterpolation"
     compileSdk = 37
     ndkVersion = "27.1.12297006"
 

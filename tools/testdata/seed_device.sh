@@ -6,7 +6,7 @@ SERIAL=${2:-}
 ADB=(adb)
 if [[ -n "$SERIAL" ]]; then ADB+=( -s "$SERIAL" ); fi
 
-DESTINATION=/sdcard/Pictures/UGalleryBenchmark
+DESTINATION=/sdcard/Pictures/LightforgeBenchmark
 "${ADB[@]}" shell rm -rf "$DESTINATION"
 "${ADB[@]}" shell mkdir -p "$DESTINATION"
 "${ADB[@]}" push "$SOURCE"/. "$DESTINATION"/

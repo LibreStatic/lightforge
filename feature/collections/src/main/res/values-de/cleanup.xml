@@ -5,7 +5,7 @@
     <string name="cleanup_back">Sammlungen</string>
     <string name="cleanup_analysis_off">Die Erkennung von Duplikaten und unscharfen Fotos ist aus. Schalte sie ein, um deine Mediathek auf diesem Gerät zu analysieren.</string>
     <string name="cleanup_analysis_enable">Analyse einschalten</string>
-    <string name="cleanup_analysis_hint">Die Analyse läuft auf diesem Gerät beim Laden oder wenn UGallery mit genug Akku geöffnet ist. Ergebnisse erscheinen nach und nach.</string>
+    <string name="cleanup_analysis_hint">Die Analyse läuft auf diesem Gerät beim Laden oder wenn Lightforge mit genug Akku geöffnet ist. Ergebnisse erscheinen nach und nach.</string>
     <string name="cleanup_duplicates_title">Exakte Duplikate</string>
     <string name="cleanup_keep">Behalten</string>
     <string name="cleanup_trash_copies">Kopien in den Papierkorb verschieben</string>

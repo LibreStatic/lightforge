@@ -334,7 +334,7 @@ class PrivateProtectionHostGuardTest(unittest.TestCase):
     def test_native_cleanup_source_contract_is_ordered_before_key_retirement(self):
         # Source regression only, not a substitute for coordinator-run Android CAS acceptance.
         root = Path(os.environ.get("PRIVATE_PROTECTION_SOURCE_ROOT", PATH.resolve().parents[2]))
-        native = (root / "app/src/androidTest/kotlin/com/ugallery/app/PrivateProtectionAppDeviceTest.kt").read_text()
+        native = (root / "app/src/androidTest/kotlin/com/librestatic/lightforge/PrivateProtectionAppDeviceTest.kt").read_text()
         prepare = native[native.index("@Test fun prepareOwnedEmptyFixture()"):native.index("private data class PublicSourceSnapshot")]
         self.assertLess(prepare.index("put(MediaStore.MediaColumns.IS_PENDING, 0)"),
                         prepare.index('source.put("generationAdded", published.generationAdded)'))
@@ -351,8 +351,8 @@ class PrivateProtectionHostGuardTest(unittest.TestCase):
 
 class PrivateProtectionLaneTest(unittest.TestCase):
     def test_exact_lanes_and_property_selection(self):
-        for serial, avd, api, prop in (("emulator-5554", "UGallery_M2_API30", 30, "ro.kernel.qemu.avd_name"),
-                                      ("127.0.0.1:5563", "UGallery_PDF_API35", 35, "ro.boot.qemu.avd_name")):
+        for serial, avd, api, prop in (("emulator-5554", "Lightforge_M2_API30", 30, "ro.kernel.qemu.avd_name"),
+                                      ("127.0.0.1:5563", "Lightforge_PDF_API35", 35, "ro.boot.qemu.avd_name")):
             with self.subTest(serial=serial):
                 runner = module.Runner.__new__(module.Runner)
                 runner.args = SimpleNamespace(serial=serial)
@@ -368,12 +368,12 @@ class PrivateProtectionLaneTest(unittest.TestCase):
                     module.Runner(SimpleNamespace(serial=serial,evidence=str(evidence)))
                 self.assertFalse(evidence.exists())
     def test_mismatch_and_cross_lane_ticket_rejected(self):
-        for avd,api,qemu in (("UGallery_M2_API30","35","1"),("UGallery_PDF_API35","30","1"),("UGallery_PDF_API35","35","0")):
+        for avd,api,qemu in (("Lightforge_M2_API30","35","1"),("Lightforge_PDF_API35","30","1"),("Lightforge_PDF_API35","35","0")):
             with self.assertRaises(RuntimeError):
                 module.validate_target("127.0.0.1:5563",avd,api,qemu)
-        old=dict(serial="emulator-5554",avd="UGallery_M2_API30",api=30)
+        old=dict(serial="emulator-5554",avd="Lightforge_M2_API30",api=30)
         self.assertFalse(module.ticket_matches_lane(old,"127.0.0.1:5563"))
-        self.assertFalse(module.ticket_matches_lane(dict(serial="127.0.0.1:5563",avd="UGallery_PDF_API35",api="35"),"127.0.0.1:5563"))
+        self.assertFalse(module.ticket_matches_lane(dict(serial="127.0.0.1:5563",avd="Lightforge_PDF_API35",api="35"),"127.0.0.1:5563"))
     def test_actual_credential_formats_and_fail_closed_boundaries(self):
         for kind in ("None", "NONE"):
             raw = "User State:\n  User 0\n    Quality: 0\n    CredentialType: "+kind+"\n  User 0 [/data/system_de/0/spblob]:\n"
@@ -393,7 +393,7 @@ class PrivateProtectionLaneTest(unittest.TestCase):
             runner.instrument.assert_not_called()
             ticket_path=Path(runner.args.previous_ticket)
             ticket=json.loads(ticket_path.read_text())
-            ticket.update(serial=runner.args.serial,avd="UGallery_PDF_API35",api=35)
+            ticket.update(serial=runner.args.serial,avd="Lightforge_PDF_API35",api=35)
             ticket_path.write_text(json.dumps(ticket))
             admitted=runner.admit_previous_clean_install()
             self.assertEqual(admitted["previousFixtureUuid"],runner.fixture)
@@ -412,7 +412,7 @@ class PrivateProtectionLaneTest(unittest.TestCase):
         command=popen.call_args.args[0]
         self.assertEqual(command[4],"127.0.0.1:5563")
         self.assertIn(module.CLASS+"#emptyVaultConfiguresImportsAndReopens",command)
-        self.assertEqual(command[-1],"com.ugallery.app.demo.pdfacceptance.test/androidx.test.runner.AndroidJUnitRunner")
+        self.assertEqual(command[-1],"com.librestatic.lightforge.demo.pdfacceptance.test/androidx.test.runner.AndroidJUnitRunner")
 
 if __name__ == "__main__":
     unittest.main()

@@ -2,7 +2,7 @@
 
 - **Status:** Accepted and implemented for M5; API 33 emulator exit-gate cohort passes
 - **Date:** 2026-08-18
-- **Decision owners:** UGallery Android team
+- **Decision owners:** Lightforge Android team
 
 ## Context
 

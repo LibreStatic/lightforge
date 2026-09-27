@@ -24,7 +24,7 @@ def main():
         ["rtk", "proxy", "javac", "--release", "8", "-Xlint:-options", "-classpath", str(library),
          "-d", str(classes), str(source)],
         ["rtk", "proxy", str(args.sdk / "build-tools/35.0.0/d8"), "--min-api", "30", "--lib", str(library),
-         "--output", str(dex), str(classes / "com/ugallery/tools/RealDisplayDump.class")],
+         "--output", str(dex), str(classes / "com/librestatic/lightforge/tools/RealDisplayDump.class")],
     ]
     evidence = []
     for command in commands:

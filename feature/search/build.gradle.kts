@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.feature.search"
+    namespace = "com.librestatic.lightforge.feature.search"
     compileSdk = 37
 
     defaultConfig {

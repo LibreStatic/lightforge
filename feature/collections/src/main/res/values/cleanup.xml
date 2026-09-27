@@ -5,7 +5,7 @@
     <string name="cleanup_back">Collections</string>
     <string name="cleanup_analysis_off">Duplicate and blurry photo detection is off. Turn it on to analyze your library on this device.</string>
     <string name="cleanup_analysis_enable">Turn on analysis</string>
-    <string name="cleanup_analysis_hint">Analysis runs on this device while charging, or while UGallery is open with enough battery. Results appear as it progresses.</string>
+    <string name="cleanup_analysis_hint">Analysis runs on this device while charging, or while Lightforge is open with enough battery. Results appear as it progresses.</string>
     <string name="cleanup_duplicates_title">Exact duplicates</string>
     <string name="cleanup_keep">Keep</string>
     <string name="cleanup_trash_copies">Move copies to trash</string>

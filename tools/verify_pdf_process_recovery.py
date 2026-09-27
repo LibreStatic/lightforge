@@ -6,8 +6,8 @@ parser=argparse.ArgumentParser()
 parser.add_argument("--serial",required=True)
 args=parser.parse_args()
 prefix=["rtk","proxy","adb","-s",args.serial,"shell"]
-package="com.ugallery.feature.pdfstudio.test"
-runner=package+"/com.ugallery.feature.pdfstudio.PdfRecoveryProbeRunner"
+package="com.librestatic.lightforge.feature.pdfstudio.test"
+runner=package+"/com.librestatic.lightforge.feature.pdfstudio.PdfRecoveryProbeRunner"
 def phase(name):
     output=subprocess.check_output(prefix+["am","instrument","-w","-e","phase",name,runner],text=True)
     print(output.strip())

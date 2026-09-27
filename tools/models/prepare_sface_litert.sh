@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-WORK="${TMPDIR:-/tmp}/ugallery-sface-litert"
+WORK="${TMPDIR:-/tmp}/lightforge-sface-litert"
 ONNX_SHA="0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79"
 TFLITE_SHA="0eed234c5ef82ae7de14277d7bb72f066b007f8c6b78a8f697173bdbca8b60ed"
 CONVERTER="pinto0309/onnx2tf@sha256:c28077a775e14f0a30efdb348133c477379b5c703a020ed3223a2c973170b03e"
