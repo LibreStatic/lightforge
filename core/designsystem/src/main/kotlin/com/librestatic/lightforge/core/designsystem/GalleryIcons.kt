@@ -82,6 +82,11 @@ import androidx.compose.material.icons.rounded.Keyboard
 import androidx.compose.material.icons.rounded.Straighten
 import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
+import androidx.compose.material.icons.rounded.TextFields
+import androidx.compose.material.icons.rounded.FormatBold
+import androidx.compose.material.icons.rounded.FormatAlignLeft
+import androidx.compose.material.icons.rounded.FormatAlignCenter
+import androidx.compose.material.icons.rounded.FormatAlignRight
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -176,6 +181,14 @@ val GalleryIconKeyboard: ImageVector get() = Icons.Rounded.Keyboard
 val GalleryIconStraighten: ImageVector get() = Icons.Rounded.Straighten
 val GalleryIconPhotoLibrary: ImageVector get() = Icons.Rounded.PhotoLibrary
 val GalleryIconAddPhotoAlternate: ImageVector get() = Icons.Rounded.AddPhotoAlternate
+val GalleryIconTextFields: ImageVector get() = Icons.Rounded.TextFields
+val GalleryIconFormatBold: ImageVector get() = Icons.Rounded.FormatBold
+/** Physical left/right, deliberately NOT [Icons.AutoMirrored] — the PDF Studio text layer's
+ * Start/Center/End alignment is never mirrored in RTL (the page is a physical print layout), so
+ * its icons must not flip either. */
+val GalleryIconFormatAlignLeft: ImageVector get() = Icons.Rounded.FormatAlignLeft
+val GalleryIconFormatAlignCenter: ImageVector get() = Icons.Rounded.FormatAlignCenter
+val GalleryIconFormatAlignRight: ImageVector get() = Icons.Rounded.FormatAlignRight
 
 /**
  * Standard gallery icon composable with Material 3 defaults:
@@ -286,4 +299,9 @@ object GalleryIcons {
     val Straighten get() = GalleryIconStraighten
     val PhotoLibrary get() = GalleryIconPhotoLibrary
     val AddPhotoAlternate get() = GalleryIconAddPhotoAlternate
+    val TextFields get() = GalleryIconTextFields
+    val FormatBold get() = GalleryIconFormatBold
+    val FormatAlignLeft get() = GalleryIconFormatAlignLeft
+    val FormatAlignCenter get() = GalleryIconFormatAlignCenter
+    val FormatAlignRight get() = GalleryIconFormatAlignRight
 }

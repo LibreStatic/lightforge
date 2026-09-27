@@ -8,13 +8,16 @@ package com.librestatic.lightforge.feature.pdfstudio
  * project") call this instead of duplicating the arithmetic.
  */
 internal object PdfMediaPlacement {
-    /** The default 24-images-per-page limit every import path enforces (also checked by
-     * [PdfProject.validate], which is the final backstop even where a call site skips this). */
+    /** The default 24-elements-per-page limit every import/add path enforces (also checked by
+     * [PdfProject.validate], which is the final backstop even where a call site skips this) —
+     * images and texts share this one cap (Phase G1b), so every call site passes
+     * `page.images.size + page.texts.size`, not images alone. */
     const val MaxImagesPerPage = 24
 
-    /** True while [currentImageCount] still has room for one more image on the page. */
-    fun hasRoomForOneMore(currentImageCount: Int, limit: Int = MaxImagesPerPage): Boolean =
-        currentImageCount < limit
+    /** True while [currentElementCount] (images + texts) still has room for one more element on
+     * the page. */
+    fun hasRoomForOneMore(currentElementCount: Int, limit: Int = MaxImagesPerPage): Boolean =
+        currentElementCount < limit
 
     /** A drag & drop's page-space CENTER (`centerX`/`centerY`, mm) converted to the top-left
      * [PdfImage] stores, for an image of the given [width]/[height] (mm). */

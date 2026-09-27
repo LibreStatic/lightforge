@@ -281,4 +281,27 @@
     <string name="pdf_media_empty_body">Photos and documents you add will appear here.</string>
     <string name="pdf_media_loading">Loading media…</string>
     <string name="pdf_media_item_label">%1$s. Add to current page</string>
+    <string name="pdf_text_placeholder">Text</string>
+    <string name="pdf_add_text">Text</string>
+    <string name="pdf_page_full_note">This page already has the maximum of 24 elements.</string>
+    <string name="pdf_text_label">Text: %1$s</string>
+    <string name="pdf_edit">Edit</string>
+    <string name="pdf_text_style">Style</string>
+    <string name="pdf_delete_text">Delete text</string>
+    <string name="pdf_text_empty">Text can\'t be empty.</string>
+    <string name="pdf_content">Content</string>
+    <string name="pdf_text_font">Font</string>
+    <string name="pdf_font_sans">Sans</string>
+    <string name="pdf_font_serif">Serif</string>
+    <string name="pdf_text_bold">Bold</string>
+    <string name="pdf_text_bold_on">Bold on</string>
+    <string name="pdf_text_bold_off">Bold off</string>
+    <string name="pdf_text_size">Size</string>
+    <string name="pdf_text_align">Alignment</string>
+    <string name="pdf_text_ink">Color</string>
+    <string name="pdf_ink_black">Black</string>
+    <string name="pdf_ink_darkgray">Dark gray</string>
+    <string name="pdf_ink_red">Red</string>
+    <string name="pdf_ink_blue">Blue</string>
+    <string name="pdf_ink_green">Green</string>
 </resources>

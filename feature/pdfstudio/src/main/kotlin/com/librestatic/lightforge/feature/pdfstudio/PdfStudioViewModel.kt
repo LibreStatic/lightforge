@@ -28,6 +28,11 @@ data class PdfStudioState(
      * reads instead of branching on both fields itself.
      */
     val selectedTextId: String? = null,
+    /** Edge-triggered "just added by Insert → Text" signal (Phase G1b): set once by [addText],
+     * consumed once by the canvas (which opens inline editing then calls
+     * [PdfStudioViewModel.newTextOpened]) so a later recomposition or re-selecting the same text
+     * never re-opens the editor on its own. */
+    val newTextId: String? = null,
     /** An operation is running: internal serialization guard, also drives the busy/progress row. */
     val busy: Boolean = false,
     /**
@@ -435,6 +440,7 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
             it.copy(
                 page = page,
                 image = p.pages[page].images.indexOfFirst { image -> image.id == session.imageId },
+                selectedTextId = session.textId?.takeIf { id -> p.pages[page].texts.any { it.id == id } },
                 selectedPages = session.selectedPages,
                 canUndo = undo.isNotEmpty(),
                 canRedo = redo.isNotEmpty(),
@@ -456,6 +462,7 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         return PdfEditorSession(
             pageId = currentPageId,
             imageId = p?.pages?.getOrNull(s.page)?.images?.getOrNull(s.image)?.id,
+            textId = s.selectedTextId,
             selectedPages = s.selectedPages,
             undo = undo.toList(),
             redo = redo.toList(),
@@ -658,7 +665,7 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         val asset = project.assets.firstOrNull { it.hash == hash } ?: return
         if (asset.width <= 0 || asset.height <= 0) return
         val page = project.pages.getOrNull(mutable.value.page) ?: return
-        if (!PdfMediaPlacement.hasRoomForOneMore(page.images.size)) {
+        if (!PdfMediaPlacement.hasRoomForOneMore(page.images.size + page.texts.size)) {
             mutable.update { it.copy(message = R.string.pdf_failure_limit) }
             return
         }
@@ -917,11 +924,12 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
 
     /**
      * Adds a default text box to the current page — centered, 12pt Sans Regular Black, in front
-     * of everything already on the page (Phase G1a's minimal API; the canvas/inspector UI to
-     * place, resize and style it comes in Phase G1b). A no-op with a failure message on an
-     * imported-PDF page (texts aren't allowed there) or when [text] has an unsupported character,
-     * so it never silently produces a project that fails [PdfProject.validate]. A single undo
-     * step, like every other [pageEdit].
+     * of everything already on the page — selects it and marks it as [PdfStudioState.newTextId]
+     * (Phase G1b) so the canvas opens it straight into inline editing, matching the Insert → Text
+     * entry's "selected in edit mode immediately" requirement. A no-op with a failure message on
+     * an imported-PDF page (texts aren't allowed there), when the page already has 24 elements
+     * (images + texts), or when [text] has an unsupported character, so it never silently produces
+     * a project that fails [PdfProject.validate]. A single undo step, like every other [pageEdit].
      */
     fun addText(text: String) {
         val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
@@ -929,10 +937,15 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
             mutable.update { it.copy(message = R.string.pdf_error) }
             return
         }
+        if (!PdfMediaPlacement.hasRoomForOneMore(page.images.size + page.texts.size)) {
+            mutable.update { it.copy(message = PdfFailure.PageFull.message) }
+            return
+        }
         if (PdfTextSupport.check(text).isFailure) {
             mutable.update { it.copy(message = PdfFailure.UnsupportedGlyph.message) }
             return
         }
+        val id = newId()
         pageEdit { p ->
             val width = 100.0
             val height = 40.0
@@ -940,6 +953,7 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
                 texts =
                     p.texts +
                         PdfText(
+                            id = id,
                             text = text,
                             x = ((p.width - width) / 2).coerceAtLeast(0.0),
                             y = ((p.height - height) / 2).coerceAtLeast(0.0),
@@ -949,6 +963,12 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
                         )
             )
         }
+        // Fix (round 2, item B): pageEdit/update silently no-ops on a rejected change (editorLocked,
+        // mutationLocked, or a validate() failure) — only select the new text if it's actually
+        // there, otherwise selectedTextId would point at a text that doesn't exist.
+        val added =
+            mutable.value.project?.pages?.getOrNull(mutable.value.page)?.texts?.any { it.id == id } == true
+        if (added) mutable.update { it.copy(image = -1, selectedTextId = id, newTextId = id) }
     }
 
     /** Applies [transform] to the text with [id] on the current page, one undo step. A no-op if
@@ -959,6 +979,13 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
 
     /** Removes the text with [id] from the current page, one undo step. */
     fun removeText(id: String) = pageEdit { p -> p.copy(texts = p.texts.filterNot { it.id == id }) }
+
+    /** One-shot acknowledgement of [PdfStudioState.newTextId] (Phase G1b): the canvas calls this
+     * right after opening the freshly-added text into inline editing, so the same "just added"
+     * signal never re-fires on an unrelated recomposition or a later selection of the same text. */
+    fun newTextOpened() {
+        mutable.update { it.copy(newTextId = null) }
+    }
 
     fun addPage() {
         val next = mutable.value.page + 1
@@ -1142,6 +1169,14 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         page.copy(images = page.images.mapIndexed { m, img -> if (m == n) aligned else img })
     }
 
+    /** As [alignSelectedImage], for the selected TEXT box (Phase G1b's text inspector Align
+     * menu) — a no-op if no text is selected. */
+    fun alignSelectedText(align: PdfGeometry.Align, relativeToMargins: Boolean = true) {
+        val id = mutable.value.selectedTextId ?: return
+        val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
+        textEdit(id) { PdfGeometry.alignText(it, page, align, relativeToMargins) }
+    }
+
     /** Resets the selected image's crop focus, rotation and fit to their defaults, keeping its
      * frame (x/y/width/height) untouched. */
     fun resetSelectedImage() = imageEdit {
@@ -1159,48 +1194,97 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         it.copy(focusX = x.coerceIn(0.0, 1.0), focusY = y.coerceIn(0.0, 1.0))
     }
 
-    /** Moves the selected image one step forward in stacking order (toward the front). */
-    fun bringSelectedImageForward() {
-        val n = mutable.value.image
+    /** The current page's selected element's id, regardless of kind (Phase G1b) — [PdfLayers]
+     * gives images and texts one shared id space specifically so layer ops can look either up by
+     * id alone, without branching on [PdfStudioState.selected]'s kind. */
+    private fun selectedElementId(): String? {
+        val s = mutable.value
+        s.selectedTextId?.let { return it }
+        val page = s.project?.pages?.getOrNull(s.page) ?: return null
+        return page.images.getOrNull(s.image)?.id
+    }
+
+    /** Re-selects whichever element [id] now belongs to (image or text), after a layer-op
+     * [pageEdit] has already run — the element itself never moves lists, only its `z` changes, so
+     * this only has to look up its current kind/index, not restore geometry. */
+    private fun reselect(id: String) {
         val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
-        if (n < 0 || n >= page.images.lastIndex) return
-        pageEdit { p -> p.copy(images = p.images.toMutableList().apply { add(n + 1, removeAt(n)) }) }
-        selectImage(n + 1)
+        val imageIndex = page.images.indexOfFirst { it.id == id }
+        if (imageIndex >= 0) selectImage(imageIndex) else selectText(id)
     }
 
-    /** Moves the selected image one step backward in stacking order (toward the back). */
-    fun sendSelectedImageBackward() {
-        val n = mutable.value.image
-        if (n <= 0) return
-        pageEdit { page ->
-            page.copy(images = page.images.toMutableList().apply { add(n - 1, removeAt(n)) })
+    /**
+     * Moves the selected element (image or text) one step forward in stacking order, toward the
+     * front (Phase G1b: the Layer menu now works across both kinds — [normalizeZ] renumbers every
+     * element by its new position, whichever kind each one is).
+     */
+    fun bringSelectedForward() {
+        val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
+        val id = selectedElementId() ?: return
+        val order = PdfLayers.order(page).map(PdfLayers::elementId)
+        val index = order.indexOf(id)
+        if (index < 0 || index == order.lastIndex) return
+        val newOrder = order.toMutableList().apply { add(index + 1, removeAt(index)) }
+        pageEdit { p -> PdfLayers.normalizeZ(p, newOrder) }
+        reselect(id)
+    }
+
+    /** As [bringSelectedForward], one step backward (toward the back). */
+    fun sendSelectedBackward() {
+        val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
+        val id = selectedElementId() ?: return
+        val order = PdfLayers.order(page).map(PdfLayers::elementId)
+        val index = order.indexOf(id)
+        if (index <= 0) return
+        val newOrder = order.toMutableList().apply { add(index - 1, removeAt(index)) }
+        pageEdit { p -> PdfLayers.normalizeZ(p, newOrder) }
+        reselect(id)
+    }
+
+    /** Moves the selected element to the very front (top) of the stacking order. */
+    fun bringSelectedToFront() {
+        val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
+        val id = selectedElementId() ?: return
+        val order = PdfLayers.order(page).map(PdfLayers::elementId)
+        val index = order.indexOf(id)
+        if (index < 0 || index == order.lastIndex) return
+        val newOrder = order.toMutableList().apply { add(removeAt(index)) }
+        pageEdit { p -> PdfLayers.normalizeZ(p, newOrder) }
+        reselect(id)
+    }
+
+    /** Moves the selected element to the very back (bottom) of the stacking order. */
+    fun sendSelectedToBack() {
+        val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
+        val id = selectedElementId() ?: return
+        val order = PdfLayers.order(page).map(PdfLayers::elementId)
+        val index = order.indexOf(id)
+        if (index <= 0) return
+        val newOrder = order.toMutableList().apply { add(0, removeAt(index)) }
+        pageEdit { p -> PdfLayers.normalizeZ(p, newOrder) }
+        reselect(id)
+    }
+
+    /** Deletes the selected element — image or text (Phase G1b) — as the error-role action in the
+     * contextual toolbar/Delete key/inspector, one undo step. A no-op with nothing selected. */
+    fun deleteSelected() {
+        val textId = mutable.value.selectedTextId
+        if (textId != null) {
+            removeText(textId)
+            selectText(null)
+            return
         }
-        selectImage(n - 1)
-    }
-
-    /** Moves the selected image to the very front (top) of the stacking order. */
-    fun bringSelectedImageToFront() {
-        val n = mutable.value.image
-        if (n < 0) return
-        pageEdit { it.copy(images = it.images.toMutableList().apply { add(removeAt(n)) }) }
-        selectImage((mutable.value.project?.pages?.getOrNull(mutable.value.page)?.images?.lastIndex) ?: -1)
-    }
-
-    /** Moves the selected image to the very back (bottom) of the stacking order. */
-    fun sendSelectedImageToBack() {
-        val n = mutable.value.image
-        if (n < 0) return
-        pageEdit { it.copy(images = it.images.toMutableList().apply { add(0, removeAt(n)) }) }
-        selectImage(0)
-    }
-
-    /** Deletes the selected image (error-role action in the contextual toolbar), one undo step. */
-    fun deleteSelectedImage() {
         val n = mutable.value.image
         if (n < 0) return
         pageEdit { it.copy(images = it.images.filterIndexed { m, _ -> m != n }) }
         selectImage(-1)
     }
+
+    /** @suppress kept as a thin alias — every existing call site (the image contextual toolbar,
+     * the Adjust panel's Remove action, [PdfEditorCommand.DeleteSelection]) already only runs
+     * while an image is selected, so behavior is unchanged; new code should call [deleteSelected]
+     * directly, which also handles a selected text. */
+    fun deleteSelectedImage() = deleteSelected()
 
     fun beginImport(portable: Boolean): Boolean {
         val s = mutable.value

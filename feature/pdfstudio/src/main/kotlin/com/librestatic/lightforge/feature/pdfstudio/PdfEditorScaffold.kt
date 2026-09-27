@@ -278,11 +278,52 @@ internal fun PdfLibraryTopBar(
 }
 
 @Composable
-internal fun InsertControls(s: PdfStudioState, portable: () -> Unit, import: () -> Unit) {
+internal fun InsertControls(
+    vm: PdfStudioViewModel,
+    s: PdfStudioState,
+    portable: () -> Unit,
+    import: () -> Unit,
+    // Round-2 fix: the compact bottom-sheet Insert panel never closed itself after adding a text
+    // (unlike Import, whose own call site already dismisses the sheet before launching the picker)
+    // - the sheet's scrim stayed up over the canvas, hiding the newly-added text and its inline
+    // editor entirely, and swallowing/misrouting any tap meant for the canvas underneath. Defaults
+    // to a no-op for the expanded/hinge/tabletop call sites, which aren't sheets.
+    onAddedText: () -> Unit = {},
+) {
     Text(stringResource(R.string.pdf_insert), style = MaterialTheme.typography.titleMedium)
     Button(onClick = import, enabled = !s.editorLocked) {
         Text(stringResource(R.string.pdf_importfiles))
     }
+    // Item 4: "Text" in Insert, disabled with an explanation on an imported-PDF page (texts
+    // aren't allowed there) or once the page already has 24 elements (images + texts).
+    val page = s.project?.pages?.getOrNull(s.page)
+    val importedExplanation = stringResource(R.string.pdf_imported_page_note)
+    val fullExplanation = stringResource(R.string.pdf_page_full_note)
+    val textDisabledReason =
+        when {
+            page == null -> null
+            page.source != null -> importedExplanation
+            !PdfMediaPlacement.hasRoomForOneMore(page.images.size + page.texts.size) -> fullExplanation
+            else -> null
+        }
+    val textPlaceholder = stringResource(R.string.pdf_text_placeholder)
+    TextButton(
+        onClick = {
+            vm.addText(textPlaceholder)
+            onAddedText()
+        },
+        enabled = !s.editorLocked && textDisabledReason == null,
+    ) {
+        Icon(GalleryIcons.TextFields, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(stringResource(R.string.pdf_add_text))
+    }
+    if (textDisabledReason != null)
+        Text(
+            textDisabledReason,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     TextButton(onClick = portable, enabled = !s.editorLocked) {
         Text(stringResource(R.string.pdf_portable))
     }
@@ -423,12 +464,14 @@ internal fun PdfEditorBody(
                                 0 -> PdfPagesPanel(vm, state, onDeletePages, onExportSelectedPages)
                                 1 ->
                                     InsertControls(
+                                        vm,
                                         state,
                                         portable = onPortable,
                                         import = {
                                             onPanelChange(-1)
                                             onLaunchImport()
                                         },
+                                        onAddedText = { onPanelChange(-1) },
                                     )
                                 2 -> PdfLayoutPanel(vm, state)
                                 3 -> PdfAdjustPanel(vm, state)
@@ -501,11 +544,15 @@ private fun PdfInspectorColumn(
     // pick on either sticks until the selection changes (mirrors the existing Adjust-follows-
     // selection rule).
     var inspectorTab by rememberSaveable(project.pages[state.page].id) { mutableStateOf(0) }
-    LaunchedEffect(state.image) { if (state.image >= 0) inspectorTab = 1 }
+    // Round-2 fix: this used to key only on state.image, so selecting a TEXT (not an image) left
+    // the tab list without an "Adjust" entry at all in expanded/hinge layouts - state.selected
+    // (Phase G1b's generalized image-or-text selection) covers both.
+    val hasElementSelected = state.selected != null
+    LaunchedEffect(state.selected) { if (hasElementSelected) inspectorTab = 1 }
     val tabs =
         buildList {
             add(stringResource(R.string.pdf_design) to 0)
-            if (state.image >= 0) add(stringResource(R.string.pdf_adjust) to 1)
+            if (hasElementSelected) add(stringResource(R.string.pdf_adjust) to 1)
             if (mediaSource != null) add(stringResource(R.string.pdf_media) to 2)
         }
     // Review fix: on a 640dp-tall window the Insert section (a button + a link) pushed the
@@ -514,7 +561,7 @@ private fun PdfInspectorColumn(
     // content, and "Import images / PDF" (a different, file-picker-based source) stays one tap
     // away on every other tab.
     if (inspectorTab != 2 || mediaSource == null)
-        InsertControls(state, portable = onPortable, import = onLaunchImport)
+        InsertControls(vm, state, portable = onPortable, import = onLaunchImport)
     if (tabs.size > 1) {
         val selected = tabs.indexOfFirst { it.second == inspectorTab }.coerceAtLeast(0)
         com.librestatic.lightforge.core.designsystem.GalleryExpressiveChoiceGroup(
@@ -527,7 +574,7 @@ private fun PdfInspectorColumn(
     }
     when {
         inspectorTab == 2 && mediaSource != null -> PdfMediaPanel(vm, state, mediaSource)
-        inspectorTab == 1 && state.image >= 0 -> PdfAdjustPanel(vm, state)
+        inspectorTab == 1 && hasElementSelected -> PdfAdjustPanel(vm, state)
         else -> PdfLayoutPanel(vm, state)
     }
 }
@@ -735,7 +782,7 @@ private fun PdfTabletopEditorBody(
                     ) {
                         when (panel) {
                             0 -> PdfPagesPanel(vm, state, onDeletePages, onExportSelectedPages)
-                            1 -> InsertControls(state, portable = onPortable, import = onLaunchImport)
+                            1 -> InsertControls(vm, state, portable = onPortable, import = onLaunchImport)
                             2 -> PdfLayoutPanel(vm, state)
                             3 -> PdfAdjustPanel(vm, state)
                             4 -> PdfMediaPanel(vm, state, mediaSource)
@@ -854,28 +901,28 @@ internal fun PdfImageContextualToolbar(
                         text = { Text(stringResource(R.string.pdf_layer_forward)) },
                         onClick = {
                             showLayer = false
-                            vm.bringSelectedImageForward()
+                            vm.bringSelectedForward()
                         },
                     )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.pdf_layer_backward)) },
                         onClick = {
                             showLayer = false
-                            vm.sendSelectedImageBackward()
+                            vm.sendSelectedBackward()
                         },
                     )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.pdf_front)) },
                         onClick = {
                             showLayer = false
-                            vm.bringSelectedImageToFront()
+                            vm.bringSelectedToFront()
                         },
                     )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.pdf_backlayer)) },
                         onClick = {
                             showLayer = false
-                            vm.sendSelectedImageToBack()
+                            vm.sendSelectedToBack()
                         },
                     )
                 }

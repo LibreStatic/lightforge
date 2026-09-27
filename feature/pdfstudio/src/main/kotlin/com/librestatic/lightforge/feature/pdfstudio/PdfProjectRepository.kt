@@ -273,7 +273,7 @@ class PdfProjectRepository(
             start.first.pages.find { it.id == targetPageId }
                 ?: throw PdfOperationFailure(PdfFailure.ImportTargetMissing)
         if (startPage.source != null) throw PdfOperationFailure(PdfFailure.UnsupportedFormat)
-        if (!PdfMediaPlacement.hasRoomForOneMore(startPage.images.size))
+        if (!PdfMediaPlacement.hasRoomForOneMore(startPage.images.size + startPage.texts.size))
             throw PdfOperationFailure(PdfFailure.PageFull)
 
         cleanInterruptedImports()
@@ -359,7 +359,7 @@ class PdfProjectRepository(
             if (freshPageIndex < 0) throw PdfOperationFailure(PdfFailure.ImportTargetMissing)
             val freshPage = freshProject.pages[freshPageIndex]
             if (freshPage.source != null) throw PdfOperationFailure(PdfFailure.UnsupportedFormat)
-            if (!PdfMediaPlacement.hasRoomForOneMore(freshPage.images.size))
+            if (!PdfMediaPlacement.hasRoomForOneMore(freshPage.images.size + freshPage.texts.size))
                 throw PdfOperationFailure(PdfFailure.PageFull)
             val (w, h) = PdfMediaPlacement.fitSize(freshPage.width, freshPage.margin, a.width, a.height)
             // [placement], when given, is the drop point's page-space CENTER (Media panel drag &
@@ -513,7 +513,7 @@ class PdfProjectRepository(
                                 imageTarget
                             }
                         val page = pages[target]
-                        require(PdfMediaPlacement.hasRoomForOneMore(page.images.size))
+                        require(PdfMediaPlacement.hasRoomForOneMore(page.images.size + page.texts.size))
                         val (w, h) = PdfMediaPlacement.fitSize(page.width, page.margin, a.width, a.height)
                         // [placement], when given, is the drop point's page-space CENTER (Media
                         // panel drag & drop); convert to the top-left PdfImage stores.

@@ -162,6 +162,21 @@ object PdfLayers {
             images = page.images.map { if (it.id == id) it.copy(z = z) else it },
             texts = page.texts.map { if (it.id == id) it.copy(z = z) else it },
         )
+
+    /**
+     * [page] with EVERY element's `z` reassigned to its index within [newOrder] — a full
+     * permutation of every element's id on the page, back to front. Used by the Layer menu's
+     * bring-forward/send-backward/to-front/to-back commands (Phase G1b round-2 fix): swapping
+     * only the two z VALUES being reordered is a no-op whenever they started tied, which is the
+     * common case since every image defaults to `z = 0`. Reassigning by index instead guarantees a
+     * strictly increasing z per position regardless of the old z values, so the op always has a
+     * visible (and exported) effect.
+     */
+    fun normalizeZ(page: PdfPage, newOrder: List<String>): PdfPage {
+        var result = page
+        newOrder.forEachIndexed { index, id -> result = withZ(result, id, index) }
+        return result
+    }
 }
 
 /**

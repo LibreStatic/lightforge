@@ -2,6 +2,7 @@ package com.librestatic.lightforge.feature.pdfstudio
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -10,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
@@ -18,6 +20,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
@@ -36,6 +40,13 @@ private val UNIT_LABELS = listOf("mm", "cm", "in", "px")
 internal fun PdfAdjustPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
     val project = s.project ?: return
     val page = project.pages[s.page]
+    // Item 5: a selected text replaces this panel's content with the text inspector instead of
+    // the image one — same "Adjust" tab/sheet slot, just different content for the selection kind.
+    val selectedText = s.selectedTextId?.let { id -> page.texts.firstOrNull { it.id == id } }
+    if (selectedText != null) {
+        PdfTextInspector(vm, s, page, selectedText)
+        return
+    }
     Text(stringResource(R.string.pdf_adjust), style = MaterialTheme.typography.titleMedium)
     FlowRow {
         page.images.forEachIndexed { n, _ ->
@@ -235,19 +246,19 @@ internal fun PdfAdjustPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
             DropdownMenu(expanded = showLayer, onDismissRequest = { showLayer = false }) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.pdf_layer_forward)) },
-                    onClick = { showLayer = false; vm.bringSelectedImageForward() },
+                    onClick = { showLayer = false; vm.bringSelectedForward() },
                 )
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.pdf_layer_backward)) },
-                    onClick = { showLayer = false; vm.sendSelectedImageBackward() },
+                    onClick = { showLayer = false; vm.sendSelectedBackward() },
                 )
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.pdf_front)) },
-                    onClick = { showLayer = false; vm.bringSelectedImageToFront() },
+                    onClick = { showLayer = false; vm.bringSelectedToFront() },
                 )
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.pdf_backlayer)) },
-                    onClick = { showLayer = false; vm.sendSelectedImageToBack() },
+                    onClick = { showLayer = false; vm.sendSelectedToBack() },
                 )
             }
         }
@@ -362,6 +373,326 @@ private fun PdfCropFocusViewport(vm: PdfStudioViewModel, image: PdfImage, enable
                 drawCircle(PdfPaperTokens.GuideOuter, radius = 14f, center = center, style = Stroke(width = 5f))
                 drawCircle(PdfPaperTokens.GuideInner, radius = 14f, center = center, style = Stroke(width = 2f))
             }
+        }
+    }
+}
+
+/**
+ * Text inspector (Phase G1b item 5): content field (multi-line, validated), font family/weight,
+ * size stepper, alignment, ink swatches, X/Y/W/H steppers, Align/Layer menus and Delete — the
+ * text-layer twin of [PdfAdjustPanel]'s image content, shown in the same "Adjust" slot.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PdfTextInspector(vm: PdfStudioViewModel, s: PdfStudioState, page: PdfPage, text: PdfText) {
+    val project = s.project ?: return
+    val f = project.unit.factor(project.dpi)
+    val unitLabel = UNIT_LABELS[project.unit.ordinal]
+    Text(stringResource(R.string.pdf_adjust), style = MaterialTheme.typography.titleMedium)
+
+    // Content: multi-line, validated against the same glyph gate every commit path uses. Round-2
+    // fix (item E): the draft stays LOCAL and commits once (focus loss / IME Done / leaving this
+    // text via selection change or closing the panel) instead of one vm.textEdit per keystroke,
+    // matching the canvas's own inline editor.
+    // Keyed on text.text too (not just text.id): confirmed on-device that mounting this panel
+    // early (auto-opened the instant a text is selected) then editing the SAME text through the
+    // canvas's own inline editor left this field showing the stale placeholder while the canvas
+    // already showed the real content - and worse, closing/leaving this panel would then silently
+    // commit that stale draft, overwriting the real edit back to the placeholder. text.text only
+    // changes from a genuinely external commit (this field's own commit sets draft == text.text
+    // already, so re-keying on it then is a no-op), never from typing here (which no longer
+    // commits per keystroke - item E), so this never resets mid-edit.
+    var draft by remember(text.id, text.text) { mutableStateOf(text.text) }
+    var error by remember(text.id) { mutableStateOf<Int?>(null) }
+    fun commitContent() {
+        val value = draft
+        when {
+            value.isBlank() -> error = R.string.pdf_text_empty
+            PdfTextSupport.check(value).isFailure -> error = PdfFailure.UnsupportedGlyph.message
+            else -> {
+                error = null
+                if (value != text.text) vm.textEdit(text.id) { it.copy(text = value) }
+            }
+        }
+    }
+    DisposableEffect(text.id) { onDispose { commitContent() } }
+    OutlinedTextField(
+        value = draft,
+        onValueChange = { value ->
+            draft = value
+            error = null
+        },
+        label = { Text(stringResource(R.string.pdf_content)) },
+        isError = error != null,
+        supportingText = error?.let { { Text(stringResource(it)) } },
+        enabled = !s.editorLocked,
+        modifier = Modifier.fillMaxWidth().onFocusChanged { if (!it.isFocused) commitContent() },
+        minLines = 2,
+        maxLines = 6,
+        keyboardOptions =
+            androidx.compose.foundation.text.KeyboardOptions(
+                imeAction = androidx.compose.ui.text.input.ImeAction.Done
+            ),
+        keyboardActions =
+            androidx.compose.foundation.text.KeyboardActions(onDone = { commitContent() }),
+    )
+
+    Spacer(Modifier.height(8.dp))
+    Text(stringResource(R.string.pdf_text_font), style = MaterialTheme.typography.labelLarge)
+    com.librestatic.lightforge.core.designsystem.GalleryExpressiveChoiceGroup(
+        labels = listOf(stringResource(R.string.pdf_font_sans), stringResource(R.string.pdf_font_serif)),
+        selectedIndex = if (text.font == PdfFontFamily.Serif) 1 else 0,
+        onSelect = { index ->
+            vm.textEdit(text.id) {
+                it.copy(font = if (index == 1) PdfFontFamily.Serif else PdfFontFamily.Sans)
+            }
+        },
+        enabled = listOf(!s.editorLocked, !s.editorLocked),
+    )
+
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+        val boldLabel = stringResource(R.string.pdf_text_bold)
+        val boldState =
+            stringResource(if (text.weight == PdfFontWeight.Bold) R.string.pdf_text_bold_on else R.string.pdf_text_bold_off)
+        IconToggleButton(
+            checked = text.weight == PdfFontWeight.Bold,
+            onCheckedChange = { checked ->
+                vm.textEdit(text.id) {
+                    it.copy(weight = if (checked) PdfFontWeight.Bold else PdfFontWeight.Regular)
+                }
+            },
+            enabled = !s.editorLocked,
+            modifier = Modifier.size(48.dp).semantics {
+                contentDescription = boldLabel
+                stateDescription = boldState
+            },
+        ) {
+            Icon(GalleryIcons.FormatBold, contentDescription = null)
+        }
+        Text(boldLabel)
+    }
+
+    PdfStepperField(
+        stringResource(R.string.pdf_text_size),
+        text.sizePt,
+        "pt",
+        step = 1.0,
+        min = 6.0,
+        max = 144.0,
+        enabled = !s.editorLocked,
+        modifier = Modifier.fillMaxWidth(),
+        onValue = { n -> vm.textEdit(text.id) { it.copy(sizePt = n.coerceIn(6.0, 144.0)) } },
+    )
+
+    Text(stringResource(R.string.pdf_text_align), style = MaterialTheme.typography.labelLarge)
+    com.librestatic.lightforge.core.designsystem.GalleryExpressiveChoiceGroup(
+        labels =
+            listOf(
+                stringResource(R.string.pdf_align_left),
+                stringResource(R.string.pdf_align_center),
+                stringResource(R.string.pdf_align_right),
+            ),
+        selectedIndex = text.align.ordinal,
+        onSelect = { index -> vm.textEdit(text.id) { it.copy(align = PdfTextAlign.entries[index]) } },
+        icons = listOf(GalleryIcons.FormatAlignLeft, GalleryIcons.FormatAlignCenter, GalleryIcons.FormatAlignRight),
+        enabled = listOf(!s.editorLocked, !s.editorLocked, !s.editorLocked),
+    )
+
+    Text(stringResource(R.string.pdf_text_ink), style = MaterialTheme.typography.labelLarge)
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        PdfInk.entries.forEach { ink ->
+            val name =
+                stringResource(
+                    when (ink) {
+                        PdfInk.Black -> R.string.pdf_ink_black
+                        PdfInk.DarkGray -> R.string.pdf_ink_darkgray
+                        PdfInk.Red -> R.string.pdf_ink_red
+                        PdfInk.Blue -> R.string.pdf_ink_blue
+                        PdfInk.Green -> R.string.pdf_ink_green
+                    }
+                )
+            val selectedInk = text.ink == ink
+            // Round-2 fix (item F): the swatch's own visual stays a compact 36dp circle, but the
+            // touch target (and the semantics/clickable that make it selectable) is the full 48dp
+            // box around it, so it meets the same touch-target floor as every other control here.
+            Box(
+                Modifier.size(48.dp)
+                    .semantics {
+                        contentDescription = name
+                        this.selected = selectedInk
+                        role = androidx.compose.ui.semantics.Role.RadioButton
+                    }
+                    .let { m ->
+                        if (s.editorLocked) m
+                        else
+                            m.clickable { vm.textEdit(text.id) { it.copy(ink = ink) } }
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    Modifier.size(36.dp)
+                        .background(PdfPaperTokens.compose(ink), androidx.compose.foundation.shape.CircleShape)
+                        .border(
+                            width = if (selectedInk) 3.dp else 1.dp,
+                            color =
+                                if (selectedInk) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.outlineVariant,
+                            shape = androidx.compose.foundation.shape.CircleShape,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                if (selectedInk)
+                    Icon(
+                        GalleryIcons.Check,
+                        contentDescription = null,
+                        tint = PdfPaperTokens.GuideOuter,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+        }
+    }
+
+    Spacer(Modifier.height(8.dp))
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val fontScale = LocalDensity.current.fontScale.coerceIn(1f, 2f)
+        val minFieldTextWidth = 120.dp * fontScale
+        val stepperButtons = 48.dp * 4
+        val twoColumns = maxWidth >= (minFieldTextWidth * 2 + stepperButtons + 24.dp)
+        @Composable
+        fun stepperRow(first: @Composable (Modifier) -> Unit, second: @Composable (Modifier) -> Unit) {
+            if (twoColumns) {
+                Row(Modifier.fillMaxWidth()) {
+                    first(Modifier.weight(1f))
+                    second(Modifier.weight(1f))
+                }
+            } else {
+                Column(Modifier.fillMaxWidth()) {
+                    first(Modifier.fillMaxWidth())
+                    second(Modifier.fillMaxWidth())
+                }
+            }
+        }
+        Column(Modifier.fillMaxWidth()) {
+            stepperRow(
+                { m ->
+                    PdfStepperField(
+                        "X",
+                        text.x / f,
+                        unitLabel,
+                        step = 1.0,
+                        min = 0.0,
+                        max = page.width / f,
+                        enabled = !s.editorLocked,
+                        modifier = m,
+                        onValue = { n ->
+                            vm.textEdit(text.id) {
+                                PdfGeometry.constrainTextToPage(it.copy(x = n * f), page)
+                            }
+                        },
+                    )
+                },
+                { m ->
+                    PdfStepperField(
+                        "Y",
+                        text.y / f,
+                        unitLabel,
+                        step = 1.0,
+                        min = 0.0,
+                        max = page.height / f,
+                        enabled = !s.editorLocked,
+                        modifier = m,
+                        onValue = { n ->
+                            vm.textEdit(text.id) {
+                                PdfGeometry.constrainTextToPage(it.copy(y = n * f), page)
+                            }
+                        },
+                    )
+                },
+            )
+            stepperRow(
+                { m ->
+                    PdfStepperField(
+                        stringResource(R.string.pdf_width),
+                        text.width / f,
+                        unitLabel,
+                        step = 1.0,
+                        min = 1.0 / f,
+                        max = page.width / f,
+                        enabled = !s.editorLocked,
+                        modifier = m,
+                        onValue = { n ->
+                            if (n > 0)
+                                vm.textEdit(text.id) {
+                                    PdfGeometry.constrainTextToPage(it.copy(width = n * f), page)
+                                }
+                        },
+                    )
+                },
+                { m ->
+                    PdfStepperField(
+                        stringResource(R.string.pdf_height),
+                        text.height / f,
+                        unitLabel,
+                        step = 1.0,
+                        min = 1.0 / f,
+                        max = page.height / f,
+                        enabled = !s.editorLocked,
+                        modifier = m,
+                        onValue = { n ->
+                            if (n > 0)
+                                vm.textEdit(text.id) {
+                                    PdfGeometry.constrainTextToPage(it.copy(height = n * f), page)
+                                }
+                        },
+                    )
+                },
+            )
+        }
+    }
+
+    Spacer(Modifier.height(8.dp))
+    FlowRow {
+        var showAlign by remember { mutableStateOf(false) }
+        Box {
+            TextButton(onClick = { showAlign = true }, enabled = !s.editorLocked) {
+                Text(stringResource(R.string.pdf_toolbar_align))
+            }
+            DropdownMenu(expanded = showAlign, onDismissRequest = { showAlign = false }) {
+                alignEntries().forEach { (align, label) ->
+                    DropdownMenuItem(
+                        text = { Text(stringResource(label)) },
+                        onClick = { showAlign = false; vm.alignSelectedText(align) },
+                    )
+                }
+            }
+        }
+        var showLayer by remember { mutableStateOf(false) }
+        Box {
+            TextButton(onClick = { showLayer = true }, enabled = !s.editorLocked) {
+                Text(stringResource(R.string.pdf_toolbar_layer))
+            }
+            DropdownMenu(expanded = showLayer, onDismissRequest = { showLayer = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.pdf_layer_forward)) },
+                    onClick = { showLayer = false; vm.bringSelectedForward() },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.pdf_layer_backward)) },
+                    onClick = { showLayer = false; vm.sendSelectedBackward() },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.pdf_front)) },
+                    onClick = { showLayer = false; vm.bringSelectedToFront() },
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.pdf_backlayer)) },
+                    onClick = { showLayer = false; vm.sendSelectedToBack() },
+                )
+            }
+        }
+        TextButton(onClick = vm::deleteSelected, enabled = !s.editorLocked) {
+            Text(stringResource(R.string.pdf_delete_text))
         }
     }
 }

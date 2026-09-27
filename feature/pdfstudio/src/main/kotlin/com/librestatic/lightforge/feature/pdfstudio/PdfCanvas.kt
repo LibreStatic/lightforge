@@ -1,5 +1,6 @@
 package com.librestatic.lightforge.feature.pdfstudio
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -21,11 +22,14 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.key.*
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -350,21 +354,46 @@ internal fun PdfCanvas(
     val density = androidx.compose.ui.platform.LocalDensity.current
     val focus = remember { androidx.compose.ui.focus.FocusRequester() }
     val canvasLabel = stringResource(R.string.pdf_canvas_label)
+    // The text box currently in inline-editing mode (Phase G1b), or null. Local to the canvas
+    // (not VM state) since it's pure UI/IME state, never persisted or undoable. Opening the
+    // editor for a freshly-added text (vm.state.newTextId) is handled right below.
+    var editingTextId by remember(page.id) { mutableStateOf<String?>(null) }
+    LaunchedEffect(current.newTextId) {
+        current.newTextId?.let { id ->
+            editingTextId = id
+            vm.newTextOpened()
+        }
+    }
     Surface(
         modifier.semantics { contentDescription = canvasLabel },
         color = MaterialTheme.colorScheme.surfaceContainer,
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
+        val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
         BoxWithConstraints(
             Modifier.fillMaxSize()
                 .clipToBounds()
                 .focusRequester(focus)
-                .pointerInput(page.id, busy) {
+                .pointerInput(page.id, busy, editingTextId) {
                     if (!busy)
-                        detectTapGestures(onDoubleTap = { vm.viewport(1f, 0f, 0f) })
+                        detectTapGestures(
+                            // Item 3: "outside tap commits" — a tap on the page background
+                            // (anywhere not already consumed by the editing text's own Box)
+                            // while inline editing clears focus, which the BasicTextField's
+                            // onFocusChanged then turns into a commit attempt.
+                            onTap = { if (editingTextId != null) focusManager.clearFocus() },
+                            onDoubleTap = { vm.viewport(1f, 0f, 0f) },
+                        )
                 }
                 .onPreviewKeyEvent { event ->
-                    if (busy || event.type != androidx.compose.ui.input.key.KeyEventType.KeyDown)
+                    // Item 3: every shortcut here (undo/duplicate/delete/nudge/...) is suppressed
+                    // while the inline text editor has focus, so its own IME/cursor keys work
+                    // normally instead of being intercepted by this tunneling handler first.
+                    if (
+                        busy ||
+                            editingTextId != null ||
+                            event.type != androidx.compose.ui.input.key.KeyEventType.KeyDown
+                    )
                         false
                     else {
                         val chordKey = keyChordLabel(event.key)
@@ -386,19 +415,19 @@ internal fun PdfCanvas(
                             val step = if (event.isShiftPressed) 10.0 else 1.0
                             when (event.key) {
                                 androidx.compose.ui.input.key.Key.DirectionLeft -> {
-                                    vm.moveImage(-step, 0.0)
+                                    vm.moveSelected(-step, 0.0)
                                     true
                                 }
                                 androidx.compose.ui.input.key.Key.DirectionRight -> {
-                                    vm.moveImage(step, 0.0)
+                                    vm.moveSelected(step, 0.0)
                                     true
                                 }
                                 androidx.compose.ui.input.key.Key.DirectionUp -> {
-                                    vm.moveImage(0.0, -step)
+                                    vm.moveSelected(0.0, -step)
                                     true
                                 }
                                 androidx.compose.ui.input.key.Key.DirectionDown -> {
-                                    vm.moveImage(0.0, step)
+                                    vm.moveSelected(0.0, step)
                                     true
                                 }
                                 else -> false
@@ -425,14 +454,18 @@ internal fun PdfCanvas(
             // page's own fit size (no jump).
             val badgeBandHeight = PdfCanvasBadgeBandHeight
             val (width, height) = pdfCanvasPageBoxSize(maxWidth, maxHeight, page)
-            // Shared across every image below: only one drag is ever active at a time, so a
+            // Shared across every image/text below: only one drag is ever active at a time, so a
             // single pair of hoisted states is enough to draw the guide overlay/chip for whichever
-            // image is currently moving; hoisted here (not inside the images branch) so the
-            // overlay and badges drawn as siblings of the page box below can still read them.
-            var activeSnap by
+            // element is currently moving; hoisted here (not inside the elements branch) so the
+            // overlay and badges drawn as siblings of the page box below can still read them. Kept
+            // as explicit MutableState objects (not just `by remember` locals) so the same
+            // instances can also be threaded into PdfImageElement/PdfTextElement below.
+            val activeSnapState =
                 remember(page.id) { mutableStateOf<PdfSnapGuides.SnapResult?>(null) }
-            var dragOffsetMm by
+            var activeSnap by activeSnapState
+            val dragOffsetMmState =
                 remember(page.id) { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
+            var dragOffsetMm by dragOffsetMmState
             // Phase F item 3: the page box's own coordinates, captured so the drag & drop target
             // below can convert a drop's root-space position into this box's local (unscaled)
             // space regardless of the current zoom/pan graphicsLayer - windowToLocal accounts for
@@ -492,14 +525,163 @@ internal fun PdfCanvas(
                 if (page.source != null) {
                     PdfPageBitmap(page, vm, 1024, Modifier.fillMaxSize())
                 } else {
-                    if (page.images.isEmpty())
+                    if (page.images.isEmpty() && page.texts.isEmpty())
                         Text(
                             stringResource(R.string.pdf_empty),
                             Modifier.align(Alignment.Center).padding(16.dp),
                             color = PdfPaperTokens.Ink,
                         )
-                    page.images.forEachIndexed { n, i ->
-                        val imageLabel = stringResource(R.string.pdf_image_label, n + 1)
+                    // Item 2: paint order follows PdfLayers.order (images and texts interleaved
+                    // by z), so the editor's stacking always matches what the isolated PDFBox
+                    // renderer exports — including after the Layer menu moves a text above/below
+                    // an image.
+                    PdfLayers.order(page).forEach { element ->
+                        when (element) {
+                            is PdfLayers.Element.Img -> {
+                                val n = page.images.indexOfFirst { it.id == element.image.id }
+                                PdfImageElement(
+                                    page = page,
+                                    i = element.image,
+                                    n = n,
+                                    selected = selected,
+                                    vm = vm,
+                                    width = width,
+                                    height = height,
+                                    busy = busy,
+                                    snapEnabled = current.project?.snap == true,
+                                    zoom = current.zoom,
+                                    focus = focus,
+                                    activeSnap = activeSnapState,
+                                    dragOffsetMm = dragOffsetMmState,
+                                    onAdjustImage = onAdjustImage,
+                                )
+                            }
+                            is PdfLayers.Element.Txt -> {
+                                PdfTextElement(
+                                    page = page,
+                                    t = element.text,
+                                    selectedTextId = current.selectedTextId,
+                                    editingTextId = editingTextId,
+                                    onEditingTextChange = { editingTextId = it },
+                                    vm = vm,
+                                    width = width,
+                                    height = height,
+                                    busy = busy,
+                                    snapEnabled = current.project?.snap == true,
+                                    focus = focus,
+                                    activeSnap = activeSnapState,
+                                    dragOffsetMm = dragOffsetMmState,
+                                    onAdjust = onAdjustImage,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            if (activeSnap != null)
+                PdfSnapOverlay(current, density, width, page, badgeBandHeight, activeSnap)
+            // The reserved band itself: badges (with the drag measurement chip floating just
+            // above them while dragging) normally, or the contextual toolbar in their place while
+            // an image or text is selected — never over the paper, and never changing the page's
+            // fit size since the band's height is reserved unconditionally above.
+            Box(
+                Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(badgeBandHeight),
+                contentAlignment = Alignment.Center,
+            ) {
+                dragOffsetMm?.let { offset ->
+                    val project = current.project
+                    if (project != null) {
+                        val unitLabel = listOf("mm", "cm", "in", "px")[project.unit.ordinal]
+                        val factor = project.unit.factor(project.dpi)
+                        fun format(mm: Float) =
+                            "%.1f %s".format(kotlin.math.abs(mm) / factor, unitLabel)
+                        Surface(
+                            modifier = Modifier.align(Alignment.TopCenter).offset(y = (-28).dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
+                        ) {
+                            Text(
+                                stringResource(
+                                    R.string.pdf_snap_measurement,
+                                    format(offset.x),
+                                    format(offset.y),
+                                ),
+                                Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        }
+                    }
+                }
+                if (selected in page.images.indices && !busy) {
+                    PdfImageContextualToolbar(vm = vm, onReplace = onReplaceImage)
+                } else if (current.selectedTextId != null && !busy) {
+                    PdfTextContextualToolbar(
+                        vm = vm,
+                        onEdit = { editingTextId = current.selectedTextId },
+                        onStyle = onAdjustImage,
+                    )
+                } else {
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+                        val pageLabel =
+                            stringResource(
+                                R.string.pdf_page_indicator,
+                                pageIndex + 1,
+                                pageCount.coerceAtLeast(1),
+                            )
+                        Surface(
+                            modifier = Modifier.align(Alignment.CenterVertically),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
+                        ) {
+                            Text(
+                                pageLabel,
+                                Modifier.padding(horizontal = 12.dp, vertical = 6.dp).semantics {
+                                    contentDescription = pageLabel
+                                },
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        }
+                        Spacer(Modifier.weight(1f))
+                        PdfZoomBadge(
+                            zoomPercent = (current.zoom * 100).toInt(),
+                            busy = busy,
+                            onZoom = { vm.viewport(it, current.panX, current.panY) },
+                            onFit = { vm.viewport(1f, 0f, 0f) },
+                            modifier = Modifier.align(Alignment.CenterVertically),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** One selectable/draggable/resizable image element on the canvas (Phase G1b: extracted out of
+ * [PdfCanvas]'s single per-image loop so it can be interleaved with [PdfTextElement] in
+ * [PdfLayers.order] — same body as before the extraction, unchanged). */
+@Composable
+private fun PdfImageElement(
+    page: PdfPage,
+    i: PdfImage,
+    n: Int,
+    selected: Int,
+    vm: PdfStudioViewModel,
+    width: androidx.compose.ui.unit.Dp,
+    height: androidx.compose.ui.unit.Dp,
+    busy: Boolean,
+    snapEnabled: Boolean,
+    zoom: Float,
+    focus: androidx.compose.ui.focus.FocusRequester,
+    activeSnap: MutableState<PdfSnapGuides.SnapResult?>,
+    dragOffsetMm: MutableState<androidx.compose.ui.geometry.Offset?>,
+    onAdjustImage: () -> Unit,
+) {
+    var activeSnap by activeSnap
+    var dragOffsetMm by dragOffsetMm
+    run {
+        val imageLabel = stringResource(R.string.pdf_image_label, n + 1)
                         val resizeLabel = stringResource(R.string.pdf_resize_label, n + 1)
                         val adjustLabel = stringResource(R.string.pdf_adjust)
                         val imageSelected = selected == n
@@ -509,7 +691,7 @@ internal fun PdfCanvas(
                         // space one: zoomed in, guides should feel just as "sticky" in screen
                         // terms, not proportionally wider in mm.
                         val snapThresholdMm =
-                            (with(density) { 8.dp.toPx() } / (pxPerMm * current.zoom))
+                            (with(density) { 8.dp.toPx() } / (pxPerMm * zoom))
                                 .coerceIn(0.1, 50.0)
                         var delta by
                             remember(i.id, i.x, i.y) {
@@ -630,8 +812,8 @@ internal fun PdfCanvas(
                                                         candidateY,
                                                         i.width,
                                                         i.height,
-                                                        PdfSnapGuides.candidates(page, others),
-                                                        gridMm = 5.0.takeIf { current.project?.snap == true },
+                                                        PdfSnapGuides.candidatesFor(page, others, page.texts),
+                                                        gridMm = 5.0.takeIf { snapEnabled },
                                                         thresholdMm = snapThresholdMm,
                                                     )
                                                 activeSnap = null
@@ -656,8 +838,8 @@ internal fun PdfCanvas(
                                                     candidateY,
                                                     i.width,
                                                     i.height,
-                                                    PdfSnapGuides.candidates(page, others),
-                                                    gridMm = 5.0.takeIf { current.project?.snap == true },
+                                                    PdfSnapGuides.candidatesFor(page, others, page.texts),
+                                                    gridMm = 5.0.takeIf { snapEnabled },
                                                     thresholdMm = snapThresholdMm,
                                                 )
                                             dragOffsetMm =
@@ -769,119 +951,606 @@ internal fun PdfCanvas(
                                         )
                                     }
                         }
+        }
+}
+
+/** Draws the live snap-guide lines (Phase C item 5) while a drag is in progress — a vertical
+ * and/or horizontal line across the full page box wherever [activeSnap] currently guides to.
+ * Extracted out of [PdfCanvas] (Phase G1b) so its call site can sit right after the unified
+ * image/text paint loop instead of after a now-removed per-image-only loop. */
+@Composable
+private fun PdfSnapOverlay(
+    current: PdfStudioState,
+    density: androidx.compose.ui.unit.Density,
+    width: androidx.compose.ui.unit.Dp,
+    page: PdfPage,
+    badgeBandHeight: androidx.compose.ui.unit.Dp,
+    activeSnap: PdfSnapGuides.SnapResult?,
+) {
+    Canvas(
+        Modifier.fillMaxSize().graphicsLayer {
+            scaleX = current.zoom
+            scaleY = current.zoom
+            translationX = current.panX * density.density
+            translationY = current.panY * density.density
+        }
+    ) {
+        val pageBoxWidth = width.toPx()
+        val pageBoxHeight = pageBoxWidth * (page.height / page.width).toFloat()
+        val left = (this.size.width - pageBoxWidth) / 2f
+        // Matches the page box's own offset(y = -badgeBandHeight / 2).
+        val top = (this.size.height - pageBoxHeight) / 2f - badgeBandHeight.toPx() / 2f
+        activeSnap?.vertical?.let { g ->
+            val x = left + (g.position / page.width).toFloat() * pageBoxWidth
+            drawLine(
+                PdfPaperTokens.GuideOuter,
+                androidx.compose.ui.geometry.Offset(x, top),
+                androidx.compose.ui.geometry.Offset(x, top + pageBoxHeight),
+                strokeWidth = 3.dp.toPx(),
+            )
+            drawLine(
+                PdfPaperTokens.GuideInner,
+                androidx.compose.ui.geometry.Offset(x, top),
+                androidx.compose.ui.geometry.Offset(x, top + pageBoxHeight),
+                strokeWidth = 1.dp.toPx(),
+            )
+        }
+        activeSnap?.horizontal?.let { g ->
+            val y = top + (g.position / page.height).toFloat() * pageBoxHeight
+            drawLine(
+                PdfPaperTokens.GuideOuter,
+                androidx.compose.ui.geometry.Offset(left, y),
+                androidx.compose.ui.geometry.Offset(left + pageBoxWidth, y),
+                strokeWidth = 3.dp.toPx(),
+            )
+            drawLine(
+                PdfPaperTokens.GuideInner,
+                androidx.compose.ui.geometry.Offset(left, y),
+                androidx.compose.ui.geometry.Offset(left + pageBoxWidth, y),
+                strokeWidth = 1.dp.toPx(),
+            )
+        }
+    }
+}
+
+/**
+ * WYSIWYG text-layer renderer (Phase G1b): draws a [PdfText] with the exact math the isolated
+ * PDFBox exporter uses (`PdfProcessingService.drawText`) — the SAME bundled TTF (loaded here via
+ * `android.graphics.Typeface`, not Compose's own text layout), the SAME [PdfTextWrap] line-
+ * breaking, a fixed 1.2x line height and an ascent-based first baseline, the same Start/Center/End
+ * alignment. Using `Paint`/`Typeface` directly (rather than Compose's `TextMeasurer`/`Paragraph`)
+ * keeps the measured glyph widths and ascent metric coming from the exact font file the exporter
+ * embeds, instead of risking drift from Compose's own line-height/shaping defaults.
+ */
+private object PdfTextRenderer {
+    private val typefaces =
+        mutableMapOf<Pair<PdfFontFamily, PdfFontWeight>, android.graphics.Typeface>()
+
+    private fun assetName(family: PdfFontFamily, weight: PdfFontWeight) =
+        when (family to weight) {
+            PdfFontFamily.Sans to PdfFontWeight.Regular -> "fonts/NotoSans-Regular.ttf"
+            PdfFontFamily.Sans to PdfFontWeight.Bold -> "fonts/NotoSans-Bold.ttf"
+            PdfFontFamily.Serif to PdfFontWeight.Regular -> "fonts/NotoSerif-Regular.ttf"
+            PdfFontFamily.Serif to PdfFontWeight.Bold -> "fonts/NotoSerif-Bold.ttf"
+            else -> error("Unreachable: every PdfFontFamily x PdfFontWeight combination is listed above")
+        }
+
+    fun typeface(
+        context: android.content.Context,
+        family: PdfFontFamily,
+        weight: PdfFontWeight,
+    ): android.graphics.Typeface =
+        typefaces.getOrPut(family to weight) {
+            android.graphics.Typeface.createFromAsset(context.assets, assetName(family, weight))
+        }
+
+    /** [sizePt] (1/72in) to px at the canvas's own mm->px scale ([pxPerMm]) — 1pt = 25.4/72 mm,
+     * matching [PdfUnit.Inch]'s own mm-per-inch constant. */
+    fun sizePx(sizePt: Double, pxPerMm: Double): Float = (sizePt * 25.4 / 72.0 * pxPerMm).toFloat()
+
+    private fun paint(context: android.content.Context, t: PdfText, sizePxValue: Float) =
+        android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = typeface(context, t.font, t.weight)
+            textSize = sizePxValue
+            val (r, g, b) = PdfPaperTokens.rgb(t.ink)
+            color =
+                android.graphics.Color.rgb(
+                    (r * 255).toInt().coerceIn(0, 255),
+                    (g * 255).toInt().coerceIn(0, 255),
+                    (b * 255).toInt().coerceIn(0, 255),
+                )
+        }
+
+    data class TextLayout(
+        val lines: List<String>,
+        val paint: android.graphics.Paint,
+        val lineHeightPx: Float,
+        val firstBaselineY: Float,
+    )
+
+    /**
+     * Word-wraps [t]'s text to [boxWidthPx]/[boxHeightPx] with the same [PdfTextWrap] the exporter
+     * uses, plus the resolved [android.graphics.Paint] and the first line's baseline Y (px, top-
+     * down). `paint.ascent()` is negative (the distance ABOVE the baseline); the box's own top
+     * edge sits `-ascent` px above that first baseline, the same offset
+     * `PdfProcessingService.drawText`'s `boxTop - ascent` computes (its y-axis points up instead,
+     * but the magnitude is identical).
+     */
+    fun layout(
+        context: android.content.Context,
+        t: PdfText,
+        pxPerMm: Double,
+        boxWidthPx: Float,
+        boxHeightPx: Float,
+    ): TextLayout {
+        val sizePxValue = sizePx(t.sizePt, pxPerMm)
+        val paint = paint(context, t, sizePxValue)
+        fun measure(s: String) = paint.measureText(s)
+        val lineHeight = sizePxValue * 1.2f
+        val maxLines = (boxHeightPx / lineHeight).toInt().coerceAtLeast(0)
+        val lines = PdfTextWrap.wrap(t.text, boxWidthPx, maxLines, ::measure)
+        return TextLayout(lines, paint, lineHeight, -paint.ascent())
+    }
+}
+
+/** Paints [t] inside [modifier]'s bounds using [PdfTextRenderer] — the static (non-editing)
+ * WYSIWYG display of a text element. */
+@Composable
+private fun PdfTextContent(t: PdfText, pxPerMm: Double, modifier: Modifier) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    Canvas(modifier) {
+        val layout = PdfTextRenderer.layout(context, t, pxPerMm, size.width, size.height)
+        drawIntoCanvas { canvas ->
+            val native = canvas.nativeCanvas
+            native.save()
+            native.clipRect(0f, 0f, size.width, size.height)
+            var baseline = layout.firstBaselineY
+            for (line in layout.lines) {
+                val lineWidth = layout.paint.measureText(line)
+                val x =
+                    when (t.align) {
+                        PdfTextAlign.Start -> 0f
+                        PdfTextAlign.Center -> (size.width - lineWidth) / 2f
+                        PdfTextAlign.End -> size.width - lineWidth
+                    }
+                native.drawText(line, x, baseline, layout.paint)
+                baseline += layout.lineHeightPx
+            }
+            native.restore()
+        }
+    }
+}
+
+/**
+ * One selectable/draggable/resizable text element on the canvas (Phase G1b), the text-layer twin
+ * of [PdfImageElement]: the same 4 corner handles (resizing changes the box, never the font size),
+ * the same snap-guided drag (against images AND other texts — [PdfSnapGuides.candidatesFor]), tap
+ * to select, double-tap (or the "Edit" custom action) to enter inline editing
+ * ([PdfInlineTextEditor]).
+ */
+@Composable
+private fun PdfTextElement(
+    page: PdfPage,
+    t: PdfText,
+    selectedTextId: String?,
+    editingTextId: String?,
+    onEditingTextChange: (String?) -> Unit,
+    vm: PdfStudioViewModel,
+    width: androidx.compose.ui.unit.Dp,
+    height: androidx.compose.ui.unit.Dp,
+    busy: Boolean,
+    snapEnabled: Boolean,
+    focus: androidx.compose.ui.focus.FocusRequester,
+    activeSnap: MutableState<PdfSnapGuides.SnapResult?>,
+    dragOffsetMm: MutableState<androidx.compose.ui.geometry.Offset?>,
+    onAdjust: () -> Unit,
+) {
+    var activeSnap by activeSnap
+    var dragOffsetMm by dragOffsetMm
+    val isSelected = selectedTextId == t.id
+    val isEditing = editingTextId == t.id
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val pxPerMm = with(density) { width.toPx() } / page.width
+    val snapThresholdMm =
+        (with(density) { 8.dp.toPx() } / pxPerMm).coerceIn(0.1, 50.0)
+    val textLabel =
+        stringResource(R.string.pdf_text_label, t.text.take(60).replace('\n', ' '))
+    val editLabel = stringResource(R.string.pdf_edit)
+    val adjustLabel = stringResource(R.string.pdf_adjust)
+    var delta by remember(t.id, t.x, t.y) { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    var lastClickAtMs by remember(t.id) { mutableStateOf(0L) }
+    Box(
+        Modifier.absoluteOffset(
+                x = width * (t.x / page.width).toFloat(),
+                y = height * (t.y / page.height).toFloat(),
+            )
+            .size(
+                width * (t.width / page.width).toFloat(),
+                height * (t.height / page.height).toFloat(),
+            )
+            .graphicsLayer {
+                if (isSelected) {
+                    val snap = activeSnap
+                    if (snap != null) {
+                        translationX = ((snap.x - t.x) * pxPerMm).toFloat()
+                        translationY = ((snap.y - t.y) * pxPerMm).toFloat()
+                    } else {
+                        translationX = delta.x
+                        translationY = delta.y
                     }
                 }
             }
-            if (activeSnap != null)
-                Canvas(Modifier.matchParentSize().graphicsLayer {
-                    scaleX = current.zoom
-                    scaleY = current.zoom
-                    translationX = current.panX * density.density
-                    translationY = current.panY * density.density
-                }) {
-                    val pageBoxWidth = width.toPx()
-                    val pageBoxHeight = pageBoxWidth * (page.height / page.width).toFloat()
-                    val left = (this.size.width - pageBoxWidth) / 2f
-                    // Matches the page box's own offset(y = -badgeBandHeight / 2) above.
-                    val top = (this.size.height - pageBoxHeight) / 2f - badgeBandHeight.toPx() / 2f
-                    activeSnap?.vertical?.let { g ->
-                        val x = left + (g.position / page.width).toFloat() * pageBoxWidth
-                        drawLine(
-                            PdfPaperTokens.GuideOuter,
-                            androidx.compose.ui.geometry.Offset(x, top),
-                            androidx.compose.ui.geometry.Offset(x, top + pageBoxHeight),
-                            strokeWidth = 3.dp.toPx(),
-                        )
-                        drawLine(
-                            PdfPaperTokens.GuideInner,
-                            androidx.compose.ui.geometry.Offset(x, top),
-                            androidx.compose.ui.geometry.Offset(x, top + pageBoxHeight),
-                            strokeWidth = 1.dp.toPx(),
-                        )
+            .then(
+                if (isSelected && !isEditing)
+                    Modifier.drawWithContent {
+                        drawContent()
+                        // Same 21:1-contrast double stroke as the image selection outline —
+                        // editor-only, never exported.
+                        drawRect(PdfPaperTokens.GuideOuter, style = Stroke(6.dp.toPx()))
+                        drawRect(PdfPaperTokens.GuideInner, style = Stroke(2.dp.toPx()))
                     }
-                    activeSnap?.horizontal?.let { g ->
-                        val y = top + (g.position / page.height).toFloat() * pageBoxHeight
-                        drawLine(
-                            PdfPaperTokens.GuideOuter,
-                            androidx.compose.ui.geometry.Offset(left, y),
-                            androidx.compose.ui.geometry.Offset(left + pageBoxWidth, y),
-                            strokeWidth = 3.dp.toPx(),
+                else Modifier
+            )
+            .semantics {
+                contentDescription = textLabel
+                this.selected = isSelected
+                customActions =
+                    if (busy) emptyList()
+                    else
+                        listOf(
+                            CustomAccessibilityAction(editLabel) {
+                                vm.selectText(t.id)
+                                onEditingTextChange(t.id)
+                                true
+                            },
+                            CustomAccessibilityAction(adjustLabel) {
+                                vm.selectText(t.id)
+                                onAdjust()
+                                true
+                            },
                         )
-                        drawLine(
-                            PdfPaperTokens.GuideInner,
-                            androidx.compose.ui.geometry.Offset(left, y),
-                            androidx.compose.ui.geometry.Offset(left + pageBoxWidth, y),
-                            strokeWidth = 1.dp.toPx(),
-                        )
-                    }
-                }
-            // The reserved band itself: badges (with the drag measurement chip floating just
-            // above them while dragging) normally, or the contextual toolbar in their place while
-            // an image is selected — never over the paper, and never changing the page's fit size
-            // since the band's height is reserved unconditionally above.
-            Box(
-                Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(badgeBandHeight),
-                contentAlignment = Alignment.Center,
-            ) {
-                dragOffsetMm?.let { offset ->
-                    val project = current.project
-                    if (project != null) {
-                        val unitLabel = listOf("mm", "cm", "in", "px")[project.unit.ordinal]
-                        val factor = project.unit.factor(project.dpi)
-                        fun format(mm: Float) =
-                            "%.1f %s".format(kotlin.math.abs(mm) / factor, unitLabel)
-                        Surface(
-                            modifier = Modifier.align(Alignment.TopCenter).offset(y = (-28).dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
-                        ) {
-                            Text(
-                                stringResource(
-                                    R.string.pdf_snap_measurement,
-                                    format(offset.x),
-                                    format(offset.y),
-                                ),
-                                Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                style = MaterialTheme.typography.labelMedium,
+            }
+            .clickable(enabled = !busy) {
+                focus.requestFocus()
+                vm.selectText(t.id)
+                val now = android.os.SystemClock.uptimeMillis()
+                // Double-click/double-tap: select (above) + enter inline editing.
+                if (now - lastClickAtMs < 350) onEditingTextChange(t.id)
+                lastClickAtMs = now
+            }
+            .pointerInput(t.id, busy, isEditing) {
+                if (!busy && !isEditing)
+                    detectDragGestures(
+                        onDragStart = {
+                            focus.requestFocus()
+                            vm.selectText(t.id)
+                        },
+                        onDragEnd = {
+                            val move = delta
+                            delta = androidx.compose.ui.geometry.Offset.Zero
+                            val otherTexts = page.texts.filter { it.id != t.id }
+                            val candidateX = t.x + move.x / pxPerMm
+                            val candidateY = t.y + move.y / pxPerMm
+                            val result =
+                                PdfSnapGuides.resolveDrag(
+                                    candidateX,
+                                    candidateY,
+                                    t.width,
+                                    t.height,
+                                    PdfSnapGuides.candidatesFor(page, page.images, otherTexts),
+                                    gridMm = 5.0.takeIf { snapEnabled },
+                                    thresholdMm = snapThresholdMm,
+                                )
+                            activeSnap = null
+                            dragOffsetMm = null
+                            vm.moveTextTo(result.x, result.y)
+                        },
+                        onDragCancel = {
+                            delta = androidx.compose.ui.geometry.Offset.Zero
+                            activeSnap = null
+                            dragOffsetMm = null
+                        },
+                    ) { change, drag ->
+                        change.consume()
+                        delta += drag
+                        val otherTexts = page.texts.filter { it.id != t.id }
+                        val candidateX = t.x + delta.x / pxPerMm
+                        val candidateY = t.y + delta.y / pxPerMm
+                        activeSnap =
+                            PdfSnapGuides.resolveDrag(
+                                candidateX,
+                                candidateY,
+                                t.width,
+                                t.height,
+                                PdfSnapGuides.candidatesFor(page, page.images, otherTexts),
+                                gridMm = 5.0.takeIf { snapEnabled },
+                                thresholdMm = snapThresholdMm,
                             )
-                        }
-                    }
-                }
-                if (selected in page.images.indices && !busy) {
-                    PdfImageContextualToolbar(vm = vm, onReplace = onReplaceImage)
-                } else {
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
-                        val pageLabel =
-                            stringResource(
-                                R.string.pdf_page_indicator,
-                                pageIndex + 1,
-                                pageCount.coerceAtLeast(1),
+                        dragOffsetMm =
+                            androidx.compose.ui.geometry.Offset(
+                                (delta.x / pxPerMm).toFloat(),
+                                (delta.y / pxPerMm).toFloat(),
                             )
-                        Surface(
-                            modifier = Modifier.align(Alignment.CenterVertically),
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                            shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
-                        ) {
-                            Text(
-                                pageLabel,
-                                Modifier.padding(horizontal = 12.dp, vertical = 6.dp).semantics {
-                                    contentDescription = pageLabel
+                    }
+            }
+    ) {
+        if (isEditing) {
+            PdfInlineTextEditor(t, vm, pxPerMm, onDone = { onEditingTextChange(null) })
+        } else {
+            PdfTextContent(t, pxPerMm, Modifier.fillMaxSize())
+        }
+        if (isSelected && !busy && !isEditing) {
+            // Round-2 fix (item G): reuse the same PdfCornerHandle every image corner uses,
+            // instead of duplicating its drag-gesture code for this one corner — identical
+            // behavior (48dp target, same resize callback shape), just handled generically for
+            // all four corners below.
+            listOf(
+                    Triple(AbsoluteAlignment.BottomRight, PdfGeometry.Corner.BottomRight, 24.dp to 24.dp),
+                    Triple(AbsoluteAlignment.TopLeft, PdfGeometry.Corner.TopLeft, (-24).dp to (-24).dp),
+                    Triple(AbsoluteAlignment.TopRight, PdfGeometry.Corner.TopRight, 24.dp to (-24).dp),
+                    Triple(AbsoluteAlignment.BottomLeft, PdfGeometry.Corner.BottomLeft, (-24).dp to 24.dp),
+                )
+                .forEach { (cornerAlignment, corner, cornerOffset) ->
+                    PdfCornerHandle(
+                        modifier =
+                            Modifier.align(cornerAlignment)
+                                .offset(x = cornerOffset.first, y = cornerOffset.second),
+                        onResize = { dxMm, dyMm ->
+                            vm.resizeSelectedTextFromCorner(corner, dxMm, dyMm)
+                        },
+                        pxPerMm = pxPerMm,
+                    )
+                }
+        }
+    }
+}
+
+/**
+ * Inline text editor overlaid exactly over [t]'s box (Phase G1b): a [BasicTextField] using the
+ * same font/size/alignment as [PdfTextContent] so the box doesn't visibly change shape when
+ * entering/leaving edit mode. IME "Done" or losing focus (an outside tap, or selecting a different
+ * element) commits; [PdfTextSupport] validation runs before every commit and blocks it — showing
+ * an inline error instead — for an unsupported character or an empty result; Escape/system Back
+ * cancels outright, discarding the draft.
+ */
+@Composable
+private fun PdfInlineTextEditor(
+    t: PdfText,
+    vm: PdfStudioViewModel,
+    pxPerMm: Double,
+    onDone: () -> Unit,
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    var draft by
+        remember(t.id) {
+            mutableStateOf(
+                androidx.compose.ui.text.input.TextFieldValue(
+                    t.text,
+                    selection = androidx.compose.ui.text.TextRange(t.text.length),
+                )
+            )
+        }
+    var error by remember(t.id) { mutableStateOf<Int?>(null) }
+    var done by remember(t.id) { mutableStateOf(false) }
+    // Round-2 fix: onFocusChanged fires immediately on first composition with isFocused=false
+    // (nothing is focused yet — the LaunchedEffect below hasn't requested focus at that point),
+    // which used to be misread as "focus lost, commit and close" and silently closed the editor
+    // the instant it opened (confirmed on-device: the box never showed a cursor/IME). Only a
+    // "was focused, now isn't" transition means the field actually lost focus.
+    var hasFocused by remember(t.id) { mutableStateOf(false) }
+    val focusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
+
+    // Commits [draft], or sets [error] and returns false (Item 3: unsupported glyphs/empty text
+    // block the commit rather than silently failing PdfProject.validate downstream).
+    fun commit(): Boolean {
+        val text = draft.text
+        if (text.isBlank()) {
+            error = R.string.pdf_text_empty
+            return false
+        }
+        if (PdfTextSupport.check(text).isFailure) {
+            error = PdfFailure.UnsupportedGlyph.message
+            return false
+        }
+        vm.textEdit(t.id) { it.copy(text = text) }
+        return true
+    }
+
+    fun finish(commitFirst: Boolean) {
+        if (done) return
+        if (!commitFirst || commit()) {
+            done = true
+            onDone()
+        }
+    }
+
+    BackHandler(enabled = true) { finish(commitFirst = false) }
+    LaunchedEffect(t.id) { focusRequester.requestFocus() }
+
+    androidx.compose.runtime.CompositionLocalProvider(
+        androidx.compose.ui.platform.LocalLayoutDirection provides
+            androidx.compose.ui.unit.LayoutDirection.Ltr
+    ) {
+        Column(Modifier.fillMaxSize()) {
+            val sizePx = PdfTextRenderer.sizePx(t.sizePt, pxPerMm)
+            val fontFamily =
+                remember(t.font, t.weight) {
+                    androidx.compose.ui.text.font.FontFamily(
+                        androidx.compose.ui.text.font.Font(
+                            when (t.font to t.weight) {
+                                PdfFontFamily.Sans to PdfFontWeight.Regular -> "fonts/NotoSans-Regular.ttf"
+                                PdfFontFamily.Sans to PdfFontWeight.Bold -> "fonts/NotoSans-Bold.ttf"
+                                PdfFontFamily.Serif to PdfFontWeight.Regular -> "fonts/NotoSerif-Regular.ttf"
+                                else -> "fonts/NotoSerif-Bold.ttf"
+                            },
+                            context.assets,
+                        )
+                    )
+                }
+            androidx.compose.foundation.text.BasicTextField(
+                value = draft,
+                onValueChange = {
+                    draft = it
+                    error = null
+                },
+                modifier =
+                    Modifier.weight(1f)
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester)
+                        .onFocusChanged { state ->
+                            if (state.isFocused) hasFocused = true
+                            else if (hasFocused) finish(commitFirst = true)
+                        },
+                textStyle =
+                    androidx.compose.ui.text.TextStyle(
+                        color = PdfPaperTokens.compose(t.ink),
+                        fontFamily = fontFamily,
+                        fontSize = with(density) { sizePx.toSp() },
+                        lineHeight = with(density) { (sizePx * 1.2f).toSp() },
+                        textAlign =
+                            when (t.align) {
+                                PdfTextAlign.Start -> androidx.compose.ui.text.style.TextAlign.Start
+                                PdfTextAlign.Center -> androidx.compose.ui.text.style.TextAlign.Center
+                                PdfTextAlign.End -> androidx.compose.ui.text.style.TextAlign.End
+                            },
+                    ),
+                cursorBrush = androidx.compose.ui.graphics.SolidColor(PdfPaperTokens.compose(t.ink)),
+                keyboardOptions =
+                    androidx.compose.foundation.text.KeyboardOptions(
+                        imeAction = androidx.compose.ui.text.input.ImeAction.Done,
+                        capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences,
+                    ),
+                keyboardActions =
+                    androidx.compose.foundation.text.KeyboardActions(
+                        onDone = { finish(commitFirst = true) }
+                    ),
+            )
+            if (error != null)
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                ) {
+                    Text(
+                        stringResource(error!!),
+                        Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
+        }
+    }
+}
+
+/**
+ * Contextual toolbar shown above the page strip while a text is selected (Phase G1b), the text
+ * twin of [PdfImageContextualToolbar]: Edit, Style (opens the inspector), Align, Layer, Delete.
+ */
+@Composable
+internal fun PdfTextContextualToolbar(
+    vm: PdfStudioViewModel,
+    onEdit: () -> Unit,
+    onStyle: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var showAlign by remember { mutableStateOf(false) }
+    var showLayer by remember { mutableStateOf(false) }
+    Surface(
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+        tonalElevation = 3.dp,
+    ) {
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 4.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val editLabel = stringResource(R.string.pdf_edit)
+            IconButton(onClick = onEdit, modifier = Modifier.semantics { contentDescription = editLabel }) {
+                Icon(GalleryIcons.Edit, contentDescription = null)
+            }
+            val styleLabel = stringResource(R.string.pdf_text_style)
+            IconButton(onClick = onStyle, modifier = Modifier.semantics { contentDescription = styleLabel }) {
+                Icon(GalleryIcons.TextFields, contentDescription = null)
+            }
+            Box {
+                val alignLabel = stringResource(R.string.pdf_toolbar_align)
+                IconButton(
+                    onClick = { showAlign = true },
+                    modifier = Modifier.semantics { contentDescription = alignLabel },
+                ) {
+                    Icon(GalleryIcons.AlignHorizontalCenter, contentDescription = null)
+                }
+                DropdownMenu(expanded = showAlign, onDismissRequest = { showAlign = false }) {
+                    listOf(
+                            PdfGeometry.Align.Left to R.string.pdf_align_left,
+                            PdfGeometry.Align.Center to R.string.pdf_align_center,
+                            PdfGeometry.Align.Right to R.string.pdf_align_right,
+                            PdfGeometry.Align.Top to R.string.pdf_align_top,
+                            PdfGeometry.Align.Middle to R.string.pdf_align_middle,
+                            PdfGeometry.Align.Bottom to R.string.pdf_align_bottom,
+                        )
+                        .forEach { (align, label) ->
+                            DropdownMenuItem(
+                                text = { Text(stringResource(label)) },
+                                onClick = {
+                                    showAlign = false
+                                    vm.alignSelectedText(align)
                                 },
-                                style = MaterialTheme.typography.labelMedium,
                             )
                         }
-                        Spacer(Modifier.weight(1f))
-                        PdfZoomBadge(
-                            zoomPercent = (current.zoom * 100).toInt(),
-                            busy = busy,
-                            onZoom = { vm.viewport(it, current.panX, current.panY) },
-                            onFit = { vm.viewport(1f, 0f, 0f) },
-                            modifier = Modifier.align(Alignment.CenterVertically),
-                        )
-                    }
                 }
+            }
+            Box {
+                val layerLabel = stringResource(R.string.pdf_toolbar_layer)
+                IconButton(
+                    onClick = { showLayer = true },
+                    modifier = Modifier.semantics { contentDescription = layerLabel },
+                ) {
+                    Icon(GalleryIcons.Layers, contentDescription = null)
+                }
+                DropdownMenu(expanded = showLayer, onDismissRequest = { showLayer = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.pdf_layer_forward)) },
+                        onClick = {
+                            showLayer = false
+                            vm.bringSelectedForward()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.pdf_layer_backward)) },
+                        onClick = {
+                            showLayer = false
+                            vm.sendSelectedBackward()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.pdf_front)) },
+                        onClick = {
+                            showLayer = false
+                            vm.bringSelectedToFront()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.pdf_backlayer)) },
+                        onClick = {
+                            showLayer = false
+                            vm.sendSelectedToBack()
+                        },
+                    )
+                }
+            }
+            val deleteLabel = stringResource(R.string.pdf_delete_text)
+            androidx.compose.material3.FilledTonalIconButton(
+                onClick = vm::deleteSelected,
+                colors =
+                    androidx.compose.material3.IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    ),
+                modifier = Modifier.semantics { contentDescription = deleteLabel },
+            ) {
+                Icon(GalleryIcons.Trash, contentDescription = null)
             }
         }
     }

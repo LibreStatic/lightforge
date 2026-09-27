@@ -17,6 +17,10 @@ data class PdfViewport(val zoom: Float = 1f, val panX: Float = 0f, val panY: Flo
 data class PdfEditorSession(
     val pageId: String? = null,
     val imageId: String? = null,
+    /** The selected text's id (Phase G1b), mutually exclusive with [imageId]. Optional/backward-
+     * compatible like every other field added after v1: absent in a session encoded before this
+     * field existed simply decodes to no text selected. */
+    val textId: String? = null,
     val selectedPages: Set<String> = emptySet(),
     val undo: List<PdfProject> = emptyList(),
     val redo: List<PdfProject> = emptyList(),
@@ -38,6 +42,7 @@ data class PdfEditorSession(
         return copy(
             pageId = page.id,
             imageId = imageId?.takeIf { id -> page.images.any { it.id == id } },
+            textId = textId?.takeIf { id -> page.texts.any { it.id == id } },
             selectedPages = selectedPages.intersect(pageIds),
             undo = undo.filter { it.id == project.id }.takeLast(40),
             redo = redo.filter { it.id == project.id }.takeLast(40),
@@ -65,6 +70,7 @@ object PdfEditorSessionCodec {
                     put("version", 1)
                     put("page", value.pageId)
                     put("image", value.imageId)
+                    put("text", value.textId)
                     put("selected", JSONArray(value.selectedPages.sorted()))
                     put("zoom", value.zoom.toDouble())
                     put("panX", value.panX.toDouble())
@@ -147,6 +153,7 @@ object PdfEditorSessionCodec {
         return PdfEditorSession(
                 pageId = o.optString("page").takeIf { it.isNotEmpty() },
                 imageId = o.optString("image").takeIf { it.isNotEmpty() },
+                textId = o.optString("text").takeIf { it.isNotEmpty() },
                 selectedPages = List(selected.length()) { selected.getString(it) }.toSet(),
                 undo = history("undo"),
                 redo = history("redo"),

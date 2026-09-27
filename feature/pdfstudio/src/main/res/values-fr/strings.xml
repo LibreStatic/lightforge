@@ -281,4 +281,27 @@
     <string name="pdf_media_empty_body">Les photos et documents que vous ajoutez apparaîtront ici.</string>
     <string name="pdf_media_loading">Chargement des médias…</string>
     <string name="pdf_media_item_label">%1$s. Ajouter à la page actuelle</string>
+    <string name="pdf_text_placeholder">Texte</string>
+    <string name="pdf_add_text">Texte</string>
+    <string name="pdf_page_full_note">Cette page compte déjà le maximum de 24 éléments.</string>
+    <string name="pdf_text_label">Texte : %1$s</string>
+    <string name="pdf_edit">Modifier</string>
+    <string name="pdf_text_style">Style</string>
+    <string name="pdf_delete_text">Supprimer le texte</string>
+    <string name="pdf_text_empty">Le texte ne peut pas être vide.</string>
+    <string name="pdf_content">Contenu</string>
+    <string name="pdf_text_font">Police</string>
+    <string name="pdf_font_sans">Sans-serif</string>
+    <string name="pdf_font_serif">Serif</string>
+    <string name="pdf_text_bold">Gras</string>
+    <string name="pdf_text_bold_on">Gras activé</string>
+    <string name="pdf_text_bold_off">Gras désactivé</string>
+    <string name="pdf_text_size">Taille</string>
+    <string name="pdf_text_align">Alignement</string>
+    <string name="pdf_text_ink">Couleur</string>
+    <string name="pdf_ink_black">Noir</string>
+    <string name="pdf_ink_darkgray">Gris foncé</string>
+    <string name="pdf_ink_red">Rouge</string>
+    <string name="pdf_ink_blue">Bleu</string>
+    <string name="pdf_ink_green">Vert</string>
 </resources>

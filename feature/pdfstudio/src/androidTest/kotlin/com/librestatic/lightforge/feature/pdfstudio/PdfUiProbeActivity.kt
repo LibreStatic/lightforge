@@ -161,6 +161,14 @@ class PdfUiProbeActivity : ComponentActivity() {
                                 "currentPageImages",
                                 current.project?.pages?.getOrNull(current.page)?.images?.size ?: 0,
                             )
+                            // Phase G1b: lets verify_pdf_adaptive_ui.py's --text flow assert an
+                            // Insert -> Text tap actually appended a text (and undo removed it)
+                            // without a screenshot diff, mirroring currentPageImages above.
+                            .put(
+                                "currentPageTexts",
+                                current.project?.pages?.getOrNull(current.page)?.texts?.size ?: 0,
+                            )
+                            .put("selectedTextId", current.selectedTextId)
                             .toString()
                     )
             }
@@ -293,6 +301,20 @@ class PdfUiProbeActivity : ComponentActivity() {
                                         .put(
                                             "mediaThumbnail",
                                             contrast(c.surfaceContainerHighest, c.onSurfaceVariant),
+                                        )
+                                        // Phase G1b additions: the inline text editor's glyph-
+                                        // error banner (errorContainer/onErrorContainer) and the
+                                        // ink swatch's selection ring, drawn in the fixed
+                                        // print-space PdfPaperTokens.GuideOuter/GuideInner pair
+                                        // (not a Material role — see PdfPaperTokens) over each
+                                        // swatch's own PdfInk fill.
+                                        .put(
+                                            "textErrorBanner",
+                                            contrast(c.errorContainer, c.onErrorContainer),
+                                        )
+                                        .put(
+                                            "inkSwatchSelection",
+                                            contrast(Color.White, Color.Black),
                                         )
                                         .toString()
                                 )

@@ -107,4 +107,38 @@ class PdfSnapGuidesTest {
         val result = PdfSnapGuides.snap(50.6, 0.0, 40.0, 30.0, candidates)
         assertEquals(51.0, result.x, .0001)
     }
+
+    // --- Phase G1b: guiding against texts too ---
+
+    @Test
+    fun candidatesForIncludesOtherTextEdgesAndCenter() {
+        val page = PdfPage()
+        val text = PdfText(text = "x", x = 50.0, y = 60.0, width = 20.0, height = 10.0)
+        val lines = PdfSnapGuides.candidatesFor(page, emptyList(), listOf(text))
+        assertTrue(lines.any { it.orientation == PdfSnapGuides.Orientation.Vertical && it.position == 50.0 })
+        assertTrue(lines.any { it.orientation == PdfSnapGuides.Orientation.Vertical && it.position == 70.0 })
+        assertTrue(lines.any { it.orientation == PdfSnapGuides.Orientation.Horizontal && it.position == 65.0 })
+    }
+
+    @Test
+    fun candidatesForCombinesImagesAndTextsInOneList() {
+        val page = PdfPage()
+        val other = image(x = 100.0, y = 100.0)
+        val text = PdfText(text = "x", x = 20.0, y = 20.0, width = 10.0, height = 10.0)
+        val combined = PdfSnapGuides.candidatesFor(page, listOf(other), listOf(text))
+        // Same as calling candidates(page, images) plus the text-only guides, unioned.
+        val fromImagesOnly = PdfSnapGuides.candidates(page, listOf(other))
+        val textOnly = PdfSnapGuides.candidatesFor(page, emptyList(), listOf(text))
+        assertEquals((fromImagesOnly + textOnly).toSet(), combined.toSet())
+    }
+
+    @Test
+    fun candidatesDelegatesToCandidatesForWithNoTexts() {
+        val page = PdfPage()
+        val other = image(x = 12.0, y = 34.0)
+        assertEquals(
+            PdfSnapGuides.candidatesFor(page, listOf(other), emptyList()),
+            PdfSnapGuides.candidates(page, listOf(other)),
+        )
+    }
 }

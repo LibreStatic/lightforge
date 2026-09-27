@@ -491,4 +491,132 @@ class PdfModelsTest {
             assertTrue(i.x >= 10)
         }
     }
+
+    // --- Phase G1b: selection generalization and text-box geometry ---
+
+    @Test
+    fun elementRefDistinguishesImageAndText() {
+        val byIndex: PdfElementRef = PdfElementRef.Image(2)
+        val byId: PdfElementRef = PdfElementRef.Text("abc")
+        assertEquals(2, (byIndex as PdfElementRef.Image).index)
+        assertEquals("abc", (byId as PdfElementRef.Text).id)
+        assertNotEquals(byIndex, byId)
+    }
+
+    @Test
+    fun elementIdReadsEitherKindByItsOwnId() {
+        val image = image()
+        val text = PdfText(text = "hi")
+        assertEquals(image.id, PdfLayers.elementId(PdfLayers.Element.Img(image)))
+        assertEquals(text.id, PdfLayers.elementId(PdfLayers.Element.Txt(text)))
+    }
+
+    @Test
+    fun withZOnlyChangesTheMatchingElementRegardlessOfKind() {
+        val a = image().copy(z = 0)
+        val b = PdfText(text = "b", z = 1)
+        val page = PdfPage(images = listOf(a), texts = listOf(b))
+        val bumped = PdfLayers.withZ(page, a.id, 9)
+        assertEquals(9, bumped.images.single().z)
+        assertEquals(1, bumped.texts.single().z) // untouched
+        val bumpedText = PdfLayers.withZ(page, b.id, 9)
+        assertEquals(0, bumpedText.images.single().z) // untouched
+        assertEquals(9, bumpedText.texts.single().z)
+        // No matching id: a no-op.
+        assertEquals(page, PdfLayers.withZ(page, "missing", 5))
+    }
+
+    @Test
+    fun constrainTextToPageScalesDownOnlyWhenNeededAndClampsPosition() {
+        val page = PdfPage(width = 210.0, height = 297.0)
+        val fits = PdfText(text = "x", x = 300.0, y = 300.0, width = 50.0, height = 20.0)
+        val clamped = PdfGeometry.constrainTextToPage(fits, page)
+        assertEquals(50.0, clamped.width, .0001) // no upscale/downscale needed
+        assertTrue(clamped.x + clamped.width <= page.width + .0001)
+        assertTrue(clamped.y + clamped.height <= page.height + .0001)
+        val tooWide = PdfText(text = "x", width = 5000.0, height = 20.0)
+        val scaled = PdfGeometry.constrainTextToPage(tooWide, page)
+        assertTrue(scaled.width <= page.width + .0001)
+    }
+
+    @Test
+    fun resizeTextFromCornerKeepsTheOppositeCornerFixed() {
+        val page = PdfPage(width = 210.0, height = 297.0)
+        val t = PdfText(text = "x", x = 50.0, y = 50.0, width = 40.0, height = 20.0)
+        val resized = PdfGeometry.resizeTextFromCorner(t, page, PdfGeometry.Corner.BottomRight, 10.0, 5.0)
+        // Anchor (top-left) unchanged; box grows to the right/down.
+        assertEquals(50.0, resized.x, .0001)
+        assertEquals(50.0, resized.y, .0001)
+        assertEquals(50.0, resized.width, .0001)
+        assertEquals(25.0, resized.height, .0001)
+        val resizedTopLeft =
+            PdfGeometry.resizeTextFromCorner(t, page, PdfGeometry.Corner.TopLeft, -10.0, -5.0)
+        // Anchor (bottom-right) unchanged: right edge stays at 90, bottom edge stays at 70.
+        assertEquals(90.0, resizedTopLeft.x + resizedTopLeft.width, .0001)
+        assertEquals(70.0, resizedTopLeft.y + resizedTopLeft.height, .0001)
+    }
+
+    // --- Phase G1b round 2 fix (item C): layer ops must have a visible effect on tied z's ---
+
+    @Test
+    fun normalizeZReordersTwoImagesTiedAtZeroBringForward() {
+        val a = image().copy(z = 0)
+        val b = image().copy(z = 0)
+        val page = PdfPage(images = listOf(a, b))
+        // "Bring a forward" (a is behind b at index 0): the naive swap-two-z-values approach is a
+        // no-op here since both start at z=0 - normalizeZ must still produce a's front.
+        val reordered = PdfLayers.normalizeZ(page, listOf(b.id, a.id))
+        val order = PdfLayers.order(reordered).map { PdfLayers.elementId(it) }
+        assertEquals(listOf(b.id, a.id), order)
+        // Strictly increasing z per position, not just "any values that happen to sort right".
+        val zById = reordered.images.associateBy({ it.id }, { it.z })
+        assertTrue(zById.getValue(b.id) < zById.getValue(a.id))
+    }
+
+    @Test
+    fun normalizeZReordersATiedImageAndText() {
+        val image = image().copy(z = 0)
+        val text = PdfText(text = "t", z = 0)
+        val page = PdfPage(images = listOf(image), texts = listOf(text))
+        val bringTextForward = PdfLayers.normalizeZ(page, listOf(image.id, text.id))
+        assertEquals(
+            listOf(image.id, text.id),
+            PdfLayers.order(bringTextForward).map { PdfLayers.elementId(it) },
+        )
+        val bringImageForward = PdfLayers.normalizeZ(page, listOf(text.id, image.id))
+        assertEquals(
+            listOf(text.id, image.id),
+            PdfLayers.order(bringImageForward).map { PdfLayers.elementId(it) },
+        )
+    }
+
+    @Test
+    fun normalizeZSendsAnElementToFrontOrBackAmongTies() {
+        val a = image().copy(z = 0)
+        val b = image().copy(z = 0)
+        val c = image().copy(z = 0)
+        val page = PdfPage(images = listOf(a, b, c))
+        val toFront = PdfLayers.normalizeZ(page, listOf(b.id, c.id, a.id)) // a moved to the end
+        assertEquals(
+            listOf(b.id, c.id, a.id),
+            PdfLayers.order(toFront).map { PdfLayers.elementId(it) },
+        )
+        val toBack = PdfLayers.normalizeZ(page, listOf(c.id, a.id, b.id)) // c moved to the start
+        assertEquals(
+            listOf(c.id, a.id, b.id),
+            PdfLayers.order(toBack).map { PdfLayers.elementId(it) },
+        )
+    }
+
+    @Test
+    fun alignTextMatchesImageAlignSemantics() {
+        val page = PdfPage(width = 210.0, height = 297.0, margin = 10.0)
+        val t = PdfText(text = "x", x = 50.0, y = 50.0, width = 40.0, height = 20.0)
+        val left = PdfGeometry.alignText(t, page, PdfGeometry.Align.Left)
+        assertEquals(page.margin, left.x, .0001)
+        val right = PdfGeometry.alignText(t, page, PdfGeometry.Align.Right)
+        assertEquals(page.width - page.margin - t.width, right.x, .0001)
+        val centered = PdfGeometry.alignText(t, page, PdfGeometry.Align.Center)
+        assertEquals((page.width - t.width) / 2, centered.x, .0001)
+    }
 }

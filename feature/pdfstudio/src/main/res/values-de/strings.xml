@@ -281,4 +281,27 @@
     <string name="pdf_media_empty_body">Hinzugefügte Fotos und Dokumente werden hier angezeigt.</string>
     <string name="pdf_media_loading">Medien werden geladen…</string>
     <string name="pdf_media_item_label">%1$s. Zur aktuellen Seite hinzufügen</string>
+    <string name="pdf_text_placeholder">Text</string>
+    <string name="pdf_add_text">Text</string>
+    <string name="pdf_page_full_note">Diese Seite hat bereits die maximal 24 Elemente.</string>
+    <string name="pdf_text_label">Text: %1$s</string>
+    <string name="pdf_edit">Bearbeiten</string>
+    <string name="pdf_text_style">Stil</string>
+    <string name="pdf_delete_text">Text löschen</string>
+    <string name="pdf_text_empty">Der Text darf nicht leer sein.</string>
+    <string name="pdf_content">Inhalt</string>
+    <string name="pdf_text_font">Schriftart</string>
+    <string name="pdf_font_sans">Sans</string>
+    <string name="pdf_font_serif">Serif</string>
+    <string name="pdf_text_bold">Fett</string>
+    <string name="pdf_text_bold_on">Fett aktiviert</string>
+    <string name="pdf_text_bold_off">Fett deaktiviert</string>
+    <string name="pdf_text_size">Größe</string>
+    <string name="pdf_text_align">Ausrichtung</string>
+    <string name="pdf_text_ink">Farbe</string>
+    <string name="pdf_ink_black">Schwarz</string>
+    <string name="pdf_ink_darkgray">Dunkelgrau</string>
+    <string name="pdf_ink_red">Rot</string>
+    <string name="pdf_ink_blue">Blau</string>
+    <string name="pdf_ink_green">Grün</string>
 </resources>

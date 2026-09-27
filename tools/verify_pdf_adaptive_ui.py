@@ -2,7 +2,7 @@
 """Exercise the real PDF screen in constrained native parents; never modify device settings."""
 import argparse, json, re, subprocess, time, xml.etree.ElementTree as ET
 from pathlib import Path
-p=argparse.ArgumentParser();p.add_argument('--serial',required=True);p.add_argument('--output',required=True);p.add_argument('--dynamic',action='store_true');p.add_argument('--folds',action='store_true');p.add_argument('--media',action='store_true');args=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--serial',required=True);p.add_argument('--output',required=True);p.add_argument('--dynamic',action='store_true');p.add_argument('--folds',action='store_true');p.add_argument('--media',action='store_true');p.add_argument('--text',action='store_true');args=p.parse_args()
 out=Path(args.output);out.mkdir(parents=True,exist_ok=True)
 b=['rtk','proxy','adb','-s',args.serial];pkg='com.librestatic.lightforge.feature.pdfstudio.test'
 def adb(*a): return subprocess.check_output(b+list(a),timeout=45)
@@ -25,6 +25,9 @@ def dump():
         except (subprocess.CalledProcessError,ET.ParseError):time.sleep(.3)
     raise AssertionError('No accessibility tree')
 def bounds(node): return list(map(int,re.findall(r'\d+',node.get('bounds'))))
+def any_focused_edittext():
+    root,_=dump()
+    return any(n.get('class')=='android.widget.EditText' and n.get('focused')=='true' for n in root.iter('node'))
 def node_for(root,label):
     nodes=[n for n in root.iter('node') if n.get('text')==label or n.get('content-desc')==label]
     assert nodes, 'Missing accessible control: '+label
@@ -238,9 +241,87 @@ if args.media:
     media_result=dict(case=name,chipsLabeled=True,tilesLabeledAndSized=True,tapAppendsImage=True,undoRemovesImage=True)
     print('MEDIA CASE PASS: '+json.dumps(media_result,sort_keys=True),flush=True)
     cleanup()
+text_results=[]
+if args.text:
+    # Phase G1b: Insert -> Text on both a compact (360dp, bottom-sheet Insert panel) and an
+    # expanded (840dp, always-visible inspector Insert section) width - add a text, type a
+    # Latin/diacritic/Greek probe string (all within the bundled fonts' cmap - PdfTextSupport),
+    # commit it via an outside tap (clears focus - PdfInlineTextEditor's onFocusChanged then
+    # commits), assert the page gains a text (currentPageTexts, mirroring --media's
+    # currentPageImages), then undo removes it. Also checks the two new contrast keys the inline
+    # editor's glyph-error banner and the ink swatch's selection ring need.
+    for width,height in ((840,640),(360,640)):
+        name=f'text-{width}x{height}'
+        shell('run-as',pkg,'rm','-f','files/pdf-ui-state.json')
+        subprocess.run(b+['shell','run-as',pkg,'tee','files/pdf-ui-config.json'],input=json.dumps(dict(width=width,font=1,locale='en')).encode(),stdout=subprocess.DEVNULL,check=True)
+        shell('am','start','-W','-n',pkg+'/com.librestatic.lightforge.feature.pdfstudio.PdfUiProbeActivity',
+              '--ei','width',str(width),'--ei','height',str(height),'--ef','font','1','--es','locale','en',
+              '--ez','dark','false','--ez','rtl','false','--ez','dynamic',str(args.dynamic).lower())
+        baseline=wait_ready();time.sleep(.5);ls=labels('en')
+        before=baseline.get('currentPageTexts',0)
+        root=None
+        for _ in range(20):
+            root=snap(name)
+            if any(n.get('content-desc')==ls['pdf_canvas_label'] for n in root.iter('node')):break
+            time.sleep(.5)
+        canvas=bounds(node_for(root,ls['pdf_canvas_label']))
+        # Compact (<840dp): Insert lives in the bottom tool bar's own sheet; expanded (>=840dp):
+        # it's always visible in the inspector column - no tab/sheet to open first.
+        if width<840:tap(ls['pdf_insert'])
+        tap(ls['pdf_add_text'])
+        # Insert -> Text selects the new text and opens it straight into inline editing with the
+        # placeholder fully typed and the cursor at its end; clear it one DEL per character, then
+        # type the probe string (Latin + diacritic + Greek, all within the bundled fonts' cmap).
+        # A few extra presses beyond the placeholder's own length are harmless (DEL on an already-
+        # empty field no-ops) and cheaper than risking a dropped keyevent leaving a stray character.
+        for _ in range(len(ls['pdf_text_placeholder'])+3):shell('input','keyevent','67')
+        # ASCII only (round-2 fix, item H): `adb shell input text` exits 255 on non-ASCII (Greek
+        # Ελλάδα failed on-device) - no AOSP IME-agnostic way to inject it reliably from this
+        # script, so the probe stays within what `input text` actually supports.
+        probe_text='Hola Lightforge'
+        shell('input','text',probe_text.replace(' ','%s'))
+        time.sleep(.3)
+        # Commit via an outside tap (not Enter, which would insert a newline in this multi-line
+        # field, and not Escape/back, which cancels). NOT canvas[0]+15,canvas[1]+15 - the fixture
+        # page already has an image sitting right at the page's own top-left corner (10mm margin),
+        # so that point used to land ON the image (selecting it) rather than empty background.
+        # canvas[1]+150 clears the image's bottom edge (it only reaches roughly the first ~70px)
+        # while staying above the new text's own default vertical center.
+        tx,ty=canvas[0]+15,canvas[1]+150
+        for _ in range(10):
+            shell('input','tap',str(tx),str(ty));time.sleep(.5)
+            if not any_focused_edittext():break
+        assert not any_focused_edittext(),'inline editor never lost focus (commit did not fire)'
+        for _ in range(30):
+            if state().get('currentPageTexts',0)==before+1:break
+            time.sleep(.2)
+        assert state()['currentPageTexts']==before+1,state()
+        # Evidence: the committed, selected text (handles + contextual toolbar) - reviewed
+        # visually (rendering, no handle/toolbar overlap, light-theme contrast).
+        snap(name+'-committed')
+        theme=json.loads(shell('run-as',pkg,'cat','files/pdf-ui-theme.json'))
+        assert theme['textErrorBanner']>=4.5,(name,theme)
+        assert theme['inkSwatchSelection']>=3,(name,theme)
+        # Two undo steps were pushed (round-2 fix, item H): addText (placeholder text appended)
+        # and the inline editor's own commit (placeholder -> probe_text), each a separate undo
+        # transaction. The first Undo only reverts the CONTENT commit - the text element is still
+        # there, just back to its placeholder - so the count must stay before+1 after it; a
+        # second Undo then removes the element itself, back to `before`.
+        tap(ls['pdf_undo'])
+        time.sleep(.3)
+        assert state()['currentPageTexts']==before+1,state()
+        tap(ls['pdf_undo'])
+        for _ in range(30):
+            if state().get('currentPageTexts',0)==before:break
+            time.sleep(.2)
+        assert state()['currentPageTexts']==before,state()
+        row=dict(case=name,textAdded=True,contentCommitted=True,contentUndoKeepsElement=True,secondUndoRemovesText=True)
+        text_results.append(row);print('TEXT CASE PASS: '+json.dumps(row,sort_keys=True),flush=True)
+        cleanup()
 assert device_settings()==settings_before, 'Device settings changed'
 (out/'device-settings.json').write_text(json.dumps(settings_before,indent=2)+'\n')
 (out/'results.json').write_text(json.dumps(results,indent=2)+'\n')
 if args.folds:(out/'fold-results.json').write_text(json.dumps(fold_results,indent=2)+'\n')
 if args.media and media_result:(out/'media-result.json').write_text(json.dumps(media_result,indent=2)+'\n')
-print(f'ADAPTIVE UI PASS: {len(cases)} native parent configurations; accessible actions; title edit/undo; page add/undo; '+('dynamic' if args.dynamic else 'static')+' light/dark contrast; fixture projects removed; device settings unchanged'+(f'; {len(fold_results)} synthetic-fold cases' if args.folds else '')+('; media panel exercised' if args.media else ''))
+if args.text and text_results:(out/'text-results.json').write_text(json.dumps(text_results,indent=2)+'\n')
+print(f'ADAPTIVE UI PASS: {len(cases)} native parent configurations; accessible actions; title edit/undo; page add/undo; '+('dynamic' if args.dynamic else 'static')+' light/dark contrast; fixture projects removed; device settings unchanged'+(f'; {len(fold_results)} synthetic-fold cases' if args.folds else '')+('; media panel exercised' if args.media else '')+(f'; {len(text_results)} text-layer cases' if args.text else ''))
