@@ -141,6 +141,11 @@ def pdf():
     queued=wait(lambda s:any(j['phase']!='Ready' and not j['portable'] for j in s['jobs']))
     if not args.baseline:assert all(j['compact'] for j in queued['jobs'] if not j['portable'])
     wait(lambda s:any(j['verified'] and not j['portable'] for j in s['jobs']))
+    # Phase B item 6: reaching Published pops the "PDF saved" sheet (Open/Share/Done); dismiss it
+    # with Done so the editor is the frontmost thing again for the steps that follow.
+    if not args.baseline and visible('PDF saved'):
+        snap('export-saved-sheet')
+        tap('Done')
 run(3,'native-pdf-saved',pdf)
 def portable():
     editor();tap('Insert');tap('Download project')
