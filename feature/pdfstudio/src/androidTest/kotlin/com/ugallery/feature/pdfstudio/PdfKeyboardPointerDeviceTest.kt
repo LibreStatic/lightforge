@@ -122,7 +122,11 @@ class PdfKeyboardPointerDeviceTest {
             val originalPid = android.os.Process.myPid()
             val imageLabel = originalActivity.getString(R.string.pdf_image_label, 1)
             val resizeLabel = originalActivity.getString(R.string.pdf_resize_label, 1)
-            val saveLabel = originalActivity.getString(R.string.pdf_save)
+            // The top bar's Undo action is always visible/focusable once there is undo history;
+            // the removed manual Save button no longer exists (autosave covers persistence, and
+            // the top bar subtitle/state.saveState report it) so this now exercises real Tab
+            // traversal reaching an actionable control instead of activating a Save button.
+            val undoLabel = originalActivity.getString(R.string.pdf_undo)
             // Pointer selection itself must expose the resize handle; no fixture-side selectImage.
             var imageBounds = findBounds(imageLabel)
             stylus(imageBounds.centerX().toFloat(), imageBounds.centerY().toFloat())
@@ -158,24 +162,23 @@ class PdfKeyboardPointerDeviceTest {
             awaitPersisted(repo, id, nudged)
             evidence.put("nudgedAndRedone", geometry(nudged))
             record("keyboard-nudge-undo-redo-persisted")
-            // TAB only moves focus: Enter is admitted solely on the actual focused Save control.
+            // TAB only moves focus; Undo is always reachable once there is undo history.
             var tabs = 0
-            while (!focusedSave(saveLabel) && tabs < 80) {
+            while (!focusedControl(undoLabel) && tabs < 80) {
                 key(KeyEvent.KEYCODE_TAB); tabs++; delay(40)
             }
-            check(focusedSave(saveLabel)) { "Real Tab traversal did not reach Save" }
+            check(focusedControl(undoLabel)) { "Real Tab traversal did not reach Undo" }
             evidence.put("tabCountBeforeEnter", tabs).put("focusedNodesBeforeEnter", JSONArray(windowNodes().filter { it.isFocused }.map { node ->
                 JSONObject().put("text", node.text?.toString()).put("description", node.contentDescription?.toString())
                     .put("bounds", Rect().also(node::getBoundsInScreen).flattenToString())
                     .put("descendantText", JSONArray(nodes(node).mapNotNull { it.text?.toString() }))
             }))
             evidence.put("geometryAfterTab", geometry(state(launched).project!!.pages.single().images.single()))
-            record("focused-save-before-enter")
+            record("focused-undo-before-autosave")
             assertEquals("Tab navigation without text edits must preserve exact image geometry", nudged, state(launched).project!!.pages.single().images.single())
-            key(KeyEvent.KEYCODE_ENTER)
-            record("enter-dispatched-waiting-save")
-            waitFor { !state(launched).busy && state(launched).message == R.string.pdf_savedlocal }
-            record("save-message-observed")
+            // Autosave (not a manual Save action) persists the nudge; wait for it to settle.
+            waitFor { !state(launched).busy && state(launched).saveState == PdfSaveState.Saved }
+            record("autosave-observed-saved")
             awaitPersisted(repo, id, nudged)
             launched.onActivity {
                 assertSame(originalActivity, it); assertEquals(originalTask, it.taskId)
@@ -293,7 +296,7 @@ class PdfKeyboardPointerDeviceTest {
         }
         return requireNotNull(found)
     }
-    private fun focusedSave(label: String): Boolean = windowNodes().any { node ->
+    private fun focusedControl(label: String): Boolean = windowNodes().any { node ->
         node.isFocused && node.isEnabled && node.isClickable && nodes(node).any { it.text?.toString() == label }
     }
     private fun key(code: Int, meta: Int = 0) {

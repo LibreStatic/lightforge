@@ -110,4 +110,14 @@
     <string name="pdf_gallery_source">Elemento selezionato %1$d</string>
     <string name="pdf_gallery_source_rejected">Elemento selezionato %1$d, non aggiunto</string>
     <string name="pdf_failure_interrupted">Il processore PDF si è riavviato durante l’operazione. Le esportazioni riprendono automaticamente; per le altre azioni, riprova.</string>
+    <string name="pdf_export">Esporta</string>
+    <string name="pdf_savestate_saving">Salvataggio…</string>
+    <string name="pdf_savestate_saved">Salvato · adesso</string>
+    <string name="pdf_savestate_error">Salvataggio non riuscito</string>
+    <string name="pdf_duplicateproject">Duplica progetto</string>
+    <string name="pdf_deleteproject_action">Elimina progetto</string>
+    <plurals name="pdf_delete_pages_action">
+        <item quantity="one">Elimina pagina</item>
+        <item quantity="other">Elimina %1$d pagine</item>
+    </plurals>
 </resources>

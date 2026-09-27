@@ -110,4 +110,14 @@
     <string name="pdf_gallery_source">Selected item %1$d</string>
     <string name="pdf_gallery_source_rejected">Selected item %1$d, not added</string>
     <string name="pdf_failure_interrupted">The PDF processor restarted while this was running. Exports resume automatically; for other actions, try again.</string>
+    <string name="pdf_export">Export</string>
+    <string name="pdf_savestate_saving">Saving…</string>
+    <string name="pdf_savestate_saved">Saved · just now</string>
+    <string name="pdf_savestate_error">Couldn't save</string>
+    <string name="pdf_duplicateproject">Duplicate project</string>
+    <string name="pdf_deleteproject_action">Delete project</string>
+    <plurals name="pdf_delete_pages_action">
+        <item quantity="one">Delete page</item>
+        <item quantity="other">Delete %1$d pages</item>
+    </plurals>
 </resources>

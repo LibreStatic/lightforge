@@ -101,17 +101,20 @@ def create():
 run(1,'native-import',create)
 def edit():
     tap('Pages');tap('Duplicate page');wait(lambda s:s['pages']==2)
-    editor();tap('Project actions');tap('Undo');wait(lambda s:s['pages']==1)
-    tap('Project actions');tap('Redo');wait(lambda s:s['pages']==2)
+    # Undo/Redo are top-bar icon buttons now (no longer behind the overflow menu), and there is no
+    # manual Save action any more: autosave persists every edit, reported by the top bar subtitle.
+    editor();tap('Undo');wait(lambda s:s['pages']==1)
+    tap('Redo');wait(lambda s:s['pages']==2)
     if not args.baseline:
-        tap('Project actions');tap('Save');wait(lambda s:not s['busy'])
-        assert visible('Saved on this device')
+        wait(lambda s:not s['busy'])
+        assert visible('Saved · just now')
 run(2,'duplicate-undo-redo',edit)
 def pdf():
     jobs=[j for j in marker('state')['jobs'] if not j['portable']]
     if jobs and jobs[0]['verified']:return
     if not jobs:
-        if not visible('Compact'):tap('Project actions');tap('Export PDF')
+        # Export is a filled top-bar action now, not an overflow item.
+        if not visible('Compact'):tap('Export')
         snap('quality-dialog')
         if args.baseline:
             switches=[n for n in dump()[0].iter('node') if n.get('checkable')=='true']

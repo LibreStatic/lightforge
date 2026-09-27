@@ -85,16 +85,18 @@ for width,height,font,locale,dark,rtl in cases:
     assert theme['outline']>=3,theme
     assert theme['dynamic']==args.dynamic
     (out/(name+'-theme.json')).write_text(json.dumps(theme,indent=2)+'\n')
-    # Overflow remains reachable even at maximum text scale and with RTL parent direction.
-    tap(ls['pdf_project_actions']);menu=snap(name+'-menu');node_for(menu,ls['pdf_pdfexport']);node_for(menu,ls['pdf_queue'])
+    # Export is a filled top-bar action now; the overflow only holds the less frequent actions.
+    assert visible(ls['pdf_export'])
+    tap(ls['pdf_project_actions']);menu=snap(name+'-menu');node_for(menu,ls['pdf_queue']);node_for(menu,ls['pdf_portable'])
     tap(ls['pdf_project_details']);details=snap(name+'-details');node_for(details,ls['pdf_name'])
-    # Edit actual title, then undo through actual overflow; reopening must reflect restored state.
+    # Edit actual title, then undo through the top bar's own Undo button; reopening must reflect
+    # the restored state.
     edit=[n for n in details.iter('node') if n.get('class')=='android.widget.EditText'][0]
     x,y,r,d=bounds(edit);shell('input','tap',str((x+r)//2),str((y+d)//2));time.sleep(.5);shell('input','keyevent','123');time.sleep(.2);shell('input','text','X');time.sleep(.4)
     edited=state()['name']
     assert edited!=initial['name'] and edited.replace('X','',1)==initial['name'],state()
     dismiss_to_editor(ls['pdf_project_actions'])
-    tap(ls['pdf_project_actions']);tap(ls['pdf_undo']);assert state()['name']==initial['name'],state()
+    tap(ls['pdf_undo']);assert state()['name']==initial['name'],state()
     if any(n.get('class')=='android.widget.EditText' for n in root.iter('node')):
         editor=snap(name+'-undo-editor')
         assert any(n.get('text')==initial['name'] for n in editor.iter('node') if n.get('class')=='android.widget.EditText'), 'Inline title did not follow undo'
@@ -108,7 +110,7 @@ for width,height,font,locale,dark,rtl in cases:
         tap('Drag handle')
     tap(ls['pdf_addpage']);assert state()['pages']==2,state()
     dismiss_to_editor(ls['pdf_project_actions'])
-    tap(ls['pdf_project_actions']);tap(ls['pdf_undo']);assert state()['pages']==1,state()
+    tap(ls['pdf_undo']);assert state()['pages']==1,state()
     row=dict(physicalCoordinates=True,pageAddUndo=True,case=name,canvasHeightDp=round(canvas_dp,2),titleUndo=True,actionsReachable=True,semanticContrast=True)
     results.append(row);print('UI CASE PASS: '+json.dumps(row,sort_keys=True),flush=True)
     cleanup()

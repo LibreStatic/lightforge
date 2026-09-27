@@ -136,6 +136,23 @@ class PdfUiProbeActivity : ComponentActivity() {
                                             "paperSelectionPrimary",
                                             contrast(Color.White, c.primary),
                                         )
+                                        // Phase A additions: top bar surface, the snackbar's
+                                        // inverse surface, issue cards (secondary/error
+                                        // container) and the selected bottom-bar tool.
+                                        .put("topBar", contrast(c.background, c.onSurface))
+                                        .put("snackbar", contrast(c.inverseSurface, c.inverseOnSurface))
+                                        .put(
+                                            "issueCard",
+                                            contrast(c.secondaryContainer, c.onSecondaryContainer),
+                                        )
+                                        .put(
+                                            "issueCardError",
+                                            contrast(c.errorContainer, c.onErrorContainer),
+                                        )
+                                        .put(
+                                            "selectedTool",
+                                            contrast(c.secondaryContainer, c.onSecondaryContainer),
+                                        )
                                         .toString()
                                 )
                         }

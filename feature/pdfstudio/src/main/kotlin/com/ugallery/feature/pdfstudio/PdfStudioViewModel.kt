@@ -6,11 +6,25 @@ import androidx.lifecycle.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
+enum class PdfSaveState {
+    Idle,
+    Saving,
+    Saved,
+    Error,
+}
+
 data class PdfStudioState(
     val project: PdfProject? = null,
     val page: Int = 0,
     val image: Int = -1,
+    /** An operation is running: internal serialization guard, also drives the busy/progress row. */
     val busy: Boolean = false,
+    /**
+     * A project-mutating operation is running (open/delete/duplicate/new project/import commit).
+     * Only this subset of `busy` disables Back, navigation, viewing/zoom and editing; background
+     * work such as export queueing or gallery intake keeps the editor usable.
+     */
+    val editorLocked: Boolean = false,
     val progress: Pair<Int, Int>? = null,
     val message: Int? = null,
     val sourceError: Int? = null,
@@ -22,7 +36,12 @@ data class PdfStudioState(
     val zoom: Float = 1f,
     val panX: Float = 0f,
     val panY: Float = 0f,
-)
+    val saveState: PdfSaveState = PdfSaveState.Idle,
+) {
+    /** Busy purely from background work (export queueing, gallery retry/discard, autosave). */
+    val backgroundBusy: Boolean
+        get() = busy && !editorLocked
+}
 
 class PdfStudioViewModel(application: Application, private val saved: SavedStateHandle) :
     AndroidViewModel(application) {
@@ -83,11 +102,25 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         }
     }
 
-    private fun operation(block: suspend () -> Unit) {
+    /**
+     * @param lock whether this operation is project-mutating (open/delete/duplicate/new
+     *   project/import commit) and must disable Back, navigation, viewing/zoom and editing while
+     *   it runs. Background work (export queueing, gallery retry/discard, cancel) passes false so
+     *   the editor stays usable; only `busy`/the progress row reflect it.
+     */
+    private fun operation(lock: Boolean = true, block: suspend () -> Unit) {
         if (mutable.value.busy) return
         task =
             viewModelScope.launch {
-                mutable.update { it.copy(busy = true, message = null, sourceError = null, readyExport = null) }
+                mutable.update {
+                    it.copy(
+                        busy = true,
+                        editorLocked = lock,
+                        message = null,
+                        sourceError = null,
+                        readyExport = null,
+                    )
+                }
                 try {
                     block()
                 } catch (e: CancellationException) {
@@ -95,7 +128,7 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
                 } catch (e: Exception) {
                     reportFailure(e)
                 } finally {
-                    mutable.update { it.copy(busy = false, progress = null) }
+                    mutable.update { it.copy(busy = false, editorLocked = false, progress = null) }
                     if (viewModelScope.isActive) {
                         resumeImport()
                         resumeGallery()
@@ -251,15 +284,19 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         val project = mutable.value.project ?: return
         val editor = session()
         autosave?.cancel()
+        mutable.update { it.copy(saveState = PdfSaveState.Saving) }
         autosave =
             viewModelScope.launch {
                 delay(400)
                 try {
                     repository.save(project, editor)
+                    mutable.update { it.copy(saveState = PdfSaveState.Saved) }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    mutable.update { it.copy(message = R.string.pdf_saveerror) }
+                    mutable.update {
+                        it.copy(message = R.string.pdf_saveerror, saveState = PdfSaveState.Error)
+                    }
                 }
             }
     }
@@ -273,6 +310,7 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
             PdfStudioState(
                 project = p,
                 busy = previous.busy,
+                editorLocked = previous.editorLocked,
                 message = previous.message,
                 sourceError = previous.sourceError,
             )
@@ -298,7 +336,7 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
 
     fun update(transform: (PdfProject) -> PdfProject) {
         val old = mutable.value.project ?: return
-        if (mutable.value.busy) return
+        if (mutable.value.editorLocked) return
         runCatching { transform(old).validate() }
             .onSuccess { next ->
                 if (next == old) return@onSuccess
@@ -329,18 +367,18 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
     }
 
     fun undo() {
-        if (undo.isEmpty() || mutable.value.busy) return
+        if (undo.isEmpty() || mutable.value.editorLocked) return
         redo.addLast(requireNotNull(mutable.value.project))
         apply(undo.removeLast())
     }
 
     fun redo() {
-        if (redo.isEmpty() || mutable.value.busy) return
+        if (redo.isEmpty() || mutable.value.editorLocked) return
         undo.addLast(requireNotNull(mutable.value.project))
         apply(redo.removeLast())
     }
 
-    fun save() = operation {
+    fun save() = operation(lock = false) {
         autosave?.cancelAndJoin()
         persistCurrent()
         mutable.update { it.copy(message = R.string.pdf_savedlocal) }
@@ -348,20 +386,20 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
 
     fun selectPage(n: Int) {
         val p = mutable.value.project ?: return
-        if (mutable.value.busy || n !in p.pages.indices) return
+        if (mutable.value.editorLocked || n !in p.pages.indices) return
         mutable.update { it.copy(page = n, image = -1, zoom = 1f, panX = 0f, panY = 0f) }
         scheduleSave()
     }
 
     fun selectImage(n: Int) {
         val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
-        if (mutable.value.busy || n !in -1..page.images.lastIndex) return
+        if (mutable.value.editorLocked || n !in -1..page.images.lastIndex) return
         mutable.update { it.copy(image = n) }
         scheduleSave()
     }
 
     fun selectExportPage(id: String, selected: Boolean) {
-        if (mutable.value.busy || mutable.value.project?.pages?.none { it.id == id } != false)
+        if (mutable.value.editorLocked || mutable.value.project?.pages?.none { it.id == id } != false)
             return
         mutable.update {
             it.copy(selectedPages = if (selected) it.selectedPages + id else it.selectedPages - id)
@@ -370,7 +408,7 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
     }
 
     fun viewport(zoom: Float, panX: Float, panY: Float) {
-        if (mutable.value.busy || !listOf(zoom, panX, panY).all { it.isFinite() }) return
+        if (!listOf(zoom, panX, panY).all { it.isFinite() }) return
         mutable.update {
             it.copy(
                 zoom = zoom.coerceIn(.5f, 4f),
@@ -557,7 +595,7 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         }
     }
 
-    fun prepareExport(compact: Boolean, onlySelected: Boolean) = operation {
+    fun prepareExport(compact: Boolean, onlySelected: Boolean) = operation(lock = false) {
         val s = mutable.value
         var p = requireNotNull(s.project)
         autosave?.cancelAndJoin()
@@ -596,16 +634,16 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         }
     }
 
-    fun cancelExport(id: String) = operation { exportQueue.cancel(id) }
+    fun cancelExport(id: String) = operation(lock = false) { exportQueue.cancel(id) }
 
-    fun keepExportDestination(id: String) = operation { exportQueue.keepDestination(id) }
+    fun keepExportDestination(id: String) = operation(lock = false) { exportQueue.keepDestination(id) }
 
-    fun retryExport(id: String) = operation {
+    fun retryExport(id: String) = operation(lock = false) {
         exportQueue.retry(id)
         watchedExport = id
     }
 
-    fun removeExport(id: String) = operation { exportQueue.remove(id) }
+    fun removeExport(id: String) = operation(lock = false) { exportQueue.remove(id) }
 
     internal fun beginPublication(id: String): PublishStart =
         publishPicker.begin(id).also { if (it is PublishStart.Launch) watchedExport = id }
@@ -673,7 +711,7 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
             }
     }
 
-    fun portable() = operation {
+    fun portable() = operation(lock = false) {
         val p = requireNotNull(mutable.value.project)
         autosave?.cancelAndJoin()
         persistCurrent()
