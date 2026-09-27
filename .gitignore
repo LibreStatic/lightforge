@@ -32,3 +32,9 @@ docs/evidence/**/model-tools/
 docs/evidence/**/pet-tools/
 docs/evidence/**/maps-fixture/
 docs/evidence/**/maps-renderer-ab/
+
+# Local E2E/device evidence runs: large (APKs, corpora, device dumps), kept out of git.
+# Curated evidence under generated/ and the M0 spike report stay tracked.
+docs/evidence/*
+!docs/evidence/generated/
+!docs/evidence/M0_SPIKE_REPORT.md
