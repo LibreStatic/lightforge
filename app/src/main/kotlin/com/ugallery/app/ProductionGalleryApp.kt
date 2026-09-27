@@ -1094,6 +1094,13 @@ internal fun ProductionGalleryApp(
         } else handleBack()
     }
 
+    // Back from a secondary root tab returns to Photos first, per Material navigation guidance.
+    BackHandler(
+        enabled = renderedRoute == SurfaceRoute.Root && !showDetails && selectionCount == 0L && rootTab != RootTab.Photos,
+    ) {
+        rootTab = RootTab.Photos
+    }
+
     val musicPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             runCatching {
