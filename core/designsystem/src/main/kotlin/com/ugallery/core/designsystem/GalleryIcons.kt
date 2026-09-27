@@ -48,6 +48,10 @@ import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.FitScreen
 import androidx.compose.material.icons.rounded.OpenInFull
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Error
+import androidx.compose.material.icons.rounded.History
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -108,6 +112,10 @@ val GalleryIconNotifications: ImageVector get() = Icons.Rounded.Notifications
 val GalleryIconLayers: ImageVector get() = Icons.Rounded.Layers
 val GalleryIconFitScreen: ImageVector get() = Icons.Rounded.FitScreen
 val GalleryIconResize: ImageVector get() = Icons.Rounded.OpenInFull
+val GalleryIconOpenInNew: ImageVector get() = Icons.AutoMirrored.Rounded.OpenInNew
+val GalleryIconCheckCircle: ImageVector get() = Icons.Rounded.CheckCircle
+val GalleryIconError: ImageVector get() = Icons.Rounded.Error
+val GalleryIconHistory: ImageVector get() = Icons.Rounded.History
 
 /**
  * Standard gallery icon composable with Material 3 defaults:
@@ -184,4 +192,8 @@ object GalleryIcons {
     val Layers get() = GalleryIconLayers
     val FitScreen get() = GalleryIconFitScreen
     val Resize get() = GalleryIconResize
+    val OpenInNew get() = GalleryIconOpenInNew
+    val CheckCircle get() = GalleryIconCheckCircle
+    val Error get() = GalleryIconError
+    val History get() = GalleryIconHistory
 }

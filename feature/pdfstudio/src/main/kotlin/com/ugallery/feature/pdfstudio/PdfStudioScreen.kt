@@ -19,6 +19,23 @@ import androidx.compose.ui.unit.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 
+/**
+ * `CreateDocument` with an optional `EXTRA_INITIAL_URI` hint, so the destination-first export
+ * picker (Phase B) opens near the last place the user saved a PDF instead of always starting at
+ * the provider's default root.
+ */
+private class PdfCreateDocumentWithHint(private val hint: () -> android.net.Uri?) :
+    ActivityResultContracts.CreateDocument("application/pdf") {
+    override fun createIntent(context: android.content.Context, input: String): android.content.Intent {
+        val intent = super.createIntent(context, input)
+        hint()?.let { intent.putExtra(android.provider.DocumentsContract.EXTRA_INITIAL_URI, it) }
+        return intent
+    }
+}
+
+private fun ensurePdfSuffix(name: String): String =
+    if (name.endsWith(".pdf", ignoreCase = true)) name else "$name.pdf"
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun PdfStudioScreen(
@@ -36,6 +53,7 @@ fun PdfStudioScreen(
     val initialName = stringResource(R.string.pdf_untitled)
     val fallbackRequestId = rememberSaveable(initialUris) { newId() }
     val galleryRows by vm.galleryDeliveries.collectAsStateWithLifecycle()
+    val lastDestinationLabel by vm.lastDestinationLabel.collectAsStateWithLifecycle()
     var intakeAttempt by rememberSaveable(initialRequestId) { mutableIntStateOf(0) }
     var intakeFailed by rememberSaveable(initialRequestId) { mutableStateOf(false) }
     val consumeInitial by rememberUpdatedState(onInitialUrisConsumed)
@@ -79,6 +97,29 @@ fun PdfStudioScreen(
             saveInFlight = false
             vm.publicationResult(it)
         }
+    val newExportPdf =
+        rememberLauncherForActivityResult(
+            remember { PdfCreateDocumentWithHint { vm.lastDestinationUriOrNull() } }
+        ) {
+            saveInFlight = false
+            vm.publicationResult(it)
+        }
+    fun startNewExport(filename: String, pagesChoice: PdfExportPagesChoice, compact: Boolean) {
+        var start = vm.beginNewExport(pagesChoice, compact)
+        if (start is PublishStart.AlreadyPending) start = vm.restartNewExport(pagesChoice, compact)
+        when (start) {
+            is PublishStart.Launch -> {
+                saveInFlight = true
+                try {
+                    newExportPdf.launch(ensurePdfSuffix(filename))
+                } catch (e: Exception) {
+                    saveInFlight = false
+                    vm.publicationLaunchFailed(e)
+                }
+            }
+            is PublishStart.AlreadyPending -> vm.publicationBusy()
+        }
+    }
     fun saveExport(job: PdfExportJob) {
         var start = vm.beginPublication(job.id)
         if (start is PublishStart.AlreadyPending) start = vm.restartPublication(job.id)
@@ -211,15 +252,20 @@ fun PdfStudioScreen(
                 onSave = ::saveExport,
             )
         }
-    if (exporting)
-        PdfExportDialog(
-            hasSelectedPages = state.selectedPages.isNotEmpty(),
+    if (exporting && project != null)
+        PdfExportSheet(
+            project = project,
+            currentPageId = project.pages.getOrNull(state.page)?.id,
+            selectedPageIds = state.selectedPages,
+            defaultFilename = project.name,
+            lastDestinationLabel = lastDestinationLabel,
+            onEstimate = { choice, compact -> vm.estimateExportBytes(choice, compact) },
             onDismiss = { exporting = false },
-        ) { compact, selectedOnly ->
-            exporting = false
-            vm.prepareExport(compact, selectedOnly)
-            showQueue = true
-        }
+            onExport = { filename, pagesChoice, compact ->
+                exporting = false
+                startNewExport(filename, pagesChoice, compact)
+            },
+        )
     if (deletePages) {
         val count = state.selectedPages.size.coerceAtLeast(1)
         val label =

@@ -64,6 +64,14 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
     internal val publishPicker = PdfPublishPicker(saved)
     val pendingPublication = publishPicker.pending
     private var publishing: Job? = null
+    private val exportDraftStore = PdfExportDraftStore(saved)
+    private val lastDestinationStore = PdfLastDestinationStore(application)
+    private val mutableLastDestinationLabel = MutableStateFlow<String?>(null)
+    /** "Save to: <label>" text for the export sheet's destination row, refreshed on demand. */
+    val lastDestinationLabel = mutableLastDestinationLabel.asStateFlow()
+
+    /** Seeds `DocumentsContract.EXTRA_INITIAL_URI` so the next picker opens near the last one. */
+    internal fun lastDestinationUriOrNull(): Uri? = lastDestinationStore.lastDestination
     internal val importPicker = PdfImportPicker(saved)
     val pendingImport = importPicker.pending
     private var activeImport: String? = null
@@ -90,6 +98,7 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
 
     init {
         saved.get<String>("projectId")?.let { open(it) }
+        refreshLastDestinationLabel()
         resumePublication()
         resumeImport()
         viewModelScope.launch { galleryIntake.deliveries.collect { resumeGallery() } }
@@ -706,6 +715,9 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         mutable.update { it.copy(message = R.string.pdf_publish_busy) }
     }
 
+    /** No app on the device can handle Open/Share for a published PDF; say so instead of crashing. */
+    fun reportOpenFailed() = mutable.update { it.copy(message = R.string.pdf_export_open_failed) }
+
     /** Dismiss the current banner. Explicit user action, never a timeout. */
     fun dismissMessage() {
         mutable.update { it.copy(message = null, sourceError = null, readyExport = null) }
@@ -739,9 +751,21 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         publishing =
             viewModelScope.launch {
                 try {
-                    val existing = requireNotNull(exportQueue.get(request.first))
-                    if (existing.destination != uri)
-                        exportQueue.publish(request.first, Uri.parse(uri))
+                    if (isDraftPickerId(request.first)) {
+                        val draft = exportDraftStore.take()
+                        val snapshot = draft?.let { buildDraftSnapshot(it) }
+                        if (draft != null && snapshot != null) {
+                            watchedExport =
+                                exportQueue.enqueue(snapshot, draft.compact, destination = Uri.parse(uri)).id
+                            mutable.update { it.copy(message = R.string.pdf_queue_added) }
+                            rememberDestination(Uri.parse(uri))
+                        }
+                    } else {
+                        val existing = requireNotNull(exportQueue.get(request.first))
+                        if (existing.destination != uri)
+                            exportQueue.publish(request.first, Uri.parse(uri))
+                        rememberDestination(Uri.parse(uri))
+                    }
                     // A matching durable row already owns the result, even after worker failure.
                     publishPicker.acknowledge(request)
                 } catch (e: CancellationException) {
@@ -751,6 +775,81 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
                     publishPicker.acknowledge(request)
                 }
             }
+    }
+
+    /** The project a not-yet-rendered [draft] should export, honoring any edits made since. */
+    private suspend fun buildDraftSnapshot(draft: PdfExportDraft): PdfProject? {
+        val current = mutable.value.project
+        val base = if (current?.id == draft.projectId) current else repository.load(draft.projectId)
+        val project = base ?: return null
+        if (draft.pagesChoice == PdfExportPagesChoice.All) return project
+        val filtered = project.copy(pages = project.pages.filter { it.id in draft.pageIds })
+        return if (filtered.pages.isEmpty()) project else filtered
+    }
+
+    private fun rememberDestination(uri: Uri) {
+        lastDestinationStore.lastDestination = uri
+        refreshLastDestinationLabel()
+    }
+
+    private fun refreshLastDestinationLabel() {
+        val uri = lastDestinationStore.lastDestination ?: return
+        viewModelScope.launch {
+            val fallback = getApplication<Application>().getString(R.string.pdf_export_destination_default)
+            mutableLastDestinationLabel.value = resolveDestinationLabel(getApplication(), uri, fallback)
+        }
+    }
+
+    /** Off-main-thread "≈ size" figure for the export sheet's Original/Compact cards. */
+    internal suspend fun estimateExportBytes(pagesChoice: PdfExportPagesChoice, compact: Boolean): Long =
+        withContext(Dispatchers.IO) {
+            val project = mutable.value.project ?: return@withContext 0L
+            val snapshot =
+                when (pagesChoice) {
+                    PdfExportPagesChoice.All -> project
+                    PdfExportPagesChoice.Current ->
+                        project.copy(
+                            pages = listOfNotNull(project.pages.getOrNull(mutable.value.page))
+                        )
+                    PdfExportPagesChoice.Selected ->
+                        project.copy(pages = project.pages.filter { it.id in mutable.value.selectedPages })
+                }
+            if (snapshot.pages.isEmpty()) return@withContext 0L
+            val sourceBytes = snapshot.usedAssets().associateWith { repository.file(it).length() }
+            PdfExportEstimator.estimate(snapshot, sourceBytes, compact = compact)
+        }
+
+    /**
+     * Starts the destination-first export flow: records what to export as a draft (surviving
+     * process death the same way [PdfPublishPicker] does) and asks the picker to launch
+     * `CreateDocument`. The actual snapshot and [PdfExportQueue.enqueue] call happen once the
+     * picker delivers a URI, in [resumePublication].
+     */
+    internal fun beginNewExport(pagesChoice: PdfExportPagesChoice, compact: Boolean): PublishStart {
+        val project = requireNotNull(mutable.value.project)
+        val pageIds =
+            when (pagesChoice) {
+                PdfExportPagesChoice.All -> emptyList()
+                PdfExportPagesChoice.Current ->
+                    listOfNotNull(project.pages.getOrNull(mutable.value.page)?.id)
+                PdfExportPagesChoice.Selected -> mutable.value.selectedPages.toList()
+            }
+        val id = draftPickerId()
+        val decision = publishPicker.begin(id)
+        if (decision is PublishStart.Launch)
+            exportDraftStore.put(PdfExportDraft(project.id, compact, pagesChoice, pageIds))
+        return decision
+    }
+
+    /** Mirrors [restartPublication] for a not-yet-rendered draft: drop a stale request, try again. */
+    internal fun restartNewExport(pagesChoice: PdfExportPagesChoice, compact: Boolean): PublishStart {
+        if (publishing?.isActive == true)
+            return publishPicker.request?.let(PublishStart::AlreadyPending)
+                ?: PublishStart.AlreadyPending(draftPickerId() to null)
+        publishPicker.discard()
+        exportDraftStore.discard()
+        mutable.update { it.copy(message = R.string.pdf_publish_restarted) }
+        return beginNewExport(pagesChoice, compact)
     }
 
     fun portable() = operation(lock = false) {

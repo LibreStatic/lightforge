@@ -120,4 +120,25 @@
         <item quantity="one">Supprimer la page</item>
         <item quantity="other">Supprimer %1$d pages</item>
     </plurals>
+    <string name="pdf_export_filename">Nom du fichier</string>
+    <string name="pdf_export_filename_invalid">Saisissez un nom de fichier.</string>
+    <string name="pdf_export_pages_current">Page actuelle</string>
+    <string name="pdf_export_pages_selected_helper">Sélectionnez des pages pour n\'exporter que celles-ci.</string>
+    <string name="pdf_export_size_estimate">≈ %1$s</string>
+    <string name="pdf_export_size_calculating">Calcul en cours…</string>
+    <string name="pdf_export_summary">%1$s · %2$s · %3$d dpi</string>
+    <string name="pdf_export_portrait">Portrait</string>
+    <string name="pdf_export_landscape">Paysage</string>
+    <string name="pdf_export_square">Carré</string>
+    <string name="pdf_export_destination_label">Enregistrer dans : %1$s</string>
+    <string name="pdf_export_destination_change">Modifier</string>
+    <string name="pdf_export_destination_default">Dernier emplacement utilisé</string>
+    <string name="pdf_export_warning_oversized">Trop volumineux pour la qualité Originale sans redimensionner : %1$s</string>
+    <string name="pdf_export_use_compact">Utiliser Compacte</string>
+    <string name="pdf_share">Partager</string>
+    <string name="pdf_export_choose_another">Choisir un autre emplacement</string>
+    <string name="pdf_export_clear_finished">Effacer les éléments terminés</string>
+    <string name="pdf_export_today">Aujourd\'hui</string>
+    <string name="pdf_export_earlier">Plus tôt</string>
+    <string name="pdf_export_open_failed">Aucune application de cet appareil ne peut ouvrir ou partager ce fichier.</string>
 </resources>

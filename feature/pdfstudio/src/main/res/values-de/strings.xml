@@ -120,4 +120,25 @@
         <item quantity="one">Seite löschen</item>
         <item quantity="other">%1$d Seiten löschen</item>
     </plurals>
+    <string name="pdf_export_filename">Dateiname</string>
+    <string name="pdf_export_filename_invalid">Gib einen Dateinamen ein.</string>
+    <string name="pdf_export_pages_current">Aktuelle Seite</string>
+    <string name="pdf_export_pages_selected_helper">Wähle zuerst Seiten aus, um nur diese zu exportieren.</string>
+    <string name="pdf_export_size_estimate">≈ %1$s</string>
+    <string name="pdf_export_size_calculating">Wird berechnet…</string>
+    <string name="pdf_export_summary">%1$s · %2$s · %3$d dpi</string>
+    <string name="pdf_export_portrait">Hochformat</string>
+    <string name="pdf_export_landscape">Querformat</string>
+    <string name="pdf_export_square">Quadratisch</string>
+    <string name="pdf_export_destination_label">Speichern unter: %1$s</string>
+    <string name="pdf_export_destination_change">Ändern</string>
+    <string name="pdf_export_destination_default">Zuletzt verwendeter Ort</string>
+    <string name="pdf_export_warning_oversized">Zu groß für Originalqualität ohne Skalierung: %1$s</string>
+    <string name="pdf_export_use_compact">Kompakt verwenden</string>
+    <string name="pdf_share">Teilen</string>
+    <string name="pdf_export_choose_another">Anderen Ort wählen</string>
+    <string name="pdf_export_clear_finished">Abgeschlossene löschen</string>
+    <string name="pdf_export_today">Heute</string>
+    <string name="pdf_export_earlier">Früher</string>
+    <string name="pdf_export_open_failed">Keine App auf diesem Gerät kann diese Datei öffnen oder teilen.</string>
 </resources>

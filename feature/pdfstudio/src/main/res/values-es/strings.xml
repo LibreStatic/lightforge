@@ -120,4 +120,25 @@
         <item quantity="one">Eliminar página</item>
         <item quantity="other">Eliminar %1$d páginas</item>
     </plurals>
+    <string name="pdf_export_filename">Nombre del archivo</string>
+    <string name="pdf_export_filename_invalid">Escribe un nombre de archivo.</string>
+    <string name="pdf_export_pages_current">Página actual</string>
+    <string name="pdf_export_pages_selected_helper">Selecciona páginas primero para exportar solo esas.</string>
+    <string name="pdf_export_size_estimate">≈ %1$s</string>
+    <string name="pdf_export_size_calculating">Calculando…</string>
+    <string name="pdf_export_summary">%1$s · %2$s · %3$d dpi</string>
+    <string name="pdf_export_portrait">Vertical</string>
+    <string name="pdf_export_landscape">Horizontal</string>
+    <string name="pdf_export_square">Cuadrado</string>
+    <string name="pdf_export_destination_label">Guardar en: %1$s</string>
+    <string name="pdf_export_destination_change">Cambiar</string>
+    <string name="pdf_export_destination_default">Última ubicación usada</string>
+    <string name="pdf_export_warning_oversized">Demasiado grande para calidad Original sin cambiar el tamaño: %1$s</string>
+    <string name="pdf_export_use_compact">Usar Compacta</string>
+    <string name="pdf_share">Compartir</string>
+    <string name="pdf_export_choose_another">Elegir otra ubicación</string>
+    <string name="pdf_export_clear_finished">Limpiar finalizados</string>
+    <string name="pdf_export_today">Hoy</string>
+    <string name="pdf_export_earlier">Anteriores</string>
+    <string name="pdf_export_open_failed">Ninguna app de este dispositivo puede abrir o compartir este archivo.</string>
 </resources>

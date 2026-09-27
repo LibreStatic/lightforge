@@ -120,4 +120,25 @@
         <item quantity="one">Delete page</item>
         <item quantity="other">Delete %1$d pages</item>
     </plurals>
+    <string name="pdf_export_filename">File name</string>
+    <string name="pdf_export_filename_invalid">Enter a file name.</string>
+    <string name="pdf_export_pages_current">Current page</string>
+    <string name="pdf_export_pages_selected_helper">Select pages first to export only those.</string>
+    <string name="pdf_export_size_estimate">≈ %1$s</string>
+    <string name="pdf_export_size_calculating">Calculating…</string>
+    <string name="pdf_export_summary">%1$s · %2$s · %3$d dpi</string>
+    <string name="pdf_export_portrait">Portrait</string>
+    <string name="pdf_export_landscape">Landscape</string>
+    <string name="pdf_export_square">Square</string>
+    <string name="pdf_export_destination_label">Save to: %1$s</string>
+    <string name="pdf_export_destination_change">Change</string>
+    <string name="pdf_export_destination_default">Last used location</string>
+    <string name="pdf_export_warning_oversized">Too large for Original quality without resizing: %1$s</string>
+    <string name="pdf_export_use_compact">Use Compact</string>
+    <string name="pdf_share">Share</string>
+    <string name="pdf_export_choose_another">Choose another location</string>
+    <string name="pdf_export_clear_finished">Clear finished</string>
+    <string name="pdf_export_today">Today</string>
+    <string name="pdf_export_earlier">Earlier</string>
+    <string name="pdf_export_open_failed">No app on this device can open or share this file.</string>
 </resources>
