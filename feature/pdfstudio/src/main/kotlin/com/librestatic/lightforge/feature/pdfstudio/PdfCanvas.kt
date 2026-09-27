@@ -1183,11 +1183,18 @@ private fun PdfTextElement(
             .then(
                 if (isSelected && !isEditing)
                     Modifier.drawWithContent {
-                        drawContent()
                         // Same 21:1-contrast double stroke as the image selection outline —
-                        // editor-only, never exported.
-                        drawRect(PdfPaperTokens.GuideOuter, style = Stroke(6.dp.toPx()))
-                        drawRect(PdfPaperTokens.GuideInner, style = Stroke(2.dp.toPx()))
+                        // editor-only, never exported — but centered 3dp OUTSIDE the box: a
+                        // stroke centered on the edge would hide the top of the first line,
+                        // which sits flush against the box's top edge.
+                        val out = 3.dp.toPx()
+                        val topLeft = androidx.compose.ui.geometry.Offset(-out, -out)
+                        val outlined =
+                            androidx.compose.ui.geometry.Size(size.width + 2 * out, size.height + 2 * out)
+                        drawRect(PdfPaperTokens.GuideOuter, topLeft, outlined, style = Stroke(6.dp.toPx()))
+                        drawRect(PdfPaperTokens.GuideInner, topLeft, outlined, style = Stroke(2.dp.toPx()))
+                        // Drawn before the content so the corner handles (children) stay on top.
+                        drawContent()
                     }
                 else Modifier
             )
