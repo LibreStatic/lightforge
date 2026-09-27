@@ -265,7 +265,7 @@ fun CollectionsContent(
     action("collage", collageLabel ?: stringResource(R.string.collection_layout_collage), stringResource(R.string.collections_collage_body),
         GalleryIcons.Collections, onCollageClick.takeIf { collageLabel != null })
     action("cleanup", stringResource(R.string.cleanup_title), stringResource(R.string.cleanup_collection_body),
-        GalleryIcons.Trash, onCleanupClick, "collections-cleanup")
+        GalleryIcons.Cleanup, onCleanupClick, "collections-cleanup")
     action("local-analysis", stringResource(R.string.collections_local_analysis), stringResource(R.string.collections_local_analysis_body), GalleryIcons.Analyze, onLocalAnalysisClick)
     val labels = mapOf(
         "documents" to stringResource(R.string.documents_title), "people" to stringResource(R.string.collections_people),

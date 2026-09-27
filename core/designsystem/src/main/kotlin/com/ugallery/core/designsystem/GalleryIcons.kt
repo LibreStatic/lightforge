@@ -34,6 +34,7 @@ import androidx.compose.material.icons.rounded.PhotoCamera
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Speed
@@ -83,6 +84,7 @@ val GalleryIconPalette: ImageVector get() = Icons.Rounded.Palette
 val GalleryIconLock: ImageVector get() = Icons.Rounded.Lock
 val GalleryIconUser: ImageVector get() = Icons.Rounded.Person
 val GalleryIconSettings: ImageVector get() = Icons.Rounded.Settings
+val GalleryIconCleanup: ImageVector get() = Icons.Rounded.CleaningServices
 val GalleryIconPet: ImageVector get() = Icons.Rounded.Pets
 val GalleryIconWarning: ImageVector get() = Icons.Rounded.Warning
 val GalleryIconImage: ImageVector get() = Icons.Rounded.Image
@@ -155,6 +157,7 @@ object GalleryIcons {
     val Lock get() = GalleryIconLock
     val User get() = GalleryIconUser
     val Settings get() = GalleryIconSettings
+    val Cleanup get() = GalleryIconCleanup
     val Pet get() = GalleryIconPet
     val Warning get() = GalleryIconWarning
     val Image get() = GalleryIconImage
