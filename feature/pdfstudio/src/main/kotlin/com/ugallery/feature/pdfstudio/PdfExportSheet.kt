@@ -171,18 +171,21 @@ internal fun PdfExportSheet(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    // Never claim a "last used" location before one exists: a first export
+                    // says the destination is chosen next, in the system picker.
                     Text(
-                        stringResource(
-                            R.string.pdf_export_destination_label,
-                            lastDestinationLabel ?: stringResource(R.string.pdf_export_destination_default),
-                        ),
+                        lastDestinationLabel?.let {
+                            stringResource(R.string.pdf_export_destination_label, it)
+                        } ?: stringResource(R.string.pdf_export_destination_choose),
                         modifier = Modifier.weight(1f),
                     )
-                    TextButton(
-                        onClick = { onExport(filename.trim(), pagesChoice, compact) },
-                        enabled = filenameValid,
-                    ) {
-                        Text(stringResource(R.string.pdf_export_destination_change))
+                    if (lastDestinationLabel != null) {
+                        TextButton(
+                            onClick = { onExport(filename.trim(), pagesChoice, compact) },
+                            enabled = filenameValid,
+                        ) {
+                            Text(stringResource(R.string.pdf_export_destination_change))
+                        }
                     }
                 }
                 Spacer(Modifier.height(4.dp))

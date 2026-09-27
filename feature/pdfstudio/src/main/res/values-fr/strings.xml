@@ -133,6 +133,7 @@
     <string name="pdf_export_destination_label">Enregistrer dans : %1$s</string>
     <string name="pdf_export_destination_change">Modifier</string>
     <string name="pdf_export_destination_default">Dernier emplacement utilisé</string>
+    <string name="pdf_export_destination_choose">Vous choisirez ensuite où l\'enregistrer</string>
     <string name="pdf_export_warning_oversized">Trop volumineux pour la qualité Originale sans redimensionner : %1$s</string>
     <string name="pdf_export_use_compact">Utiliser Compacte</string>
     <string name="pdf_share">Partager</string>

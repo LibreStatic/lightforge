@@ -133,6 +133,7 @@
     <string name="pdf_export_destination_label">Speichern unter: %1$s</string>
     <string name="pdf_export_destination_change">Ändern</string>
     <string name="pdf_export_destination_default">Zuletzt verwendeter Ort</string>
+    <string name="pdf_export_destination_choose">Als Nächstes wählst du den Speicherort</string>
     <string name="pdf_export_warning_oversized">Zu groß für Originalqualität ohne Skalierung: %1$s</string>
     <string name="pdf_export_use_compact">Kompakt verwenden</string>
     <string name="pdf_share">Teilen</string>
