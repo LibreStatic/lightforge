@@ -116,7 +116,7 @@ class CreationGifPublicationJournalDeviceTest {
             }); fail("Callback must fail") } catch (_: IllegalStateException) { }
             assertNotNull(output); assertEquals(1, callbacks)
             val recovered = f.engine.reconcile(f.session); assertEquals(CreationGifPublicationStatus.Published, recovered.status)
-            assertEquals(f.order, recovered.receipt!!.order); assertEquals(1, recovered.receipt!!.secondsPerFrame)
+            assertEquals(f.order, recovered.receipt!!.order); assertEquals(1, recovered.receipt!!.frameTiming)
             assertEquals(f.request.sources.map { it.identity }, recovered.receipt!!.sourceIdentities)
             assertEquals(f.order.map { originals[it] }, recovered.receipt!!.sourceSha256)
             val marker = File(f.root, "journal/${f.session}.bin").readBytes()

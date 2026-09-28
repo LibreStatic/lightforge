@@ -50,7 +50,7 @@ object CreationGifCommitProbe {
             check(arm.length() == 6 && arm.getInt("version") == 1 && arm.getString("fixtureUuid") == fixture && arm.getString("phase") == "ARMED")
             check(strings("sourceIdentities") == receipt.sourceIdentities && receipt.order.map { strings("sourceSha256")[it] } == receipt.sourceSha256 && strings("sourceNames") == names.map { it[0] })
             check(UUID.fromString(receipt.sessionId).toString() == receipt.sessionId && UUID.fromString(receipt.token).toString() == receipt.token)
-            check(receipt.phase.name == "Published" && receipt.order == listOf(1, 0) && receipt.secondsPerFrame == 4)
+            check(receipt.phase.name == "Published" && receipt.order == listOf(1, 0) && receipt.frameTiming == 4)
             val destination = checkNotNull(receipt.destination)
             val recovery = CreationGifExporter(context).reconcile(receipt.sessionId)
             check(recovery.status.name == "Published" && recovery.receipt == receipt && recovery.resultUri == destination.uri)

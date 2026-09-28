@@ -42,7 +42,7 @@ fun CreationGifContent(sessionId: String, title: String, sources: List<CreationG
     val export by controller.state.collectAsState()
     LaunchedEffect(sessionId, identity) { controller.bind(sessionId, sources) }
     var order by rememberSaveable(sessionId, stateSaver = listSaver(save = { it }, restore = { it })) { mutableStateOf(sources.indices.toList()) }
-    var seconds by rememberSaveable(sessionId) { mutableIntStateOf(2) }
+    var seconds by rememberSaveable(sessionId) { mutableIntStateOf(GifFrameTiming.Default) }
     var current by rememberSaveable(sessionId) { mutableIntStateOf(0) }
     var notified by rememberSaveable(sessionId) { mutableStateOf<String?>(null) }
     var playing by remember(sessionId) { mutableStateOf(false) }
@@ -73,7 +73,7 @@ fun CreationGifContent(sessionId: String, title: String, sources: List<CreationG
         export.receipt?.let { receipt ->
             if (receipt.sessionId == sessionId && receipt.sourceIdentities == identity) {
                 order = receipt.order
-                seconds = receipt.secondsPerFrame
+                seconds = receipt.frameTiming
                 current = current.coerceIn(0, order.lastIndex)
                 playing = false
             }
@@ -88,7 +88,8 @@ fun CreationGifContent(sessionId: String, title: String, sources: List<CreationG
     LaunchedEffect(valid) { if (!valid) { playing = false; controller.cancelAndWait() } }
     LaunchedEffect(playing, seconds, order) {
         while (playing && valid) {
-            delay(seconds * 1000L)
+            // Same per-frame delays the exported file uses, so the preview matches its pacing.
+            delay(GifFrameTiming.delaysMillis(seconds, current + 1)[current].toLong())
             // STOP updates playing even when background composition has not cancelled this effect.
             if (!playing || !valid) break
             current = (current + 1) % order.size
@@ -171,9 +172,23 @@ fun CreationGifContent(sessionId: String, title: String, sources: List<CreationG
                 }
                 Text(stringResource(R.string.creation_gif_duration))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    (1..5).forEach { value -> FilterChip(selected = seconds == value, onClick = { seconds = value }, enabled = editable,
+                    GifFrameTiming.SecondChoices.forEach { value -> FilterChip(selected = seconds == value, onClick = { seconds = value }, enabled = editable,
                         label = { Text(stringResource(R.string.creation_gif_seconds, value)) }, modifier = Modifier.testTag("creation-gif-seconds-$value")) }
                 }
+                Text(stringResource(R.string.creation_gif_frame_rate))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    GifFrameTiming.FpsChoices.forEach { fps ->
+                        val code = GifFrameTiming.fps(fps)
+                        FilterChip(selected = seconds == code, onClick = { seconds = code }, enabled = editable,
+                            label = { Text(stringResource(R.string.creation_gif_fps, fps)) }, modifier = Modifier.testTag("creation-gif-fps-$fps"))
+                    }
+                }
+                val requestedFps = GifFrameTiming.fpsOf(seconds)
+                if (requestedFps != null && requestedFps > GifFrameTiming.MaxReliableFps) Text(
+                    stringResource(R.string.creation_gif_fps_limit, requestedFps, GifFrameTiming.MaxReliableFps),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.testTag("creation-gif-fps-limit"),
+                )
                 Text(stringResource(R.string.creation_gif_note))
                 if (!valid || previewError || export.failed || openError) Surface(color = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer) {
                     Text(stringResource(R.string.creation_gif_error), Modifier.padding(12.dp).testTag("creation-gif-error"))

@@ -28,7 +28,7 @@ internal fun validCreationGifDraft(
 ): Boolean = sessionId.isNotBlank() && sessionId.length <= 128 && savedSessionId == sessionId &&
     identities.size in 2..60 && savedIdentities == identities &&
     order.size in 2..identities.size && order.distinct().size == order.size &&
-    order.all { it in identities.indices } && seconds in 1..5 && current in order.indices
+    order.all { it in identities.indices } && GifFrameTiming.isValid(seconds) && current in order.indices
 
 internal fun requireCreationGifGeneration(
     expectedModified: Long, expectedAdded: Long?, actualModified: Long, actualAdded: Long,
@@ -38,9 +38,9 @@ internal fun requireCreationGifGeneration(
     check(actualModified == expectedModified && !trashed && !pending) { "Source unavailable or changed" }
     check(expectedAdded == null || actualAdded == expectedAdded) { "Source replaced" }
 }
-data class CreationGifRequest(val sources: List<CreationGifSource>, val secondsPerFrame: Int = 2) {
+data class CreationGifRequest(val sources: List<CreationGifSource>, val frameTiming: Int = GifFrameTiming.Default) {
     init {
-        require(sources.size in 2..60 && secondsPerFrame in 1..5)
+        require(sources.size in 2..60 && GifFrameTiming.isValid(frameTiming))
         require(sources.all { it.uri.scheme in setOf("file", "content") })
     }
 }
@@ -93,11 +93,11 @@ class CreationGifExporter(
                         bitmap = decodeFrame(snapshot)
                         snapshot.delete()
                         onProgress(index * 75 / request.sources.size)
-                        GifEncoder.GifFrame(bitmap!!, request.secondsPerFrame * 1000)
+                        GifEncoder.GifFrame(bitmap!!, GifFrameTiming.delaysMillis(request.frameTiming, index + 1)[index])
                     }, checkpoint = { job.ensureActive() })
                 }
                 bitmap?.recycle(); bitmap = null
-                validate(gif, request.sources.size * request.secondsPerFrame * 1000)
+                validate(gif, GifFrameTiming.totalMillis(request.frameTiming, request.sources.size))
                 val outputHash = gif.inputStream().use { sha256(it) { job.ensureActive() } }
                 request.sources.forEachIndexed { index, source ->
                     job.ensureActive()
@@ -168,7 +168,7 @@ class CreationGifExporter(
             val existing = publicationJournal.read(sessionId)
             if (existing != null) {
                 check(existing.sourceIdentities == identities && existing.order == checkedOrder &&
-                    existing.secondsPerFrame == request.secondsPerFrame) { "This session belongs to another publication" }
+                    existing.frameTiming == request.frameTiming) { "This session belongs to another publication" }
                 val recovered = reconcileReceipt(existing)
                 check(recovered.status == CreationGifPublicationStatus.Published) { "Resolve the existing publication before exporting" }
                 val result = Uri.parse(requireNotNull(recovered.resultUri))
@@ -211,12 +211,12 @@ class CreationGifExporter(
                         bitmap = decodeFrame(snapshot)
                         snapshot.delete()
                         onProgress(index * 75 / orderedSources.size)
-                        GifEncoder.GifFrame(bitmap!!, request.secondsPerFrame * 1000)
+                        GifEncoder.GifFrame(bitmap!!, GifFrameTiming.delaysMillis(request.frameTiming, index + 1)[index])
                     }, checkpoint = { job.ensureActive() })
                     out.flush(); fileOutput.fd.sync()
                 }
                 bitmap?.recycle(); bitmap = null
-                validate(gif, orderedSources.size * request.secondsPerFrame * 1000)
+                validate(gif, GifFrameTiming.totalMillis(request.frameTiming, orderedSources.size))
                 val outputHash = gif.inputStream().use { sha256(it) { job.ensureActive() } }
                 orderedSources.forEachIndexed { index, source ->
                     job.ensureActive()
@@ -227,7 +227,7 @@ class CreationGifExporter(
                 }
                 val initial = CreationGifPublicationReceipt.validatedCopy(CreationGifPublicationReceipt(
                     sessionId, UUID.randomUUID().toString(), identities, hashes, checkedOrder,
-                    request.secondsPerFrame, outputHash, gif.length()))
+                    request.frameTiming, outputHash, gif.length()))
                 onProgress(85); job.ensureActive()
                 publicationJournal.begin(initial) // Every fsync completes BEFORE any MediaStore insert.
                 job.ensureActive()
@@ -546,7 +546,7 @@ class CreationGifExporter(
         @Suppress("DEPRECATION")
         val movie = Movie.decodeByteArray(bytes, 0, bytes.size) ?: error("GIF decoder rejected publication")
         check(movie.width() == 512 && movie.height() == 512 &&
-            movie.duration() == receipt.order.size * receipt.secondsPerFrame * 1000)
+            movie.duration() == GifFrameTiming.totalMillis(receipt.frameTiming, receipt.order.size))
         val drawable = ImageDecoder.decodeDrawable(ImageDecoder.createSource(java.nio.ByteBuffer.wrap(bytes)))
         check(drawable is android.graphics.drawable.AnimatedImageDrawable)
         drawable.stop()

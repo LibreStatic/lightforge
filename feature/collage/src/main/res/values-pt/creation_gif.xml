@@ -24,4 +24,7 @@
     <string name="creation_gif_leave_hint">A exportação atual será cancelada. As fotos originais ficam intactas.</string>
     <string name="creation_gif_keep">Continuar exportando</string>
     <string name="creation_gif_no_selection">Selecione 2–60 fotos em Fotos e escolha Criar GIF.</string>
+    <string name="creation_gif_frame_rate">Quadros por segundo</string>
+    <string name="creation_gif_fps">%1$d FPS</string>
+    <string name="creation_gif_fps_limit">Um GIF não reproduz %1$d FPS de forma confiável: este GIF será reproduzido a %2$d FPS, o limite prático do formato.</string>
 </resources>

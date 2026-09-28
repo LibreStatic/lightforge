@@ -135,10 +135,10 @@ class CreationGifPublicationJournalTest {
         rejected { CreationGifPublicationReceipt.validatedCopy(value.copy(order = listOf(2, 2))) }
         rejected { CreationGifPublicationReceipt.validatedCopy(value.copy(order = listOf(3, 0))) }
         rejected { CreationGifPublicationReceipt.validatedCopy(value.copy(sourceSha256 = listOf("a".repeat(64)))) }
-        rejected { CreationGifPublicationReceipt.validatedCopy(value.copy(secondsPerFrame = 0)) }
-        rejected { CreationGifPublicationReceipt.validatedCopy(value.copy(secondsPerFrame = 6)) }
+        rejected { CreationGifPublicationReceipt.validatedCopy(value.copy(frameTiming = 0)) }
+        rejected { CreationGifPublicationReceipt.validatedCopy(value.copy(frameTiming = 6)) }
         assertFalse(value.sameRequest(value.copy(order = listOf(0, 2))))
-        assertFalse(value.sameRequest(value.copy(secondsPerFrame = 2)))
+        assertFalse(value.sameRequest(value.copy(frameTiming = 2)))
     }
     @Test fun wholeReceiptHasJoint64KiBLimitBeforeAnyIntentIsWritten() {
         val directory = folder(); val journal = CreationGifPublicationJournal(directory)

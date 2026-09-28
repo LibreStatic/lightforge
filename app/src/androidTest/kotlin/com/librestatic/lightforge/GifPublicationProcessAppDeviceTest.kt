@@ -68,7 +68,7 @@ class GifPublicationProcessAppDeviceTest {
         val destination = checkNotNull(receipt.destination)
         check(receipt.phase == CreationGifPublicationPhase.Published && receipt.sessionId == session && receipt.token == token)
         check(JSONArray(receipt.sourceIdentities).toString() == identities(rows).toString() && JSONArray(receipt.sourceSha256).toString() == JSONArray(listOf(1, 0).map { rows.getJSONObject(it).getString("sha256") }).toString())
-        check(receipt.order == listOf(1, 0) && receipt.secondsPerFrame == 4)
+        check(receipt.order == listOf(1, 0) && receipt.frameTiming == 4)
         check(receipt.renderSha256 == gate.getString("renderSha256") && receipt.renderSizeBytes == gate.getLong("renderSizeBytes"))
         val expected = gate.getJSONObject("destination")
         check(expected.length() == 10)
@@ -140,7 +140,7 @@ class GifPublicationProcessAppDeviceTest {
         val proof = JSONObject().put("fixtureUuid", uuid).put("sessionId", session).put("token", token)
             .put("gate", gate).put("handoffs", handoffEvidence).put("sourceSnapshots", rows).put("outputSnapshot", current).put("outputSha256", receipt.renderSha256)
             .put("baselineOutputInventory", baseline).put("currentOutputInventory", inventory).put("order", JSONArray(receipt.order))
-            .put("secondsPerFrame", receipt.secondsPerFrame).put("durationMillis", movie.duration()).put("frameProof", frameProof)
+            .put("frameTiming", receipt.frameTiming).put("durationMillis", movie.duration()).put("frameProof", frameProof)
             .put("width", 512).put("height", 512).put("sourcesCurrent", true).put("status", "VERIFIED_BEFORE_DELETE")
         persist(directory, "gif-publication-predelete.json", proof)
         check(exporter.retirePublication(receipt)) { "Exact publication journal was not retired; retain output/sources" }

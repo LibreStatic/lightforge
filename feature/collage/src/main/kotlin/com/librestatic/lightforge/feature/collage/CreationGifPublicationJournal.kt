@@ -41,7 +41,7 @@ data class CreationGifPublicationReceipt(
     /** Hash i belongs to sourceIdentities[order[i]]; removed draft frames are not read. */
     val sourceSha256: List<String>,
     val order: List<Int>,
-    val secondsPerFrame: Int,
+    val frameTiming: Int,
     val renderSha256: String,
     val renderSizeBytes: Long,
     val destination: CreationGifPublicationDestination? = null,
@@ -49,7 +49,7 @@ data class CreationGifPublicationReceipt(
 ) {
     fun sameRequest(other: CreationGifPublicationReceipt): Boolean =
         sessionId == other.sessionId && token == other.token && sourceIdentities == other.sourceIdentities &&
-            sourceSha256 == other.sourceSha256 && order == other.order && secondsPerFrame == other.secondsPerFrame &&
+            sourceSha256 == other.sourceSha256 && order == other.order && frameTiming == other.frameTiming &&
             renderSha256 == other.renderSha256 && renderSizeBytes == other.renderSizeBytes
 
     companion object {
@@ -61,7 +61,7 @@ data class CreationGifPublicationReceipt(
             require(value.sourceIdentities.size in 2..60 && value.sourceIdentities.distinct().size == value.sourceIdentities.size)
             require(value.sourceIdentities.all { it.isNotBlank() && it.length <= 2_048 })
             require(value.order.size in 2..value.sourceIdentities.size && value.order.distinct().size == value.order.size)
-            require(value.order.all { it in value.sourceIdentities.indices } && value.secondsPerFrame in 1..5)
+            require(value.order.all { it in value.sourceIdentities.indices } && GifFrameTiming.isValid(value.frameTiming))
             require(value.sourceSha256.size == value.order.size && value.sourceSha256.all(digest::matches))
             require(digest.matches(value.renderSha256) && value.renderSizeBytes in 1..64L * 1024 * 1024)
             require((value.phase == CreationGifPublicationPhase.Intent) == (value.destination == null))
@@ -319,7 +319,7 @@ class CreationGifPublicationJournal internal constructor(
             output.writeInt(value.sourceIdentities.size)
             value.sourceIdentities.forEach(::text)
             output.writeInt(value.order.size); value.order.forEach(output::writeInt)
-            value.sourceSha256.forEach(::text); output.writeInt(value.secondsPerFrame)
+            value.sourceSha256.forEach(::text); output.writeInt(value.frameTiming)
             text(value.renderSha256); output.writeLong(value.renderSizeBytes)
             output.writeByte(if (value.destination == null) 0 else 1)
             value.destination?.let {
