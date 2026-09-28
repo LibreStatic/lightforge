@@ -514,17 +514,33 @@ class PdfProjectRepository(
                             }
                         val page = pages[target]
                         require(PdfMediaPlacement.hasRoomForOneMore(page.images.size + page.texts.size))
-                        val (w, h) = PdfMediaPlacement.fitSize(page.width, page.margin, a.width, a.height)
-                        // [placement], when given, is the drop point's page-space CENTER (Media
-                        // panel drag & drop); convert to the top-left PdfImage stores.
-                        val (x, y) =
-                            placement?.let { (cx, cy) -> PdfMediaPlacement.centerToTopLeft(cx, cy, w, h) }
-                                ?: PdfMediaPlacement.autoSlotTopLeft(page.images.size, page.margin)
+                        // Feedback item B/A follow-up: a print-layout project (printSize != null)
+                        // auto-slots a plain Insert/import into its next empty exact-size print
+                        // slot with the project's placement mode, same as
+                        // PdfStudioViewModel.insertOwnAsset — but only for the auto-placed case
+                        // ([placement] null, i.e. not a Media panel drag & drop to an explicit
+                        // point) and only while the target page still has a free slot; otherwise
+                        // this falls back to the ordinary fitSize()/autoSlotTopLeft() placement
+                        // below unchanged (this streaming importer's page-overflow selection above
+                        // isn't print-slot aware, so a page already full of print slots keeps
+                        // using the free-form placement rather than risk a wrong page/geometry).
+                        val printSize = PdfPrintSize.fromId(p.printSize)
+                        val slotFit =
+                            printSize?.let { PdfPrintLayout.fit(page.width, page.height, page.margin, p.gap, it) }
                         val image =
-                            PdfGeometry.constrain(
-                                PdfImage(asset = hash, x = x, y = y, width = w, height = h),
-                                page,
-                            )
+                            if (placement == null && slotFit != null && page.images.size < slotFit.perPage) {
+                                val r = PdfPrintLayout.slotRects(page.width, page.height, page.margin, p.gap, slotFit)[page.images.size]
+                                PdfImage(asset = hash, x = r.x, y = r.y, width = r.width, height = r.height, fit = p.placementMode)
+                            } else {
+                                val (w, h) = PdfMediaPlacement.fitSize(page.width, page.margin, a.width, a.height)
+                                // [placement], when given, is the drop point's page-space CENTER
+                                // (Media panel drag & drop); convert to the top-left PdfImage
+                                // stores.
+                                val (x, y) =
+                                    placement?.let { (cx, cy) -> PdfMediaPlacement.centerToTopLeft(cx, cy, w, h) }
+                                        ?: PdfMediaPlacement.autoSlotTopLeft(page.images.size, page.margin)
+                                PdfGeometry.constrain(PdfImage(asset = hash, x = x, y = y, width = w, height = h), page)
+                            }
                         pages[target] = page.copy(images = page.images + image)
                     }
                     val final = file(hash)
@@ -542,14 +558,51 @@ class PdfProjectRepository(
             // Phase G4: the gallery batch handoff still creates directly (no template picker in
             // its UX), but its default grid now comes from the single PdfTemplate source of truth
             // instead of its own literal 2/4.0 — PdfTemplate.Blank carries exactly those values.
-            if (galleryLayout)
+            //
+            // Feedback item B/A follow-up: when [p] already carries a print size (e.g. seeded from
+            // a print-size PdfTemplate), the streamed-in images are re-flowed into exact-size
+            // slots and repaginated instead of the free grid — same "recompute the whole layout at
+            // the end" shape, just a different algorithm. Imported-PDF pages (their own source
+            // hash) are left untouched either way.
+            if (galleryLayout) {
+                val printSize = PdfPrintSize.fromId(p.printSize)
                 pages =
-                    pages
-                        .map {
-                            if (it.source == null) PdfGeometry.grid(it, PdfTemplate.Blank.columns, PdfTemplate.Blank.gap)
-                            else it
+                    if (printSize == null) {
+                        pages
+                            .map {
+                                if (it.source == null) PdfGeometry.grid(it, PdfTemplate.Blank.columns, PdfTemplate.Blank.gap)
+                                else it
+                            }
+                            .toMutableList()
+                    } else {
+                        val template = pages.firstOrNull { it.source == null } ?: PdfPage()
+                        val slotFit =
+                            PdfPrintLayout.fit(template.width, template.height, template.margin, p.gap, printSize)
+                        if (slotFit.perPage <= 0) pages
+                        else {
+                            val rects =
+                                PdfPrintLayout.slotRects(template.width, template.height, template.margin, p.gap, slotFit)
+                            val sourcePages = pages.filter { it.source != null }
+                            val freeImages = pages.filter { it.source == null }.flatMap { it.images }
+                            val slotPages =
+                                freeImages.chunked(slotFit.perPage).map { chunk ->
+                                    val images =
+                                        chunk.mapIndexed { n, image ->
+                                            val r = rects[n]
+                                            image.copy(
+                                                x = r.x,
+                                                y = r.y,
+                                                width = r.width,
+                                                height = r.height,
+                                                fit = p.placementMode,
+                                            )
+                                        }
+                                    PdfPage(width = template.width, height = template.height, margin = template.margin, images = images)
+                                }
+                            (sourcePages + slotPages).ifEmpty { listOf(template) }.toMutableList()
                         }
-                        .toMutableList()
+                    }
+            }
             val next = p.copy(pages = pages, assets = known.values.toList()).validate()
             currentCoroutineContext().ensureActive()
             withContext(NonCancellable) {

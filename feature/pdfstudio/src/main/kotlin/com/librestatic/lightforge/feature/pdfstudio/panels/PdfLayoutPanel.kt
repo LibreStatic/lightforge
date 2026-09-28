@@ -83,6 +83,18 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
 
     val landscape = page.width > page.height
     val selectedPreset = PdfPaperPresets.matching(page.width, page.height)
+    // Feedback item B: the project's current print size (null = free grid) — "changeable" from
+    // here per the Layout panel spec, and item A's placement mode, always shown/changeable.
+    val currentPrintSize = PdfPrintSize.fromId(p.printSize)
+
+    /** Re-lays out the print-size project for a new paper/margin/gap (paper cards, custom size,
+     * orientation, margin/gap steppers below all route through this when a print size is active,
+     * instead of the free-grid per-page transform), or falls back to [fallback] for free grid. */
+    fun applyPaperChange(widthMm: Double, heightMm: Double, marginMm: Double, gapMm: Double, fallback: () -> Unit) {
+        val size = currentPrintSize
+        if (size != null) vm.applyPrintLayoutSettings(size, p.placementMode, widthMm, heightMm, marginMm, gapMm)
+        else fallback()
+    }
 
     // Visual paper cards: a proportional white-paper preview on a role-colored (selected =
     // secondaryContainer) card — the only allowed color source for the paper swatch is
@@ -108,9 +120,12 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
             ) {
                 val w = if (landscape) preset.heightMm else preset.widthMm
                 val h = if (landscape) preset.widthMm else preset.heightMm
-                vm.applyLayout(applyToAllPages) {
-                    val next = it.copy(width = w, height = h, margin = min(it.margin, min(w, h) / 4))
-                    next.copy(images = it.images.map { image -> PdfGeometry.constrain(image, next) })
+                val m = min(page.margin, min(w, h) / 4)
+                applyPaperChange(w, h, m, p.gap) {
+                    vm.applyLayout(applyToAllPages) {
+                        val next = it.copy(width = w, height = h, margin = m)
+                        next.copy(images = it.images.map { image -> PdfGeometry.constrain(image, next) })
+                    }
                 }
             }
         }
@@ -134,9 +149,12 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
             onDismiss = { showCustomSize = false },
             onUse = { w, h ->
                 showCustomSize = false
-                vm.applyLayout(applyToAllPages) {
-                    val next = it.copy(width = w, height = h, margin = min(it.margin, min(w, h) / 4))
-                    next.copy(images = it.images.map { image -> PdfGeometry.constrain(image, next) })
+                val m = min(page.margin, min(w, h) / 4)
+                applyPaperChange(w, h, m, p.gap) {
+                    vm.applyLayout(applyToAllPages) {
+                        val next = it.copy(width = w, height = h, margin = m)
+                        next.copy(images = it.images.map { image -> PdfGeometry.constrain(image, next) })
+                    }
                 }
             },
         )
@@ -150,9 +168,11 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
         onSelect = { index ->
             val wantLandscape = index == 1
             if (wantLandscape != landscape)
-                vm.applyLayout(applyToAllPages) {
-                    val next = it.copy(width = it.height, height = it.width)
-                    next.copy(images = it.images.map { image -> PdfGeometry.constrain(image, next) })
+                applyPaperChange(page.height, page.width, page.margin, p.gap) {
+                    vm.applyLayout(applyToAllPages) {
+                        val next = it.copy(width = it.height, height = it.width)
+                        next.copy(images = it.images.map { image -> PdfGeometry.constrain(image, next) })
+                    }
                 }
         },
         enabled = !s.editorLocked,
@@ -170,9 +190,12 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
         max = min(page.width, page.height) / 4 / factor,
         enabled = !s.editorLocked,
         onValue = { n ->
-            vm.applyLayout(applyToAllPages) {
-                val next = it.copy(margin = n * factor)
-                next.copy(images = it.images.map { image -> PdfGeometry.constrain(image, next) })
+            val m = n * factor
+            applyPaperChange(page.width, page.height, m, p.gap) {
+                vm.applyLayout(applyToAllPages) {
+                    val next = it.copy(margin = m)
+                    next.copy(images = it.images.map { image -> PdfGeometry.constrain(image, next) })
+                }
             }
         },
     )
@@ -184,24 +207,48 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
         min = 0.0,
         max = 30.0 / factor,
         enabled = !s.editorLocked,
-        onValue = { n -> vm.update { it.copy(gap = n * factor) } },
+        onValue = { n ->
+            val g = n * factor
+            applyPaperChange(page.width, page.height, page.margin, g) { vm.update { it.copy(gap = g) } }
+        },
     )
 
     Spacer(Modifier.height(8.dp))
-    Text(stringResource(R.string.pdf_grid_template), style = MaterialTheme.typography.labelLarge)
+    // Feedback item B: "Print size" is changeable here — Free grid keeps the photos-per-page
+    // tiles below; any [PdfPrintSize] replaces them with the computed slot count.
+    Text(stringResource(R.string.pdf_print_size_label), style = MaterialTheme.typography.labelLarge)
+    PdfPrintSizeSelector(selected = currentPrintSize, enabled = !s.editorLocked) { size ->
+        vm.applyPrintLayoutSettings(size, p.placementMode, page.width, page.height, page.margin, p.gap)
+    }
+    val printSizeFit =
+        currentPrintSize?.let { PdfPrintLayout.fit(page.width, page.height, page.margin, p.gap, it) }
+    if (printSizeFit != null) PdfPrintSizeCountLine(printSizeFit)
+
+    Spacer(Modifier.height(8.dp))
+    Text(stringResource(R.string.pdf_placement_mode_label), style = MaterialTheme.typography.labelLarge)
+    PdfPlacementModeSelector(mode = p.placementMode, enabled = !s.editorLocked) { mode ->
+        if (currentPrintSize != null)
+            vm.applyPrintLayoutSettings(currentPrintSize, mode, page.width, page.height, page.margin, p.gap)
+        else vm.applyPlacementMode(mode, applyToAllPages)
+    }
+
     val selectedTemplate = selectedTemplateByPage[page.id]
         ?: PdfLayoutTemplates.unambiguousMatch(p.columns, landscape)
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-    ) {
-        PdfLayoutTemplates.TEMPLATES.forEach { template ->
-            val columns = PdfLayoutTemplates.columnsFor(template, landscape)
-            val selected = selectedTemplate == template
-            PdfTemplateTile(template, columns, landscape, selected, !s.editorLocked) {
-                selectedTemplateByPage[page.id] = template
-                vm.update { it.copy(columns = columns) }
+    if (currentPrintSize == null) {
+        Spacer(Modifier.height(8.dp))
+        Text(stringResource(R.string.pdf_grid_template), style = MaterialTheme.typography.labelLarge)
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        ) {
+            PdfLayoutTemplates.TEMPLATES.forEach { template ->
+                val columns = PdfLayoutTemplates.columnsFor(template, landscape)
+                val selected = selectedTemplate == template
+                PdfTemplateTile(template, columns, landscape, selected, !s.editorLocked) {
+                    selectedTemplateByPage[page.id] = template
+                    vm.update { it.copy(columns = columns) }
+                }
             }
         }
     }
@@ -217,30 +264,37 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
         enabled = !s.editorLocked,
     )
 
-    Spacer(Modifier.height(12.dp))
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(Modifier.padding(8.dp)) {
-            Text(stringResource(R.string.pdf_apply_to), style = MaterialTheme.typography.labelMedium)
-            GalleryExpressiveChoiceGroupCompat(
-                labels = listOf(stringResource(R.string.pdf_apply_scope_page), stringResource(R.string.pdf_apply_scope_all)),
-                selectedIndex = if (applyToAllPages) 1 else 0,
-                onSelect = { applyToAllPages = it == 1 },
-                enabled = !s.editorLocked,
-            )
-            Button(
-                onClick = {
-                    val rowsHint = selectedTemplate?.let { PdfLayoutTemplates.rowsFor(it, landscape) }
-                    vm.applyLayout(applyToAllPages) { PdfGeometry.grid(it, p.columns, p.gap, rowsHint) }
-                },
-                enabled = !s.editorLocked,
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            ) {
-                Text(stringResource(R.string.pdf_arrangegrid))
+    // Feedback item B: a print-size project's layout is fully computed — every paper/margin/gap/
+    // print-size/placement-mode change above already re-lays out and repaginates automatically
+    // (see applyPaperChange and the placement-mode control), so there is nothing left for a manual
+    // "Apply to This page/All pages" + Arrange action to do (it operates per-page, which doesn't
+    // match this feature's whole-project repagination).
+    if (currentPrintSize == null) {
+        Spacer(Modifier.height(12.dp))
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(Modifier.padding(8.dp)) {
+                Text(stringResource(R.string.pdf_apply_to), style = MaterialTheme.typography.labelMedium)
+                GalleryExpressiveChoiceGroupCompat(
+                    labels = listOf(stringResource(R.string.pdf_apply_scope_page), stringResource(R.string.pdf_apply_scope_all)),
+                    selectedIndex = if (applyToAllPages) 1 else 0,
+                    onSelect = { applyToAllPages = it == 1 },
+                    enabled = !s.editorLocked,
+                )
+                Button(
+                    onClick = {
+                        val rowsHint = selectedTemplate?.let { PdfLayoutTemplates.rowsFor(it, landscape) }
+                        vm.applyLayout(applyToAllPages) { PdfGeometry.grid(it, p.columns, p.gap, rowsHint) }
+                    },
+                    enabled = !s.editorLocked,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                ) {
+                    Text(stringResource(R.string.pdf_arrangegrid))
+                }
             }
         }
     }

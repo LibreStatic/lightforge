@@ -107,7 +107,7 @@ internal fun ColumnScope.PdfLibraryScreen(
             defaultName = defaultName,
             template = prefillTemplate,
             onDismiss = { showNewProject = false },
-            onCreate = { name, paper, landscape, columns, margin, gap ->
+            onCreate = { name, paper, landscape, columns, margin, gap, printSize, placementMode ->
                 showNewProject = false
                 val preset = PdfPaperPresets.presets.first { it.id == paper }
                 vm.newProject(
@@ -118,6 +118,8 @@ internal fun ColumnScope.PdfLibraryScreen(
                     columns = columns,
                     gap = gap,
                     margin = margin,
+                    printSize = printSize,
+                    placementMode = placementMode,
                 )
             },
         )
@@ -427,7 +429,16 @@ private fun PdfNewProjectSheet(
     defaultName: String,
     template: PdfTemplate?,
     onDismiss: () -> Unit,
-    onCreate: (name: String, paper: String, landscape: Boolean, columns: Int, margin: Double, gap: Double) -> Unit,
+    onCreate: (
+        name: String,
+        paper: String,
+        landscape: Boolean,
+        columns: Int,
+        margin: Double,
+        gap: Double,
+        printSize: String?,
+        placementMode: PdfFit,
+    ) -> Unit,
 ) {
     var selectedProjectTemplate by rememberSaveable(template) { mutableStateOf(template ?: PdfTemplate.Blank) }
     var name by rememberSaveable(template) { mutableStateOf("") }
@@ -442,6 +453,11 @@ private fun PdfNewProjectSheet(
     }
     var margin by rememberSaveable(template) { mutableDoubleStateOf(selectedProjectTemplate.margin) }
     var gap by rememberSaveable(template) { mutableDoubleStateOf(selectedProjectTemplate.gap) }
+    // Feedback item B: "Print size" (null = Free grid). A non-null value routes creation through
+    // PdfPrintLayout instead of the free-grid columns/photosPerPage tiles below.
+    var printSize by rememberSaveable(template) { mutableStateOf(selectedProjectTemplate.printSize) }
+    // Feedback item A: the default placement mode for every auto-placed photo.
+    var placementMode by rememberSaveable(template) { mutableStateOf(selectedProjectTemplate.fit) }
     val columns = selectedTemplate?.let { PdfLayoutTemplates.columnsFor(it, landscape) } ?: selectedProjectTemplate.columns
 
     // Applies every field a project/page template (Phase G4) prefills; the user can still tweak
@@ -453,7 +469,23 @@ private fun PdfNewProjectSheet(
         selectedTemplate = PdfLayoutTemplates.unambiguousMatch(t.columns, t.landscape)
         margin = t.margin
         gap = t.gap
+        printSize = t.printSize
+        placementMode = t.fit
     }
+
+    // Feedback item B: the computed slot grid for the current paper/orientation/margin/gap/print
+    // size — null when "Free grid" is selected. Recomputed live, never hardcoded.
+    val currentPrintSize = printSize
+    val slotFit =
+        remember(paper, landscape, margin, gap, currentPrintSize) {
+            if (currentPrintSize == null) null
+            else {
+                val preset = PdfPaperPresets.presets.first { it.id == paper }
+                val w = if (landscape) preset.heightMm else preset.widthMm
+                val h = if (landscape) preset.widthMm else preset.heightMm
+                PdfPrintLayout.fit(w, h, margin, gap, currentPrintSize)
+            }
+        }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
@@ -519,24 +551,48 @@ private fun PdfNewProjectSheet(
                 enabled = true,
             )
             Spacer(Modifier.height(12.dp))
-            Text(stringResource(R.string.pdf_grid_template), style = MaterialTheme.typography.labelLarge)
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-            ) {
-                PdfLayoutTemplates.TEMPLATES.forEach { count ->
-                    val templateColumns = PdfLayoutTemplates.columnsFor(count, landscape)
-                    PdfTemplateTile(count, templateColumns, landscape, selectedTemplate == count, true) {
-                        selectedTemplate = count
+            // Feedback item B: "Print size" — a photo print size laid out at exact physical
+            // dimensions on the paper above, independent of the paper choice, with the per-page
+            // count COMPUTED (never hardcoded). "Free grid" (null) keeps the pre-existing
+            // columns/photos-per-page tiles.
+            Text(stringResource(R.string.pdf_print_size_label), style = MaterialTheme.typography.labelLarge)
+            PdfPrintSizeSelector(selected = printSize, enabled = true) { printSize = it }
+            val fit = slotFit
+            val slotFitValid = if (fit != null) PdfPrintSizeCountLine(fit) else true
+            if (printSize == null) {
+                Spacer(Modifier.height(12.dp))
+                Text(stringResource(R.string.pdf_grid_template), style = MaterialTheme.typography.labelLarge)
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                ) {
+                    PdfLayoutTemplates.TEMPLATES.forEach { count ->
+                        val templateColumns = PdfLayoutTemplates.columnsFor(count, landscape)
+                        PdfTemplateTile(count, templateColumns, landscape, selectedTemplate == count, true) {
+                            selectedTemplate = count
+                        }
                     }
                 }
             }
+            Spacer(Modifier.height(12.dp))
+            Text(stringResource(R.string.pdf_placement_mode_label), style = MaterialTheme.typography.labelLarge)
+            PdfPlacementModeSelector(mode = placementMode, enabled = true) { placementMode = it }
             Spacer(Modifier.height(20.dp))
             Button(
                 onClick = {
-                    onCreate(name.ifBlank { defaultName }, paper, landscape, columns, margin, gap)
+                    onCreate(
+                        name.ifBlank { defaultName },
+                        paper,
+                        landscape,
+                        columns,
+                        margin,
+                        gap,
+                        printSize?.id,
+                        placementMode,
+                    )
                 },
+                enabled = slotFitValid,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(stringResource(R.string.pdf_new_project_create))

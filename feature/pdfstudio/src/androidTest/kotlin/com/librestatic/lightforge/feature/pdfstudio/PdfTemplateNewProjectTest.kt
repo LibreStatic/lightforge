@@ -70,7 +70,11 @@ class PdfTemplateNewProjectTest {
     }
 
     @Test
-    fun prints10x15TemplateLandsA10x15PaperOneColumnAndNearZeroMargin(): Unit = runBlocking {
+    fun prints10x15TemplateLandsOnA4WithTwoComputedColumnsAndItsPrintSize(): Unit = runBlocking {
+        // Feedback item B: redefined from "one 10x15 print filling a 10x15 sheet" to "10x15 cm
+        // photos, as many as fit, on A4" — see PdfTemplateTest/PdfPrintLayoutTest for the
+        // slot-fitting algorithm's own coverage; this just confirms the VM entry point
+        // ("New project" sheet) still lands the template's (now print-size) settings.
         val template = PdfTemplate.Prints10x15
         val vm = newVm()
         onMain {
@@ -82,12 +86,16 @@ class PdfTemplateNewProjectTest {
                 columns = template.columns,
                 gap = template.gap,
                 margin = template.margin,
+                printSize = template.printSize?.id,
+                placementMode = template.fit,
             )
         }
         waitForProject(vm)
-        val page = vm.state.value.project!!.pages[0]
-        assertEquals(PdfPaperPresets.PRINT_10X15, PdfPaperPresets.matching(page.width, page.height))
-        assertEquals(1, vm.state.value.project!!.columns)
-        assertTrue(page.margin <= 3.0)
+        val project = vm.state.value.project!!
+        val page = project.pages[0]
+        assertEquals(PdfPaperPresets.A4, PdfPaperPresets.matching(page.width, page.height))
+        assertEquals(2, project.columns)
+        assertEquals(PdfPrintSize.Print10x15.id, project.printSize)
+        assertEquals(PdfFit.Cover, project.placementMode)
     }
 }

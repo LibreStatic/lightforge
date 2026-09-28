@@ -213,6 +213,23 @@
     <string name="pdf_apply_to">Applica a</string>
     <string name="pdf_apply_scope_page">Questa pagina</string>
     <string name="pdf_apply_scope_all">Tutte le pagine</string>
+    <string name="pdf_print_size_label">Formato di stampa</string>
+    <string name="pdf_print_size_free_grid">Griglia libera</string>
+    <string name="pdf_print_size_wallet_6x9">Portafoglio 6 × 9 cm</string>
+    <string name="pdf_print_size_9x13">9 × 13 cm</string>
+    <string name="pdf_print_size_10x15">10 × 15 cm</string>
+    <string name="pdf_print_size_13x18">13 × 18 cm</string>
+    <string name="pdf_print_size_15x20">15 × 20 cm</string>
+    <string name="pdf_placement_mode_label">Posizionamento</string>
+    <string name="pdf_placement_fill_label">Riempi (ritaglia per adattare)</string>
+    <string name="pdf_placement_fill_desc">Riempie il riquadro bordo a bordo; la foto potrebbe essere ritagliata</string>
+    <string name="pdf_placement_fit_label">Adatta (foto intera)</string>
+    <string name="pdf_placement_fit_desc">Mostra la foto intera, leggermente più piccola, dentro il riquadro</string>
+    <plurals name="pdf_photos_per_page">
+        <item quantity="one">%1$d foto per pagina</item>
+        <item quantity="other">%1$d foto per pagina</item>
+    </plurals>
+    <string name="pdf_print_size_doesnt_fit">Non entra in questo foglio</string>
     <string name="pdf_custom_size_title">Dimensione personalizzata</string>
     <string name="pdf_custom_size_min">Il minimo è %1$s</string>
     <string name="pdf_custom_size_max">Il massimo è %1$s</string>
@@ -248,7 +265,7 @@
     <string name="pdf_template_blank_desc">Inizia da zero</string>
     <string name="pdf_template_photo_grid_desc">4 foto per pagina, A4</string>
     <string name="pdf_template_receipts_desc">Una ricevuta per riga, A4</string>
-    <string name="pdf_template_prints_desc">Una foto per pagina, 10 × 15 cm</string>
+    <string name="pdf_template_prints_desc">Stampe 10 × 15 cm, 2 per pagina A4</string>
     <string name="pdf_template_selected_suffix">selezionato</string>
     <string name="pdf_library_rename">Rinomina</string>
     <string name="pdf_library_rename_title">Rinomina progetto</string>

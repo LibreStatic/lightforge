@@ -213,6 +213,23 @@
     <string name="pdf_apply_to">Anwenden auf</string>
     <string name="pdf_apply_scope_page">Diese Seite</string>
     <string name="pdf_apply_scope_all">Alle Seiten</string>
+    <string name="pdf_print_size_label">Druckgröße</string>
+    <string name="pdf_print_size_free_grid">Freies Raster</string>
+    <string name="pdf_print_size_wallet_6x9">Brieftasche 6 × 9 cm</string>
+    <string name="pdf_print_size_9x13">9 × 13 cm</string>
+    <string name="pdf_print_size_10x15">10 × 15 cm</string>
+    <string name="pdf_print_size_13x18">13 × 18 cm</string>
+    <string name="pdf_print_size_15x20">15 × 20 cm</string>
+    <string name="pdf_placement_mode_label">Platzierung</string>
+    <string name="pdf_placement_fill_label">Füllen (zuschneiden)</string>
+    <string name="pdf_placement_fill_desc">Füllt den Rahmen randlos aus; das Foto kann beschnitten werden</string>
+    <string name="pdf_placement_fit_label">Einpassen (ganzes Foto)</string>
+    <string name="pdf_placement_fit_desc">Zeigt das ganze Foto, etwas kleiner, innerhalb des Rahmens</string>
+    <plurals name="pdf_photos_per_page">
+        <item quantity="one">%1$d Foto pro Seite</item>
+        <item quantity="other">%1$d Fotos pro Seite</item>
+    </plurals>
+    <string name="pdf_print_size_doesnt_fit">Passt nicht auf dieses Papier</string>
     <string name="pdf_custom_size_title">Benutzerdefinierte Größe</string>
     <string name="pdf_custom_size_min">Minimum ist %1$s</string>
     <string name="pdf_custom_size_max">Maximum ist %1$s</string>
@@ -248,7 +265,7 @@
     <string name="pdf_template_blank_desc">Von vorn beginnen</string>
     <string name="pdf_template_photo_grid_desc">4 Fotos pro Seite, A4</string>
     <string name="pdf_template_receipts_desc">Ein Beleg pro Zeile, A4</string>
-    <string name="pdf_template_prints_desc">Ein Foto pro Seite, 10 × 15 cm</string>
+    <string name="pdf_template_prints_desc">10 × 15 cm Abzüge, 2 pro A4-Seite</string>
     <string name="pdf_template_selected_suffix">ausgewählt</string>
     <string name="pdf_library_rename">Umbenennen</string>
     <string name="pdf_library_rename_title">Projekt umbenennen</string>

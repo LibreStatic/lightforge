@@ -103,6 +103,23 @@ class PdfFlowProbeActivity : ComponentActivity() {
                             .put("pageHeightMm", current.project?.pages?.firstOrNull()?.height)
                             .put("pageMarginMm", current.project?.pages?.firstOrNull()?.margin)
                             .put("columns", current.project?.columns)
+                            // Feedback item B: the print size (null = free grid) and the COMPUTED
+                            // photos-per-page count for the current page/gap, so
+                            // verify_pdf_screen_flow.py can assert the "Print size" selector and
+                            // its live count landed on the created project without relying on a
+                            // screenshot.
+                            .put("printSize", current.project?.printSize)
+                            .put(
+                                "photosPerPage",
+                                current.project?.let { proj ->
+                                    val size = PdfPrintSize.fromId(proj.printSize)
+                                    val page = proj.pages.firstOrNull()
+                                    if (size != null && page != null)
+                                        PdfPrintLayout.fit(page.width, page.height, page.margin, proj.gap, size).perPage
+                                    else null
+                                },
+                            )
+                            .put("placementMode", current.project?.placementMode?.name)
                             .put("page", current.page)
                             .put("canUndo", current.canUndo)
                             .put("message", current.message)

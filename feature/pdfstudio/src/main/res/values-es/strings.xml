@@ -213,6 +213,23 @@
     <string name="pdf_apply_to">Aplicar a</string>
     <string name="pdf_apply_scope_page">Esta página</string>
     <string name="pdf_apply_scope_all">Todas las páginas</string>
+    <string name="pdf_print_size_label">Tamaño de impresión</string>
+    <string name="pdf_print_size_free_grid">Cuadrícula libre</string>
+    <string name="pdf_print_size_wallet_6x9">Cartera 6 × 9 cm</string>
+    <string name="pdf_print_size_9x13">9 × 13 cm</string>
+    <string name="pdf_print_size_10x15">10 × 15 cm</string>
+    <string name="pdf_print_size_13x18">13 × 18 cm</string>
+    <string name="pdf_print_size_15x20">15 × 20 cm</string>
+    <string name="pdf_placement_mode_label">Colocación</string>
+    <string name="pdf_placement_fill_label">Llenar (recortar para ajustar)</string>
+    <string name="pdf_placement_fill_desc">Llena el marco de borde a borde; la foto puede recortarse</string>
+    <string name="pdf_placement_fit_label">Ajustar (foto completa)</string>
+    <string name="pdf_placement_fit_desc">Muestra la foto completa, un poco más pequeña, dentro del marco</string>
+    <plurals name="pdf_photos_per_page">
+        <item quantity="one">%1$d foto por página</item>
+        <item quantity="other">%1$d fotos por página</item>
+    </plurals>
+    <string name="pdf_print_size_doesnt_fit">No cabe en este papel</string>
     <string name="pdf_custom_size_title">Tamaño personalizado</string>
     <string name="pdf_custom_size_min">El mínimo es %1$s</string>
     <string name="pdf_custom_size_max">El máximo es %1$s</string>
@@ -248,7 +265,7 @@
     <string name="pdf_template_blank_desc">Empezar desde cero</string>
     <string name="pdf_template_photo_grid_desc">4 fotos por página, A4</string>
     <string name="pdf_template_receipts_desc">Un recibo por fila, A4</string>
-    <string name="pdf_template_prints_desc">Una foto por página, 10 × 15 cm</string>
+    <string name="pdf_template_prints_desc">Impresiones 10 × 15 cm, 2 por página A4</string>
     <string name="pdf_template_selected_suffix">seleccionado</string>
     <string name="pdf_library_rename">Cambiar nombre</string>
     <string name="pdf_library_rename_title">Cambiar nombre del proyecto</string>

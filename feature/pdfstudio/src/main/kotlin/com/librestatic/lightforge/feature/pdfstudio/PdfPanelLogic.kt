@@ -41,6 +41,17 @@ internal object PdfPaperPresets {
     }
 }
 
+/** The label resource for [PdfPrintSize] chips (New project sheet's "Print size" row, Layout
+ * panel), shared so both read the same string. */
+internal fun PdfPrintSize.labelRes(): Int =
+    when (this) {
+        PdfPrintSize.Wallet6x9 -> R.string.pdf_print_size_wallet_6x9
+        PdfPrintSize.Print9x13 -> R.string.pdf_print_size_9x13
+        PdfPrintSize.Print10x15 -> R.string.pdf_print_size_10x15
+        PdfPrintSize.Print13x18 -> R.string.pdf_print_size_13x18
+        PdfPrintSize.Print15x20 -> R.string.pdf_print_size_15x20
+    }
+
 /**
  * Maps a photos-per-page template tile to a column count for [PdfGeometry.grid]. 1/4/9 have an
  * obvious square layout; 2 and 6 depend on the page's orientation so the grid reads naturally

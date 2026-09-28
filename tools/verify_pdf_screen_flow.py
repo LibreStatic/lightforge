@@ -67,6 +67,11 @@ def tap(label):tap_where(lambda n:match(n,label))
 # (same pattern as the export quality cards above), so locate them by name prefix, not exact match.
 def tap_prefix(label):tap_where(lambda n:match_prefix(n,label))
 def visible(label):return any(match(n,label) for n in dump()[0].iter('node'))
+def scroll_until_visible(predicate,attempts=8):
+    for _ in range(attempts):
+        if predicate():return True
+        shell('input','swipe','540','1800','540','500','120');time.sleep(.3)
+    return predicate()
 def snap(name):
     root,raw=dump();(out/(name+'.xml')).write_bytes(raw);(out/(name+'.png')).write_bytes(adb('exec-out','screencap','-p'))
     (out/(name+'-state.json')).write_text(json.dumps(marker('state'),indent=2)+'\n')
@@ -118,13 +123,27 @@ def create():
         # orientation/photos-per-page, then paper cards, orientation and photos-per-page below
         # that the user could still tweak. Pick "Prints 10 × 15" instead of accepting the sheet's
         # "Blank" default so this run also exercises PdfTemplate end-to-end.
-        tap('New project');snap('new-project-sheet');tap_prefix('Prints 10 × 15');tap('Create')
+        #
+        # Feedback item B redefined this template: 10x15 cm prints, as many as fit, on A4 (2 per
+        # page with the sheet's defaults) instead of a dedicated 10x15 sheet with one photo. The
+        # sheet's "Print size" row shows "10 × 15 cm" selected and the live "2 photos per page"
+        # line once the template is picked; assert both the live UI text and the created
+        # project's slots via the probe state.
+        tap('New project');snap('new-project-sheet');tap_prefix('Prints 10 × 15')
+        assert scroll_until_visible(lambda:visible_prefix('10 × 15 cm')),'Print size chip did not show 10 x 15 selected'
+        assert scroll_until_visible(lambda:visible_contains('2 photos per page')), \
+            'Live photos-per-page line did not show the computed count'
+        snap('new-project-sheet-10x15-a4')
+        tap('Create')
         wait(lambda s:s['pages']==1 and not s['busy'])
         state=marker('state')
-        assert abs(state['pageWidthMm']-100.0)<0.5 and abs(state['pageHeightMm']-150.0)<0.5, \
-            'Prints 10 x 15 template did not land its paper size: '+repr(state)
-        assert state['pageMarginMm']<=3.0,'Prints 10 x 15 template did not land its near-zero margin: '+repr(state)
-        assert state['columns']==1,'Prints 10 x 15 template did not land its 1-column layout: '+repr(state)
+        assert abs(state['pageWidthMm']-210.0)<0.5 and abs(state['pageHeightMm']-297.0)<0.5, \
+            'Prints 10 x 15 template did not land its A4 paper size: '+repr(state)
+        assert abs(state['pageMarginMm']-5.0)<0.5,'Prints 10 x 15 template did not land its 5mm margin: '+repr(state)
+        assert state['columns']==2,'Prints 10 x 15 template did not land its computed 2-column layout: '+repr(state)
+        assert state['printSize']=='10x15','Prints 10 x 15 template did not store its print size: '+repr(state)
+        assert state['photosPerPage']==2,'Prints 10 x 15 template did not compute 2 photos per page: '+repr(state)
+        assert state['placementMode']=='Cover','Prints 10 x 15 template did not default to Fill placement: '+repr(state)
     if marker('state')['assets']==1:return
     if not any('documentsui' in n.get('package','') for n in dump()[0].iter('node')):
         tap('Insert');tap('Import images / PDF')

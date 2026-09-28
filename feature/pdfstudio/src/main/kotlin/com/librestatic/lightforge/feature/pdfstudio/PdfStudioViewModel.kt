@@ -436,11 +436,25 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         columns: Int = PdfTemplate.Blank.columns,
         gap: Double = PdfTemplate.Blank.gap,
         margin: Double = PdfTemplate.Blank.margin,
+        // Feedback item B/A: the print size (null = free grid) and placement mode the New project
+        // sheet's "Print size"/"Placement" sections chose — stored on the project so every photo
+        // this project auto-places later (Media insert, gallery handoff, Layout panel Arrange)
+        // uses them.
+        printSize: String? = null,
+        placementMode: PdfFit = PdfFit.Contain,
     ) = operation {
         val w = if (landscape) heightMm else widthMm
         val h = if (landscape) widthMm else heightMm
         val page = PdfPage(width = w, height = h, margin = margin.coerceAtMost(min(w, h) / 4))
-        val p = PdfProject(name = name, pages = listOf(page), columns = columns, gap = gap)
+        val p =
+            PdfProject(
+                name = name,
+                pages = listOf(page),
+                columns = columns,
+                gap = gap,
+                printSize = printSize,
+                placementMode = placementMode,
+            )
         repository.save(p)
         setProject(p)
     }
@@ -692,6 +706,25 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         val asset = project.assets.firstOrNull { it.hash == hash } ?: return
         if (asset.width <= 0 || asset.height <= 0) return
         val page = project.pages.getOrNull(mutable.value.page) ?: return
+        // Feedback item B/A follow-up: a print-layout project (printSize != null) auto-slots into
+        // the next empty exact-size print slot with the project's placement mode, instead of the
+        // free-form fitSize()/autoSlotTopLeft() an ordinary project uses.
+        val printSize = PdfPrintSize.fromId(project.printSize)
+        if (printSize != null) {
+            val slotFit = PdfPrintLayout.fit(page.width, page.height, page.margin, project.gap, printSize)
+            if (page.images.size >= slotFit.perPage) {
+                mutable.update { it.copy(message = PdfFailure.PageFull.message) }
+                return
+            }
+            val rects = PdfPrintLayout.slotRects(page.width, page.height, page.margin, project.gap, slotFit)
+            pageEdit { editedPage ->
+                val r = rects[editedPage.images.size]
+                val image =
+                    PdfImage(asset = hash, x = r.x, y = r.y, width = r.width, height = r.height, fit = project.placementMode)
+                editedPage.copy(images = editedPage.images + image)
+            }
+            return
+        }
         if (!PdfMediaPlacement.hasRoomForOneMore(page.images.size + page.texts.size)) {
             mutable.update { it.copy(message = R.string.pdf_failure_limit) }
             return
@@ -703,6 +736,68 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
             val image =
                 PdfGeometry.constrainToPage(PdfImage(asset = hash, x = x, y = y, width = w, height = h), page)
             page.copy(images = page.images + image)
+        }
+    }
+
+    /**
+     * Feedback item A: re-applies [mode] to every already-placed photo on the current page
+     * ([allPages] false) or every page ([allPages] true) — the "Apply to: This page / All pages"
+     * pattern the Layout panel already uses for Arrange — and stores it as the project's new
+     * default placement mode for future auto-placed photos. One undo step.
+     */
+    fun applyPlacementMode(mode: PdfFit, allPages: Boolean) {
+        val currentPage = mutable.value.page
+        update { p ->
+            val next = p.copy(placementMode = mode)
+            next.copy(
+                pages =
+                    next.pages.mapIndexed { index, page ->
+                        if (allPages || index == currentPage) page.copy(images = page.images.map { it.copy(fit = mode) })
+                        else page
+                    }
+            )
+        }
+    }
+
+    /**
+     * Feedback item B follow-up: applies a change to the project's print-layout settings — the
+     * print size (`null` = free grid), placement mode, paper size, margin or gap — made from the
+     * Layout panel. When [printSize] is non-null and no page has an imported-PDF [PdfPage.source]
+     * (which has no sane way to be folded into a photo slot grid), every existing photo across
+     * every page is flattened (page order, then in-page order) and repaginated into the new exact
+     * -size slot grid via [PdfPrintLayout] — the whole project's layout, one undo step. Switching
+     * to "Free grid" ([printSize] `null`) only updates the stored settings; existing photo
+     * positions are left as they are (the pre-existing per-page Arrange button re-grids them).
+     * A project with an imported-PDF page keeps every page's images untouched either way.
+     */
+    fun applyPrintLayoutSettings(
+        printSize: PdfPrintSize?,
+        placementMode: PdfFit,
+        widthMm: Double,
+        heightMm: Double,
+        marginMm: Double,
+        gapMm: Double,
+    ) {
+        update { p ->
+            val next = p.copy(printSize = printSize?.id, placementMode = placementMode, gap = gapMm)
+            if (printSize == null || p.pages.any { it.source != null }) return@update next
+            val slotFit = PdfPrintLayout.fit(widthMm, heightMm, marginMm, gapMm, printSize)
+            if (slotFit.perPage <= 0) return@update next
+            val rects = PdfPrintLayout.slotRects(widthMm, heightMm, marginMm, gapMm, slotFit)
+            val images = p.pages.flatMap { it.images }
+            val newPages =
+                images
+                    .chunked(slotFit.perPage)
+                    .map { chunk ->
+                        val placed =
+                            chunk.mapIndexed { n, img ->
+                                val r = rects[n]
+                                img.copy(x = r.x, y = r.y, width = r.width, height = r.height, fit = placementMode)
+                            }
+                        PdfPage(width = widthMm, height = heightMm, margin = marginMm, images = placed)
+                    }
+                    .ifEmpty { listOf(PdfPage(width = widthMm, height = heightMm, margin = marginMm)) }
+            next.copy(pages = newPages)
         }
     }
 

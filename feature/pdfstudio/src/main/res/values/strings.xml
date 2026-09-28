@@ -213,6 +213,23 @@
     <string name="pdf_apply_to">Apply to</string>
     <string name="pdf_apply_scope_page">This page</string>
     <string name="pdf_apply_scope_all">All pages</string>
+    <string name="pdf_print_size_label">Print size</string>
+    <string name="pdf_print_size_free_grid">Free grid</string>
+    <string name="pdf_print_size_wallet_6x9">Wallet 6 × 9 cm</string>
+    <string name="pdf_print_size_9x13">9 × 13 cm</string>
+    <string name="pdf_print_size_10x15">10 × 15 cm</string>
+    <string name="pdf_print_size_13x18">13 × 18 cm</string>
+    <string name="pdf_print_size_15x20">15 × 20 cm</string>
+    <string name="pdf_placement_mode_label">Placement</string>
+    <string name="pdf_placement_fill_label">Fill (crop to fit)</string>
+    <string name="pdf_placement_fill_desc">Fills the frame edge to edge; the photo may be cropped</string>
+    <string name="pdf_placement_fit_label">Fit (whole photo)</string>
+    <string name="pdf_placement_fit_desc">Shows the whole photo, slightly smaller, inside the frame</string>
+    <plurals name="pdf_photos_per_page">
+        <item quantity="one">%1$d photo per page</item>
+        <item quantity="other">%1$d photos per page</item>
+    </plurals>
+    <string name="pdf_print_size_doesnt_fit">Doesn\'t fit on this paper</string>
     <string name="pdf_custom_size_title">Custom size</string>
     <string name="pdf_custom_size_min">Minimum is %1$s</string>
     <string name="pdf_custom_size_max">Maximum is %1$s</string>
@@ -248,7 +265,7 @@
     <string name="pdf_template_blank_desc">Start from scratch</string>
     <string name="pdf_template_photo_grid_desc">4 photos per page, A4</string>
     <string name="pdf_template_receipts_desc">One receipt per row, A4</string>
-    <string name="pdf_template_prints_desc">One photo per page, 10 × 15 cm</string>
+    <string name="pdf_template_prints_desc">10 × 15 cm prints, 2 per A4 page</string>
     <string name="pdf_template_selected_suffix">selected</string>
     <string name="pdf_library_rename">Rename</string>
     <string name="pdf_library_rename_title">Rename project</string>
