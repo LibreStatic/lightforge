@@ -12,6 +12,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.platform.*
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.ViewModelProvider
@@ -153,7 +154,60 @@ class PdfUiProbeActivity : ComponentActivity() {
                 }
                 vm.selectImage(0)
             }
-            vm.state.collect { current ->
+            // Device-verification pass (drag/pan/fit bug fixes): a plain polling loop (not
+            // vm.state.collect) so the file keeps getting rewritten with fresh canvasRectPx/
+            // pageBoxRectPx even when the FIRST few emissions raced Compose's own layout pass and
+            // saw PdfCanvasProbe's coordinates still null (nothing re-emits vm.state on a pure
+            // layout/relayout with no state change, e.g. once the canvas first measures, or after
+            // a drag settles without changing zoom/pan) - collect would otherwise leave the file
+            // stuck with null rects forever in that case.
+            while (isActive) {
+                val current = vm.state.value
+                // Device-verification pass (drag/pan/fit bug fixes): element rects (mm, model
+                // space, exactly what the canvas commits a drag to) and the viewport, so
+                // tools/verify_pdf_adaptive_ui.py's --drag flow can assert a drag moved ONLY the
+                // dragged element by the expected delta, that the other element's rect is
+                // untouched, and that the viewport itself never changed — without any screenshot
+                // diffing. Plus the real on-screen pixel rects of the canvas pane and the page box
+                // (PdfCanvasProbe, androidTest-only observation seam in PdfCanvas.kt) so the same
+                // script can assert the page is actually fit inside the canvas (not clipped/
+                // offscreen) in every layout.
+                val page = current.project?.pages?.getOrNull(current.page)
+                val imagesJson = org.json.JSONArray()
+                page?.images?.forEach { img ->
+                    imagesJson.put(
+                        JSONObject()
+                            .put("id", img.id)
+                            .put("x", img.x)
+                            .put("y", img.y)
+                            .put("width", img.width)
+                            .put("height", img.height)
+                    )
+                }
+                val textsJson = org.json.JSONArray()
+                page?.texts?.forEach { txt ->
+                    textsJson.put(
+                        JSONObject()
+                            .put("id", txt.id)
+                            .put("x", txt.x)
+                            .put("y", txt.y)
+                            .put("width", txt.width)
+                            .put("height", txt.height)
+                    )
+                }
+                fun rectJson(coordinates: androidx.compose.ui.layout.LayoutCoordinates?): Any {
+                    if (coordinates == null || !coordinates.isAttached) return JSONObject.NULL
+                    return try {
+                        val r = coordinates.boundsInWindow()
+                        JSONObject()
+                            .put("left", r.left.toDouble())
+                            .put("top", r.top.toDouble())
+                            .put("right", r.right.toDouble())
+                            .put("bottom", r.bottom.toDouble())
+                    } catch (e: IllegalStateException) {
+                        JSONObject.NULL
+                    }
+                }
                 File(filesDir, "pdf-ui-state.json")
                     .writeText(
                         JSONObject()
@@ -162,6 +216,19 @@ class PdfUiProbeActivity : ComponentActivity() {
                             .put("name", current.project?.name)
                             .put("busy", current.busy)
                             .put("canUndo", current.canUndo)
+                            .put("zoom", current.zoom.toDouble())
+                            .put("panX", current.panX.toDouble())
+                            .put("panY", current.panY.toDouble())
+                            .put(
+                                "elementsMm",
+                                JSONObject()
+                                    .put("images", imagesJson)
+                                    .put("texts", textsJson)
+                                    .put("pageWidthMm", page?.width ?: JSONObject.NULL)
+                                    .put("pageHeightMm", page?.height ?: JSONObject.NULL),
+                            )
+                            .put("canvasRectPx", rectJson(PdfCanvasProbe.canvasCoordinates))
+                            .put("pageBoxRectPx", rectJson(PdfCanvasProbe.pageBoxCoordinates))
                             // Phase F item 3 review fix: lets verify_pdf_adaptive_ui.py's --media
                             // flow assert a Media panel tap actually appended an image (and undo
                             // removed it) without a screenshot diff.
@@ -185,6 +252,7 @@ class PdfUiProbeActivity : ComponentActivity() {
                             .put("groupSelected", current.groupSelected)
                             .toString()
                     )
+                delay(150)
             }
         }
         setContent {

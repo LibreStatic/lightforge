@@ -392,6 +392,7 @@ internal fun PdfCanvas(
         BoxWithConstraints(
             Modifier.fillMaxSize()
                 .clipToBounds()
+                .onGloballyPositioned { PdfCanvasProbe.canvasCoordinates = it }
                 .focusRequester(focus)
                 .pointerInput(page.id, busy, editingTextId) {
                     if (!busy)
@@ -573,7 +574,10 @@ internal fun PdfCanvas(
                     // workspace behind it; the page keeps its rectangular clip afterward.
                     .shadow(elevation = 6.dp, shape = androidx.compose.ui.graphics.RectangleShape, clip = false)
                     .background(PdfPaperTokens.Paper)
-                    .onGloballyPositioned { pageBoxCoordinates = it }
+                    .onGloballyPositioned {
+                        pageBoxCoordinates = it
+                        PdfCanvasProbe.pageBoxCoordinates = it
+                    }
                     .pointerInput(page.id, busy) {
                         if (!busy)
                             detectTapGestures(
@@ -878,6 +882,23 @@ internal fun PdfCanvas(
             }
         }
     }
+}
+
+/**
+ * Test-only observation seam (device-verification pass for the drag/pan/fit bug fixes): holds the
+ * most recently laid-out [LayoutCoordinates] for the canvas workspace pane (the outer
+ * `BoxWithConstraints` in [PdfCanvas]) and for the page box within it, so [PdfUiProbeActivity]
+ * (androidTest-only) can report their real on-screen pixel rects — post three-pane layout, post
+ * zoom/pan graphicsLayer transform — in its probe-state JSON without any production code needing
+ * to know this exists. `boundsInWindow()` is computed fresh from the live coordinates at whatever
+ * moment the reader calls it (graphicsLayer scale/translation are part of the coordinates'
+ * transform chain, so this stays correct across zoom/pan changes that don't trigger a new layout
+ * pass), so this object only ever needs to be updated when a LAYOUT (not a pan/zoom-only redraw)
+ * actually occurs. Never read outside androidTest; production code only ever writes to it.
+ */
+internal object PdfCanvasProbe {
+    @Volatile internal var canvasCoordinates: LayoutCoordinates? = null
+    @Volatile internal var pageBoxCoordinates: LayoutCoordinates? = null
 }
 
 /**
