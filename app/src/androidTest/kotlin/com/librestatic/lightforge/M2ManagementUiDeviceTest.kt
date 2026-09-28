@@ -53,14 +53,7 @@ class M2ManagementUiDeviceTest {
         assertTrue(device.hasObject(By.text(moveToTrash)))
         assertTrue(device.hasObject(By.text(context.getString(R.string.selection_add_album))))
 
-        device.findObject(By.desc(more)).click()
-        assertTrue(
-            device.wait(
-                Until.hasObject(By.text(context.getString(R.string.selection_clear))),
-                5_000,
-            ),
-        )
-        device.pressBack()
+        assertTrue(device.hasObject(By.desc(context.getString(R.string.selection_clear))))
 
         device.findObject(By.text(moveToTrash)).click()
         assertTrue(device.wait(Until.hasObject(By.res("android", "button2")), 5_000))

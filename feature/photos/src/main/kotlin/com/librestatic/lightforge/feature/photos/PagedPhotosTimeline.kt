@@ -172,6 +172,9 @@ fun PagedPhotosTimeline(
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
         state = state,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            bottom = com.librestatic.lightforge.core.designsystem.galleryBottomContentPadding(),
+        ),
         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(GalleryGridMetrics.Gap),
         verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(GalleryGridMetrics.Gap),
         modifier = (if (densityState == null) modifier else

@@ -68,7 +68,9 @@ fun MediaCollectionGrid(
             state = state,
             horizontalArrangement = Arrangement.spacedBy(GalleryGridMetrics.Gap),
             verticalArrangement = Arrangement.spacedBy(GalleryGridMetrics.Gap),
-            contentPadding = PaddingValues(bottom = 96.dp),
+            contentPadding = PaddingValues(
+                bottom = com.librestatic.lightforge.core.designsystem.galleryBottomContentPadding(96.dp),
+            ),
             modifier = Modifier.fillMaxSize().lazyGridDragSelection(
                 state = state,
                 itemAtIndex = { index -> items.itemSnapshotList.getOrNull(index) },

@@ -176,15 +176,11 @@ class SelectionToolbarPresentationDeviceTest {
                 R.string.selection_favorite, R.string.selection_trash).map(context::getString)
             val more = context.getString(com.librestatic.lightforge.feature.viewer.R.string.viewer_more)
             for (label in actions + more) checkControl(compose.onNodeWithContentDescription(label), viewport, label)
-            phase("toolbar-observed-before-menu")
-            compose.onNodeWithContentDescription(more).performTouchInput { click() }
+            phase("toolbar-observed-before-clear")
+            // Clearing lives on the count chip above the bottom toolbar, never behind the overflow.
             val clearLabel = context.getString(R.string.selection_clear)
-            val clear = compose.onNodeWithText(clearLabel)
-            clear.performScrollTo()
-            compose.waitForIdle()
-            // Dropdown is a real popup window; its critical action must remain within the local viewport.
+            val clear = compose.onNodeWithTag("selection-count-clear")
             checkControl(clear, viewport, clearLabel)
-            checkText(clearLabel, viewport)
             phase("clear-visible-before-touch")
             clear.performTouchInput { click() }
             compose.waitUntil(10_000) { vm!!.selectionCount.value == 0L }

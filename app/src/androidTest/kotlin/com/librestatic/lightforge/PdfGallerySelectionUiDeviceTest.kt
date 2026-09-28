@@ -232,8 +232,7 @@ class PdfGallerySelectionUiDeviceTest {
             // replay it.
             val create = context.getString(com.librestatic.lightforge.feature.photos.R.string.photos_create)
             val clear = context.getString(R.string.selection_clear)
-            device.findObject(By.desc(more)).click()
-            clickText(clear)
+            device.findObject(By.desc(clear)).click()
             assertFalse(device.hasObject(By.text(selectedThree)))
             assertEquals(1, database.projects().all().size)
             device.findObject(By.desc(create)).click()

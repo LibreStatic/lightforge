@@ -92,6 +92,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.foundation.layout.width
@@ -658,6 +659,20 @@ internal fun ProductionGalleryApp(
     var showDetails by rememberSaveable { mutableStateOf(false) }
     var showCreateAlbum by rememberSaveable { mutableStateOf(false) }
     var showCreateMenu by rememberSaveable { mutableStateOf(false) }
+    var pendingCreation by rememberSaveable { mutableStateOf<PendingCreation?>(null) }
+    // A pending creation belongs to the Photos grid: leaving it, or clearing a selection that was
+    // started for it, cancels the request instead of resurfacing it later out of context.
+    var pendingCreationSawSelection by remember { mutableStateOf(false) }
+    LaunchedEffect(pendingCreation, selectionCount) {
+        when {
+            pendingCreation == null -> pendingCreationSawSelection = false
+            selectionCount > 0 -> pendingCreationSawSelection = true
+            pendingCreationSawSelection -> pendingCreation = null
+        }
+    }
+    LaunchedEffect(route, rootTab) {
+        if (route != SurfaceRoute.Root || rootTab != RootTab.Photos) pendingCreation = null
+    }
     var trashSelectionMode by rememberSaveable { mutableStateOf(false) }
     var archiveSelectionMode by rememberSaveable { mutableStateOf(false) }
     var trashMenuExpanded by rememberSaveable { mutableStateOf(false) }
@@ -717,11 +732,14 @@ internal fun ProductionGalleryApp(
                     catch (_: Exception) { false }
                 if (route != requestedRoute || rootTab != requestedTab) return@launch
                 if (ready) {
+                    pendingCreation = null
                     manualReturnRoute = requestedRoute; manualReturnTab = requestedTab
                     route = SurfaceRoute.ManualMoment
+                } else if (!hasSelection) {
+                    rootTab = RootTab.Photos; route = SurfaceRoute.Root
+                    pendingCreation = PendingCreation.Memory
                 } else {
-                    if (!hasSelection) { rootTab = RootTab.Photos; route = SurfaceRoute.Root }
-                    snackbarHostState.showSnackbar(if (hasSelection) manualCreationErrorText else manualSelectionHint)
+                    snackbarHostState.showSnackbar(manualCreationErrorText)
                 }
             } finally { manualPreparing = false }
         }
@@ -739,11 +757,14 @@ internal fun ProductionGalleryApp(
                     catch (_: Exception) { false }
                 if (route != requestedRoute || rootTab != requestedTab) return@launch
                 if (ready) {
+                    pendingCreation = null
                     videoReturnRoute = requestedRoute; videoReturnRootTab = requestedTab
                     route = SurfaceRoute.MemoryVideo
+                } else if (!hadSelection) {
+                    rootTab = RootTab.Photos; route = SurfaceRoute.Root
+                    pendingCreation = PendingCreation.MemoryVideo
                 } else {
-                    if (!hadSelection) { rootTab = RootTab.Photos; route = SurfaceRoute.Root }
-                    snackbarHostState.showSnackbar(if (hadSelection) memoryVideoError else videoSelectionHint)
+                    snackbarHostState.showSnackbar(memoryVideoError)
                 }
             } finally { videoPreparing = false }
         }
@@ -775,12 +796,15 @@ internal fun ProductionGalleryApp(
                     return@launch
                 }
                 if (ready) {
+                    pendingCreation = null
                     gifReturnRoute = requestedRoute
                     gifReturnRootTab = requestedTab
                     route = SurfaceRoute.CreationGif
+                } else if (!hadSelection) {
+                    rootTab = RootTab.Photos; route = SurfaceRoute.Root
+                    pendingCreation = PendingCreation.Gif
                 } else {
-                    if (!hadSelection) { rootTab = RootTab.Photos; route = SurfaceRoute.Root }
-                    snackbarHostState.showSnackbar(if (hadSelection) gifCreationErrorText else gifSelectionHint)
+                    snackbarHostState.showSnackbar(gifCreationErrorText)
                 }
             } finally { gifPreparing = false }
         }
@@ -805,6 +829,7 @@ internal fun ProductionGalleryApp(
                 }
                 when (outcome) {
                     CollagePreparation.Ready -> {
+                        pendingCreation = null
                         collageReturnRoute = requestedRoute
                         collageReturnRootTab = requestedTab
                         route = SurfaceRoute.Collage
@@ -815,6 +840,8 @@ internal fun ProductionGalleryApp(
                         if (outcome.reason == CollageRejection.NothingSelected) {
                             rootTab = RootTab.Photos
                             route = SurfaceRoute.Root
+                            pendingCreation = PendingCreation.Collage
+                            return@launch
                         }
                         val message = collageRejectionMessage(outcome.reason, outcome.selectedCount)
                         snackbarHostState.showSnackbar(
@@ -2449,6 +2476,127 @@ internal fun ProductionGalleryApp(
             }
             }
         }
+        // Contextual selection actions float over the bottom of the surface, just above the
+        // navigation dock, so they sit next to the media they act on instead of under the header.
+        val bottomControls: @Composable (SurfaceRoute) -> Unit = { activeRoute ->
+            Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                GalleryAnimatedVisibility(
+                    // Moment keeps library selection for Back, but owns its chrome and top inset.
+                    visible = selectionCount > 0 && activeRoute !in setOf(SurfaceRoute.PublicationRecoveries, SurfaceRoute.PdfStudio, SurfaceRoute.Documents, SurfaceRoute.Stacks, SurfaceRoute.SmartAlbums, SurfaceRoute.MemoryControls, SurfaceRoute.Moment, SurfaceRoute.MomentParticipants, SurfaceRoute.ManualMoment, SurfaceRoute.MemoryVideo, SurfaceRoute.MotionPhoto, SurfaceRoute.CreationGif, SurfaceRoute.Collage, SurfaceRoute.MemoriesBrowser, SurfaceRoute.LocalBackup, SurfaceRoute.LocalBackupTasks, SurfaceRoute.RemoteBackup, SurfaceRoute.OwnSync, SurfaceRoute.OfflinePlaces, SurfaceRoute.LocalSharing, SurfaceRoute.PetIdentity),
+                    edge = GalleryMotionEdge.Bottom,
+                ) {
+                    when (activeRoute) {
+                        SurfaceRoute.Trash -> ContextSelectionActions(
+                            count = selectionCount,
+                            primaryIcon = GalleryIcons.Download,
+                            primaryLabel = stringResource(com.librestatic.lightforge.feature.trash.R.string.trash_restore),
+                            onPrimary = {
+                                trashSelectionMode = false
+                                viewModel.beginSelectionSystemAction(MediaAction.Trash(false))
+                            },
+                            secondaryIcon = GalleryIcons.Trash,
+                            secondaryLabel = stringResource(R.string.selection_delete),
+                            onSecondary = {
+                                runDestructive {
+                                    trashSelectionMode = false
+                                    viewModel.beginSelectionSystemAction(MediaAction.Delete)
+                                }
+                            },
+                            onSelectAll = viewModel::selectAllTrash,
+                            onClear = { trashSelectionMode = false; viewModel.clearSelection() },
+                        )
+                        SurfaceRoute.Archive -> ContextSelectionActions(
+                            count = selectionCount,
+                            primaryIcon = GalleryIcons.Archive,
+                            primaryLabel = stringResource(R.string.archive_unarchive),
+                            onPrimary = { archiveSelectionMode = false; viewModel.setSelectionArchived(false) },
+                            secondaryIcon = GalleryIcons.Trash,
+                            secondaryLabel = stringResource(R.string.selection_trash),
+                            onSecondary = {
+                                runDestructive {
+                                    archiveSelectionMode = false
+                                    viewModel.beginSelectionSystemAction(MediaAction.Trash(true))
+                                }
+                            },
+                            onSelectAll = viewModel::selectAllArchive,
+                            onClear = { archiveSelectionMode = false; viewModel.clearSelection() },
+                        )
+                        else -> SelectionActions(
+                            count = selectionCount,
+                            canShare = selection is SelectionSpec.Explicit && selectionCount <= 500,
+                            showShareLimitNote = selectionCount > 500,
+                            onSelectAll = {
+                                if (activeRoute == SurfaceRoute.Album && selectedAlbum != null) {
+                                    viewModel.selectAllAlbum(requireNotNull(selectedAlbum), filter, sort)
+                                } else viewModel.selectAllTimeline()
+                            },
+                            onFavorite = { viewModel.beginSelectionSystemAction(MediaAction.Favorite(true)) },
+                            onTrash = { runDestructive { viewModel.beginSelectionSystemAction(MediaAction.Trash(true)) } },
+                            onDelete = { runDestructive { viewModel.beginSelectionSystemAction(MediaAction.Delete) } },
+                            onAddToAlbum = { showAddToAlbum = true },
+                            onArchive = { viewModel.setSelectionArchived(true) },
+                            onShare = {
+                                viewModel.selectionShareIntent()?.let {
+                                    context.startActivity(Intent.createChooser(it, null))
+                                }
+                            },
+                            onStack = {
+                                appScope.launch {
+                                    val id = viewModel.createSelectedPhotoStack()
+                                    if (id == null) snackbarHostState.showSnackbar(stackError)
+                                    else { initialStackId = id; route = SurfaceRoute.Stacks }
+                                }
+                            },
+                            onDocuments = {
+                                appScope.launch {
+                                    if (viewModel.organizeSelectedDocuments()) route = SurfaceRoute.Documents
+                                    else snackbarHostState.showSnackbar(documentError)
+                                }
+                            },
+                            onPdfStudio = {
+                                pdfReturnToDocuments = false
+                                pendingPdfRequestId = java.util.UUID.randomUUID().toString()
+                                pendingPdfSources = ArrayList(viewModel.selectedPdfSources().map { it.toString() })
+                                route = SurfaceRoute.PdfStudio
+                                // The gallery selection does not track tap order (SelectionSpec.Explicit
+                                // is a plain Set): pages land in the gallery's own display order, so the
+                                // handoff says so explicitly instead of implying a numbered pick order.
+                                appScope.launch { snackbarHostState.showSnackbar(pdfSelectionHint) }
+                            },
+                            canCreatePdf = viewModel.selectedPdfSources().isNotEmpty(),
+                            canCreateMemory = viewModel.canCreateSelectionVideo(),
+                            onCreateMemory = { openManualMoment() },
+                            onCreateMemoryVideo = ::openSelectionVideo,
+                            canCreateGif = viewModel.canCreateGif(),
+                            onCreateGif = ::openCreationGif,
+                            onCreateCollage = ::openCreationCollage,
+                            pendingCreation = pendingCreation?.takeIf { activeRoute == SurfaceRoute.Root },
+                            onCancelPendingCreation = { pendingCreation = null },
+                            onClear = viewModel::clearSelection,
+                        )
+                    }
+                }
+                GalleryAnimatedVisibility(
+                    visible = selectionCount == 0L && pendingCreation != null &&
+                        activeRoute == SurfaceRoute.Root && rootTab == RootTab.Photos,
+                    edge = GalleryMotionEdge.Bottom,
+                ) {
+                    val pending = pendingCreation
+                    if (pending != null) PendingCreationHint(
+                        creation = pending,
+                        hint = when (pending) {
+                            PendingCreation.Memory -> manualSelectionHint
+                            PendingCreation.MemoryVideo -> videoSelectionHint
+                            PendingCreation.Gif -> gifSelectionHint
+                            PendingCreation.Collage -> stringResource(
+                                collageRejectionMessage(CollageRejection.NothingSelected, 0).stringRes,
+                            )
+                        },
+                        onCancel = { pendingCreation = null },
+                    )
+                }
+            }
+        }
         val controls: @Composable (SurfaceRoute) -> Unit = { activeRoute ->
             // Controls are drawn above the route's own chrome, so on routes where the scaffold
             // withholds the top inset they have to apply it themselves or they collide with the
@@ -2456,99 +2604,6 @@ internal fun ProductionGalleryApp(
             val controlsTopInset = if (surfaceControlsNeedTopInset(activeRoute)) {
                 Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
             } else Modifier
-            GalleryAnimatedVisibility(
-                // Moment keeps library selection for Back, but owns its chrome and top inset.
-                visible = selectionCount > 0 && activeRoute !in setOf(SurfaceRoute.PublicationRecoveries, SurfaceRoute.PdfStudio, SurfaceRoute.Documents, SurfaceRoute.Stacks, SurfaceRoute.SmartAlbums, SurfaceRoute.MemoryControls, SurfaceRoute.Moment, SurfaceRoute.MomentParticipants, SurfaceRoute.ManualMoment, SurfaceRoute.MemoryVideo, SurfaceRoute.MotionPhoto, SurfaceRoute.CreationGif, SurfaceRoute.Collage, SurfaceRoute.MemoriesBrowser, SurfaceRoute.LocalBackup, SurfaceRoute.LocalBackupTasks, SurfaceRoute.RemoteBackup, SurfaceRoute.OwnSync, SurfaceRoute.OfflinePlaces, SurfaceRoute.LocalSharing, SurfaceRoute.PetIdentity),
-                edge = GalleryMotionEdge.Top,
-            ) {
-                when (activeRoute) {
-                    SurfaceRoute.Trash -> ContextSelectionActions(
-                        count = selectionCount,
-                        primaryIcon = GalleryIcons.Download,
-                        primaryLabel = stringResource(com.librestatic.lightforge.feature.trash.R.string.trash_restore),
-                        onPrimary = {
-                            trashSelectionMode = false
-                            viewModel.beginSelectionSystemAction(MediaAction.Trash(false))
-                        },
-                        secondaryIcon = GalleryIcons.Trash,
-                        secondaryLabel = stringResource(R.string.selection_delete),
-                        onSecondary = {
-                            runDestructive {
-                                trashSelectionMode = false
-                                viewModel.beginSelectionSystemAction(MediaAction.Delete)
-                            }
-                        },
-                        onSelectAll = viewModel::selectAllTrash,
-                        onClear = { trashSelectionMode = false; viewModel.clearSelection() },
-                    )
-                    SurfaceRoute.Archive -> ContextSelectionActions(
-                        count = selectionCount,
-                        primaryIcon = GalleryIcons.Archive,
-                        primaryLabel = stringResource(R.string.archive_unarchive),
-                        onPrimary = { archiveSelectionMode = false; viewModel.setSelectionArchived(false) },
-                        secondaryIcon = GalleryIcons.Trash,
-                        secondaryLabel = stringResource(R.string.selection_trash),
-                        onSecondary = {
-                            runDestructive {
-                                archiveSelectionMode = false
-                                viewModel.beginSelectionSystemAction(MediaAction.Trash(true))
-                            }
-                        },
-                        onSelectAll = viewModel::selectAllArchive,
-                        onClear = { archiveSelectionMode = false; viewModel.clearSelection() },
-                    )
-                    else -> SelectionActions(
-                        count = selectionCount,
-                        canShare = selection is SelectionSpec.Explicit && selectionCount <= 500,
-                        showShareLimitNote = selectionCount > 500,
-                        onSelectAll = {
-                            if (activeRoute == SurfaceRoute.Album && selectedAlbum != null) {
-                                viewModel.selectAllAlbum(requireNotNull(selectedAlbum), filter, sort)
-                            } else viewModel.selectAllTimeline()
-                        },
-                        onFavorite = { viewModel.beginSelectionSystemAction(MediaAction.Favorite(true)) },
-                        onTrash = { runDestructive { viewModel.beginSelectionSystemAction(MediaAction.Trash(true)) } },
-                        onDelete = { runDestructive { viewModel.beginSelectionSystemAction(MediaAction.Delete) } },
-                        onAddToAlbum = { showAddToAlbum = true },
-                        onArchive = { viewModel.setSelectionArchived(true) },
-                        onShare = {
-                            viewModel.selectionShareIntent()?.let {
-                                context.startActivity(Intent.createChooser(it, null))
-                            }
-                        },
-                        onStack = {
-                            appScope.launch {
-                                val id = viewModel.createSelectedPhotoStack()
-                                if (id == null) snackbarHostState.showSnackbar(stackError)
-                                else { initialStackId = id; route = SurfaceRoute.Stacks }
-                            }
-                        },
-                        onDocuments = {
-                            appScope.launch {
-                                if (viewModel.organizeSelectedDocuments()) route = SurfaceRoute.Documents
-                                else snackbarHostState.showSnackbar(documentError)
-                            }
-                        },
-                        onPdfStudio = {
-                            pdfReturnToDocuments = false
-                            pendingPdfRequestId = java.util.UUID.randomUUID().toString()
-                            pendingPdfSources = ArrayList(viewModel.selectedPdfSources().map { it.toString() })
-                            route = SurfaceRoute.PdfStudio
-                            // The gallery selection does not track tap order (SelectionSpec.Explicit
-                            // is a plain Set): pages land in the gallery's own display order, so the
-                            // handoff says so explicitly instead of implying a numbered pick order.
-                            appScope.launch { snackbarHostState.showSnackbar(pdfSelectionHint) }
-                        },
-                        canCreatePdf = viewModel.selectedPdfSources().isNotEmpty(),
-                        canCreateMemory = viewModel.canCreateSelectionVideo(),
-                        onCreateMemory = { openManualMoment() },
-                        canCreateGif = viewModel.canCreateGif(),
-                        onCreateGif = ::openCreationGif,
-                        onCreateCollage = ::openCreationCollage,
-                        onClear = viewModel::clearSelection,
-                    )
-                }
-            }
             moveState.copyDraft?.let { draft ->
                 Surface(color = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer) {
@@ -2908,6 +2963,7 @@ internal fun ProductionGalleryApp(
                             modifier = Modifier.weight(1f),
                             stateHolder = surfaceStateHolder,
                             controls = { activeRoute -> if (!accessibleViewerWindow) controls(activeRoute) },
+                            bottomControls = { activeRoute -> if (!accessibleViewerWindow) bottomControls(activeRoute) },
                             content = content,
                         )
                     }
@@ -2925,6 +2981,7 @@ internal fun ProductionGalleryApp(
                     ),
                     stateHolder = surfaceStateHolder,
                     controls = { activeRoute -> if (!accessibleViewerWindow) controls(activeRoute) },
+                    bottomControls = { activeRoute -> if (!accessibleViewerWindow) bottomControls(activeRoute) },
                     content = content,
                 )
             }
@@ -2954,6 +3011,7 @@ internal fun ProductionGalleryApp(
                         modifier = Modifier.fillMaxSize(),
                         stateHolder = surfaceStateHolder,
                         controls = controls,
+                        bottomControls = bottomControls,
                         content = content,
                     )
                     Box(Modifier.align(Alignment.BottomCenter).navigationBarsPadding()) { globalStatus() }
@@ -3553,6 +3611,7 @@ internal fun AnimatedSurfaceBody(
     modifier: Modifier,
     stateHolder: SaveableStateHolder,
     controls: @Composable (SurfaceRoute) -> Unit,
+    bottomControls: @Composable (SurfaceRoute) -> Unit = {},
     content: @Composable (ScreenMotionKey) -> Unit,
 ) {
     GalleryAnimatedContent(
@@ -3566,14 +3625,30 @@ internal fun AnimatedSurfaceBody(
                     transition.targetState == androidx.compose.animation.EnterExitState.Visible
                 ),
         ) {
-        Column(Modifier.fillMaxSize()) {
-            controls(activeKey.route)
-            if (activeKey.saveableStateKey != null) {
-                stateHolder.SaveableStateProvider(activeKey.saveableStateKey) {
-                    content(activeKey)
+        var bottomOverlayHeight by remember { mutableStateOf(0.dp) }
+        val density = LocalDensity.current
+        Box(Modifier.fillMaxSize()) {
+            Column(Modifier.fillMaxSize()) {
+                controls(activeKey.route)
+                androidx.compose.runtime.CompositionLocalProvider(
+                    com.librestatic.lightforge.core.designsystem.LocalGalleryBottomOverlayPadding provides bottomOverlayHeight,
+                ) {
+                    if (activeKey.saveableStateKey != null) {
+                        stateHolder.SaveableStateProvider(activeKey.saveableStateKey) {
+                            content(activeKey)
+                        }
+                    } else {
+                        content(activeKey)
+                    }
                 }
-            } else {
-                content(activeKey)
+            }
+            Box(
+                Modifier.align(androidx.compose.ui.Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .onSizeChanged { bottomOverlayHeight = with(density) { it.height.toDp() } },
+                contentAlignment = androidx.compose.ui.Alignment.BottomCenter,
+            ) {
+                bottomControls(activeKey.route)
             }
         }
         }
@@ -3594,7 +3669,7 @@ private fun ContextSelectionActions(
 ) {
     HorizontalFloatingToolbar(
         expanded = true,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+        modifier = Modifier.padding(horizontal = 12.dp).padding(bottom = 12.dp),
         leadingContent = {
             GalleryExpressiveIconButton(onClick = onClear) {
                 Icon(GalleryIcons.Close, contentDescription = stringResource(R.string.selection_clear))
@@ -3637,43 +3712,72 @@ private fun SelectionActions(
     canCreatePdf: Boolean,
     canCreateMemory: Boolean,
     onCreateMemory: () -> Unit,
+    onCreateMemoryVideo: () -> Unit,
     canCreateGif: Boolean,
     onCreateGif: () -> Unit,
     onCreateCollage: () -> Unit,
+    pendingCreation: PendingCreation? = null,
+    onCancelPendingCreation: () -> Unit = {},
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-    // The count must not compete with five touch targets on compact/large-text layouts.
-    val separateCount = maxWidth < 600.dp || LocalDensity.current.fontScale > 1.3f
     Column(
-        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 12.dp).padding(bottom = 12.dp),
         horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        if (separateCount) {
+        // The count and the creation the user came to make sit together above the toolbar, so
+        // the toolbar keeps its full width for the five everyday actions on compact phones.
+        androidx.compose.foundation.layout.FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp, androidx.compose.ui.Alignment.CenterHorizontally),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             Surface(
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                shape = MaterialTheme.shapes.large,
-                modifier = Modifier.fillMaxWidth(),
+                onClick = onClear,
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                shape = androidx.compose.foundation.shape.CircleShape,
+                modifier = Modifier.heightIn(min = 48.dp)
+                    .semantics { testTagsAsResourceId = true }.testTag("selection-count-clear"),
             ) {
-                Text(
-                    stringResource(R.string.selection_count, count),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                        .semantics { liveRegion = LiveRegionMode.Polite },
-                )
+                Row(
+                    Modifier.padding(start = 12.dp, end = 16.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(GalleryIcons.Close, contentDescription = stringResource(R.string.selection_clear))
+                    Text(
+                        stringResource(R.string.selection_count, count),
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.padding(vertical = 12.dp)
+                            .semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                }
+            }
+            pendingCreation?.let { creation ->
+                val enabled = when (creation) {
+                    PendingCreation.Memory, PendingCreation.MemoryVideo -> canCreateMemory
+                    PendingCreation.Gif -> canCreateGif
+                    PendingCreation.Collage -> true
+                }
+                GalleryExpressiveButton(
+                    onClick = when (creation) {
+                        PendingCreation.Memory -> onCreateMemory
+                        PendingCreation.MemoryVideo -> onCreateMemoryVideo
+                        PendingCreation.Gif -> onCreateGif
+                        PendingCreation.Collage -> onCreateCollage
+                    },
+                    enabled = enabled,
+                    modifier = Modifier.heightIn(min = 48.dp)
+                        .semantics { testTagsAsResourceId = true }.testTag("selection-pending-create"),
+                ) {
+                    Icon(pendingCreationIcon(creation), contentDescription = null)
+                    androidx.compose.foundation.layout.Spacer(Modifier.width(8.dp))
+                    Text(pendingCreationTitle(creation))
+                }
             }
         }
         HorizontalFloatingToolbar(
             expanded = true,
-            leadingContent = {
-            if (!separateCount) Text(
-                stringResource(R.string.selection_count, count),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 12.dp)
-                    .semantics { liveRegion = LiveRegionMode.Polite },
-            )
-            },
             trailingContent = {
             Box {
                 GalleryExpressiveIconButton(onClick = { menuExpanded = true }) {
@@ -3683,7 +3787,14 @@ private fun SelectionActions(
                     DropdownMenuItem(
                         text = { Text(stringResource(com.librestatic.lightforge.feature.collections.R.string.manual_moment_title)) },
                         onClick = { menuExpanded = false; onCreateMemory() }, enabled = canCreateMemory,
+                        leadingIcon = { Icon(GalleryIcons.PhotoLibrary, contentDescription = null) },
                         modifier = Modifier.semantics { testTagsAsResourceId = true }.testTag("selection-create-memory"),
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(com.librestatic.lightforge.feature.videoeditor.R.string.memory_video_title)) },
+                        onClick = { menuExpanded = false; onCreateMemoryVideo() }, enabled = canCreateMemory,
+                        leadingIcon = { Icon(GalleryIcons.Video, contentDescription = null) },
+                        modifier = Modifier.semantics { testTagsAsResourceId = true }.testTag("selection-create-memory-video"),
                     )
                     DropdownMenuItem(
                         text = { Text(stringResource(com.librestatic.lightforge.feature.collections.R.string.stacks_create)) },
@@ -3701,13 +3812,14 @@ private fun SelectionActions(
                         text = { Text(stringResource(com.librestatic.lightforge.feature.collage.R.string.creation_gif_title)) },
                         onClick = { menuExpanded = false; onCreateGif() },
                         enabled = canCreateGif,
+                        leadingIcon = { Icon(GalleryIcons.Repeat, contentDescription = null) },
                         modifier = Modifier.semantics { testTagsAsResourceId = true }.testTag("selection-create-gif"),
                     )
                     // Always enabled: preparation explains a count or media-type mismatch in a snackbar.
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.m6_collage)) },
                         onClick = { menuExpanded = false; onCreateCollage() },
-                        leadingIcon = { Icon(GalleryIcons.Collections, contentDescription = null) },
+                        leadingIcon = { Icon(GalleryIcons.GridView, contentDescription = null) },
                         modifier = Modifier.semantics { testTagsAsResourceId = true }.testTag("selection-create-collage"),
                     )
                     DropdownMenuItem(
@@ -3724,11 +3836,6 @@ private fun SelectionActions(
                         text = { Text(stringResource(R.string.selection_delete)) },
                         onClick = { menuExpanded = false; onDelete() },
                         leadingIcon = { Icon(GalleryIcons.Trash, contentDescription = null) },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.selection_clear)) },
-                        onClick = { menuExpanded = false; onClear() },
-                        leadingIcon = { Icon(GalleryIcons.Close, contentDescription = null) },
                     )
                 }
             }
@@ -3757,16 +3864,21 @@ private fun SelectionActions(
             }
         }
         if (showShareLimitNote) {
-            Text(
-                stringResource(R.string.selection_share_limit),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 8.dp),
-            )
+            // Floats over media, so it needs its own container pair to stay legible.
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                shape = MaterialTheme.shapes.large,
+            ) {
+                Text(
+                    stringResource(R.string.selection_share_limit),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                )
+            }
         }
     }
 }
-    }
 
 @Composable
 private fun ChooseAlbumDialog(
