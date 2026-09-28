@@ -240,6 +240,12 @@
     <string name="pdf_library_template_photo_grid">Cuadrícula de fotos</string>
     <string name="pdf_library_template_receipts">Recibos</string>
     <string name="pdf_library_template_prints">Impresiones 10 × 15</string>
+    <string name="pdf_template_blank_name">En blanco</string>
+    <string name="pdf_template_blank_desc">Empezar desde cero</string>
+    <string name="pdf_template_photo_grid_desc">Cuadrícula de fotos 2 × 2, A4</string>
+    <string name="pdf_template_receipts_desc">Un recibo por fila, A4</string>
+    <string name="pdf_template_prints_desc">Una foto por página, 10 × 15 cm</string>
+    <string name="pdf_template_selected_suffix">seleccionado</string>
     <string name="pdf_library_rename">Cambiar nombre</string>
     <string name="pdf_library_rename_title">Cambiar nombre del proyecto</string>
     <string name="pdf_library_export_project">Exportar archivo de proyecto</string>
@@ -251,6 +257,7 @@
     </plurals>
     <string name="pdf_library_history_needs_action">Exportaciones, requiere atención</string>
     <string name="pdf_new_project_title">Nuevo proyecto</string>
+    <string name="pdf_new_project_template_label">Plantilla</string>
     <string name="pdf_new_project_create">Crear</string>
     <string name="pdf_selection_create_pdf">Crear PDF</string>
     <string name="pdf_selection_pdf_hint">El orden es el orden de las páginas · hasta 24 por página</string>

@@ -96,6 +96,13 @@ class PdfFlowProbeActivity : ComponentActivity() {
                             .put("assets", current.project?.assets?.size ?: 0)
                             .put("images", current.project?.pages?.sumOf { it.images.size } ?: 0)
                             .put("name", current.project?.name)
+                            // Phase G4: page geometry so verify_pdf_screen_flow.py can assert a
+                            // template's paper/margin/columns landed on the created project
+                            // without relying on a screenshot or Layout-panel navigation.
+                            .put("pageWidthMm", current.project?.pages?.firstOrNull()?.width)
+                            .put("pageHeightMm", current.project?.pages?.firstOrNull()?.height)
+                            .put("pageMarginMm", current.project?.pages?.firstOrNull()?.margin)
+                            .put("columns", current.project?.columns)
                             .put("page", current.page)
                             .put("canUndo", current.canUndo)
                             .put("message", current.message)

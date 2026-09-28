@@ -240,6 +240,12 @@
     <string name="pdf_library_template_photo_grid">Griglia di foto</string>
     <string name="pdf_library_template_receipts">Ricevute</string>
     <string name="pdf_library_template_prints">Stampe 10 × 15</string>
+    <string name="pdf_template_blank_name">Vuoto</string>
+    <string name="pdf_template_blank_desc">Inizia da zero</string>
+    <string name="pdf_template_photo_grid_desc">Griglia di foto 2 × 2, A4</string>
+    <string name="pdf_template_receipts_desc">Una ricevuta per riga, A4</string>
+    <string name="pdf_template_prints_desc">Una foto per pagina, 10 × 15 cm</string>
+    <string name="pdf_template_selected_suffix">selezionato</string>
     <string name="pdf_library_rename">Rinomina</string>
     <string name="pdf_library_rename_title">Rinomina progetto</string>
     <string name="pdf_library_export_project">Esporta file di progetto</string>
@@ -251,6 +257,7 @@
     </plurals>
     <string name="pdf_library_history_needs_action">Esportazioni, azione richiesta</string>
     <string name="pdf_new_project_title">Nuovo progetto</string>
+    <string name="pdf_new_project_template_label">Modello</string>
     <string name="pdf_new_project_create">Crea</string>
     <string name="pdf_selection_create_pdf">Crea PDF</string>
     <string name="pdf_selection_pdf_hint">L\'ordine è l\'ordine delle pagine · fino a 24 per pagina</string>

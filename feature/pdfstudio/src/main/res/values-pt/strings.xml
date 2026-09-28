@@ -240,6 +240,12 @@
     <string name="pdf_library_template_photo_grid">Grade de fotos</string>
     <string name="pdf_library_template_receipts">Recibos</string>
     <string name="pdf_library_template_prints">Impressões 10 × 15</string>
+    <string name="pdf_template_blank_name">Em branco</string>
+    <string name="pdf_template_blank_desc">Começar do zero</string>
+    <string name="pdf_template_photo_grid_desc">Grade de fotos 2 × 2, A4</string>
+    <string name="pdf_template_receipts_desc">Um recibo por linha, A4</string>
+    <string name="pdf_template_prints_desc">Uma foto por página, 10 × 15 cm</string>
+    <string name="pdf_template_selected_suffix">selecionado</string>
     <string name="pdf_library_rename">Renomear</string>
     <string name="pdf_library_rename_title">Renomear projeto</string>
     <string name="pdf_library_export_project">Exportar arquivo do projeto</string>
@@ -251,6 +257,7 @@
     </plurals>
     <string name="pdf_library_history_needs_action">Exportações, ação necessária</string>
     <string name="pdf_new_project_title">Novo projeto</string>
+    <string name="pdf_new_project_template_label">Modelo</string>
     <string name="pdf_new_project_create">Criar</string>
     <string name="pdf_selection_create_pdf">Criar PDF</string>
     <string name="pdf_selection_pdf_hint">A ordem é a ordem das páginas · até 24 por página</string>

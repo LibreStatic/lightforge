@@ -539,10 +539,16 @@ class PdfProjectRepository(
                     throw PdfSourceFailure(n + 1, e)
                 }
             }
+            // Phase G4: the gallery batch handoff still creates directly (no template picker in
+            // its UX), but its default grid now comes from the single PdfTemplate source of truth
+            // instead of its own literal 2/4.0 — PdfTemplate.Blank carries exactly those values.
             if (galleryLayout)
                 pages =
                     pages
-                        .map { if (it.source == null) PdfGeometry.grid(it, 2, 4.0) else it }
+                        .map {
+                            if (it.source == null) PdfGeometry.grid(it, PdfTemplate.Blank.columns, PdfTemplate.Blank.gap)
+                            else it
+                        }
                         .toMutableList()
             val next = p.copy(pages = pages, assets = known.values.toList()).validate()
             currentCoroutineContext().ensureActive()

@@ -46,31 +46,6 @@ internal fun filterAndSortProjects(
         }
     }
 
-/** The three quick-start templates offered from the empty state and prefilled into the New
- * project sheet (Phase E item 2/3): Photo grid (A4 portrait, 2 columns), Receipts (A4 portrait,
- * 1 column, narrow margins) and Prints 10x15 (10x15 cm, 1 photo per page). */
-internal data class PdfNewProjectTemplate(
-    val nameRes: Int,
-    val paper: String,
-    val landscape: Boolean = false,
-    val columns: Int,
-    val margin: Double = 10.0,
-) {
-    companion object {
-        val PhotoGrid =
-            PdfNewProjectTemplate(R.string.pdf_library_template_photo_grid, PdfPaperPresets.A4, columns = 2)
-        val Receipts =
-            PdfNewProjectTemplate(
-                R.string.pdf_library_template_receipts,
-                PdfPaperPresets.A4,
-                columns = 1,
-                margin = 5.0,
-            )
-        val Prints10x15 =
-            PdfNewProjectTemplate(R.string.pdf_library_template_prints, PdfPaperPresets.PRINT_10X15, columns = 1)
-    }
-}
-
 /** The "no project open" list (Phase E redesign): first-run empty state with template shortcuts,
  * or a searchable/sortable list of rich project cards. */
 @Composable
@@ -86,12 +61,12 @@ internal fun ColumnScope.PdfLibraryScreen(
     onExportProject: (PdfProjectRow) -> Unit,
 ) {
     var showNewProject by rememberSaveable { mutableStateOf(false) }
-    var prefillTemplate by remember { mutableStateOf<PdfNewProjectTemplate?>(null) }
+    var prefillTemplate by remember { mutableStateOf<PdfTemplate?>(null) }
     var query by rememberSaveable { mutableStateOf("") }
     var sort by rememberSaveable { mutableStateOf(PdfLibrarySort.Recent) }
     var renameTarget by remember { mutableStateOf<PdfProjectRow?>(null) }
 
-    fun openNewProject(template: PdfNewProjectTemplate?) {
+    fun openNewProject(template: PdfTemplate?) {
         prefillTemplate = template
         showNewProject = true
     }
@@ -132,7 +107,7 @@ internal fun ColumnScope.PdfLibraryScreen(
             defaultName = defaultName,
             template = prefillTemplate,
             onDismiss = { showNewProject = false },
-            onCreate = { name, paper, landscape, columns, margin ->
+            onCreate = { name, paper, landscape, columns, margin, gap ->
                 showNewProject = false
                 val preset = PdfPaperPresets.presets.first { it.id == paper }
                 vm.newProject(
@@ -141,6 +116,7 @@ internal fun ColumnScope.PdfLibraryScreen(
                     heightMm = preset.heightMm,
                     landscape = landscape,
                     columns = columns,
+                    gap = gap,
                     margin = margin,
                 )
             },
@@ -226,10 +202,16 @@ private fun ColumnScope.PdfLibraryEmptyState(
     pendingImport: Any?,
     onNewProject: () -> Unit,
     onImportProject: () -> Unit,
-    onTemplate: (PdfNewProjectTemplate) -> Unit,
+    onTemplate: (PdfTemplate) -> Unit,
 ) {
     Column(
-        Modifier.weight(1f).fillMaxWidth().padding(24.dp),
+        // G4 review fix: PdfTemplateCard's two-line name+description made the template row much
+        // taller than the old icon-only tiles it replaced; at 200% font, "Prints 10 x 15" fell
+        // entirely off this non-scrolling, centered Column with no way to reach it (confirmed via
+        // uiautomator: the node simply isn't in the tree at font_scale=2.0 on a 1080x2340 phone).
+        // A scrollable Column keeps every shortcut reachable regardless of how tall the content
+        // grows, the same fix already applied to PdfNewProjectSheet for the same reason.
+        Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -265,31 +247,9 @@ private fun ColumnScope.PdfLibraryEmptyState(
         }
         Spacer(Modifier.height(20.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(
-                    PdfNewProjectTemplate.PhotoGrid to GalleryIcons.GridView,
-                    PdfNewProjectTemplate.Receipts to GalleryIcons.Receipt,
-                    PdfNewProjectTemplate.Prints10x15 to GalleryIcons.Photo,
-                )
-                .forEach { (template, icon) ->
-                    val label = stringResource(template.nameRes)
-                    Surface(
-                        color = MaterialTheme.colorScheme.surfaceContainer,
-                        contentColor = MaterialTheme.colorScheme.onSurface,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier =
-                            Modifier.clickable(enabled = !busy) { onTemplate(template) }
-                                .semantics { contentDescription = label },
-                    ) {
-                        Column(
-                            Modifier.padding(12.dp).widthIn(min = 88.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Icon(icon, contentDescription = null)
-                            Spacer(Modifier.height(4.dp))
-                            Text(label, style = MaterialTheme.typography.labelSmall, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                        }
-                    }
-                }
+            PdfTemplate.LIBRARY_SHORTCUTS.forEach { template ->
+                PdfTemplateCard(template = template, selected = false, enabled = !busy) { onTemplate(template) }
+            }
         }
     }
 }
@@ -454,30 +414,47 @@ private fun PdfRenameProjectDialog(initial: String, onDismiss: () -> Unit, onCon
 }
 
 /**
- * "New project" sheet (Phase E item 3): optional name, visual paper cards and orientation (reused
- * from the Phase D Layout panel), a photos-per-page template, and a primary Create action. A
- * [template] pre-fills the sheet from an empty-state shortcut.
+ * "New project" sheet (Phase E item 3, single-source-of-truth templates in Phase G4): a row of
+ * [PdfTemplate] visual cards ("Blank" plus the library shortcuts) that prefills paper/orientation/
+ * photos-per-page/margin/gap when tapped, an optional name, visual paper cards and orientation
+ * (reused from the Phase D Layout panel), a photos-per-page template, and a primary Create action.
+ * A [template] pre-fills the sheet's selected card from an empty-state shortcut; `null` starts on
+ * [PdfTemplate.Blank].
  */
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun PdfNewProjectSheet(
     defaultName: String,
-    template: PdfNewProjectTemplate?,
+    template: PdfTemplate?,
     onDismiss: () -> Unit,
-    onCreate: (name: String, paper: String, landscape: Boolean, columns: Int, margin: Double) -> Unit,
+    onCreate: (name: String, paper: String, landscape: Boolean, columns: Int, margin: Double, gap: Double) -> Unit,
 ) {
+    var selectedProjectTemplate by rememberSaveable(template) { mutableStateOf(template ?: PdfTemplate.Blank) }
     var name by rememberSaveable(template) { mutableStateOf("") }
-    var paper by rememberSaveable(template) { mutableStateOf(template?.paper ?: PdfPaperPresets.A4) }
-    var landscape by rememberSaveable(template) { mutableStateOf(template?.landscape ?: false) }
+    var paper by rememberSaveable(template) { mutableStateOf(selectedProjectTemplate.paper) }
+    var landscape by rememberSaveable(template) { mutableStateOf(selectedProjectTemplate.landscape) }
     // Phase F item 0: track which grid-template tile is explicitly selected instead of deriving
     // it from a column count, since several tiles share a column count (4 and 6 both use 2
     // columns in portrait) and would otherwise both show as selected. Falls back to the
     // columns-derived match only when it is unambiguous.
     var selectedTemplate by rememberSaveable(template) {
-        mutableStateOf(template?.let { PdfLayoutTemplates.unambiguousMatch(it.columns, it.landscape) })
+        mutableStateOf(PdfLayoutTemplates.unambiguousMatch(selectedProjectTemplate.columns, selectedProjectTemplate.landscape))
     }
-    val columns = selectedTemplate?.let { PdfLayoutTemplates.columnsFor(it, landscape) } ?: (template?.columns ?: 2)
-    val margin = template?.margin ?: 10.0
+    var margin by rememberSaveable(template) { mutableDoubleStateOf(selectedProjectTemplate.margin) }
+    var gap by rememberSaveable(template) { mutableDoubleStateOf(selectedProjectTemplate.gap) }
+    val columns = selectedTemplate?.let { PdfLayoutTemplates.columnsFor(it, landscape) } ?: selectedProjectTemplate.columns
+
+    // Applies every field a project/page template (Phase G4) prefills; the user can still tweak
+    // paper/orientation/photos-per-page individually afterward via the sections below.
+    fun applyProjectTemplate(t: PdfTemplate) {
+        selectedProjectTemplate = t
+        paper = t.paper
+        landscape = t.landscape
+        selectedTemplate = PdfLayoutTemplates.unambiguousMatch(t.columns, t.landscape)
+        margin = t.margin
+        gap = t.gap
+    }
+
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         // Narrow widths (320-360dp) wrap the paper-card/template FlowRows onto extra lines, and
@@ -492,6 +469,21 @@ private fun PdfNewProjectSheet(
                 .verticalScroll(rememberScrollState())
         ) {
             Text(stringResource(R.string.pdf_new_project_title), style = MaterialTheme.typography.headlineSmall)
+            Spacer(Modifier.height(16.dp))
+            Text(stringResource(R.string.pdf_new_project_template_label), style = MaterialTheme.typography.labelLarge)
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            ) {
+                PdfTemplate.NEW_PROJECT_TILES.forEach { t ->
+                    PdfTemplateCard(
+                        template = t,
+                        selected = selectedProjectTemplate == t,
+                        enabled = true,
+                    ) { applyProjectTemplate(t) }
+                }
+            }
             Spacer(Modifier.height(16.dp))
             OutlinedTextField(
                 value = name,
@@ -543,7 +535,7 @@ private fun PdfNewProjectSheet(
             Spacer(Modifier.height(20.dp))
             Button(
                 onClick = {
-                    onCreate(name.ifBlank { defaultName }, paper, landscape, columns, margin)
+                    onCreate(name.ifBlank { defaultName }, paper, landscape, columns, margin, gap)
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {

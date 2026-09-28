@@ -37,12 +37,15 @@ class PdfLibraryScreenTest {
 
     @Test
     fun `template presets match the plan's paper and column counts`() {
-        assertEquals(PdfPaperPresets.A4, PdfNewProjectTemplate.PhotoGrid.paper)
-        assertEquals(2, PdfNewProjectTemplate.PhotoGrid.columns)
-        assertEquals(PdfPaperPresets.A4, PdfNewProjectTemplate.Receipts.paper)
-        assertEquals(1, PdfNewProjectTemplate.Receipts.columns)
-        assertTrue(PdfNewProjectTemplate.Receipts.margin < PdfNewProjectTemplate.PhotoGrid.margin)
-        assertEquals(PdfPaperPresets.PRINT_10X15, PdfNewProjectTemplate.Prints10x15.paper)
-        assertEquals(1, PdfNewProjectTemplate.Prints10x15.columns)
+        // Phase G4 moved these presets into PdfTemplate (single source of truth reused by the
+        // library, the New project sheet and the gallery handoff) — see PdfTemplateTest for its
+        // own dedicated coverage; this test just keeps confirming the library's expectations.
+        assertEquals(PdfPaperPresets.A4, PdfTemplate.PhotoGrid.paper)
+        assertEquals(2, PdfTemplate.PhotoGrid.columns)
+        assertEquals(PdfPaperPresets.A4, PdfTemplate.Receipts.paper)
+        assertEquals(1, PdfTemplate.Receipts.columns)
+        assertTrue(PdfTemplate.Receipts.margin > PdfTemplate.PhotoGrid.margin)
+        assertEquals(PdfPaperPresets.PRINT_10X15, PdfTemplate.Prints10x15.paper)
+        assertEquals(1, PdfTemplate.Prints10x15.columns)
     }
 }

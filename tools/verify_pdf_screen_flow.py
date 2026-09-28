@@ -35,7 +35,10 @@ def visible_contains(fragment):
     return any(fragment in (n.get('text') or '') or fragment in (n.get('content-desc') or '') for n in dump()[0].iter('node'))
 def tap_where(predicate):
     # UI transitions (sheets closing, library/editor swaps) are not instantaneous: retry briefly
-    # before failing, and keep the screen that was actually showing when it does fail.
+    # before failing, and keep the screen that was actually showing when it does fail. A target
+    # below the fold in a scrollable sheet (e.g. Create, once the New project sheet's template row
+    # pushes it past the visible area on a shorter screen) never gets an on-screen accessibility
+    # node at all, so after a few plain retries also try swiping the sheet up before giving up.
     for attempt in range(12):
         root,raw=dump();parents={c:p for p in root.iter() for c in p};matches=[]
         for n in root.iter('node'):
@@ -45,6 +48,7 @@ def tap_where(predicate):
             if n.get('clickable')=='true' and n.get('enabled')=='true':matches.append(n)
             elif 'documentsui' in original.get('package','') and original.get('enabled')=='true':matches.append(original)
         if matches:break
+        if attempt>=3:shell('input','swipe','540','1800','540','500','120')
         time.sleep(.5)
     if not matches:
         (out/'tap-failure.xml').write_bytes(raw);(out/'tap-failure.png').write_bytes(adb('exec-out','screencap','-p'))
@@ -59,6 +63,9 @@ def tap_where(predicate):
         else:raise AssertionError('Zero-size control did not receive focus')
     time.sleep(.4)
 def tap(label):tap_where(lambda n:match(n,label))
+# Template cards (Phase G4) compose their contentDescription as "<name>, <description>[, selected]"
+# (same pattern as the export quality cards above), so locate them by name prefix, not exact match.
+def tap_prefix(label):tap_where(lambda n:match_prefix(n,label))
 def visible(label):return any(match(n,label) for n in dump()[0].iter('node'))
 def snap(name):
     root,raw=dump();(out/(name+'.xml')).write_bytes(raw);(out/(name+'.png')).write_bytes(adb('exec-out','screencap','-p'))
@@ -107,9 +114,17 @@ def run(number,name,action):
 
 def create():
     if not marker('state').get('project'):
-        # New project opens a setup sheet (paper, orientation, photos per page); accept defaults.
-        tap('New project');snap('new-project-sheet');tap('Create')
+        # New project opens a setup sheet: a template row (Phase G4) up top prefills paper/
+        # orientation/photos-per-page, then paper cards, orientation and photos-per-page below
+        # that the user could still tweak. Pick "Prints 10 × 15" instead of accepting the sheet's
+        # "Blank" default so this run also exercises PdfTemplate end-to-end.
+        tap('New project');snap('new-project-sheet');tap_prefix('Prints 10 × 15');tap('Create')
         wait(lambda s:s['pages']==1 and not s['busy'])
+        state=marker('state')
+        assert abs(state['pageWidthMm']-100.0)<0.5 and abs(state['pageHeightMm']-150.0)<0.5, \
+            'Prints 10 x 15 template did not land its paper size: '+repr(state)
+        assert state['pageMarginMm']<=3.0,'Prints 10 x 15 template did not land its near-zero margin: '+repr(state)
+        assert state['columns']==1,'Prints 10 x 15 template did not land its 1-column layout: '+repr(state)
     if marker('state')['assets']==1:return
     if not any('documentsui' in n.get('package','') for n in dump()[0].iter('node')):
         tap('Insert');tap('Import images / PDF')

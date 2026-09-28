@@ -240,6 +240,12 @@
     <string name="pdf_library_template_photo_grid">Grille de photos</string>
     <string name="pdf_library_template_receipts">Reçus</string>
     <string name="pdf_library_template_prints">Tirages 10 × 15</string>
+    <string name="pdf_template_blank_name">Vierge</string>
+    <string name="pdf_template_blank_desc">Partir de zéro</string>
+    <string name="pdf_template_photo_grid_desc">Grille de photos 2 × 2, A4</string>
+    <string name="pdf_template_receipts_desc">Un reçu par ligne, A4</string>
+    <string name="pdf_template_prints_desc">Une photo par page, 10 × 15 cm</string>
+    <string name="pdf_template_selected_suffix">sélectionné</string>
     <string name="pdf_library_rename">Renommer</string>
     <string name="pdf_library_rename_title">Renommer le projet</string>
     <string name="pdf_library_export_project">Exporter le fichier de projet</string>
@@ -251,6 +257,7 @@
     </plurals>
     <string name="pdf_library_history_needs_action">Exports, action requise</string>
     <string name="pdf_new_project_title">Nouveau projet</string>
+    <string name="pdf_new_project_template_label">Modèle</string>
     <string name="pdf_new_project_create">Créer</string>
     <string name="pdf_selection_create_pdf">Créer un PDF</string>
     <string name="pdf_selection_pdf_hint">L\'ordre est l\'ordre des pages · jusqu\'à 24 par page</string>

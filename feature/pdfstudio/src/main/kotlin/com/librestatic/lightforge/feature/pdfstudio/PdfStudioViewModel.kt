@@ -422,18 +422,20 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
     }
 
     /**
-     * Creates a new project from the "New project" sheet (Phase E item 3). [widthMm]/[heightMm]
-     * are in portrait orientation; [landscape] swaps them. [columns] seeds the photos-per-page
-     * grid template (see [PdfLayoutTemplates]) via [PdfGeometry.grid] on the initial blank page.
+     * Creates a new project from the "New project" sheet (Phase E item 3, single-source-of-truth
+     * templates in Phase G4). [widthMm]/[heightMm] are in portrait orientation; [landscape] swaps
+     * them. [columns] seeds the photos-per-page grid template (see [PdfLayoutTemplates]) via
+     * [PdfGeometry.grid] on the initial blank page. Defaults match [PdfTemplate.Blank] — the
+     * sheet's own "Blank" card and the un-templated call some tests still make both land here.
      */
     fun newProject(
         name: String,
-        widthMm: Double = 210.0,
-        heightMm: Double = 297.0,
-        landscape: Boolean = false,
-        columns: Int = 2,
-        gap: Double = 4.0,
-        margin: Double = 10.0,
+        widthMm: Double = PdfTemplate.Blank.widthMm(),
+        heightMm: Double = PdfTemplate.Blank.heightMm(),
+        landscape: Boolean = PdfTemplate.Blank.landscape,
+        columns: Int = PdfTemplate.Blank.columns,
+        gap: Double = PdfTemplate.Blank.gap,
+        margin: Double = PdfTemplate.Blank.margin,
     ) = operation {
         val w = if (landscape) heightMm else widthMm
         val h = if (landscape) widthMm else heightMm

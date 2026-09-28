@@ -340,6 +340,96 @@ internal fun PdfTemplateTile(
     }
 }
 
+/**
+ * A visual template card (Phase G4): a proportional white-paper mini preview — reusing the same
+ * [PdfPaperTokens.Paper] swatch and grid-overlay technique as [PdfPaperCard]/[PdfTemplateTile] so
+ * all three read as one family — plus the template's name and a one-line description. Reused by
+ * both the library empty state and the "New project" sheet's template row so they render
+ * identically and share one source of truth ([PdfTemplate]).
+ */
+@Composable
+internal fun PdfTemplateCard(
+    template: PdfTemplate,
+    selected: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val container =
+        if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer
+    val content =
+        if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
+    val name = stringResource(template.nameRes)
+    val description = stringResource(template.descriptionRes)
+    val label =
+        if (selected) "$name, $description, ${stringResource(R.string.pdf_template_selected_suffix)}"
+        else "$name, $description"
+    val fontScale = LocalDensity.current.fontScale.coerceIn(1f, 1.6f)
+    Surface(
+        color = container,
+        contentColor = content,
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.width(104.dp * fontScale).selectableTile(label, selected, enabled, onClick),
+    ) {
+        Column(
+            Modifier.padding(10.dp).fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            val ratio =
+                (template.widthMm() / template.heightMm()).toFloat().let { if (it.isFinite() && it > 0) it else 1f }
+            Box(
+                Modifier.height(48.dp).width(48.dp * ratio.coerceIn(0.4f, 1.6f))
+                    .background(PdfPaperTokens.Paper, RoundedCornerShape(1.dp)),
+            ) {
+                // Blank's columns/photosPerPage are only the gallery-handoff defaults; its preview
+                // is an empty page so it doesn't read as a duplicate of Photo grid.
+                val rows =
+                    if (template == PdfTemplate.Blank) 0
+                    else (template.photosPerPage + template.columns - 1) / template.columns
+                if (rows > 0) Column(
+                    Modifier.fillMaxSize().padding(3.dp),
+                    verticalArrangement = Arrangement.spacedBy(1.dp),
+                ) {
+                    repeat(rows) { r ->
+                        Row(
+                            Modifier.weight(1f).fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(1.dp),
+                        ) {
+                            repeat(template.columns) { c ->
+                                val hasCell = r * template.columns + c < template.photosPerPage
+                                Box(
+                                    Modifier.weight(1f)
+                                        .fillMaxHeight()
+                                        .background(PdfPaperTokens.Ink.copy(alpha = if (hasCell) 0.35f else 0.08f)),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            // G4 review fix: at 200% font, a fixed maxFontSize with only 1.6x card-width growth
+            // truncated both lines ("Prints 10 ×" / "One photo per page, 10") with no ellipsis,
+            // the same clipping PdfPaperCard's shrink-to-fit already fixed elsewhere in this
+            // file — same autoSize technique here instead of a hard line/character cap.
+            Text(
+                name,
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                textAlign = TextAlign.Center,
+                autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = MaterialTheme.typography.labelMedium.fontSize),
+            )
+            Text(
+                description,
+                style = MaterialTheme.typography.labelSmall,
+                color = content.copy(alpha = 0.75f),
+                maxLines = 2,
+                textAlign = TextAlign.Center,
+                autoSize = TextAutoSize.StepBased(minFontSize = 7.sp, maxFontSize = MaterialTheme.typography.labelSmall.fontSize),
+            )
+        }
+    }
+}
+
 /** Thin wrapper over [GalleryExpressiveChoiceGroup] with a per-item `enabled` list built from a
  * single flag, since every segmented control in this panel is either fully enabled or fully
  * disabled by [PdfStudioState.editorLocked]. */
