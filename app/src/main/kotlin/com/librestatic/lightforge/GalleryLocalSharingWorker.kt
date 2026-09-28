@@ -17,7 +17,7 @@ class GalleryLocalSharingWorker(context:Context,parameters:WorkerParameters):Cor
         val database=GalleryDatabaseFactory.open(applicationContext)
         val runner=LocalSharingRunner(applicationContext,services(applicationContext,database))
         try { runner.run(id); if(runner.needsRetry(id)) Result.retry() else Result.success() }
-        finally { runner.cancel();database.close() }
+        finally { runner.cancel() }
     }
     companion object {
         fun services(context:Context,database:GalleryDatabase)=LocalSharingServices(

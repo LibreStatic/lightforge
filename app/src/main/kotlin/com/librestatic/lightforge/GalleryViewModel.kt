@@ -5968,7 +5968,6 @@ class GalleryViewModel @Inject constructor(
         runtime.value?.let {
             it.monitor?.close()
             it.thumbnails.close()
-            it.database.close()
             it.searchIndex.close()
         }
     }

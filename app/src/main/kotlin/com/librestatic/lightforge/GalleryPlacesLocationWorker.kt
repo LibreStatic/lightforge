@@ -24,7 +24,7 @@ class GalleryPlacesLocationWorker(context:Context,parameters:WorkerParameters):C
         val database=GalleryDatabaseFactory.open(applicationContext)
         var indexed=0;var failed=0
         fun progress()=workDataOf("indexed" to indexed,"failed" to failed)
-        try {
+        run {
             val metadata=MediaMetadataRepository(applicationContext.contentResolver,database)
             var volume="";var mediaId=-1L
             while(allowed(applicationContext)) {
@@ -46,7 +46,7 @@ class GalleryPlacesLocationWorker(context:Context,parameters:WorkerParameters):C
                 setProgress(progress())
             }
             Result.success(progress())
-        } finally { database.close() }
+        }
     }
     companion object {
         private const val Name="places-read-photo-locations"

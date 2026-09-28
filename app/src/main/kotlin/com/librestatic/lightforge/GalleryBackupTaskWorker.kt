@@ -46,19 +46,15 @@ class GalleryBackupTaskWorker(context: Context, parameters: WorkerParameters) :
             setForeground(ForegroundInfo(id.hashCode() and 0x3fffffff, notification,
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC))
             val database = GalleryDatabaseFactory.open(applicationContext)
-            try {
-                if (
-                    LocalBackupTaskRunner(
-                            applicationContext,
-                            GalleryOrganizationBackupAdapter(applicationContext, database),
-                        )
-                        .run(id)
-                )
-                    Result.success()
-                else Result.retry()
-            } finally {
-                database.close()
-            }
+            if (
+                LocalBackupTaskRunner(
+                        applicationContext,
+                        GalleryOrganizationBackupAdapter(applicationContext, database),
+                    )
+                    .run(id)
+            )
+                Result.success()
+            else Result.retry()
         }
 
     companion object {

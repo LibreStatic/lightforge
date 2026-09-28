@@ -85,7 +85,6 @@ class GalleryRemoteBackupWorker(context: Context, parameters: WorkerParameters) 
                 if (runner.run(id)) Result.success() else Result.retry()
             } finally {
                 runner.cancel()
-                database.close()
             }
         }
 

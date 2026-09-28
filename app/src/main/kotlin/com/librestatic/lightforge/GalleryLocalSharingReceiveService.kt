@@ -53,7 +53,7 @@ class GalleryLocalSharingReceiveService:Service() {
         return START_NOT_STICKY
     }
     private fun closeListener()=synchronized(ownership) {
-        receiver?.close();receiver=null;database?.close();database=null
+        receiver?.close();receiver=null;database=null
     }
     override fun onDestroy() {
         synchronized(ownership) { destroyed=true }

@@ -53,7 +53,8 @@ object DetectedContentRuntime {
         labelEngine?.close()
         ocrEngine?.close()
         faceEmbeddingEngine?.close()
-        database?.close()
+        // The GalleryDatabase is the process-wide shared instance; only drop our reference.
+        database = null
         application = null
         labelEngine = null
         ocrEngine = null

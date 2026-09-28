@@ -125,7 +125,23 @@ abstract class GalleryDatabase : RoomDatabase() {
 object GalleryDatabaseFactory {
     const val DatabaseName = "lightforge-library.db"
 
-    fun open(context: Context, name: String = DatabaseName): GalleryDatabase {
+    private val instances = HashMap<String, GalleryDatabase>()
+
+    /**
+     * Returns this process's single [GalleryDatabase] for [name]. Every caller (UI runtime,
+     * workers, services, widget, ML) shares one Room instance and therefore one connection pool,
+     * so Room serializes their writers. Separate instances on the same file each held their own
+     * connections and, while one ran a long write transaction (the first-run library index), the
+     * others' transactions failed with SQLITE_BUSY and crashed the app. The shared instance lives
+     * for the whole process: callers must not close it.
+     */
+    fun open(context: Context, name: String = DatabaseName): GalleryDatabase =
+        synchronized(instances) {
+            instances[name]?.takeIf { it.isOpen }
+                ?: openNew(context, name).also { instances[name] = it }
+        }
+
+    private fun openNew(context: Context, name: String): GalleryDatabase {
         val database = build(context, name)
         return try {
             database.openHelper.writableDatabase

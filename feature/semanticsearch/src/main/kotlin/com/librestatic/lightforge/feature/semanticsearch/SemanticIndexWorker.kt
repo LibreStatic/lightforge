@@ -129,8 +129,6 @@ class SemanticIndexWorker(context: Context, parameters: WorkerParameters) : Coro
                 }
             }
             Result.failure(workDataOf(KeyError to (failure.message ?: failure::class.java.simpleName)))
-        } finally {
-            database.close()
         }
     }
 

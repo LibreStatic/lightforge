@@ -241,7 +241,7 @@ class VideoExportWorker(context: Context, parameters: WorkerParameters) : Corout
             update(id, VideoExportJobStatus.Running, VideoExportPhase.Preparing, 10)
             val recipe = VideoEditRecipeCodec.decode(original.encodedRecipe)
             val database = GalleryDatabaseFactory.open(applicationContext)
-            val customLut = try {
+            val customLut =
                 recipe.colorGrade.lut.customId?.let { customId ->
                     runCatching {
                         LutRepository(
@@ -255,9 +255,6 @@ class VideoExportWorker(context: Context, parameters: WorkerParameters) : Corout
                         ),
                     )
                 }
-            } finally {
-                database.close()
-            }
             val exportResult = Media3VideoExporter(applicationContext).export(
                 VideoExportRequest(original.inputUri.toUri(), output, recipe, customLut = customLut) { progress ->
                     val renderBase = if (recipe.slowMotionSegments.isEmpty()) 100 else 350

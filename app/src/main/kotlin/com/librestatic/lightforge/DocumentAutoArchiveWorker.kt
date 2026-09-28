@@ -19,12 +19,7 @@ class DocumentAutoArchiveWorker(context: Context, parameters: WorkerParameters) 
     override suspend fun doWork(): Result =
         withContext(Dispatchers.IO) {
             try {
-                val database = GalleryDatabaseFactory.open(applicationContext)
-                try {
-                    runOnce(applicationContext, database)
-                } finally {
-                    database.close()
-                }
+                runOnce(applicationContext, GalleryDatabaseFactory.open(applicationContext))
                 Result.success()
             } catch (e: CancellationException) {
                 throw e
