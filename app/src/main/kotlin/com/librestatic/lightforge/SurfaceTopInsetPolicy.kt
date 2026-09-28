@@ -31,6 +31,7 @@ internal fun surfaceOwnsTopBar(route: SurfaceRoute): Boolean = when (route) {
     SurfaceRoute.CreationGif,
     SurfaceRoute.Collage,
     SurfaceRoute.MemoriesBrowser,
+    SurfaceRoute.PdfStudio,
     -> true
     else -> false
 }

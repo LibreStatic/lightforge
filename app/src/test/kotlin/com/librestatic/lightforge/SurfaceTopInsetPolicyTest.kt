@@ -19,6 +19,9 @@ class SurfaceTopInsetPolicyTest {
         assertEquals(true, surfaceControlsNeedTopInset(SurfaceRoute.Settings))
         assertEquals(true, surfaceControlsNeedTopInset(SurfaceRoute.Moment))
         assertEquals(true, surfaceControlsNeedTopInset(SurfaceRoute.MemoriesBrowser))
+        // PDF Studio's library and editor both draw a GalleryTopAppBar that applies the status
+        // bar inset itself; the scaffold adding it too left a blank band above the bar.
+        assertEquals(true, surfaceOwnsTopBar(SurfaceRoute.PdfStudio))
     }
 
     @Test
