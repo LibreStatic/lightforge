@@ -7,8 +7,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -478,7 +480,17 @@ private fun PdfNewProjectSheet(
     val margin = template?.margin ?: 10.0
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 20.dp)) {
+        // Narrow widths (320-360dp) wrap the paper-card/template FlowRows onto extra lines, and
+        // 200% font grows every label; either can push Create's height requirement past the
+        // sheet's available space. Unlike PdfExportSheet, Create isn't a separate sticky row here
+        // (just the Column's last item), so a plain verticalScroll — reachable by scrolling
+        // rather than a sticky footer — is the minimal fix: Create was previously unreachable
+        // whenever the sheet's content grew taller than the screen, with no way to scroll to it.
+        Column(
+            Modifier.padding(horizontal = 20.dp)
+                .padding(bottom = 20.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
             Text(stringResource(R.string.pdf_new_project_title), style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.height(16.dp))
             OutlinedTextField(

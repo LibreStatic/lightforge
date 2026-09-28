@@ -384,7 +384,7 @@ private fun exportSummary(project: PdfProject): String {
  * [onOpen]/[onShare] should call [openPdf]/[sharePdf] and are responsible for reporting a failure
  * (`PdfStudioViewModel.reportOpenFailed`) themselves; this composable only renders.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 internal fun PdfExportResultSheet(
     job: PdfExportJob,
@@ -427,14 +427,21 @@ internal fun PdfExportResultSheet(
                     locationLabel ?: stringResource(R.string.pdf_export_destination_default),
                 )
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // A plain Row here (no fillMaxWidth, `Spacer(weight(1f))` a no-op without one) let
+            // Open+Share+Done overflow past the screen edge at 200% font instead of wrapping —
+            // Done rendered as an unreadable, off-screen vertical sliver of stacked letters. A
+            // FlowRow reflows Done onto its own line instead of clipping when the three don't fit.
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 OutlinedButton(onClick = onOpen) {
                     Icon(GalleryIcons.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
                     Text(stringResource(R.string.pdf_open))
                 }
                 OutlinedButton(onClick = onShare) { Text(stringResource(R.string.pdf_share)) }
-                Spacer(Modifier.weight(1f))
                 GalleryExpressiveButton(onClick = onDone) { Text(stringResource(R.string.pdf_done)) }
             }
         }
