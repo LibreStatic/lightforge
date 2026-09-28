@@ -23,6 +23,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.librestatic.lightforge.core.designsystem.GallerySpacing
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import com.librestatic.lightforge.core.data.GalleryActivityEvent
@@ -31,15 +34,35 @@ import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryStateContent
 import com.librestatic.lightforge.core.model.AlbumSummary
 
+/**
+ * @param showTitle draw the screen title in the content, like the other rail destinations
+ *   (Collections): in rail layouts Updates is a rail destination with no top app bar.
+ */
 @Composable
-internal fun UpdatesContent(events: List<GalleryActivityEvent>, modifier: Modifier = Modifier) {
-    if (events.isEmpty()) {
-        GalleryStateContent(
-            stringResource(R.string.updates_empty),
-            stringResource(R.string.updates_local_body),
+internal fun UpdatesContent(
+    events: List<GalleryActivityEvent>,
+    modifier: Modifier = Modifier,
+    showTitle: Boolean = false,
+) {
+    val title: @Composable () -> Unit = {
+        Text(
             stringResource(R.string.updates_title),
-            modifier.fillMaxSize(),
+            style = MaterialTheme.typography.headlineLarge,
+            modifier = Modifier
+                .padding(top = GallerySpacing.Xl, bottom = GallerySpacing.Sm)
+                .semantics { heading() },
         )
+    }
+    if (events.isEmpty()) {
+        Column(modifier.fillMaxSize().padding(horizontal = if (showTitle) GallerySpacing.Lg else 0.dp)) {
+            if (showTitle) title()
+            GalleryStateContent(
+                stringResource(R.string.updates_empty),
+                stringResource(R.string.updates_local_body),
+                stringResource(R.string.updates_title),
+                Modifier.weight(1f).fillMaxWidth(),
+            )
+        }
         return
     }
     LazyColumn(
@@ -47,6 +70,7 @@ internal fun UpdatesContent(events: List<GalleryActivityEvent>, modifier: Modifi
         contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        if (showTitle) item { title() }
         item {
             Text(stringResource(R.string.updates_local_body), style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))

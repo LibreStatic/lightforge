@@ -219,6 +219,13 @@ fun GalleryAnimatedVisibility(
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Window insets [GalleryTopAppBar] applies by default. A host that already applied the status bar
+ * inset (e.g. a bar drawn inside a content pane beside a navigation rail) provides zero insets.
+ */
+val LocalGalleryTopBarWindowInsets =
+    androidx.compose.runtime.staticCompositionLocalOf<androidx.compose.foundation.layout.WindowInsets?> { null }
+
 @Composable
 fun GalleryTopAppBar(
     title: String,
@@ -228,8 +235,11 @@ fun GalleryTopAppBar(
     subtitle: String? = null,
     onTitleClick: (() -> Unit)? = null,
     actions: @Composable androidx.compose.foundation.layout.RowScope.() -> Unit = {},
+    windowInsets: androidx.compose.foundation.layout.WindowInsets =
+        LocalGalleryTopBarWindowInsets.current ?: TopAppBarDefaults.windowInsets,
 ) {
     TopAppBar(
+        windowInsets = windowInsets,
         title = {
             val titleContent: @Composable () -> Unit = {
                 Column {

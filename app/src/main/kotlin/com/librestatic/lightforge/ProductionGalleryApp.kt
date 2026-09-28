@@ -1514,7 +1514,10 @@ internal fun ProductionGalleryApp(
                         )
                     }
                 }
-                SurfaceRoute.Updates -> UpdatesContent(activityEvents)
+                SurfaceRoute.Updates -> UpdatesContent(
+                    activityEvents,
+                    showTitle = adaptiveInfo.navigationType == GalleryNavigationType.Rail,
+                )
                 SurfaceRoute.DeviceFolders -> DeviceFoldersContent(
                     albums = physicalAlbums,
                     onAlbumClick = { album ->
@@ -2737,12 +2740,8 @@ internal fun ProductionGalleryApp(
                     }
                 }
         }
-        Scaffold(
-            snackbarHost = { if (!accessibleViewerWindow) globalStatus() },
-            contentWindowInsets = contentInsets,
-            containerColor = if (scaffoldRoute == SurfaceRoute.Viewer) Color.Black
-            else MaterialTheme.colorScheme.background,
-            topBar = {
+        val routeBarInPane = adaptiveInfo.navigationType == GalleryNavigationType.Rail && showsLibraryNavigation
+        val routeTopBar: @Composable () -> Unit = {
                 when (scaffoldRoute) {
                     SurfaceRoute.Root -> Unit
                     SurfaceRoute.Album -> GalleryTopAppBar(
@@ -2750,7 +2749,7 @@ internal fun ProductionGalleryApp(
                         onBack = { route = SurfaceRoute.Root },
                         navigationContentDescription = stringResource(R.string.nav_back),
                     )
-                    SurfaceRoute.Updates -> GalleryTopAppBar(
+                    SurfaceRoute.Updates -> if (adaptiveInfo.navigationType != GalleryNavigationType.Rail) GalleryTopAppBar(
                         title = stringResource(R.string.updates_title),
                         onBack = { route = SurfaceRoute.Root },
                         navigationContentDescription = stringResource(R.string.nav_back),
@@ -2850,7 +2849,15 @@ internal fun ProductionGalleryApp(
                     )
                     else -> Unit
                 }
-            },
+        }
+        Scaffold(
+            snackbarHost = { if (!accessibleViewerWindow) globalStatus() },
+            contentWindowInsets = contentInsets,
+            containerColor = if (scaffoldRoute == SurfaceRoute.Viewer) Color.Black
+            else MaterialTheme.colorScheme.background,
+            // In rail layouts the route's bar is drawn inside the content pane (see below) so the
+            // rail never shifts down when a route with a top bar opens.
+            topBar = { if (!routeBarInPane) routeTopBar() },
             bottomBar = {
                 if (adaptiveInfo.navigationType == GalleryNavigationType.BottomBar && scaffoldRoute == SurfaceRoute.Root) {
                     GalleryBottomDock(
@@ -2883,17 +2890,25 @@ internal fun ProductionGalleryApp(
                             },
                         )
                     }
-                    AnimatedSurfaceBody(
-                        key = ScreenMotionKey(
-                            scaffoldRoute,
-                            rootTab,
-                            surfaceStateKey(scaffoldRoute, rootTab, selectedAlbum, selectedHighlight?.id, creationGifSessionId, creationCollageSessionId, memoryVideoSessionId, manualMomentSessionId, viewerRestoreSnapshot?.identity, videoEditorSessionId),
-                        ),
-                        modifier = Modifier.weight(1f),
-                        stateHolder = surfaceStateHolder,
-                        controls = { activeRoute -> if (!accessibleViewerWindow) controls(activeRoute) },
-                        content = content,
-                    )
+                    Column(Modifier.weight(1f)) {
+                        if (routeBarInPane) {
+                            // The scaffold already applied the status bar inset to this Row.
+                            androidx.compose.runtime.CompositionLocalProvider(
+                                com.librestatic.lightforge.core.designsystem.LocalGalleryTopBarWindowInsets provides WindowInsets(0, 0, 0, 0),
+                            ) { routeTopBar() }
+                        }
+                        AnimatedSurfaceBody(
+                            key = ScreenMotionKey(
+                                scaffoldRoute,
+                                rootTab,
+                                surfaceStateKey(scaffoldRoute, rootTab, selectedAlbum, selectedHighlight?.id, creationGifSessionId, creationCollageSessionId, memoryVideoSessionId, manualMomentSessionId, viewerRestoreSnapshot?.identity, videoEditorSessionId),
+                            ),
+                            modifier = Modifier.weight(1f),
+                            stateHolder = surfaceStateHolder,
+                            controls = { activeRoute -> if (!accessibleViewerWindow) controls(activeRoute) },
+                            content = content,
+                        )
+                    }
                 }
             } else {
                 AnimatedSurfaceBody(
