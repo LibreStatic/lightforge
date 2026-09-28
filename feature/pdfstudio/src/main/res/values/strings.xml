@@ -26,6 +26,10 @@
     <string name="pdf_fitimage">Fit whole image</string>
     <string name="pdf_front">Bring to front</string>
     <string name="pdf_gap">Spacing</string>
+    <string name="pdf_hide_inspector">Hide inspector</string>
+    <string name="pdf_hide_pages_panel">Hide pages panel</string>
+    <string name="pdf_show_inspector">Show inspector</string>
+    <string name="pdf_show_pages_panel">Show pages panel</string>
     <string name="pdf_height">Height</string>
     <string name="pdf_importerror">Import failed: unsupported, encrypted, damaged or oversized file. Project unchanged.</string>
     <string name="pdf_importfiles">Import images / PDF</string>

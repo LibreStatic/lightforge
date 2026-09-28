@@ -49,7 +49,12 @@ private enum class PdfMediaChip {
 internal fun PdfMediaPanel(vm: PdfStudioViewModel, s: PdfStudioState, mediaSource: PdfMediaSource?) {
     val project = s.project ?: return
     var chip by rememberSaveable { mutableStateOf(PdfMediaChip.All) }
-    Column(Modifier.fillMaxWidth()) {
+    // User feedback item 3: this panel now expects to be hosted in a container that gives it a
+    // real bounded height (weight(1f) inside a fillMaxHeight/fillMaxSize parent — see
+    // PdfInspectorColumn, the compact ModalBottomSheet and the tabletop panel host), so its own
+    // grid below can take Modifier.weight(1f) and fill+scroll the remaining space instead of
+    // stopping at a fixed heightIn(max = ...) with dead space below it.
+    Column(Modifier.fillMaxSize()) {
         Text(stringResource(R.string.pdf_media), style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp))
         val labels =
@@ -78,7 +83,7 @@ internal fun PdfMediaPanel(vm: PdfStudioViewModel, s: PdfStudioState, mediaSourc
             else
                 LazyVerticalGrid(
                     columns = GridCells.Adaptive(minSize = 96.dp),
-                    modifier = Modifier.heightIn(max = 360.dp),
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
@@ -153,7 +158,7 @@ internal fun PdfMediaPanel(vm: PdfStudioViewModel, s: PdfStudioState, mediaSourc
                     else
                         LazyVerticalGrid(
                             columns = GridCells.Adaptive(minSize = 96.dp),
-                            modifier = Modifier.heightIn(max = 360.dp),
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {

@@ -26,6 +26,10 @@
     <string name="pdf_fitimage">Ajustar imagem inteira</string>
     <string name="pdf_front">Trazer à frente</string>
     <string name="pdf_gap">Espaçamento</string>
+    <string name="pdf_hide_inspector">Ocultar inspetor</string>
+    <string name="pdf_hide_pages_panel">Ocultar painel de páginas</string>
+    <string name="pdf_show_inspector">Mostrar inspetor</string>
+    <string name="pdf_show_pages_panel">Mostrar painel de páginas</string>
     <string name="pdf_height">Altura</string>
     <string name="pdf_importerror">Falha na importação: arquivo incompatível, criptografado, danificado ou grande demais. Projeto intacto.</string>
     <string name="pdf_importfiles">Importar imagens / PDF</string>

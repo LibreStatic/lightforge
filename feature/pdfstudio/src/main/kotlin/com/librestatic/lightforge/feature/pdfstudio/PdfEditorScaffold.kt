@@ -50,6 +50,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -64,6 +65,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -278,6 +280,7 @@ internal fun PdfLibraryTopBar(
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun InsertControls(
     vm: PdfStudioViewModel,
@@ -291,10 +294,13 @@ internal fun InsertControls(
     // to a no-op for the expanded/hinge/tabletop call sites, which aren't sheets.
     onAddedText: () -> Unit = {},
 ) {
+    // Round-2 layout fix (User feedback item 2): these three used to be a Button + two bare
+    // TextButtons of visibly different weight/shape crammed against each other with no shared
+    // spacing rule ("the buttons look too cramped"). They're now one row of same-styled,
+    // icon+label outlined buttons (Material 3 Expressive, ≥48dp targets) wrapping at narrow
+    // widths, spaced with the shared GallerySpacing tokens instead of ad-hoc Spacers.
     Text(stringResource(R.string.pdf_insert), style = MaterialTheme.typography.titleMedium)
-    Button(onClick = import, enabled = !s.editorLocked) {
-        Text(stringResource(R.string.pdf_importfiles))
-    }
+    Spacer(Modifier.height(com.librestatic.lightforge.core.designsystem.GallerySpacing.Xs))
     // Item 4: "Text" in Insert, disabled with an explanation on an imported-PDF page (texts
     // aren't allowed there) or once the page already has 24 elements (images + texts).
     val page = s.project?.pages?.getOrNull(s.page)
@@ -308,26 +314,44 @@ internal fun InsertControls(
             else -> null
         }
     val textPlaceholder = stringResource(R.string.pdf_text_placeholder)
-    TextButton(
-        onClick = {
-            vm.addText(textPlaceholder)
-            onAddedText()
-        },
-        enabled = !s.editorLocked && textDisabledReason == null,
+    androidx.compose.foundation.layout.FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(com.librestatic.lightforge.core.designsystem.GallerySpacing.Sm),
+        verticalArrangement = Arrangement.spacedBy(com.librestatic.lightforge.core.designsystem.GallerySpacing.Sm),
     ) {
-        Icon(GalleryIcons.TextFields, contentDescription = null, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(6.dp))
-        Text(stringResource(R.string.pdf_add_text))
+        OutlinedButton(
+            onClick = import,
+            enabled = !s.editorLocked,
+            modifier = Modifier.heightIn(min = 48.dp),
+        ) {
+            Icon(GalleryIcons.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(stringResource(R.string.pdf_importfiles))
+        }
+        OutlinedButton(
+            onClick = {
+                vm.addText(textPlaceholder)
+                onAddedText()
+            },
+            enabled = !s.editorLocked && textDisabledReason == null,
+            modifier = Modifier.heightIn(min = 48.dp),
+        ) {
+            Icon(GalleryIcons.TextFields, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(stringResource(R.string.pdf_add_text))
+        }
+        OutlinedButton(onClick = portable, enabled = !s.editorLocked, modifier = Modifier.heightIn(min = 48.dp)) {
+            Icon(GalleryIcons.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(stringResource(R.string.pdf_portable))
+        }
     }
     if (textDisabledReason != null)
         Text(
             textDisabledReason,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 4.dp),
         )
-    TextButton(onClick = portable, enabled = !s.editorLocked) {
-        Text(stringResource(R.string.pdf_portable))
-    }
 }
 
 /** The editor body: side panels (expanded layouts) or a bottom sheet/tool bar (compact), around
@@ -402,10 +426,19 @@ internal fun PdfEditorBody(
         return
     }
     val sidePanelsVisible = layout.mode == PdfStudioLayoutMode.ExpandedThreePane
+    // User feedback item 1: collapsible pages rail / inspector in the expanded three-pane layout
+    // ("there is no way to hide and show the left and right panels at will").
+    // rememberSaveable keeps the choice across rotation/process death within a session; the
+    // pdfstudio-local PdfPanelPrefsStore (a small prefs file, matching PdfLastDestinationStore's
+    // own pattern — no core/preferences or Room touched) makes it stick across sessions too.
+    val panelPrefsContext = LocalContext.current
+    val panelPrefs = remember { PdfPanelPrefsStore(panelPrefsContext) }
+    var pagesPanelVisible by rememberSaveable { mutableStateOf(panelPrefs.pagesPanelVisible) }
+    var inspectorPanelVisible by rememberSaveable { mutableStateOf(panelPrefs.inspectorPanelVisible) }
     Box(modifier) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxSize()) {
-                if (sidePanelsVisible)
+                if (sidePanelsVisible && pagesPanelVisible)
                     Column(
                         Modifier.width(220.dp)
                             .fillMaxHeight()
@@ -423,6 +456,10 @@ internal fun PdfEditorBody(
                         page = project.pages[state.page],
                         selected = state.image,
                         vm = vm,
+                        // Collapsing a side pane frees its width straight back to this weighted
+                        // column, and PdfCanvas's own resize-triggered clamp/re-fit effect
+                        // (keyed on the incoming maxWidth/maxHeight) already re-centers the page
+                        // in the wider space with no extra call needed here.
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                         busy = state.editorLocked,
                         pageIndex = state.page,
@@ -433,15 +470,24 @@ internal fun PdfEditorBody(
                         showRulers = showRulers,
                     )
                     if (sidePanelsVisible)
-                        PdfStatusBar(state = state, project = project, commands = commands)
+                        PdfStatusBar(
+                            state = state,
+                            project = project,
+                            commands = commands,
+                            pagesPanelVisible = pagesPanelVisible,
+                            onTogglePagesPanel = {
+                                pagesPanelVisible = !pagesPanelVisible
+                                panelPrefs.pagesPanelVisible = pagesPanelVisible
+                            },
+                            inspectorPanelVisible = inspectorPanelVisible,
+                            onToggleInspectorPanel = {
+                                inspectorPanelVisible = !inspectorPanelVisible
+                                panelPrefs.inspectorPanelVisible = inspectorPanelVisible
+                            },
+                        )
                 }
-                if (sidePanelsVisible)
-                    Column(
-                        Modifier.width(280.dp)
-                            .fillMaxHeight()
-                            .verticalScroll(rememberScrollState())
-                            .padding(12.dp)
-                    ) {
+                if (sidePanelsVisible && inspectorPanelVisible)
+                    Column(Modifier.width(280.dp).fillMaxHeight().padding(12.dp)) {
                         PdfInspectorColumn(vm, state, project, mediaSource, onPortable, onLaunchImport)
                     }
             }
@@ -455,28 +501,34 @@ internal fun PdfEditorBody(
                         // handle by default, so 'Drag handle' stays reachable for the scripts.
                         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
                     ) {
-                        Column(
-                            Modifier.fillMaxWidth()
-                                .heightIn(max = 520.dp)
-                                .verticalScroll(rememberScrollState())
-                                .padding(16.dp)
-                        ) {
-                            when (panel) {
-                                0 -> PdfPagesPanel(vm, state, onDeletePages, onExportSelectedPages)
-                                1 ->
-                                    InsertControls(
-                                        vm,
-                                        state,
-                                        portable = onPortable,
-                                        import = {
-                                            onPanelChange(-1)
-                                            onLaunchImport()
-                                        },
-                                        onAddedText = { onPanelChange(-1) },
-                                    )
-                                2 -> PdfLayoutPanel(vm, state)
-                                3 -> PdfAdjustPanel(vm, state)
-                                4 -> PdfMediaPanel(vm, state, mediaSource)
+                        Column(Modifier.fillMaxWidth().heightIn(max = 520.dp).padding(16.dp)) {
+                            // User feedback item 3: the Media grid must fill and scroll its own
+                            // remaining space instead of the whole sheet scrolling underneath a
+                            // height-capped grid (the nested-scroll conflict the plan calls out).
+                            // heightIn(max = 520.dp) still gives this Column a bounded height, so
+                            // the LazyVerticalGrid's weight(1f) below has real remaining space to
+                            // fill instead of collapsing to zero.
+                            if (panel == 4) {
+                                PdfMediaPanel(vm, state, mediaSource)
+                            } else {
+                                Column(Modifier.verticalScroll(rememberScrollState())) {
+                                    when (panel) {
+                                        0 -> PdfPagesPanel(vm, state, onDeletePages, onExportSelectedPages)
+                                        1 ->
+                                            InsertControls(
+                                                vm,
+                                                state,
+                                                portable = onPortable,
+                                                import = {
+                                                    onPanelChange(-1)
+                                                    onLaunchImport()
+                                                },
+                                                onAddedText = { onPanelChange(-1) },
+                                            )
+                                        2 -> PdfLayoutPanel(vm, state)
+                                        3 -> PdfAdjustPanel(vm, state)
+                                    }
+                                }
                             }
                         }
                     }
@@ -560,27 +612,50 @@ private fun PdfInspectorColumn(
             if (hasElementSelected) add(stringResource(R.string.pdf_adjust) to 1)
             if (mediaSource != null) add(stringResource(R.string.pdf_media) to 2)
         }
-    // Review fix: on a 640dp-tall window the Insert section (a button + a link) pushed the
-    // Media tab's grid down far enough that it started below the fold. It's collapsed away
-    // while the Media tab is active - Media is now the discoverable way to add gallery/document
-    // content, and "Import images / PDF" (a different, file-picker-based source) stays one tap
-    // away on every other tab.
-    if (inspectorTab != 2 || mediaSource == null)
-        InsertControls(vm, state, portable = onPortable, import = onLaunchImport)
-    if (tabs.size > 1) {
-        val selected = tabs.indexOfFirst { it.second == inspectorTab }.coerceAtLeast(0)
-        com.librestatic.lightforge.core.designsystem.GalleryExpressiveChoiceGroup(
-            labels = tabs.map { it.first },
-            selectedIndex = selected,
-            onSelect = { inspectorTab = tabs[it].second },
-            minimumItemWidth = 72.dp,
-        )
-        Spacer(Modifier.height(8.dp))
-    }
-    when {
-        inspectorTab == 2 && mediaSource != null -> PdfMediaPanel(vm, state, mediaSource)
-        inspectorTab == 1 && hasElementSelected -> PdfAdjustPanel(vm, state)
-        else -> PdfLayoutPanel(vm, state)
+    // fillMaxSize (not fillMaxWidth): the caller no longer wraps this in its own verticalScroll,
+    // so this Column owns the full pane height and can give the active panel's content area a
+    // real weight(1f) slot below the fixed-height Insert row + tab chips.
+    Column(Modifier.fillMaxSize()) {
+        // Review fix: on a 640dp-tall window the Insert section (a button + a link) pushed the
+        // Media tab's grid down far enough that it started below the fold. It's collapsed away
+        // while the Media tab is active - Media is now the discoverable way to add gallery/document
+        // content, and "Import images / PDF" (a different, file-picker-based source) stays one tap
+        // away on every other tab.
+        if (inspectorTab != 2 || mediaSource == null)
+            InsertControls(vm, state, portable = onPortable, import = onLaunchImport)
+        if (tabs.size > 1) {
+            val selected = tabs.indexOfFirst { it.second == inspectorTab }.coerceAtLeast(0)
+            // User feedback item 2: "Multimedia" used to run off the right edge of a scrolling
+            // (non-wrapping) chip row with no scroll affordance ("se ven cortados"). wrap = true
+            // lets Layout/Adjust/Media flow onto a second line instead at narrow inspector widths
+            // (320–400dp) and 200% font, so every label stays fully visible.
+            com.librestatic.lightforge.core.designsystem.GalleryExpressiveChoiceGroup(
+                labels = tabs.map { it.first },
+                selectedIndex = selected,
+                onSelect = { inspectorTab = tabs[it].second },
+                minimumItemWidth = 72.dp,
+                wrap = true,
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+        // User feedback item 3: the Media grid must fill the inspector's remaining height and
+        // scroll itself instead of stopping ~2/3 down with empty space below. This weighted Box
+        // (not another verticalScroll Column) is what gives PdfMediaPanel's own
+        // LazyVerticalGrid(weight(1f)) a real, bounded remaining height to fill; Layout/Adjust
+        // keep their own scrollable wrapper since neither manages a LazyVerticalGrid itself.
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            when {
+                inspectorTab == 2 && mediaSource != null -> PdfMediaPanel(vm, state, mediaSource)
+                inspectorTab == 1 && hasElementSelected ->
+                    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                        PdfAdjustPanel(vm, state)
+                    }
+                else ->
+                    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                        PdfLayoutPanel(vm, state)
+                    }
+            }
+        }
     }
 }
 
@@ -612,6 +687,13 @@ private fun PdfHingeSplitEditorBody(
     mediaSource: PdfMediaSource? = null,
     feedback: @Composable () -> Unit,
 ) {
+    // User feedback item 1, hinge-safe: the same collapsible pages-rail/inspector toggles as the
+    // hinge-less expanded three-pane layout, shared through the same prefs store — ToolsPane
+    // below stacks whichever of the two stays visible in the non-canvas side, never on the hinge.
+    val panelPrefsContext = LocalContext.current
+    val panelPrefs = remember { PdfPanelPrefsStore(panelPrefsContext) }
+    var pagesPanelVisible by rememberSaveable { mutableStateOf(panelPrefs.pagesPanelVisible) }
+    var inspectorPanelVisible by rememberSaveable { mutableStateOf(panelPrefs.inspectorPanelVisible) }
     Box(modifier) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val fold = layout.foldInfo
@@ -653,21 +735,36 @@ private fun PdfHingeSplitEditorBody(
                         commands = commands,
                         showRulers = true,
                     )
-                    PdfStatusBar(state = state, project = project, commands = commands)
+                    PdfStatusBar(
+                        state = state,
+                        project = project,
+                        commands = commands,
+                        pagesPanelVisible = pagesPanelVisible,
+                        onTogglePagesPanel = {
+                            pagesPanelVisible = !pagesPanelVisible
+                            panelPrefs.pagesPanelVisible = pagesPanelVisible
+                        },
+                        inspectorPanelVisible = inspectorPanelVisible,
+                        onToggleInspectorPanel = {
+                            inspectorPanelVisible = !inspectorPanelVisible
+                            panelPrefs.inspectorPanelVisible = inspectorPanelVisible
+                        },
+                    )
                 }
             }
 
             @Composable
             fun ToolsPane(w: androidx.compose.ui.unit.Dp) {
-                Column(
-                    Modifier.width(w)
-                        .fillMaxHeight()
-                        .verticalScroll(rememberScrollState())
-                        .padding(12.dp)
-                ) {
-                    PdfPagesPanel(vm, state, onDeletePages, onExportSelectedPages, columns = 2)
-                    Spacer(Modifier.height(12.dp))
-                    PdfInspectorColumn(vm, state, project, mediaSource, onPortable, onLaunchImport)
+                Column(Modifier.width(w).fillMaxHeight().padding(12.dp)) {
+                    if (pagesPanelVisible)
+                        Column(Modifier.verticalScroll(rememberScrollState())) {
+                            PdfPagesPanel(vm, state, onDeletePages, onExportSelectedPages, columns = 2)
+                        }
+                    if (pagesPanelVisible && inspectorPanelVisible) Spacer(Modifier.height(12.dp))
+                    if (inspectorPanelVisible)
+                        Box(Modifier.weight(1f).fillMaxWidth()) {
+                            PdfInspectorColumn(vm, state, project, mediaSource, onPortable, onLaunchImport)
+                        }
                 }
             }
 
@@ -779,18 +876,22 @@ private fun PdfTabletopEditorBody(
                             )
                         }
                     }
-                    Column(
-                        Modifier.fillMaxWidth()
-                            .weight(1f)
-                            .verticalScroll(rememberScrollState())
-                            .padding(12.dp)
-                    ) {
-                        when (panel) {
-                            0 -> PdfPagesPanel(vm, state, onDeletePages, onExportSelectedPages)
-                            1 -> InsertControls(vm, state, portable = onPortable, import = onLaunchImport)
-                            2 -> PdfLayoutPanel(vm, state)
-                            3 -> PdfAdjustPanel(vm, state)
-                            4 -> PdfMediaPanel(vm, state, mediaSource)
+                    Box(Modifier.fillMaxWidth().weight(1f).padding(12.dp)) {
+                        // Same fix as the expanded inspector (User feedback item 3): only the
+                        // Media grid gets a plain, bounded weight(1f) host so its own
+                        // LazyVerticalGrid can fill and scroll the remaining tabletop half;
+                        // every other panel keeps its existing scrollable wrapper.
+                        if (panel == 4) {
+                            PdfMediaPanel(vm, state, mediaSource)
+                        } else {
+                            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                                when (panel) {
+                                    0 -> PdfPagesPanel(vm, state, onDeletePages, onExportSelectedPages)
+                                    1 -> InsertControls(vm, state, portable = onPortable, import = onLaunchImport)
+                                    2 -> PdfLayoutPanel(vm, state)
+                                    3 -> PdfAdjustPanel(vm, state)
+                                }
+                            }
                         }
                     }
                 }
@@ -1280,72 +1381,135 @@ internal fun PdfStatusBar(
     state: PdfStudioState,
     project: PdfProject,
     commands: PdfEditorCommandDispatcher,
+    // User feedback item 1: collapsible pages rail / inspector toggles, anchored in this bar (it
+    // is always present alongside the panes it controls, in both the expanded three-pane and the
+    // hinge-split layouts) rather than floating over the canvas, so they can never land on the
+    // hinge. null hides the corresponding button (Tabletop has no side panes to toggle and never
+    // passes these).
+    pagesPanelVisible: Boolean? = null,
+    onTogglePagesPanel: (() -> Unit)? = null,
+    inspectorPanelVisible: Boolean? = null,
+    onToggleInspectorPanel: (() -> Unit)? = null,
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainer,
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
     ) {
         Row(
-            // Phase F review fix (MAJOR): a fixed-width hinge pane (as narrow as ~280dp) could be
-            // tighter than every status item's combined natural width, which previously wrapped
-            // "Fit page" mid-word ("Fit pag/e") since nothing here could shrink or scroll.
-            // horizontalScroll keeps every item whole and readable at any pane width/font scale
-            // instead of wrapping or clipping; softWrap=false + maxLines=1 on each Text is the
-            // belt-and-suspenders that guarantees no individual label ever breaks a word either.
-            Modifier.fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                stringResource(
-                    R.string.pdf_page_indicator,
-                    state.page + 1,
-                    project.pages.size.coerceAtLeast(1),
-                ),
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
-                softWrap = false,
-            )
-            PdfStatusDot()
-            Text(
-                if (project.snap) stringResource(R.string.pdf_status_snap, "5 mm")
-                else stringResource(R.string.pdf_status_snap_off),
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
-                softWrap = false,
-            )
-            PdfStatusDot()
-            val zoomOutLabel = stringResource(R.string.pdf_shortcut_zoom_out)
-            IconButton(
-                onClick = { commands.dispatch(PdfEditorCommand.ZoomOut) },
-                enabled = !state.editorLocked,
-                modifier = Modifier.size(32.dp).semantics { contentDescription = zoomOutLabel },
-            ) {
-                Icon(GalleryIcons.Minus, contentDescription = null, modifier = Modifier.size(18.dp))
+            // Device-verified fix: the pages/inspector toggles used to sit INSIDE the
+            // horizontally-scrolled content below, alongside the page/snap/zoom/fit items — at
+            // 840dp (both panes still open, exactly when a toggle is most wanted) that content
+            // already overflows the narrowed canvas column, so the inspector toggle was pushed
+            // almost entirely off-screen and its center fell outside its own hit target,
+            // silently swallowing the tap. Both toggles now live OUTSIDE the scrollable Box, so
+            // they are always fully on-screen and tappable regardless of how much the middle
+            // content has to scroll.
+            if (onTogglePagesPanel != null) {
+                val visible = pagesPanelVisible ?: true
+                val label =
+                    stringResource(
+                        if (visible) R.string.pdf_hide_pages_panel else R.string.pdf_show_pages_panel
+                    )
+                IconButton(
+                    onClick = onTogglePagesPanel,
+                    modifier = Modifier.size(32.dp).semantics { contentDescription = label },
+                ) {
+                    Icon(
+                        com.librestatic.lightforge.feature.pdfstudio.PdfPanelLeftIcon,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint =
+                            if (visible) MaterialTheme.colorScheme.onSurfaceVariant
+                            else MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
-            Text(
-                stringResource(R.string.pdf_zoom_percent, (state.zoom * 100).toInt()),
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
-                softWrap = false,
-            )
-            val zoomInLabel = stringResource(R.string.pdf_shortcut_zoom_in)
-            IconButton(
-                onClick = { commands.dispatch(PdfEditorCommand.ZoomIn) },
-                enabled = !state.editorLocked,
-                modifier = Modifier.size(32.dp).semantics { contentDescription = zoomInLabel },
+            Row(
+                // Phase F review fix (MAJOR): a fixed-width hinge pane (as narrow as ~280dp)
+                // could be tighter than every status item's combined natural width, which
+                // previously wrapped "Fit page" mid-word ("Fit pag/e") since nothing here could
+                // shrink or scroll. horizontalScroll keeps every item whole and readable at any
+                // pane width/font scale instead of wrapping or clipping; softWrap=false +
+                // maxLines=1 on each Text is the belt-and-suspenders that guarantees no
+                // individual label ever breaks a word either.
+                Modifier.weight(1f)
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(GalleryIcons.Plus, contentDescription = null, modifier = Modifier.size(18.dp))
+                Text(
+                    stringResource(
+                        R.string.pdf_page_indicator,
+                        state.page + 1,
+                        project.pages.size.coerceAtLeast(1),
+                    ),
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+                PdfStatusDot()
+                Text(
+                    if (project.snap) stringResource(R.string.pdf_status_snap, "5 mm")
+                    else stringResource(R.string.pdf_status_snap_off),
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+                PdfStatusDot()
+                val zoomOutLabel = stringResource(R.string.pdf_shortcut_zoom_out)
+                IconButton(
+                    onClick = { commands.dispatch(PdfEditorCommand.ZoomOut) },
+                    enabled = !state.editorLocked,
+                    modifier = Modifier.size(32.dp).semantics { contentDescription = zoomOutLabel },
+                ) {
+                    Icon(GalleryIcons.Minus, contentDescription = null, modifier = Modifier.size(18.dp))
+                }
+                Text(
+                    stringResource(R.string.pdf_zoom_percent, (state.zoom * 100).toInt()),
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+                val zoomInLabel = stringResource(R.string.pdf_shortcut_zoom_in)
+                IconButton(
+                    onClick = { commands.dispatch(PdfEditorCommand.ZoomIn) },
+                    enabled = !state.editorLocked,
+                    modifier = Modifier.size(32.dp).semantics { contentDescription = zoomInLabel },
+                ) {
+                    Icon(GalleryIcons.Plus, contentDescription = null, modifier = Modifier.size(18.dp))
+                }
+                PdfStatusDot()
+                val fitViewLabel = stringResource(R.string.pdf_fit_view)
+                IconButton(
+                    onClick = { commands.dispatch(PdfEditorCommand.FitPage) },
+                    enabled = !state.editorLocked,
+                    modifier = Modifier.size(32.dp).semantics { contentDescription = fitViewLabel },
+                ) {
+                    Icon(GalleryIcons.FitScreen, contentDescription = null, modifier = Modifier.size(18.dp))
+                }
             }
-            PdfStatusDot()
-            val fitViewLabel = stringResource(R.string.pdf_fit_view)
-            IconButton(
-                onClick = { commands.dispatch(PdfEditorCommand.FitPage) },
-                enabled = !state.editorLocked,
-                modifier = Modifier.size(32.dp).semantics { contentDescription = fitViewLabel },
-            ) {
-                Icon(GalleryIcons.FitScreen, contentDescription = null, modifier = Modifier.size(18.dp))
+            if (onToggleInspectorPanel != null) {
+                val visible = inspectorPanelVisible ?: true
+                val label =
+                    stringResource(
+                        if (visible) R.string.pdf_hide_inspector else R.string.pdf_show_inspector
+                    )
+                IconButton(
+                    onClick = onToggleInspectorPanel,
+                    modifier = Modifier.size(32.dp).semantics { contentDescription = label },
+                ) {
+                    Icon(
+                        com.librestatic.lightforge.feature.pdfstudio.PdfPanelRightIcon,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint =
+                            if (visible) MaterialTheme.colorScheme.onSurfaceVariant
+                            else MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
         }
     }

@@ -2,7 +2,7 @@
 """Exercise the real PDF screen in constrained native parents; never modify device settings."""
 import argparse, json, re, subprocess, time, xml.etree.ElementTree as ET
 from pathlib import Path
-p=argparse.ArgumentParser();p.add_argument('--serial',required=True);p.add_argument('--output',required=True);p.add_argument('--dynamic',action='store_true');p.add_argument('--folds',action='store_true');p.add_argument('--media',action='store_true');p.add_argument('--text',action='store_true');p.add_argument('--multi',action='store_true');p.add_argument('--drag',action='store_true');args=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--serial',required=True);p.add_argument('--output',required=True);p.add_argument('--dynamic',action='store_true');p.add_argument('--folds',action='store_true');p.add_argument('--media',action='store_true');p.add_argument('--text',action='store_true');p.add_argument('--multi',action='store_true');p.add_argument('--drag',action='store_true');p.add_argument('--panes',action='store_true');args=p.parse_args()
 out=Path(args.output);out.mkdir(parents=True,exist_ok=True)
 b=['rtk','proxy','adb','-s',args.serial];pkg='com.librestatic.lightforge.feature.pdfstudio.test'
 def adb(*a): return subprocess.check_output(b+list(a),timeout=45)
@@ -540,6 +540,63 @@ if args.drag:
                  cornerResizeIsolated=True)
         drag_results.append(row);print('DRAG CASE PASS: '+json.dumps(row,sort_keys=True),flush=True)
         cleanup()
+panes_results=[]
+if args.panes:
+    # User feedback item 1: the expanded three-pane layout's collapsible pages-rail/inspector
+    # toggles. Hiding a side pane must widen the canvas and the page must still be fully fit
+    # (zoom stays ~1.0 — PdfCanvas's own resize-triggered re-fit, not a separate call this tool
+    # has to trigger); showing it again must restore both. 840x640 puts the layout in
+    # ExpandedThreePane (matches the --media/--text 840-wide cases above).
+    name='panes-840x640'
+    shell('run-as',pkg,'rm','-f','files/pdf-ui-state.json')
+    subprocess.run(b+['shell','run-as',pkg,'tee','files/pdf-ui-config.json'],input=json.dumps(dict(width=840,font=1,locale='en')).encode(),stdout=subprocess.DEVNULL,check=True)
+    shell('am','start','-W','-n',pkg+'/com.librestatic.lightforge.feature.pdfstudio.PdfUiProbeActivity',
+          '--ei','width','840','--ei','height','640','--ef','font','1','--es','locale','en',
+          '--ez','dark','false','--ez','rtl','false','--ez','dynamic',str(args.dynamic).lower())
+    wait_ready();time.sleep(.5);ls=labels('en')
+    root=None
+    for _ in range(20):
+        root=snap(name+'-both-shown')
+        if any(n.get('content-desc')==ls['pdf_canvas_label'] for n in root.iter('node')):break
+        time.sleep(.5)
+    def canvas_width():
+        r=state()['canvasRectPx'];return r['right']-r['left']
+    both_visible_width=canvas_width()
+    assert abs(state()['zoom']-1.0)<0.05,(name,'page not fit with both panes shown',state()['zoom'])
+    # Hide the pages rail: canvas widens, page stays fit, and the button now offers to show it.
+    tap(ls['pdf_hide_pages_panel'])
+    for _ in range(20):
+        if canvas_width()>both_visible_width:break
+        time.sleep(.2)
+    pages_hidden_width=canvas_width()
+    assert pages_hidden_width>both_visible_width,(name,'canvas did not widen when the pages panel hid',both_visible_width,pages_hidden_width)
+    assert abs(state()['zoom']-1.0)<0.05,(name,'page not still fit with the pages panel hidden',state()['zoom'])
+    root2=snap(name+'-pages-hidden')
+    assert any(n.get('content-desc')==ls['pdf_show_pages_panel'] for n in root2.iter('node')),(name,'no "Show pages panel" control after hiding it')
+    # Show it again: canvas returns to its original width.
+    tap(ls['pdf_show_pages_panel'])
+    for _ in range(20):
+        if abs(canvas_width()-both_visible_width)<=2:break
+        time.sleep(.2)
+    assert abs(canvas_width()-both_visible_width)<=2,(name,'canvas did not return to its original width',both_visible_width,canvas_width())
+    # Hide the inspector: canvas widens again, page stays fit.
+    tap(ls['pdf_hide_inspector'])
+    for _ in range(20):
+        if canvas_width()>both_visible_width:break
+        time.sleep(.2)
+    inspector_hidden_width=canvas_width()
+    assert inspector_hidden_width>both_visible_width,(name,'canvas did not widen when the inspector hid',both_visible_width,inspector_hidden_width)
+    assert abs(state()['zoom']-1.0)<0.05,(name,'page not still fit with the inspector hidden',state()['zoom'])
+    root3=snap(name+'-inspector-hidden')
+    assert any(n.get('content-desc')==ls['pdf_show_inspector'] for n in root3.iter('node')),(name,'no "Show inspector" control after hiding it')
+    tap(ls['pdf_show_inspector'])
+    for _ in range(20):
+        if abs(canvas_width()-both_visible_width)<=2:break
+        time.sleep(.2)
+    assert abs(canvas_width()-both_visible_width)<=2,(name,'canvas did not return to its original width after restoring the inspector',both_visible_width,canvas_width())
+    row=dict(case=name,bothVisibleWidthPx=both_visible_width,pagesHiddenWidthPx=pages_hidden_width,inspectorHiddenWidthPx=inspector_hidden_width,canvasWidensOnCollapse=True,pageStaysFit=True,restoresOriginalWidth=True)
+    panes_results.append(row);print('PANES CASE PASS: '+json.dumps(row,sort_keys=True),flush=True)
+    cleanup()
 assert device_settings()==settings_before, 'Device settings changed'
 (out/'device-settings.json').write_text(json.dumps(settings_before,indent=2)+'\n')
 (out/'results.json').write_text(json.dumps(results,indent=2)+'\n')
@@ -548,4 +605,5 @@ if args.media and media_result:(out/'media-result.json').write_text(json.dumps(m
 if args.text and text_results:(out/'text-results.json').write_text(json.dumps(text_results,indent=2)+'\n')
 if args.multi and multi_results:(out/'multi-results.json').write_text(json.dumps(multi_results,indent=2)+'\n')
 if args.drag and drag_results:(out/'drag-results.json').write_text(json.dumps(drag_results,indent=2)+'\n')
-print(f'ADAPTIVE UI PASS: {len(cases)} native parent configurations; accessible actions; title edit/undo; page add/undo; '+('dynamic' if args.dynamic else 'static')+' light/dark contrast; fixture projects removed; device settings unchanged'+(f'; {len(fold_results)} synthetic-fold cases' if args.folds else '')+('; media panel exercised' if args.media else '')+(f'; {len(text_results)} text-layer cases' if args.text else '')+(f'; {len(multi_results)} multi-select cases' if args.multi else '')+(f'; {len(drag_results)} drag cases' if args.drag else ''))
+if args.panes and panes_results:(out/'panes-results.json').write_text(json.dumps(panes_results,indent=2)+'\n')
+print(f'ADAPTIVE UI PASS: {len(cases)} native parent configurations; accessible actions; title edit/undo; page add/undo; '+('dynamic' if args.dynamic else 'static')+' light/dark contrast; fixture projects removed; device settings unchanged'+(f'; {len(fold_results)} synthetic-fold cases' if args.folds else '')+('; media panel exercised' if args.media else '')+(f'; {len(text_results)} text-layer cases' if args.text else '')+(f'; {len(multi_results)} multi-select cases' if args.multi else '')+(f'; {len(drag_results)} drag cases' if args.drag else '')+(f'; {len(panes_results)} pane-toggle cases' if args.panes else ''))

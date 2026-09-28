@@ -26,6 +26,10 @@
     <string name="pdf_fitimage">Ganzes Bild einpassen</string>
     <string name="pdf_front">Nach vorne</string>
     <string name="pdf_gap">Abstand</string>
+    <string name="pdf_hide_inspector">Inspektor ausblenden</string>
+    <string name="pdf_hide_pages_panel">Seitenbereich ausblenden</string>
+    <string name="pdf_show_inspector">Inspektor einblenden</string>
+    <string name="pdf_show_pages_panel">Seitenbereich einblenden</string>
     <string name="pdf_height">Höhe</string>
     <string name="pdf_importerror">Import fehlgeschlagen: Datei nicht unterstützt, verschlüsselt, beschädigt oder zu groß. Projekt unverändert.</string>
     <string name="pdf_importfiles">Bilder / PDF importieren</string>

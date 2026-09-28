@@ -26,6 +26,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.designsystem.GallerySpacing
 
 private val UNIT_LABELS = listOf("mm", "cm", "in", "px")
 
@@ -205,17 +206,29 @@ internal fun PdfAdjustPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
         PdfCropFocusViewport(vm, image, enabled = !s.editorLocked)
     }
 
-    Spacer(Modifier.height(8.dp))
-    FlowRow {
-        TextButton(
+    Spacer(Modifier.height(GallerySpacing.Lg))
+    // User feedback item 2: these five were bare TextButtons crammed edge to edge ("Girar /
+    // Alinear / Capa / Restablecer / Eliminar" with no shared spacing rule). Now a row of
+    // same-styled icon+label tonal buttons (Material 3 Expressive, ≥48dp targets, GallerySpacing
+    // between them), with Eliminar in the errorContainer/onErrorContainer role pair like every
+    // other destructive action in this feature (PdfMultiSelectBar, PdfGroupInspector).
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+    ) {
+        FilledTonalButton(
             onClick = { vm.imageEdit { PdfGeometry.constrain(it.copy(width = it.height, height = it.width, rotation = (it.rotation + 90) % 360), page) } },
             enabled = !s.editorLocked,
         ) {
+            Icon(GalleryIcons.RotateRight, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
             Text(stringResource(R.string.pdf_rotate))
         }
         var showAlign by remember { mutableStateOf(false) }
         Box {
-            TextButton(onClick = { showAlign = true }, enabled = !s.editorLocked) {
+            FilledTonalButton(onClick = { showAlign = true }, enabled = !s.editorLocked) {
+                Icon(GalleryIcons.AlignHorizontalCenter, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.pdf_toolbar_align))
             }
             DropdownMenu(expanded = showAlign, onDismissRequest = { showAlign = false }) {
@@ -246,7 +259,9 @@ internal fun PdfAdjustPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
         }
         var showLayer by remember { mutableStateOf(false) }
         Box {
-            TextButton(onClick = { showLayer = true }, enabled = !s.editorLocked) {
+            FilledTonalButton(onClick = { showLayer = true }, enabled = !s.editorLocked) {
+                Icon(GalleryIcons.Layers, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.pdf_toolbar_layer))
             }
             DropdownMenu(expanded = showLayer, onDismissRequest = { showLayer = false }) {
@@ -268,16 +283,23 @@ internal fun PdfAdjustPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
                 )
             }
         }
-        TextButton(onClick = vm::resetSelectedImage, enabled = !s.editorLocked) {
+        OutlinedButton(onClick = vm::resetSelectedImage, enabled = !s.editorLocked) {
             Text(stringResource(R.string.pdf_reset))
         }
-        TextButton(
+        FilledTonalButton(
             onClick = {
                 vm.pageEdit { it.copy(images = it.images.filterIndexed { n, _ -> n != s.image }) }
                 vm.selectImage(-1)
             },
             enabled = !s.editorLocked,
+            colors =
+                ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                ),
         ) {
+            Icon(GalleryIcons.Trash, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
             Text(stringResource(R.string.pdf_remove))
         }
     }
@@ -657,11 +679,16 @@ private fun PdfTextInspector(vm: PdfStudioViewModel, s: PdfStudioState, page: Pd
         }
     }
 
-    Spacer(Modifier.height(8.dp))
-    FlowRow {
+    Spacer(Modifier.height(GallerySpacing.Lg))
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+    ) {
         var showAlign by remember { mutableStateOf(false) }
         Box {
-            TextButton(onClick = { showAlign = true }, enabled = !s.editorLocked) {
+            FilledTonalButton(onClick = { showAlign = true }, enabled = !s.editorLocked) {
+                Icon(GalleryIcons.AlignHorizontalCenter, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.pdf_toolbar_align))
             }
             DropdownMenu(expanded = showAlign, onDismissRequest = { showAlign = false }) {
@@ -675,7 +702,9 @@ private fun PdfTextInspector(vm: PdfStudioViewModel, s: PdfStudioState, page: Pd
         }
         var showLayer by remember { mutableStateOf(false) }
         Box {
-            TextButton(onClick = { showLayer = true }, enabled = !s.editorLocked) {
+            FilledTonalButton(onClick = { showLayer = true }, enabled = !s.editorLocked) {
+                Icon(GalleryIcons.Layers, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.pdf_toolbar_layer))
             }
             DropdownMenu(expanded = showLayer, onDismissRequest = { showLayer = false }) {
@@ -697,7 +726,17 @@ private fun PdfTextInspector(vm: PdfStudioViewModel, s: PdfStudioState, page: Pd
                 )
             }
         }
-        TextButton(onClick = vm::deleteSelected, enabled = !s.editorLocked) {
+        FilledTonalButton(
+            onClick = vm::deleteSelected,
+            enabled = !s.editorLocked,
+            colors =
+                ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                ),
+        ) {
+            Icon(GalleryIcons.Trash, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
             Text(stringResource(R.string.pdf_delete_text))
         }
     }
@@ -718,11 +757,16 @@ internal fun PdfGroupInspector(vm: PdfStudioViewModel, s: PdfStudioState) {
         androidx.compose.ui.res.pluralStringResource(R.plurals.pdf_elements_selected, count, count),
         style = MaterialTheme.typography.titleMedium,
     )
-    Spacer(Modifier.height(8.dp))
-    FlowRow {
+    Spacer(Modifier.height(GallerySpacing.Lg))
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+    ) {
         var showAlign by remember { mutableStateOf(false) }
         Box {
-            TextButton(onClick = { showAlign = true }, enabled = !s.editorLocked) {
+            FilledTonalButton(onClick = { showAlign = true }, enabled = !s.editorLocked) {
+                Icon(GalleryIcons.AlignHorizontalCenter, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.pdf_toolbar_align))
             }
             DropdownMenu(expanded = showAlign, onDismissRequest = { showAlign = false }) {
@@ -739,7 +783,9 @@ internal fun PdfGroupInspector(vm: PdfStudioViewModel, s: PdfStudioState) {
         }
         var showDistribute by remember { mutableStateOf(false) }
         Box {
-            TextButton(onClick = { showDistribute = true }, enabled = !s.editorLocked) {
+            FilledTonalButton(onClick = { showDistribute = true }, enabled = !s.editorLocked) {
+                Icon(GalleryIcons.DistributeHorizontal, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.pdf_distribute))
             }
             DropdownMenu(expanded = showDistribute, onDismissRequest = { showDistribute = false }) {

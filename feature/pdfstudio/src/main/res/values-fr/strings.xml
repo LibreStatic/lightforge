@@ -26,6 +26,10 @@
     <string name="pdf_fitimage">Ajuster l’image entière</string>
     <string name="pdf_front">Premier plan</string>
     <string name="pdf_gap">Espacement</string>
+    <string name="pdf_hide_inspector">Masquer l\'inspecteur</string>
+    <string name="pdf_hide_pages_panel">Masquer le panneau des pages</string>
+    <string name="pdf_show_inspector">Afficher l\'inspecteur</string>
+    <string name="pdf_show_pages_panel">Afficher le panneau des pages</string>
     <string name="pdf_height">Hauteur</string>
     <string name="pdf_importerror">Import échoué : fichier non pris en charge, chiffré, endommagé ou trop volumineux. Projet inchangé.</string>
     <string name="pdf_importfiles">Importer images / PDF</string>

@@ -26,6 +26,10 @@
     <string name="pdf_fitimage">Encajar imagen completa</string>
     <string name="pdf_front">Traer al frente</string>
     <string name="pdf_gap">Separación</string>
+    <string name="pdf_hide_inspector">Ocultar inspector</string>
+    <string name="pdf_hide_pages_panel">Ocultar panel de páginas</string>
+    <string name="pdf_show_inspector">Mostrar inspector</string>
+    <string name="pdf_show_pages_panel">Mostrar panel de páginas</string>
     <string name="pdf_height">Alto</string>
     <string name="pdf_importerror">Falló la importación: archivo no compatible, cifrado, dañado o demasiado grande. El proyecto sigue intacto.</string>
     <string name="pdf_importfiles">Importar imágenes / PDF</string>

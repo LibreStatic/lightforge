@@ -26,6 +26,10 @@
     <string name="pdf_fitimage">Adatta immagine intera</string>
     <string name="pdf_front">Porta in primo piano</string>
     <string name="pdf_gap">Spaziatura</string>
+    <string name="pdf_hide_inspector">Nascondi ispettore</string>
+    <string name="pdf_hide_pages_panel">Nascondi pannello pagine</string>
+    <string name="pdf_show_inspector">Mostra ispettore</string>
+    <string name="pdf_show_pages_panel">Mostra pannello pagine</string>
     <string name="pdf_height">Altezza</string>
     <string name="pdf_importerror">Importazione fallita: file incompatibile, cifrato, danneggiato o troppo grande. Progetto invariato.</string>
     <string name="pdf_importfiles">Importa immagini / PDF</string>
