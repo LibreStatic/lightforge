@@ -114,6 +114,7 @@ import com.librestatic.lightforge.core.mediastore.MediaActionTarget
 import com.librestatic.lightforge.core.mediastore.ScopedMediaOperations
 import com.librestatic.lightforge.core.mediastore.LocalShareSanitizer
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.designsystem.GallerySidePanelMetrics
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveIconButton
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveButton
@@ -143,6 +144,7 @@ import com.librestatic.lightforge.core.selection.SelectionReducer
 import com.librestatic.lightforge.core.search.SearchConcept
 import com.librestatic.lightforge.core.search.SearchVocabulary
 import com.librestatic.lightforge.feature.album.AlbumContent
+import com.librestatic.lightforge.feature.album.AlbumWithSidePanel
 import com.librestatic.lightforge.feature.collections.CollectionsContent
 import com.librestatic.lightforge.feature.collections.MomentUnavailableContent
 import com.librestatic.lightforge.feature.collections.MomentContent
@@ -1321,6 +1323,13 @@ internal fun ProductionGalleryApp(
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val adaptiveInfo = galleryAdaptiveLayoutInfo(maxWidth, foldInfo)
+        val albumSidePanelOpen = GallerySidePanelMetrics.initiallyOpen(
+            adaptiveInfo.windowClass,
+            gallerySettings.library.albumSidePanelOpen,
+        )
+        fun setAlbumSidePanelOpen(open: Boolean) {
+            viewModel.updateGallerySettings { it.copy(library = it.library.copy(albumSidePanelOpen = open)) }
+        }
         val content: @Composable (ScreenMotionKey) -> Unit = { activeKey ->
             when (activeKey.route) {
                 SurfaceRoute.Root -> when (activeKey.rootTab) {
@@ -1341,6 +1350,8 @@ internal fun ProductionGalleryApp(
                         onOpenDeviceFolders = { route = SurfaceRoute.DeviceFolders },
                         onCreate = { showCreateMenu = true },
                         onOpenUpdates = { route = SurfaceRoute.Updates },
+                        // The rail already has Create, Updates (with export progress) and Settings.
+                        showNavigationActions = adaptiveInfo.navigationType != GalleryNavigationType.Rail,
                         activeExportCount = activeVideoExports.size,
                         activeExportProgress = globalExportProgress,
                         activeExportDescription = activeExportDescription,
@@ -1527,6 +1538,23 @@ internal fun ProductionGalleryApp(
                 )
                 SurfaceRoute.Album -> selectedAlbum?.let { album ->
                     thumbnails?.let { loader ->
+                        AlbumWithSidePanel(
+                            selectedKey = album.key,
+                            virtualAlbums = virtualAlbums,
+                            physicalAlbums = physicalAlbums,
+                            thumbnails = loader,
+                            windowClass = adaptiveInfo.windowClass,
+                            open = albumSidePanelOpen,
+                            onOpenChange = ::setAlbumSidePanelOpen,
+                            onAlbumSelect = { next ->
+                                if (next.key != album.key) {
+                                    viewModel.clearSelection()
+                                    viewModel.selectAlbum(next, filter, sort)
+                                }
+                            },
+                            swipeEnabled = selectionCount == 0L && !albumCoverWorking,
+                        ) { contentModifier ->
+                        key(album.key) {
                         AlbumContent(
                             album,
                             albumItems,
@@ -1552,7 +1580,10 @@ internal fun ProductionGalleryApp(
                             coverFailed = albumCoverFailed,
                             coverRevision = albumCoverRevision,
                             showHeader = false,
+                            modifier = contentModifier,
                         )
+                        }
+                        }
                     }
                 }
                 SurfaceRoute.Viewer -> external?.let { externalMedia ->
@@ -2748,6 +2779,20 @@ internal fun ProductionGalleryApp(
                         title = selectedAlbum?.name ?: stringResource(com.librestatic.lightforge.feature.album.R.string.album_untitled),
                         onBack = { route = SurfaceRoute.Root },
                         navigationContentDescription = stringResource(R.string.nav_back),
+                        actions = {
+                            IconButton(
+                                onClick = { setAlbumSidePanelOpen(!albumSidePanelOpen) },
+                                modifier = Modifier.testTag("album-side-panel-toggle"),
+                            ) {
+                                Icon(
+                                    GalleryIcons.SidePanel,
+                                    contentDescription = stringResource(
+                                        if (albumSidePanelOpen) com.librestatic.lightforge.feature.album.R.string.album_side_panel_hide
+                                        else com.librestatic.lightforge.feature.album.R.string.album_side_panel_show,
+                                    ),
+                                )
+                            }
+                        },
                     )
                     SurfaceRoute.Updates -> if (adaptiveInfo.navigationType != GalleryNavigationType.Rail) GalleryTopAppBar(
                         title = stringResource(R.string.updates_title),

@@ -88,6 +88,8 @@ fun LibraryPhotosRoute(
     selectionMode: Boolean = false,
     focusReturn: TimelineFocusReturn? = null,
     onFocusReturnConsumed: (TimelineFocusReturn) -> Unit = {},
+    /** False when a navigation rail already offers Create, Updates and Settings. */
+    showNavigationActions: Boolean = true,
 ) {
     val densityState = rememberTimelineDensityState()
     val pagingError = entries.loadState.refresh as? LoadState.Error
@@ -119,21 +121,23 @@ fun LibraryPhotosRoute(
                 modifier = Modifier.semantics { heading() },
             )
             androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
-            GalleryExpressiveIconButton(onClick = onCreate) {
-                Icon(GalleryIcons.Plus, contentDescription = stringResource(R.string.photos_create))
-            }
-            UpdatesAction(
-                onClick = if (activeExportCount > 0) onOpenExportQueue else onOpenUpdates,
-                activeExportCount = activeExportCount,
-                activeExportProgress = activeExportProgress,
-                contentDescription = activeExportDescription
-                    ?: stringResource(R.string.photos_updates),
-            )
-            GalleryExpressiveIconButton(onClick = onOpenSettings) {
-                Icon(
-                    GalleryIcons.User,
-                    contentDescription = stringResource(R.string.open_settings),
+            if (showNavigationActions) {
+                GalleryExpressiveIconButton(onClick = onCreate) {
+                    Icon(GalleryIcons.Plus, contentDescription = stringResource(R.string.photos_create))
+                }
+                UpdatesAction(
+                    onClick = if (activeExportCount > 0) onOpenExportQueue else onOpenUpdates,
+                    activeExportCount = activeExportCount,
+                    activeExportProgress = activeExportProgress,
+                    contentDescription = activeExportDescription
+                        ?: stringResource(R.string.photos_updates),
                 )
+                GalleryExpressiveIconButton(onClick = onOpenSettings) {
+                    Icon(
+                        GalleryIcons.User,
+                        contentDescription = stringResource(R.string.open_settings),
+                    )
+                }
             }
             if (access.isLimited) Text(
                 stringResource(R.string.limited_access_label),
