@@ -1415,12 +1415,12 @@ internal fun PdfStatusBar(
                     )
                 IconButton(
                     onClick = onTogglePagesPanel,
-                    modifier = Modifier.size(32.dp).semantics { contentDescription = label },
+                    modifier = Modifier.size(40.dp).semantics { contentDescription = label },
                 ) {
                     Icon(
                         com.librestatic.lightforge.feature.pdfstudio.PdfPanelLeftIcon,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp),
+                        modifier = Modifier.size(22.dp),
                         tint =
                             if (visible) MaterialTheme.colorScheme.onSurfaceVariant
                             else MaterialTheme.colorScheme.primary,
@@ -1499,12 +1499,12 @@ internal fun PdfStatusBar(
                     )
                 IconButton(
                     onClick = onToggleInspectorPanel,
-                    modifier = Modifier.size(32.dp).semantics { contentDescription = label },
+                    modifier = Modifier.size(40.dp).semantics { contentDescription = label },
                 ) {
                     Icon(
                         com.librestatic.lightforge.feature.pdfstudio.PdfPanelRightIcon,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp),
+                        modifier = Modifier.size(22.dp),
                         tint =
                             if (visible) MaterialTheme.colorScheme.onSurfaceVariant
                             else MaterialTheme.colorScheme.primary,
