@@ -20,6 +20,7 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.min
@@ -407,24 +408,23 @@ internal fun PdfTemplateCard(
                 }
             }
             Spacer(Modifier.height(6.dp))
-            // G4 review fix: at 200% font, a fixed maxFontSize with only 1.6x card-width growth
-            // truncated both lines ("Prints 10 ×" / "One photo per page, 10") with no ellipsis,
-            // the same clipping PdfPaperCard's shrink-to-fit already fixed elsewhere in this
-            // file — same autoSize technique here instead of a hard line/character cap.
+            // Names such as "Cuadrícula de fotos" or "Impresiones 10 × 15" don't fit one line of a
+            // 104dp card; a single auto-sized line bottomed out at its minimum size and clipped
+            // with no ellipsis. Two wrapped lines at a readable size, ellipsis only as a fallback.
             Text(
                 name,
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
-                autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = MaterialTheme.typography.labelMedium.fontSize),
             )
             Text(
                 description,
                 style = MaterialTheme.typography.labelSmall,
                 color = content.copy(alpha = 0.75f),
-                maxLines = 2,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
                 textAlign = TextAlign.Center,
-                autoSize = TextAutoSize.StepBased(minFontSize = 7.sp, maxFontSize = MaterialTheme.typography.labelSmall.fontSize),
             )
         }
     }

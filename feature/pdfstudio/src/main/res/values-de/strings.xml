@@ -242,7 +242,7 @@
     <string name="pdf_library_template_prints">Abzüge 10 × 15</string>
     <string name="pdf_template_blank_name">Leer</string>
     <string name="pdf_template_blank_desc">Von vorn beginnen</string>
-    <string name="pdf_template_photo_grid_desc">2 × 2-Fotoraster, A4</string>
+    <string name="pdf_template_photo_grid_desc">4 Fotos pro Seite, A4</string>
     <string name="pdf_template_receipts_desc">Ein Beleg pro Zeile, A4</string>
     <string name="pdf_template_prints_desc">Ein Foto pro Seite, 10 × 15 cm</string>
     <string name="pdf_template_selected_suffix">ausgewählt</string>

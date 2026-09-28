@@ -242,7 +242,7 @@
     <string name="pdf_library_template_prints">Prints 10 × 15</string>
     <string name="pdf_template_blank_name">Blank</string>
     <string name="pdf_template_blank_desc">Start from scratch</string>
-    <string name="pdf_template_photo_grid_desc">2 × 2 photo grid, A4</string>
+    <string name="pdf_template_photo_grid_desc">4 photos per page, A4</string>
     <string name="pdf_template_receipts_desc">One receipt per row, A4</string>
     <string name="pdf_template_prints_desc">One photo per page, 10 × 15 cm</string>
     <string name="pdf_template_selected_suffix">selected</string>

@@ -8,6 +8,8 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.clickable
 import kotlinx.coroutines.CancellationException
 import android.Manifest
 import android.app.Activity
@@ -2961,53 +2963,63 @@ internal fun ProductionGalleryApp(
             sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true),
         ) {
             Column(
-                Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text(stringResource(R.string.create_sheet_title), style = MaterialTheme.typography.headlineSmall)
-                TextButton(onClick = { showCreateMenu = false; route = SurfaceRoute.PublicationRecoveries },
-                    modifier = Modifier.fillMaxWidth().semantics { testTagsAsResourceId = true }.testTag("publication-recoveries-entry")) {
-                    Text(stringResource(R.string.publication_recoveries_title))
-                }
-
-                TextButton(onClick = { showCreateMenu = false; openManualMoment() },
-                    modifier = Modifier.fillMaxWidth().semantics { testTagsAsResourceId = true }.testTag("create-memory")) {
-                    Text(stringResource(com.librestatic.lightforge.feature.collections.R.string.manual_moment_title))
-                }
-                TextButton(onClick = { showCreateMenu = false; openSelectionVideo() },
-                    modifier = Modifier.fillMaxWidth().semantics { testTagsAsResourceId = true }.testTag("create-memory-video")) {
-                    Text(stringResource(com.librestatic.lightforge.feature.videoeditor.R.string.memory_video_title))
-                }
-                TextButton(
-                    onClick = {
-                        showCreateMenu = false
-                        openCreationGif()
-                    }, modifier = Modifier.fillMaxWidth().semantics { testTagsAsResourceId = true }.testTag("create-gif"),
-                ) { Text(stringResource(com.librestatic.lightforge.feature.collage.R.string.creation_gif_title)) }
-                TextButton(onClick = { showCreateMenu = false; pdfReturnToDocuments = false; route = SurfaceRoute.PdfStudio }, modifier = Modifier.fillMaxWidth()) {
-                    Icon(GalleryIcons.PictureAsPdf, contentDescription = null)
-                    Text(stringResource(com.librestatic.lightforge.feature.pdfstudio.R.string.pdf_studio), Modifier.padding(start = 12.dp))
-                }
-                TextButton(
-                    onClick = {
-                        showCreateMenu = false
-                        showCreateAlbum = true
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Icon(GalleryIcons.Album, contentDescription = null)
-                    Text(stringResource(R.string.album_create_title), Modifier.padding(start = 12.dp))
-                }
-                TextButton(
-                    onClick = {
-                        showCreateMenu = false
-                        openCreationCollage()
-                    },
-                    modifier = Modifier.fillMaxWidth().semantics { testTagsAsResourceId = true }.testTag("create-collage"),
-                ) {
-                    Icon(GalleryIcons.Collections, contentDescription = null)
-                    Text(stringResource(R.string.m6_collage), Modifier.padding(start = 12.dp))
-                }
+                Text(
+                    stringResource(R.string.create_sheet_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
+                )
+                CreateSheetRow(
+                    icon = GalleryIcons.PhotoLibrary,
+                    title = stringResource(com.librestatic.lightforge.feature.collections.R.string.manual_moment_title),
+                    description = stringResource(R.string.create_memory_desc),
+                    testTag = "create-memory",
+                ) { showCreateMenu = false; openManualMoment() }
+                CreateSheetRow(
+                    icon = GalleryIcons.Video,
+                    title = stringResource(com.librestatic.lightforge.feature.videoeditor.R.string.memory_video_title),
+                    description = stringResource(R.string.create_memory_video_desc),
+                    testTag = "create-memory-video",
+                ) { showCreateMenu = false; openSelectionVideo() }
+                CreateSheetRow(
+                    icon = GalleryIcons.Repeat,
+                    title = stringResource(com.librestatic.lightforge.feature.collage.R.string.creation_gif_title),
+                    description = stringResource(R.string.create_gif_desc),
+                    testTag = "create-gif",
+                ) { showCreateMenu = false; openCreationGif() }
+                CreateSheetRow(
+                    icon = GalleryIcons.GridView,
+                    title = stringResource(R.string.m6_collage),
+                    description = stringResource(R.string.create_collage_desc),
+                    testTag = "create-collage",
+                ) { showCreateMenu = false; openCreationCollage() }
+                CreateSheetRow(
+                    icon = GalleryIcons.PictureAsPdf,
+                    title = stringResource(com.librestatic.lightforge.feature.pdfstudio.R.string.pdf_studio),
+                    description = stringResource(R.string.create_pdf_desc),
+                    testTag = "create-pdf",
+                ) { showCreateMenu = false; pdfReturnToDocuments = false; route = SurfaceRoute.PdfStudio }
+                CreateSheetRow(
+                    icon = GalleryIcons.Album,
+                    title = stringResource(R.string.album_create_title),
+                    description = stringResource(R.string.create_album_desc),
+                    testTag = "create-album",
+                ) { showCreateMenu = false; showCreateAlbum = true }
+                androidx.compose.material3.HorizontalDivider(Modifier.padding(vertical = 8.dp))
+                Text(
+                    stringResource(R.string.create_section_more),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 4.dp),
+                )
+                CreateSheetRow(
+                    icon = GalleryIcons.History,
+                    title = stringResource(R.string.publication_recoveries_title),
+                    description = stringResource(R.string.create_recoveries_desc),
+                    testTag = "publication-recoveries-entry",
+                ) { showCreateMenu = false; route = SurfaceRoute.PublicationRecoveries }
             }
         }
     }
@@ -4239,4 +4251,47 @@ private fun AlbumNameDialog(value: String, onValue: (String) -> Unit, onDismiss:
         confirmButton = { TextButton(onClick = onConfirm, enabled = value.isNotBlank()) { Text(stringResource(R.string.album_create)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.album_cancel)) } },
     )
+}
+
+/**
+ * One entry of the Create sheet: a tonal icon badge (secondaryContainer/onSecondaryContainer),
+ * a title and a one-line description, left-aligned and tappable as a whole (≥ 64dp tall).
+ */
+@Composable
+private fun CreateSheetRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String,
+    testTag: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
+            .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
+            .semantics { testTagsAsResourceId = true }
+            .testTag(testTag)
+            .heightIn(min = 64.dp)
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        androidx.compose.material3.Surface(
+            shape = androidx.compose.foundation.shape.CircleShape,
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            modifier = Modifier.size(44.dp),
+        ) {
+            Box(contentAlignment = Alignment.Center) { Icon(icon, contentDescription = null) }
+        }
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+            Text(
+                description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
 }

@@ -242,7 +242,7 @@
     <string name="pdf_library_template_prints">Tirages 10 × 15</string>
     <string name="pdf_template_blank_name">Vierge</string>
     <string name="pdf_template_blank_desc">Partir de zéro</string>
-    <string name="pdf_template_photo_grid_desc">Grille de photos 2 × 2, A4</string>
+    <string name="pdf_template_photo_grid_desc">4 photos par page, A4</string>
     <string name="pdf_template_receipts_desc">Un reçu par ligne, A4</string>
     <string name="pdf_template_prints_desc">Une photo par page, 10 × 15 cm</string>
     <string name="pdf_template_selected_suffix">sélectionné</string>

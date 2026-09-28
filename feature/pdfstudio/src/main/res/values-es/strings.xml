@@ -242,7 +242,7 @@
     <string name="pdf_library_template_prints">Impresiones 10 × 15</string>
     <string name="pdf_template_blank_name">En blanco</string>
     <string name="pdf_template_blank_desc">Empezar desde cero</string>
-    <string name="pdf_template_photo_grid_desc">Cuadrícula de fotos 2 × 2, A4</string>
+    <string name="pdf_template_photo_grid_desc">4 fotos por página, A4</string>
     <string name="pdf_template_receipts_desc">Un recibo por fila, A4</string>
     <string name="pdf_template_prints_desc">Una foto por página, 10 × 15 cm</string>
     <string name="pdf_template_selected_suffix">seleccionado</string>
