@@ -7,6 +7,10 @@ internal enum class PdfExportPagesChoice {
     All,
     Current,
     Selected,
+    /** A user-typed page range (Phase G3), e.g. "1-3, 5". Resolves to the same `pageIds` field
+     * [Selected] and [Current] already use, in document order — nothing downstream of the draft
+     * (queue, manifest, estimator) needs to know it came from a parsed string. */
+    Custom,
 }
 
 /**

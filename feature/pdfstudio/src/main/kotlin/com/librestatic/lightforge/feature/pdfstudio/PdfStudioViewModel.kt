@@ -139,6 +139,13 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
     private var publishing: Job? = null
     private val exportDraftStore = PdfExportDraftStore(saved)
     private val lastDestinationStore = PdfLastDestinationStore(application)
+    /**
+     * The export sheet's Custom pages field text, kept per project id for the life of this
+     * ViewModel only (Phase G3 item 2: "remember for the session", not persisted to Room or
+     * SavedStateHandle — losing it on process death is an acceptable trade-off for a draft this
+     * short-lived, unlike the destination-first [exportDraftStore]).
+     */
+    private val customRangeDrafts = mutableMapOf<String, String>()
     private val ackStore = PdfExportAcknowledgementStore(application)
     private val mutableLastDestinationLabel = MutableStateFlow<String?>(null)
     /** "Save to: <label>" text for the export sheet's destination row, refreshed on demand. */
@@ -1992,8 +1999,24 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         }
     }
 
-    /** Off-main-thread "≈ size" figure for the export sheet's Original/Compact cards. */
-    internal suspend fun estimateExportBytes(pagesChoice: PdfExportPagesChoice, compact: Boolean): Long =
+    /** The last Custom pages text typed for [projectId] this session, or null if there is none
+     * (a fresh sheet then prefills from the current page selection instead — see
+     * `PdfStudioScreen`). */
+    internal fun customRangeDraft(projectId: String): String? = customRangeDrafts[projectId]
+
+    /** Called on every keystroke in the Custom pages field so navigating away and back (or
+     * reopening the sheet) does not lose what was typed. */
+    internal fun rememberCustomRangeDraft(projectId: String, text: String) {
+        customRangeDrafts[projectId] = text
+    }
+
+    /** Off-main-thread "≈ size" figure for the export sheet's Original/Compact cards.
+     * [customPageIds] is only consulted when [pagesChoice] is [PdfExportPagesChoice.Custom]. */
+    internal suspend fun estimateExportBytes(
+        pagesChoice: PdfExportPagesChoice,
+        compact: Boolean,
+        customPageIds: List<String> = emptyList(),
+    ): Long =
         withContext(Dispatchers.IO) {
             val project = mutable.value.project ?: return@withContext 0L
             val snapshot =
@@ -2005,6 +2028,8 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
                         )
                     PdfExportPagesChoice.Selected ->
                         project.copy(pages = project.pages.filter { it.id in mutable.value.selectedPages })
+                    PdfExportPagesChoice.Custom ->
+                        project.copy(pages = project.pages.filter { it.id in customPageIds })
                 }
             if (snapshot.pages.isEmpty()) return@withContext 0L
             val sourceBytes = snapshot.usedAssets().associateWith { repository.file(it).length() }
@@ -2017,7 +2042,11 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
      * `CreateDocument`. The actual snapshot and [PdfExportQueue.enqueue] call happen once the
      * picker delivers a URI, in [resumePublication].
      */
-    internal fun beginNewExport(pagesChoice: PdfExportPagesChoice, compact: Boolean): PublishStart {
+    internal fun beginNewExport(
+        pagesChoice: PdfExportPagesChoice,
+        compact: Boolean,
+        customPageIds: List<String> = emptyList(),
+    ): PublishStart {
         val project = requireNotNull(mutable.value.project)
         val pageIds =
             when (pagesChoice) {
@@ -2025,6 +2054,14 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
                 PdfExportPagesChoice.Current ->
                     listOfNotNull(project.pages.getOrNull(mutable.value.page)?.id)
                 PdfExportPagesChoice.Selected -> mutable.value.selectedPages.toList()
+                // Defend against a stale id list (the project could have changed between the
+                // sheet's last parse and this tap) by intersecting with the pages that still
+                // exist; buildDraftSnapshot already falls back to the whole project if that
+                // leaves nothing.
+                PdfExportPagesChoice.Custom -> {
+                    val known = project.pages.map { it.id }.toSet()
+                    customPageIds.filter { it in known }
+                }
             }
         val id = draftPickerId()
         val decision = publishPicker.begin(id)
@@ -2034,14 +2071,18 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
     }
 
     /** Mirrors [restartPublication] for a not-yet-rendered draft: drop a stale request, try again. */
-    internal fun restartNewExport(pagesChoice: PdfExportPagesChoice, compact: Boolean): PublishStart {
+    internal fun restartNewExport(
+        pagesChoice: PdfExportPagesChoice,
+        compact: Boolean,
+        customPageIds: List<String> = emptyList(),
+    ): PublishStart {
         if (publishing?.isActive == true)
             return publishPicker.request?.let(PublishStart::AlreadyPending)
                 ?: PublishStart.AlreadyPending(draftPickerId() to null)
         publishPicker.discard()
         exportDraftStore.discard()
         mutable.update { it.copy(message = R.string.pdf_publish_restarted) }
-        return beginNewExport(pagesChoice, compact)
+        return beginNewExport(pagesChoice, compact, customPageIds)
     }
 
     fun portable() = operation(lock = false) {

@@ -8,12 +8,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -22,6 +24,8 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveButton
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveChoiceGroup
@@ -44,9 +48,18 @@ internal fun PdfExportSheet(
     selectedPageIds: Set<String>,
     defaultFilename: String,
     lastDestinationLabel: String?,
-    onEstimate: suspend (PdfExportPagesChoice, Boolean) -> Long,
+    /** The last Custom pages text typed for this project this session (Phase G3 item 2), or null
+     * for a fresh sheet — prefilled instead from [selectedPageIds] when there is a selection. */
+    initialCustomRange: String? = null,
+    onCustomRangeChanged: (String) -> Unit = {},
+    onEstimate: suspend (PdfExportPagesChoice, Boolean, customPageIds: List<String>) -> Long,
     onDismiss: () -> Unit,
-    onExport: (filename: String, pagesChoice: PdfExportPagesChoice, compact: Boolean) -> Unit,
+    onExport: (
+        filename: String,
+        pagesChoice: PdfExportPagesChoice,
+        compact: Boolean,
+        customPageIds: List<String>,
+    ) -> Unit,
 ) {
     val context = LocalContext.current
     var filename by remember { mutableStateOf(defaultFilename) }
@@ -59,13 +72,36 @@ internal fun PdfExportSheet(
     val oversized = remember(project) { PdfExportEstimator.oversizedOriginalPhotoNumbers(project) }
     var originalEstimate by remember { mutableStateOf<Long?>(null) }
     var compactEstimate by remember { mutableStateOf<Long?>(null) }
-    LaunchedEffect(pagesChoice, project.updated) {
+    // Custom pages (Phase G3 item 3): prefilled from the session draft, or else from the Pages
+    // panel's current selection (ASCII hyphen — this text stays user-editable, unlike the
+    // typographic en-dash summary shown as supportingText below).
+    var customText by
+        remember(project.id) {
+            mutableStateOf(
+                initialCustomRange
+                    ?: run {
+                        val selectedNumbers =
+                            project.pages.mapIndexedNotNull { index, page ->
+                                index.takeIf { page.id in selectedPageIds }
+                            }
+                        PdfPageRange.summarize(selectedNumbers)
+                    }
+            )
+        }
+    val customParse = remember(customText, project.pages.size) { PdfPageRange.parse(customText, project.pages.size) }
+    val customPageIds =
+        remember(customParse, project.pages) {
+            (customParse as? PdfPageRange.Result.Ok)?.indices?.map { project.pages[it].id } ?: emptyList()
+        }
+    LaunchedEffect(pagesChoice, project.updated, customPageIds) {
         originalEstimate = null
         compactEstimate = null
-        originalEstimate = onEstimate(pagesChoice, false)
-        compactEstimate = onEstimate(pagesChoice, true)
+        originalEstimate = onEstimate(pagesChoice, false, customPageIds)
+        compactEstimate = onEstimate(pagesChoice, true, customPageIds)
     }
     val filenameValid = filename.isNotBlank()
+    val pagesValid = pagesChoice != PdfExportPagesChoice.Custom || customParse is PdfPageRange.Result.Ok
+    val exportEnabled = filenameValid && pagesValid
     // Fully expanded: a partially expanded sheet would push the sticky Cancel/Export row
     // below the fold, leaving the sheet with no visible way to export.
     ModalBottomSheet(
@@ -100,18 +136,61 @@ internal fun PdfExportSheet(
                             stringResource(R.string.pdf_exportall),
                             stringResource(R.string.pdf_export_pages_current),
                             stringResource(R.string.pdf_exportselected),
+                            stringResource(R.string.pdf_export_pages_custom),
                         )
                     GalleryExpressiveChoiceGroup(
                         labels = labels,
                         selectedIndex = pagesChoice.ordinal,
                         onSelect = { index -> pagesChoice = PdfExportPagesChoice.entries[index] },
-                        enabled = listOf(true, true, selectedPageIds.isNotEmpty()),
+                        enabled = listOf(true, true, selectedPageIds.isNotEmpty(), true),
+                        // The default segmented ButtonGroup path has no wrap option and clips at
+                        // 200% font / 320dp with 4 choices; the chip path below does (Phase G3
+                        // guardrail).
+                        minimumItemWidth = 84.dp,
+                        wrap = true,
                     )
-                    if (selectedPageIds.isEmpty())
+                    if (selectedPageIds.isEmpty() && pagesChoice != PdfExportPagesChoice.Custom)
                         Text(
                             stringResource(R.string.pdf_export_pages_selected_helper),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    if (pagesChoice == PdfExportPagesChoice.Custom)
+                        OutlinedTextField(
+                            value = customText,
+                            onValueChange = {
+                                customText = it
+                                onCustomRangeChanged(it)
+                            },
+                            label = { Text(stringResource(R.string.pdf_export_custom_pages_label)) },
+                            placeholder = { Text(stringResource(R.string.pdf_export_custom_pages_placeholder)) },
+                            singleLine = true,
+                            isError = customParse is PdfPageRange.Result.Error,
+                            supportingText = {
+                                when (customParse) {
+                                    is PdfPageRange.Result.Ok -> {
+                                        val summary =
+                                            PdfPageRange.summarize(
+                                                customParse.indices,
+                                                dash = "–",
+                                                separator = ", ",
+                                            )
+                                        Text(
+                                            pluralStringResource(
+                                                R.plurals.pdf_export_custom_pages_summary,
+                                                customParse.indices.size,
+                                                customParse.indices.size,
+                                                summary,
+                                            )
+                                        )
+                                    }
+                                    is PdfPageRange.Result.Error ->
+                                        Text(customPagesErrorMessage(customParse, project.pages.size))
+                                }
+                            },
+                            keyboardOptions =
+                                KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
+                            modifier = Modifier.fillMaxWidth(),
                         )
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -181,8 +260,8 @@ internal fun PdfExportSheet(
                     )
                     if (lastDestinationLabel != null) {
                         TextButton(
-                            onClick = { onExport(filename.trim(), pagesChoice, compact) },
-                            enabled = filenameValid,
+                            onClick = { onExport(filename.trim(), pagesChoice, compact, customPageIds) },
+                            enabled = exportEnabled,
                         ) {
                             Text(stringResource(R.string.pdf_export_destination_change))
                         }
@@ -199,8 +278,8 @@ internal fun PdfExportSheet(
                 TextButton(onClick = onDismiss) { Text(stringResource(R.string.pdf_cancel)) }
                 Spacer(Modifier.width(8.dp))
                 GalleryExpressiveButton(
-                    onClick = { onExport(filename.trim(), pagesChoice, compact) },
-                    enabled = filenameValid,
+                    onClick = { onExport(filename.trim(), pagesChoice, compact, customPageIds) },
+                    enabled = exportEnabled,
                 ) {
                     Text(stringResource(R.string.pdf_export))
                 }
@@ -254,6 +333,20 @@ private fun QualityCard(
         Text(estimateText, color = onContainer, style = MaterialTheme.typography.bodyMedium)
     }
 }
+
+/** The specific, actionable message for a [PdfPageRange.Result.Error], shown as the Custom pages
+ * field's supportingText (Phase G3 item 2). */
+@Composable
+private fun customPagesErrorMessage(error: PdfPageRange.Result.Error, pageCount: Int): String =
+    when (error.kind) {
+        PdfPageRange.Kind.Empty -> stringResource(R.string.pdf_export_custom_pages_empty)
+        PdfPageRange.Kind.Invalid ->
+            stringResource(R.string.pdf_export_custom_pages_invalid, error.token)
+        PdfPageRange.Kind.OutOfRange ->
+            stringResource(R.string.pdf_export_custom_pages_out_of_range, error.token, pageCount)
+        PdfPageRange.Kind.Reversed ->
+            stringResource(R.string.pdf_export_custom_pages_reversed, error.token)
+    }
 
 private fun approx(a: Double, b: Double) = abs(a - b) < 2.0
 

@@ -132,9 +132,15 @@ fun PdfStudioScreen(
             saveInFlight = false
             vm.publicationResult(it)
         }
-    fun startNewExport(filename: String, pagesChoice: PdfExportPagesChoice, compact: Boolean) {
-        var start = vm.beginNewExport(pagesChoice, compact)
-        if (start is PublishStart.AlreadyPending) start = vm.restartNewExport(pagesChoice, compact)
+    fun startNewExport(
+        filename: String,
+        pagesChoice: PdfExportPagesChoice,
+        compact: Boolean,
+        customPageIds: List<String>,
+    ) {
+        var start = vm.beginNewExport(pagesChoice, compact, customPageIds)
+        if (start is PublishStart.AlreadyPending)
+            start = vm.restartNewExport(pagesChoice, compact, customPageIds)
         when (start) {
             is PublishStart.Launch -> {
                 saveInFlight = true
@@ -363,11 +369,15 @@ fun PdfStudioScreen(
             selectedPageIds = state.selectedPages,
             defaultFilename = project.name,
             lastDestinationLabel = lastDestinationLabel,
-            onEstimate = { choice, compact -> vm.estimateExportBytes(choice, compact) },
+            initialCustomRange = vm.customRangeDraft(project.id),
+            onCustomRangeChanged = { vm.rememberCustomRangeDraft(project.id, it) },
+            onEstimate = { choice, compact, customPageIds ->
+                vm.estimateExportBytes(choice, compact, customPageIds)
+            },
             onDismiss = { exporting = false },
-            onExport = { filename, pagesChoice, compact ->
+            onExport = { filename, pagesChoice, compact, customPageIds ->
                 exporting = false
-                startNewExport(filename, pagesChoice, compact)
+                startNewExport(filename, pagesChoice, compact, customPageIds)
             },
         )
     if (deletePages) {

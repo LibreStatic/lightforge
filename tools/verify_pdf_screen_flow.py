@@ -31,6 +31,8 @@ def match_prefix(n,label):
     text=n.get('text') or n.get('content-desc') or ''
     return text==label or text.startswith(label+', ')
 def visible_prefix(label):return any(match_prefix(n,label) for n in dump()[0].iter('node'))
+def visible_contains(fragment):
+    return any(fragment in (n.get('text') or '') or fragment in (n.get('content-desc') or '') for n in dump()[0].iter('node'))
 def tap_where(predicate):
     # UI transitions (sheets closing, library/editor swaps) are not instantaneous: retry briefly
     # before failing, and keep the screen that was actually showing when it does fail.
@@ -124,6 +126,82 @@ def edit():
         wait(lambda s:not s['busy'])
         assert visible('Saved · just now')
 run(2,'duplicate-undo-redo',edit)
+def custom_field():
+    root,_=dump();edits=[n for n in root.iter('node') if n.get('class')=='android.widget.EditText']
+    assert edits,'Custom pages field not found'
+    return edits[-1]
+def focus_custom_field():
+    n=custom_field();x,y,r,d=map(int,re.findall(r'\d+',n.get('bounds')))
+    if r>x and d>y:shell('input','tap',str((x+r)//2),str((y+d)//2))
+    for _ in range(20):
+        if any(n.get('class')=='android.widget.EditText' and n.get('focused')=='true' for n in dump()[0].iter('node')):return
+        shell('input','keyevent','61')
+    raise AssertionError('Custom pages field did not receive focus')
+def set_custom_text(text):
+    focus_custom_field()
+    shell('input','keyevent','123',*['67']*40) # move to end, delete whatever was prefilled
+    if text:shell('input','text',text.replace(' ','%s')) # ascii only; %s is adb's escape for a space
+    time.sleep(.3)
+def export_enabled():
+    # The "Export" TextView's own `enabled` always reads true; the disabled state lives on the
+    # clickable Button ancestor instead (same climb tap_where does to find the real target).
+    root,_=dump();parents={c:p for p in root.iter() for c in p}
+    for n in root.iter('node'):
+        if n.get('text')!='Export':continue
+        while n.get('clickable')!='true' and n in parents:n=parents[n]
+        if n.get('clickable')=='true':return n.get('enabled')=='true'
+    return False
+def select_compact_card():
+    # The Original/Compact quality picker is two selectable cards, not a single switch; each card
+    # is one checkable node owning its own contentDescription, composed as "Original, <estimate>" /
+    # "Compact, <estimate>" so TalkBack reads the live size estimate too, not just the label.
+    def labeled_cards():
+        return [n for n in dump()[0].iter('node') if n.get('checkable')=='true' and match_prefix(n,'Compact')]
+    cards=labeled_cards();assert len(cards)==1,'Label must belong to the checkable card'
+    if cards[0].get('checked')!='true':tap_where(lambda n:match_prefix(n,'Compact'))
+    cards=labeled_cards()
+    # A selected radio exposes no click action (Android drops ACTION_CLICK once checked), so
+    # require the checked state and a real label instead of clickability.
+    assert len(cards)==1 and cards[0].get('checked')=='true' and cards[0].get('NAF')!='true'
+    x,y,r,d=map(int,re.findall(r'\d+',cards[0].get('bounds')));assert r>x and d>y
+def custom_range():
+    # Phase G3: the Export sheet's pages choice gains a fourth "Custom" option with a live-validated
+    # page-range field ("1-3, 5"). Not present pre-redesign, so the baseline run skips it entirely.
+    if args.baseline:return
+    # Unlike pdf()'s check below, this can't key off "Compact": once the Custom field's keyboard is
+    # up, the quality cards are scrolled out of the accessibility dump on a --resume retry. "File
+    # name" sits above the pages section and stays visible whether or not the IME is showing.
+    if not visible_prefix('File name'):tap('Export')
+    tap('Custom') # idempotent: re-selecting an already-selected choice is a no-op
+    snap('custom-pages-initial')
+    # There are 2 pages at this point (edit() duplicated one): "9" is out of range and must disable
+    # Export with a specific error, not just silently reject the keystrokes.
+    set_custom_text('9');snap('custom-pages-invalid')
+    assert not export_enabled(),'Export must be disabled for an out-of-range custom page'
+    assert visible_contains("Page 9 doesn't exist"),'Missing the specific out-of-range error text'
+    # A valid, ascending range re-enables Export and shows the normalized "N pages: ..." summary.
+    set_custom_text('1-2')
+    for _ in range(25):
+        if visible_contains('2 pages: 1'):break
+        time.sleep(.2)
+    else:raise AssertionError('Custom pages summary text did not appear for a valid range')
+    assert export_enabled(),'Export must be enabled once the custom range is valid'
+    # Back closes the IME without dismissing the sheet (Android's usual "back closes the keyboard
+    # first" behavior) and brings the quality cards back into the accessibility dump — Compose
+    # excludes content scrolled out of the visible viewport, and the open keyboard had pushed the
+    # cards below it.
+    shell('input','keyevent','4');time.sleep(.4)
+    select_compact_card()
+    snap('custom-pages-valid')
+    # "then export": the sticky Export action launches CreateDocument immediately, same as the
+    # plain-pages flow below — this is the flow's first real export, so pdf() finds it already
+    # done (verified) and just confirms that instead of exporting a second time.
+    tap('Export');save_file(cp['name']+'-custom.pdf')
+    wait(lambda s:any(j['phase']!='Ready' and not j['portable'] for j in s['jobs']))
+    wait(lambda s:any(j['verified'] and not j['portable'] for j in s['jobs']))
+    if visible('PDF saved'):
+        snap('export-custom-saved-sheet');tap('Done')
+run(3,'export-custom-range',custom_range)
 def pdf():
     # Phase B moved the picker before rendering: exporting a regular PDF never enters Ready any
     # more (the worker publishes as soon as it renders), so the only wait is for verification.
@@ -139,19 +217,7 @@ def pdf():
             print('BASELINE LABEL MISSING: native Compact switch has no accessible label',flush=True)
             tap_where(lambda n:n.get('checkable')=='true')
         else:
-            # The Original/Compact quality picker is two selectable cards now, not a single
-            # switch; each card is one checkable node owning its own contentDescription, composed
-            # as "Original, <estimate>" / "Compact, <estimate>" so TalkBack reads the live size
-            # estimate too, not just the label.
-            def labeled_cards():
-                return [n for n in dump()[0].iter('node') if n.get('checkable')=='true' and match_prefix(n,'Compact')]
-            cards=labeled_cards();assert len(cards)==1,'Label must belong to the checkable card'
-            if cards[0].get('checked')!='true':tap_where(lambda n:match_prefix(n,'Compact'))
-            cards=labeled_cards()
-            # A selected radio exposes no click action (Android drops ACTION_CLICK once checked),
-            # so require the checked state and a real label instead of clickability.
-            assert len(cards)==1 and cards[0].get('checked')=='true' and cards[0].get('NAF')!='true'
-            x,y,r,d=map(int,re.findall(r'\d+',cards[0].get('bounds')));assert r>x and d>y
+            select_compact_card()
             snap('quality-selected')
         # The sticky Export action launches CreateDocument immediately: the destination is chosen
         # before anything is queued or rendered.
@@ -165,7 +231,7 @@ def pdf():
     if not args.baseline and visible('PDF saved'):
         snap('export-saved-sheet')
         tap('Done')
-run(3,'native-pdf-saved',pdf)
+run(4,'native-pdf-saved',pdf)
 def portable():
     editor();tap('Insert');tap('Download project')
     wait(lambda s:any(j['phase']=='Ready' and j['portable'] for j in s['jobs']))
@@ -180,7 +246,7 @@ def portable():
     for _ in range(3):
         if not visible('Exports'):break
         shell('input','keyevent','4');time.sleep(.5)
-run(4,'native-project-saved',portable)
+run(5,'native-project-saved',portable)
 def restore():
     if not any('documentsui' in n.get('package','') for n in dump()[0].iter('node')):
         editor();tap('My projects');tap('Import project')
@@ -189,8 +255,8 @@ def restore():
     root,_=dump();names=[n.get('text') or n.get('content-desc','').split(',')[0] for n in root.iter('node')]
     names=[n for n in names if n.startswith(cp['name']+'.ugpdfproject') or (args.baseline and n=='Untitled project.ugpdfproject.zip')];assert names,names
     choose_file(names[0]);wait(lambda s:len(s['seen'])==2 and s['pages']==2 and s['images']==2 and not s['busy'])
-run(5,'native-project-restored',restore)
-if cp['step']==5:
+run(6,'native-project-restored',restore)
+if cp['step']==6:
     shell('run-as',pkg,'touch','files/pdf-flow-finish')
     end=time.monotonic()+40
     while time.monotonic()<end:

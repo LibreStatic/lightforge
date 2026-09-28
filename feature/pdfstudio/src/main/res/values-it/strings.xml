@@ -126,6 +126,17 @@
     <string name="pdf_export_filename_invalid">Inserisci un nome file.</string>
     <string name="pdf_export_pages_current">Pagina corrente</string>
     <string name="pdf_export_pages_selected_helper">Seleziona prima le pagine per esportare solo quelle.</string>
+    <string name="pdf_export_pages_custom">Personalizzato</string>
+    <string name="pdf_export_custom_pages_label">Pagine</string>
+    <string name="pdf_export_custom_pages_placeholder">1–3, 5</string>
+    <string name="pdf_export_custom_pages_empty">Inserisci le pagine</string>
+    <string name="pdf_export_custom_pages_invalid">\"%1$s\" non è una pagina o un intervallo valido</string>
+    <string name="pdf_export_custom_pages_out_of_range">La pagina %1$s non esiste (1–%2$d)</string>
+    <string name="pdf_export_custom_pages_reversed">\"%1$s\" è invertito; usa prima il numero più piccolo</string>
+    <plurals name="pdf_export_custom_pages_summary">
+        <item quantity="one">%1$d pagina: %2$s</item>
+        <item quantity="other">%1$d pagine: %2$s</item>
+    </plurals>
     <string name="pdf_export_size_estimate">≈ %1$s</string>
     <string name="pdf_export_size_calculating">Calcolo in corso…</string>
     <string name="pdf_export_summary">%1$s · %2$s · %3$d dpi</string>
