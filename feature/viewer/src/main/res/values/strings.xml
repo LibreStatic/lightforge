@@ -4,4 +4,18 @@
     <string name="viewer_slow_motion_saved">Slow-motion clip saved</string>
     <string name="viewer_slow_motion_save_failed">Could not save the slow-motion clip</string>
 <string name="viewer_rename">Rename</string><string name="viewer_copy_to">Copy to folder</string><string name="viewer_move_to">Move to folder</string><string name="viewer_move_to_private">Move to private album</string><string name="viewer_open_with">Open with</string><string name="viewer_set_as">Set as</string><string name="viewer_print">Print</string><string name="viewer_repair_date">Repair capture date</string><string name="viewer_file_name">File name</string><string name="viewer_choose_app">Choose an app</string><string name="viewer_copy_complete">Copy created</string><string name="viewer_move_copy_complete">Copy created; approve removal of the original to finish moving</string><string name="viewer_action_unavailable">This action is unavailable</string><string name="viewer_software_decoder_warning">Hardware decoding is unavailable; using a software decoder</string>
+    <string name="viewer_text_clip_label">Recognized text</string>
+    <string name="viewer_text_copied">Text copied</string>
+    <string name="viewer_text_no_app">No app can handle this</string>
+    <string name="viewer_text_copy">Copy</string>
+    <string name="viewer_text_select_all">Select all</string>
+    <string name="viewer_text_translate">Translate</string>
+    <string name="viewer_text_share">Share</string>
+    <string name="viewer_text_open_link">Open link</string>
+    <string name="viewer_text_email">Email</string>
+    <string name="viewer_text_call">Call</string>
+    <string name="viewer_text_map">Map</string>
+    <string name="viewer_text_search_web">Search web</string>
+    <string name="viewer_text_none_found">No text found here</string>
+    <string name="viewer_text_recognizing">Reading text…</string>
 </resources>

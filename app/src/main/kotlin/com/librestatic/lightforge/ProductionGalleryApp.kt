@@ -3924,6 +3924,7 @@ private fun ExternalViewer(
         onRepairDate = null,
         onTrash = null,
         onSelectMedia = {},
+        textRecognizer = rememberViewerTextRecognizer(),
         modifier = Modifier.fillMaxSize(),
     )
     if (showDetails) AlertDialog(
@@ -4216,6 +4217,7 @@ private fun ViewerRoute(
             gestureSettings = gallerySettings.gestures,
             onMuteToggle = { muted -> onSessionVideoMutedChange(muted) },
             videoScrubbingMode = gallerySettings.playback.videoScrubbingMode,
+            textRecognizer = rememberViewerTextRecognizer(),
             modifier = Modifier.fillMaxSize(),
         )
     }

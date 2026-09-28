@@ -145,6 +145,15 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import kotlinx.coroutines.delay
+import com.librestatic.lightforge.feature.viewer.textselect.PhotoLayerTransform
+import com.librestatic.lightforge.feature.viewer.textselect.TextRecognitionProgress
+import com.librestatic.lightforge.feature.viewer.textselect.TextSelectionController
+import com.librestatic.lightforge.feature.viewer.textselect.TextSelectionHighlights
+import com.librestatic.lightforge.feature.viewer.textselect.TextSelectionToolbar
+import com.librestatic.lightforge.feature.viewer.textselect.ViewerTextRecognizer
+import com.librestatic.lightforge.feature.viewer.textselect.detectTextSelectionGestures
+import com.librestatic.lightforge.feature.viewer.textselect.fitCenterRect
+import com.librestatic.lightforge.feature.viewer.textselect.rememberTextSelectionLongPress
 
 @Composable
 fun ViewerContent(
@@ -186,8 +195,10 @@ fun ViewerContent(
     gestureSettings: GestureSettings = GestureSettings(),
     onMuteToggle: (Boolean) -> Unit = {},
     videoScrubbingMode: VideoScrubbingMode = VideoScrubbingMode.LegacySeekBar,
+    textRecognizer: ViewerTextRecognizer? = null,
     modifier: Modifier = Modifier,
 ) {
+    var textSelectionActive by remember(media.viewerId) { mutableStateOf(false) }
     var chromeVisible by rememberSaveable(media.viewerId) { mutableStateOf(true) }
     var menuExpanded by remember { mutableStateOf(false) }
     var contentZoomed by remember(media.viewerId) { mutableStateOf(false) }
@@ -400,7 +411,7 @@ fun ViewerContent(
         Box(
             Modifier
                 .fillMaxSize()
-                .pointerInput(media.viewerId, gestureSettings, contentZoomed) {
+                .pointerInput(media.viewerId, gestureSettings, contentZoomed, textSelectionActive) {
                     var start = Offset.Zero
                     var totalY = 0f
                     var initialBrightness = 0.5f
@@ -437,7 +448,7 @@ fun ViewerContent(
                         },
                         onDragEnd = {
                             val center = start.x in (size.width / 3f)..(size.width * 2f / 3f)
-                            if (center && !contentZoomed && gestureSettings.swipeDownToClose && totalY > size.height * 0.16f) onBack()
+                            if (center && !contentZoomed && !textSelectionActive && gestureSettings.swipeDownToClose && totalY > size.height * 0.16f) onBack()
                             gestureFeedback = null
                         },
                         onDragCancel = { gestureFeedback = null },
@@ -492,7 +503,7 @@ fun ViewerContent(
             HorizontalPager(
                 state = pagerState,
                 beyondViewportPageCount = 1,
-                userScrollEnabled = !contentZoomed,
+                userScrollEnabled = !contentZoomed && !textSelectionActive,
                 key = { displayedItems[it].viewerId },
                 modifier = Modifier.fillMaxSize(),
             ) { page ->
@@ -517,6 +528,8 @@ fun ViewerContent(
                             zoomTapPosition = zoomTapPosition,
                             zoomTapGeneration = zoomTapGeneration,
                             onZoomedChange = { contentZoomed = it },
+                            textRecognizer = textRecognizer,
+                            onTextSelectionActiveChange = { textSelectionActive = it },
                         )
                     }
                 } else {
@@ -1067,6 +1080,8 @@ private fun PhotoSurface(
     zoomTapPosition: Offset,
     zoomTapGeneration: Int,
     onZoomedChange: (Boolean) -> Unit,
+    textRecognizer: ViewerTextRecognizer?,
+    onTextSelectionActiveChange: (Boolean) -> Unit,
 ) {
     val reducedMotion = rememberGalleryReducedMotion()
     val motionScheme = MaterialTheme.motionScheme
@@ -1098,6 +1113,8 @@ private fun PhotoSurface(
             zoomTapPosition = zoomTapPosition,
             zoomTapGeneration = zoomTapGeneration,
             onZoomedChange = onZoomedChange,
+            textRecognizer = textRecognizer,
+            onTextSelectionActiveChange = onTextSelectionActiveChange,
         )
     }
 }
@@ -1109,6 +1126,8 @@ private fun PhotoSurfaceState(
     zoomTapPosition: Offset,
     zoomTapGeneration: Int,
     onZoomedChange: (Boolean) -> Unit,
+    textRecognizer: ViewerTextRecognizer?,
+    onTextSelectionActiveChange: (Boolean) -> Unit,
 ) {
     when (state) {
         is PhotoLoadState.Thumbnail -> Image(
@@ -1162,13 +1181,22 @@ private fun PhotoSurfaceState(
                     zoom.zoomTo(center, minOf(2f, settings.photoMaxZoom), zoomTapPosition, settings.photoMaxZoom)
                 }
             }
-            AndroidView(
-                factory = { context -> ImageView(context).apply { scaleType = ImageView.ScaleType.FIT_CENTER } },
-                update = {
-                    it.setImageDrawable(state.drawable)
-                    // AndroidView's native accessibility child must expose the same localized label.
-                    it.contentDescription = description
-                },
+            val selection = remember(state.drawable, textRecognizer) {
+                textRecognizer?.let { TextSelectionController(state.drawable, it) }
+            }
+            val selectionActive = selection?.active == true
+            LaunchedEffect(selectionActive) { onTextSelectionActiveChange(selectionActive) }
+            DisposableEffect(selection) { onDispose { onTextSelectionActiveChange(false) } }
+            val imageRect = fitCenterRect(
+                state.drawable.intrinsicWidth.toFloat(),
+                state.drawable.intrinsicHeight.toFloat(),
+                containerSize,
+            )
+            val latestImageRect by rememberUpdatedState(imageRect)
+            val layerScale = { zoom.scale.value * rotationFit.value }
+            val onTextLongPress = rememberTextSelectionLongPress(selection, scope) { latestImageRect }
+            Box(Modifier.fillMaxSize()) {
+            Box(
                 modifier = Modifier.fillMaxSize()
                     .onSizeChanged { containerSize = it }
                     .graphicsLayer(
@@ -1226,8 +1254,47 @@ private fun PhotoSurfaceState(
                                 }
                             },
                         )
-                    }.semantics { contentDescription = description },
-            )
+                    }
+                    .then(
+                        if (selection == null) Modifier else Modifier.pointerInput(selection) {
+                            detectTextSelectionGestures(
+                                controller = selection,
+                                imageRect = { latestImageRect },
+                                layerScale = layerScale,
+                                onLongPress = onTextLongPress,
+                            )
+                        },
+                    ),
+            ) {
+                AndroidView(
+                    factory = { context -> ImageView(context).apply { scaleType = ImageView.ScaleType.FIT_CENTER } },
+                    update = {
+                        it.setImageDrawable(state.drawable)
+                        // AndroidView's native accessibility child must expose the same localized label.
+                        it.contentDescription = description
+                    },
+                    modifier = Modifier.fillMaxSize().semantics { contentDescription = description },
+                )
+                if (selection != null) {
+                    TextSelectionHighlights(selection, imageRect, layerScale())
+                }
+            }
+            if (selection != null) {
+                if (selection.recognizing) {
+                    TextRecognitionProgress(Modifier.align(Alignment.BottomCenter).padding(bottom = 140.dp))
+                }
+                TextSelectionToolbar(
+                    controller = selection,
+                    imageRect = imageRect,
+                    transform = PhotoLayerTransform(
+                        containerSize = containerSize,
+                        scale = layerScale(),
+                        rotationDegrees = rotation.value,
+                        translation = Offset(zoom.offsetX.value, zoom.offsetY.value),
+                    ),
+                )
+            }
+            }
             DisposableEffect(state.drawable) {
                 (state.drawable as? AnimatedImageDrawable)?.start()
                 onDispose { (state.drawable as? AnimatedImageDrawable)?.stop() }

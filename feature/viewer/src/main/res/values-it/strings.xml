@@ -4,4 +4,18 @@
     <string name="viewer_slow_motion_saved">Clip rallentato salvato</string>
     <string name="viewer_slow_motion_save_failed">Impossibile salvare il clip rallentato</string>
 <string name="viewer_rename">Rinomina</string><string name="viewer_copy_to">Copia nella cartella</string><string name="viewer_move_to">Sposta nella cartella</string><string name="viewer_move_to_private">Sposta nell’album privato</string><string name="viewer_open_with">Apri con</string><string name="viewer_set_as">Imposta come</string><string name="viewer_print">Stampa</string><string name="viewer_repair_date">Correggi data di acquisizione</string><string name="viewer_file_name">Nome file</string><string name="viewer_choose_app">Scegli un’app</string><string name="viewer_copy_complete">Copia creata</string><string name="viewer_move_copy_complete">Copia creata; autorizza la rimozione dell’originale per terminare</string><string name="viewer_action_unavailable">Questa azione non è disponibile</string><string name="viewer_software_decoder_warning">La decodifica hardware non è disponibile; verrà usata la decodifica software</string>
+    <string name="viewer_text_clip_label">Testo riconosciuto</string>
+    <string name="viewer_text_copied">Testo copiato</string>
+    <string name="viewer_text_no_app">Nessuna app può eseguire questa azione</string>
+    <string name="viewer_text_copy">Copia</string>
+    <string name="viewer_text_select_all">Seleziona tutto</string>
+    <string name="viewer_text_translate">Traduci</string>
+    <string name="viewer_text_share">Condividi</string>
+    <string name="viewer_text_open_link">Apri link</string>
+    <string name="viewer_text_email">Email</string>
+    <string name="viewer_text_call">Chiama</string>
+    <string name="viewer_text_map">Mappa</string>
+    <string name="viewer_text_search_web">Cerca sul web</string>
+    <string name="viewer_text_none_found">Nessun testo trovato qui</string>
+    <string name="viewer_text_recognizing">Lettura del testo…</string>
 </resources>

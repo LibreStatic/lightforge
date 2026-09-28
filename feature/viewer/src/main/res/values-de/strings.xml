@@ -4,4 +4,18 @@
     <string name="viewer_slow_motion_saved">Zeitlupenclip gespeichert</string>
     <string name="viewer_slow_motion_save_failed">Zeitlupenclip konnte nicht gespeichert werden</string>
 <string name="viewer_rename">Umbenennen</string><string name="viewer_copy_to">In Ordner kopieren</string><string name="viewer_move_to">In Ordner verschieben</string><string name="viewer_move_to_private">In privates Album verschieben</string><string name="viewer_open_with">Öffnen mit</string><string name="viewer_set_as">Festlegen als</string><string name="viewer_print">Drucken</string><string name="viewer_repair_date">Aufnahmedatum korrigieren</string><string name="viewer_file_name">Dateiname</string><string name="viewer_choose_app">App auswählen</string><string name="viewer_copy_complete">Kopie erstellt</string><string name="viewer_move_copy_complete">Kopie erstellt; Löschen des Originals bestätigen, um den Vorgang abzuschließen</string><string name="viewer_action_unavailable">Diese Aktion ist nicht verfügbar</string><string name="viewer_software_decoder_warning">Hardware-Decodierung ist nicht verfügbar; Software-Decodierung wird verwendet</string>
+    <string name="viewer_text_clip_label">Erkannter Text</string>
+    <string name="viewer_text_copied">Text kopiert</string>
+    <string name="viewer_text_no_app">Keine App kann diese Aktion ausführen</string>
+    <string name="viewer_text_copy">Kopieren</string>
+    <string name="viewer_text_select_all">Alle auswählen</string>
+    <string name="viewer_text_translate">Übersetzen</string>
+    <string name="viewer_text_share">Teilen</string>
+    <string name="viewer_text_open_link">Link öffnen</string>
+    <string name="viewer_text_email">E-Mail</string>
+    <string name="viewer_text_call">Anrufen</string>
+    <string name="viewer_text_map">Karte</string>
+    <string name="viewer_text_search_web">Im Web suchen</string>
+    <string name="viewer_text_none_found">Hier wurde kein Text gefunden</string>
+    <string name="viewer_text_recognizing">Text wird gelesen…</string>
 </resources>
