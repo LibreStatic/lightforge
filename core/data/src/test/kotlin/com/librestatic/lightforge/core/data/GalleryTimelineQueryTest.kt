@@ -74,3 +74,31 @@ class GalleryTimelineQueryTest {
         assertNull(GalleryFolderToken.decode("invalid"))
     }
 }
+
+class TimelineScrubberQueryTest {
+    private val key = com.librestatic.lightforge.core.database.TimelineKeyset(1_000L, 7L, "external")
+
+    @Test fun `day counts group the displayed rows by local day`() {
+        val sql = GalleryTimelineQuery.dayCounts(LibrarySettings(), collapsed = false).sql
+        assertTrue(sql.contains("strftime('%Y-%m-%d'"))
+        assertTrue(sql.contains("GROUP BY day"))
+        assertTrue(sql.contains("isTrashed=0"))
+        assertTrue(sql.contains("ORDER BY day DESC"))
+    }
+
+    @Test fun `ascending day counts follow display order`() {
+        val sql = GalleryTimelineQuery.dayCounts(LibrarySettings(ascending = true), collapsed = false).sql
+        assertTrue(sql.contains("ORDER BY day ASC"))
+    }
+
+    @Test fun `stacked before reads newer rows in the opposite order`() {
+        val sql = GalleryTimelineQuery.stackedBefore(LibrarySettings(), key, 50).sql
+        assertTrue(sql.contains("timelineSortMillis ASC"))
+        assertFalse(sql.contains("timelineSortMillis DESC"))
+    }
+
+    @Test fun `rows before counts rows ahead of a boundary`() {
+        val sql = GalleryTimelineQuery.rowsBefore(LibrarySettings(), collapsed = true, boundaryMillis = 5L).sql
+        assertTrue(sql.contains("COUNT(*)"))
+    }
+}

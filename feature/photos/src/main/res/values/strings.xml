@@ -19,4 +19,7 @@
     <string name="change_grid_density">Change grid density</string>
     <string name="photos_create">Create</string><string name="photos_updates">Updates</string>
     <string name="library_ready_status">Library ready</string>
+    <string name="scrubber_handle_description">Timeline scrubber</string>
+    <string name="scrubber_today">Today</string>
+    <string name="scrubber_yesterday">Yesterday</string>
 </resources>

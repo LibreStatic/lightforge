@@ -47,7 +47,9 @@ import com.librestatic.lightforge.core.designsystem.GalleryExpressiveIconButton
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 import com.librestatic.lightforge.core.designsystem.GalleryStateContent
 import com.librestatic.lightforge.core.model.LibraryAccess
+import com.librestatic.lightforge.core.model.TimelineAnchor
 import com.librestatic.lightforge.core.model.TimelineEntry
+import com.librestatic.lightforge.core.model.TimelineIndex
 import com.librestatic.lightforge.core.model.TimelineMedia
 import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
 import com.librestatic.lightforge.core.thumbnail.ThumbnailRequest
@@ -90,6 +92,8 @@ fun LibraryPhotosRoute(
     onFocusReturnConsumed: (TimelineFocusReturn) -> Unit = {},
     /** False when a navigation rail already offers Create, Updates and Settings. */
     showNavigationActions: Boolean = true,
+    scrubberIndex: TimelineIndex? = null,
+    onScrubberJump: (TimelineAnchor?) -> Unit = {},
 ) {
     val densityState = rememberTimelineDensityState()
     val pagingError = entries.loadState.refresh as? LoadState.Error
@@ -220,6 +224,8 @@ fun LibraryPhotosRoute(
                     preferredColumns = preferredColumns,
                     cropThumbnails = cropThumbnails,
                     onDensityChange = onDensityChange,
+                    scrubberIndex = scrubberIndex,
+                    onScrubberJump = onScrubberJump,
                 )
             }
         }

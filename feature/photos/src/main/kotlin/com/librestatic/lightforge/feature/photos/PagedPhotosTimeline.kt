@@ -59,7 +59,9 @@ import com.librestatic.lightforge.core.designsystem.RetainGridThumbnailViewport
 import com.librestatic.lightforge.core.designsystem.VideoDurationBadge
 import com.librestatic.lightforge.core.designsystem.lazyGridDragSelection
 import com.librestatic.lightforge.core.designsystem.videoDurationDescription
+import com.librestatic.lightforge.core.model.TimelineAnchor
 import com.librestatic.lightforge.core.model.TimelineGrouping
+import com.librestatic.lightforge.core.model.TimelineIndex
 import com.librestatic.lightforge.core.model.TimelineEntry
 import com.librestatic.lightforge.core.model.TimelineMedia
 import com.librestatic.lightforge.core.model.MediaKind
@@ -91,7 +93,11 @@ fun AdaptivePagedPhotosTimeline(
     selectionOrder: (TimelineMedia) -> Int? = { null },
     focusReturn: TimelineFocusReturn? = null,
     onFocusReturnConsumed: (TimelineFocusReturn) -> Unit = {},
+    /** Day histogram of the whole timeline; null (the default) hides the date scrubber. */
+    scrubberIndex: TimelineIndex? = null,
+    onScrubberJump: (TimelineAnchor?) -> Unit = {},
 ) {
+    var scrubbing by remember { mutableStateOf(false) }
     BoxWithConstraints(modifier) {
         val widthDp = maxWidth.value.toInt()
         // Seed once from the persisted preference BEFORE deriving columns so the
@@ -134,7 +140,18 @@ fun AdaptivePagedPhotosTimeline(
             selectionOrder = selectionOrder,
             focusReturn = focusReturn,
             onFocusReturnConsumed = onFocusReturnConsumed,
+            scrubbing = scrubbing,
         )
+        if (scrubberIndex != null && !scrubberIndex.isEmpty) {
+            TimelineScrubber(
+                entries = entries,
+                gridState = state,
+                index = scrubberIndex,
+                columns = columns,
+                onJump = onScrubberJump,
+                onScrubbingChange = { scrubbing = it },
+            )
+        }
     }
 }
 
@@ -154,6 +171,8 @@ fun PagedPhotosTimeline(
     selectionOrder: (TimelineMedia) -> Int? = { null },
     focusReturn: TimelineFocusReturn? = null,
     onFocusReturnConsumed: (TimelineFocusReturn) -> Unit = {},
+    /** True while the scrubber handle is dragged, which counts as the user taking over the position. */
+    scrubbing: Boolean = false,
 ) {
     require(columns > 0 && thumbnailSizePx > 0)
     val focusSnapshot = entries.itemSnapshotList
@@ -168,6 +187,7 @@ fun PagedPhotosTimeline(
         if (state.isScrollInProgress || sourceMissing) onFocusReturnConsumed(request)
     }
     var userScrolled by rememberSaveable { mutableStateOf(false) }
+    if (scrubbing && !userScrolled) userScrolled = true
     PinTimelineToNewestUntilUserScrolls(state, columns, focusReturn, userScrolled) { userScrolled = true }
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),

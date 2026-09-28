@@ -95,7 +95,9 @@ import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.core.model.CheapMediaDetails
 import com.librestatic.lightforge.core.model.ExifLoadResult
 import com.librestatic.lightforge.core.model.MediaKind
+import com.librestatic.lightforge.core.model.TimelineAnchor
 import com.librestatic.lightforge.core.model.TimelineEntry
+import com.librestatic.lightforge.core.model.TimelineIndex
 import com.librestatic.lightforge.core.model.TimelineMedia
 import com.librestatic.lightforge.core.model.EditHistory
 import com.librestatic.lightforge.core.model.EditOperation
@@ -208,6 +210,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.Channel
@@ -511,16 +514,51 @@ class GalleryViewModel @Inject constructor(
         LibraryEngineState.Starting,
     )
     val access = permissions.access
+    // The counter makes a repeated jump to the same day (or to the newest photo) restart the pager.
+    private data class TimelineJump(val anchor: TimelineAnchor?, val count: Long = 0)
+    private val mutableTimelineJump = MutableStateFlow(TimelineJump(null))
+
+    /** Restarts the timeline at [anchor]'s day, or at the newest photo when null. */
+    fun jumpTimeline(anchor: TimelineAnchor?) {
+        mutableTimelineJump.update { TimelineJump(anchor, it.count + 1) }
+    }
+
     val timeline: Flow<PagingData<TimelineEntry>> by lazy {
         combine(gallerySettings.map { it.library }, selection.map {
             it !is SelectionSpec.Explicit || it.keys.isNotEmpty()
         }) { library, selecting -> library to selecting }
             .distinctUntilChanged()
             .flatMapLatest { (library, selecting) ->
-                runtime.filterNotNull().flatMapLatest {
-                    it.timeline.timeline(ZoneId.systemDefault(), library, collapseStacks = !selecting)
+                // A different library view has different rows, so an old jump target no longer applies.
+                if (library != previousTimelineLibrary) {
+                    previousTimelineLibrary = library
+                    mutableTimelineJump.value = TimelineJump(null)
+                }
+                mutableTimelineJump.flatMapLatest { (anchor) ->
+                    runtime.filterNotNull().flatMapLatest {
+                        it.timeline.timeline(
+                            ZoneId.systemDefault(),
+                            library,
+                            collapseStacks = !selecting,
+                            anchor = anchor,
+                        )
+                    }
                 }
             }.cachedIn(viewModelScope)
+    }
+    private var previousTimelineLibrary: com.librestatic.lightforge.core.preferences.LibrarySettings? = null
+
+    /** Day histogram behind the timeline scrubber; null when the current sort has no dates. */
+    val timelineIndex: kotlinx.coroutines.flow.StateFlow<TimelineIndex?> by lazy {
+        combine(gallerySettings.map { it.library }, selection.map {
+            it !is SelectionSpec.Explicit || it.keys.isNotEmpty()
+        }) { library, selecting -> library to selecting }
+            .distinctUntilChanged()
+            .flatMapLatest { (library, selecting) ->
+                runtime.filterNotNull().flatMapLatest {
+                    it.timeline.timelineIndex(library, collapseStacks = !selecting)
+                }
+            }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
     }
     private val mutableBackupRecovery = MutableStateFlow(BackupRecoveryUiState())
     val backupRecovery = mutableBackupRecovery.asStateFlow()

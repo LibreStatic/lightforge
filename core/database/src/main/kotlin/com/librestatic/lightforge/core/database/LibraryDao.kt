@@ -701,6 +701,36 @@ interface LibraryDao {
         limit: Int,
     ): List<MediaItemEntity>
 
+    /** Rows newer than the key, nearest first; the caller reverses them into display order. */
+    @Query(
+        """
+        SELECT * FROM media_items
+        WHERE isAccessible = 1 AND isTrashed = 0 AND (
+            timelineSortMillis > :beforeSortMillis OR
+            (timelineSortMillis = :beforeSortMillis AND mediaStoreId > :beforeMediaStoreId) OR
+            (timelineSortMillis = :beforeSortMillis AND mediaStoreId = :beforeMediaStoreId
+                AND volumeName > :beforeVolumeName)
+        )
+        AND NOT EXISTS (SELECT 1 FROM archived_media a
+            WHERE a.volumeName=media_items.volumeName AND a.mediaStoreId=media_items.mediaStoreId)
+        ORDER BY timelineSortMillis ASC, mediaStoreId ASC, volumeName ASC
+        LIMIT :limit
+        """,
+    )
+    suspend fun timelinePageBefore(
+        beforeSortMillis: Long,
+        beforeMediaStoreId: Long,
+        beforeVolumeName: String,
+        limit: Int,
+    ): List<MediaItemEntity>
+
+    @RawQuery(observedEntities = [MediaItemEntity::class, ArchivedMediaEntity::class,
+        PhotoStackEntity::class, PhotoStackMemberEntity::class])
+    fun timelineDayCounts(query: SupportSQLiteQuery): Flow<List<TimelineDayCountRow>>
+
+    @RawQuery
+    suspend fun timelineRowCount(query: SupportSQLiteQuery): Int
+
     @Query(
         """
         SELECT m.* FROM archived_media a

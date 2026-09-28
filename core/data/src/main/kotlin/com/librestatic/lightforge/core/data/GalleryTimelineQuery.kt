@@ -17,6 +17,24 @@ internal object GalleryTimelineQuery {
         limit: Int? = null,
     ): SupportSQLiteQuery = buildQuery(settings, true, after, limit)
 
+    /** Rows newer than [before], nearest first; the caller reverses them into display order. */
+    fun stackedBefore(
+        settings: LibrarySettings,
+        before: com.librestatic.lightforge.core.database.TimelineKeyset,
+        limit: Int,
+    ): SupportSQLiteQuery = buildQuery(settings, true, before = before, limit = limit)
+
+    /** Rows the timeline shows per local day, in display order. */
+    fun dayCounts(settings: LibrarySettings, collapsed: Boolean): SupportSQLiteQuery =
+        buildQuery(settings, collapsed, dayCounts = true)
+
+    /** How many rows are displayed before the first row at or after [boundaryMillis] in display order. */
+    fun rowsBefore(
+        settings: LibrarySettings,
+        collapsed: Boolean,
+        boundaryMillis: Long,
+    ): SupportSQLiteQuery = buildQuery(settings, collapsed, rowsBeforeMillis = boundaryMillis)
+
     fun stackSelection(
         settings: LibrarySettings,
         id: String,
@@ -30,6 +48,9 @@ internal object GalleryTimelineQuery {
         limit: Int? = null,
         stackId: String? = null,
         revision: String? = null,
+        before: com.librestatic.lightforge.core.database.TimelineKeyset? = null,
+        dayCounts: Boolean = false,
+        rowsBeforeMillis: Long? = null,
     ): SupportSQLiteQuery {
         val args = mutableListOf<Any>()
         val where =
@@ -123,21 +144,38 @@ internal object GalleryTimelineQuery {
         // Apply a keyset only AFTER selecting the representative. Pushing it into eligible
         // would make older members of the same stack reappear on a subsequent page.
         val cursor =
-            if (after == null) ""
-            else {
-                require(collapsed && settings == LibrarySettings())
-                args.addAll(
-                    listOf(
-                        after.timelineSortMillis,
-                        after.timelineSortMillis,
-                        after.mediaStoreId,
-                        after.timelineSortMillis,
-                        after.mediaStoreId,
-                        after.volumeName,
+            when {
+                after != null -> {
+                    require(collapsed && settings == LibrarySettings())
+                    args.addAll(
+                        listOf(
+                            after.timelineSortMillis,
+                            after.timelineSortMillis,
+                            after.mediaStoreId,
+                            after.timelineSortMillis,
+                            after.mediaStoreId,
+                            after.volumeName,
+                        )
                     )
-                )
-                " WHERE timelineSortMillis < ? OR (timelineSortMillis = ? AND mediaStoreId < ?) " +
-                    "OR (timelineSortMillis = ? AND mediaStoreId = ? AND volumeName < ?)"
+                    " WHERE timelineSortMillis < ? OR (timelineSortMillis = ? AND mediaStoreId < ?) " +
+                        "OR (timelineSortMillis = ? AND mediaStoreId = ? AND volumeName < ?)"
+                }
+                before != null -> {
+                    require(collapsed && settings == LibrarySettings())
+                    args.addAll(
+                        listOf(
+                            before.timelineSortMillis,
+                            before.timelineSortMillis,
+                            before.mediaStoreId,
+                            before.timelineSortMillis,
+                            before.mediaStoreId,
+                            before.volumeName,
+                        )
+                    )
+                    " WHERE timelineSortMillis > ? OR (timelineSortMillis = ? AND mediaStoreId > ?) " +
+                        "OR (timelineSortMillis = ? AND mediaStoreId = ? AND volumeName > ?)"
+                }
+                else -> ""
             }
         val bound =
             if (limit == null) ""
@@ -147,9 +185,26 @@ internal object GalleryTimelineQuery {
                 " LIMIT ?"
             }
         val select = if (collapsed) "SELECT * FROM ($projection)$cursor" else projection
+        if (dayCounts) {
+            return SimpleSQLiteQuery(
+                "SELECT strftime('%Y-%m-%d', timelineSortMillis/1000, 'unixepoch', 'localtime') AS day, " +
+                    "COUNT(*) AS count FROM ($select) GROUP BY day ORDER BY day $direction",
+                args.toTypedArray(),
+            )
+        }
+        if (rowsBeforeMillis != null) {
+            args += rowsBeforeMillis
+            val beyond = if (settings.ascending) "<" else ">="
+            return SimpleSQLiteQuery(
+                "SELECT COUNT(*) FROM ($select) WHERE timelineSortMillis $beyond ?",
+                args.toTypedArray(),
+            )
+        }
+        val orderDirection =
+            if (before == null) direction else if (settings.ascending) "DESC" else "ASC"
         return SimpleSQLiteQuery(
-            "$select ORDER BY $groupSort$selectedSort $direction, " +
-                "mediaStoreId $direction, volumeName $direction$bound",
+            "$select ORDER BY $groupSort$selectedSort $orderDirection, " +
+                "mediaStoreId $orderDirection, volumeName $orderDirection$bound",
             args.toTypedArray(),
         )
     }

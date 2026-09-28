@@ -7,7 +7,11 @@ import com.librestatic.lightforge.core.database.*
 import com.librestatic.lightforge.core.preferences.LibrarySettings
 import kotlinx.coroutines.CancellationException
 
-/** Bounded keyset pages; stack collapse happens in SQLite, not per loaded UI page. */
+/**
+ * Bounded bidirectional keyset pages; stack collapse happens in SQLite, not per loaded UI page.
+ * A null key loads from the newest row; any other key is an exclusive bound that can still be
+ * paged upward.
+ */
 internal class StackTimelinePagingSource(private val database: GalleryDatabase) :
     PagingSource<TimelineKeyset, StackTimelineRow>() {
     private val observer =
@@ -28,27 +32,29 @@ internal class StackTimelinePagingSource(private val database: GalleryDatabase) 
 
     override fun getRefreshKey(
         state: PagingState<TimelineKeyset, StackTimelineRow>
-    ): TimelineKeyset? = null
+    ): TimelineKeyset? = state.timelineRefreshKey { it.media.toKeyset() }
 
     override suspend fun load(
         params: LoadParams<TimelineKeyset>
     ): LoadResult<TimelineKeyset, StackTimelineRow> =
         try {
             val limit = params.loadSize.coerceIn(1, 500)
+            val key = params.key
+            val prepending = params is LoadParams.Prepend
+            val dao = database.libraryDao()
             val rows =
-                database
-                    .libraryDao()
-                    .stackTimelinePage(
-                        GalleryTimelineQuery.stacked(LibrarySettings(), params.key, limit)
-                    )
+                if (prepending) {
+                    dao.stackTimelinePage(
+                            GalleryTimelineQuery.stackedBefore(LibrarySettings(), key!!, limit)
+                        )
+                        .asReversed()
+                } else {
+                    dao.stackTimelinePage(GalleryTimelineQuery.stacked(LibrarySettings(), key, limit))
+                }
             LoadResult.Page(
                 rows,
-                null,
-                rows
-                    .lastOrNull()
-                    ?.takeIf { rows.size == limit }
-                    ?.media
-                    ?.let { TimelineKeyset(it.timelineSortMillis, it.mediaStoreId, it.volumeName) },
+                timelinePrevKey(rows, prepending, key, limit) { it.media.toKeyset() },
+                timelineNextKey(rows, prepending, limit) { it.media.toKeyset() },
             )
         } catch (cancelled: CancellationException) {
             throw cancelled

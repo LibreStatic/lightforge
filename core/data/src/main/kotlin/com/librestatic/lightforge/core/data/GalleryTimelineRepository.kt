@@ -5,6 +5,20 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.insertSeparators
 import androidx.paging.map
+import com.librestatic.lightforge.core.database.StackTimelineRow
+import com.librestatic.lightforge.core.database.TimelineKeyset
+import com.librestatic.lightforge.core.model.TimelineAnchor
+import com.librestatic.lightforge.core.model.TimelineDayBucket
+import com.librestatic.lightforge.core.model.TimelineIndex
+import com.librestatic.lightforge.core.preferences.LibrarySort
+import java.time.LocalDate
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.flowOf
 import com.librestatic.lightforge.core.database.GalleryDatabase
 import com.librestatic.lightforge.core.database.MediaItemEntity
 import com.librestatic.lightforge.core.database.TimelinePagingSource
@@ -30,6 +44,7 @@ class GalleryTimelineRepository(private val database: GalleryDatabase) {
         zoneId: ZoneId,
         settings: LibrarySettings = LibrarySettings(),
         collapseStacks: Boolean = true,
+        anchor: TimelineAnchor? = null,
     ): Flow<PagingData<TimelineEntry>> {
         val config =
             PagingConfig(
@@ -39,22 +54,37 @@ class GalleryTimelineRepository(private val database: GalleryDatabase) {
                 enablePlaceholders = false,
                 maxSize = 720,
             )
+        val keyset = settings == LibrarySettings()
         val rows: Flow<PagingData<TimelineMedia>> =
             if (collapseStacks) {
-                Pager(
-                        config,
-                        pagingSourceFactory = sources.track {
-                            if (settings == LibrarySettings()) StackTimelinePagingSource(database)
-                            else
-                                database
-                                    .libraryDao()
-                                    .rawStackTimelinePagingSource(
-                                        GalleryTimelineQuery.stacked(settings)
-                                    )
-                        },
-                    )
-                    .flow
-                    .map { data ->
+                    val stackRows: Flow<PagingData<StackTimelineRow>> =
+                        if (keyset) {
+                            Pager(
+                                    config,
+                                    initialKey = anchor?.let { anchorKeyset(it, zoneId) },
+                                    pagingSourceFactory = sources.track {
+                                        StackTimelinePagingSource(database)
+                                    },
+                                )
+                                .flow
+                        } else {
+                            flow { emit(anchor?.let { anchorOffset(it, zoneId, settings, true) }) }
+                                .flatMapLatest { offset ->
+                                    Pager(
+                                            config,
+                                            initialKey = offset,
+                                            pagingSourceFactory = sources.track {
+                                                database
+                                                    .libraryDao()
+                                                    .rawStackTimelinePagingSource(
+                                                        GalleryTimelineQuery.stacked(settings)
+                                                    )
+                                            },
+                                        )
+                                        .flow
+                                }
+                        }
+                    stackRows.map { data ->
                         data.map { row ->
                             row.media
                                 .toTimelineMedia()
@@ -71,18 +101,30 @@ class GalleryTimelineRepository(private val database: GalleryDatabase) {
                         }
                     }
             } else {
-                Pager(
-                        config,
-                        pagingSourceFactory = sources.track {
-                            if (settings == LibrarySettings()) TimelinePagingSource(database)
-                            else
-                                database
-                                    .libraryDao()
-                                    .rawTimelinePagingSource(GalleryTimelineQuery.build(settings))
-                        },
-                    )
-                    .flow
-                    .map { data -> data.map { it.toTimelineMedia() } }
+                val plainRows: Flow<PagingData<MediaItemEntity>> =
+                    if (keyset) {
+                        Pager(
+                                config,
+                                initialKey = anchor?.let { anchorKeyset(it, zoneId) },
+                                pagingSourceFactory = sources.track { TimelinePagingSource(database) },
+                            )
+                            .flow
+                    } else {
+                        flow { emit(anchor?.let { anchorOffset(it, zoneId, settings, false) }) }
+                            .flatMapLatest { offset ->
+                                Pager(
+                                        config,
+                                        initialKey = offset,
+                                        pagingSourceFactory = sources.track {
+                                            database
+                                                .libraryDao()
+                                                .rawTimelinePagingSource(GalleryTimelineQuery.build(settings))
+                                        },
+                                    )
+                                    .flow
+                            }
+                    }
+                plainRows.map { data -> data.map { it.toTimelineMedia() } }
             }
         return rows.map { data ->
             val media = data.map { TimelineEntry.Media(it) as TimelineEntry }
@@ -103,6 +145,50 @@ class GalleryTimelineRepository(private val database: GalleryDatabase) {
         }
     }
 
+    /**
+     * Per-day histogram of exactly the rows [timeline] shows, or null when the sort is not by
+     * date taken (the only order whose position the scrubber can express as a date).
+     */
+    @OptIn(FlowPreview::class)
+    fun timelineIndex(settings: LibrarySettings, collapseStacks: Boolean): Flow<TimelineIndex?> {
+        if (settings.sort != LibrarySort.DateTaken) return flowOf(null)
+        return database
+            .libraryDao()
+            .timelineDayCounts(GalleryTimelineQuery.dayCounts(settings, collapseStacks))
+            .debounce(IndexDebounceMillis)
+            .map { rows ->
+                TimelineIndex(
+                    rows.map { TimelineDayBucket(LocalDate.parse(it.day).toEpochDay(), it.count) },
+                    settings.ascending,
+                )
+            }
+            .flowOn(Dispatchers.Default)
+    }
+
+    /** Exclusive upper bound that sorts just after every row of the anchor day. */
+    private fun anchorKeyset(anchor: TimelineAnchor, zoneId: ZoneId) =
+        TimelineKeyset(
+            LocalDate.ofEpochDay(anchor.epochDay + 1).atStartOfDay(zoneId).toInstant().toEpochMilli() - 1,
+            Long.MAX_VALUE,
+            "\uFFFF",
+        )
+
+    private suspend fun anchorOffset(
+        anchor: TimelineAnchor,
+        zoneId: ZoneId,
+        settings: LibrarySettings,
+        collapsed: Boolean,
+    ): Int {
+        val boundary =
+            LocalDate.ofEpochDay(if (settings.ascending) anchor.epochDay else anchor.epochDay + 1)
+                .atStartOfDay(zoneId)
+                .toInstant()
+                .toEpochMilli()
+        return database
+            .libraryDao()
+            .timelineRowCount(GalleryTimelineQuery.rowsBefore(settings, collapsed, boundary))
+    }
+
     /** Selection is the current filtered membership, never hidden/archived/inaccessible photos. */
     suspend fun selectStack(
         stack: com.librestatic.lightforge.core.model.TimelineStack,
@@ -118,6 +204,8 @@ class GalleryTimelineRepository(private val database: GalleryDatabase) {
         return rows.map { it.toTimelineMedia() }
     }
 }
+
+private const val IndexDebounceMillis = 250L
 
 internal fun TimelineMedia.epochDay(zoneId: ZoneId): Long =
     Instant.ofEpochMilli(timelineSortMillis).atZone(zoneId).toLocalDate().toEpochDay()

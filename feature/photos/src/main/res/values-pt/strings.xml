@@ -14,4 +14,7 @@
     <string name="photo_thumbnail_description">Foto</string>
     <string name="video_thumbnail_description">Vídeo</string>
 <string name="open_settings">Abrir configurações</string><string name="change_grid_density">Alterar densidade da grade</string><string name="photos_create">Criar</string><string name="photos_updates">Atualizações</string>    <string name="library_ready_status">Biblioteca pronta</string>
+    <string name="scrubber_handle_description">Controle da linha do tempo</string>
+    <string name="scrubber_today">Hoje</string>
+    <string name="scrubber_yesterday">Ontem</string>
 </resources>

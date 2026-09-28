@@ -502,6 +502,7 @@ internal fun ProductionGalleryApp(
         }
     }
     val timeline = viewModel.timeline.collectAsLazyPagingItems()
+    val timelineIndex by viewModel.timelineIndex.collectAsState()
     val physicalAlbums = viewModel.physicalAlbums.collectAsLazyPagingItems()
     val virtualAlbums = viewModel.virtualAlbums.collectAsLazyPagingItems()
     val albumItems = viewModel.albumMedia.collectAsLazyPagingItems()
@@ -1359,6 +1360,8 @@ internal fun ProductionGalleryApp(
                             if (photosFocusReturn == request) photosFocusReturn = null
                         },
                         selectionMode = selectionCount > 0,
+                        scrubberIndex = timelineIndex,
+                        onScrubberJump = viewModel::jumpTimeline,
                         access = access,
                         engineState = engineState.toUiState(),
                         entries = timeline,
