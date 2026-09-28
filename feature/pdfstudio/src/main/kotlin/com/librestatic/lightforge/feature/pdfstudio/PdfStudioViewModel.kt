@@ -175,6 +175,13 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
             emptyList(),
         )
     private var galleryRecovery: Job? = null
+    /**
+     * Set when [resumeGallery] is asked to run while a recovery pass is already in flight. That
+     * pass may have read [PdfGalleryIntake.pending] before the new delivery was staged, so it is
+     * re-run once it completes instead of silently dropping the request (which left a fresh
+     * gallery selection stranded on the project list).
+     */
+    private var galleryResumeRequested = false
     private var activeGallery: String? = null
     /** The export this studio queued or saved, so its outcome replaces the "queued" notice. */
     private var watchedExport: String?
@@ -297,8 +304,14 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         }
 
     private fun resumeGallery() {
-        if (mutable.value.busy || galleryRecovery?.isActive == true) return
-        galleryRecovery =
+        // A running operation calls resumeGallery() again from its finally block.
+        if (mutable.value.busy) return
+        if (galleryRecovery?.isActive == true) {
+            galleryResumeRequested = true
+            return
+        }
+        galleryResumeRequested = false
+        val recovery =
             viewModelScope.launch {
                 val row =
                     try {
@@ -361,6 +374,12 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
                     }
                 }
             }
+        galleryRecovery = recovery
+        recovery.invokeOnCompletion {
+            if (galleryResumeRequested && viewModelScope.isActive) {
+                viewModelScope.launch { resumeGallery() }
+            }
+        }
     }
 
     fun retryGallery(id: String) {

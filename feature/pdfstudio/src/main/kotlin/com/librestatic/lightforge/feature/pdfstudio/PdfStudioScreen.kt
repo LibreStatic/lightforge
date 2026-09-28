@@ -18,6 +18,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.librestatic.lightforge.core.designsystem.GalleryLoadingIndicator
 
 /**
  * `CreateDocument` with an optional `EXTRA_INITIAL_URI` hint, so the destination-first export
@@ -202,6 +203,72 @@ fun PdfStudioScreen(
     // Mirrors the BoxWithConstraints-scoped `layout.expanded` below for the shortcuts sheet, which
     // renders outside that scope (alongside the other top-level sheets/dialogs).
     var expandedLayout by remember { mutableStateOf(false) }
+    // One feedback surface for both the project list and the editor, so a gallery selection that
+    // is still being copied (or failed) is visible even before its project opens.
+    val feedback: @Composable (Modifier) -> Unit = { modifier ->
+        PdfFeedbackOverlay(
+            modifier = modifier,
+            state = state,
+            galleryRows = galleryRows,
+            exportJobs = exportJobs,
+            intakeFailed = intakeFailed,
+            hasInitialUris = initialUris.isNotEmpty(),
+            saveInFlight = saveInFlight,
+            onRetryIntake = { intakeAttempt++ },
+            onDiscardIntake = {
+                intakeFailed = false
+                consumeInitial()
+            },
+            onRetryGallery = vm::retryGallery,
+            onDiscardGallery = vm::discardGallery,
+            onReplaceGallerySource = { delivery ->
+                delivery.failedSource()?.let { number ->
+                    replaceGalleryTarget = delivery.id to number
+                    try {
+                        replaceGallerySource.launch(arrayOf("image/*"))
+                    } catch (e: Exception) {
+                        replaceGalleryTarget = null
+                    }
+                }
+            },
+            onRemoveGallerySource = { delivery ->
+                delivery.failedSource()?.let { number ->
+                    vm.removeGallerySource(delivery.id, number)
+                }
+            },
+            onSaveExport = ::saveExport,
+            onDismissMessage = vm::dismissMessage,
+            onCancelBusy = vm::cancel,
+            watchedExportId = watchedExportId,
+            progressHidden = progressHidden,
+            onCancelExport = vm::cancelExport,
+            onHideProgress = { progressHidden = true },
+            onRetryExport = vm::retryExport,
+            onDismissResult = vm::dismissResult,
+            onOpenRecovery = { job ->
+                job.destination?.let { openPdf(context, android.net.Uri.parse(it), vm::reportOpenFailed) }
+                vm.dismissRecovery()
+            },
+            onDismissRecovery = vm::dismissRecovery,
+        )
+    }
+    // A fresh gallery selection is heading for a new project: show its progress instead of the
+    // project list so the handoff lands straight in the editor without flashing the library.
+    // The handoff flag bridges the gap between the URIs being consumed and the staged row
+    // reaching the observed delivery list, and ends once the row is processed or dropped.
+    var galleryHandoff by rememberSaveable(initialRequestId) { mutableStateOf(initialUris.isNotEmpty()) }
+    var handoffRowSeen by rememberSaveable(initialRequestId) { mutableStateOf(false) }
+    val handoffRow = galleryRows.firstOrNull { it.id == (initialRequestId ?: fallbackRequestId) }
+    LaunchedEffect(handoffRow, state.project, intakeFailed) {
+        if (handoffRow != null) handoffRowSeen = true
+        if (state.project != null || intakeFailed || handoffRow?.error != null ||
+            (handoffRowSeen && handoffRow == null)
+        ) galleryHandoff = false
+    }
+    val awaitingGalleryProject =
+        state.project == null &&
+            ((galleryHandoff && !intakeFailed) ||
+                galleryRows.any { it.error == null && it.targetProjectId == null })
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val layout =
             PdfStudioLayoutPolicy.forSize(
@@ -217,8 +284,15 @@ fun PdfStudioScreen(
             contentColor = MaterialTheme.colorScheme.onSurface,
         ) {
             Column(Modifier.fillMaxSize()) {
-                if (project == null) {
+                if (project == null && awaitingGalleryProject) {
                     PdfLibraryTopBar(onBack = onExit, onQueue = { showQueue = true }, exportJobs = exportJobs)
+                    Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        GalleryLoadingIndicator()
+                        feedback(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(16.dp))
+                    }
+                } else if (project == null) {
+                    PdfLibraryTopBar(onBack = onExit, onQueue = { showQueue = true }, exportJobs = exportJobs)
+                    feedback(Modifier.fillMaxWidth().padding(horizontal = 16.dp))
                     PdfLibraryScreen(
                         vm = vm,
                         projects = projects,
@@ -280,50 +354,7 @@ fun PdfStudioScreen(
                         modifier = Modifier.weight(1f),
                         mediaSource = mediaSource,
                     ) {
-                        PdfFeedbackOverlay(
-                            state = state,
-                            galleryRows = galleryRows,
-                            exportJobs = exportJobs,
-                            intakeFailed = intakeFailed,
-                            hasInitialUris = initialUris.isNotEmpty(),
-                            saveInFlight = saveInFlight,
-                            onRetryIntake = { intakeAttempt++ },
-                            onDiscardIntake = {
-                                intakeFailed = false
-                                consumeInitial()
-                            },
-                            onRetryGallery = vm::retryGallery,
-                            onDiscardGallery = vm::discardGallery,
-                            onReplaceGallerySource = { delivery ->
-                                delivery.failedSource()?.let { number ->
-                                    replaceGalleryTarget = delivery.id to number
-                                    try {
-                                        replaceGallerySource.launch(arrayOf("image/*"))
-                                    } catch (e: Exception) {
-                                        replaceGalleryTarget = null
-                                    }
-                                }
-                            },
-                            onRemoveGallerySource = { delivery ->
-                                delivery.failedSource()?.let { number ->
-                                    vm.removeGallerySource(delivery.id, number)
-                                }
-                            },
-                            onSaveExport = ::saveExport,
-                            onDismissMessage = vm::dismissMessage,
-                            onCancelBusy = vm::cancel,
-                            watchedExportId = watchedExportId,
-                            progressHidden = progressHidden,
-                            onCancelExport = vm::cancelExport,
-                            onHideProgress = { progressHidden = true },
-                            onRetryExport = vm::retryExport,
-                            onDismissResult = vm::dismissResult,
-                            onOpenRecovery = { job ->
-                                job.destination?.let { openPdf(context, android.net.Uri.parse(it), vm::reportOpenFailed) }
-                                vm.dismissRecovery()
-                            },
-                            onDismissRecovery = vm::dismissRecovery,
-                        )
+                        feedback(Modifier)
                     }
                 }
             }

@@ -105,6 +105,36 @@ class PdfGalleryIntakeTest {
         }
     }
 
+    /**
+     * Regression: a selection handed over right as the studio's ViewModel is created raced the
+     * init-time recovery pass (which read `pending()` before `stage()` wrote), so the delivery was
+     * dropped and the studio stayed on the project list instead of opening the new project.
+     */
+    @Test
+    fun deliveryDuringInitialRecoveryStillOpensProject(): Unit = runBlocking {
+        val source = File.createTempFile("gallery-race-", ".png", context.cacheDir).also(::png)
+        repeat(5) { attempt ->
+            val id = newId()
+            val store = ViewModelStore()
+            var project: PdfProject? = null
+            try {
+                val model = vm(store)
+                val accepted =
+                    withContext(Dispatchers.Main) {
+                        model.receiveGallery(id, "Race $attempt", List(3) { Uri.fromFile(source) })
+                    }
+                assertTrue(accepted)
+                project = completed(id, model)
+                assertEquals(3, project.pages.sumOf { it.images.size })
+            } finally {
+                withContext(Dispatchers.Main) { store.clear() }
+                intake.discard(id)
+                project?.let { repo.delete(it.id) }
+            }
+        }
+        source.delete()
+    }
+
     @Test
     fun blankSavedStateRecoversStagedSelection(): Unit = runBlocking {
         val source = File.createTempFile("gallery-recover-", ".png", context.cacheDir).also(::png)
