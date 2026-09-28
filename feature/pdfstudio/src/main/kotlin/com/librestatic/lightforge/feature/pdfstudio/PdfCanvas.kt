@@ -369,6 +369,20 @@ internal fun PdfCanvas(
             vm.newTextOpened()
         }
     }
+    // Bug fix (gesture arbitration): an explicit, single source of truth for "some element's own
+    // drag/resize is in progress right now", read by the ancestor's detectTransformGestures below.
+    // Compose's automatic pointer-event consumption (an inner pointerInput's change.consume() is
+    // supposed to make an ancestor's own gesture detector see the change as already consumed and
+    // stop) is fragile here: this subtree stacks combinedClickable (tap/long-press), a plain drag,
+    // a long-press marquee drag, and two more independent drag detectors per selected element
+    // (the bottom-right resize handle and the three PdfCornerHandle instances) all on nodes at
+    // different depths, and the ancestor's detectTransformGestures itself starts on every down
+    // (`requireUnconsumed = false`) before any child has had a chance to recognize its own
+    // gesture. Reported symptom: dragging an image also pans/moves the whole page. This flag is
+    // flipped true the moment ANY element drag/resize starts and false when it ends/cancels, and
+    // the pan/zoom gesture below skips entirely while it's true — independent of and in addition
+    // to each drag's own change.consume() call.
+    val elementDragActiveState = remember(page.id) { mutableStateOf(false) }
     Surface(
         modifier.semantics { contentDescription = canvasLabel },
         color = MaterialTheme.colorScheme.surfaceContainer,
@@ -453,11 +467,17 @@ internal fun PdfCanvas(
                 .pointerInput(page.id, busy, density) {
                     if (!busy)
                         detectTransformGestures { _, offset, scale, _ ->
-                            vm.viewport(
-                                viewport.zoom * scale,
-                                viewport.panX + offset.x / density.density,
-                                viewport.panY + offset.y / density.density,
-                            )
+                            // Bug fix (gesture arbitration): never pan/zoom the whole page while an
+                            // element's own drag or resize is in progress (elementDragActiveState,
+                            // set by PdfImageElement/PdfTextElement/PdfCornerHandle below) — see the
+                            // state's own doc comment above for why relying on consume() alone was
+                            // not enough.
+                            if (!elementDragActiveState.value)
+                                vm.viewport(
+                                    viewport.zoom * scale,
+                                    viewport.panX + offset.x / density.density,
+                                    viewport.panY + offset.y / density.density,
+                                )
                         }
                 },
             contentAlignment = Alignment.Center,
@@ -468,6 +488,26 @@ internal fun PdfCanvas(
             // page's own fit size (no jump).
             val badgeBandHeight = PdfCanvasBadgeBandHeight
             val (width, height) = pdfCanvasPageBoxSize(maxWidth, maxHeight, page)
+            // Bug fix (fit/viewport): a per-page viewport (Phase C item 6) persists zoom/pan
+            // across sessions AND across layout changes (compact <-> expanded three-pane <->
+            // hinge-split/tabletop). Those pan values are stored in dp relative to the canvas size
+            // they were captured in; restoring them verbatim into a canvas of a DIFFERENT size (a
+            // fold/rotation, or simply opening the project on a different window class) can leave
+            // the page mostly or entirely off-screen — reported: the page clipped off the right
+            // edge and the vertical ruler starting around -120 in the expanded three-pane layout.
+            // Whenever the available canvas size changes (or on first composition), clamp the
+            // current pan back to a range that keeps the page's center within the visible canvas,
+            // so "Fit" (zoom=1/pan=0, already correct since the page box itself is sized to fit
+            // maxWidth x maxHeight and centered) is never fought by a stale out-of-range pan.
+            LaunchedEffect(page.id, maxWidth, maxHeight) {
+                val maxPanXDp = (maxWidth / 2).value
+                val maxPanYDp = (maxHeight / 2).value
+                val snapshot = viewport
+                val clampedX = snapshot.panX.coerceIn(-maxPanXDp, maxPanXDp)
+                val clampedY = snapshot.panY.coerceIn(-maxPanYDp, maxPanYDp)
+                if (clampedX != snapshot.panX || clampedY != snapshot.panY)
+                    vm.viewport(snapshot.zoom, clampedX, clampedY)
+            }
             // Shared across every image/text below: only one drag is ever active at a time, so a
             // single pair of hoisted states is enough to draw the guide overlay/chip for whichever
             // element is currently moving; hoisted here (not inside the elements branch) so the
@@ -652,6 +692,7 @@ internal fun PdfCanvas(
                                     multiSelectMode = current.multiSelectMode,
                                     inGroupSelection = element.image.id in current.selectedIds,
                                     groupDrag = groupDrag,
+                                    elementDragActive = elementDragActiveState,
                                 )
                             }
                             is PdfLayers.Element.Txt -> {
@@ -673,6 +714,7 @@ internal fun PdfCanvas(
                                     multiSelectMode = current.multiSelectMode,
                                     inGroupSelection = element.text.id in current.selectedIds,
                                     groupDrag = groupDrag,
+                                    elementDragActive = elementDragActiveState,
                                 )
                             }
                         }
@@ -716,10 +758,22 @@ internal fun PdfCanvas(
                         if (imgBounds.isNotEmpty() || txtBounds.isNotEmpty()) {
                             val group = PdfArrange.groupBounds(imgBounds, txtBounds)
                             val out = 4.dp.toPx()
+                            // Bug fix (outline/content desync during a group drag): this
+                            // persistent bounding outline was computed only from the COMMITTED
+                            // model bounds (PdfArrange.boundsOf reads i.x/i.y/t.x/t.y, which only
+                            // change once vm.moveSelectionBy commits at drag end), while the
+                            // members themselves are drawn live via groupDrag.delta during the
+                            // drag. That left the outline static/stale while the group's content
+                            // visibly moved away from it, then made it "jump" once the commit
+                            // caught the outline up to the content on release. Adding the same
+                            // live pixel delta every member's own graphicsLayer already reads
+                            // keeps this overlay perfectly in sync with the dragged content.
+                            val liveDelta =
+                                groupDrag?.delta?.value ?: androidx.compose.ui.geometry.Offset.Zero
                             val topLeft =
                                 androidx.compose.ui.geometry.Offset(
-                                    (group.x * pxPerMmForDrop).toFloat() - out,
-                                    (group.y * pxPerMmForDrop).toFloat() - out,
+                                    (group.x * pxPerMmForDrop).toFloat() - out + liveDelta.x,
+                                    (group.y * pxPerMmForDrop).toFloat() - out + liveDelta.y,
                                 )
                             val rectSize =
                                 androidx.compose.ui.geometry.Size(
@@ -966,6 +1020,7 @@ private fun PdfImageElement(
     multiSelectMode: Boolean = false,
     inGroupSelection: Boolean = false,
     groupDrag: PdfGroupDragContext? = null,
+    elementDragActive: MutableState<Boolean>? = null,
 ) {
     var activeSnap by activeSnap
     var dragOffsetMm by dragOffsetMm
@@ -1025,7 +1080,17 @@ private fun PdfImageElement(
                                     if (groupDelta != null) {
                                         translationX = groupDelta.x
                                         translationY = groupDelta.y
-                                    } else {
+                                    } else if (imageSelected) {
+                                        // Bug fix (canvas drag desync/ghost-move): this branch must
+                                        // be gated to the actually-selected/dragged image, exactly
+                                        // like PdfTextElement's twin graphicsLayer below (`else if
+                                        // (isSelected)`). Previously it applied unconditionally to
+                                        // EVERY image on the page, so `activeSnap`/`delta` — both
+                                        // page-level state shared by every element — bled into
+                                        // every non-dragged image's own graphicsLayer too, moving
+                                        // it in lockstep with whichever image was actually being
+                                        // dragged (reported: "the other image moves together with
+                                        // the dragged one" even with no multi-select group active).
                                         val snap = activeSnap
                                         if (snap != null) {
                                             translationX = ((snap.x - i.x) * pxPerMm).toFloat()
@@ -1151,6 +1216,10 @@ private fun PdfImageElement(
                                         detectDragGestures(
                                             onDragStart = {
                                                 focus.requestFocus()
+                                                // Bug fix (gesture arbitration): tell the ancestor
+                                                // pan/zoom gesture an element drag owns this pointer
+                                                // now.
+                                                elementDragActive?.value = true
                                                 // Fix-round item 1: dragging a member of an
                                                 // existing 2+ group must NOT collapse the
                                                 // selection down to just this element — the whole
@@ -1161,6 +1230,7 @@ private fun PdfImageElement(
                                             onDragEnd = {
                                                 val move = delta
                                                 delta = androidx.compose.ui.geometry.Offset.Zero
+                                                elementDragActive?.value = false
                                                 val group = groupDrag
                                                 if (inGroupSelection && group != null) {
                                                     val (_, clampedMm) =
@@ -1204,6 +1274,7 @@ private fun PdfImageElement(
                                             },
                                             onDragCancel = {
                                                 delta = androidx.compose.ui.geometry.Offset.Zero
+                                                elementDragActive?.value = false
                                                 if (inGroupSelection) groupDrag?.delta?.value = null
                                                 activeSnap = null
                                                 dragOffsetMm = null
@@ -1307,14 +1378,17 @@ private fun PdfImageElement(
                                                 onDragStart = {
                                                     resize =
                                                         androidx.compose.ui.geometry.Offset.Zero
+                                                    elementDragActive?.value = true
                                                 },
                                                 onDragEnd = {
+                                                    elementDragActive?.value = false
                                                     val w = max(.1, i.width + resize.x / pxPerMm)
                                                     val h = max(.1, i.height + resize.y / pxPerMm)
                                                     vm.imageEdit {
                                                         PdfGeometry.resize(it, page, w, h, true)
                                                     }
                                                 },
+                                                onDragCancel = { elementDragActive?.value = false },
                                             ) { change, drag ->
                                                 change.consume()
                                                 resize += drag
@@ -1355,6 +1429,7 @@ private fun PdfImageElement(
                                                 }
                                             },
                                             pxPerMm = pxPerMm,
+                                            elementDragActive = elementDragActive,
                                         )
                                     }
                         }
@@ -1554,6 +1629,7 @@ private fun PdfTextElement(
     multiSelectMode: Boolean = false,
     inGroupSelection: Boolean = false,
     groupDrag: PdfGroupDragContext? = null,
+    elementDragActive: MutableState<Boolean>? = null,
 ) {
     var activeSnap by activeSnap
     var dragOffsetMm by dragOffsetMm
@@ -1679,6 +1755,7 @@ private fun PdfTextElement(
                     detectDragGestures(
                         onDragStart = {
                             focus.requestFocus()
+                            elementDragActive?.value = true
                             // Fix-round item 1: as PdfImageElement's twin above — never collapse
                             // an existing 2+ group down to just this text when dragging it.
                             if (!(inGroupSelection && groupDrag != null)) vm.selectText(t.id)
@@ -1686,6 +1763,7 @@ private fun PdfTextElement(
                         onDragEnd = {
                             val move = delta
                             delta = androidx.compose.ui.geometry.Offset.Zero
+                            elementDragActive?.value = false
                             val group = groupDrag
                             if (inGroupSelection && group != null) {
                                 val (_, clampedMm) =
@@ -1722,6 +1800,7 @@ private fun PdfTextElement(
                         },
                         onDragCancel = {
                             delta = androidx.compose.ui.geometry.Offset.Zero
+                            elementDragActive?.value = false
                             if (inGroupSelection) groupDrag?.delta?.value = null
                             activeSnap = null
                             dragOffsetMm = null
@@ -1799,6 +1878,7 @@ private fun PdfTextElement(
                             vm.resizeSelectedTextFromCorner(corner, dxMm, dyMm)
                         },
                         pxPerMm = pxPerMm,
+                        elementDragActive = elementDragActive,
                     )
                 }
         }
@@ -2062,17 +2142,25 @@ private fun PdfCornerHandle(
     modifier: Modifier,
     onResize: (dxMm: Double, dyMm: Double) -> Unit,
     pxPerMm: Double,
+    elementDragActive: MutableState<Boolean>? = null,
 ) {
     var resize by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
     Box(
         modifier.size(48.dp).pointerInput(pxPerMm) {
             detectDragGestures(
-                onDragStart = { resize = androidx.compose.ui.geometry.Offset.Zero },
+                onDragStart = {
+                    resize = androidx.compose.ui.geometry.Offset.Zero
+                    elementDragActive?.value = true
+                },
                 onDragEnd = {
+                    elementDragActive?.value = false
                     onResize(resize.x / pxPerMm, resize.y / pxPerMm)
                     resize = androidx.compose.ui.geometry.Offset.Zero
                 },
-                onDragCancel = { resize = androidx.compose.ui.geometry.Offset.Zero },
+                onDragCancel = {
+                    elementDragActive?.value = false
+                    resize = androidx.compose.ui.geometry.Offset.Zero
+                },
             ) { change, drag ->
                 change.consume()
                 resize += drag
