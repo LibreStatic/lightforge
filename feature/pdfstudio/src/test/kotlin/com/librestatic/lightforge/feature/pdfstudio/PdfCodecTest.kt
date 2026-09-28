@@ -58,14 +58,53 @@ class PdfCodecTest {
                     )
             )
         val encoded = PdfCodec.encode(p)
-        assertTrue(JSONObject(encoded).getInt("version") == 2)
+        assertTrue(JSONObject(encoded).getInt("version") == 3)
         assertEquals(p, PdfCodec.decode(encoded))
+    }
+
+    /** A hand-written version-2 payload (no `printSize`/`placementMode` keys at all) — exactly
+     * what every project saved before print-layout settings existed looks like on disk. */
+    private fun v2Payload(p: PdfProject): String {
+        val encoded = JSONObject(PdfCodec.encode(p))
+        encoded.put("version", 2)
+        encoded.remove("printSize")
+        encoded.remove("placementMode")
+        return encoded.toString()
+    }
+
+    @Test
+    fun version2PayloadDecodesWithFreeGridAndContainDefault() {
+        val p = project()
+        val decoded = PdfCodec.decode(v2Payload(p))
+        assertEquals(p, decoded)
+        assertNull(decoded.printSize)
+        assertEquals(PdfFit.Contain, decoded.placementMode)
+    }
+
+    @Test
+    fun version3RoundTripsPrintSizeAndPlacementMode() {
+        val p =
+            project().copy(printSize = PdfPrintSize.Print13x18.id, placementMode = PdfFit.Cover)
+        val encoded = PdfCodec.encode(p)
+        assertTrue(JSONObject(encoded).getInt("version") == 3)
+        val decoded = PdfCodec.decode(encoded)
+        assertEquals(p, decoded)
+        assertEquals(PdfPrintSize.Print13x18.id, decoded.printSize)
+        assertEquals(PdfFit.Cover, decoded.placementMode)
+    }
+
+    @Test
+    fun freeGridProjectRoundTripsNullPrintSize() {
+        val p = project()
+        assertNull(p.printSize)
+        val decoded = PdfCodec.decode(PdfCodec.encode(p))
+        assertNull(decoded.printSize)
     }
 
     @Test
     fun unknownFutureVersionIsRejected() {
         val encoded = JSONObject(PdfCodec.encode(project()))
-        encoded.put("version", 3)
+        encoded.put("version", 4)
         assertTrue(runCatching { PdfCodec.decode(encoded.toString()) }.isFailure)
     }
 

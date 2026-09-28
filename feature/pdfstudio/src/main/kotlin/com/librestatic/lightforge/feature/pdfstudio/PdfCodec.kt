@@ -4,11 +4,14 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 object PdfCodec {
-    /** Bumped from 1 in Phase G1a to add the text layer and the images'/texts' shared `z` paint
-     * order (see [PdfLayers]). [decode] still accepts a version-1 payload unchanged (no `z`, no
-     * `texts`) — every new field below has a default that reproduces the old, images-only
-     * behavior. Any version outside 1..2 is rejected outright, not silently upgraded. */
-    private const val CURRENT_VERSION = 2
+    /** Bumped from 2 to add the print-layout settings (feedback item B/A): [PdfProject.printSize]
+     * (`null` = free grid) and [PdfProject.placementMode] (Fill/Fit default applied to
+     * auto-placed photos). [decode] still accepts version 1 (no `z`, no `texts`) and version 2 (no
+     * `printSize`/`placementMode`) payloads unchanged — both default to `printSize = null` and
+     * `placementMode = PdfFit.Contain`, reproducing the free-grid, Contain-default behavior every
+     * project saved before this version already had. Any version outside 1..3 is rejected
+     * outright, not silently upgraded. */
+    private const val CURRENT_VERSION = 3
 
     fun encode(p: PdfProject): String =
         JSONObject()
@@ -23,6 +26,8 @@ object PdfCodec {
                 put("gap", p.gap)
                 put("snap", p.snap)
                 put("updated", p.updated)
+                put("printSize", p.printSize ?: JSONObject.NULL)
+                put("placementMode", p.placementMode.name)
                 put(
                     "assets",
                     JSONArray(
@@ -112,6 +117,11 @@ object PdfCodec {
                 gap = o.optDouble("gap", 4.0),
                 snap = o.optBoolean("snap", false),
                 updated = o.getLong("updated"),
+                // Absent in a version 1/2 payload, or explicitly JSON null: decodes to `null`
+                // (free grid), same as every project saved before print-layout settings existed.
+                printSize = (o.opt("printSize") as? String),
+                placementMode = o.optString("placementMode").takeIf(String::isNotEmpty)
+                    ?.let { PdfFit.valueOf(it) } ?: PdfFit.Contain,
                 assets =
                     List(a.length()) { n ->
                         a.getJSONObject(n).let {

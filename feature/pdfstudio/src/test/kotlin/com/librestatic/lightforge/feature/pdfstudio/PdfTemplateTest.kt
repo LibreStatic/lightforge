@@ -36,12 +36,15 @@ class PdfTemplateTest {
     }
 
     @Test
-    fun `prints 10x15 is one photo per page with a near-zero margin`() {
+    fun `prints 10x15 is now a 10x15 print size on A4, 2 per page, Fill`() {
+        // Feedback item B: redefined from "one 10x15 print filling a 10x15 sheet" to "10x15 cm
+        // photos, as many as fit, on A4" — the count is COMPUTED, not hardcoded.
         val t = PdfTemplate.Prints10x15
-        assertEquals(PdfPaperPresets.PRINT_10X15, t.paper)
-        assertEquals(1, t.columns)
-        assertEquals(1, t.photosPerPage)
-        assertTrue(t.margin in 0.0..3.0)
+        assertEquals(PdfPaperPresets.A4, t.paper)
+        assertEquals(PdfPrintSize.Print10x15, t.printSize)
+        assertEquals(2, t.photosPerPage)
+        assertEquals(2, t.columns)
+        assertEquals(5.0, t.margin, 0.0)
         assertEquals(PdfFit.Cover, t.fit)
     }
 
@@ -109,18 +112,18 @@ class PdfTemplateTest {
     }
 
     @Test
-    fun `prints 10x15 fills the printable area with a single photo per page`() {
+    fun `prints 10x15 places two exact 10x15cm slots per A4 page then overflows`() {
         val t = PdfTemplate.Prints10x15
-        val pages = t.layoutPages(listOf("a", "b"))
+        val pages = t.layoutPages(listOf("a", "b", "c"))
         assertEquals(2, pages.size)
-        pages.forEach { page ->
-            assertEquals(1, page.images.size)
-            val image = page.images[0]
+        assertEquals(2, pages[0].images.size)
+        assertEquals(1, pages[1].images.size)
+        (pages[0].images + pages[1].images).forEach { image ->
             assertEquals(PdfFit.Cover, image.fit)
-            // Fills the margin box exactly (grid() with 1 image/1 column/1 row keeps the initial
-            // margin-box-sized frame the layout starts from).
-            assertEquals(page.width - 2 * page.margin, image.width, 0.01)
-            assertEquals(page.height - 2 * page.margin, image.height, 0.01)
+            // Every slot is exactly 10x15 cm regardless of orientation, so a page can be cut to
+            // size — feedback item B's "slots... with exact physical dimensions".
+            val dims = setOf(image.width, image.height)
+            assertEquals(setOf(100.0, 150.0), dims)
         }
     }
 

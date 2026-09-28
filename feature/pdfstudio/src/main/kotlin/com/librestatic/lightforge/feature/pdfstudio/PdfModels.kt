@@ -203,6 +203,24 @@ data class PdfProject(
     val gap: Double = 4.0,
     val snap: Boolean = false,
     val updated: Long = System.currentTimeMillis(),
+    /**
+     * Print-layout settings (feedback item B, added when [PdfCodec] bumped to version 3):
+     * [printSize] is the id of a [PdfPrintSize] the project's photos are laid out at exact
+     * physical dimensions on the current paper (see [PdfPrintLayout]), or `null` for the
+     * pre-existing "free grid" behavior ([columns]/[PdfGeometry.grid]). A version 1/2 project has
+     * no such concept and decodes with `null`, reproducing its old free-grid layout exactly.
+     */
+    val printSize: String? = null,
+    /**
+     * Default photo placement mode (feedback item A) applied automatically to every photo placed
+     * by layout (Arrange, grid templates, print-size layouts, gallery handoff, Media/import
+     * inserts into auto slots): [PdfFit.Cover] ("Fill" — crop to fit, matching Windows Photo
+     * Printing's "Fill picture frame") or [PdfFit.Contain] ("Fit" — whole photo, letterboxed).
+     * Per-image `fit` in the Adjust panel remains a per-photo override on top of this default. A
+     * version 1/2 project has no such concept and decodes with [PdfFit.Contain], reproducing the
+     * fit every pre-existing template/free-grid image already defaulted to.
+     */
+    val placementMode: PdfFit = PdfFit.Contain,
 ) {
     fun usedAssets(): Set<String> =
         pages.flatMap { p -> listOfNotNull(p.source) + p.images.map { it.asset } }.toSet()
@@ -211,6 +229,7 @@ data class PdfProject(
         require(id.matches(Regex("[a-zA-Z0-9-]{1,80}")) && name.isNotBlank() && name.length <= 80)
         require(pages.isNotEmpty() && pages.size <= 100 && dpi in 72..600)
         require(columns in 1..6 && gap.isFinite() && gap in 0.0..30.0)
+        require(printSize == null || PdfPrintSize.fromId(printSize) != null)
         require(usedAssets().size <= 128)
         require(assets.map { it.hash }.distinct().size == assets.size)
         assets.forEach {

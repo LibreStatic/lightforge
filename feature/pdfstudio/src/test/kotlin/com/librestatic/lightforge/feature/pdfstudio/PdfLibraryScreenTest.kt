@@ -45,7 +45,9 @@ class PdfLibraryScreenTest {
         assertEquals(PdfPaperPresets.A4, PdfTemplate.Receipts.paper)
         assertEquals(1, PdfTemplate.Receipts.columns)
         assertTrue(PdfTemplate.Receipts.margin > PdfTemplate.PhotoGrid.margin)
-        assertEquals(PdfPaperPresets.PRINT_10X15, PdfTemplate.Prints10x15.paper)
-        assertEquals(1, PdfTemplate.Prints10x15.columns)
+        // Feedback item B: redefined from a dedicated 10x15 sheet to a 10x15 print size on A4,
+        // 2 per page (computed, not hardcoded) — see PdfTemplateTest for dedicated coverage.
+        assertEquals(PdfPaperPresets.A4, PdfTemplate.Prints10x15.paper)
+        assertEquals(2, PdfTemplate.Prints10x15.columns)
     }
 }

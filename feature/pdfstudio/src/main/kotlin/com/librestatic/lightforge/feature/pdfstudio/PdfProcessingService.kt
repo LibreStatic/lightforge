@@ -307,11 +307,13 @@ open class PdfProcessingService : Service() {
         val swapped = (asset.orientation >= 5) xor (i.rotation % 180 != 0)
         val iw = if (swapped) image.height else image.width
         val ih = if (swapped) image.width else image.height
-        val scale = if (i.fit == PdfFit.Cover) max(i.width / iw, i.height / ih) else min(i.width / iw, i.height / ih)
-        val w = iw * scale
-        val h = ih * scale
-        val x = i.x + (i.width - w) * i.focusX
-        val y = i.y + (i.height - h) * i.focusY
+        // Shared with the canvas via PdfPrintLayout.contentRect so the exporter and the on-screen
+        // preview always paint the exact same Fill(Cover)/Fit(Contain) geometry (WYSIWYG).
+        val content = PdfPrintLayout.contentRect(i.width, i.height, iw.toDouble(), ih.toDouble(), i.fit, i.focusX, i.focusY)
+        val w = content.width
+        val h = content.height
+        val x = i.x + content.x
+        val y = i.y + content.y
         canvas.saveGraphicsState()
         canvas.addRect(
             (i.x * pt).toFloat(),

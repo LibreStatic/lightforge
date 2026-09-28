@@ -2,6 +2,16 @@ package com.librestatic.lightforge.feature.pdfstudio
 
 import kotlin.math.min
 
+/** The [PdfPrintLayout.SlotFit] for [printSize] on the [paperId] paper preset with [marginMm]
+ * margins and [gapMm] gap — used by [PdfTemplate.Prints10x15]'s enum constants below, computed
+ * once here (rather than inline per entry) since [PdfTemplate]'s own `photosPerPage` and
+ * `columns` fields are plain constructor args, evaluated before the enum class (and its
+ * `paperPreset()` helper, which needs a constructed instance) exists. */
+private fun printSizeFit(paperId: String, printSize: PdfPrintSize, marginMm: Double, gapMm: Double): PdfPrintLayout.SlotFit {
+    val preset = PdfPaperPresets.presets.first { it.id == paperId }
+    return PdfPrintLayout.fit(preset.widthMm, preset.heightMm, marginMm, gapMm, printSize)
+}
+
 /**
  * Built-in project/page presets (Phase G4): the single source of truth for "Photo grid",
  * "Receipts", "Prints 10×15" and the implicit "Blank" default, reused by:
@@ -33,6 +43,14 @@ enum class PdfTemplate(
     val gap: Double,
     val photosPerPage: Int,
     val fit: PdfFit,
+    /**
+     * Feedback item B: when non-null, this template lays photos out at an exact physical print
+     * size on the paper (via [PdfPrintLayout]) instead of the free-grid [columns]/[photosPerPage]
+     * behavior — [photosPerPage] above is still populated (with the COMPUTED per-page count for
+     * this paper/margin/gap) so previews ([PdfTemplateCard]) and [PdfProject.printSize] metadata
+     * stay in sync with what [layoutPages] actually produces.
+     */
+    val printSize: PdfPrintSize? = null,
 ) {
     Blank(
         R.string.pdf_template_blank_name,
@@ -67,16 +85,24 @@ enum class PdfTemplate(
         3,
         PdfFit.Contain,
     ),
+    /**
+     * Feedback item B: redefined from "one 10×15 print filling a 10×15 sheet" to "10×15 cm
+     * photos, as many as fit, on A4" — the print size is fixed at 10×15 cm and the photo count
+     * per page is COMPUTED from the paper/margin/gap by [PdfPrintLayout.fit] (2 per A4 page with
+     * these defaults), not hardcoded. Uses [PdfFit.Cover] ("Fill picture frame") per feedback item
+     * A, matching how a photo lab print looks.
+     */
     Prints10x15(
         R.string.pdf_library_template_prints,
         R.string.pdf_template_prints_desc,
-        PdfPaperPresets.PRINT_10X15,
+        PdfPaperPresets.A4,
         false,
-        1,
-        2.0,
+        printSizeFit(PdfPaperPresets.A4, PdfPrintSize.Print10x15, 5.0, 0.0).columns,
+        5.0,
         0.0,
-        1,
+        printSizeFit(PdfPaperPresets.A4, PdfPrintSize.Print10x15, 5.0, 0.0).perPage,
         PdfFit.Cover,
+        PdfPrintSize.Print10x15,
     );
 
     internal fun paperPreset(): PdfPaperPreset = PdfPaperPresets.presets.first { it.id == paper }
@@ -112,20 +138,49 @@ enum class PdfTemplate(
         margin: Double = this.margin,
         gap: Double = this.gap,
     ): PdfProject =
-        PdfProject(name = name, pages = listOf(blankPage(landscape, margin)), columns = columns, gap = gap)
+        PdfProject(
+                name = name,
+                pages = listOf(blankPage(landscape, margin)),
+                columns = columns,
+                gap = gap,
+                printSize = printSize?.id,
+                placementMode = fit,
+            )
             .validate()
 
     /**
      * Lays out [assetIds] (image asset hashes, expected to already be present in the project's
-     * [PdfProject.assets]) across as many pages as needed: [photosPerPage] images per page,
-     * overflowing onto additional pages beyond that, each page gridded per this template's
-     * [columns]/[gap]/[margin] via [PdfGeometry.grid] (the same Arrange logic the Layout panel
-     * uses, not a duplicate). Zero assets yields a single blank page, matching [newProject]. Each
-     * placed image starts sized to the page's margin box with this template's [fit] — Prints
-     * 10×15's `Cover` fills the printable area; the others use `Contain`.
+     * [PdfProject.assets]) across as many pages as needed. Two paths (feedback item B):
+     *  - [printSize] non-null: exact-size slots computed by [PdfPrintLayout] — [photosPerPage] per
+     *    page (COMPUTED for this paper/margin/gap, not hardcoded), overflow onto further pages.
+     *  - [printSize] null (free grid): [photosPerPage] images per page, gridded per this
+     *    template's [columns]/[gap]/[margin] via [PdfGeometry.grid] (the same Arrange logic the
+     *    Layout panel uses, not a duplicate).
+     * Zero assets yields a single blank page, matching [newProject]. Each placed image uses this
+     * template's [fit] (feedback item A's placement mode) — Prints 10×15's `Cover`/"Fill" crops to
+     * the slot; the free-grid templates use `Contain`/"Fit".
      */
     fun layoutPages(assetIds: List<String>): List<PdfPage> {
         if (assetIds.isEmpty()) return listOf(blankPage())
+        val size = printSize
+        if (size != null) {
+            val template = blankPage()
+            val slotFit = PdfPrintLayout.fit(template.width, template.height, template.margin, gap, size)
+            require(slotFit.perPage > 0) {
+                "Print size ${size.id} does not fit ${template.width}x${template.height}mm with ${template.margin}mm margins"
+            }
+            val rects = PdfPrintLayout.slotRects(template.width, template.height, template.margin, gap, slotFit)
+            return assetIds.chunked(slotFit.perPage).map { chunk ->
+                val images =
+                    chunk.mapIndexed { n, asset ->
+                        val r = rects[n]
+                        PdfImage(asset = asset, x = r.x, y = r.y, width = r.width, height = r.height, fit = fit)
+                    }
+                // A fresh blankPage() per output page (rather than .copy()-ing `template`) so each
+                // page gets its own distinct id, as PdfProject.validate requires.
+                blankPage().copy(images = images)
+            }
+        }
         return assetIds.chunked(photosPerPage).map { chunk ->
             val page = blankPage()
             val innerW = page.width - 2 * page.margin
@@ -150,7 +205,15 @@ enum class PdfTemplate(
      * attached, fully [PdfProject.validate]d. Used by JVM tests and, once the gallery handoff
      * offers templates rather than always defaulting to [Blank], by that flow too. */
     fun buildProject(name: String, assets: List<PdfAsset>, assetIds: List<String>): PdfProject =
-        PdfProject(name = name, pages = layoutPages(assetIds), assets = assets, columns = columns, gap = gap)
+        PdfProject(
+                name = name,
+                pages = layoutPages(assetIds),
+                assets = assets,
+                columns = columns,
+                gap = gap,
+                printSize = printSize?.id,
+                placementMode = fit,
+            )
             .validate()
 
     companion object {
