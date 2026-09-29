@@ -14,6 +14,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.unit.dp
@@ -182,6 +184,7 @@ internal fun Modifier.timelinePinchDensity(
     densityState: TimelineDensityState,
     gridState: LazyGridState,
     stableKeyAt: (Int) -> String? = { null },
+    haptics: HapticFeedback? = null,
 ): Modifier = pointerInput(densityState.densityIndex) {
     awaitEachGesture {
         awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
@@ -189,6 +192,7 @@ internal fun Modifier.timelinePinchDensity(
         val gestureStartStableKey = stableKeyAt(gestureStartAnchor)
         var zoom = 1f
         var changed = false
+        var ticked = false
         do {
             val event = awaitPointerEvent(PointerEventPass.Initial)
             if (event.changes.count { it.pressed } >= 2) {
@@ -206,6 +210,11 @@ internal fun Modifier.timelinePinchDensity(
                         anchorIndex = gestureStartAnchor,
                         anchorStableKey = gestureStartStableKey,
                     )
+                }
+                // One detent as the grid snaps to its new column count.
+                if (changed && !ticked) {
+                    haptics?.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                    ticked = true
                 }
             }
         } while (event.changes.any { it.pressed })

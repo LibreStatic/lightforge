@@ -32,6 +32,8 @@ sealed interface VideoViewerState {
         val aspectRatio: Float? = null,
         val videoDecoderName: String? = null,
         val usedSoftwareDecoder: Boolean = false,
+        /** True once a decoded frame reached the surface; until then a poster stands in. */
+        val firstFrameRendered: Boolean = false,
     ) : VideoViewerState
     data class Failure(val uri: Uri, val unsupported: Boolean, val errorCode: Int) : VideoViewerState
     data object Released : VideoViewerState
@@ -44,6 +46,7 @@ internal interface VideoEngine {
         fun onVideoAspectRatioChanged(aspectRatio: Float)
         fun onFailure(errorCode: Int, unsupported: Boolean)
         fun onDecoderChanged(codecName: String, softwareOnly: Boolean) = Unit
+        fun onFirstFrameRendered() = Unit
     }
 
     var listener: Listener?
@@ -90,6 +93,7 @@ class VideoViewerController internal constructor(
     private var playbackAspectRatio: Float? = null
     private var videoDecoderName: String? = null
     private var usedSoftwareDecoder = false
+    private var firstFrameRendered = false
     private var scrubbing = false
 
     init {
@@ -113,6 +117,11 @@ class VideoViewerController internal constructor(
             override fun onFailure(errorCode: Int, unsupported: Boolean) {
                 val uri = activeUri ?: return
                 mutableState.value = VideoViewerState.Failure(uri, unsupported, errorCode)
+            }
+            override fun onFirstFrameRendered() {
+                if (firstFrameRendered) return
+                firstFrameRendered = true
+                if (playbackReady) updateReady(playbackDurationMillis, playbackIsPlaying)
             }
             override fun onDecoderChanged(codecName: String, softwareOnly: Boolean) {
                 videoDecoderName = codecName
@@ -141,6 +150,7 @@ class VideoViewerController internal constructor(
         playbackAspectRatio = null
         videoDecoderName = null
         usedSoftwareDecoder = false
+        firstFrameRendered = false
         mutableState.value = VideoViewerState.Loading(uri, poster)
         engine.setVolume(if (muted) 0f else 1f)
         engine.setMedia(uri)
@@ -265,6 +275,7 @@ class VideoViewerController internal constructor(
             playbackAspectRatio,
             videoDecoderName,
             usedSoftwareDecoder,
+            firstFrameRendered,
         )
     }
 }
@@ -309,6 +320,10 @@ private class Media3VideoEngine(context: Context, enableVideoEffects: Boolean) :
                 if (aspectRatio.isFinite() && aspectRatio > 0f) {
                     listener?.onVideoAspectRatioChanged(aspectRatio)
                 }
+            }
+
+            override fun onRenderedFirstFrame() {
+                listener?.onFirstFrameRendered()
             }
 
             override fun onPlayerError(error: PlaybackException) {

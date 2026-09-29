@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -24,6 +23,9 @@ import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.SecureFlagPolicy
+import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
 
 enum class PrivateKeyProtectionPhase { Confirmation, Working, AuthenticationRequired, CredentialsRequired, Failed, Complete }
 
@@ -69,7 +71,7 @@ fun PrivateKeyProtectionContent(
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(body), Modifier.testTag("private-key-protection-status").semantics { liveRegion = LiveRegionMode.Polite })
-                if (working) LinearProgressIndicator(Modifier.fillMaxWidth().testTag("private-key-protection-progress"))
+                GalleryProgressSlot(working) { GalleryIndeterminateProgressIndicator(Modifier.testTag("private-key-protection-progress")) }
                 Text(stringResource(R.string.private_key_protection_index_scope))
                 if (!complete) Surface(color = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer,
                     shape = MaterialTheme.shapes.small) {

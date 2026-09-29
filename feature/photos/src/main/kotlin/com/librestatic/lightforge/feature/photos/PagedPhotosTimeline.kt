@@ -98,6 +98,7 @@ fun AdaptivePagedPhotosTimeline(
     onScrubberJump: (TimelineAnchor?) -> Unit = {},
 ) {
     var scrubbing by remember { mutableStateOf(false) }
+    var fastScrub by remember { mutableStateOf(false) }
     BoxWithConstraints(modifier) {
         val widthDp = maxWidth.value.toInt()
         // Seed once from the persisted preference BEFORE deriving columns so the
@@ -141,15 +142,16 @@ fun AdaptivePagedPhotosTimeline(
             focusReturn = focusReturn,
             onFocusReturnConsumed = onFocusReturnConsumed,
             scrubbing = scrubbing,
+            deferThumbnails = fastScrub,
         )
         if (scrubberIndex != null && !scrubberIndex.isEmpty) {
             TimelineScrubber(
                 entries = entries,
                 gridState = state,
                 index = scrubberIndex,
-                columns = columns,
                 onJump = onScrubberJump,
                 onScrubbingChange = { scrubbing = it },
+                onFastScrubChange = { fastScrub = it },
             )
         }
     }
@@ -171,8 +173,13 @@ fun PagedPhotosTimeline(
     selectionOrder: (TimelineMedia) -> Int? = { null },
     focusReturn: TimelineFocusReturn? = null,
     onFocusReturnConsumed: (TimelineFocusReturn) -> Unit = {},
-    /** True while the scrubber handle is dragged, which counts as the user taking over the position. */
+    /**
+     * True while the scrubber owns the position: its handle is dragged or a jump has not landed yet.
+     * It counts as the user taking over, and the scrubber alone places the grid meanwhile.
+     */
     scrubbing: Boolean = false,
+    /** True while the scrubber moves fast: tiles keep their placeholders and nothing is decoded. */
+    deferThumbnails: Boolean = false,
 ) {
     require(columns > 0 && thumbnailSizePx > 0)
     val focusSnapshot = entries.itemSnapshotList
@@ -189,6 +196,8 @@ fun PagedPhotosTimeline(
     var userScrolled by rememberSaveable { mutableStateOf(false) }
     if (scrubbing && !userScrolled) userScrolled = true
     PinTimelineToNewestUntilUserScrolls(state, columns, focusReturn, userScrolled) { userScrolled = true }
+    // Mid-scrub the scrubber re-places the grid on every page; a second correction would fight it.
+    KeepLeadingRowAcrossPrepends(state, entries, enabled = userScrolled && !scrubbing)
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
         state = state,
@@ -198,9 +207,12 @@ fun PagedPhotosTimeline(
         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(GalleryGridMetrics.Gap),
         verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(GalleryGridMetrics.Gap),
         modifier = (if (densityState == null) modifier else
-        modifier.timelinePinchDensity(densityState, state) { index ->
-            entries.itemSnapshotList.getOrNull(index)?.stableKey
-        })
+        modifier.timelinePinchDensity(
+            densityState,
+            state,
+            stableKeyAt = { index -> entries.itemSnapshotList.getOrNull(index)?.stableKey },
+            haptics = androidx.compose.ui.platform.LocalHapticFeedback.current,
+        ))
             .lazyGridDragSelection(
                 state = state,
                 itemAtIndex = { index -> (entries.itemSnapshotList.getOrNull(index) as? TimelineEntry.Media)?.value },
@@ -242,6 +254,7 @@ fun PagedPhotosTimeline(
                             state.layoutInfo.visibleItemsInfo.any { it.index == index }
                     },
                     onFocusReturnConsumed = onFocusReturnConsumed,
+                    deferLoad = deferThumbnails,
                 )
                 null -> Box(
                     Modifier
@@ -258,6 +271,10 @@ fun PagedPhotosTimeline(
         columns = columns,
         itemCount = entries.itemCount,
         contentKey = entries.itemSnapshotList,
+        paused = deferThumbnails,
+        // A scrub can land anywhere, so the settled window reaches both ways.
+        aheadRows = 2,
+        behindRows = 1,
         itemAtIndex = { index ->
             val media = (entries.itemSnapshotList.getOrNull(index) as? TimelineEntry.Media)?.value ?: return@RetainGridThumbnailViewport null
             ThumbnailPrefetchCandidate(
@@ -317,6 +334,7 @@ private fun TimelineThumbnail(
     selectionOrder: Int? = null,
     focusReturn: TimelineFocusReturn? = null,
     onFocusReturnConsumed: (TimelineFocusReturn) -> Unit = {},
+    deferLoad: Boolean = false,
 ) {
     val inputFocusRequester = remember(entry.value.key) { FocusRequester() }
     var placedVisible by remember(entry.value.key) { mutableStateOf(false) }
@@ -343,11 +361,13 @@ private fun TimelineThumbnail(
         )
     }
     val request = entry.value.thumbnailRequest(sizePx)
-    val bitmap by key(request, loader) { produceState(loader.cached(request)) {
-        // A stack keeps its stable grid key when its cover changes. Reset the bitmap for
-        // the new source request instead of retaining a non-null previous cover forever.
-        value = loader.cached(request)
-        if (value == null) {
+    val bitmap by key(request, loader) { produceState(loader.cached(request), deferLoad) {
+        // A stack keeps its stable grid key when its cover changes; key() above starts a fresh
+        // state for the new request. Within one request, toggling a fast scrub restarts this
+        // producer, and a tile that already shows its bitmap keeps it even if the cache evicted it.
+        value = loader.cached(request) ?: value
+        // A fast scrub only shows what is already decoded; the rest waits for the finger to rest.
+        if (value == null && !deferLoad) {
             try { value = loader.load(request) }
             catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
             catch (_: Exception) { value = null }
@@ -479,6 +499,45 @@ private fun PinTimelineToNewestUntilUserScrolls(
                     }
                 }
             }
+    }
+}
+
+/**
+ * Keeps the leading row on screen when Paging publishes rows above it. The grid follows its first
+ * visible key by itself only within a window of a few hundred items, and a jump lands on a page
+ * that at once grows two prepends taller than that, which left the grid on an unrelated day.
+ * Only a new page snapshot is corrected; the user's own scrolling moves the key freely.
+ */
+@Composable
+private fun KeepLeadingRowAcrossPrepends(
+    state: LazyGridState,
+    entries: LazyPagingItems<TimelineEntry>,
+    enabled: Boolean,
+) {
+    val active by rememberUpdatedState(enabled)
+    LaunchedEffect(state, entries) {
+        var lastSnapshot: Any? = null
+        var lastKey: String? = null
+        var lastOffset = 0
+        snapshotFlow {
+            Triple(entries.itemSnapshotList, state.firstVisibleItemIndex, state.firstVisibleItemScrollOffset)
+        }.collect { (snapshot, index, offset) ->
+            val key = snapshot.getOrNull(index)?.stableKey
+            val remembered = lastKey
+            if (active && snapshot !== lastSnapshot && remembered != null && key != remembered &&
+                !state.isScrollInProgress
+            ) {
+                val moved = snapshot.items.indexOfFirst { it.stableKey == remembered }
+                if (moved >= 0) {
+                    lastSnapshot = snapshot
+                    state.scrollToItem(snapshot.placeholdersBefore + moved, lastOffset)
+                    return@collect
+                }
+            }
+            lastSnapshot = snapshot
+            lastKey = key
+            lastOffset = offset
+        }
     }
 }
 

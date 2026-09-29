@@ -22,6 +22,7 @@ import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import com.librestatic.lightforge.core.security.PrivateAlbumCrypto
 import java.util.Locale
 import kotlinx.coroutines.*
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 
 private enum class RecoveryAction { Complete, Open, Discard, Forget }
 
@@ -168,7 +169,7 @@ internal fun PrivateExportRecoveryContent(
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             if (working) {
-                LinearProgressIndicator(Modifier.fillMaxWidth())
+                GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
                 Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(stringResource(R.string.private_export_recovery_working), modifier = Modifier.weight(1f).padding(vertical = 12.dp))
                     TextButton(onClick = {

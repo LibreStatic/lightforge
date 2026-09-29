@@ -51,6 +51,57 @@ fun scrubberFraction(offsetPx: Float, travelPx: Float): Float =
     if (travelPx <= 0f) 0f else (offsetPx / travelPx).coerceIn(0f, 1f)
 
 /**
+ * Filters the tremor of a resting finger out of a scrub. Steps that keep the current direction pass
+ * as they come, so a moving finger is followed pixel for pixel; turning back has to travel
+ * [deadbandPx] first. A held finger therefore stops the grid instead of rocking it between rows.
+ */
+class ScrubberDeadband(private val deadbandPx: Float) {
+    var applied = 0f
+        private set
+    private var direction = 0
+
+    fun reset(positionPx: Float) {
+        applied = positionPx
+        direction = 0
+    }
+
+    /** True when [positionPx] should move the grid; [applied] then follows it. */
+    fun accept(positionPx: Float): Boolean {
+        val diff = positionPx - applied
+        if (diff == 0f) return false
+        val step = if (diff > 0f) 1 else -1
+        if (direction != 0 && step != direction && kotlin.math.abs(diff) < deadbandPx) return false
+        applied = positionPx
+        direction = step
+        return true
+    }
+}
+
+/**
+ * Where [fractionInDay] of one day lands in a grid: the item to scroll to, counted from the day's
+ * first item (-1 is its header), and how many pixels past the top of that line. The day is measured
+ * in pixels, header plus rows, so a slow drag scrolls smoothly instead of snapping row by row.
+ */
+data class ScrubberDayTarget(val itemOffset: Int, val scrollPx: Int)
+
+fun scrubberDayTarget(
+    fractionInDay: Float,
+    count: Int,
+    columns: Int,
+    headerPx: Float,
+    rowPx: Float,
+): ScrubberDayTarget {
+    val rows = (count.coerceAtLeast(1) + columns - 1) / columns.coerceAtLeast(1)
+    val header = headerPx.coerceAtLeast(0f)
+    val row = rowPx.coerceAtLeast(1f)
+    val px = fractionInDay.coerceIn(0f, 1f) * (header + rows * row)
+    if (px < header) return ScrubberDayTarget(-1, px.toInt())
+    val rowIndex = ((px - header) / row).toInt().coerceAtMost(rows - 1)
+    val within = (px - header - rowIndex * row).coerceIn(0f, row)
+    return ScrubberDayTarget((rowIndex * columns).coerceAtMost(count - 1).coerceAtLeast(0), within.toInt())
+}
+
+/**
  * Text for the sticky date pill: "Today" / "Yesterday" for the last two days, otherwise a short
  * localized date that only carries the year when it is not the current one. [bestPattern] maps a
  * skeleton such as "EEEdMMM" to the locale's pattern (the platform's getBestDateTimePattern).

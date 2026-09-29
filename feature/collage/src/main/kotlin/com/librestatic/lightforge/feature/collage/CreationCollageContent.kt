@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import kotlinx.coroutines.launch
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 
 /** Caller supplies a fresh session ID per selection and public URI callbacks for app navigation. */
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class, ExperimentalLayoutApi::class)
@@ -88,13 +89,7 @@ fun CreationCollageContent(
         if (!revealsOutcome) return@LaunchedEffect
         snapshotFlow { contentScroll.maxValue }.collect { maximum -> contentScroll.animateScrollTo(maximum) }
     }
-    Surface(modifier.fillMaxSize().testTag("creation-collage-screen").semantics { testTagsAsResourceId = true },
-        color = MaterialTheme.colorScheme.background, contentColor = MaterialTheme.colorScheme.onBackground) {
-        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-            GalleryTopAppBar(title = stringResource(R.string.creation_collage_title), onBack = ::back,
-                navigationContentDescription = stringResource(R.string.creation_collage_back))
-            Column(Modifier.weight(1f).widthIn(max = 840.dp).fillMaxWidth().verticalScroll(contentScroll).padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        val previewBlock: @Composable () -> Unit = {
                 Text(stringResource(R.string.creation_collage_originals))
                 Surface(color = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface,
                     shape = MaterialTheme.shapes.large) {
@@ -104,10 +99,12 @@ fun CreationCollageContent(
                         Box(Modifier.widthIn(max = 480.dp).fillMaxWidth().aspectRatio(1f), contentAlignment = Alignment.Center) {
                             state.preview?.let { image -> Image(image.asImageBitmap(), stringResource(R.string.creation_collage_preview),
                                 Modifier.fillMaxSize().testTag("creation-collage-preview"), contentScale = ContentScale.Fit) }
-                            if (state.busy && !state.publishing) CircularProgressIndicator(Modifier.testTag("creation-collage-loading"))
+                            if (state.busy && !state.publishing) GalleryIndeterminateProgressIndicator(Modifier.width(160.dp).testTag("creation-collage-loading"))
                         }
                     }
                 }
+        }
+        val controlsBlock: @Composable () -> Unit = {
                 Text(stringResource(R.string.creation_collage_template), style = MaterialTheme.typography.titleMedium)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     CreationCollageTemplate.forCount(sources.size).forEach { template ->
@@ -185,7 +182,7 @@ fun CreationCollageContent(
                 }
                 if (state.cancelled) Text(stringResource(R.string.creation_collage_cancelled))
                 if (state.publishing) {
-                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
                     Text(stringResource(R.string.creation_collage_publishing))
                     TextButton(onClick = { scope.launch { controller.cancelAndWait() } }, modifier = Modifier.testTag("creation-collage-cancel")) {
                         Text(stringResource(R.string.creation_collage_cancel))
@@ -217,6 +214,25 @@ fun CreationCollageContent(
                             }
                         }
                     }
+                }
+        }
+        val wide = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 720
+    Surface(modifier.fillMaxSize().testTag("creation-collage-screen").semantics { testTagsAsResourceId = true },
+        color = MaterialTheme.colorScheme.background, contentColor = MaterialTheme.colorScheme.onBackground) {
+        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+            GalleryTopAppBar(title = stringResource(R.string.creation_collage_title), onBack = ::back,
+                navigationContentDescription = stringResource(R.string.creation_collage_back))
+            if (wide) {
+                // Wide windows keep the preview in view while the controls scroll beside it.
+                Row(Modifier.weight(1f).widthIn(max = 1_200.dp).fillMaxWidth()) {
+                    Column(Modifier.weight(1f).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) { previewBlock() }
+                    Column(Modifier.weight(1f).verticalScroll(contentScroll).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) { controlsBlock() }
+                }
+            } else {
+                Column(Modifier.weight(1f).widthIn(max = 840.dp).fillMaxWidth().verticalScroll(contentScroll).padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    previewBlock()
+                    controlsBlock()
                 }
             }
         }

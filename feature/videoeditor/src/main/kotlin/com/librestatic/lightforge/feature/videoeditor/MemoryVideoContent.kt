@@ -41,6 +41,8 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 
 /**
  * A local, non-destructive video draft. The caller supplies a visibility-checked, ordered snapshot.
@@ -344,11 +346,11 @@ fun MemoryVideoContent(
                             Modifier.testTag("memory-video-progress"),
                         )
                         state.percent?.let {
-                            LinearProgressIndicator(
+                            GalleryProgressIndicator(
                                 progress = { it / 100f },
                                 modifier = Modifier.fillMaxWidth(),
                             )
-                        } ?: LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        } ?: GalleryIndeterminateProgressIndicator(modifier = Modifier.fillMaxWidth())
                         OutlinedButton(
                             onClick = { job?.cancel() },
                             Modifier.testTag("memory-video-cancel"),

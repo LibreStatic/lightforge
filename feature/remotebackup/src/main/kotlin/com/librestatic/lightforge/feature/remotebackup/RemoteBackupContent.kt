@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.remotestorage.*
 import com.librestatic.lightforge.feature.settings.LocalRestoreOrganizationOptions
 import kotlinx.coroutines.*
+import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 
 /** A complete own-server archive workflow. No secret is put into saved state. */
 @Composable
@@ -148,7 +150,7 @@ fun RemoteBackupContent(
                 }
             if (busy)
                 item {
-                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
                     TextButton(onClick = { activeAction?.cancel() }) {
                         Text(stringResource(R.string.remote_stop))
                     }
@@ -359,7 +361,7 @@ fun RemoteBackupContent(
                             modifier = Modifier.testTag("remote-task-status-${task.id}"),
                         )
                         if (task.totalBytes > 0) {
-                            LinearProgressIndicator(
+                            GalleryProgressIndicator(
                                 progress = {
                                     (task.bytesDone.toFloat() / task.totalBytes).coerceIn(0f, 1f)
                                 },

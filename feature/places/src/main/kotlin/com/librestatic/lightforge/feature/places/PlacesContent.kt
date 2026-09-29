@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.model.MediaKey
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
 
 @OptIn(ExperimentalLayoutApi::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
@@ -456,7 +457,7 @@ fun PlacesContent(
                         )
                         Text("${job.copied} / ${job.total}")
                         if (job.total > 0)
-                            LinearProgressIndicator(
+                            GalleryProgressIndicator(
                                 progress = {
                                     (job.copied.toDouble() / job.total).toFloat().coerceIn(0f, 1f)
                                 },

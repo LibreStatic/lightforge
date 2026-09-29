@@ -24,6 +24,8 @@ import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
 
 @Composable
 fun OwnSyncContent(
@@ -100,7 +102,7 @@ fun OwnSyncContent(
                         Text(stringResource(R.string.own_sync_error), Modifier.padding(12.dp))
                     }
                 }
-            if (working) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+            item { GalleryProgressSlot(working) }
             items(jobs, key = { "job-" + it.id }) { job ->
                 Card(
                     colors =

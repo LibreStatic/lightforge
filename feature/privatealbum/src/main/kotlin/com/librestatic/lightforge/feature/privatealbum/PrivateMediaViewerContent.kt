@@ -41,6 +41,7 @@ import java.util.Locale
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.first
 import kotlin.math.roundToInt
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 
 /** No public URI, export, disk bitmap cache, or saved authentication enters this screen. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -127,7 +128,7 @@ internal fun PrivateMediaViewerContent(
                     Text(stringResource(R.string.private_viewer_error))
                     Button(onClick = { error = false; attempt++ }) { Text(stringResource(R.string.private_viewer_retry)) }
                 }
-                current == null -> CircularProgressIndicator(Modifier.testTag("private-viewer-loading"))
+                current == null -> GalleryIndeterminateProgressIndicator(Modifier.width(160.dp).testTag("private-viewer-loading"))
                 else -> {
                     key(current) {
                         val valid by current.valid.collectAsState()

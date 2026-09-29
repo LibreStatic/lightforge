@@ -37,6 +37,8 @@ import com.google.zxing.common.HybridBinarizer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
 
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
@@ -117,7 +119,7 @@ fun LocalSharingContent(
                     Text(stringResource(R.string.peer_error), Modifier.padding(12.dp))
                 }
             }
-        if (working) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+        item { GalleryProgressSlot(working) }
         item {
             Card {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

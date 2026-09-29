@@ -83,7 +83,7 @@ class TimelineScrubberDeviceTest {
         return { grid } to loader
     }
 
-    @Test fun handleAppearsWhileScrollingAndScrubbingShowsTicksMonthAndSkeleton() {
+    @Test fun handleAppearsWhileScrollingAndScrubbingJumpsBeforeRelease() {
         val jumps = Collections.synchronizedList(mutableListOf<TimelineAnchor?>())
         val (_, loader) = setUp(loadedDays = 40, jumps = jumps)
         try {
@@ -94,14 +94,12 @@ class TimelineScrubberDeviceTest {
 
             handle().performTouchInput { down(center); moveBy(Offset(0f, 400f)) }
             compose.waitUntil(5_000) { exists("timeline_scrub_years") && exists("timeline_scrub_month") }
-            compose.waitUntil(5_000) { exists("timeline_scrub_skeleton") }
-            handle().performTouchInput { up() }
-
-            compose.waitUntil(10_000) { jumps.isNotEmpty() }
+            // The pager restarts at the pointed day while the finger is still down.
+            compose.waitUntil(5_000) { jumps.isNotEmpty() }
             val anchor = jumps.last()
             assertNotNull(anchor)
             assertTrue(anchor!!.epochDay < dayAt(39).toEpochDay())
-            compose.waitUntil(10_000) { !exists("timeline_scrub_skeleton") }
+            handle().performTouchInput { up() }
         } finally { loader.close() }
     }
 
@@ -111,9 +109,42 @@ class TimelineScrubberDeviceTest {
         try {
             compose.onNodeWithTag("timeline_grid").performTouchInput { swipeUp() }
             compose.waitUntil(5_000) { exists("timeline_scrub_handle") }
-            handle().performTouchInput { down(center); moveBy(Offset(0f, 500f)); up() }
+            handle().performTouchInput { down(center); moveBy(Offset(0f, 500f)) }
+            // The grid follows the finger before release.
             compose.waitUntil(10_000) { grid().firstVisibleItemIndex > 200 }
+            handle().performTouchInput { up() }
             assertEquals(emptyList<TimelineAnchor?>(), jumps.toList())
+        } finally { loader.close() }
+    }
+
+    @Test fun aHeldFingerKeepsTheGridStillAndReturningLandsOnTheSameRow() {
+        val jumps = Collections.synchronizedList(mutableListOf<TimelineAnchor?>())
+        val (grid, loader) = setUp(loadedDays = dayCount, jumps = jumps)
+        fun position() = grid().firstVisibleItemIndex to grid().firstVisibleItemScrollOffset
+        try {
+            compose.onNodeWithTag("timeline_grid").performTouchInput { swipeUp() }
+            compose.waitUntil(5_000) { exists("timeline_scrub_handle") }
+            handle().performTouchInput { down(center); moveBy(Offset(0f, 300f)) }
+            compose.waitUntil(10_000) { grid().firstVisibleItemIndex > 100 }
+            compose.waitForIdle()
+            val held = position()
+            // A resting finger trembles back and forth by a pixel or two.
+            repeat(4) {
+                handle().performTouchInput { moveBy(Offset(0f, -3f)) }
+                compose.waitForIdle()
+                assertEquals(held, position())
+                handle().performTouchInput { moveBy(Offset(0f, 3f)) }
+                compose.waitForIdle()
+                assertEquals(held, position())
+            }
+            // Away and back to the very same finger position lands on the very same row.
+            handle().performTouchInput { moveBy(Offset(0f, 200f)) }
+            compose.waitForIdle()
+            assertTrue(position() != held)
+            handle().performTouchInput { moveBy(Offset(0f, -200f)) }
+            compose.waitForIdle()
+            assertEquals(held, position())
+            handle().performTouchInput { up() }
         } finally { loader.close() }
     }
 

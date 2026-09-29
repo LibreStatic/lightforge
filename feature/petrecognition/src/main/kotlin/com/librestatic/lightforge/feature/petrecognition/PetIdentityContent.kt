@@ -31,6 +31,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 
 private class PetLocalPackContract : ActivityResultContracts.OpenDocument() {
     override fun createIntent(context: Context, input: Array<String>): Intent = super.createIntent(context, input).putExtra(Intent.EXTRA_LOCAL_ONLY, true)
@@ -114,8 +116,8 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
         if (error || analysis.failed) item { Surface(color = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer) { Text(stringResource(R.string.pet_error), Modifier.padding(12.dp).testTag("pet-error")) } }
         if (working) item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (analysis.running) LinearProgressIndicator(modifier = Modifier.fillMaxWidth().testTag("pet-progress"))
-                else LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().testTag("pet-progress"))
+                if (analysis.running) GalleryIndeterminateProgressIndicator(modifier = Modifier.fillMaxWidth().testTag("pet-progress"))
+                else GalleryProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().testTag("pet-progress"))
                 if (analysis.running) Text(
                     stringResource(
                         R.string.pet_progress,

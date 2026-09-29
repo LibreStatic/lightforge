@@ -513,6 +513,15 @@ fun ViewerContent(
                         VideoSurface(
                             controller = videoController,
                             state = videoState,
+                            poster = {
+                                MediaThumbnail(
+                                    media = media,
+                                    thumbnailLoader = thumbnailLoader,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Fit,
+                                    backgroundColor = Color.Black,
+                                )
+                            },
                             aspectRatio = if (media.width > 0 && media.height > 0) {
                                 media.width.toFloat() / media.height.toFloat()
                             } else null,
@@ -1417,9 +1426,24 @@ private fun VideoSurface(
     zoomTapPosition: Offset,
     zoomTapGeneration: Int,
     onZoomedChange: (Boolean) -> Unit,
+    poster: @Composable () -> Unit = {},
 ) {
+    // The player is created only once the open transition settles; until then (and until its
+    // first decoded frame) the thumbnail stands in, so opening a video morphs instead of flashing
+    // black. A spinner appears only when loading is genuinely slow.
+    var slowLoading by remember(controller) { mutableStateOf(false) }
+    LaunchedEffect(controller, state is VideoViewerState.Ready) {
+        slowLoading = false
+        if (state !is VideoViewerState.Ready) {
+            delay(600)
+            slowLoading = true
+        }
+    }
     if (controller == null) {
-        GalleryLoadingIndicator(Modifier.padding(24.dp))
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            poster()
+            if (slowLoading) GalleryLoadingIndicator()
+        }
         return
     }
     val description = stringResource(R.string.viewer_video_description)
@@ -1491,6 +1515,12 @@ private fun VideoSurface(
                     .semantics { contentDescription = description },
             )
         }
+        AnimatedVisibility(
+            visible = state !is VideoViewerState.Failure &&
+                (state as? VideoViewerState.Ready)?.firstFrameRendered != true,
+            enter = EnterTransition.None,
+            exit = fadeOut(tween(220)),
+        ) { poster() }
         when (state) {
             is VideoViewerState.Ready -> Unit
             is VideoViewerState.Failure -> Text(
@@ -1499,9 +1529,9 @@ private fun VideoSurface(
                 color = MaterialTheme.colorScheme.error,
             )
             VideoViewerState.Idle,
-            is VideoViewerState.Loading -> GalleryLoadingIndicator()
+            is VideoViewerState.Loading,
+            null -> if (slowLoading) GalleryLoadingIndicator()
             VideoViewerState.Released -> Unit
-            null -> GalleryLoadingIndicator()
         }
         if ((state as? VideoViewerState.Ready)?.usedSoftwareDecoder == true) {
             Text(

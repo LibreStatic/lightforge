@@ -24,6 +24,8 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.SecureFlagPolicy
 import com.librestatic.lightforge.core.security.PrivateAlbumCrypto
 import kotlinx.coroutines.*
+import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 
 private class PrivateLocalOpen : ActivityResultContracts.OpenDocument() {
     override fun createIntent(context: Context, input: Array<String>): Intent =
@@ -267,7 +269,7 @@ fun PrivatePortableContent(
                         )
                     }
                 if (busy) {
-                    LinearProgressIndicator(
+                    GalleryIndeterminateProgressIndicator(
                         Modifier.fillMaxWidth().testTag("private-portable-progress")
                     )
                     if (progress.second > 0)

@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import kotlinx.coroutines.*
+import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
 
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
@@ -195,7 +196,7 @@ fun CreationGifContent(sessionId: String, title: String, sources: List<CreationG
                 }
                 if (export.cancelled) Text(stringResource(R.string.creation_gif_cancelled), Modifier.testTag("creation-gif-cancelled"))
                 if (export.running) {
-                    LinearProgressIndicator(progress = { export.progress / 100f }, modifier = Modifier.fillMaxWidth().testTag("creation-gif-progress"))
+                    GalleryProgressIndicator(progress = { export.progress / 100f }, modifier = Modifier.fillMaxWidth().testTag("creation-gif-progress"))
                     TextButton(onClick = { scope.launch { controller.cancelAndWait() } }, modifier = Modifier.testTag("creation-gif-cancel")) { Text(stringResource(R.string.creation_gif_cancel)) }
                 } else Button(onClick = { playing = false; controller.start(CreationGifRequest(sources, seconds), order) }, enabled = editable && !previewError, modifier = Modifier.testTag("creation-gif-export")) { Text(stringResource(R.string.creation_gif_export)) }
                 if (!sourcesAvailable) Text(stringResource(R.string.gif_publication_sources_unavailable))

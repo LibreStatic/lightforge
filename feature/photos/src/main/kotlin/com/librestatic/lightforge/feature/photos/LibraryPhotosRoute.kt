@@ -18,7 +18,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -53,6 +52,7 @@ import com.librestatic.lightforge.core.model.TimelineIndex
 import com.librestatic.lightforge.core.model.TimelineMedia
 import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
 import com.librestatic.lightforge.core.thumbnail.ThumbnailRequest
+import com.librestatic.lightforge.core.designsystem.GalleryCircularProgressIndicator
 
 data class PhotoHighlightUi(
     val id: String,
@@ -106,6 +106,7 @@ fun LibraryPhotosRoute(
         else -> engineState
     }
     val loadingDescription = stringResource(R.string.library_loading_title)
+    val wideToolbar = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 600
     androidx.compose.runtime.CompositionLocalProvider(
         androidx.compose.material3.LocalContentColor provides MaterialTheme.colorScheme.onBackground,
     ) {
@@ -124,7 +125,15 @@ fun LibraryPhotosRoute(
                 leadingIcon = { Icon(GalleryIcons.Lock, contentDescription = null, Modifier.size(18.dp)) },
                 modifier = Modifier.semantics { heading() },
             )
-            androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+            if (wideToolbar) {
+                // Wide windows fold the index status into the toolbar row instead of a second banner.
+                // The Box keeps the weight even while the status is silent, so the actions stay at the end.
+                androidx.compose.foundation.layout.Box(Modifier.weight(1f).padding(horizontal = GallerySpacing.Md)) {
+                    LibraryIndexStatus(state = presentationState)
+                }
+            } else {
+                androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+            }
             if (showNavigationActions) {
                 GalleryExpressiveIconButton(onClick = onCreate) {
                     Icon(GalleryIcons.Plus, contentDescription = stringResource(R.string.photos_create))
@@ -148,7 +157,7 @@ fun LibraryPhotosRoute(
                 style = MaterialTheme.typography.labelMedium,
             )
         }
-        LibraryIndexStatus(
+        if (!wideToolbar) LibraryIndexStatus(
             state = presentationState,
             modifier = Modifier.padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Sm),
         )
@@ -279,12 +288,12 @@ private fun UpdatesIndicator(
         contentAlignment = Alignment.Center,
     ) {
         if (activeExportProgress == null) {
-            CircularProgressIndicator(
+            GalleryCircularProgressIndicator(
                 modifier = Modifier.size(34.dp),
                 strokeWidth = 3.dp,
             )
         } else {
-            CircularProgressIndicator(
+            GalleryCircularProgressIndicator(
                 progress = { activeExportProgress.coerceIn(0f, 1f) },
                 modifier = Modifier.size(34.dp),
                 strokeWidth = 3.dp,

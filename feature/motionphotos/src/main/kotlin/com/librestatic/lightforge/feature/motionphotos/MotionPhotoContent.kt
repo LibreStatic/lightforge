@@ -43,6 +43,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 
 /**
  * Actual embedded motion playback; key-frame persistence is delegated to the source-aware
@@ -327,7 +328,7 @@ fun MotionPhotoContent(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     if (loading) {
-                        LinearProgressIndicator(Modifier.fillMaxWidth())
+                        GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
                         Text(stringResource(R.string.motion_loading))
                     }
                     if (unsupported) {
@@ -506,7 +507,7 @@ fun MotionPhotoContent(
                         }
                     }
                     if (working) {
-                        LinearProgressIndicator(Modifier.fillMaxWidth().testTag("motion-working"))
+                        GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth().testTag("motion-working"))
                         TextButton(onClick = { scope.launch { operation?.cancelAndJoin(); publication.cancelAndWait() } },
                             modifier = Modifier.testTag("motion-cancel-operation")) {
                             Text(stringResource(R.string.motion_cancel))
