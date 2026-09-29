@@ -176,4 +176,7 @@
     <string name="local_analysis_cleanup_summary">Encontra duplicatas exatas e fotos desfocadas neste dispositivo, durante o carregamento ou com o Lightforge Studio aberto e bateria suficiente. Nada é excluído sem a sua confirmação.</string>
     <string name="settings_language">Idioma</string>
     <string name="settings_language_system">Padrão do sistema</string>
+    <string name="settings_card_sorting">Ordenação e agrupamento</string>
+    <string name="settings_card_photo_gestures">Gestos em fotos</string>
+    <string name="settings_card_video_gestures">Gestos em vídeos</string>
 </resources>

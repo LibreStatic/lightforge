@@ -22,7 +22,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -56,6 +55,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 
 /** A complete originals-only workflow; organization/preferences are deliberately not implied. */
 @Composable fun LocalBackupContent(onBack: () -> Unit) = LocalBackupContent(null, onBack)
@@ -402,7 +402,7 @@ fun LocalBackupContent(
                     Text(stringResource(R.string.local_backup_open))
                 }
                 if (busy) {
-                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                    GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
                     progress?.let {
                         Text(localBackupProgressText(it.completed, it.total, it.bytes))
                     }

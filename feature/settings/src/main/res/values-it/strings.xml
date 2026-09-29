@@ -176,4 +176,7 @@
     <string name="local_analysis_cleanup_summary">Trova duplicati esatti e foto sfocate su questo dispositivo, durante la ricarica o con Lightforge Studio aperto e batteria sufficiente. Nulla viene eliminato senza la tua conferma.</string>
     <string name="settings_language">Lingua</string>
     <string name="settings_language_system">Predefinita di sistema</string>
+    <string name="settings_card_sorting">Ordinamento e raggruppamento</string>
+    <string name="settings_card_photo_gestures">Gesti sulle foto</string>
+    <string name="settings_card_video_gestures">Gesti sui video</string>
 </resources>

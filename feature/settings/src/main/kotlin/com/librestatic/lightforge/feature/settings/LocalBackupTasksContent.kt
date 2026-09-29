@@ -11,7 +11,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -30,6 +29,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 
 @Composable
 fun LocalBackupTasksContent(
@@ -107,7 +107,7 @@ fun LocalBackupTasksContent(
                         )
                         Text(localBackupProgressText(task.filesDone, task.filesTotal, task.bytesDone))
                         if (task.status == LocalBackupTaskStatus.Running) {
-                            LinearProgressIndicator(Modifier.fillMaxWidth())
+                            GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
                         }
                         if (task.status == LocalBackupTaskStatus.NeedsReview)
                             Text(stringResource(R.string.local_backup_task_review_hint))

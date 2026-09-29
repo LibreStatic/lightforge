@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -16,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 
 @Composable
 fun LocalBackupRecoveryBanner(
@@ -43,7 +43,7 @@ fun LocalBackupRecoveryBanner(
             )
             if (working) {
                 Text(stringResource(R.string.local_backup_recovery_working))
-                LinearProgressIndicator(
+                GalleryIndeterminateProgressIndicator(
                     Modifier.fillMaxWidth(),
                     color = LocalContentColor.current,
                     trackColor =

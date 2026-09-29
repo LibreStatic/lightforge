@@ -21,6 +21,8 @@ import com.librestatic.lightforge.core.preferences.*
 import java.security.MessageDigest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 
 /**
  * Explicit independent settings operation: no media restore, worker, or permission side effects.
@@ -99,7 +101,7 @@ fun PortablePreferencesContent(
                 )
             }
             if (loading || applying)
-                LinearProgressIndicator(
+                GalleryIndeterminateProgressIndicator(
                     Modifier.fillMaxWidth().testTag("portable-preferences-progress")
                 )
             val current = review

@@ -176,4 +176,7 @@
     <string name="local_analysis_cleanup_summary">Encuentra duplicados exactos y fotos borrosas en este dispositivo, mientras carga o con Lightforge Studio abierto y batería suficiente. No se borra nada sin tu confirmación.</string>
     <string name="settings_language">Idioma</string>
     <string name="settings_language_system">Predeterminado del sistema</string>
+    <string name="settings_card_sorting">Orden y agrupación</string>
+    <string name="settings_card_photo_gestures">Gestos en fotos</string>
+    <string name="settings_card_video_gestures">Gestos en videos</string>
 </resources>

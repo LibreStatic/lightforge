@@ -175,4 +175,7 @@
     <string name="local_analysis_cleanup_summary">Findet exakte Duplikate und unscharfe Fotos auf diesem Gerät, beim Laden oder wenn Lightforge Studio mit genug Akku geöffnet ist. Nichts wird ohne deine Bestätigung gelöscht.</string>
     <string name="settings_language">Sprache</string>
     <string name="settings_language_system">Systemstandard</string>
+    <string name="settings_card_sorting">Sortierung und Gruppierung</string>
+    <string name="settings_card_photo_gestures">Fotogesten</string>
+    <string name="settings_card_video_gestures">Videogesten</string>
 </resources>

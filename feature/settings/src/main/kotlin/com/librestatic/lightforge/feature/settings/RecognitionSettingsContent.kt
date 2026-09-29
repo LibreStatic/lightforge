@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -27,6 +28,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
@@ -44,6 +46,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.TriStateCheckbox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,6 +65,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.state.ToggleableState
 import com.librestatic.lightforge.core.preferences.AutoGridColumns
@@ -73,10 +80,14 @@ import com.librestatic.lightforge.core.preferences.LibraryGrouping
 import com.librestatic.lightforge.core.preferences.LibrarySort
 import com.librestatic.lightforge.core.preferences.VideoScrubbingMode
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.designsystem.GalleryShapeIllustration
+import com.librestatic.lightforge.core.designsystem.GalleryWindowClass
+import com.librestatic.lightforge.core.designsystem.GalleryAdaptiveLayoutInfo
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveButton
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
 
 data class GalleryFolderOption(
     val volumeName: String,
@@ -169,8 +180,10 @@ fun RecognitionSettingsContent(
     onSemanticDeleteAll: () -> Unit = {},
     onSemanticAutomaticSelection: () -> Unit = {},
     showHeader: Boolean = true,
+    adaptiveInfo: GalleryAdaptiveLayoutInfo? = null,
     modifier: Modifier = Modifier,
 ) {
+    val twoPane = adaptiveInfo != null && adaptiveInfo.windowClass != GalleryWindowClass.Compact
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     var page by rememberSaveable { mutableStateOf(SettingsPage.Root) }
     var folderVolume by rememberSaveable { mutableStateOf<String?>(null) }
@@ -191,98 +204,133 @@ fun RecognitionSettingsContent(
         }
     }
 
+    // Two panes always show a category, so Root falls back to the first one.
+    val visiblePage = if (twoPane && page == SettingsPage.Root) SettingsPage.Library else page
+
     BackHandler {
-        when (page) {
-            SettingsPage.Root -> onBack()
+        when (visiblePage) {
             SettingsPage.LibraryFolders -> leaveFolderLevel()
-            SettingsPage.Library -> page = SettingsPage.Root
-            else -> page = SettingsPage.Root
+            SettingsPage.Root -> onBack()
+            else -> if (twoPane) onBack() else page = SettingsPage.Root
         }
     }
 
-    Box(modifier.fillMaxSize().semantics { testTagsAsResourceId = true }, contentAlignment = Alignment.TopCenter) {
-        Column(
-            Modifier.fillMaxSize().widthIn(max = 720.dp),
-        ) {
-            when (page) {
-                SettingsPage.Root -> SettingsRootPage(onBack) {
-                    SettingsCategoryList(
-                        settings = settings,
-                        aiConsentGranted = peopleAnalysisEnabled || contentAnalysisEnabled || petCollectionsEnabled,
-                        onOpen = { page = it },
-                        onOpenAbout = onOpenAbout,
-                    )
+    val detail: @Composable () -> Unit = {
+        // Root is only reachable in single-pane mode, where it is rendered by the caller.
+        when (visiblePage) {
+            SettingsPage.Root -> Unit
+            SettingsPage.Library -> SettingsSubPage(embedded = twoPane, title = stringResource(R.string.settings_library), onBack = { page = SettingsPage.Root }) {
+                LibrarySection(settings, folderOptions, onSettingsChange) {
+                    folderVolume = null
+                    folderPath = null
+                    page = SettingsPage.LibraryFolders
                 }
-                SettingsPage.Library -> SettingsSubPage(title = stringResource(R.string.settings_library), onBack = { page = SettingsPage.Root }) {
-                    LibrarySection(settings, folderOptions, onSettingsChange) {
-                        folderVolume = null
-                        folderPath = null
-                        page = SettingsPage.LibraryFolders
+            }
+            SettingsPage.LibraryFolders -> FolderSelectionPage(
+                settings = settings,
+                folderOptions = folderOptions,
+                currentVolume = folderVolume,
+                currentPath = folderPath,
+                onOpenFolder = { volume, path -> folderVolume = volume; folderPath = path },
+                onBack = ::leaveFolderLevel,
+                onSettingsChange = onSettingsChange,
+            )
+            SettingsPage.Playback -> SettingsSubPage(embedded = twoPane, title = stringResource(R.string.settings_playback), onBack = { page = SettingsPage.Root }) {
+                PlaybackSection(settings, onSettingsChange)
+            }
+            SettingsPage.Gestures -> SettingsSubPage(embedded = twoPane, title = stringResource(R.string.settings_gestures), onBack = { page = SettingsPage.Root }) {
+                GesturesSection(settings, onSettingsChange)
+            }
+            SettingsPage.Thumbnails -> SettingsSubPage(embedded = twoPane, title = stringResource(R.string.settings_thumbnails), onBack = { page = SettingsPage.Root }) {
+                ThumbnailsSection(settings, onSettingsChange)
+            }
+            SettingsPage.Operations -> SettingsSubPage(embedded = twoPane, title = stringResource(R.string.settings_operations), onBack = { page = SettingsPage.Root }) {
+                OperationsSection(settings, onSettingsChange)
+            }
+            SettingsPage.Security -> SettingsSubPage(embedded = twoPane, illustration = GalleryIcons.Lock, title = stringResource(R.string.settings_security), onBack = { page = SettingsPage.Root }) {
+                SecuritySection(settings, onSettingsChange)
+            }
+            SettingsPage.Backup -> SettingsSubPage(embedded = twoPane, illustration = GalleryIcons.Download, title = stringResource(R.string.settings_backup), onBack = { page = SettingsPage.Root }) {
+                BackupSection(onExportSettings, onImportSettings, onResetSettings, onLocalBackup, onRemoteBackup, onOwnSync, onOfflinePlaces, onLocalSharing)
+            }
+            SettingsPage.AiAnalysis -> SettingsSubPage(embedded = twoPane, illustration = GalleryIcons.AutoAwesome, title = stringResource(R.string.settings_page_ai), onBack = { page = SettingsPage.Root }) {
+                if (onPetIdentity != null) OutlinedButton(onClick = onPetIdentity, modifier = Modifier.fillMaxWidth().testTag("settings-pet-identity")) { Text(stringResource(R.string.pet_identity_entry)) }
+                AiAnalysisSection(
+                    settings = settings,
+                    onSettingsChange = onSettingsChange,
+                    state = state,
+                    onEnable = onEnable,
+                    onPause = onPause,
+                    onResume = onResume,
+                    onAnalyzeAll = onAnalyzeAll,
+                    onDelete = onDelete,
+                    onDeleteRequested = { confirmDelete = true },
+                    petCollectionsEnabled = petCollectionsEnabled,
+                    petAnalysisState = petAnalysisState,
+                    onPetCollectionsEnabledChange = onPetCollectionsEnabledChange,
+                    onHideDogResults = onHideDogResults,
+                    onHideCatResults = onHideCatResults,
+                    onRestorePetResults = onRestorePetResults,
+                    peopleAnalysisEnabled = peopleAnalysisEnabled,
+                    contentAnalysisEnabled = contentAnalysisEnabled,
+                    localAnalysisEnabled = localAnalysisEnabled,
+                    onAllAnalysisEnabledChange = onAllAnalysisEnabledChange,
+                    onPeopleAnalysisEnabledChange = onPeopleAnalysisEnabledChange,
+                    onContentAnalysisEnabledChange = onContentAnalysisEnabledChange,
+                    cleanupAnalysisEnabled = cleanupAnalysisEnabled,
+                    onCleanupAnalysisEnabledChange = onCleanupAnalysisEnabledChange,
+                    semanticModels = semanticModels,
+                    onSemanticEnabledChange = onSemanticEnabledChange,
+                    onSemanticDownload = onSemanticDownload,
+                    onSemanticCancelDownload = onSemanticCancelDownload,
+                    onSemanticActivate = onSemanticActivate,
+                    onSemanticDelete = onSemanticDelete,
+                    onSemanticDeleteAll = onSemanticDeleteAll,
+                    onSemanticAutomaticSelection = onSemanticAutomaticSelection,
+                    showHeader = showHeader,
+                )
+            }
+        }
+    }
+
+    val categoryList: @Composable (Modifier) -> Unit = { listModifier ->
+        SettingsCategoryList(
+            settings = settings,
+            aiConsentGranted = peopleAnalysisEnabled || contentAnalysisEnabled || petCollectionsEnabled,
+            onOpen = { page = it },
+            onOpenAbout = onOpenAbout,
+            selectedPage = if (twoPane) visiblePage else null,
+            modifier = listModifier,
+        )
+    }
+
+    Box(modifier.fillMaxSize().semantics { testTagsAsResourceId = true }, contentAlignment = Alignment.TopCenter) {
+        if (twoPane) {
+            val density = LocalDensity.current
+            // Window-space x of this pane, so a hinge measured in window coordinates lines up even
+            // when the navigation rail sits to its left.
+            var originX by remember { mutableStateOf(0.dp) }
+            val hinge = adaptiveInfo?.foldInfo?.takeIf { it.enablesSideBySide }
+            val hingeListWidth = hinge?.let { it.left - originX }?.takeIf { it >= 240.dp }
+            val listWidth = hingeListWidth
+                ?: if (adaptiveInfo?.windowClass == GalleryWindowClass.Expanded) 360.dp else 300.dp
+            Row(
+                Modifier.fillMaxSize().onGloballyPositioned { originX = with(density) { it.positionInWindow().x.toDp() } },
+            ) {
+                SettingsRootPage(onBack, Modifier.width(listWidth).fillMaxHeight()) { categoryList(Modifier) }
+                if (hingeListWidth != null && hinge != null) Spacer(Modifier.width(hinge.hingeWidth))
+                Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
+                    Column(Modifier.fillMaxSize().widthIn(max = 720.dp)) {
+                        CompositionLocalProvider(LocalSettingsCards provides true) { detail() }
                     }
                 }
-                SettingsPage.LibraryFolders -> FolderSelectionPage(
-                    settings = settings,
-                    folderOptions = folderOptions,
-                    currentVolume = folderVolume,
-                    currentPath = folderPath,
-                    onOpenFolder = { volume, path -> folderVolume = volume; folderPath = path },
-                    onBack = ::leaveFolderLevel,
-                    onSettingsChange = onSettingsChange,
-                )
-                SettingsPage.Playback -> SettingsSubPage(title = stringResource(R.string.settings_playback), onBack = { page = SettingsPage.Root }) {
-                    PlaybackSection(settings, onSettingsChange)
-                }
-                SettingsPage.Gestures -> SettingsSubPage(title = stringResource(R.string.settings_gestures), onBack = { page = SettingsPage.Root }) {
-                    GesturesSection(settings, onSettingsChange)
-                }
-                SettingsPage.Thumbnails -> SettingsSubPage(title = stringResource(R.string.settings_thumbnails), onBack = { page = SettingsPage.Root }) {
-                    ThumbnailsSection(settings, onSettingsChange)
-                }
-                SettingsPage.Operations -> SettingsSubPage(title = stringResource(R.string.settings_operations), onBack = { page = SettingsPage.Root }) {
-                    OperationsSection(settings, onSettingsChange)
-                }
-                SettingsPage.Security -> SettingsSubPage(title = stringResource(R.string.settings_security), onBack = { page = SettingsPage.Root }) {
-                    SecuritySection(settings, onSettingsChange)
-                }
-                SettingsPage.Backup -> SettingsSubPage(title = stringResource(R.string.settings_backup), onBack = { page = SettingsPage.Root }) {
-                    BackupSection(onExportSettings, onImportSettings, onResetSettings, onLocalBackup, onRemoteBackup, onOwnSync, onOfflinePlaces, onLocalSharing)
-                }
-                SettingsPage.AiAnalysis -> SettingsSubPage(title = stringResource(R.string.settings_page_ai), onBack = { page = SettingsPage.Root }) {
-                    if (onPetIdentity != null) OutlinedButton(onClick = onPetIdentity, modifier = Modifier.fillMaxWidth().testTag("settings-pet-identity")) { Text(stringResource(R.string.pet_identity_entry)) }
-                    AiAnalysisSection(
-                        settings = settings,
-                        onSettingsChange = onSettingsChange,
-                        state = state,
-                        onEnable = onEnable,
-                        onPause = onPause,
-                        onResume = onResume,
-                        onAnalyzeAll = onAnalyzeAll,
-                        onDelete = onDelete,
-                        onDeleteRequested = { confirmDelete = true },
-                        petCollectionsEnabled = petCollectionsEnabled,
-                        petAnalysisState = petAnalysisState,
-                        onPetCollectionsEnabledChange = onPetCollectionsEnabledChange,
-                        onHideDogResults = onHideDogResults,
-                        onHideCatResults = onHideCatResults,
-                        onRestorePetResults = onRestorePetResults,
-                        peopleAnalysisEnabled = peopleAnalysisEnabled,
-                        contentAnalysisEnabled = contentAnalysisEnabled,
-                        localAnalysisEnabled = localAnalysisEnabled,
-                        onAllAnalysisEnabledChange = onAllAnalysisEnabledChange,
-                        onPeopleAnalysisEnabledChange = onPeopleAnalysisEnabledChange,
-                        onContentAnalysisEnabledChange = onContentAnalysisEnabledChange,
-                        cleanupAnalysisEnabled = cleanupAnalysisEnabled,
-                        onCleanupAnalysisEnabledChange = onCleanupAnalysisEnabledChange,
-                        semanticModels = semanticModels,
-                        onSemanticEnabledChange = onSemanticEnabledChange,
-                        onSemanticDownload = onSemanticDownload,
-                        onSemanticCancelDownload = onSemanticCancelDownload,
-                        onSemanticActivate = onSemanticActivate,
-                        onSemanticDelete = onSemanticDelete,
-                        onSemanticDeleteAll = onSemanticDeleteAll,
-                        onSemanticAutomaticSelection = onSemanticAutomaticSelection,
-                        showHeader = showHeader,
-                    )
+            }
+        } else {
+            Column(Modifier.fillMaxSize().widthIn(max = 720.dp)) {
+                if (visiblePage == SettingsPage.Root) {
+                    SettingsRootPage(onBack) { categoryList(Modifier.widthIn(max = 720.dp)) }
+                } else {
+                    detail()
                 }
             }
         }
@@ -303,8 +351,8 @@ fun RecognitionSettingsContent(
 }
 
 @Composable
-private fun SettingsRootPage(onBack: () -> Unit, content: @Composable () -> Unit) {
-    Column(Modifier.fillMaxSize()) {
+private fun SettingsRootPage(onBack: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Column(modifier.fillMaxSize()) {
         SettingsHeader(stringResource(R.string.settings_title), onBack)
         content()
     }
@@ -316,6 +364,8 @@ private fun SettingsCategoryList(
     aiConsentGranted: Boolean,
     onOpen: (SettingsPage) -> Unit,
     onOpenAbout: () -> Unit,
+    selectedPage: SettingsPage? = null,
+    modifier: Modifier = Modifier,
 ) {
     val sortLabel = stringResource(when (settings.library.sort) {
         LibrarySort.DateTaken -> R.string.settings_sort_date_taken
@@ -369,12 +419,16 @@ private fun SettingsCategoryList(
     val onLabel = stringResource(R.string.settings_summary_on)
     val offLabel = stringResource(R.string.settings_summary_off)
 
+    val twoPane = selectedPage != null
+    // The list of a two-pane layout keeps the folder browser under "Library".
+    fun selected(page: SettingsPage) = selectedPage == page ||
+        (page == SettingsPage.Library && selectedPage == SettingsPage.LibraryFolders)
     Column(
-        Modifier.fillMaxSize().widthIn(max = 720.dp).verticalScroll(rememberScrollState()).padding(GallerySpacing.Xl),
+        modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(GallerySpacing.Xl),
         verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xl),
     ) {
         SettingsCategoryGroup(stringResource(R.string.settings_group_viewing)) {
-            SettingsCategoryRow(GalleryIcons.Collections, stringResource(R.string.settings_library), "$sortLabel · $filterLabel", 0, 4) { onOpen(SettingsPage.Library) }
+            SettingsCategoryRow(GalleryIcons.Collections, stringResource(R.string.settings_library), "$sortLabel · $filterLabel", 0, 4, selected = selected(SettingsPage.Library), chevron = !twoPane) { onOpen(SettingsPage.Library) }
             SettingsCategoryRow(
                 GalleryIcons.Play,
                 stringResource(R.string.settings_playback),
@@ -382,18 +436,20 @@ private fun SettingsCategoryList(
                 1,
                 4,
                 Modifier.testTag("settings_playback_row"),
+                selected = selected(SettingsPage.Playback),
+                chevron = !twoPane,
             ) { onOpen(SettingsPage.Playback) }
-            SettingsCategoryRow(GalleryIcons.Tune, stringResource(R.string.settings_gestures), enabledPattern.format(gestureCount, 8), 2, 4) { onOpen(SettingsPage.Gestures) }
-            SettingsCategoryRow(GalleryIcons.Image, stringResource(R.string.settings_thumbnails), "$columnsSummary · " + enabledPattern.format(thumbnailCount, 5), 3, 4) { onOpen(SettingsPage.Thumbnails) }
+            SettingsCategoryRow(GalleryIcons.Tune, stringResource(R.string.settings_gestures), enabledPattern.format(gestureCount, 8), 2, 4, selected = selected(SettingsPage.Gestures), chevron = !twoPane) { onOpen(SettingsPage.Gestures) }
+            SettingsCategoryRow(GalleryIcons.Image, stringResource(R.string.settings_thumbnails), "$columnsSummary · " + enabledPattern.format(thumbnailCount, 5), 3, 4, selected = selected(SettingsPage.Thumbnails), chevron = !twoPane) { onOpen(SettingsPage.Thumbnails) }
         }
         SettingsCategoryGroup(stringResource(R.string.settings_group_management)) {
-            SettingsCategoryRow(GalleryIcons.Settings, stringResource(R.string.settings_operations), enabledPattern.format(operationsCount, 3), 0, 3) { onOpen(SettingsPage.Operations) }
-            SettingsCategoryRow(GalleryIcons.Lock, stringResource(R.string.settings_security), if (securityOn) onLabel else offLabel, 1, 3) { onOpen(SettingsPage.Security) }
-            SettingsCategoryRow(GalleryIcons.Download, stringResource(R.string.settings_backup), null, 2, 3) { onOpen(SettingsPage.Backup) }
+            SettingsCategoryRow(GalleryIcons.Folder, stringResource(R.string.settings_operations), enabledPattern.format(operationsCount, 3), 0, 3, selected = selected(SettingsPage.Operations), chevron = !twoPane) { onOpen(SettingsPage.Operations) }
+            SettingsCategoryRow(GalleryIcons.Lock, stringResource(R.string.settings_security), if (securityOn) onLabel else offLabel, 1, 3, selected = selected(SettingsPage.Security), chevron = !twoPane) { onOpen(SettingsPage.Security) }
+            SettingsCategoryRow(GalleryIcons.Download, stringResource(R.string.settings_backup), null, 2, 3, selected = selected(SettingsPage.Backup), chevron = !twoPane) { onOpen(SettingsPage.Backup) }
         }
-        AppLanguageGroup()
+        AppLanguageGroup(chevron = !twoPane)
         SettingsCategoryGroup(stringResource(R.string.settings_group_intelligence)) {
-            SettingsCategoryRow(GalleryIcons.Analyze, stringResource(R.string.settings_page_ai), if (aiConsentGranted) onLabel else offLabel, 0, 1) { onOpen(SettingsPage.AiAnalysis) }
+            SettingsCategoryRow(GalleryIcons.AutoAwesome, stringResource(R.string.settings_page_ai), if (aiConsentGranted) onLabel else offLabel, 0, 1, selected = selected(SettingsPage.AiAnalysis), chevron = !twoPane) { onOpen(SettingsPage.AiAnalysis) }
         }
         SettingsCategoryGroup(stringResource(R.string.settings_group_about)) {
             SettingsCategoryRow(
@@ -403,6 +459,7 @@ private fun SettingsCategoryList(
                 0,
                 1,
                 Modifier.testTag("settings_about_row"),
+                chevron = !twoPane,
                 onClick = onOpenAbout,
             )
         }
@@ -428,7 +485,7 @@ private val AppLanguageLabels = listOf(
  * store it in [LegacyAppLanguage], which `MainActivity` applies in `attachBaseContext`.
  */
 @Composable
-private fun AppLanguageGroup() {
+private fun AppLanguageGroup(chevron: Boolean = true) {
     val context = LocalContext.current
     val current = remember(context) {
         val language = if (LegacyAppLanguage.isNeeded) {
@@ -441,12 +498,13 @@ private fun AppLanguageGroup() {
     var dialogVisible by rememberSaveable { mutableStateOf(false) }
     SettingsCategoryGroup(stringResource(R.string.settings_language)) {
         SettingsCategoryRow(
-            GalleryIcons.Settings,
+            Icons.Rounded.Language,
             stringResource(R.string.settings_language),
             stringResource(AppLanguageLabels[current]),
             0,
             1,
             Modifier.testTag("settings_language_row"),
+            chevron = chevron,
         ) { dialogVisible = true }
     }
     if (dialogVisible) SettingsSingleChoiceDialog(
@@ -489,43 +547,122 @@ private fun SettingsCategoryRow(
     index: Int,
     count: Int,
     modifier: Modifier = Modifier,
+    selected: Boolean = false,
+    chevron: Boolean = true,
     onClick: () -> Unit,
 ) {
-    SegmentedListItem(
-        onClick = onClick,
-        shapes = ListItemDefaults.segmentedShapes(index, count),
-        modifier = modifier.fillMaxWidth(),
-        leadingContent = {
-            Box(
-                Modifier.size(48.dp).background(MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.shapes.extraLarge),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
-            }
-        },
-        supportingContent = summary?.let { value -> { Text(value) } },
-        trailingContent = {
+    val colors = MaterialTheme.colorScheme
+    val leading: @Composable () -> Unit = {
+        // The active row is filled with secondaryContainer, so its icon chip flips to the
+        // primary pair to stay distinguishable in every theme.
+        Box(
+            Modifier.size(48.dp).background(
+                if (selected) colors.primary else colors.secondaryContainer,
+                MaterialTheme.shapes.extraLarge,
+            ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = null, tint = if (selected) colors.onPrimary else colors.onSecondaryContainer)
+        }
+    }
+    val trailing: (@Composable () -> Unit)? = if (chevron) {
+        {
             Icon(
                 Icons.AutoMirrored.Rounded.KeyboardArrowRight,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        },
-    ) { Text(title) }
+        }
+    } else null
+    val supporting: (@Composable () -> Unit)? = summary?.let { value -> { Text(value) } }
+    if (selected) {
+        SegmentedListItem(
+            selected = true,
+            onClick = onClick,
+            shapes = ListItemDefaults.segmentedShapes(index, count),
+            modifier = modifier.fillMaxWidth(),
+            colors = ListItemDefaults.segmentedColors(
+                selectedContainerColor = colors.secondaryContainer,
+                selectedContentColor = colors.onSecondaryContainer,
+                selectedSupportingContentColor = colors.onSecondaryContainer,
+            ),
+            leadingContent = leading,
+            supportingContent = supporting,
+            trailingContent = trailing,
+        ) { Text(title) }
+    } else {
+        SegmentedListItem(
+            onClick = onClick,
+            shapes = ListItemDefaults.segmentedShapes(index, count),
+            modifier = modifier.fillMaxWidth(),
+            leadingContent = leading,
+            supportingContent = supporting,
+            trailingContent = trailing,
+        ) { Text(title) }
+    }
 }
+
+/** True inside the detail pane of a two-pane layout, where sections are grouped into cards. */
+private val LocalSettingsCards = compositionLocalOf { false }
 
 @Composable
 private fun SettingsSubPage(
     title: String,
     onBack: () -> Unit,
+    embedded: Boolean = false,
+    illustration: ImageVector? = null,
     content: @Composable () -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
-        SettingsHeader(title, onBack)
+        // The category list already provides navigation in two panes, so the detail gets a large
+        // title instead of a top bar with a back arrow.
+        if (!embedded) SettingsHeader(title, onBack)
         Column(
-            Modifier.fillMaxSize().widthIn(max = 720.dp).verticalScroll(rememberScrollState()).padding(GallerySpacing.Xl),
+            Modifier.fillMaxSize().then(if (embedded) Modifier else Modifier.widthIn(max = 720.dp))
+                .verticalScroll(rememberScrollState()).padding(GallerySpacing.Xl),
             verticalArrangement = Arrangement.spacedBy(GallerySpacing.Lg),
         ) {
+            if (embedded) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.displaySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f).padding(horizontal = GallerySpacing.Md),
+                    )
+                    if (illustration != null) GalleryShapeIllustration(illustration, size = 96.dp)
+                }
+            }
+            content()
+        }
+    }
+}
+
+/**
+ * Groups related rows into a tonal card in the two-pane detail. Outside it (phones) the rows are
+ * emitted directly, so the single-pane layout is unchanged.
+ */
+@Composable
+private fun SettingsCard(title: String? = null, content: @Composable () -> Unit) {
+    if (!LocalSettingsCards.current) {
+        content()
+        return
+    }
+    Surface(
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(GallerySpacing.Sm), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
+            if (title != null) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(horizontal = GallerySpacing.Md, vertical = GallerySpacing.Sm),
+                )
+            }
             content()
         }
     }
@@ -880,58 +1017,62 @@ private fun LibrarySection(
         LibraryGrouping.None -> R.string.settings_group_none
     }
 
-    SettingsValueRow(
-        stringResource(R.string.settings_library_sort),
-        stringResource(settings.library.sort.labelRes()),
-        modifier = Modifier.testTag("library_sort_row"),
-        onClick = { sortDialogVisible = true },
-    )
-    SettingsSwitchRow(stringResource(R.string.settings_sort_ascending), settings.library.ascending) {
-        onSettingsChange { current -> current.copy(library = current.library.copy(ascending = it)) }
-    }
-    SettingsValueRow(
-        stringResource(R.string.settings_library_filter),
-        stringResource(settings.library.filter.labelRes()),
-        modifier = Modifier.testTag("library_filter_row"),
-        onClick = { filterDialogVisible = true },
-    )
-    SettingsValueRow(
-        stringResource(R.string.settings_library_group),
-        stringResource(settings.library.grouping.labelRes()),
-        modifier = Modifier.testTag("library_group_row"),
-        onClick = { groupDialogVisible = true },
-    )
-    SettingsValueRow(
-        stringResource(R.string.settings_folder_mode),
-        stringResource(
-            if (settings.library.folderSelectionMode == FolderSelectionMode.AllExceptExcluded) {
-                R.string.settings_folder_exclude_mode
-            } else R.string.settings_folder_include_mode,
-        ),
-        modifier = Modifier.testTag("folder_mode_row"),
-        onClick = { folderModeDialogVisible = true },
-    )
-    val defaultSelected = settings.library.folderSelectionMode == FolderSelectionMode.AllExceptExcluded
-    val selectedFolders = folderOptions.count { option ->
-        FolderSelectionPolicy.isSelected(
-            defaultSelected = defaultSelected,
-            rules = settings.library.folderRules,
-            volumeName = option.volumeName,
-            bucketId = option.bucketId,
-            relativePath = option.relativePath,
+    SettingsCard(stringResource(R.string.settings_card_sorting)) {
+        SettingsValueRow(
+            stringResource(R.string.settings_library_sort),
+            stringResource(settings.library.sort.labelRes()),
+            modifier = Modifier.testTag("library_sort_row"),
+            onClick = { sortDialogVisible = true },
+        )
+        SettingsSwitchRow(stringResource(R.string.settings_sort_ascending), settings.library.ascending) {
+            onSettingsChange { current -> current.copy(library = current.library.copy(ascending = it)) }
+        }
+        SettingsValueRow(
+            stringResource(R.string.settings_library_filter),
+            stringResource(settings.library.filter.labelRes()),
+            modifier = Modifier.testTag("library_filter_row"),
+            onClick = { filterDialogVisible = true },
+        )
+        SettingsValueRow(
+            stringResource(R.string.settings_library_group),
+            stringResource(settings.library.grouping.labelRes()),
+            modifier = Modifier.testTag("library_group_row"),
+            onClick = { groupDialogVisible = true },
         )
     }
-    val folderSummary = if (folderOptions.isEmpty()) {
-        stringResource(R.string.settings_folders_empty)
-    } else {
-        stringResource(R.string.settings_folders_enabled_summary, selectedFolders, folderOptions.size)
+    SettingsCard(stringResource(R.string.settings_folders)) {
+        SettingsValueRow(
+            stringResource(R.string.settings_folder_mode),
+            stringResource(
+                if (settings.library.folderSelectionMode == FolderSelectionMode.AllExceptExcluded) {
+                    R.string.settings_folder_exclude_mode
+                } else R.string.settings_folder_include_mode,
+            ),
+            modifier = Modifier.testTag("folder_mode_row"),
+            onClick = { folderModeDialogVisible = true },
+        )
+        val defaultSelected = settings.library.folderSelectionMode == FolderSelectionMode.AllExceptExcluded
+        val selectedFolders = folderOptions.count { option ->
+            FolderSelectionPolicy.isSelected(
+                defaultSelected = defaultSelected,
+                rules = settings.library.folderRules,
+                volumeName = option.volumeName,
+                bucketId = option.bucketId,
+                relativePath = option.relativePath,
+            )
+        }
+        val folderSummary = if (folderOptions.isEmpty()) {
+            stringResource(R.string.settings_folders_empty)
+        } else {
+            stringResource(R.string.settings_folders_enabled_summary, selectedFolders, folderOptions.size)
+        }
+        SettingsValueRow(
+            label = stringResource(R.string.settings_folders),
+            value = folderSummary,
+            modifier = Modifier.testTag("folder_browser_row"),
+            onClick = onOpenFolders,
+        )
     }
-    SettingsValueRow(
-        label = stringResource(R.string.settings_folders),
-        value = folderSummary,
-        modifier = Modifier.testTag("folder_browser_row"),
-        onClick = onOpenFolders,
-    )
     if (sortDialogVisible) {
         SettingsSingleChoiceDialog(
             title = stringResource(R.string.settings_library_sort),
@@ -1041,31 +1182,33 @@ private fun PlaybackSection(
     onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit,
 ) {
     var scrubbingModeDialogVisible by rememberSaveable { mutableStateOf(false) }
-    SettingsValueRow(
-        label = stringResource(R.string.settings_video_scrubbing_mode),
-        value = stringResource(
-            when (settings.playback.videoScrubbingMode) {
-                VideoScrubbingMode.LegacySeekBar -> R.string.settings_video_scrubbing_legacy
-                VideoScrubbingMode.Filmstrip -> R.string.settings_video_scrubbing_filmstrip
-            },
-        ),
-        modifier = Modifier.testTag("video_scrubbing_mode_row"),
-        onClick = { scrubbingModeDialogVisible = true },
-    )
-    SettingsSwitchRow(stringResource(R.string.settings_autoplay_videos), settings.playback.autoplayVideos) {
-        onSettingsChange { current -> current.copy(playback = current.playback.copy(autoplayVideos = it)) }
-    }
-    SettingsSwitchRow(stringResource(R.string.settings_start_muted), settings.playback.startVideosMuted) {
-        onSettingsChange { current -> current.copy(playback = current.playback.copy(startVideosMuted = it)) }
-    }
-    SettingsSwitchRow(stringResource(R.string.settings_loop_videos), settings.playback.loopVideos) {
-        onSettingsChange { current -> current.copy(playback = current.playback.copy(loopVideos = it)) }
-    }
-    SettingsSwitchRow(stringResource(R.string.settings_remember_video), settings.playback.rememberVideoPosition) {
-        onSettingsChange { current -> current.copy(playback = current.playback.copy(rememberVideoPosition = it)) }
-    }
-    SettingsSwitchRow(stringResource(R.string.settings_max_brightness), settings.playback.maximumBrightness) {
-        onSettingsChange { current -> current.copy(playback = current.playback.copy(maximumBrightness = it)) }
+    SettingsCard {
+        SettingsValueRow(
+            label = stringResource(R.string.settings_video_scrubbing_mode),
+            value = stringResource(
+                when (settings.playback.videoScrubbingMode) {
+                    VideoScrubbingMode.LegacySeekBar -> R.string.settings_video_scrubbing_legacy
+                    VideoScrubbingMode.Filmstrip -> R.string.settings_video_scrubbing_filmstrip
+                },
+            ),
+            modifier = Modifier.testTag("video_scrubbing_mode_row"),
+            onClick = { scrubbingModeDialogVisible = true },
+        )
+        SettingsSwitchRow(stringResource(R.string.settings_autoplay_videos), settings.playback.autoplayVideos) {
+            onSettingsChange { current -> current.copy(playback = current.playback.copy(autoplayVideos = it)) }
+        }
+        SettingsSwitchRow(stringResource(R.string.settings_start_muted), settings.playback.startVideosMuted) {
+            onSettingsChange { current -> current.copy(playback = current.playback.copy(startVideosMuted = it)) }
+        }
+        SettingsSwitchRow(stringResource(R.string.settings_loop_videos), settings.playback.loopVideos) {
+            onSettingsChange { current -> current.copy(playback = current.playback.copy(loopVideos = it)) }
+        }
+        SettingsSwitchRow(stringResource(R.string.settings_remember_video), settings.playback.rememberVideoPosition) {
+            onSettingsChange { current -> current.copy(playback = current.playback.copy(rememberVideoPosition = it)) }
+        }
+        SettingsSwitchRow(stringResource(R.string.settings_max_brightness), settings.playback.maximumBrightness) {
+            onSettingsChange { current -> current.copy(playback = current.playback.copy(maximumBrightness = it)) }
+        }
     }
     if (scrubbingModeDialogVisible) AlertDialog(
         modifier = Modifier.testTag("video_scrubbing_mode_dialog"),
@@ -1123,41 +1266,45 @@ private fun GesturesSection(
     settings: GallerySettings,
     onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit,
 ) {
-    SettingsSwitchRow(stringResource(R.string.settings_double_tap_zoom), settings.gestures.doubleTapZoom) {
-        onSettingsChange { current -> current.copy(gestures = current.gestures.copy(doubleTapZoom = it)) }
+    SettingsCard(stringResource(R.string.settings_card_photo_gestures)) {
+        SettingsSwitchRow(stringResource(R.string.settings_double_tap_zoom), settings.gestures.doubleTapZoom) {
+            onSettingsChange { current -> current.copy(gestures = current.gestures.copy(doubleTapZoom = it)) }
+        }
+        SettingsSwitchRow(stringResource(R.string.settings_pinch_zoom), settings.gestures.pinchZoom) {
+            onSettingsChange { current -> current.copy(gestures = current.gestures.copy(pinchZoom = it)) }
+        }
+        SettingsSwitchRow(stringResource(R.string.settings_swipe_down), settings.gestures.swipeDownToClose) {
+            onSettingsChange { current -> current.copy(gestures = current.gestures.copy(swipeDownToClose = it)) }
+        }
+        SettingsSwitchRow(stringResource(R.string.settings_photo_brightness), settings.gestures.photoBrightness) {
+            onSettingsChange { current -> current.copy(gestures = current.gestures.copy(photoBrightness = it)) }
+        }
+        SettingsSwitchRow(stringResource(R.string.settings_rotate_photos), settings.gestures.rotatePhotos) {
+            onSettingsChange { current -> current.copy(gestures = current.gestures.copy(rotatePhotos = it)) }
+        }
+        SettingsValueRow(stringResource(R.string.settings_photo_zoom_limit), stringResource(R.string.settings_zoom_value, settings.gestures.photoMaxZoom.toInt())) {
+            val next = when (settings.gestures.photoMaxZoom.toInt()) { 2 -> 4f; 4 -> 8f; else -> 2f }
+            onSettingsChange { current -> current.copy(gestures = current.gestures.copy(photoMaxZoom = next)) }
+        }
     }
-    SettingsSwitchRow(stringResource(R.string.settings_pinch_zoom), settings.gestures.pinchZoom) {
-        onSettingsChange { current -> current.copy(gestures = current.gestures.copy(pinchZoom = it)) }
-    }
-    SettingsSwitchRow(stringResource(R.string.settings_swipe_down), settings.gestures.swipeDownToClose) {
-        onSettingsChange { current -> current.copy(gestures = current.gestures.copy(swipeDownToClose = it)) }
-    }
-    SettingsSwitchRow(stringResource(R.string.settings_photo_brightness), settings.gestures.photoBrightness) {
-        onSettingsChange { current -> current.copy(gestures = current.gestures.copy(photoBrightness = it)) }
-    }
-    SettingsSwitchRow(stringResource(R.string.settings_video_brightness), settings.gestures.videoBrightness) {
-        onSettingsChange { current -> current.copy(gestures = current.gestures.copy(videoBrightness = it)) }
-    }
-    SettingsSwitchRow(stringResource(R.string.settings_video_volume), settings.gestures.videoVolume) {
-        onSettingsChange { current -> current.copy(gestures = current.gestures.copy(videoVolume = it)) }
-    }
-    SettingsSwitchRow(stringResource(R.string.settings_video_seek), settings.gestures.videoSeek) {
-        onSettingsChange { current -> current.copy(gestures = current.gestures.copy(videoSeek = it)) }
-    }
-    SettingsSwitchRow(stringResource(R.string.settings_rotate_photos), settings.gestures.rotatePhotos) {
-        onSettingsChange { current -> current.copy(gestures = current.gestures.copy(rotatePhotos = it)) }
-    }
-    SettingsValueRow(stringResource(R.string.settings_photo_zoom_limit), stringResource(R.string.settings_zoom_value, settings.gestures.photoMaxZoom.toInt())) {
-        val next = when (settings.gestures.photoMaxZoom.toInt()) { 2 -> 4f; 4 -> 8f; else -> 2f }
-        onSettingsChange { current -> current.copy(gestures = current.gestures.copy(photoMaxZoom = next)) }
-    }
-    SettingsValueRow(stringResource(R.string.settings_video_zoom_limit), stringResource(R.string.settings_zoom_value, settings.gestures.videoMaxZoom.toInt())) {
-        val next = when (settings.gestures.videoMaxZoom.toInt()) { 2 -> 4f; 4 -> 8f; else -> 2f }
-        onSettingsChange { current -> current.copy(gestures = current.gestures.copy(videoMaxZoom = next)) }
-    }
-    SettingsValueRow(stringResource(R.string.settings_skip_seconds), stringResource(R.string.settings_seconds, settings.gestures.videoSkipSeconds)) {
-        val next = when (settings.gestures.videoSkipSeconds) { 5 -> 10; 10 -> 15; 15 -> 30; else -> 5 }
-        onSettingsChange { current -> current.copy(gestures = current.gestures.copy(videoSkipSeconds = next)) }
+    SettingsCard(stringResource(R.string.settings_card_video_gestures)) {
+        SettingsSwitchRow(stringResource(R.string.settings_video_brightness), settings.gestures.videoBrightness) {
+            onSettingsChange { current -> current.copy(gestures = current.gestures.copy(videoBrightness = it)) }
+        }
+        SettingsSwitchRow(stringResource(R.string.settings_video_volume), settings.gestures.videoVolume) {
+            onSettingsChange { current -> current.copy(gestures = current.gestures.copy(videoVolume = it)) }
+        }
+        SettingsSwitchRow(stringResource(R.string.settings_video_seek), settings.gestures.videoSeek) {
+            onSettingsChange { current -> current.copy(gestures = current.gestures.copy(videoSeek = it)) }
+        }
+        SettingsValueRow(stringResource(R.string.settings_video_zoom_limit), stringResource(R.string.settings_zoom_value, settings.gestures.videoMaxZoom.toInt())) {
+            val next = when (settings.gestures.videoMaxZoom.toInt()) { 2 -> 4f; 4 -> 8f; else -> 2f }
+            onSettingsChange { current -> current.copy(gestures = current.gestures.copy(videoMaxZoom = next)) }
+        }
+        SettingsValueRow(stringResource(R.string.settings_skip_seconds), stringResource(R.string.settings_seconds, settings.gestures.videoSkipSeconds)) {
+            val next = when (settings.gestures.videoSkipSeconds) { 5 -> 10; 10 -> 15; 15 -> 30; else -> 5 }
+            onSettingsChange { current -> current.copy(gestures = current.gestures.copy(videoSkipSeconds = next)) }
+        }
     }
 }
 
@@ -1166,33 +1313,35 @@ private fun ThumbnailsSection(
     settings: GallerySettings,
     onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit,
 ) {
-    SettingsSwitchRow(stringResource(R.string.settings_crop_thumbnails), settings.thumbnails.cropToFill) {
-        onSettingsChange { current -> current.copy(thumbnails = current.thumbnails.copy(cropToFill = it)) }
-    }
-    SettingsSwitchRow(stringResource(R.string.settings_animate_media), settings.thumbnails.animateMedia) {
-        onSettingsChange { current -> current.copy(thumbnails = current.thumbnails.copy(animateMedia = it)) }
-    }
-    SettingsSwitchRow(stringResource(R.string.settings_show_duration), settings.thumbnails.showVideoDuration) {
-        onSettingsChange { current -> current.copy(thumbnails = current.thumbnails.copy(showVideoDuration = it)) }
-    }
-    SettingsSwitchRow(stringResource(R.string.settings_show_file_type), settings.thumbnails.showFileType) {
-        onSettingsChange { current -> current.copy(thumbnails = current.thumbnails.copy(showFileType = it)) }
-    }
-    SettingsSwitchRow(stringResource(R.string.settings_mark_favorites), settings.thumbnails.markFavorites) {
-        onSettingsChange { current -> current.copy(thumbnails = current.thumbnails.copy(markFavorites = it)) }
-    }
-    val columns = settings.thumbnails.gridColumns
-    SettingsValueRow(
-        stringResource(R.string.settings_grid_columns),
-        if (columns == AutoGridColumns) stringResource(R.string.settings_grid_columns_auto) else columns.toString(),
-    ) {
-        // Automatic -> 2..8 -> Automatic.
-        val next = when {
-            columns == AutoGridColumns -> 2
-            columns >= 8 -> AutoGridColumns
-            else -> columns + 1
+    SettingsCard {
+        SettingsSwitchRow(stringResource(R.string.settings_crop_thumbnails), settings.thumbnails.cropToFill) {
+            onSettingsChange { current -> current.copy(thumbnails = current.thumbnails.copy(cropToFill = it)) }
         }
-        onSettingsChange { current -> current.copy(thumbnails = current.thumbnails.copy(gridColumns = next)) }
+        SettingsSwitchRow(stringResource(R.string.settings_animate_media), settings.thumbnails.animateMedia) {
+            onSettingsChange { current -> current.copy(thumbnails = current.thumbnails.copy(animateMedia = it)) }
+        }
+        SettingsSwitchRow(stringResource(R.string.settings_show_duration), settings.thumbnails.showVideoDuration) {
+            onSettingsChange { current -> current.copy(thumbnails = current.thumbnails.copy(showVideoDuration = it)) }
+        }
+        SettingsSwitchRow(stringResource(R.string.settings_show_file_type), settings.thumbnails.showFileType) {
+            onSettingsChange { current -> current.copy(thumbnails = current.thumbnails.copy(showFileType = it)) }
+        }
+        SettingsSwitchRow(stringResource(R.string.settings_mark_favorites), settings.thumbnails.markFavorites) {
+            onSettingsChange { current -> current.copy(thumbnails = current.thumbnails.copy(markFavorites = it)) }
+        }
+        val columns = settings.thumbnails.gridColumns
+        SettingsValueRow(
+            stringResource(R.string.settings_grid_columns),
+            if (columns == AutoGridColumns) stringResource(R.string.settings_grid_columns_auto) else columns.toString(),
+        ) {
+            // Automatic -> 2..8 -> Automatic.
+            val next = when {
+                columns == AutoGridColumns -> 2
+                columns >= 8 -> AutoGridColumns
+                else -> columns + 1
+            }
+            onSettingsChange { current -> current.copy(thumbnails = current.thumbnails.copy(gridColumns = next)) }
+        }
     }
 }
 
@@ -1201,14 +1350,16 @@ private fun OperationsSection(
     settings: GallerySettings,
     onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit,
 ) {
-    SettingsSwitchRow(stringResource(R.string.settings_share_sanitized), settings.operations.shareWithoutLocationByDefault) {
-        onSettingsChange { current -> current.copy(operations = current.operations.copy(shareWithoutLocationByDefault = it)) }
-    }
-    SettingsSwitchRow(stringResource(R.string.settings_keep_modified), settings.operations.keepLastModifiedWhenPossible) {
-        onSettingsChange { current -> current.copy(operations = current.operations.copy(keepLastModifiedWhenPossible = it)) }
-    }
-    SettingsSwitchRow(stringResource(R.string.settings_skip_confirmation), settings.operations.skipAppDeleteConfirmation) {
-        onSettingsChange { current -> current.copy(operations = current.operations.copy(skipAppDeleteConfirmation = it)) }
+    SettingsCard {
+        SettingsSwitchRow(stringResource(R.string.settings_share_sanitized), settings.operations.shareWithoutLocationByDefault) {
+            onSettingsChange { current -> current.copy(operations = current.operations.copy(shareWithoutLocationByDefault = it)) }
+        }
+        SettingsSwitchRow(stringResource(R.string.settings_keep_modified), settings.operations.keepLastModifiedWhenPossible) {
+            onSettingsChange { current -> current.copy(operations = current.operations.copy(keepLastModifiedWhenPossible = it)) }
+        }
+        SettingsSwitchRow(stringResource(R.string.settings_skip_confirmation), settings.operations.skipAppDeleteConfirmation) {
+            onSettingsChange { current -> current.copy(operations = current.operations.copy(skipAppDeleteConfirmation = it)) }
+        }
     }
 }
 
@@ -1217,15 +1368,17 @@ private fun SecuritySection(
     settings: GallerySettings,
     onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit,
 ) {
-    SettingsSwitchRow(stringResource(R.string.settings_app_lock), settings.security.appLockEnabled) {
-        onSettingsChange { current -> current.copy(security = current.security.copy(appLockEnabled = it)) }
-    }
-    SettingsSwitchRow(stringResource(R.string.settings_destructive_lock), settings.security.destructiveActionLockEnabled) {
-        onSettingsChange { current -> current.copy(security = current.security.copy(destructiveActionLockEnabled = it)) }
-    }
-    SettingsValueRow(stringResource(R.string.settings_relock_timeout), stringResource(R.string.settings_minutes, settings.security.relockTimeoutMinutes)) {
-        val next = when (settings.security.relockTimeoutMinutes) { 0 -> 1; 1 -> 5; 5 -> 15; else -> 0 }
-        onSettingsChange { current -> current.copy(security = current.security.copy(relockTimeoutMinutes = next)) }
+    SettingsCard {
+        SettingsSwitchRow(stringResource(R.string.settings_app_lock), settings.security.appLockEnabled) {
+            onSettingsChange { current -> current.copy(security = current.security.copy(appLockEnabled = it)) }
+        }
+        SettingsSwitchRow(stringResource(R.string.settings_destructive_lock), settings.security.destructiveActionLockEnabled) {
+            onSettingsChange { current -> current.copy(security = current.security.copy(destructiveActionLockEnabled = it)) }
+        }
+        SettingsValueRow(stringResource(R.string.settings_relock_timeout), stringResource(R.string.settings_minutes, settings.security.relockTimeoutMinutes)) {
+            val next = when (settings.security.relockTimeoutMinutes) { 0 -> 1; 1 -> 5; 5 -> 15; else -> 0 }
+            onSettingsChange { current -> current.copy(security = current.security.copy(relockTimeoutMinutes = next)) }
+        }
     }
 }
 
@@ -1240,20 +1393,60 @@ private fun BackupSection(
     onOfflinePlaces: (() -> Unit)?,
     onLocalSharing: (() -> Unit)?,
 ) {
-    if (onLocalSharing != null) OutlinedButton(onClick = onLocalSharing, modifier = Modifier.fillMaxWidth().testTag("settings-local-sharing")) { Text(stringResource(R.string.local_sharing_entry)) }
-    if (onOwnSync != null) OutlinedButton(onClick = onOwnSync, modifier = Modifier.fillMaxWidth().testTag("settings-own-sync")) { Text(stringResource(R.string.own_sync_entry)) }
-    if (onOfflinePlaces != null) OutlinedButton(onClick = onOfflinePlaces, modifier = Modifier.fillMaxWidth().testTag("settings-offline-places")) { Text(stringResource(R.string.offline_places_entry)) }
-    if (onRemoteBackup != null) OutlinedButton(onClick = onRemoteBackup, modifier = Modifier.fillMaxWidth().testTag("settings-remote-backup")) {
-        Text(stringResource(R.string.remote_backup_entry))
+    val cards = LocalSettingsCards.current
+    SettingsCard {
+        if (onLocalSharing != null) SettingsActionRow(GalleryIcons.Share, stringResource(R.string.local_sharing_entry), Modifier.testTag("settings-local-sharing"), onLocalSharing)
+        if (onOwnSync != null) SettingsActionRow(GalleryIcons.Link, stringResource(R.string.own_sync_entry), Modifier.testTag("settings-own-sync"), onOwnSync)
+        if (onOfflinePlaces != null) SettingsActionRow(GalleryIcons.Place, stringResource(R.string.offline_places_entry), Modifier.testTag("settings-offline-places"), onOfflinePlaces)
+        if (onRemoteBackup != null) SettingsActionRow(GalleryIcons.Archive, stringResource(R.string.remote_backup_entry), Modifier.testTag("settings-remote-backup"), onRemoteBackup)
+        if (onLocalBackup != null) SettingsActionRow(GalleryIcons.Folder, stringResource(R.string.local_backup_title), Modifier.testTag("settings-local-backup"), onLocalBackup)
     }
-    if (onLocalBackup != null) OutlinedButton(onClick = onLocalBackup, modifier = Modifier.fillMaxWidth().testTag("settings-local-backup")) {
-        Text(stringResource(R.string.local_backup_title))
+    if (cards) {
+        SettingsCard {
+            SettingsActionRow(GalleryIcons.Share, stringResource(R.string.settings_export), onClick = onExportSettings)
+            SettingsActionRow(GalleryIcons.Download, stringResource(R.string.settings_import), onClick = onImportSettings)
+        }
+        SettingsCard {
+            SettingsActionRow(GalleryIcons.History, stringResource(R.string.settings_reset), onClick = onResetSettings)
+        }
+    } else {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+            OutlinedButton(onClick = onExportSettings, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.settings_export)) }
+            OutlinedButton(onClick = onImportSettings, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.settings_import)) }
+        }
+        TextButton(onClick = onResetSettings) { Text(stringResource(R.string.settings_reset)) }
     }
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
-        OutlinedButton(onClick = onExportSettings, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.settings_export)) }
-        OutlinedButton(onClick = onImportSettings, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.settings_import)) }
+}
+
+/**
+ * Navigation/action row for the two-pane detail. On phones the original outlined buttons are kept,
+ * so the single-pane layout does not change.
+ */
+@Composable
+private fun SettingsActionRow(
+    icon: ImageVector,
+    label: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    if (!LocalSettingsCards.current) {
+        OutlinedButton(onClick = onClick, modifier = modifier.fillMaxWidth()) { Text(label) }
+        return
     }
-    TextButton(onClick = onResetSettings) { Text(stringResource(R.string.settings_reset)) }
+    ListItem(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        leadingContent = {
+            Box(
+                Modifier.size(40.dp).background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) { Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer) }
+        },
+        trailingContent = {
+            Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        },
+    ) { Text(label) }
 }
 
 @Composable
@@ -1389,7 +1582,7 @@ private fun AiAnalysisSection(
     if (!peopleAnalysisEnabled) {
         GalleryExpressiveButton(onClick = onEnable) { Text(stringResource(R.string.face_analysis_enable)) }
     } else {
-        if (state.status == AnalysisStatus.Running) GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
+        GalleryProgressSlot(state.status == AnalysisStatus.Running)
         Text(pluralStringResource(R.plurals.face_analysis_progress, state.completedItems.toInt(), state.completedItems))
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             GalleryExpressiveButton(onClick = if (state.paused) onResume else onPause) {
@@ -1666,6 +1859,29 @@ private fun SettingsValueRow(
     ListItem(
         onClick = onClick,
         modifier = modifier,
-        trailingContent = { Text(value, color = MaterialTheme.colorScheme.primary) },
+        // Inside a card the rows share the tone of the switch rows.
+        colors = if (LocalSettingsCards.current) {
+            ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+        } else ListItemDefaults.colors(),
+        trailingContent = {
+            if (LocalSettingsCards.current) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                    ) {
+                        Text(
+                            value,
+                            style = MaterialTheme.typography.labelLarge,
+                            modifier = Modifier.padding(horizontal = GallerySpacing.Md, vertical = GallerySpacing.Xs),
+                        )
+                    }
+                    Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            } else {
+                Text(value, color = MaterialTheme.colorScheme.primary)
+            }
+        },
     ) { Text(label) }
 }

@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 
 /** Keeps the archive session alive; only the operation UUID goes into parent SavedState. */
 @Composable
@@ -58,7 +59,7 @@ internal fun LocalBackupPreferencesScreen(
                 if (failed) {
                     Text(stringResource(R.string.local_backup_failed))
                     OutlinedButton(onClick = { retry++ }) { Text(stringResource(R.string.portable_preferences_reload)) }
-                } else LinearProgressIndicator(Modifier.fillMaxWidth())
+                } else GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
             }
         }
     }

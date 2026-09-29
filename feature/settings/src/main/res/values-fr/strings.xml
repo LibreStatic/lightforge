@@ -176,4 +176,7 @@
     <string name="local_analysis_cleanup_summary">Trouve les doublons exacts et les photos floues sur cet appareil, pendant la charge ou quand Lightforge Studio est ouvert avec assez de batterie. Rien n’est supprimé sans votre confirmation.</string>
     <string name="settings_language">Langue</string>
     <string name="settings_language_system">Langue du système</string>
+    <string name="settings_card_sorting">Tri et regroupement</string>
+    <string name="settings_card_photo_gestures">Gestes sur les photos</string>
+    <string name="settings_card_video_gestures">Gestes sur les vidéos</string>
 </resources>

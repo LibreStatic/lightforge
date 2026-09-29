@@ -3,10 +3,14 @@ package com.librestatic.lightforge.feature.settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasContentDescription
@@ -17,6 +21,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.librestatic.lightforge.core.designsystem.LightforgeTheme
+import com.librestatic.lightforge.core.designsystem.galleryAdaptiveLayoutInfo
 import com.librestatic.lightforge.core.preferences.GallerySettings
 import com.librestatic.lightforge.core.preferences.FolderSelectionTarget
 import com.librestatic.lightforge.core.preferences.VideoScrubbingMode
@@ -77,6 +82,45 @@ class RecognitionSettingsContentDeviceTest {
         compose.waitForIdle()
 
         assertTrue(settings.library.folderRules[FolderSelectionTarget.Bucket("external_primary", 1L)]!!)
+    }
+
+    @Test
+    fun expandedLayoutShowsCategoryListAndDetailTogether() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        var settings by mutableStateOf(GallerySettings())
+
+        compose.setContent {
+            // 1 px = 1 dp makes a phone-sized test window wide enough for two panes.
+            CompositionLocalProvider(LocalDensity provides Density(1f)) {
+            LightforgeTheme(darkTheme = false, dynamicColor = false) {
+                RecognitionSettingsContent(
+                    state = FaceAnalysisUiState(),
+                    onEnable = {},
+                    onPause = {},
+                    onResume = {},
+                    onAnalyzeAll = {},
+                    onDelete = {},
+                    petCollectionsEnabled = false,
+                    onPetCollectionsEnabledChange = {},
+                    onHideDogResults = {},
+                    onHideCatResults = {},
+                    onRestorePetResults = {},
+                    settings = settings,
+                    onSettingsChange = { transform -> settings = transform(settings) },
+                    adaptiveInfo = galleryAdaptiveLayoutInfo(1000.dp),
+                )
+            }
+            }
+        }
+
+        // Library is preselected, so its rows and the category list are on screen together.
+        compose.onNode(hasTestTag("library_sort_row")).assertIsDisplayed()
+        compose.onNode(hasTestTag("settings_playback_row")).assertIsDisplayed()
+
+        compose.onNode(hasTestTag("settings_playback_row")).performClick()
+        compose.onNode(hasTestTag("video_scrubbing_mode_row")).assertIsDisplayed()
+        compose.onNode(hasTestTag("settings_playback_row")).assertIsDisplayed()
+        compose.onNode(hasText(context.getString(R.string.settings_library_sort))).assertDoesNotExist()
     }
 
     @Test

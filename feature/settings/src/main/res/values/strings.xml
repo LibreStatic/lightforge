@@ -180,4 +180,7 @@
     <string name="settings_language_pt" translatable="false">Português</string>
     <string name="settings_language_it" translatable="false">Italiano</string>
     <string name="settings_language_de" translatable="false">Deutsch</string>
+    <string name="settings_card_sorting">Sorting and grouping</string>
+    <string name="settings_card_photo_gestures">Photo gestures</string>
+    <string name="settings_card_video_gestures">Video gestures</string>
 </resources>
