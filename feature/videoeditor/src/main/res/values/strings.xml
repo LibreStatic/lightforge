@@ -198,4 +198,6 @@
     <string name="video_editor_mute_original">Mute original audio</string>
     <string name="video_editor_unmute_original">Unmute original audio</string>
     <string name="video_editor_export_summary">%1$s · %2$s · %3$s</string>
+    <string name="video_editor_crop">Crop</string>
+    <string name="video_editor_crop_hint">Drag the corners or edges on the video to crop.</string>
 </resources>

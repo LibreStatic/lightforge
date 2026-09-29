@@ -576,6 +576,34 @@ class VideoEditorContentDeviceTest {
         }
     }
 
+    @Test
+    fun cropModeShowsTheOverlayOnlyWhileTransformIsActive() {
+        compose.setContent {
+            LightforgeTheme {
+                VideoEditorContent(
+                    sessionId = "device-video-editor",
+                    state = VideoEditorContentState(durationMillis = 18_000, trimEndMillis = 18_000),
+                    controller = null,
+                    onBack = {},
+                    onSaveCopy = {},
+                    onSpeedChange = {},
+                    onOriginalVolumeChange = {},
+                    onChooseMusic = {},
+                    onRemoveMusic = {},
+                    onSeek = {},
+                    onTrimChange = { _, _ -> },
+                )
+            }
+        }
+
+        compose.onNode(hasText(text(R.string.video_editor_transform))).performClick()
+        compose.onNode(hasText(text(R.string.video_editor_crop))).performClick()
+        compose.onNode(hasText(text(R.string.video_editor_crop_hint))).assertIsDisplayed()
+        // Leaving the tool ends crop editing, so the color/draw views are never dimmed by the overlay.
+        compose.onNode(hasText(text(R.string.video_editor_color))).performClick()
+        compose.onNode(hasTestTag("video-editor-crop-overlay")).assertDoesNotExist()
+    }
+
     private fun text(id: Int): String =
         InstrumentationRegistry.getInstrumentation().targetContext.getString(id)
 }

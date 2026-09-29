@@ -187,4 +187,6 @@
     <string name="video_editor_mute_original">Silenciar audio original</string>
     <string name="video_editor_unmute_original">Activar audio original</string>
     <string name="video_editor_export_summary">%1$s · %2$s · %3$s</string>
+    <string name="video_editor_crop">Recortar</string>
+    <string name="video_editor_crop_hint">Arrastra las esquinas o los bordes sobre el video para recortar.</string>
 </resources>

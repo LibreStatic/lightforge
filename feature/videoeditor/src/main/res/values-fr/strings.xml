@@ -187,4 +187,6 @@
     <string name="video_editor_mute_original">Couper l’audio original</string>
     <string name="video_editor_unmute_original">Réactiver l’audio original</string>
     <string name="video_editor_export_summary">%1$s · %2$s · %3$s</string>
+    <string name="video_editor_crop">Recadrer</string>
+    <string name="video_editor_crop_hint">Faites glisser les coins ou les bords sur la vidéo pour recadrer.</string>
 </resources>

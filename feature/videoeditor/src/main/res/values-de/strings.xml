@@ -187,4 +187,6 @@
     <string name="video_editor_mute_original">Originalton stummschalten</string>
     <string name="video_editor_unmute_original">Originalton einschalten</string>
     <string name="video_editor_export_summary">%1$s · %2$s · %3$s</string>
+    <string name="video_editor_crop">Zuschneiden</string>
+    <string name="video_editor_crop_hint">Ziehe die Ecken oder Kanten auf dem Video, um zuzuschneiden.</string>
 </resources>

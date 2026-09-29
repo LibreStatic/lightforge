@@ -241,6 +241,10 @@ fun VideoEditorContent(
     var showDiscardDialog by rememberSaveable(sessionId) { mutableStateOf(false) }
     // Held on the preview to see the original: it bypasses the grade without touching the recipe.
     var comparingOriginal by remember(sessionId) { mutableStateOf(false) }
+    // Crop editing shows the whole, unrotated frame so the rectangle maps 1:1 onto the source.
+    var cropEditing by rememberSaveable(sessionId) { mutableStateOf(false) }
+    val cropActive = cropEditing && VideoEditorTool.fromIndex(selectedTab) == VideoEditorTool.Transform
+    val previewGeometry = if (cropActive) VideoGeometry() else state.geometry
     var annotationTool by rememberSaveable(sessionId, stateSaver = VideoAnnotationToolStateSaver) {
         mutableStateOf(VideoAnnotationToolState())
     }
@@ -384,17 +388,17 @@ fun VideoEditorContent(
     }
     val realtimeAnnotations = remember(controller) { controller?.let { VideoAnnotationEffect(emptyList()) } }
     var lastAppliedGeometry by remember(controller) { mutableStateOf<VideoGeometry?>(null) }
-    LaunchedEffect(controller, realtimeColorLut, realtimeAnnotations, state.geometry) {
+    LaunchedEffect(controller, realtimeColorLut, realtimeAnnotations, previewGeometry) {
         if (controller != null && realtimeColorLut != null && realtimeAnnotations != null) {
             // Installing Media3 effects rebuilds the preview chain. Apply the initial geometry
             // immediately, then conflate rapid straighten/crop drags through coroutine cancellation.
-            if (lastAppliedGeometry != null && lastAppliedGeometry != state.geometry) {
+            if (lastAppliedGeometry != null && lastAppliedGeometry != previewGeometry) {
                 delay(GeometryPreviewDebounceMillis)
             }
             controller.setVideoEffects(
-                VideoColorGradeEffects.geometryEffects(state.geometry) + realtimeColorLut + realtimeAnnotations,
+                VideoColorGradeEffects.geometryEffects(previewGeometry) + realtimeColorLut + realtimeAnnotations,
             )
-            lastAppliedGeometry = state.geometry
+            lastAppliedGeometry = previewGeometry
         }
     }
     LaunchedEffect(controller, realtimeAnnotations, state.annotations) {
@@ -534,6 +538,8 @@ fun VideoEditorContent(
                     compareEnabled = VideoEditorTool.fromIndex(selectedTab) == VideoEditorTool.Color &&
                         state.colorGrade.hasChanges,
                     onCompareChange = { comparingOriginal = it },
+                    cropActive = cropActive,
+                    onGeometryChange = onGeometryChange,
                     onAddAnnotation = annotationActions.add,
                     onEraseAnnotations = { points ->
                         annotationActions.erase(points, previewPositionMillis)
@@ -554,6 +560,8 @@ fun VideoEditorContent(
                 ) {
                     VideoEditingPanel(
                         state = state,
+                        cropEditing = cropEditing,
+                        onCropEditingChange = { cropEditing = it },
                         frames = filmstripFrames,
                         currentMillis = previewPositionMillis,
                         onSeek = { position ->
@@ -906,6 +914,8 @@ private fun VideoPanelResizeHandle(
 @Composable
 private fun VideoEditingPanel(
     state: VideoEditorContentState,
+    cropEditing: Boolean,
+    onCropEditingChange: (Boolean) -> Unit,
     frames: List<android.graphics.Bitmap>?,
     currentMillis: Long,
     onSeek: (Long) -> Unit,
@@ -949,6 +959,8 @@ private fun VideoEditingPanel(
         VideoControls(
             state = state,
             thumbnailFrame = frames?.let { it.getOrNull(it.size / 2) },
+            cropEditing = cropEditing,
+            onCropEditingChange = onCropEditingChange,
             currentMillis = currentMillis,
             onSpeedChange = onSpeedChange,
             onOriginalVolumeChange = onOriginalVolumeChange,
@@ -986,6 +998,8 @@ private fun VideoPreview(
     currentMillis: Long,
     compareEnabled: Boolean,
     onCompareChange: (Boolean) -> Unit,
+    cropActive: Boolean,
+    onGeometryChange: (VideoGeometry) -> Unit,
     onAddAnnotation: (VideoAnnotationLayer) -> Unit,
     onEraseAnnotations: (List<NormalizedPoint>) -> Unit,
     modifier: Modifier,
@@ -1009,7 +1023,7 @@ private fun VideoPreview(
         key(controller) {
             BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 val videoAspectRatio = (viewerState as? VideoViewerState.Ready)?.aspectRatio
-                val surfaceModifier = if (videoAspectRatio != null && videoAspectRatio > 0f) {
+                val baseSurfaceModifier = if (videoAspectRatio != null && videoAspectRatio > 0f) {
                     val containerAspectRatio = maxWidth.value / maxHeight.value.coerceAtLeast(1f)
                     if (videoAspectRatio >= containerAspectRatio) {
                         Modifier.fillMaxWidth().aspectRatio(videoAspectRatio)
@@ -1021,6 +1035,13 @@ private fun VideoPreview(
                     }
                 } else {
                     Modifier.fillMaxSize()
+                }
+                // While cropping, inset the frame so its edge handles are not under the system back
+                // gesture zone; the overlay shares this modifier, so it stays aligned with the video.
+                val surfaceModifier = if (cropActive) {
+                    Modifier.padding(horizontal = 24.dp).then(baseSurfaceModifier)
+                } else {
+                    baseSurfaceModifier
                 }
                 AndroidView(
                     factory = { context -> SurfaceView(context).also(controller::attachSurface) },
@@ -1041,6 +1062,13 @@ private fun VideoPreview(
                     onErase = onEraseAnnotations,
                     modifier = surfaceModifier,
                 )
+                if (cropActive) {
+                    VideoCropOverlay(
+                        geometry = state.geometry,
+                        onGeometryChange = onGeometryChange,
+                        modifier = surfaceModifier,
+                    )
+                }
             }
         }
         when (val current = viewerState) {
@@ -1157,6 +1185,8 @@ private const val VideoExportProgressIndicatorTag = "video-export-progress-indic
 private fun VideoControls(
     state: VideoEditorContentState,
     thumbnailFrame: android.graphics.Bitmap?,
+    cropEditing: Boolean,
+    onCropEditingChange: (Boolean) -> Unit,
     currentMillis: Long,
     onSpeedChange: (Float) -> Unit,
     onOriginalVolumeChange: (Float) -> Unit,
@@ -1201,7 +1231,7 @@ private fun VideoControls(
                     modifier = Modifier.fillMaxSize(),
                 )
                 VideoEditorTool.Color -> ColorControls(state, thumbnailFrame, onColorGradeChange, onImportLut, Modifier.fillMaxSize())
-                VideoEditorTool.Transform -> TransformControls(state.geometry, onGeometryChange, Modifier.fillMaxSize())
+                VideoEditorTool.Transform -> TransformControls(state.geometry, cropEditing, onCropEditingChange, onGeometryChange, Modifier.fillMaxSize())
                 VideoEditorTool.Draw -> VideoAnnotationControls(
                     state = state,
                     currentMillis = currentMillis,
@@ -1506,6 +1536,8 @@ private fun ExportControls(
 @Composable
 private fun TransformControls(
     geometry: VideoGeometry,
+    cropEditing: Boolean,
+    onCropEditingChange: (Boolean) -> Unit,
     onChange: (VideoGeometry) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1523,6 +1555,13 @@ private fun TransformControls(
             horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
             verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
         ) {
+            FilterChip(
+                selected = cropEditing,
+                onClick = { onCropEditingChange(!cropEditing) },
+                label = { Text(stringResource(R.string.video_editor_crop)) },
+                leadingIcon = { Icon(GalleryIcons.Crop, contentDescription = null) },
+                modifier = EditorChipModifier,
+            )
             OutlinedButton(onClick = {
                 val rotated = normalizeVideoRotation(geometry.rotationDegrees + 90f)
                 onChange(geometry.copy(rotationDegrees = rotated))
@@ -1543,6 +1582,11 @@ private fun TransformControls(
                 modifier = Modifier.heightIn(min = 48.dp),
             ) { Text(stringResource(R.string.video_editor_reset_transform)) }
         }
+        if (cropEditing) Text(
+            stringResource(R.string.video_editor_crop_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Text(stringResource(R.string.video_editor_crop_horizontal), style = MaterialTheme.typography.labelLarge)
         RangeSlider(
             value = geometry.left..geometry.right,
