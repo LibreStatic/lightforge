@@ -160,4 +160,8 @@
     <string name="video_editor_annotation_color_black">Negro</string>
     <string name="video_editor_log_curve_only_note">Este ajuste solo linealiza la curva LOG; la conversión del gamut de cámara no se aplica automáticamente.</string>
     <string name="video_editor_lut_unavailable">La LUT seleccionada falta o está dañada. Elegila o importala de nuevo.</string>
+    <string name="video_editor_discard_title">¿Descartar los cambios?</string>
+    <string name="video_editor_discard_message">Tus cambios no se han guardado como copia.</string>
+    <string name="video_editor_discard_confirm">Descartar</string>
+    <string name="video_editor_keep_editing">Seguir editando</string>
 </resources>

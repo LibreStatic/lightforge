@@ -2,6 +2,7 @@ package com.librestatic.lightforge.feature.videoeditor
 
 import android.view.SurfaceView
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.foundation.background
@@ -27,13 +28,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.RangeSlider
@@ -221,6 +227,8 @@ fun VideoEditorContent(
     key(sessionId) {
     var previewPositionMillis by rememberSaveable(sessionId) { mutableLongStateOf(state.currentMillis) }
     var selectedTab by rememberSaveable(sessionId) { mutableIntStateOf(0) }
+    var showExportSheet by rememberSaveable(sessionId) { mutableStateOf(false) }
+    var showDiscardDialog by rememberSaveable(sessionId) { mutableStateOf(false) }
     var annotationTool by rememberSaveable(sessionId, stateSaver = VideoAnnotationToolStateSaver) {
         mutableStateOf(VideoAnnotationToolState())
     }
@@ -410,14 +418,45 @@ fun VideoEditorContent(
             }
         }
     }
+    val requestBack: () -> Unit = { if (state.isDirty) showDiscardDialog = true else onBack() }
+    BackHandler(enabled = state.isDirty && !showExportSheet) { showDiscardDialog = true }
+    if (showDiscardDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiscardDialog = false },
+            title = { Text(stringResource(R.string.video_editor_discard_title)) },
+            text = { Text(stringResource(R.string.video_editor_discard_message)) },
+            confirmButton = {
+                TextButton(onClick = { showDiscardDialog = false; onBack() }) {
+                    Text(stringResource(R.string.video_editor_discard_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardDialog = false }) {
+                    Text(stringResource(R.string.video_editor_keep_editing))
+                }
+            },
+        )
+    }
+    if (showExportSheet) {
+        VideoExportSheet(
+            state = state,
+            onDismiss = { showExportSheet = false },
+            onOutputQualityChange = onOutputQualityChange,
+            onDynamicRangeChange = onDynamicRangeChange,
+            onSaveCopy = {
+                showExportSheet = false
+                onSaveCopy()
+            },
+        )
+    }
     Scaffold(
         modifier = modifier.testTag("video-editor-screen").semantics { testTagsAsResourceId = true },
         topBar = {
             VideoEditorTopBar(
                 foldInfo = foldInfo,
                 isExporting = state.isExporting,
-                onBack = onBack,
-                onSaveCopy = onSaveCopy,
+                onBack = requestBack,
+                onExport = { showExportSheet = true },
             )
         },
     ) { padding ->
@@ -444,7 +483,7 @@ fun VideoEditorContent(
             val preview: @Composable (Modifier) -> Unit = { previewModifier ->
                 VideoPreview(
                     controller = controller,
-                    annotationsActive = selectedTab == AnnotationTabIndex,
+                    annotationsActive = VideoEditorTool.fromIndex(selectedTab) == VideoEditorTool.Draw,
                     annotationTool = annotationTool,
                     state = state,
                     currentMillis = previewPositionMillis,
@@ -483,8 +522,6 @@ fun VideoEditorContent(
                         onRemoveMusic = onRemoveMusic,
                         onMusicVolumeChange = onMusicVolumeChange,
                         onColorGradeChange = onColorGradeChange,
-                        onOutputQualityChange = onOutputQualityChange,
-                        onDynamicRangeChange = onDynamicRangeChange,
                         onGeometryChange = onGeometryChange,
                         onImportLut = onImportLut,
                         onMarkSlowMotionIn = onMarkSlowMotionIn,
@@ -625,7 +662,7 @@ fun VideoEditorContent(
                 }
 
                 VideoEditorLayoutMode.Stacked -> {
-                    val previewWeight = if (maxWidth >= 600.dp) 1.7f else 1.25f
+                    val previewWeight = if (maxWidth >= 600.dp) 1.1f else 0.7f
                     Column(Modifier.fillMaxSize()) {
                         preview(Modifier.fillMaxWidth().weight(previewWeight))
                         editingPanel(Modifier.fillMaxWidth().weight(1f))
@@ -642,7 +679,7 @@ private fun VideoEditorTopBar(
     foldInfo: GalleryFoldInfo?,
     isExporting: Boolean,
     onBack: () -> Unit,
-    onSaveCopy: () -> Unit,
+    onExport: () -> Unit,
 ) {
     val topBar: @Composable (Modifier) -> Unit = { barModifier ->
         GalleryTopAppBar(
@@ -651,8 +688,8 @@ private fun VideoEditorTopBar(
             onBack = onBack,
             navigationContentDescription = stringResource(R.string.video_editor_cancel),
             actions = {
-                TextButton(onClick = onSaveCopy, enabled = !isExporting) {
-                    Text(stringResource(R.string.video_editor_save_copy))
+                TextButton(onClick = onExport, enabled = !isExporting) {
+                    Text(stringResource(R.string.video_editor_export))
                 }
             },
         )
@@ -830,8 +867,6 @@ private fun VideoEditingPanel(
     onRemoveMusic: () -> Unit,
     onMusicVolumeChange: (Float) -> Unit,
     onColorGradeChange: (VideoColorGrade) -> Unit,
-    onOutputQualityChange: (VideoOutputQuality) -> Unit,
-    onDynamicRangeChange: (VideoDynamicRange) -> Unit,
     onGeometryChange: (VideoGeometry) -> Unit,
     onImportLut: () -> Unit,
     onMarkSlowMotionIn: (Long) -> Unit,
@@ -863,8 +898,6 @@ private fun VideoEditingPanel(
             onRemoveMusic = onRemoveMusic,
             onMusicVolumeChange = onMusicVolumeChange,
             onColorGradeChange = onColorGradeChange,
-            onOutputQualityChange = onOutputQualityChange,
-            onDynamicRangeChange = onDynamicRangeChange,
             onGeometryChange = onGeometryChange,
             onImportLut = onImportLut,
             onMarkSlowMotionIn = onMarkSlowMotionIn,
@@ -874,11 +907,14 @@ private fun VideoEditingPanel(
             onDeleteSlowMotionSegment = onDeleteSlowMotionSegment,
             onCancelExport = onCancelExport,
             selectedTab = selectedTab,
-            onTabChange = onTabChange,
             annotationTool = annotationTool,
             onAnnotationToolChange = onAnnotationToolChange,
             annotationActions = annotationActions,
             modifier = Modifier.weight(1f),
+        )
+        VideoEditorToolBar(
+            selected = VideoEditorTool.fromIndex(selectedTab),
+            onSelect = { onTabChange(it.index) },
         )
     }
 }
@@ -1010,7 +1046,6 @@ private fun VideoPreview(
 
 private const val DefaultLandscapePreviewFraction = 0.45f
 private const val DefaultExpandedPreviewFraction = 0.5f
-private const val AnnotationTabIndex = 5
 private const val MinLandscapePreviewFraction = 0.2f
 private const val MaxLandscapePreviewFraction = 0.7f
 private const val MinExpandedPreviewFraction = 0.42f
@@ -1021,6 +1056,8 @@ private val WideColorControlsBreakpoint = 480.dp
 private val WideLogWheelsBreakpoint = 600.dp
 private const val VideoEditorPreviewTag = "video-editor-preview"
 private const val VideoEditorPanelTag = "video-editor-panel"
+private const val VideoExportSheetTag = "video-export-sheet"
+private const val VideoExportSaveCopyTag = "video-export-save-copy"
 private const val VideoExportProgressCardTag = "video-export-progress-card"
 private const val VideoExportProgressIndicatorTag = "video-export-progress-indicator"
 
@@ -1087,8 +1124,6 @@ private fun VideoControls(
     onRemoveMusic: () -> Unit,
     onMusicVolumeChange: (Float) -> Unit,
     onColorGradeChange: (VideoColorGrade) -> Unit,
-    onOutputQualityChange: (VideoOutputQuality) -> Unit,
-    onDynamicRangeChange: (VideoDynamicRange) -> Unit,
     onGeometryChange: (VideoGeometry) -> Unit,
     onImportLut: () -> Unit,
     onMarkSlowMotionIn: (Long) -> Unit,
@@ -1098,40 +1133,15 @@ private fun VideoControls(
     onDeleteSlowMotionSegment: (String) -> Unit,
     onCancelExport: () -> Unit,
     selectedTab: Int,
-    onTabChange: (Int) -> Unit,
     annotationTool: VideoAnnotationToolState,
     onAnnotationToolChange: (VideoAnnotationToolState) -> Unit,
     annotationActions: VideoAnnotationActions,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier.fillMaxWidth().padding(bottom = GallerySpacing.Sm)) {
-        GalleryExpressiveChoiceGroup(
-            labels = listOf(
-                stringResource(R.string.video_editor_speed),
-                stringResource(R.string.video_editor_audio),
-                stringResource(R.string.video_editor_music),
-                stringResource(R.string.video_editor_color),
-                stringResource(R.string.video_editor_transform),
-                stringResource(R.string.video_editor_draw),
-                stringResource(R.string.video_editor_export),
-            ),
-            selectedIndex = selectedTab,
-            onSelect = onTabChange,
-            icons = listOf(
-                GalleryIcons.Speed,
-                GalleryIcons.Volume,
-                GalleryIcons.Music,
-                GalleryIcons.Palette,
-                GalleryIcons.Crop,
-                GalleryIcons.Edit,
-                GalleryIcons.Edit,
-            ),
-            minimumItemWidth = 112.dp,
-            modifier = Modifier.padding(horizontal = GallerySpacing.Md, vertical = GallerySpacing.Sm),
-        )
+    Column(modifier.fillMaxWidth().padding(top = GallerySpacing.Xs)) {
         Box(Modifier.fillMaxWidth().weight(1f)) {
-            when (selectedTab) {
-                0 -> SlowMotionControls(
+            when (VideoEditorTool.fromIndex(selectedTab)) {
+                VideoEditorTool.Speed -> SlowMotionControls(
                     state = state,
                     currentMillis = currentMillis,
                     onSpeedChange = onSpeedChange,
@@ -1142,7 +1152,7 @@ private fun VideoControls(
                     onDelete = onDeleteSlowMotionSegment,
                     modifier = Modifier.fillMaxSize(),
                 )
-                1 -> Column(Modifier.fillMaxSize().padding(horizontal = GallerySpacing.Lg)) {
+                VideoEditorTool.Audio -> Column(Modifier.fillMaxSize().padding(horizontal = GallerySpacing.Lg)) {
                     Text(stringResource(R.string.video_editor_original_audio))
                     val audioDescription = stringResource(R.string.video_editor_audio_description)
                     Slider(
@@ -1152,7 +1162,7 @@ private fun VideoControls(
                         modifier = Modifier.fillMaxWidth().semantics { contentDescription = audioDescription },
                     )
                 }
-                2 -> Column(
+                VideoEditorTool.Music -> Column(
                     Modifier.fillMaxSize().padding(GallerySpacing.Md),
                     verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
                 ) {
@@ -1178,9 +1188,9 @@ private fun VideoControls(
                         }
                     }
                 }
-                3 -> ColorControls(state, onColorGradeChange, onImportLut, Modifier.fillMaxSize())
-                4 -> TransformControls(state.geometry, onGeometryChange, Modifier.fillMaxSize())
-                AnnotationTabIndex -> VideoAnnotationControls(
+                VideoEditorTool.Color -> ColorControls(state, onColorGradeChange, onImportLut, Modifier.fillMaxSize())
+                VideoEditorTool.Transform -> TransformControls(state.geometry, onGeometryChange, Modifier.fillMaxSize())
+                VideoEditorTool.Draw -> VideoAnnotationControls(
                     state = state,
                     currentMillis = currentMillis,
                     tool = annotationTool,
@@ -1195,12 +1205,6 @@ private fun VideoControls(
                     onAddKeyframe = annotationActions.addKeyframe,
                     onTrack = annotationActions.track,
                     onCancelTracking = annotationActions.cancelTracking,
-                    modifier = Modifier.fillMaxSize(),
-                )
-                6 -> ExportControls(
-                    state = state,
-                    onQualitySelected = onOutputQualityChange,
-                    onDynamicRangeSelected = onDynamicRangeChange,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -1660,6 +1664,43 @@ private fun GradeSlider(label: String, value: Float, range: ClosedFloatingPointR
             valueRange = range,
             modifier = Modifier.fillMaxWidth().semantics { contentDescription = label },
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun VideoExportSheet(
+    state: VideoEditorContentState,
+    onDismiss: () -> Unit,
+    onOutputQualityChange: (VideoOutputQuality) -> Unit,
+    onDynamicRangeChange: (VideoDynamicRange) -> Unit,
+    onSaveCopy: () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        // Open fully so the primary Save copy action is never hidden below a half-height sheet.
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        modifier = Modifier.testTag(VideoExportSheetTag),
+    ) {
+        Column(Modifier.fillMaxWidth().padding(bottom = GallerySpacing.Lg)) {
+            ExportControls(
+                state = state,
+                onQualitySelected = onOutputQualityChange,
+                onDynamicRangeSelected = onDynamicRangeChange,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            Button(
+                onClick = onSaveCopy,
+                enabled = !state.isExporting,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = GallerySpacing.Lg)
+                    .heightIn(min = 48.dp)
+                    .testTag(VideoExportSaveCopyTag),
+            ) {
+                Text(stringResource(R.string.video_editor_save_copy))
+            }
+        }
     }
 }
 

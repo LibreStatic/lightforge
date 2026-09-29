@@ -54,15 +54,18 @@ class VideoEditorContentDeviceTest {
                 )
             }
         }
-        compose.onNode(hasText(text(R.string.video_editor_save_copy))).assertIsDisplayed().performClick()
         compose.onNode(hasText(text(R.string.video_editor_speed))).performClick()
         compose.onNode(hasText("2.0×")).performClick()
         assertEquals(2f, speed)
+        // Save copy lives in the export sheet that the top bar's Export action opens.
+        compose.onNode(hasText(text(R.string.video_editor_export))).assertIsDisplayed().performClick()
+        compose.onNode(hasTestTag("video-export-sheet")).assertIsDisplayed()
+        compose.onNode(hasText(text(R.string.video_editor_save_copy))).assertIsDisplayed().performClick()
         assertEquals(1, saves)
     }
 
     @Test
-    fun topLevelToolsKeepReadableMinimumWidthOnCompactScreens() {
+    fun toolBarShowsEveryToolWithoutScrollingOnCompactScreens() {
         compose.setContent {
             LightforgeTheme {
                 VideoEditorContent(
@@ -82,17 +85,23 @@ class VideoEditorContentDeviceTest {
             }
         }
 
-        val minimumWidthPx = with(compose.density) { 112.dp.toPx() }
-        val speedWidth = compose.onNode(hasText(text(R.string.video_editor_speed)))
+        val rootWidthPx = compose.onNode(hasTestTag("video-editor-tool-bar"))
             .assertIsDisplayed()
             .fetchSemanticsNode().boundsInRoot.width
-        val audioWidth = compose.onNode(hasText(text(R.string.video_editor_audio)))
-            .assertIsDisplayed()
-            .fetchSemanticsNode().boundsInRoot.width
-
-        assertTrue("Tool labels must not be squeezed into clipped buttons", speedWidth >= minimumWidthPx - 1f)
-        assertTrue("Every visible tool keeps the same readable minimum", audioWidth >= minimumWidthPx - 1f)
-        compose.onNode(hasText(text(R.string.video_editor_export))).performScrollTo().assertIsDisplayed()
+        listOf(
+            R.string.video_editor_speed,
+            R.string.video_editor_audio,
+            R.string.video_editor_music,
+            R.string.video_editor_color,
+            R.string.video_editor_transform,
+            R.string.video_editor_draw,
+        ).forEach { label ->
+            // Every tool is on screen at once: fully inside the bar, no horizontal scrolling.
+            val bounds = compose.onNode(hasText(text(label)))
+                .assertIsDisplayed()
+                .fetchSemanticsNode().boundsInRoot
+            assertTrue("Tool label must not be clipped", bounds.left >= 0f && bounds.right <= rootWidthPx + 1f)
+        }
     }
 
     @Test
@@ -149,7 +158,7 @@ class VideoEditorContentDeviceTest {
             }
         }
 
-        compose.onNode(hasText(text(R.string.video_editor_export))).performScrollTo().performClick()
+        compose.onNode(hasText(text(R.string.video_editor_export))).performClick()
         compose.onNode(hasText(text(R.string.video_editor_dynamic_range))).assertIsDisplayed()
         compose.onNode(hasText(text(R.string.video_editor_dynamic_range_hlg))).performClick()
 

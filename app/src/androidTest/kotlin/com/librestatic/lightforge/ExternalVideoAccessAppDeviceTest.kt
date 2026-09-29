@@ -90,7 +90,6 @@ class ExternalVideoAccessAppDeviceTest {
             com.librestatic.lightforge.feature.videoeditor.R.string.video_editor_color,
             com.librestatic.lightforge.feature.videoeditor.R.string.video_editor_transform,
             com.librestatic.lightforge.feature.videoeditor.R.string.video_editor_draw,
-            com.librestatic.lightforge.feature.videoeditor.R.string.video_editor_export,
         ).map(context::getString)
         val shapes = listOf(
             com.librestatic.lightforge.feature.videoeditor.R.string.video_editor_annotation_freehand,

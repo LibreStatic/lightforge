@@ -160,4 +160,8 @@
     <string name="video_editor_annotation_color_black">Schwarz</string>
     <string name="video_editor_log_curve_only_note">Diese Einstellung linearisiert nur die LOG-Kurve; eine Konvertierung des Kamera-Farbraums wird nicht automatisch angewendet.</string>
     <string name="video_editor_lut_unavailable">Die ausgewählte LUT fehlt oder ist beschädigt. Wähle oder importiere sie erneut.</string>
+    <string name="video_editor_discard_title">Änderungen verwerfen?</string>
+    <string name="video_editor_discard_message">Deine Änderungen wurden noch nicht als Kopie gespeichert.</string>
+    <string name="video_editor_discard_confirm">Verwerfen</string>
+    <string name="video_editor_keep_editing">Weiter bearbeiten</string>
 </resources>
