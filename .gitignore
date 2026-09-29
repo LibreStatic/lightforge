@@ -38,3 +38,7 @@ docs/evidence/**/maps-renderer-ab/
 docs/evidence/*
 !docs/evidence/generated/
 !docs/evidence/M0_SPIKE_REPORT.md
+
+# Rendered promo media (hundreds of MB); regenerate with docs/promo/render.mjs and soundtrack.py.
+docs/promo/*.mp4
+docs/promo/*.wav
