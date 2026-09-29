@@ -29,6 +29,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
 
     private val revisionKey = longPreferencesKey("portable.revision")
     private val receiptsKey = stringSetPreferencesKey("portable.receipts")
+    private val onboardingKey = booleanPreferencesKey("onboarding.completed")
 
     private fun advance(target: MutablePreferences): Long =
         Math.addExact(target[revisionKey] ?: 0L, 1L).also { target[revisionKey] = it }
@@ -153,6 +154,32 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         }
     }
 
+    /**
+     * Device-local first-run flag, deliberately outside [GallerySettings] so portable exports,
+     * imports and resets never replay or clear it. Null until [resolveOnboarding] runs.
+     */
+    val onboardingCompleted: Flow<Boolean?> =
+        store.data
+            .catch { emit(androidx.datastore.preferences.core.emptyPreferences()) }
+            .map { it[onboardingKey] }
+
+    /**
+     * Settles the first-run flag once: an install that already stored any setting predates the
+     * wizard and is treated as completed, so upgrades never see it. Call before other writes.
+     */
+    suspend fun resolveOnboarding(): Boolean {
+        var completed = false
+        store.edit { target ->
+            completed = target[onboardingKey] ?: target.asMap().isNotEmpty()
+            target[onboardingKey] = completed
+        }
+        return completed
+    }
+
+    suspend fun setOnboardingCompleted(completed: Boolean) {
+        store.edit { it[onboardingKey] = completed }
+    }
+
     suspend fun reset() {
         // Reset known settings only; atomic import receipts and future unrelated keys survive.
         store.edit { target ->
@@ -246,6 +273,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                             p[Keys.LibrarySort]?.enumOrDefault(LibrarySort.DateTaken)
                                 ?: LibrarySort.DateTaken,
                         ascending = p[Keys.LibraryAscending] ?: false,
+                        albumSidePanelOpen = p[Keys.AlbumSidePanelOpen],
                         collectionOrder = runCatching { CollectionLayoutPolicy.decode(p[Keys.CollectionOrder].orEmpty()) }.getOrDefault(emptyList()),
                         hiddenCollections = runCatching { CollectionLayoutPolicy.decode(p[Keys.HiddenCollections].orEmpty()).toSet() }.getOrDefault(emptySet()),
                         filter =
@@ -325,6 +353,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
     private fun encode(p: MutablePreferences, s: GallerySettings) {
         p[Keys.LibrarySort] = s.library.sort.name
         p[Keys.LibraryAscending] = s.library.ascending
+        s.library.albumSidePanelOpen?.let { p[Keys.AlbumSidePanelOpen] = it } ?: p.remove(Keys.AlbumSidePanelOpen)
         p[Keys.LibraryFilter] = s.library.filter.name
         p[Keys.LibraryGrouping] = s.library.grouping.name
         p[Keys.CollectionOrder] = s.library.collectionOrder.joinToString(",")
@@ -374,6 +403,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                 JSONObject().apply {
                     put("sort", library.sort.name)
                     put("ascending", library.ascending)
+                    library.albumSidePanelOpen?.let { put("albumSidePanelOpen", it) }
                     put("filter", library.filter.name)
                     put("grouping", library.grouping.name)
                     put("collectionOrder", library.collectionOrder.joinToString(","))
@@ -470,6 +500,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                 LibrarySettings(
                     sort = l.optString("sort").enumOrDefault(LibrarySort.DateTaken),
                     ascending = l.bool("ascending", false),
+                    albumSidePanelOpen = if (l.has("albumSidePanelOpen")) l.optBoolean("albumSidePanelOpen") else null,
                     filter = l.optString("filter").enumOrDefault(LibraryFilter.All),
                     grouping = l.optString("grouping").enumOrDefault(LibraryGrouping.Day),
                     collectionOrder = CollectionLayoutPolicy.decode(l.optString("collectionOrder", "")),
@@ -543,6 +574,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
     private object Keys {
         val LibrarySort = stringPreferencesKey("library.sort")
         val LibraryAscending = booleanPreferencesKey("library.ascending")
+        val AlbumSidePanelOpen = booleanPreferencesKey("library.album_side_panel_open")
         val LibraryFilter = stringPreferencesKey("library.filter")
         val LibraryGrouping = stringPreferencesKey("library.grouping")
         val CollectionOrder = stringPreferencesKey("library.collectionOrder")

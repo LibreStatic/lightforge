@@ -31,6 +31,8 @@ data class LibrarySettings(
     val folderRules: Map<FolderSelectionTarget, Boolean> = emptyMap(),
     val collectionOrder: List<String> = emptyList(),
     val hiddenCollections: Set<String> = emptySet(),
+    /** Album side panel visibility; null follows the window-size default. */
+    val albumSidePanelOpen: Boolean? = null,
 )
 
 sealed interface FolderSelectionTarget : Serializable {

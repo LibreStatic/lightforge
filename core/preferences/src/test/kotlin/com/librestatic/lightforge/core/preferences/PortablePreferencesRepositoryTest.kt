@@ -227,4 +227,18 @@ class PortablePreferencesRepositoryTest {
         assertTrue(repo.apply(bytes, first, first.availableGroups).alreadyApplied)
         assertFalse(repo.settings.first().playback.loopVideos)
     }
+
+    @Test
+    fun albumSidePanelChoicePersistsAndRoundTripsThroughJson() = test { repo, _ ->
+        assertNull(repo.settings.first().library.albumSidePanelOpen)
+        repo.update { it.copy(library = it.library.copy(albumSidePanelOpen = false)) }
+        assertEquals(false, repo.settings.first().library.albumSidePanelOpen)
+        val exported = repo.exportJson()
+        repo.reset()
+        assertNull(repo.settings.first().library.albumSidePanelOpen)
+        repo.importJson(exported)
+        assertEquals(false, repo.settings.first().library.albumSidePanelOpen)
+        repo.update { it.copy(library = it.library.copy(albumSidePanelOpen = null)) }
+        assertNull(repo.settings.first().library.albumSidePanelOpen)
+    }
 }
