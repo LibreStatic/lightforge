@@ -43,6 +43,74 @@ class VideoColorGradeEffectsTest {
     }
 
     @Test
+    fun shadowsSliderLiftsDarkTonesWithoutMovingBrightOnes() {
+        val dark = floatArrayOf(0.1f, 0.1f, 0.1f)
+        val bright = floatArrayOf(0.9f, 0.9f, 0.9f)
+        val neutral = VideoColorGrade()
+        val lifted = neutral.copy(shadows = 0.8f)
+
+        assertTrue(VideoColorGradeEffects.grade(dark, lifted, null)[0] - VideoColorGradeEffects.grade(dark, neutral, null)[0] > 0.05f)
+        assertEquals(
+            VideoColorGradeEffects.grade(bright, neutral, null)[0],
+            VideoColorGradeEffects.grade(bright, lifted, null)[0],
+            0.0001f,
+        )
+    }
+
+    @Test
+    fun highlightsSliderRecoversBrightTonesWithoutMovingDarkOnes() {
+        val dark = floatArrayOf(0.05f, 0.05f, 0.05f)
+        val bright = floatArrayOf(0.85f, 0.85f, 0.85f)
+        val neutral = VideoColorGrade()
+        val recovered = neutral.copy(highlights = -0.8f)
+
+        assertTrue(VideoColorGradeEffects.grade(bright, neutral, null)[0] - VideoColorGradeEffects.grade(bright, recovered, null)[0] > 0.05f)
+        assertEquals(
+            VideoColorGradeEffects.grade(dark, neutral, null)[0],
+            VideoColorGradeEffects.grade(dark, recovered, null)[0],
+            0.0001f,
+        )
+    }
+
+    @Test
+    fun tonalRangeGainIsNeutralAtZeroAndMonotonicInTheSlider() {
+        assertEquals(1f, VideoColorGradeEffects.tonalRangeGain(0.5f, 0f, 0f), 0f)
+        assertTrue(
+            VideoColorGradeEffects.tonalRangeGain(0.05f, 0.5f, 0f) >
+                VideoColorGradeEffects.tonalRangeGain(0.05f, 0.1f, 0f),
+        )
+    }
+
+    @Test
+    fun vibranceBoostsMutedColorsMoreThanVividOnes() {
+        val muted = floatArrayOf(0.55f, 0.5f, 0.45f)
+        val vivid = floatArrayOf(0.95f, 0.1f, 0.05f)
+
+        fun chroma(rgb: FloatArray) = rgb.max() - rgb.min()
+        val mutedGain = chroma(VideoColorGradeEffects.applyVibrance(muted, 1f)) / chroma(muted)
+        val vividGain = chroma(VideoColorGradeEffects.applyVibrance(vivid, 1f)) / chroma(vivid)
+
+        assertTrue("Muted colors gain more chroma than vivid ones", mutedGain > vividGain)
+        assertArrayEquals(muted, VideoColorGradeEffects.applyVibrance(muted, 0f), 0.00001f)
+    }
+
+    @Test
+    fun newSlidersAreVisibleInThePreviewCubeAndIgnoredWhenBypassed() {
+        val neutral = VideoColorGradeEffects.buildPreviewCube(VideoColorGrade(), size = 5)
+        val graded = VideoColorGrade(shadows = 0.6f, highlights = -0.4f, vibrance = 0.7f)
+
+        assertTrue(neutral[1][1][1] != VideoColorGradeEffects.buildPreviewCube(graded, size = 5)[1][1][1])
+        assertTrue(neutral[4][4][4] != VideoColorGradeEffects.buildPreviewCube(graded, size = 5)[4][4][4])
+        assertEquals(neutral[1][1][1], VideoColorGradeEffects.buildPreviewCube(graded.copy(bypass = true), size = 5)[1][1][1])
+    }
+
+    @Test
+    fun neutralNewSlidersKeepTheGradeAnIdentity() {
+        assertTrue(!VideoColorGrade().hasChanges)
+        assertTrue(VideoColorGrade(vibrance = 0.1f).hasChanges)
+    }
+
+    @Test
     fun logWheelChangesArePresentInTheRealtimePreviewCube() {
         val neutral = VideoColorGradeEffects.buildPreviewCube(VideoColorGrade(), size = 5)
         val shadows = VideoColorGradeEffects.buildPreviewCube(

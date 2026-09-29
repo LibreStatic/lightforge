@@ -30,6 +30,10 @@ object VideoEditRecipeCodec {
             setProperty("contrast", grade.contrast.toString())
             setProperty("pivot", grade.pivot.toString())
             setProperty("saturation", grade.saturation.toString())
+            // Written only when set, so recipes and restore snapshots without them stay canonical.
+            if (grade.highlights != 0f) setProperty("highlights", grade.highlights.toString())
+            if (grade.shadows != 0f) setProperty("shadows", grade.shadows.toString())
+            if (grade.vibrance != 0f) setProperty("vibrance", grade.vibrance.toString())
             setProperty("bypass", grade.bypass.toString())
             setProperty("look", grade.lut.builtIn.name)
             grade.lut.customId?.let { setProperty("customLut", it.toString()) }
@@ -87,6 +91,9 @@ object VideoEditRecipeCodec {
             contrast = floatValue(properties, "contrast", 0f),
             pivot = floatValue(properties, "pivot", 0.42f),
             saturation = floatValue(properties, "saturation", 0f),
+            highlights = floatValue(properties, "highlights", 0f),
+            shadows = floatValue(properties, "shadows", 0f),
+            vibrance = floatValue(properties, "vibrance", 0f),
             logWheels = LogWheels(wheel(0), wheel(4), wheel(8)),
             hueBands = bands,
             lut = LutReference(

@@ -70,7 +70,7 @@
     <string name="video_editor_copy_saved">Copy saved</string>
     <string name="video_editor_encoder_fallback">Copy saved with an encoder-compatible fallback</string>
     <string name="video_editor_save_failed">Could not save copy</string>
-    <string name="video_editor_bypass_grade">Bypass grade</string>
+    <string name="video_editor_bypass_grade">Show original</string>
     <string name="video_editor_reset_grade">Reset grade</string>
     <string name="video_editor_play">Play preview</string>
     <string name="video_editor_pause">Pause preview</string>
@@ -181,4 +181,15 @@
     <string name="video_editor_trim_end_description">Trim end, %1$s</string>
     <string name="video_editor_undo_edit">Undo</string>
     <string name="video_editor_redo_edit">Redo</string>
+    <string name="video_editor_looks">Looks</string>
+    <string name="video_editor_look_intensity">Look intensity</string>
+    <string name="video_editor_light">Light</string>
+    <string name="video_editor_vibrance">Vibrance</string>
+    <string name="video_editor_reset">Reset</string>
+    <string name="video_editor_advanced_color">Advanced color</string>
+    <string name="video_editor_advanced_color_summary">Input profile, log wheels, color bands</string>
+    <string name="video_editor_advanced_profile">Profile</string>
+    <string name="video_editor_advanced_wheels">Wheels</string>
+    <string name="video_editor_advanced_bands">Bands</string>
+    <string name="video_editor_back_to_color">Back to color</string>
 </resources>

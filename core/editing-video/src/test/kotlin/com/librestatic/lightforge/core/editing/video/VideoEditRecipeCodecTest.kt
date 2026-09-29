@@ -15,6 +15,9 @@ class VideoEditRecipeCodecTest {
             contrast = 0.3f,
             pivot = 0.45f,
             saturation = 0.15f,
+            highlights = -0.35f,
+            shadows = 0.4f,
+            vibrance = 0.25f,
             logWheels = LogWheels(
                 shadows = LogWheel(red = 0.1f, level = -0.2f),
                 midtones = LogWheel(green = 0.15f),
@@ -78,6 +81,19 @@ class VideoEditRecipeCodecTest {
         )
 
         assertEquals(recipe, VideoEditRecipeCodec.decode(VideoEditRecipeCodec.encode(recipe)))
+    }
+
+    @Test
+    fun recipesWithoutToneSlidersDecodeToZeroAndDoNotWriteThem() {
+        val decoded = VideoEditRecipeCodec.decode("version=5\nexposure=0.5\n")
+        assertEquals(0f, decoded.colorGrade.highlights)
+        assertEquals(0f, decoded.colorGrade.shadows)
+        assertEquals(0f, decoded.colorGrade.vibrance)
+
+        val encoded = VideoEditRecipeCodec.encode(decoded)
+        assertEquals(false, encoded.contains("highlights"))
+        assertEquals(false, encoded.contains("shadows"))
+        assertEquals(false, encoded.contains("vibrance"))
     }
 
     @Test(expected = IllegalArgumentException::class)

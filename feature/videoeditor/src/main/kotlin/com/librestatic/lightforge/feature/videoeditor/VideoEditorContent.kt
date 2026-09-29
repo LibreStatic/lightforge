@@ -127,7 +127,7 @@ import kotlinx.coroutines.withContext
 private const val PreviewCubeSize = 17
 private const val FilmstripFrameCount = 8
 private const val GeometryPreviewDebounceMillis = 50L
-private val EditorChipModifier = Modifier.widthIn(min = 80.dp).heightIn(min = 48.dp)
+internal val EditorChipModifier = Modifier.widthIn(min = 80.dp).heightIn(min = 48.dp)
 
 private data class VideoGradePreviewRequest(
     val grade: VideoColorGrade,
@@ -697,7 +697,7 @@ fun VideoEditorContent(
                 }
 
                 VideoEditorLayoutMode.Stacked -> {
-                    val previewWeight = if (maxWidth >= 600.dp) 1.1f else 0.7f
+                    val previewWeight = if (maxWidth >= 600.dp) 1.1f else 0.55f
                     Column(Modifier.fillMaxSize()) {
                         preview(Modifier.fillMaxWidth().weight(previewWeight))
                         editingPanel(Modifier.fillMaxWidth().weight(1f))
@@ -934,6 +934,7 @@ private fun VideoEditingPanel(
         )
         VideoControls(
             state = state,
+            thumbnailFrame = frames?.let { it.getOrNull(it.size / 2) },
             currentMillis = currentMillis,
             onSpeedChange = onSpeedChange,
             onOriginalVolumeChange = onOriginalVolumeChange,
@@ -1095,8 +1096,8 @@ private const val MinExpandedPreviewFraction = 0.42f
 private const val MaxExpandedPreviewFraction = 0.68f
 private const val ExpandedSidePanelAspectRatio = 1.2f
 private val ResizeHandleThickness = 48.dp
-private val WideColorControlsBreakpoint = 480.dp
-private val WideLogWheelsBreakpoint = 600.dp
+internal val WideColorControlsBreakpoint = 480.dp
+internal val WideLogWheelsBreakpoint = 600.dp
 private const val VideoEditorPreviewTag = "video-editor-preview"
 private const val VideoEditorPanelTag = "video-editor-panel"
 private const val VideoExportSheetTag = "video-export-sheet"
@@ -1107,6 +1108,7 @@ private const val VideoExportProgressIndicatorTag = "video-export-progress-indic
 @Composable
 private fun VideoControls(
     state: VideoEditorContentState,
+    thumbnailFrame: android.graphics.Bitmap?,
     currentMillis: Long,
     onSpeedChange: (Float) -> Unit,
     onOriginalVolumeChange: (Float) -> Unit,
@@ -1178,7 +1180,7 @@ private fun VideoControls(
                         }
                     }
                 }
-                VideoEditorTool.Color -> ColorControls(state, onColorGradeChange, onImportLut, Modifier.fillMaxSize())
+                VideoEditorTool.Color -> ColorControls(state, thumbnailFrame, onColorGradeChange, onImportLut, Modifier.fillMaxSize())
                 VideoEditorTool.Transform -> TransformControls(state.geometry, onGeometryChange, Modifier.fillMaxSize())
                 VideoEditorTool.Draw -> VideoAnnotationControls(
                     state = state,
@@ -1400,210 +1402,7 @@ private fun SlowMotionControls(
 }
 
 @Composable
-private fun ColorControls(
-    state: VideoEditorContentState,
-    onChange: (VideoColorGrade) -> Unit,
-    onImportLut: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val grade = state.colorGrade
-    var palette by rememberSaveable { mutableIntStateOf(0) }
-    var selectedBand by rememberSaveable { mutableIntStateOf(0) }
-    BoxWithConstraints(modifier.fillMaxSize()) {
-        val useWideColorLayout = maxWidth >= WideColorControlsBreakpoint
-        val useWideLogLayout = maxWidth >= WideLogWheelsBreakpoint
-        Column(
-            Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(GallerySpacing.Md),
-            verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
-        ) {
-        state.logDetectionMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            FilterChip(
-                selected = grade.bypass,
-                onClick = { onChange(grade.copy(bypass = !grade.bypass)) },
-                label = { Text(stringResource(R.string.video_editor_bypass_grade)) },
-                modifier = EditorChipModifier,
-            )
-            TextButton(onClick = {
-                onChange(VideoColorGrade(
-                    inputProfile = grade.inputProfile,
-                    profileWasAutoDetected = grade.profileWasAutoDetected,
-                ))
-            }) { Text(stringResource(R.string.video_editor_reset_grade)) }
-        }
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf(
-                R.string.video_editor_camera to 0,
-                R.string.video_editor_primaries to 1,
-                R.string.video_editor_log_wheels to 2,
-                R.string.video_editor_color_bands to 3,
-                R.string.video_editor_luts to 4,
-            ).forEach { (label, index) ->
-                FilterChip(
-                    selected = palette == index,
-                    onClick = { palette = index },
-                    label = { Text(stringResource(label)) },
-                    modifier = EditorChipModifier,
-                )
-            }
-        }
-        when (palette) {
-            0 -> {
-                Text(stringResource(R.string.video_editor_input_profile), style = MaterialTheme.typography.titleSmall)
-                Text(
-                    stringResource(R.string.video_editor_log_curve_only_note),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                val profileChip: @Composable (LogInputProfile) -> Unit = { profile ->
-                    FilterChip(
-                        selected = grade.inputProfile == profile,
-                        onClick = {
-                            onChange(
-                                grade.copy(
-                                    inputProfile = profile,
-                                    profileWasAutoDetected = false,
-                                ),
-                            )
-                        },
-                        label = { Text(stringResource(profile.labelResource())) },
-                        modifier = EditorChipModifier,
-                    )
-                }
-                if (useWideColorLayout) {
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
-                    ) {
-                        LogInputProfile.entries.forEach { profile -> profileChip(profile) }
-                    }
-                } else {
-                    Row(
-                        Modifier.horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        LogInputProfile.entries.forEach { profile -> profileChip(profile) }
-                    }
-                }
-            }
-            1 -> {
-                val firstColumn: @Composable () -> Unit = {
-                    GradeSlider(stringResource(R.string.video_editor_exposure), grade.exposureEv, -5f..5f) { onChange(grade.copy(exposureEv = it)) }
-                    GradeSlider(stringResource(R.string.video_editor_temperature), grade.temperature, -1f..1f) { onChange(grade.copy(temperature = it)) }
-                    GradeSlider(stringResource(R.string.video_editor_tint), grade.tint, -1f..1f) { onChange(grade.copy(tint = it)) }
-                }
-                val secondColumn: @Composable () -> Unit = {
-                    GradeSlider(stringResource(R.string.video_editor_contrast), grade.contrast, -1f..1f) { onChange(grade.copy(contrast = it)) }
-                    GradeSlider(stringResource(R.string.video_editor_pivot), grade.pivot, 0.05f..0.95f) { onChange(grade.copy(pivot = it)) }
-                    GradeSlider(stringResource(R.string.video_editor_saturation), grade.saturation, -1f..1f) { onChange(grade.copy(saturation = it)) }
-                }
-                if (useWideColorLayout) {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Lg),
-                    ) {
-                        Column(Modifier.weight(1f), content = { firstColumn() })
-                        Column(Modifier.weight(1f), content = { secondColumn() })
-                    }
-                } else {
-                    firstColumn()
-                    secondColumn()
-                }
-            }
-            2 -> {
-                val wheelControls: @Composable (Modifier, Int, LogWheel, (LogWheel) -> Unit) -> Unit =
-                    { wheelModifier, label, wheel, update ->
-                        LogWheelControls(
-                            label = label,
-                            wheel = wheel,
-                            onChange = update,
-                            modifier = wheelModifier,
-                        )
-                    }
-                if (useWideLogLayout) {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
-                    ) {
-                        wheelControls(Modifier.weight(1f), R.string.video_editor_shadows, grade.logWheels.shadows) {
-                            onChange(grade.copy(logWheels = grade.logWheels.copy(shadows = it)))
-                        }
-                        wheelControls(Modifier.weight(1f), R.string.video_editor_midtones, grade.logWheels.midtones) {
-                            onChange(grade.copy(logWheels = grade.logWheels.copy(midtones = it)))
-                        }
-                        wheelControls(Modifier.weight(1f), R.string.video_editor_highlights, grade.logWheels.highlights) {
-                            onChange(grade.copy(logWheels = grade.logWheels.copy(highlights = it)))
-                        }
-                    }
-                } else {
-                    Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
-                        wheelControls(Modifier.fillMaxWidth(), R.string.video_editor_shadows, grade.logWheels.shadows) {
-                            onChange(grade.copy(logWheels = grade.logWheels.copy(shadows = it)))
-                        }
-                        wheelControls(Modifier.fillMaxWidth(), R.string.video_editor_midtones, grade.logWheels.midtones) {
-                            onChange(grade.copy(logWheels = grade.logWheels.copy(midtones = it)))
-                        }
-                        wheelControls(Modifier.fillMaxWidth(), R.string.video_editor_highlights, grade.logWheels.highlights) {
-                            onChange(grade.copy(logWheels = grade.logWheels.copy(highlights = it)))
-                        }
-                    }
-                }
-            }
-            3 -> {
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    HueBand.entries.forEachIndexed { index, band ->
-                        FilterChip(
-                            selected = selectedBand == index,
-                            onClick = { selectedBand = index },
-                            label = { Text(stringResource(band.labelResource())) },
-                            modifier = EditorChipModifier,
-                        )
-                    }
-                }
-                val adjustment = grade.hueBands.first { it.band == HueBand.entries[selectedBand] }
-                GradeSlider(stringResource(R.string.video_editor_hue), adjustment.hueShiftDegrees, -45f..45f) { value ->
-                    onChange(grade.copy(hueBands = grade.hueBands.map { if (it.band == adjustment.band) it.copy(hueShiftDegrees = value) else it }))
-                }
-                GradeSlider(stringResource(R.string.video_editor_saturation), adjustment.saturation, -1f..1f) { value ->
-                    onChange(grade.copy(hueBands = grade.hueBands.map { if (it.band == adjustment.band) it.copy(saturation = value) else it }))
-                }
-                GradeSlider(stringResource(R.string.video_editor_luminance), adjustment.luminance, -1f..1f) { value ->
-                    onChange(grade.copy(hueBands = grade.hueBands.map { if (it.band == adjustment.band) it.copy(luminance = value) else it }))
-                }
-            }
-            4 -> {
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    BuiltInLook.entries.forEach { look ->
-                        FilterChip(
-                            selected = grade.lut.builtIn == look && grade.lut.customId == null,
-                            onClick = { onChange(grade.copy(lut = LutReference(builtIn = look, intensity = grade.lut.intensity))) },
-                            label = { Text(stringResource(look.labelResource())) },
-                            modifier = EditorChipModifier,
-                        )
-                    }
-                    state.customLuts.forEach { lut ->
-                        FilterChip(
-                            selected = grade.lut.customId == lut.id,
-                            onClick = { onChange(grade.copy(lut = LutReference(customId = lut.id, intensity = grade.lut.intensity))) },
-                            label = { Text(lut.displayName) },
-                            modifier = EditorChipModifier,
-                        )
-                    }
-                }
-                GradeSlider(stringResource(R.string.video_editor_lut_intensity), grade.lut.intensity, 0f..1f) {
-                    onChange(grade.copy(lut = grade.lut.copy(intensity = it)))
-                }
-                OutlinedButton(onClick = onImportLut) { Text(stringResource(R.string.video_editor_import_lut)) }
-            }
-        }
-    }
-    }
-}
-
-@Composable
-private fun LogWheelControls(
+internal fun LogWheelControls(
     @StringRes label: Int,
     wheel: LogWheel,
     onChange: (LogWheel) -> Unit,
@@ -1637,7 +1436,7 @@ private fun LogWheelControls(
 }
 
 @Composable
-private fun GradeSlider(label: String, value: Float, range: ClosedFloatingPointRange<Float>, onChange: (Float) -> Unit) {
+internal fun GradeSlider(label: String, value: Float, range: ClosedFloatingPointRange<Float>, onChange: (Float) -> Unit) {
     var liveValue by remember(label) { mutableFloatStateOf(value) }
     LaunchedEffect(value) { liveValue = value }
     Column {
@@ -1849,7 +1648,7 @@ private fun formatMillis(value: Long): String {
 }
 
 @StringRes
-private fun HueBand.labelResource(): Int = when (this) {
+internal fun HueBand.labelResource(): Int = when (this) {
     HueBand.Red -> R.string.video_editor_band_red
     HueBand.Orange -> R.string.video_editor_band_orange
     HueBand.Yellow -> R.string.video_editor_band_yellow
@@ -1861,7 +1660,7 @@ private fun HueBand.labelResource(): Int = when (this) {
 }
 
 @StringRes
-private fun BuiltInLook.labelResource(): Int = when (this) {
+internal fun BuiltInLook.labelResource(): Int = when (this) {
     BuiltInLook.None -> R.string.video_editor_look_none
     BuiltInLook.Clean709 -> R.string.video_editor_look_clean
     BuiltInLook.WarmFilm -> R.string.video_editor_look_warm

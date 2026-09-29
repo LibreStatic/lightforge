@@ -59,7 +59,7 @@
     <string name="video_editor_copy_saved">Copia salvata</string>
     <string name="video_editor_encoder_fallback">Copia salvata con un’alternativa compatibile con il codificatore</string>
     <string name="video_editor_save_failed">Impossibile salvare la copia</string>
-    <string name="video_editor_bypass_grade">Escludi correzione</string>
+    <string name="video_editor_bypass_grade">Mostra originale</string>
     <string name="video_editor_reset_grade">Reimposta correzione</string>
     <string name="video_editor_play">Riproduci anteprima</string>
     <string name="video_editor_pause">Metti in pausa l’anteprima</string>
@@ -170,4 +170,15 @@
     <string name="video_editor_trim_end_description">Fine del taglio, %1$s</string>
     <string name="video_editor_undo_edit">Annulla</string>
     <string name="video_editor_redo_edit">Ripeti</string>
+    <string name="video_editor_looks">Look</string>
+    <string name="video_editor_look_intensity">Intensità del look</string>
+    <string name="video_editor_light">Luce</string>
+    <string name="video_editor_vibrance">Vividezza</string>
+    <string name="video_editor_reset">Ripristina</string>
+    <string name="video_editor_advanced_color">Colore avanzato</string>
+    <string name="video_editor_advanced_color_summary">Profilo di ingresso, ruote log, bande colore</string>
+    <string name="video_editor_advanced_profile">Profilo</string>
+    <string name="video_editor_advanced_wheels">Ruote</string>
+    <string name="video_editor_advanced_bands">Bande</string>
+    <string name="video_editor_back_to_color">Torna a colore</string>
 </resources>

@@ -194,7 +194,6 @@ class VideoEditorContentDeviceTest {
         }
 
         compose.onNode(hasText(text(R.string.video_editor_color))).performClick()
-        compose.onNode(hasText(text(R.string.video_editor_primaries))).performClick()
         compose.onNode(hasContentDescription(text(R.string.video_editor_exposure))).performSemanticsAction(
             SemanticsActions.SetProgress,
         ) { setProgress ->
@@ -207,9 +206,60 @@ class VideoEditorContentDeviceTest {
             setProgress(-0.5f)
         }
 
+        compose.onNode(hasContentDescription(text(R.string.video_editor_highlights))).performScrollTo().performSemanticsAction(
+            SemanticsActions.SetProgress,
+        ) { it(-0.4f) }
+        compose.onNode(hasContentDescription(text(R.string.video_editor_vibrance))).performScrollTo().performSemanticsAction(
+            SemanticsActions.SetProgress,
+        ) { it(0.5f) }
+
         assertEquals(2f, adjustedExposure)
         assertEquals(adjustedExposure, state.colorGrade.exposureEv)
         assertTrue(state.colorGrade.temperature < 0f)
+        // The new tone sliders write their own fields and leave the earlier edits untouched.
+        assertEquals(-0.4f, state.colorGrade.highlights, 0.0001f)
+        assertEquals(0.5f, state.colorGrade.vibrance, 0.0001f)
+        assertEquals(2f, state.colorGrade.exposureEv)
+    }
+
+    @Test
+    fun resettingAGroupOnlyClearsThatGroup() {
+        var state by mutableStateOf(
+            VideoEditorContentState(
+                durationMillis = 18_000,
+                trimEndMillis = 18_000,
+                colorGrade = com.librestatic.lightforge.core.editing.video.VideoColorGrade(
+                    exposureEv = 1f, shadows = 0.3f, temperature = 0.2f, vibrance = 0.4f,
+                ),
+            ),
+        )
+        compose.setContent {
+            LightforgeTheme {
+                VideoEditorContent(
+                    sessionId = "device-video-editor",
+                    state = state,
+                    controller = null,
+                    onBack = {},
+                    onSaveCopy = {},
+                    onSpeedChange = {},
+                    onOriginalVolumeChange = {},
+                    onChooseMusic = {},
+                    onRemoveMusic = {},
+                    onSeek = {},
+                    onTrimChange = { _, _ -> },
+                    onColorGradeChange = { grade -> state = state.copy(colorGrade = grade) },
+                )
+            }
+        }
+
+        compose.onNode(hasText(text(R.string.video_editor_color))).performClick()
+        // The first Reset button belongs to the Light group.
+        compose.onAllNodes(hasText(text(R.string.video_editor_reset)))[0].performScrollTo().performClick()
+
+        assertEquals(0f, state.colorGrade.exposureEv)
+        assertEquals(0f, state.colorGrade.shadows)
+        assertEquals(0.2f, state.colorGrade.temperature, 0.0001f)
+        assertEquals(0.4f, state.colorGrade.vibrance, 0.0001f)
     }
 
     @Test
@@ -393,10 +443,13 @@ class VideoEditorContentDeviceTest {
         }
 
         compose.onNode(hasText(text(R.string.video_editor_color))).performClick()
-        compose.onNode(hasText(text(R.string.video_editor_log_wheels))).performClick()
+        compose.onNode(hasText(text(R.string.video_editor_advanced_color))).performScrollTo().performClick()
+        compose.onNode(hasText(text(R.string.video_editor_advanced_wheels))).performClick()
         restoration.emulateSavedInstanceStateRestore()
 
+        // Both the Advanced screen and its Wheels section come back after recreation.
         compose.onNode(hasText(text(R.string.video_editor_shadows))).assertExists()
+        compose.onNode(hasText(text(R.string.video_editor_advanced_color_summary))).assertDoesNotExist()
     }
 
     @Test

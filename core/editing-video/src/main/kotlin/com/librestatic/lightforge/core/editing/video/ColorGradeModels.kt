@@ -80,11 +80,17 @@ data class VideoColorGrade(
     val hueBands: List<HueBandAdjustment> = HueBand.entries.map(::HueBandAdjustment),
     val lut: LutReference = LutReference(),
     val bypass: Boolean = false,
+    /** Tonal-range gain in stops-like units: positive brightens, negative recovers. */
+    val highlights: Float = 0f,
+    val shadows: Float = 0f,
+    /** Saturation boost weighted toward muted colors, so vivid ones do not clip. */
+    val vibrance: Float = 0f,
 ) : Serializable {
     init {
         require(exposureEv in -5f..5f)
         require(temperature in -1f..1f && tint in -1f..1f)
         require(contrast in -1f..1f && pivot in 0.05f..0.95f && saturation in -1f..1f)
+        require(highlights in -1f..1f && shadows in -1f..1f && vibrance in -1f..1f)
         require(hueBands.map(HueBandAdjustment::band) == HueBand.entries) {
             "Hue adjustments must contain every band in canonical order"
         }

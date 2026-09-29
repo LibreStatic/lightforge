@@ -59,7 +59,7 @@
     <string name="video_editor_copy_saved">Copie enregistrée</string>
     <string name="video_editor_encoder_fallback">Copie enregistrée avec une solution compatible avec l’encodeur</string>
     <string name="video_editor_save_failed">Impossible d’enregistrer la copie</string>
-    <string name="video_editor_bypass_grade">Ignorer l’étalonnage</string>
+    <string name="video_editor_bypass_grade">Voir l’original</string>
     <string name="video_editor_reset_grade">Réinitialiser l’étalonnage</string>
     <string name="video_editor_play">Lire l’aperçu</string>
     <string name="video_editor_pause">Mettre l’aperçu en pause</string>
@@ -170,4 +170,15 @@
     <string name="video_editor_trim_end_description">Fin du rognage, %1$s</string>
     <string name="video_editor_undo_edit">Annuler</string>
     <string name="video_editor_redo_edit">Rétablir</string>
+    <string name="video_editor_looks">Styles</string>
+    <string name="video_editor_look_intensity">Intensité du style</string>
+    <string name="video_editor_light">Lumière</string>
+    <string name="video_editor_vibrance">Vibrance</string>
+    <string name="video_editor_reset">Réinitialiser</string>
+    <string name="video_editor_advanced_color">Couleur avancée</string>
+    <string name="video_editor_advanced_color_summary">Profil d’entrée, roues log, bandes de couleur</string>
+    <string name="video_editor_advanced_profile">Profil</string>
+    <string name="video_editor_advanced_wheels">Roues</string>
+    <string name="video_editor_advanced_bands">Bandes</string>
+    <string name="video_editor_back_to_color">Retour à la couleur</string>
 </resources>

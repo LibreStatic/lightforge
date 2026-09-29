@@ -7,6 +7,7 @@ import androidx.media3.effect.SingleColorLut
 import androidx.media3.effect.Crop
 import androidx.media3.effect.ScaleAndRotateTransformation
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
 
@@ -98,6 +99,27 @@ object VideoColorGradeEffects {
         }
     }
 
+    /**
+     * Applies [settings] to packed ARGB pixels, for small previews such as look thumbnails. It runs
+     * the same per-pixel math as the export, so a thumbnail matches what the look will produce; it
+     * is not meant for full frames.
+     */
+    fun gradePixels(argb: IntArray, settings: VideoColorGrade, customLut: CubeLut? = null): IntArray {
+        if (!settings.hasChanges) return argb.copyOf()
+        val input = FloatArray(3)
+        return IntArray(argb.size) { index ->
+            val pixel = argb[index]
+            input[0] = ((pixel shr 16) and 0xFF) / 255f
+            input[1] = ((pixel shr 8) and 0xFF) / 255f
+            input[2] = (pixel and 0xFF) / 255f
+            val graded = grade(input, settings, customLut)
+            (pixel and 0xFF000000.toInt()) or
+                ((graded[0] * 255f + 0.5f).toInt().coerceIn(0, 255) shl 16) or
+                ((graded[1] * 255f + 0.5f).toInt().coerceIn(0, 255) shl 8) or
+                (graded[2] * 255f + 0.5f).toInt().coerceIn(0, 255)
+        }
+    }
+
     internal fun grade(input: FloatArray, settings: VideoColorGrade, customLut: CubeLut?): FloatArray {
         var rgb = FloatArray(3) { channel -> decodeToLinear(input[channel], settings.inputProfile) }
         val exposure = 2f.pow(settings.exposureEv)
@@ -108,8 +130,13 @@ object VideoColorGradeEffects {
         rgb[1] *= 1f + settings.tint * 0.06f
         val contrastScale = 2f.pow(settings.contrast * 1.5f)
         rgb = FloatArray(3) { (rgb[it] - settings.pivot) * contrastScale + settings.pivot }
+        if (settings.shadows != 0f || settings.highlights != 0f) {
+            val gain = tonalRangeGain(luma(rgb), settings.shadows, settings.highlights)
+            rgb = FloatArray(3) { rgb[it] * gain }
+        }
         applyLogWheels(rgb, settings.logWheels)
         rgb = adjustSaturation(rgb, 1f + settings.saturation)
+        if (settings.vibrance != 0f) rgb = applyVibrance(rgb, settings.vibrance)
         rgb = applyHueBands(rgb, settings.hueBands)
         val beforeLook = rgb
         val builtInResult = applyBuiltInLook(beforeLook, settings.lut.builtIn)
@@ -338,6 +365,28 @@ object VideoColorGradeEffects {
         BuiltInLook.Bleach -> adjustSaturation(FloatArray(3) { (rgb[it] - 0.5f) * 1.25f + 0.5f }, 0.38f)
         BuiltInLook.TealOrange -> floatArrayOf(rgb[0] * 1.06f, rgb[1] * 0.99f + rgb[2] * 0.015f, rgb[2] * 1.04f + rgb[1] * 0.02f)
         BuiltInLook.Monochrome -> FloatArray(3) { luma(rgb) }
+    }
+
+    /**
+     * Multiplicative gain for the shadows/highlights sliders. The same weights and 2^x scaling are
+     * implemented in `video_hdr_grade_fragment.glsl`; keep both in sync.
+     */
+    internal fun tonalRangeGain(luminance: Float, shadows: Float, highlights: Float): Float {
+        val y = luminance.coerceIn(0f, 1f)
+        val shadowWeight = 1f - smooth(0f, 0.35f, y)
+        val highlightWeight = smooth(0.25f, 0.9f, y)
+        return 2f.pow(shadows * shadowWeight + highlights * highlightWeight)
+    }
+
+    /** Boosts (or mutes) saturation more for dull colors than for already vivid ones. */
+    internal fun applyVibrance(rgb: FloatArray, vibrance: Float): FloatArray {
+        val red = rgb[0].coerceIn(0f, 1f)
+        val green = rgb[1].coerceIn(0f, 1f)
+        val blue = rgb[2].coerceIn(0f, 1f)
+        val highest = max(red, max(green, blue))
+        val lowest = min(red, min(green, blue))
+        val chroma = if (highest > 0.0001f) (highest - lowest) / highest else 0f
+        return adjustSaturation(rgb, 1f + vibrance * (1f - chroma))
     }
 
     private fun adjustSaturation(rgb: FloatArray, amount: Float): FloatArray {
