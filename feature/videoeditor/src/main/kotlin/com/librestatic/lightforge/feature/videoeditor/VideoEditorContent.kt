@@ -167,6 +167,8 @@ data class VideoEditorContentState(
     val selectedAnnotationId: String? = null,
     val annotationTrackingProgress: Float? = null,
     val annotationTrackingCorrectionMillis: Long? = null,
+    val canUndo: Boolean = false,
+    val canRedo: Boolean = false,
 )
 
 private data class VideoAnnotationActions(
@@ -925,6 +927,10 @@ private fun VideoEditingPanel(
             positionMillis = currentMillis,
             onSeek = onSeek,
             onTrimChange = onTrimChange,
+            canUndo = state.canUndo,
+            canRedo = state.canRedo,
+            onUndo = annotationActions.undo,
+            onRedo = annotationActions.redo,
         )
         VideoControls(
             state = state,

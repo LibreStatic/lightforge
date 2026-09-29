@@ -168,4 +168,6 @@
     <string name="video_editor_trim_range">Recorte · %1$s–%2$s</string>
     <string name="video_editor_trim_start_description">Inicio del recorte, %1$s</string>
     <string name="video_editor_trim_end_description">Fin del recorte, %1$s</string>
+    <string name="video_editor_undo_edit">Deshacer</string>
+    <string name="video_editor_redo_edit">Rehacer</string>
 </resources>

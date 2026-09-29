@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.systemGestureExclusion
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,6 +48,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -76,6 +79,10 @@ internal fun VideoFilmstripTimeline(
     positionMillis: Long,
     onSeek: (Long) -> Unit,
     onTrimChange: (Long, Long) -> Unit,
+    canUndo: Boolean,
+    canRedo: Boolean,
+    onUndo: () -> Unit,
+    onRedo: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val duration = durationMillis.coerceAtLeast(1)
@@ -128,6 +135,12 @@ internal fun VideoFilmstripTimeline(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.testTag("video-editor-trim-value"),
             )
+            IconButton(onClick = onUndo, enabled = canUndo, modifier = Modifier.testTag("video-editor-undo")) {
+                Icon(GalleryIcons.Undo, stringResource(R.string.video_editor_undo_edit))
+            }
+            IconButton(onClick = onRedo, enabled = canRedo, modifier = Modifier.testTag("video-editor-redo")) {
+                Icon(GalleryIcons.Redo, stringResource(R.string.video_editor_redo_edit))
+            }
         }
         Box(
             Modifier

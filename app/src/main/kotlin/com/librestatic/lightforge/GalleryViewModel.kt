@@ -759,6 +759,8 @@ class GalleryViewModel @Inject constructor(
     private val videoAnnotationTrackingEpoch = MemoryVideoRequestEpoch()
     private val videoAnnotationUndo = ArrayDeque<List<VideoAnnotationLayer>>()
     private val videoAnnotationRedo = ArrayDeque<List<VideoAnnotationLayer>>()
+    private val videoEditHistory = VideoEditHistory()
+    private var videoHistoryApplying: VideoEditRecipe? = null
     private var slowMotionSaveJob: Job? = null
     private var bulkCursor: BulkCursor? = savedStateHandle[BulkStateKey]
     private var favoriteImportCursor: FavoriteImportCursor? = savedStateHandle[FavoriteImportStateKey]
@@ -777,6 +779,15 @@ class GalleryViewModel @Inject constructor(
     private val mutablePhotoEditorOpening = MutableStateFlow(false)
     val photoEditorOpening = mutablePhotoEditorOpening.asStateFlow()
     private val mutableVideoEditor = MutableStateFlow<VideoEditorSession?>(null)
+    // Records a history step whenever the editor's recipe changes, so every setter is undoable
+    // without each one having to remember to snapshot itself.
+    private val videoHistoryTracker = viewModelScope.launch {
+        var previous: VideoEditorSession? = null
+        mutableVideoEditor.collect { current ->
+            trackVideoHistory(previous, current)
+            previous = current
+        }
+    }
     val videoEditor = mutableVideoEditor.asStateFlow()
     private var pendingRestoredVideoEditor = restoredCreationState?.videoEditor
     private var videoEditorSnapshot = pendingRestoredVideoEditor
@@ -4468,6 +4479,7 @@ class GalleryViewModel @Inject constructor(
         videoAnnotationTrackingJob?.cancel()
         videoAnnotationUndo.clear()
         videoAnnotationRedo.clear()
+        videoEditHistory.clear()
         val generation = ++videoEditorOpenGeneration
         val sessionId = restoring?.id ?: java.util.UUID.randomUUID().toString()
         pendingRestoredVideoEditor = null
@@ -4632,6 +4644,7 @@ class GalleryViewModel @Inject constructor(
                 if (generation == videoEditorOpenGeneration && runtime.value === active && permission == access.value) {
                     restoring?.undoAnnotations?.forEach { videoAnnotationUndo.addLast(VideoEditorRestoreSnapshot.decodeAnnotationsExact(it)) }
                     restoring?.redoAnnotations?.forEach { videoAnnotationRedo.addLast(VideoEditorRestoreSnapshot.decodeAnnotationsExact(it)) }
+                    videoEditHistory.seedAnnotationOrder(videoAnnotationUndo.size, videoAnnotationRedo.size)
                     mutableVideoEditor.value = session.withVideoExportState(videoExportStore.jobs.value)
                     canUseExternalVideoSource(requireNotNull(mutableVideoEditor.value))
                     captureVideoEditorRecovery()
@@ -4657,8 +4670,6 @@ class GalleryViewModel @Inject constructor(
         ) return
         videoAnnotationTrackingEpoch.cancel()
         videoAnnotationTrackingJob?.cancel()
-        videoAnnotationUndo.clear()
-        videoAnnotationRedo.clear()
         val recipe = session.recipe.withTrimRange(start, end).let { trimmed ->
             if (end == duration) trimmed.copy(endMillis = null) else trimmed
         }
@@ -5092,18 +5103,75 @@ class GalleryViewModel @Inject constructor(
         commitVideoAnnotations(emptyList(), null)
     }
 
-    fun undoVideoAnnotation() {
+    /** Undoes the newest edit of any kind; the name predates the global history and callers still bind to it. */
+    fun undoVideoAnnotation() = undoVideoEdit()
+
+    fun redoVideoAnnotation() = redoVideoEdit()
+
+    fun undoVideoEdit() {
         val session = mutableVideoEditor.value ?: return
-        val previous = videoAnnotationUndo.removeLastOrNull() ?: return
-        pushBounded(videoAnnotationRedo, session.recipe.annotations)
-        applyVideoAnnotations(previous, null)
+        when (val step = videoEditHistory.undo(VideoEditHistory.Snapshot(session.recipe, session.content))) {
+            is VideoEditHistory.Step.Restore -> applyVideoHistorySnapshot(step.snapshot)
+            VideoEditHistory.Step.Annotation -> {
+                val previous = videoAnnotationUndo.removeLastOrNull() ?: return
+                pushBounded(videoAnnotationRedo, session.recipe.annotations)
+                applyVideoAnnotations(previous, null)
+            }
+            null -> Unit
+        }
     }
 
-    fun redoVideoAnnotation() {
+    fun redoVideoEdit() {
         val session = mutableVideoEditor.value ?: return
-        val next = videoAnnotationRedo.removeLastOrNull() ?: return
-        pushBounded(videoAnnotationUndo, session.recipe.annotations)
-        applyVideoAnnotations(next, null)
+        when (val step = videoEditHistory.redo(VideoEditHistory.Snapshot(session.recipe, session.content))) {
+            is VideoEditHistory.Step.Restore -> applyVideoHistorySnapshot(step.snapshot)
+            VideoEditHistory.Step.Annotation -> {
+                val next = videoAnnotationRedo.removeLastOrNull() ?: return
+                pushBounded(videoAnnotationUndo, session.recipe.annotations)
+                applyVideoAnnotations(next, null)
+            }
+            null -> Unit
+        }
+    }
+
+    private fun applyVideoHistorySnapshot(snapshot: VideoEditHistory.Snapshot) {
+        val session = mutableVideoEditor.value ?: return
+        videoAnnotationTrackingEpoch.cancel()
+        videoAnnotationTrackingJob?.cancel()
+        if (snapshot.recipe != session.recipe) videoHistoryApplying = snapshot.recipe
+        val content = with(VideoEditHistory) { session.content.withRecipeFieldsFrom(snapshot.content) }
+        mutableVideoEditor.value = session.copy(
+            recipe = snapshot.recipe,
+            content = content.copy(isDirty = session.isDirty(snapshot.recipe)),
+        )
+        persistVideoRecipe(snapshot.recipe)
+    }
+
+    /**
+     * Turns a recipe change into a history step. Drawing edits are recorded where they are
+     * committed (they keep their own layer stacks), so they are ignored here; changes we applied
+     * ourselves through undo/redo are skipped.
+     */
+    private fun trackVideoHistory(old: VideoEditorSession?, new: VideoEditorSession?) {
+        if (new == null) return
+        if (old != null && old.id == new.id && old.recipe != new.recipe) {
+            val applying = videoHistoryApplying
+            if (applying != null && applying == new.recipe) {
+                videoHistoryApplying = null
+            } else if (old.recipe.copy(annotations = emptyList()) != new.recipe.copy(annotations = emptyList())) {
+                videoEditHistory.recordRecipeChange(
+                    VideoEditHistory.Snapshot(old.recipe, old.content),
+                    VideoEditHistory.changeKey(old.recipe, new.recipe),
+                    SystemClock.elapsedRealtime(),
+                )
+                videoAnnotationRedo.clear()
+            }
+        }
+        val canUndo = videoEditHistory.canUndo
+        val canRedo = videoEditHistory.canRedo
+        if (new.content.canUndo != canUndo || new.content.canRedo != canRedo) {
+            mutableVideoEditor.value = new.copy(content = new.content.copy(canUndo = canUndo, canRedo = canRedo))
+        }
     }
 
     fun addVideoAnnotationKeyframe(id: String, timeMillis: Long) {
@@ -5216,6 +5284,7 @@ class GalleryViewModel @Inject constructor(
         if (updated == session.recipe.annotations) return
         pushBounded(videoAnnotationUndo, session.recipe.annotations)
         videoAnnotationRedo.clear()
+        videoEditHistory.recordAnnotationChange()
         applyVideoAnnotations(updated, selectedId)
     }
 
@@ -5457,6 +5526,7 @@ class GalleryViewModel @Inject constructor(
         videoAnnotationTrackingJob?.cancel()
         videoAnnotationUndo.clear()
         videoAnnotationRedo.clear()
+        videoEditHistory.clear()
         val libraryMedia = session?.source?.libraryMedia
         if (libraryMedia != null) {
             val previousDiscard = videoRecipeDiscardJob

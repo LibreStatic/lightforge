@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -481,6 +483,44 @@ class VideoEditorContentDeviceTest {
             SemanticsActions.SetProgress,
         ) { it(600f) }
         compose.runOnIdle { assertEquals(500L to 700L, trim) }
+    }
+
+    @Test
+    fun timelineUndoRedoFollowTheHistoryState() {
+        var undos = 0
+        var redos = 0
+        var state by mutableStateOf(
+            VideoEditorContentState(durationMillis = 18_000, trimEndMillis = 18_000, canUndo = false, canRedo = false),
+        )
+        compose.setContent {
+            LightforgeTheme {
+                VideoEditorContent(
+                    sessionId = "device-video-editor",
+                    state = state,
+                    controller = null,
+                    onBack = {},
+                    onSaveCopy = {},
+                    onSpeedChange = {},
+                    onOriginalVolumeChange = {},
+                    onChooseMusic = {},
+                    onRemoveMusic = {},
+                    onSeek = {},
+                    onTrimChange = { _, _ -> },
+                    onUndoAnnotation = { undos++ },
+                    onRedoAnnotation = { redos++ },
+                )
+            }
+        }
+
+        compose.onNode(hasTestTag("video-editor-undo")).assertIsNotEnabled()
+        compose.onNode(hasTestTag("video-editor-redo")).assertIsNotEnabled()
+        compose.runOnIdle { state = state.copy(canUndo = true, canRedo = true) }
+        compose.onNode(hasTestTag("video-editor-undo")).assertIsEnabled().performClick()
+        compose.onNode(hasTestTag("video-editor-redo")).assertIsEnabled().performClick()
+        compose.runOnIdle {
+            assertEquals(1, undos)
+            assertEquals(1, redos)
+        }
     }
 
     private fun text(id: Int): String =

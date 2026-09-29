@@ -168,4 +168,6 @@
     <string name="video_editor_trim_range">Rognage · %1$s–%2$s</string>
     <string name="video_editor_trim_start_description">Début du rognage, %1$s</string>
     <string name="video_editor_trim_end_description">Fin du rognage, %1$s</string>
+    <string name="video_editor_undo_edit">Annuler</string>
+    <string name="video_editor_redo_edit">Rétablir</string>
 </resources>

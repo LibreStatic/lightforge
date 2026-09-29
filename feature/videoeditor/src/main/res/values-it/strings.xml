@@ -168,4 +168,6 @@
     <string name="video_editor_trim_range">Taglio · %1$s–%2$s</string>
     <string name="video_editor_trim_start_description">Inizio del taglio, %1$s</string>
     <string name="video_editor_trim_end_description">Fine del taglio, %1$s</string>
+    <string name="video_editor_undo_edit">Annulla</string>
+    <string name="video_editor_redo_edit">Ripeti</string>
 </resources>
