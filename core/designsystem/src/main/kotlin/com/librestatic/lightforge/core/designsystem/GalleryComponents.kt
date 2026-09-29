@@ -9,6 +9,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -46,6 +47,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.Surface
@@ -135,8 +140,10 @@ fun <S> GalleryAnimatedContent(
                 EnterTransition.None togetherWith ExitTransition.None
             } else {
                 (
+                    // Fade-through: the outgoing surface is nearly gone before the incoming one
+                    // appears, so titles of two routes never overlap.
                     fadeIn(
-                        animationSpec = motionScheme.defaultEffectsSpec(),
+                        animationSpec = tween(durationMillis = 210, delayMillis = 90),
                     ) + scaleIn(
                         initialScale = 0.985f,
                         animationSpec = motionScheme.defaultSpatialSpec(),
@@ -497,6 +504,57 @@ fun GalleryIndeterminateProgressIndicator(
     )
 }
 
+/**
+ * Expressive wavy ring for progress drawn around an icon (navigation badges, small status marks).
+ * Indeterminate when [progress] is null.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun GalleryCircularProgressIndicator(
+    modifier: Modifier = Modifier,
+    progress: (() -> Float)? = null,
+    color: Color = MaterialTheme.colorScheme.primary,
+    trackColor: Color = Color.Transparent,
+    strokeWidth: Dp = 3.dp,
+) {
+    val stroke = with(LocalDensity.current) { Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round) }
+    if (progress == null) {
+        CircularWavyProgressIndicator(
+            modifier = modifier,
+            color = color,
+            trackColor = trackColor,
+            stroke = stroke,
+            trackStroke = stroke,
+        )
+    } else {
+        CircularWavyProgressIndicator(
+            progress = progress,
+            modifier = modifier,
+            color = color,
+            trackColor = trackColor,
+            stroke = stroke,
+            trackStroke = stroke,
+        )
+    }
+}
+
+/**
+ * Reserves the height of a wavy progress bar whether or not it is shown. Toggling a busy state
+ * inside a scrolling or stacked layout therefore never shifts the content around it.
+ */
+@Composable
+fun GalleryProgressSlot(
+    visible: Boolean,
+    modifier: Modifier = Modifier,
+    indicator: @Composable () -> Unit = { GalleryIndeterminateProgressIndicator() },
+) {
+    Box(modifier.fillMaxWidth().heightIn(min = GalleryProgressSlotHeight)) {
+        if (visible) indicator()
+    }
+}
+
+private val GalleryProgressSlotHeight = 16.dp
+
 @Composable
 fun GalleryStateContent(
     title: String,
@@ -521,6 +579,7 @@ fun GalleryStateContent(
             Surface(
                 modifier = Modifier
                     .size(72.dp)
+                    .galleryFadeRise()
                     .semantics { contentDescription = illustrationDescription },
                 shape = MaterialTheme.shapes.extraExtraLarge,
                 color = MaterialTheme.colorScheme.secondaryContainer,
@@ -536,17 +595,18 @@ fun GalleryStateContent(
                 title,
                 style = MaterialTheme.typography.titleLarge,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.semantics { heading() },
+                modifier = Modifier.galleryFadeRise(delayMillis = 100).semantics { heading() },
             )
             Spacer(Modifier.height(GallerySpacing.Sm))
             Text(
                 body,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
+                modifier = Modifier.galleryFadeRise(delayMillis = 180),
             )
             action?.let {
                 Spacer(Modifier.height(GallerySpacing.Xl))
-                it()
+                Box(Modifier.galleryFadeRise(delayMillis = 260)) { it() }
             }
         }
     }

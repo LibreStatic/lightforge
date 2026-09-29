@@ -47,4 +47,20 @@ class GalleryAdaptiveTokensTest {
         assertEquals(8.dp, verticalFold.hingeWidth)
         assertEquals(8.dp, horizontalFold.hingeHeight)
     }
+
+    @Test
+    fun sidePanelDefaultsToOpenOnlyWithRoomUnlessTheUserChose() {
+        assertEquals(false, GallerySidePanelMetrics.initiallyOpen(GalleryWindowClass.Compact, null))
+        assertEquals(true, GallerySidePanelMetrics.initiallyOpen(GalleryWindowClass.Medium, null))
+        assertEquals(true, GallerySidePanelMetrics.initiallyOpen(GalleryWindowClass.Expanded, null))
+        assertEquals(false, GallerySidePanelMetrics.initiallyOpen(GalleryWindowClass.Expanded, false))
+        assertEquals(true, GallerySidePanelMetrics.initiallyOpen(GalleryWindowClass.Compact, true))
+    }
+
+    @Test
+    fun sidePanelWidensWithWindowClass() {
+        assertEquals(96.dp, GallerySidePanelMetrics.width(GalleryWindowClass.Compact))
+        assertEquals(136.dp, GallerySidePanelMetrics.width(GalleryWindowClass.Medium))
+        assertEquals(168.dp, GallerySidePanelMetrics.width(GalleryWindowClass.Expanded))
+    }
 }

@@ -48,6 +48,19 @@ object GalleryGridMetrics {
 
 enum class GalleryWindowClass { Compact, Medium, Expanded }
 
+/** Album side panel sizing and default visibility per window class. */
+object GallerySidePanelMetrics {
+    fun width(windowClass: GalleryWindowClass): Dp = when (windowClass) {
+        GalleryWindowClass.Compact -> 96.dp
+        GalleryWindowClass.Medium -> 136.dp
+        GalleryWindowClass.Expanded -> 168.dp
+    }
+
+    /** A stored user choice wins; otherwise the panel starts open only where there is room. */
+    fun initiallyOpen(windowClass: GalleryWindowClass, stored: Boolean?): Boolean =
+        stored ?: (windowClass != GalleryWindowClass.Compact)
+}
+
 enum class GalleryNavigationType { BottomBar, Rail }
 
 enum class GalleryFoldOrientation { Vertical, Horizontal }

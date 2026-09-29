@@ -15,6 +15,8 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Collections
 import androidx.compose.material.icons.rounded.Crop
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
@@ -44,6 +46,7 @@ import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.automirrored.rounded.ViewSidebar
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.FitScreen
@@ -121,6 +124,8 @@ val GalleryIconShare: ImageVector get() = Icons.Rounded.Share
 val GalleryIconAlbum: ImageVector get() = Icons.Rounded.Collections
 val GalleryIconEdit: ImageVector get() = Icons.Rounded.Edit
 val GalleryIconAnalyze: ImageVector get() = Icons.Rounded.Crop
+val GalleryIconPlace: ImageVector get() = Icons.Rounded.Place
+val GalleryIconAutoAwesome: ImageVector get() = Icons.Rounded.AutoAwesome
 val GalleryIconInfo: ImageVector get() = Icons.Rounded.Info
 val GalleryIconCrop: ImageVector get() = Icons.Rounded.Crop
 val GalleryIconTune: ImageVector get() = Icons.Rounded.Tune
@@ -145,6 +150,7 @@ val GalleryIconMusic: ImageVector get() = Icons.Rounded.MusicNote
 val GalleryIconArchive: ImageVector get() = Icons.Rounded.Archive
 val GalleryIconAsk: ImageVector get() = Icons.Rounded.AutoAwesome
 val GalleryIconFolder: ImageVector get() = Icons.Rounded.Folder
+val GalleryIconSidePanel: ImageVector get() = Icons.AutoMirrored.Rounded.ViewSidebar
 val GalleryIconNotifications: ImageVector get() = Icons.Rounded.Notifications
 val GalleryIconLayers: ImageVector get() = Icons.Rounded.Layers
 val GalleryIconFitScreen: ImageVector get() = Icons.Rounded.FitScreen
@@ -310,6 +316,8 @@ object GalleryIcons {
     val Album get() = GalleryIconAlbum
     val Edit get() = GalleryIconEdit
     val Analyze get() = GalleryIconAnalyze
+    val Place get() = GalleryIconPlace
+    val AutoAwesome get() = GalleryIconAutoAwesome
     val Info get() = GalleryIconInfo
     val Crop get() = GalleryIconCrop
     val Tune get() = GalleryIconTune
@@ -334,6 +342,7 @@ object GalleryIcons {
     val Archive get() = GalleryIconArchive
     val Ask get() = GalleryIconAsk
     val Folder get() = GalleryIconFolder
+    val SidePanel get() = GalleryIconSidePanel
     val Notifications get() = GalleryIconNotifications
     val Layers get() = GalleryIconLayers
     val FitScreen get() = GalleryIconFitScreen

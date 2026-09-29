@@ -21,7 +21,11 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlin.math.abs
 
-/** Retains the complete safe viewport thumbnail window plus one directional row. */
+/**
+ * Retains the complete safe viewport thumbnail window plus [aheadRows] in the scroll direction and
+ * [behindRows] against it. While [paused] (a fast scrub) nothing new is decoded; the window is
+ * planned again as soon as it resumes.
+ */
 @Composable
 fun RetainGridThumbnailViewport(
     state: LazyGridState,
@@ -29,10 +33,14 @@ fun RetainGridThumbnailViewport(
     columns: Int,
     itemCount: Int,
     contentKey: Any? = Unit,
+    paused: Boolean = false,
+    aheadRows: Int = 1,
+    behindRows: Int = 0,
     itemAtIndex: (Int) -> ThumbnailPrefetchCandidate?,
 ) {
     if (columns <= 0 || itemCount <= 0 || loader.prefetchPolicy == null) return
     val currentItems = rememberUpdatedState(itemCount to itemAtIndex)
+    val pausedState = rememberUpdatedState(paused)
     val retained = remember(loader) { mutableStateMapOf<ThumbnailRequest, Bitmap>() }
     val owner = remember(loader) { Any() }
     DisposableEffect(loader, owner) {
@@ -41,7 +49,7 @@ fun RetainGridThumbnailViewport(
             retained.clear()
         }
     }
-    LaunchedEffect(state, loader, columns, itemCount, contentKey) {
+    LaunchedEffect(state, loader, columns, itemCount, contentKey, aheadRows, behindRows) {
         var previousAnchor: Pair<Int, Int>? = null
         var forward = true
         var observedMemoryPressure = loader.memoryPressureGeneration.value
@@ -50,6 +58,7 @@ fun RetainGridThumbnailViewport(
                 visibleIndices = state.layoutInfo.visibleItemsInfo.map { it.index },
                 anchorIndex = state.firstVisibleItemIndex,
                 anchorOffset = state.firstVisibleItemScrollOffset,
+                paused = pausedState.value,
             )
         }.distinctUntilChanged()
         viewportFlow.combine(loader.memoryPressureGeneration) { viewport, pressure -> viewport to pressure }
@@ -60,6 +69,7 @@ fun RetainGridThumbnailViewport(
                     loader.retainWindow(owner, emptyMap())
                     return@collectLatest
                 }
+                if (viewport.paused) return@collectLatest
                 val anchor = viewport.anchorIndex to viewport.anchorOffset
                 previousAnchor?.let { previous ->
                     forward = anchor.first > previous.first ||
@@ -81,18 +91,21 @@ fun RetainGridThumbnailViewport(
                         distanceFromViewportCenter = abs(index - center),
                     )
                 }
-                val extra = ArrayList<ThumbnailPrefetchCandidate>(columns)
-                val range = if (forward) {
-                    (visibleIndices.last() + 1) until currentCount
-                } else {
-                    (visibleIndices.first() - 1 downTo 0)
-                }
-                for (index in range) {
-                    candidateAtOrNull(index, currentItemAtIndex)?.let { candidate ->
-                        extra += candidate.copy(distanceFromViewportCenter = abs(index - center))
+                val after = (visibleIndices.last() + 1) until currentCount
+                val before = visibleIndices.first() - 1 downTo 0
+                val extra = ArrayList<ThumbnailPrefetchCandidate>(columns * (aheadRows + behindRows))
+                fun collect(range: IntProgression, rows: Int) {
+                    var taken = 0
+                    for (index in range) {
+                        if (taken >= columns * rows) break
+                        candidateAtOrNull(index, currentItemAtIndex)?.let { candidate ->
+                            extra += candidate.copy(distanceFromViewportCenter = abs(index - center))
+                            taken++
+                        }
                     }
-                    if (extra.size >= columns) break
                 }
+                collect(if (forward) after else before, aheadRows)
+                collect(if (forward) before else after, behindRows)
                 val plan = ThumbnailPrefetchPlanner.plan(
                     visible = visible,
                     extraRow = extra,
@@ -119,6 +132,7 @@ private data class GridViewportSnapshot(
     val visibleIndices: List<Int>,
     val anchorIndex: Int,
     val anchorOffset: Int,
+    val paused: Boolean,
 )
 
 internal fun boundedViewportIndices(indices: List<Int>, itemCount: Int): List<Int> =

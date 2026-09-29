@@ -1,6 +1,8 @@
 package com.librestatic.lightforge.core.designsystem
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
@@ -52,22 +54,31 @@ fun MediaSelectionOverlay(selected: Boolean, modifier: Modifier = Modifier, orde
     if (!selected) return
     val orderedDescription =
         order?.let { stringResource(R.string.media_tile_selected_position, it) }
+    val primary = MaterialTheme.colorScheme.primary
+    val onPrimary = MaterialTheme.colorScheme.onPrimary
+    // A tint alone vanishes on dark photos (dark primary over dark pixels). The frame pairs a thick
+    // primary stroke with a thin onPrimary line inside it, so one of the two always contrasts with
+    // the photo whatever its brightness, in light, dark and dynamic schemes alike.
     Box(
         modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.26f))
+            .background(primary.copy(alpha = 0.26f))
+            .border(4.dp, primary)
+            .padding(4.dp)
+            .border(1.5.dp, onPrimary)
             .testTag("media_selection_indicator")
     ) {
         Surface(
             modifier =
-                Modifier.align(Alignment.TopEnd).padding(8.dp).size(28.dp).let {
+                Modifier.align(Alignment.TopEnd).padding(4.dp).size(28.dp).let {
                     if (orderedDescription != null)
                         it.semantics { contentDescription = orderedDescription }
                     else it
                 },
             shape = CircleShape,
-            color = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
+            color = primary,
+            contentColor = onPrimary,
+            border = BorderStroke(2.dp, onPrimary),
         ) {
             if (order != null) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -132,6 +143,8 @@ fun <T> Modifier.lazyGridDragSelection(
                     visited.add(currentItemKey(item)) && currentIsSelected(item) != desiredSelected
                 ) {
                     currentOnSelectionChange(item, desiredSelected)
+                    // The long press already buzzed for the anchor; each item painted after it ticks.
+                    if (visited.size > 1) hapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
                 }
             }
 
