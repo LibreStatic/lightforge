@@ -52,6 +52,7 @@ include(
     ":feature:photoeditor",
     ":feature:videoeditor",
     ":feature:permissions",
+    ":feature:onboarding",
     ":feature:trash",
     ":feature:settings",
    ":feature:privatealbum",

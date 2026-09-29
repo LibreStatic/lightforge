@@ -1,5 +1,6 @@
 package com.librestatic.lightforge
 
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.catch
 
 import androidx.room.withTransaction
@@ -385,6 +386,40 @@ class GalleryViewModel @Inject constructor(
         SharingStarted.Eagerly,
         GallerySettings(),
     )
+
+    /** First-run wizard flag; null while it is being settled, so nothing flashes before it. */
+    val onboardingCompleted = kotlinx.coroutines.flow.flow {
+        gallerySettingsRepository.resolveOnboarding()
+        emitAll(gallerySettingsRepository.onboardingCompleted)
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /**
+     * Marks the wizard done. [analysis] is null when it was skipped, which leaves the existing
+     * local-analysis decision (and its later prompt) untouched.
+     */
+    fun completeOnboarding(analysis: Set<LocalAnalysisFeature>?) {
+        viewModelScope.launch { gallerySettingsRepository.setOnboardingCompleted(true) }
+        if (analysis == null) return
+        val decision = if (analysis.isEmpty()) LocalAnalysisOnboardingDecision.Declined else LocalAnalysisOnboardingDecision.Accepted
+        localAnalysisOnboardingStore.setDecision(decision)
+        mutableLocalAnalysisOnboarding.value = decision
+        // The wizard only offers these; any other remembered choice (Cleanup) is kept as is.
+        val offered = setOf(
+            LocalAnalysisFeature.People, LocalAnalysisFeature.Content,
+            LocalAnalysisFeature.Pets, LocalAnalysisFeature.Semantic,
+        )
+        updateLocalAnalysisSwitches(fullLibrary = analysis.isNotEmpty()) { current ->
+            val kept = current.remembered - offered
+            LocalAnalysisSwitches(
+                master = analysis.isNotEmpty() || (current.master && kept.isNotEmpty()),
+                remembered = analysis + kept,
+            )
+        }
+    }
+
+    fun reopenOnboarding() {
+        viewModelScope.launch { gallerySettingsRepository.setOnboardingCompleted(false) }
+    }
 
     suspend fun restoredVideoPosition(media: TimelineMedia): Long = withContext(Dispatchers.IO) {
         if (!gallerySettings.value.playback.rememberVideoPosition || media.kind != MediaKind.Video) {

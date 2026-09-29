@@ -8,6 +8,7 @@ import android.view.KeyEvent
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
@@ -33,6 +34,7 @@ class MainActivity : FragmentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         lifecycle.addObserver(permissionCoordinator)
         enableEdgeToEdge()
@@ -48,6 +50,12 @@ class MainActivity : FragmentActivity() {
             intent.getIntExtra(BENCHMARK_ITEM_COUNT_EXTRA, 100_000).coerceIn(0, 250_000)
         } else {
             0
+        }
+        // Hold the star splash until the first screen is known instead of flashing a blank frame.
+        splashScreen.setKeepOnScreenCondition {
+            usesProductionRuntime &&
+                galleryViewModel.externalMedia.value == null &&
+                galleryViewModel.onboardingCompleted.value == null
         }
         setContent {
             LightforgeTheme {
@@ -69,7 +77,16 @@ class MainActivity : FragmentActivity() {
                             animateMedia = thumbnails.animateMedia,
                         ),
                     ) {
-                        ProductionGalleryApp(galleryViewModel, permissionCoordinator)
+                        // Media opened from another app is shown right away; the wizard waits.
+                        val external = galleryViewModel.externalMedia.collectAsState().value != null
+                        val onboardingCompleted = galleryViewModel.onboardingCompleted.collectAsState().value
+                        when {
+                            external || onboardingCompleted == true ->
+                                ProductionGalleryApp(galleryViewModel, permissionCoordinator)
+                            onboardingCompleted == false -> OnboardingHost(galleryViewModel, permissionCoordinator)
+                            // Settling the first-run flag takes one DataStore read; draw nothing meanwhile.
+                            else -> Unit
+                        }
                     }
                 }
             }

@@ -115,6 +115,7 @@ import com.librestatic.lightforge.core.mediastore.MediaActionTarget
 import com.librestatic.lightforge.core.mediastore.ScopedMediaOperations
 import com.librestatic.lightforge.core.mediastore.LocalShareSanitizer
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.designsystem.GallerySidePanelMetrics
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveIconButton
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveButton
@@ -144,6 +145,7 @@ import com.librestatic.lightforge.core.selection.SelectionReducer
 import com.librestatic.lightforge.core.search.SearchConcept
 import com.librestatic.lightforge.core.search.SearchVocabulary
 import com.librestatic.lightforge.feature.album.AlbumContent
+import com.librestatic.lightforge.feature.album.AlbumWithSidePanel
 import com.librestatic.lightforge.feature.collections.CollectionsContent
 import com.librestatic.lightforge.feature.collections.MomentUnavailableContent
 import com.librestatic.lightforge.feature.collections.MomentContent
@@ -175,6 +177,7 @@ import com.librestatic.lightforge.feature.privatealbum.PrivateAlbumDatabase
 import com.librestatic.lightforge.feature.privatealbum.BiometricGate
 import com.librestatic.lightforge.feature.places.OfflineGazetteer
 import com.librestatic.lightforge.feature.places.BundledGazetteer
+import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
 
 internal enum class RootTab { Photos, Collections, Search }
 /** Maps only the exact public-image identity used by a saved Motion provider. */
@@ -194,6 +197,8 @@ internal fun retainsPhotosViewerWindow(
     route in setOf(SurfaceRoute.Viewer, SurfaceRoute.PhotoEditor, SurfaceRoute.VideoEditor, SurfaceRoute.MotionPhoto)
 private data class PrivateImportProgress(val completed: Int, val total: Int)
 private data class PrivateImportOutcome(val successful: List<TimelineMedia>, val total: Int)
+internal const val ViewerSurfaceStateKey = "viewer"
+
 internal data class ScreenMotionKey(
     val route: SurfaceRoute,
     val rootTab: RootTab,
@@ -292,7 +297,10 @@ internal fun surfaceStateKey(
     SurfaceRoute.Archive -> "archive"
     SurfaceRoute.Trash -> "trash"
     SurfaceRoute.VideoEditor -> videoEditorSessionId?.let { "video-editor:$it" }
-    SurfaceRoute.Viewer -> viewerIdentity?.let { "viewer:$it" }
+    // One stable slot for the whole viewer session: the validated identity only arrives after an
+    // IO check, and keying on it made the open transition restart and rebuild the viewer (and its
+    // video player) midway. Per-item state inside the viewer is keyed by media id already.
+    SurfaceRoute.Viewer -> ViewerSurfaceStateKey
     SurfaceRoute.MotionPhoto -> viewerIdentity?.let { "motion:$it" }
     SurfaceRoute.MemoryControls -> "memory-controls"
     SurfaceRoute.ManualMoment -> manualMomentSessionId?.let { "manual-moment:$it" }
@@ -473,6 +481,7 @@ internal fun ProductionGalleryApp(
     val selectedPersonMembers by viewModel.selectedPersonMembers.collectAsState()
     val me by viewModel.me.collectAsState()
     val actionState by viewModel.systemAction.collectAsState()
+    MediaActionHaptics(actionState)
     val external by viewModel.externalMedia.collectAsState()
     val externalPhoto by viewModel.externalPhotoState.collectAsState()
     val photoEditor by viewModel.photoEditor.collectAsState()
@@ -1033,11 +1042,9 @@ internal fun ProductionGalleryApp(
     }
 
     fun restoreViewerReturnDestination() {
-        viewerRestoreSnapshot?.identity?.let {
-            // A Viewer exit does not acknowledge an unresolved Motion publication.
-            // Its source-keyed provider is retired only by the feature's explicit close.
-            surfaceStateHolder.removeState("viewer:$it")
-        }
+        // A Viewer exit does not acknowledge an unresolved Motion publication.
+        // Its source-keyed provider is retired only by the feature's explicit close.
+        surfaceStateHolder.removeState(ViewerSurfaceStateKey)
         viewModel.clearViewerRecovery()
         val destination = viewerReturnDestination
         viewerReturnDestination = null
@@ -1349,6 +1356,13 @@ internal fun ProductionGalleryApp(
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val adaptiveInfo = galleryAdaptiveLayoutInfo(maxWidth, foldInfo)
+        val albumSidePanelOpen = GallerySidePanelMetrics.initiallyOpen(
+            adaptiveInfo.windowClass,
+            gallerySettings.library.albumSidePanelOpen,
+        )
+        fun setAlbumSidePanelOpen(open: Boolean) {
+            viewModel.updateGallerySettings { it.copy(library = it.library.copy(albumSidePanelOpen = open)) }
+        }
         val content: @Composable (ScreenMotionKey) -> Unit = { activeKey ->
             when (activeKey.route) {
                 SurfaceRoute.Root -> when (activeKey.rootTab) {
@@ -1559,6 +1573,23 @@ internal fun ProductionGalleryApp(
                 )
                 SurfaceRoute.Album -> selectedAlbum?.let { album ->
                     thumbnails?.let { loader ->
+                        AlbumWithSidePanel(
+                            selectedKey = album.key,
+                            virtualAlbums = virtualAlbums,
+                            physicalAlbums = physicalAlbums,
+                            thumbnails = loader,
+                            windowClass = adaptiveInfo.windowClass,
+                            open = albumSidePanelOpen,
+                            onOpenChange = ::setAlbumSidePanelOpen,
+                            onAlbumSelect = { next ->
+                                if (next.key != album.key) {
+                                    viewModel.clearSelection()
+                                    viewModel.selectAlbum(next, filter, sort)
+                                }
+                            },
+                            swipeEnabled = selectionCount == 0L && !albumCoverWorking,
+                        ) { contentModifier ->
+                        key(album.key) {
                         AlbumContent(
                             album,
                             albumItems,
@@ -1584,7 +1615,10 @@ internal fun ProductionGalleryApp(
                             coverFailed = albumCoverFailed,
                             coverRevision = albumCoverRevision,
                             showHeader = false,
+                            modifier = contentModifier,
                         )
+                        }
+                        }
                     }
                 }
                 SurfaceRoute.Viewer -> external?.let { externalMedia ->
@@ -2110,6 +2144,7 @@ internal fun ProductionGalleryApp(
                     )
                 }
                 SurfaceRoute.Settings -> RecognitionSettingsContent(
+                    adaptiveInfo = adaptiveInfo,
                     state = FaceAnalysisUiState(
                         consentGranted = peopleAnalysis.consentGranted,
                         paused = peopleAnalysis.paused,
@@ -2218,6 +2253,7 @@ internal fun ProductionGalleryApp(
                 SurfaceRoute.About -> AboutContent(
                     versionName = BuildConfig.VERSION_NAME,
                     onBack = { route = SurfaceRoute.Settings },
+                    onOpenGettingStarted = viewModel::reopenOnboarding,
                 )
                 SurfaceRoute.PrivateAlbum -> PrivateAlbumContent(
                     repository = privateAlbumRepo,
@@ -2315,7 +2351,8 @@ internal fun ProductionGalleryApp(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                     )
                     when {
-                        thumbnails == null || timeline.loadState.refresh is LoadState.Loading -> {
+                        // Only the very first load replaces the grid; a background refresh keeps it on screen.
+                        thumbnails == null || (timeline.loadState.refresh is LoadState.Loading && timeline.itemCount == 0) -> {
                             GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
                             GalleryStateContent(
                                 title = stringResource(com.librestatic.lightforge.feature.photos.R.string.library_loading_title),
@@ -2739,7 +2776,11 @@ internal fun ProductionGalleryApp(
             viewerReturnDestination == ViewerReturnDestination.Root(RootTab.Photos), external != null,
         )
         val scaffoldRoute = if (accessibleViewerWindow) SurfaceRoute.Root else renderedRoute
-        val internalTopBarRoute = surfaceOwnsTopBar(scaffoldRoute)
+        // On rail layouts Settings sits beside the navigation rail, so the scaffold owns the status
+        // bar inset and the settings header must not apply it a second time.
+        val settingsBesideRail = scaffoldRoute == SurfaceRoute.Settings &&
+            adaptiveInfo.navigationType == GalleryNavigationType.Rail
+        val internalTopBarRoute = surfaceOwnsTopBar(scaffoldRoute) && !settingsBesideRail
         val contentInsets = when {
             surfaceIsFullBleed(scaffoldRoute) -> WindowInsets(0, 0, 0, 0)
             internalTopBarRoute -> ScaffoldDefaults.contentWindowInsets.only(
@@ -2753,7 +2794,8 @@ internal fun ProductionGalleryApp(
             scaffoldRoute == SurfaceRoute.Archive ||
             scaffoldRoute == SurfaceRoute.Trash ||
             scaffoldRoute == SurfaceRoute.Album ||
-            scaffoldRoute == SurfaceRoute.HighlightCollection
+            scaffoldRoute == SurfaceRoute.HighlightCollection ||
+            settingsBesideRail
         fun selectRoot(destination: RootTab) {
             viewModel.clearSelection()
             archiveSelectionMode = false
@@ -2808,6 +2850,20 @@ internal fun ProductionGalleryApp(
                         title = selectedAlbum?.name ?: stringResource(com.librestatic.lightforge.feature.album.R.string.album_untitled),
                         onBack = { route = SurfaceRoute.Root },
                         navigationContentDescription = stringResource(R.string.nav_back),
+                        actions = {
+                            IconButton(
+                                onClick = { setAlbumSidePanelOpen(!albumSidePanelOpen) },
+                                modifier = Modifier.testTag("album-side-panel-toggle"),
+                            ) {
+                                Icon(
+                                    GalleryIcons.SidePanel,
+                                    contentDescription = stringResource(
+                                        if (albumSidePanelOpen) com.librestatic.lightforge.feature.album.R.string.album_side_panel_hide
+                                        else com.librestatic.lightforge.feature.album.R.string.album_side_panel_show,
+                                    ),
+                                )
+                            }
+                        },
                     )
                     SurfaceRoute.Updates -> if (adaptiveInfo.navigationType != GalleryNavigationType.Rail) GalleryTopAppBar(
                         title = stringResource(R.string.updates_title),
@@ -2967,7 +3023,11 @@ internal fun ProductionGalleryApp(
                             stateHolder = surfaceStateHolder,
                             controls = { activeRoute -> if (!accessibleViewerWindow) controls(activeRoute) },
                             bottomControls = { activeRoute -> if (!accessibleViewerWindow) bottomControls(activeRoute) },
-                            content = content,
+                            content = if (settingsBesideRail) { activeRoute ->
+                                androidx.compose.runtime.CompositionLocalProvider(
+                                    com.librestatic.lightforge.core.designsystem.LocalGalleryTopBarWindowInsets provides WindowInsets(0, 0, 0, 0),
+                                ) { content(activeRoute) }
+                            } else content,
                         )
                     }
                 }
@@ -3191,7 +3251,7 @@ internal fun ProductionGalleryApp(
                     }
                     if (recovery.request != null) Text(stringResource(R.string.manual_recovery_dismiss_info))
                     if (manualMomentError) Text(manualCreationErrorText)
-                    if (manualMomentBusy) GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
+                    GalleryProgressSlot(manualMomentBusy)
                 }
             },
             confirmButton = {
@@ -4024,7 +4084,7 @@ private fun PublicMediaRecoveryContent(title: String, body: String, loading: Boo
         Column(Modifier.fillMaxSize()) {
             GalleryTopAppBar(title = title, onBack = onBack,
                 navigationContentDescription = stringResource(com.librestatic.lightforge.feature.viewer.R.string.viewer_back))
-            if (loading) GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
+            GalleryProgressSlot(loading)
             Text(body, Modifier.padding(24.dp))
         }
     }
@@ -4131,15 +4191,24 @@ private fun ViewerRoute(
             gazetteer.reverseGeocode(location.latitude, location.longitude)?.city?.name
         } else null
     }
-    val videoController = if (media.kind == MediaKind.Video) remember(media.key) {
-        VideoViewerController(context, initialLooping = gallerySettings.playback.loopVideos).also {
+    // Building and preparing ExoPlayer (and claiming a hardware decoder) on the frame the open
+    // transition starts made heavy videos stutter; wait until the surface has settled and let the
+    // thumbnail poster carry the motion in the meantime.
+    val surfaceSettled = LocalSurfaceFocusReady.current
+    var createdVideoController by remember(media.key) { mutableStateOf<VideoViewerController?>(null) }
+    if (media.kind == MediaKind.Video) LaunchedEffect(media.key, surfaceSettled) {
+        if (!surfaceSettled || createdVideoController != null) return@LaunchedEffect
+        androidx.compose.runtime.withFrameNanos { }
+        createdVideoController = VideoViewerController(context, initialLooping = gallerySettings.playback.loopVideos).also {
             it.select(
                 viewModel.mediaUri(media),
                 autoplay = gallerySettings.playback.autoplayVideos && !recoveredViewer,
                 startMuted = sessionVideoMuted ?: gallerySettings.playback.startVideosMuted,
             )
         }
-    } else null
+    }
+    // Effects below key on and dispose this composition's controller, never a later state value.
+    val videoController = createdVideoController
     LaunchedEffect(videoController, gallerySettings.playback.loopVideos) {
         videoController?.setLooping(gallerySettings.playback.loopVideos)
     }

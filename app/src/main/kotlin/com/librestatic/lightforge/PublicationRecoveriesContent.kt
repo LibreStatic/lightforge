@@ -22,6 +22,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
@@ -76,7 +77,7 @@ fun PublicationRecoveriesContent(onBack: () -> Unit, modifier: Modifier = Modifi
                 }
                 if (state.busy || !state.initialized) item("busy") {
                     Column {
-                        LinearProgressIndicator(Modifier.fillMaxWidth().testTag("publication-recoveries-busy"))
+                        GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth().testTag("publication-recoveries-busy"))
                         Text(stringResource(R.string.publication_recoveries_loading))
                     }
                 }

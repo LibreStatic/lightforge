@@ -54,7 +54,7 @@
       "licenseName": "Apache License 2.0",
       "licenseTextAsset": "licenses/Apache-2.0.txt",
       "name": "appcompat",
-      "version": "1.6.1"
+      "version": "1.7.0"
     },
     {
       "group": "androidx.appcompat",
@@ -62,7 +62,7 @@
       "licenseName": "Apache License 2.0",
       "licenseTextAsset": "licenses/Apache-2.0.txt",
       "name": "appcompat-resources",
-      "version": "1.6.1"
+      "version": "1.7.0"
     },
     {
       "group": "androidx.appsearch",
@@ -503,6 +503,14 @@
       "licenseTextAsset": "licenses/Apache-2.0.txt",
       "name": "core-ktx",
       "version": "1.19.0"
+    },
+    {
+      "group": "androidx.core",
+      "licenseId": "Apache-2.0",
+      "licenseName": "Apache License 2.0",
+      "licenseTextAsset": "licenses/Apache-2.0.txt",
+      "name": "core-splashscreen",
+      "version": "1.2.0-alpha02"
     },
     {
       "group": "androidx.core",

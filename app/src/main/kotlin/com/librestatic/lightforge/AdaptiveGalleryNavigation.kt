@@ -20,7 +20,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -43,6 +42,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.designsystem.GalleryCircularProgressIndicator
 
 @Composable
 internal fun GalleryBottomDock(
@@ -186,13 +186,13 @@ private fun RailItem(
                 Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
                     if (badgeCount > 0) {
                         if (progress == null) {
-                            CircularProgressIndicator(
+                            GalleryCircularProgressIndicator(
                                 modifier = Modifier.size(28.dp),
                                 color = LocalContentColor.current,
                                 strokeWidth = 2.dp,
                             )
                         } else {
-                            CircularProgressIndicator(
+                            GalleryCircularProgressIndicator(
                                 progress = { progress.coerceIn(0f, 1f) },
                                 modifier = Modifier.size(28.dp),
                                 color = LocalContentColor.current,

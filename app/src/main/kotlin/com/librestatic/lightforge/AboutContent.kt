@@ -66,11 +66,17 @@ internal fun AboutContent(
     versionName: String,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenGettingStarted: (() -> Unit)? = null,
+    // Opened straight on the license list (from the first-run wizard): back leaves About.
+    startInLicenses: Boolean = false,
 ) {
-    var page by rememberSaveable { mutableStateOf(AboutPage.Overview) }
+    var page by rememberSaveable { mutableStateOf(if (startInLicenses) AboutPage.Licenses else AboutPage.Overview) }
+    fun leavePage() {
+        if (startInLicenses) onBack() else page = AboutPage.Overview
+    }
 
     BackHandler {
-        if (page != AboutPage.Overview) page = AboutPage.Overview else onBack()
+        if (page != AboutPage.Overview) leavePage() else onBack()
     }
 
     when (page) {
@@ -79,14 +85,15 @@ internal fun AboutContent(
             onBack = onBack,
             onOpenLicenses = { page = AboutPage.Licenses },
             onOpenAppLicense = { page = AboutPage.AppLicense },
+            onOpenGettingStarted = onOpenGettingStarted,
             modifier = modifier,
         )
         AboutPage.AppLicense -> AppLicense(
-            onBack = { page = AboutPage.Overview },
+            onBack = ::leavePage,
             modifier = modifier,
         )
         AboutPage.Licenses -> LicenseCatalog(
-            onBack = { page = AboutPage.Overview },
+            onBack = ::leavePage,
             modifier = modifier,
         )
     }
@@ -98,8 +105,10 @@ private fun AboutOverview(
     onBack: () -> Unit,
     onOpenLicenses: () -> Unit,
     onOpenAppLicense: () -> Unit,
+    onOpenGettingStarted: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
+    val rowCount = if (onOpenGettingStarted != null) 4 else 3
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     val noLinkHandler = stringResource(R.string.about_no_link_handler)
@@ -121,7 +130,7 @@ private fun AboutOverview(
             verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xl),
         ) {
             Image(
-                painter = painterResource(R.drawable.ic_launcher_artwork),
+                painter = painterResource(R.drawable.ic_launcher_foreground),
                 contentDescription = stringResource(R.string.about_app_icon),
                 modifier = Modifier.size(112.dp).clip(MaterialTheme.shapes.extraLarge),
             )
@@ -167,7 +176,7 @@ private fun AboutOverview(
                     title = stringResource(R.string.about_source_code),
                     summary = stringResource(R.string.about_source_code_summary),
                     index = 0,
-                    count = 3,
+                    count = rowCount,
                     modifier = Modifier.testTag("about_source_code"),
                 ) {
                     // openUri throws when no installed app handles ACTION_VIEW for the link.
@@ -183,7 +192,7 @@ private fun AboutOverview(
                     title = stringResource(R.string.about_app_license),
                     summary = stringResource(R.string.about_app_license_summary),
                     index = 1,
-                    count = 3,
+                    count = rowCount,
                     modifier = Modifier.testTag("about_app_license"),
                     onClick = onOpenAppLicense,
                 )
@@ -191,10 +200,20 @@ private fun AboutOverview(
                     title = stringResource(R.string.about_licenses),
                     summary = stringResource(R.string.about_licenses_summary),
                     index = 2,
-                    count = 3,
+                    count = rowCount,
                     modifier = Modifier.testTag("about_licenses"),
                     onClick = onOpenLicenses,
                 )
+                if (onOpenGettingStarted != null) {
+                    AboutActionRow(
+                        title = stringResource(com.librestatic.lightforge.feature.onboarding.R.string.onboarding_reopen_title),
+                        summary = stringResource(com.librestatic.lightforge.feature.onboarding.R.string.onboarding_reopen_body),
+                        index = 3,
+                        count = rowCount,
+                        modifier = Modifier.testTag("about_getting_started"),
+                        onClick = onOpenGettingStarted,
+                    )
+                }
             }
         }
     }

@@ -3,12 +3,22 @@ package com.librestatic.lightforge
 import android.text.format.DateUtils
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import com.librestatic.lightforge.core.designsystem.GalleryShapeIllustration
+import com.librestatic.lightforge.core.designsystem.galleryFadeRise
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -30,7 +40,10 @@ import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import com.librestatic.lightforge.core.data.GalleryActivityEvent
 import com.librestatic.lightforge.core.data.GalleryActivityType
+import com.librestatic.lightforge.core.designsystem.GalleryContentWidths
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.designsystem.GalleryWindowClass
+import com.librestatic.lightforge.core.designsystem.galleryWindowClass
 import com.librestatic.lightforge.core.designsystem.GalleryStateContent
 import com.librestatic.lightforge.core.model.AlbumSummary
 
@@ -53,15 +66,104 @@ internal fun UpdatesContent(
                 .semantics { heading() },
         )
     }
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        if (galleryWindowClass(maxWidth) != GalleryWindowClass.Compact) {
+            UpdatesTwoPane(events, showTitle, title)
+        } else {
+            UpdatesSinglePane(events, showTitle, title)
+        }
+    }
+}
+
+@Composable
+private fun UpdatesTwoPane(
+    events: List<GalleryActivityEvent>,
+    showTitle: Boolean,
+    title: @Composable () -> Unit,
+) {
+    Row(
+        Modifier.fillMaxSize().padding(horizontal = GallerySpacing.Xl),
+        horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xl),
+    ) {
+        Column(Modifier.width(340.dp).fillMaxHeight()) {
+            if (showTitle) title() else Spacer(Modifier.height(GallerySpacing.Xl))
+            Text(
+                stringResource(R.string.updates_local_body),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (events.isEmpty()) {
+            val updatesTitle = stringResource(R.string.updates_title)
+            Column(
+                Modifier.weight(1f).fillMaxHeight().padding(GallerySpacing.Xl),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                GalleryShapeIllustration(
+                    GalleryIcons.Notifications,
+                    size = 168.dp,
+                    animateEntrance = true,
+                    modifier = Modifier.semantics { contentDescription = updatesTitle },
+                )
+                Spacer(Modifier.height(GallerySpacing.Xl))
+                Text(
+                    stringResource(R.string.updates_empty),
+                    style = MaterialTheme.typography.titleLarge,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.galleryFadeRise(delayMillis = 180),
+                )
+            }
+        } else {
+            LazyColumn(
+                Modifier.weight(1f).fillMaxHeight().widthIn(max = GalleryContentWidths.Reading),
+                contentPadding = PaddingValues(vertical = GallerySpacing.Xl),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                items(events, key = GalleryActivityEvent::id) { event -> ActivityCard(event) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UpdatesSinglePane(
+    events: List<GalleryActivityEvent>,
+    showTitle: Boolean,
+    title: @Composable () -> Unit,
+) {
+    val modifier = Modifier
     if (events.isEmpty()) {
+        val updatesTitle = stringResource(R.string.updates_title)
         Column(modifier.fillMaxSize().padding(horizontal = if (showTitle) GallerySpacing.Lg else 0.dp)) {
             if (showTitle) title()
-            GalleryStateContent(
-                stringResource(R.string.updates_empty),
-                stringResource(R.string.updates_local_body),
-                stringResource(R.string.updates_title),
-                Modifier.weight(1f).fillMaxWidth(),
-            )
+            // The whole screen is this state, so it gets real art instead of the small default icon.
+            Column(
+                Modifier.weight(1f).fillMaxWidth().padding(GallerySpacing.Xxl),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                GalleryShapeIllustration(
+                    GalleryIcons.Notifications,
+                    size = 168.dp,
+                    animateEntrance = true,
+                    modifier = Modifier.semantics { contentDescription = updatesTitle },
+                )
+                Spacer(Modifier.height(GallerySpacing.Xl))
+                Text(
+                    stringResource(R.string.updates_empty),
+                    style = MaterialTheme.typography.titleLarge,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.galleryFadeRise(delayMillis = 180),
+                )
+                Spacer(Modifier.height(GallerySpacing.Sm))
+                Text(
+                    stringResource(R.string.updates_local_body),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.widthIn(max = 480.dp).galleryFadeRise(delayMillis = 260),
+                )
+            }
         }
         return
     }
@@ -75,23 +177,26 @@ internal fun UpdatesContent(
             Text(stringResource(R.string.updates_local_body), style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))
         }
-        items(events, key = GalleryActivityEvent::id) { event ->
-            Card(Modifier.fillMaxWidth()) {
-                Row(
-                    Modifier.fillMaxWidth().padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(activityIcon(event.type), contentDescription = null)
-                    Column(Modifier.weight(1f)) {
-                        Text(activityLabel(event), style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            DateUtils.getRelativeTimeSpanString(event.occurredAtMillis).toString(),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+        items(events, key = GalleryActivityEvent::id) { event -> ActivityCard(event) }
+    }
+}
+
+@Composable
+private fun ActivityCard(event: GalleryActivityEvent) {
+    Card(Modifier.fillMaxWidth()) {
+        Row(
+            Modifier.fillMaxWidth().padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(activityIcon(event.type), contentDescription = null)
+            Column(Modifier.weight(1f)) {
+                Text(activityLabel(event), style = MaterialTheme.typography.titleMedium)
+                Text(
+                    DateUtils.getRelativeTimeSpanString(event.occurredAtMillis).toString(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

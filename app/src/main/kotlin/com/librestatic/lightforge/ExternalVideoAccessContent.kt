@@ -11,7 +11,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -30,6 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveIconButton
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 
 /** Presentation only: access is revalidated by the caller after an explicit retry. */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
@@ -86,7 +86,7 @@ fun ExternalVideoAccessContent(
             }
             if (checking) {
                 val checkingDescription = stringResource(R.string.external_video_access_checking)
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth()
+                GalleryIndeterminateProgressIndicator(modifier = Modifier.fillMaxWidth()
                     .semantics { contentDescription = checkingDescription })
             }
             Button(onClick = onRetry, enabled = !checking,
