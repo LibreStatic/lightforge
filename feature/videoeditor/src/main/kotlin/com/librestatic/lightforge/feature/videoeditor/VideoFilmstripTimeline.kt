@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
+import com.librestatic.lightforge.core.editing.video.SlowMotionSegment
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -79,6 +80,7 @@ internal fun VideoFilmstripTimeline(
     positionMillis: Long,
     onSeek: (Long) -> Unit,
     onTrimChange: (Long, Long) -> Unit,
+    slowMotionSegments: List<SlowMotionSegment>,
     canUndo: Boolean,
     canRedo: Boolean,
     onUndo: () -> Unit,
@@ -201,6 +203,7 @@ internal fun VideoFilmstripTimeline(
                 trimStart = trimStart,
                 trimEnd = trimEnd,
                 position = position,
+                slowMotion = slowMotionSegments,
                 modifier = Modifier.fillMaxSize(),
             )
             // Semantics-only nodes: the whole strip is the playhead slider, and each handle is a slider.
@@ -276,8 +279,10 @@ private fun TimelineOverlay(
     trimStart: Long,
     trimEnd: Long,
     position: Long,
+    slowMotion: List<SlowMotionSegment>,
     modifier: Modifier,
 ) {
+    val slowColor = MaterialTheme.colorScheme.tertiary
     val scrim = MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f)
     val handle = MaterialTheme.colorScheme.primary
     val grip = MaterialTheme.colorScheme.onPrimary
@@ -296,6 +301,13 @@ private fun TimelineOverlay(
         // Frame between the handles.
         drawRect(handle, Offset(startX, 0f), Size(endX - startX, borderPx))
         drawRect(handle, Offset(startX, size.height - borderPx), Size(endX - startX, borderPx))
+        // Slow-motion ranges sit on the bottom edge of the strip.
+        val slowHeight = 5.dp.toPx()
+        slowMotion.forEach { segment ->
+            val from = segment.startMillis.toFloat() / duration * size.width
+            val to = segment.endMillis.toFloat() / duration * size.width
+            drawRect(slowColor, Offset(from, size.height - slowHeight), Size((to - from).coerceAtLeast(2f), slowHeight))
+        }
         // Handles sit inside the trimmed range so they stay reachable at the very edges.
         val radius = CornerRadius(handleWidthPx / 2)
         drawRoundRect(handle, Offset(startX, 0f), Size(handleWidthPx, size.height), radius)

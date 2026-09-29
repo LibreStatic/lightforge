@@ -67,7 +67,7 @@
     <string name="video_editor_disable_loop">Endlosvorschau deaktivieren</string>
     <string name="video_editor_resize_panels">Vorschau- und Bearbeitungsbereich skalieren</string>
     <string name="video_editor_preview_failed">Videovorschau konnte nicht abgespielt werden</string>
-    <string name="video_editor_base_speed">Grundgeschwindigkeit</string>
+    <string name="video_editor_base_speed">Wiedergabegeschwindigkeit</string>
     <string name="video_editor_mark_in">Start markieren</string>
     <string name="video_editor_mark_out">Ende markieren</string>
     <string name="video_editor_marked_in_at">Start bei %1$s markiert</string>
@@ -181,4 +181,10 @@
     <string name="video_editor_advanced_wheels">Räder</string>
     <string name="video_editor_advanced_bands">Bänder</string>
     <string name="video_editor_back_to_color">Zurück zu Farbe</string>
+    <string name="video_editor_speed_result">Neue Länge: %1$s</string>
+    <string name="video_editor_replace_music">Ersetzen</string>
+    <string name="video_editor_hold_compare">Zum Vergleichen gedrückt halten</string>
+    <string name="video_editor_mute_original">Originalton stummschalten</string>
+    <string name="video_editor_unmute_original">Originalton einschalten</string>
+    <string name="video_editor_export_summary">%1$s · %2$s · %3$s</string>
 </resources>

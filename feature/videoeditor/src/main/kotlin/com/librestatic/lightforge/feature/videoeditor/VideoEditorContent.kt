@@ -41,6 +41,9 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.RangeSlider
 import androidx.compose.material3.Surface
@@ -49,6 +52,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -82,6 +86,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.feature.viewer.VideoViewerController
@@ -234,6 +239,8 @@ fun VideoEditorContent(
     var selectedTab by rememberSaveable(sessionId) { mutableIntStateOf(0) }
     var showExportSheet by rememberSaveable(sessionId) { mutableStateOf(false) }
     var showDiscardDialog by rememberSaveable(sessionId) { mutableStateOf(false) }
+    // Held on the preview to see the original: it bypasses the grade without touching the recipe.
+    var comparingOriginal by remember(sessionId) { mutableStateOf(false) }
     var annotationTool by rememberSaveable(sessionId, stateSaver = VideoAnnotationToolStateSaver) {
         mutableStateOf(VideoAnnotationToolState())
     }
@@ -402,9 +409,12 @@ fun VideoEditorContent(
     }
     // LUT generation is CPU-bound and cannot be cancelled mid-cube. A single conflated consumer
     // prevents rapid slider events from creating stale work while still rendering during a drag.
-    LaunchedEffect(state.colorGrade, state.activeCustomLut) {
+    LaunchedEffect(state.colorGrade, state.activeCustomLut, comparingOriginal) {
         gradePreviewRequests.trySend(
-            VideoGradePreviewRequest(state.colorGrade, state.activeCustomLut),
+            VideoGradePreviewRequest(
+                if (comparingOriginal) state.colorGrade.copy(bypass = true) else state.colorGrade,
+                state.activeCustomLut,
+            ),
         )
     }
     LaunchedEffect(controller, gradePreviewRequests, realtimeColorLut) {
@@ -521,6 +531,9 @@ fun VideoEditorContent(
                     annotationTool = annotationTool,
                     state = state,
                     currentMillis = previewPositionMillis,
+                    compareEnabled = VideoEditorTool.fromIndex(selectedTab) == VideoEditorTool.Color &&
+                        state.colorGrade.hasChanges,
+                    onCompareChange = { comparingOriginal = it },
                     onAddAnnotation = annotationActions.add,
                     onEraseAnnotations = { points ->
                         annotationActions.erase(points, previewPositionMillis)
@@ -927,6 +940,7 @@ private fun VideoEditingPanel(
             positionMillis = currentMillis,
             onSeek = onSeek,
             onTrimChange = onTrimChange,
+            slowMotionSegments = state.slowMotionSegments,
             canUndo = state.canUndo,
             canRedo = state.canRedo,
             onUndo = annotationActions.undo,
@@ -970,6 +984,8 @@ private fun VideoPreview(
     annotationTool: VideoAnnotationToolState,
     state: VideoEditorContentState,
     currentMillis: Long,
+    compareEnabled: Boolean,
+    onCompareChange: (Boolean) -> Unit,
     onAddAnnotation: (VideoAnnotationLayer) -> Unit,
     onEraseAnnotations: (List<NormalizedPoint>) -> Unit,
     modifier: Modifier,
@@ -1084,7 +1100,39 @@ private fun VideoPreview(
                     .padding(horizontal = GallerySpacing.Md, vertical = GallerySpacing.Sm),
             )
         }
+        if (compareEnabled) {
+            CompareOriginalButton(
+                onCompareChange = onCompareChange,
+                modifier = Modifier.align(Alignment.BottomStart).padding(GallerySpacing.Md),
+            )
+        }
         DisposableEffect(controller) { onDispose { controller.attachSurface(null) } }
+    }
+}
+
+/** Shows the original while pressed: hold to compare, release to return to the graded video. */
+@Composable
+private fun CompareOriginalButton(onCompareChange: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    LaunchedEffect(pressed) { onCompareChange(pressed) }
+    DisposableEffect(Unit) { onDispose { onCompareChange(false) } }
+    Surface(
+        onClick = {},
+        interactionSource = interactionSource,
+        modifier = modifier.heightIn(min = 48.dp).testTag("video-editor-compare"),
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.inverseSurface,
+        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+    ) {
+        Row(
+            Modifier.padding(horizontal = GallerySpacing.Md),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+        ) {
+            Icon(GalleryIcons.Palette, contentDescription = null)
+            Text(stringResource(R.string.video_editor_hold_compare), style = MaterialTheme.typography.labelLarge)
+        }
     }
 }
 
@@ -1133,7 +1181,7 @@ private fun VideoControls(
     Column(modifier.fillMaxWidth().padding(top = GallerySpacing.Xs)) {
         Box(Modifier.fillMaxWidth().weight(1f)) {
             when (VideoEditorTool.fromIndex(selectedTab)) {
-                VideoEditorTool.Speed -> SlowMotionControls(
+                VideoEditorTool.Speed -> SpeedControls(
                     state = state,
                     currentMillis = currentMillis,
                     onSpeedChange = onSpeedChange,
@@ -1144,42 +1192,14 @@ private fun VideoControls(
                     onDelete = onDeleteSlowMotionSegment,
                     modifier = Modifier.fillMaxSize(),
                 )
-                VideoEditorTool.Audio -> Column(Modifier.fillMaxSize().padding(horizontal = GallerySpacing.Lg)) {
-                    Text(stringResource(R.string.video_editor_original_audio))
-                    val audioDescription = stringResource(R.string.video_editor_audio_description)
-                    Slider(
-                        value = state.originalAudioVolume,
-                        onValueChange = onOriginalVolumeChange,
-                        valueRange = 0f..1f,
-                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = audioDescription },
-                    )
-                }
-                VideoEditorTool.Music -> Column(
-                    Modifier.fillMaxSize().padding(GallerySpacing.Md),
-                    verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
-                ) {
-                    if (state.selectedMusicName == null) {
-                        OutlinedButton(onClick = onChooseMusic) {
-                            Icon(GalleryIcons.Music, contentDescription = null)
-                            Text(stringResource(R.string.video_editor_choose_music))
-                        }
-                    } else {
-                        Text(state.selectedMusicName)
-                        Text(stringResource(R.string.video_editor_music_volume))
-                        val musicVolumeDescription = stringResource(R.string.video_editor_music_volume)
-                        Slider(
-                            value = state.musicVolume,
-                            onValueChange = onMusicVolumeChange,
-                            valueRange = 0f..1f,
-                            modifier = Modifier.semantics {
-                                contentDescription = musicVolumeDescription
-                            },
-                        )
-                        TextButton(onClick = onRemoveMusic) {
-                            Text(stringResource(R.string.video_editor_remove_music))
-                        }
-                    }
-                }
+                VideoEditorTool.Audio -> AudioControls(state, onOriginalVolumeChange, Modifier.fillMaxSize())
+                VideoEditorTool.Music -> MusicControls(
+                    state = state,
+                    onChooseMusic = onChooseMusic,
+                    onRemoveMusic = onRemoveMusic,
+                    onMusicVolumeChange = onMusicVolumeChange,
+                    modifier = Modifier.fillMaxSize(),
+                )
                 VideoEditorTool.Color -> ColorControls(state, thumbnailFrame, onColorGradeChange, onImportLut, Modifier.fillMaxSize())
                 VideoEditorTool.Transform -> TransformControls(state.geometry, onGeometryChange, Modifier.fillMaxSize())
                 VideoEditorTool.Draw -> VideoAnnotationControls(
@@ -1299,109 +1319,6 @@ private fun VideoExportPhase?.exportLabel(): Int = when (this) {
 }
 
 @Composable
-private fun SlowMotionControls(
-    state: VideoEditorContentState,
-    currentMillis: Long,
-    onSpeedChange: (Float) -> Unit,
-    onMarkIn: (Long) -> Unit,
-    onMarkOut: (Long) -> Unit,
-    onSelect: (String) -> Unit,
-    onUpdate: (SlowMotionSegment) -> Unit,
-    onDelete: (String) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val selected = state.slowMotionSegments.firstOrNull { it.id == state.selectedSlowMotionSegmentId }
-    Column(
-        modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(GallerySpacing.Md),
-        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
-    ) {
-        Text(stringResource(R.string.video_editor_base_speed), style = MaterialTheme.typography.titleSmall)
-        Row(
-            Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
-        ) {
-            listOf(0.25f, 0.5f, 1f, 1.5f, 2f, 4f).forEach { speed ->
-                FilterChip(
-                    selected = state.speed == speed,
-                    onClick = { onSpeedChange(speed) },
-                    label = { Text("${speed}×") },
-                    modifier = EditorChipModifier,
-                )
-            }
-        }
-        Row(
-            Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
-        ) {
-            GalleryExpressiveButton(
-                onClick = { onMarkIn(currentMillis) },
-                modifier = Modifier.widthIn(min = 104.dp).heightIn(min = 48.dp),
-            ) {
-                Text(stringResource(R.string.video_editor_mark_in))
-            }
-            GalleryExpressiveButton(
-                onClick = { onMarkOut(currentMillis) },
-                enabled = state.slowMotionMarkInMillis != null,
-                modifier = Modifier.widthIn(min = 104.dp).heightIn(min = 48.dp),
-            ) { Text(stringResource(R.string.video_editor_mark_out)) }
-        }
-        state.slowMotionMarkInMillis?.let {
-            Text(stringResource(R.string.video_editor_marked_in_at, formatMillis(it)))
-        }
-        if (state.slowMotionSegments.isNotEmpty()) {
-            Text(stringResource(R.string.video_editor_slow_segments), style = MaterialTheme.typography.titleSmall)
-            Row(
-                Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
-            ) {
-                state.slowMotionSegments.forEachIndexed { index, segment ->
-                    FilterChip(
-                        selected = segment.id == state.selectedSlowMotionSegmentId,
-                        onClick = { onSelect(segment.id) },
-                        label = { Text("${index + 1}: ${formatMillis(segment.startMillis)}–${formatMillis(segment.endMillis)}") },
-                        modifier = EditorChipModifier,
-                    )
-                }
-            }
-        }
-        selected?.let { segment ->
-            Text(stringResource(R.string.video_editor_segment_speed), style = MaterialTheme.typography.titleSmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
-                listOf(0.5f, 0.25f, 0.125f).forEach { speed ->
-                    FilterChip(
-                        selected = segment.speed == speed,
-                        onClick = { onUpdate(segment.copy(speed = speed)) },
-                        label = { Text("${speed}×") },
-                        modifier = EditorChipModifier,
-                    )
-                }
-            }
-            Text(stringResource(R.string.video_editor_segment_audio), style = MaterialTheme.typography.titleSmall)
-            Row(
-                Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
-            ) {
-                listOf(
-                    SlowMotionAudioMode.PreservePitch to R.string.video_editor_audio_preserve_pitch,
-                    SlowMotionAudioMode.Muted to R.string.video_editor_audio_muted,
-                    SlowMotionAudioMode.Varispeed to R.string.video_editor_audio_varispeed,
-                ).forEach { (mode, label) ->
-                    FilterChip(
-                        selected = segment.audioMode == mode,
-                        onClick = { onUpdate(segment.copy(audioMode = mode)) },
-                        label = { Text(stringResource(label)) },
-                        modifier = EditorChipModifier,
-                    )
-                }
-            }
-            TextButton(onClick = { onDelete(segment.id) }) {
-                Text(stringResource(R.string.video_editor_delete_segment))
-            }
-        }
-    }
-}
-
-@Composable
 internal fun LogWheelControls(
     @StringRes label: Int,
     wheel: LogWheel,
@@ -1500,63 +1417,88 @@ private fun ExportControls(
     onDynamicRangeSelected: (VideoDynamicRange) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val qualityLabel: (VideoOutputQuality) -> Int = { quality ->
+        if (quality == VideoOutputQuality.HevcMain10) R.string.video_editor_hevc_10bit else R.string.video_editor_h264
+    }
+    val rangeLabel: (VideoDynamicRange) -> Int = { dynamicRange ->
+        when (dynamicRange) {
+            VideoDynamicRange.SdrRec709 -> R.string.video_editor_dynamic_range_sdr
+            VideoDynamicRange.HdrHlg -> R.string.video_editor_dynamic_range_hlg
+            VideoDynamicRange.Hdr10Pq -> R.string.video_editor_dynamic_range_hdr10
+        }
+    }
     Column(
-        modifier.verticalScroll(rememberScrollState()).padding(GallerySpacing.Md),
+        modifier.verticalScroll(rememberScrollState()).padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Sm),
         verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
     ) {
         Text(stringResource(R.string.video_editor_output_quality), style = MaterialTheme.typography.titleSmall)
-        VideoOutputQuality.entries.forEach { quality ->
-            FilterChip(
-                selected = state.outputQuality == quality,
-                onClick = { onQualitySelected(quality) },
-                enabled = quality != VideoOutputQuality.HevcMain10 || state.isHevcMain10Available,
-                label = { Text(stringResource(if (quality == VideoOutputQuality.HevcMain10) R.string.video_editor_hevc_10bit else R.string.video_editor_h264)) },
-                modifier = EditorChipModifier,
-            )
+        val qualities = VideoOutputQuality.entries
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            qualities.forEachIndexed { index, quality ->
+                SegmentedButton(
+                    selected = state.outputQuality == quality,
+                    onClick = { onQualitySelected(quality) },
+                    enabled = quality != VideoOutputQuality.HevcMain10 || state.isHevcMain10Available,
+                    shape = SegmentedButtonDefaults.itemShape(index, qualities.size),
+                    label = { Text(stringResource(qualityLabel(quality)), maxLines = 2, textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium) },
+                )
+            }
         }
         if (!state.isHevcMain10Available) Text(
             stringResource(R.string.video_editor_hevc_unavailable),
             style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Text(stringResource(R.string.video_editor_dynamic_range), style = MaterialTheme.typography.titleSmall)
-        VideoDynamicRange.entries.forEach { dynamicRange ->
-            val label = when (dynamicRange) {
-                VideoDynamicRange.SdrRec709 -> R.string.video_editor_dynamic_range_sdr
-                VideoDynamicRange.HdrHlg -> R.string.video_editor_dynamic_range_hlg
-                VideoDynamicRange.Hdr10Pq -> R.string.video_editor_dynamic_range_hdr10
+        val ranges = VideoDynamicRange.entries
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            ranges.forEachIndexed { index, dynamicRange ->
+                SegmentedButton(
+                    selected = state.dynamicRange == dynamicRange,
+                    onClick = { onDynamicRangeSelected(dynamicRange) },
+                    enabled = when (dynamicRange) {
+                        VideoDynamicRange.SdrRec709 -> true
+                        VideoDynamicRange.HdrHlg -> state.isHlgExportAvailable
+                        VideoDynamicRange.Hdr10Pq -> state.isHdr10ExportAvailable
+                    },
+                    shape = SegmentedButtonDefaults.itemShape(index, ranges.size),
+                    label = { Text(stringResource(rangeLabel(dynamicRange)), maxLines = 2, textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium) },
+                )
             }
-            FilterChip(
-                selected = state.dynamicRange == dynamicRange,
-                onClick = { onDynamicRangeSelected(dynamicRange) },
-                enabled = when (dynamicRange) {
-                    VideoDynamicRange.SdrRec709 -> true
-                    VideoDynamicRange.HdrHlg -> state.isHlgExportAvailable
-                    VideoDynamicRange.Hdr10Pq -> state.isHdr10ExportAvailable
-                },
-                label = { Text(stringResource(label)) },
-                modifier = EditorChipModifier,
-            )
         }
         Surface(
-            shape = MaterialTheme.shapes.small,
+            shape = MaterialTheme.shapes.medium,
             color = MaterialTheme.colorScheme.secondaryContainer,
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
         ) {
-            Text(
-                text = stringResource(
-                    if (state.dynamicRange == VideoDynamicRange.SdrRec709) {
-                        R.string.video_editor_dynamic_range_sdr_description
-                    } else {
-                        R.string.video_editor_dynamic_range_hdr_description
-                    },
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(GallerySpacing.Md),
-            )
+            Column(Modifier.fillMaxWidth().padding(GallerySpacing.Md), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
+                val trimEnd = state.trimEndMillis.takeIf { it > state.trimStartMillis } ?: state.durationMillis
+                val length = ((trimEnd - state.trimStartMillis) / state.speed).toLong().coerceAtLeast(0)
+                Text(
+                    stringResource(
+                        R.string.video_editor_export_summary,
+                        formatVideoEditorShortTime(length),
+                        stringResource(qualityLabel(state.outputQuality)),
+                        stringResource(rangeLabel(state.dynamicRange)),
+                    ),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Text(
+                    text = stringResource(
+                        if (state.dynamicRange == VideoDynamicRange.SdrRec709) {
+                            R.string.video_editor_dynamic_range_sdr_description
+                        } else {
+                            R.string.video_editor_dynamic_range_hdr_description
+                        },
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
         }
         if (!state.isHlgExportAvailable && !state.isHdr10ExportAvailable) Text(
             stringResource(R.string.video_editor_hdr_unavailable),
             style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -1642,7 +1584,7 @@ private fun normalizeVideoRotation(value: Float): Float {
 }
 
 /** Slow-motion marker positions, rounded to the nearest second like the duration badge. */
-private fun formatMillis(value: Long): String {
+internal fun formatMillis(value: Long): String {
     val seconds = ((value + 500) / 1_000).coerceAtLeast(0)
     return "%d:%02d".format(seconds / 60, seconds % 60)
 }

@@ -78,7 +78,7 @@
     <string name="video_editor_disable_loop">Disable continuous preview</string>
     <string name="video_editor_resize_panels">Resize preview and editing panels</string>
     <string name="video_editor_preview_failed">Video preview could not be played</string>
-    <string name="video_editor_base_speed">Base speed</string>
+    <string name="video_editor_base_speed">Playback speed</string>
     <string name="video_editor_mark_in">Mark in</string>
     <string name="video_editor_mark_out">Mark out</string>
     <string name="video_editor_marked_in_at">In marked at %1$s</string>
@@ -192,4 +192,10 @@
     <string name="video_editor_advanced_wheels">Wheels</string>
     <string name="video_editor_advanced_bands">Bands</string>
     <string name="video_editor_back_to_color">Back to color</string>
+    <string name="video_editor_speed_result">New length: %1$s</string>
+    <string name="video_editor_replace_music">Replace</string>
+    <string name="video_editor_hold_compare">Hold to compare</string>
+    <string name="video_editor_mute_original">Mute original audio</string>
+    <string name="video_editor_unmute_original">Unmute original audio</string>
+    <string name="video_editor_export_summary">%1$s · %2$s · %3$s</string>
 </resources>
