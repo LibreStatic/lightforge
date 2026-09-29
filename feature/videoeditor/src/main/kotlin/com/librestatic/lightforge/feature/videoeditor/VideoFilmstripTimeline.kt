@@ -35,10 +35,12 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -113,6 +115,7 @@ internal fun VideoFilmstripTimeline(
 
     var stripWidthPx by remember { mutableIntStateOf(0) }
     val latest = rememberUpdatedState(TimelineSnapshot(duration, trimStart, trimEnd, onSeek, onTrimChange))
+    val haptics = LocalHapticFeedback.current
 
     Column(modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Sm)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -188,6 +191,8 @@ internal fun VideoFilmstripTimeline(
                                 )
                             }
                         }
+                        // A short tick when a trim handle is grabbed tells the finger it caught the handle.
+                        if (target != TimelineTarget.Seek) haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
                         apply(down.position.x)
                         down.consume()
                         drag(down.id) { change ->
