@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -64,21 +66,19 @@ class CollectionsContentDeviceTest {
             }
         }
 
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText(context.getString(R.string.collections_local_analysis)))
-        val first = compose.onNode(hasText(context.getString(R.string.collections_local_analysis)))
+        // Actions and library entries are compact shortcuts that wrap instead of full-width cards.
+        val shortcuts = compose.onNodeWithTag("collections-shortcuts")
+        shortcuts.performScrollToNode(hasText(context.getString(R.string.collections_local_analysis)))
+        val analysis = compose.onNode(hasText(context.getString(R.string.collections_local_analysis)))
             .getUnclippedBoundsInRoot()
+        shortcuts.performScrollToNode(hasText(privateAlbum))
         val second = compose.onNode(hasText(privateAlbum)).getUnclippedBoundsInRoot()
-        assertTrue("Descriptive cards should occupy separate rows", second.top >= first.bottom || first.top >= second.bottom)
         assertTrue(
-            "Descriptive cards should use the same full width",
-            kotlin.math.abs(first.left.value - second.left.value) < 1f,
-        )
-        assertTrue(
-            "Descriptive cards should use the same full width",
-            kotlin.math.abs(first.right.value - second.right.value) < 1f,
+            "Shortcuts should be compact chips, not full-width cards",
+            analysis.right.value - analysis.left.value < 300f && second.right.value - second.left.value < 300f,
         )
 
-        compose.onNode(hasScrollAction()).performScrollToNode(hasText(context.getString(R.string.collections_dogs)))
+        compose.onNode(hasScrollAction() and !hasTestTag("collections-shortcuts")).performScrollToNode(hasText(context.getString(R.string.collections_dogs)))
         val dogs = compose.onNode(hasText(context.getString(R.string.collections_dogs))).getUnclippedBoundsInRoot()
         val cats = compose.onNode(hasText(context.getString(R.string.collections_cats))).getUnclippedBoundsInRoot()
         assertTrue(
@@ -87,14 +87,8 @@ class CollectionsContentDeviceTest {
         )
         assertTrue("Second automatic collection should be placed beside the first", cats.left > dogs.left)
         assertTrue(
-            "Automatic collections in the same row should have equal heights",
-            kotlin.math.abs(
-                (dogs.bottom.value - dogs.top.value) - (cats.bottom.value - cats.top.value),
-            ) < 1f,
-        )
-        assertTrue(
-            "Short automatic collections should not retain the former fixed height",
-            dogs.bottom.value - dogs.top.value < 216f,
+            "Collection tiles should be square like the Photos grid",
+            kotlin.math.abs((dogs.bottom.value - dogs.top.value) - (dogs.right.value - dogs.left.value)) < 2f,
         )
 
         compose.onNode(hasText(context.getString(R.string.collections_dogs))).performClick()

@@ -28,4 +28,4 @@
     <string name="collection_layout_private">Privates Album</string>
     <string name="collection_layout_pdf">PDF-Studio</string>
     <string name="collection_layout_collage">Collage</string>
-<string name="collections_albums_empty">Noch keine Alben</string><string name="collections_albums_empty_body">Alben, die du erstellst, erscheinen hier. Geräteordner stehen in ihrem eigenen Abschnitt.</string><string name="collections_folders_empty">Keine Geräteordner</string><string name="collections_folders_empty_body">Ordner mit Fotos auf diesem Gerät erscheinen hier.</string><string name="collections_favorites">Favoriten</string><string name="collections_favorites_body">Fotos und Videos, die du als Favoriten markiert hast</string></resources>
+<string name="collections_favorites">Favoriten</string><string name="collections_favorites_body">Fotos und Videos, die du als Favoriten markiert hast</string></resources>

@@ -18,6 +18,8 @@ import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
 
 @OptIn(ExperimentalLayoutApi::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
@@ -83,7 +85,7 @@ fun DocumentAutoArchiveContent(
                 )
             }
             item { Text(stringResource(R.string.document_auto_explanation)) }
-            if (state == null) item { CircularProgressIndicator() }
+            if (state == null) item { GalleryIndeterminateProgressIndicator() }
             else {
                 item {
                     Surface(
@@ -277,7 +279,7 @@ fun DocumentAutoArchiveContent(
                         )
                     }
                 }
-                if (busy) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+                item { GalleryProgressSlot(busy) }
             }
         }
     }

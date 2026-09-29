@@ -24,12 +24,18 @@ import com.librestatic.lightforge.core.database.MomentEntity
 import com.librestatic.lightforge.core.database.MomentMemberEntity
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
+import com.librestatic.lightforge.core.designsystem.GalleryWindowClass
+import com.librestatic.lightforge.core.designsystem.galleryWindowClass
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyListScope
 import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
 import com.librestatic.lightforge.core.thumbnail.ThumbnailRequest
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.CancellationException
+import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
 
 data class MomentMemberUi(
     val member: MomentMemberEntity,
@@ -79,232 +85,281 @@ fun MomentContent(
     var deleting by rememberSaveable(moment.momentId) { mutableStateOf(false) }
     val listState = rememberLazyListState()
     LaunchedEffect(renaming) { if (renaming) listState.animateScrollToItem(1) }
+    val summaryBlock: @Composable () -> Unit = {
+        Column {
+            Text(dateLabel)
+            Text(stateLabel)
+        }
+    }
+    val participantsBlock: @Composable () -> Unit = {
+        if (onParticipants != null) {
+            TextButton(onClick = onParticipants, modifier = Modifier.testTag("moment-participants-edit")) {
+                Text(stringResource(R.string.moment_participants_title))
+            }
+        }
+    }
+    val makeVideoBlock: @Composable () -> Unit = {
+        if (onMakeVideo != null && makeVideoLabel != null) {
+            Button(onClick = onMakeVideo, enabled = current != null, modifier = Modifier.fillMaxWidth().testTag("moment-make-video")) {
+                Text(makeVideoLabel)
+            }
+        }
+    }
+    val memoryControlsBlock: @Composable () -> Unit = {
+        if (onMemoryControls != null) {
+            TextButton(onClick = onMemoryControls, modifier = Modifier.testTag("moment-memory-controls")) {
+                Text(stringResource(R.string.memory_controls_title))
+            }
+        }
+    }
+    val slideBlock: @Composable () -> Unit = {
+        if (current != null) {
+            Column {
+                MemoryImage(
+                    current,
+                    thumbnailLoader,
+                    Modifier.fillMaxWidth()
+                        .aspectRatio(4f / 3f)
+                        .testTag("moment-slide"),
+                )
+                Text(
+                    stringResource(
+                        R.string.moment_story_position,
+                        index + 1,
+                        visible.size,
+                    ),
+                    Modifier.testTag("moment-position"),
+                )
+                GalleryProgressIndicator(
+                    progress = { (index + 1f) / visible.size },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                )
+            }
+        } else {
+            Text(
+                stringResource(R.string.memory_empty),
+                Modifier.testTag("moment-empty"),
+            )
+        }
+    }
+    val playbackBlock: @Composable () -> Unit = {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            TextButton(
+                onClick = { visible.getOrNull(index - 1)?.let(::select) },
+                enabled = current != null && index > 0,
+                modifier = Modifier.testTag("moment-previous"),
+            ) {
+                Text(stringResource(R.string.memory_previous))
+            }
+            TextButton(
+                onClick = { visible.getOrNull(index + 1)?.let(::select) },
+                enabled = current != null && index < visible.lastIndex,
+                modifier = Modifier.testTag("moment-next"),
+            ) {
+                Text(stringResource(R.string.memory_next))
+            }
+        }
+    }
+    val organizeBlock: @Composable () -> Unit = {
+        if (current != null) {
+            Column {
+                Text(
+                    stringResource(R.string.memory_order_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Row(Modifier.fillMaxWidth()) {
+                    for (delta in listOf(-1, 1)) TextButton(
+                        onClick = {
+                            val order = visible.map { it.key }.toMutableList()
+                            order.add(index + delta, order.removeAt(index))
+                            onReorder(order)
+                        },
+                        enabled =
+                            if (delta < 0) index > 0 else index < visible.lastIndex,
+                        modifier =
+                            Modifier.weight(1f)
+                                .testTag(
+                                    if (delta < 0) "moment-move-earlier"
+                                    else "moment-move-later"
+                                ),
+                    ) {
+                        Text(
+                            stringResource(
+                                if (delta < 0) R.string.moment_move_previous
+                                else R.string.moment_move_next
+                            )
+                        )
+                    }
+                }
+                TextButton(
+                    onClick = { onSetCover(current.member.ordinal) },
+                    modifier = Modifier.testTag("moment-set-cover"),
+                ) {
+                    Text(stringResource(R.string.memory_set_cover))
+                }
+            }
+        }
+    }
+    val wide = galleryWindowClass(androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp) != GalleryWindowClass.Compact
+    val tileColumns = if (wide) 4 else 3
+    val renameBlock: @Composable () -> Unit = {
+        Column {
+            OutlinedTextField(
+                editTitle,
+                { editTitle = it.take(80) },
+                Modifier.fillMaxWidth().testTag("moment-title"),
+                label = { Text(stringResource(R.string.moment_edit_title)) },
+                singleLine = true,
+            )
+            Row {
+                TextButton(onClick = { renaming = false }) {
+                    Text(stringResource(R.string.moment_cancel))
+                }
+                TextButton(
+                    onClick = {
+                        onRename(editTitle.trim())
+                        renaming = false
+                    },
+                    enabled = editTitle.isNotBlank(),
+                    modifier = Modifier.testTag("moment-title-save"),
+                ) {
+                    Text(stringResource(R.string.moment_save_title))
+                }
+            }
+        }
+    }
+    val actionsBlock: @Composable () -> Unit = {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            TextButton(
+                onClick = { deleting = true },
+                modifier = Modifier.testTag("moment-delete"),
+            ) {
+                Text(stringResource(R.string.moment_delete))
+            }
+            TextButton(
+                onClick = onSave,
+                enabled = current != null,
+                modifier = Modifier.testTag("moment-save"),
+            ) {
+                Text(stringResource(R.string.moment_save))
+            }
+        }
+    }
+    val gridItems: LazyListScope.() -> Unit = {
+        itemsIndexed(visible.chunked(tileColumns), key = { row, _ -> "tiles:$row" }) { _, row ->
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                row.forEach { member ->
+                    val description =
+                        stringResource(
+                            R.string.memory_select_photo,
+                            visible.indexOf(member) + 1,
+                        )
+                    Surface(
+                        Modifier.weight(1f)
+                            .aspectRatio(1f)
+                            .testTag("moment-photo-${member.member.ordinal}")
+                            .semantics { contentDescription = description }
+                            .clickable { select(member) },
+                        color =
+                            if (member.key == current?.key)
+                                MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor =
+                            if (member.key == current?.key)
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        shape = MaterialTheme.shapes.small,
+                    ) {
+                        MemoryImage(
+                            member,
+                            thumbnailLoader,
+                            Modifier.padding(4.dp).fillMaxSize(),
+                        )
+                    }
+                }
+                repeat(tileColumns - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+    }
+    val topBar: @Composable () -> Unit = {
+        GalleryTopAppBar(
+            title = momentDisplayTitle(moment, momentPlaceLabels),
+            onBack = onBack,
+            navigationContentDescription = stringResource(R.string.memory_back),
+            actions = {
+                TextButton(
+                    onClick = {
+                        editTitle = moment.title.orEmpty()
+                        renaming = true
+                    },
+                    modifier = Modifier.testTag("moment-edit"),
+                ) {
+                    Text(stringResource(R.string.moment_edit))
+                }
+            },
+        )
+    }
     Surface(
         modifier.fillMaxSize().testTag("moment-screen").semantics { testTagsAsResourceId = true },
         color = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
     ) {
         Box(contentAlignment = Alignment.TopCenter) {
-            Column(Modifier.widthIn(max = 720.dp).fillMaxSize()) {
-                GalleryTopAppBar(
-                    title = momentDisplayTitle(moment, momentPlaceLabels),
-                    onBack = onBack,
-                    navigationContentDescription = stringResource(R.string.memory_back),
-                    actions = {
-                        TextButton(
-                            onClick = {
-                                editTitle = moment.title.orEmpty()
-                                renaming = true
-                            },
-                            modifier = Modifier.testTag("moment-edit"),
+            Column(Modifier.widthIn(max = if (wide) 1_200.dp else 720.dp).fillMaxSize()) {
+                topBar()
+                if (wide) {
+                    // Two panes: player, details and actions on the start side, the ordered grid on the end.
+                    Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                        Column(
+                            Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            Text(stringResource(R.string.moment_edit))
+                            summaryBlock()
+                            if (renaming) renameBlock()
+                            slideBlock()
+                            playbackBlock()
+                            participantsBlock()
+                            makeVideoBlock()
+                            memoryControlsBlock()
+                            organizeBlock()
+                            actionsBlock()
                         }
-                    },
-                )
-                LazyColumn(
-                    Modifier.fillMaxWidth().weight(1f).testTag("moment-list"),
-                    state = listState,
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    item("summary") {
-                        Column {
-                            Text(dateLabel)
-                            Text(stateLabel)
-                        }
+                        LazyColumn(
+                            Modifier.weight(1f).fillMaxHeight().testTag("moment-list"),
+                            state = listState,
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            content = { gridItems() },
+                        )
                     }
-                    if (renaming)
-                        item("rename") {
-                            Column {
-                                OutlinedTextField(
-                                    editTitle,
-                                    { editTitle = it.take(80) },
-                                    Modifier.fillMaxWidth().testTag("moment-title"),
-                                    label = { Text(stringResource(R.string.moment_edit_title)) },
-                                    singleLine = true,
-                                )
-                                Row {
-                                    TextButton(onClick = { renaming = false }) {
-                                        Text(stringResource(R.string.moment_cancel))
-                                    }
-                                    TextButton(
-                                        onClick = {
-                                            onRename(editTitle.trim())
-                                            renaming = false
-                                        },
-                                        enabled = editTitle.isNotBlank(),
-                                        modifier = Modifier.testTag("moment-title-save"),
-                                    ) {
-                                        Text(stringResource(R.string.moment_save_title))
-                                    }
-                                }
-                            }
-                        }
-                    if (onParticipants != null) item("participants") {
-                        TextButton(onClick = onParticipants, modifier = Modifier.testTag("moment-participants-edit")) {
-                            Text(stringResource(R.string.moment_participants_title))
-                        }
-                    }
-                    if (onMakeVideo != null && makeVideoLabel != null) item("make-video") {
-                        Button(onClick = onMakeVideo, enabled = current != null, modifier = Modifier.fillMaxWidth().testTag("moment-make-video")) {
-                            Text(makeVideoLabel)
-                        }
-                    }
-                    if (onMemoryControls != null) item("memory-controls") {
-                        TextButton(onClick = onMemoryControls, modifier = Modifier.testTag("moment-memory-controls")) {
-                            Text(stringResource(R.string.memory_controls_title))
-                        }
-                    }
-                    if (current != null) {
-                        item("slide") {
-                            Column {
-                                MemoryImage(
-                                    current,
-                                    thumbnailLoader,
-                                    Modifier.fillMaxWidth()
-                                        .aspectRatio(4f / 3f)
-                                        .testTag("moment-slide"),
-                                )
-                                Text(
-                                    stringResource(
-                                        R.string.moment_story_position,
-                                        index + 1,
-                                        visible.size,
-                                    ),
-                                    Modifier.testTag("moment-position"),
-                                )
-                                LinearProgressIndicator(
-                                    progress = { (index + 1f) / visible.size },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    color = MaterialTheme.colorScheme.primary,
-                                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                )
-                            }
-                        }
-                    } else
-                        item("empty") {
-                            Text(
-                                stringResource(R.string.memory_empty),
-                                Modifier.testTag("moment-empty"),
-                            )
-                        }
-                    item("playback") {
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            TextButton(
-                                onClick = { visible.getOrNull(index - 1)?.let(::select) },
-                                enabled = current != null && index > 0,
-                                modifier = Modifier.testTag("moment-previous"),
-                            ) {
-                                Text(stringResource(R.string.memory_previous))
-                            }
-                            TextButton(
-                                onClick = { visible.getOrNull(index + 1)?.let(::select) },
-                                enabled = current != null && index < visible.lastIndex,
-                                modifier = Modifier.testTag("moment-next"),
-                            ) {
-                                Text(stringResource(R.string.memory_next))
-                            }
-                        }
-                    }
-                    if (current != null)
-                        item("organize") {
-                            Column {
-                                Text(
-                                    stringResource(R.string.memory_order_hint),
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                                Row(Modifier.fillMaxWidth()) {
-                                    for (delta in listOf(-1, 1)) TextButton(
-                                        onClick = {
-                                            val order = visible.map { it.key }.toMutableList()
-                                            order.add(index + delta, order.removeAt(index))
-                                            onReorder(order)
-                                        },
-                                        enabled =
-                                            if (delta < 0) index > 0 else index < visible.lastIndex,
-                                        modifier =
-                                            Modifier.weight(1f)
-                                                .testTag(
-                                                    if (delta < 0) "moment-move-earlier"
-                                                    else "moment-move-later"
-                                                ),
-                                    ) {
-                                        Text(
-                                            stringResource(
-                                                if (delta < 0) R.string.moment_move_previous
-                                                else R.string.moment_move_next
-                                            )
-                                        )
-                                    }
-                                }
-                                TextButton(
-                                    onClick = { onSetCover(current.member.ordinal) },
-                                    modifier = Modifier.testTag("moment-set-cover"),
-                                ) {
-                                    Text(stringResource(R.string.memory_set_cover))
-                                }
-                            }
-                        }
-                    itemsIndexed(visible.chunked(3), key = { row, _ -> "tiles:$row" }) { _, row ->
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            row.forEach { member ->
-                                val description =
-                                    stringResource(
-                                        R.string.memory_select_photo,
-                                        visible.indexOf(member) + 1,
-                                    )
-                                Surface(
-                                    Modifier.weight(1f)
-                                        .aspectRatio(1f)
-                                        .testTag("moment-photo-${member.member.ordinal}")
-                                        .semantics { contentDescription = description }
-                                        .clickable { select(member) },
-                                    color =
-                                        if (member.key == current?.key)
-                                            MaterialTheme.colorScheme.primaryContainer
-                                        else MaterialTheme.colorScheme.surfaceVariant,
-                                    contentColor =
-                                        if (member.key == current?.key)
-                                            MaterialTheme.colorScheme.onPrimaryContainer
-                                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    shape = MaterialTheme.shapes.small,
-                                ) {
-                                    MemoryImage(
-                                        member,
-                                        thumbnailLoader,
-                                        Modifier.padding(4.dp).fillMaxSize(),
-                                    )
-                                }
-                            }
-                            repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
-                        }
-                    }
-                    item("actions") {
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            TextButton(
-                                onClick = { deleting = true },
-                                modifier = Modifier.testTag("moment-delete"),
-                            ) {
-                                Text(stringResource(R.string.moment_delete))
-                            }
-                            TextButton(
-                                onClick = onSave,
-                                enabled = current != null,
-                                modifier = Modifier.testTag("moment-save"),
-                            ) {
-                                Text(stringResource(R.string.moment_save))
-                            }
-                        }
+                } else {
+                    LazyColumn(
+                        Modifier.fillMaxWidth().weight(1f).testTag("moment-list"),
+                        state = listState,
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        item("summary") { summaryBlock() }
+                        if (renaming) item("rename") { renameBlock() }
+                        if (onParticipants != null) item("participants") { participantsBlock() }
+                        if (onMakeVideo != null && makeVideoLabel != null) item("make-video") { makeVideoBlock() }
+                        if (onMemoryControls != null) item("memory-controls") { memoryControlsBlock() }
+                        item("slide") { slideBlock() }
+                        item("playback") { playbackBlock() }
+                        if (current != null) item("organize") { organizeBlock() }
+                        gridItems()
+                        item("actions") { actionsBlock() }
                     }
                 }
             }

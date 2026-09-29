@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -18,9 +20,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import com.librestatic.lightforge.core.designsystem.GalleryOverlayTokens
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
@@ -53,47 +64,34 @@ import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import com.librestatic.lightforge.core.database.MomentEntity
 import com.librestatic.lightforge.core.database.MomentSummaryRow
+import com.librestatic.lightforge.core.designsystem.GalleryGridMetrics
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.designsystem.GalleryShapeIllustration
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
-import com.librestatic.lightforge.core.designsystem.GalleryStateContent
 import com.librestatic.lightforge.core.model.AlbumAvailability
 import com.librestatic.lightforge.core.model.AlbumSummary
 import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
 import com.librestatic.lightforge.core.thumbnail.ThumbnailRequest
 
+/** Square collection tiles follow the Photos grid: as many as fit, never fewer than two. */
 internal fun collectionGridColumns(availableWidth: Dp): Int =
-    when {
-        availableWidth < 292.dp -> 1
-        availableWidth < 840.dp -> 2
-        else -> 4
-    }
+    ((availableWidth + CollectionTileGap) / (CollectionTileTarget + CollectionTileGap)).toInt().coerceIn(2, 6)
 
-/** Which empty state a Collections album section may claim. */
-enum class CollectionsSectionEmptyState { Hidden, NoAlbums, NoDeviceFolders }
+private val CollectionTileGap = 8.dp
+private val CollectionTileTarget = 160.dp
+private val WideCollectionsWidth = 600.dp
 
-/**
- * An empty section must only claim that *it* is empty. The surface keeps device folders, Moments and
- * library cards on the same scrollable page, so a still-loading or non-album section shows nothing.
- */
-fun collectionsSectionEmptyState(
-    sectionId: String,
-    itemCount: Int,
-    refreshing: Boolean,
-): CollectionsSectionEmptyState = when {
-    refreshing || itemCount > 0 -> CollectionsSectionEmptyState.Hidden
-    sectionId == "virtual-albums" -> CollectionsSectionEmptyState.NoAlbums
-    sectionId == "physical-albums" -> CollectionsSectionEmptyState.NoDeviceFolders
-    else -> CollectionsSectionEmptyState.Hidden
-}
+/** Library entries shown as compact shortcuts instead of tiles, as in Google Photos. */
+private val ShortcutKeys = setOf("documents", "people", "favorites", "archive", "trash")
+
+private fun CollectionCardSpec.isShortcut() = wide || key in ShortcutKeys
 
 internal fun collectionRowCount(itemCount: Int, columns: Int): Int {
     require(itemCount >= 0)
     require(columns > 0)
     return (itemCount + columns - 1) / columns
 }
-
-private val CollectionCoverHeight = 88.dp
 
 private data class CollectionCardSpec(
     val key: String,
@@ -287,89 +285,92 @@ fun CollectionsContent(
         working = layoutWorking, failed = layoutFailed,
         onSave = onSaveLayout, onDismiss = { if (!layoutWorking) manageLayout = false },
     )
-    Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+    BoxWithConstraints(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        val wideHeader = maxWidth >= WideCollectionsWidth
+        val manageButton: @Composable () -> Unit = {
+            val label: @Composable () -> Unit = { Text(stringResource(R.string.collection_layout_manage)) }
+            val tagged = Modifier.semantics { testTagsAsResourceId = true }.testTag("collections-manage")
+            if (wideHeader) FilledTonalButton(onClick = { manageLayout = true }, enabled = !layoutWorking, modifier = tagged) { label() }
+            else TextButton(onClick = { manageLayout = true }, enabled = !layoutWorking, modifier = tagged) { label() }
+        }
         Column(Modifier.fillMaxSize().widthIn(max = 1_200.dp).padding(horizontal = GallerySpacing.Lg),
             verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(stringResource(R.string.collections_title), style = MaterialTheme.typography.headlineLarge,
-                modifier = Modifier.padding(top = GallerySpacing.Xl, bottom = GallerySpacing.Sm).semantics { heading() })
-            if (onSaveLayout != null) TextButton(onClick = { manageLayout = true }, enabled = !layoutWorking,
-                modifier = Modifier.semantics { testTagsAsResourceId = true }.testTag("collections-manage")) {
-                Text(stringResource(R.string.collection_layout_manage))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(stringResource(R.string.collections_title), style = MaterialTheme.typography.headlineLarge,
+                    modifier = Modifier.padding(top = GallerySpacing.Xl, bottom = GallerySpacing.Sm).semantics { heading() })
+                if (onSaveLayout != null && wideHeader) manageButton()
             }
+            if (onSaveLayout != null && !wideHeader) manageButton()
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val columns = collectionGridColumns(maxWidth)
-                LazyColumn(contentPadding = PaddingValues(bottom = GallerySpacing.Lg), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    val pendingCards = mutableListOf<CollectionCardSpec>()
-                    fun flushCards() {
-                        if (pendingCards.isNotEmpty()) {
-                            collectionCardRows(pendingCards.toList(), columns, thumbnailLoader)
-                            pendingCards.clear()
+                val visibleIds = ordered.filter { it !in hiddenCollections && it in available }
+                val shortcuts = visibleIds.mapNotNull { id -> cards[id]?.takeIf { it.isShortcut() } }
+                val denseColumns = GalleryGridMetrics.adaptiveColumns(maxWidth)
+                val wideShortcuts = maxWidth >= WideCollectionsWidth
+                LazyColumn(contentPadding = PaddingValues(bottom = GallerySpacing.Lg)) {
+                    if (shortcuts.isNotEmpty()) item(key = "shortcuts") {
+                        Box(Modifier.padding(bottom = CollectionTileGap)) { CollectionShortcuts(shortcuts, wrap = wideShortcuts) }
+                    }
+                    val pendingTiles = mutableListOf<CollectionCardSpec>()
+                    fun flushTiles() {
+                        if (pendingTiles.isNotEmpty()) {
+                            collectionTileRows(pendingTiles.toList(), columns, thumbnailLoader, CollectionTileGap, dense = false)
+                            pendingTiles.clear()
                         }
                     }
-                    for (id in ordered) {
-                        if (id in hiddenCollections || id !in available) continue
+                    for (id in visibleIds) {
                         when (id) {
                             "virtual-albums", "physical-albums" -> {
-                                flushCards()
-                                item(key = "$id-header") { Text(labels.getValue(id), style = MaterialTheme.typography.titleMedium,
-                                    modifier = Modifier.semantics { heading() }) }
-                                pagedAlbumCardRows(id, if (id == "virtual-albums") virtualAlbums else physicalAlbums,
-                                    columns, thumbnailLoader, onAlbumClick)
+                                flushTiles()
+                                val albums = if (id == "virtual-albums") virtualAlbums else physicalAlbums
+                                // An empty section has no action of its own ("Create album" is a
+                                // shortcut), so it is omitted instead of showing a placeholder.
+                                if (albums.itemCount > 0) {
+                                    item(key = "$id-header") { CollectionSectionHeader(labels.getValue(id)) }
+                                    // Device folders follow the Photos grid (same target cell and gap); albums stay larger.
+                                    val dense = id == "physical-albums"
+                                    pagedAlbumTileRows(
+                                        id, albums, if (dense) denseColumns else columns, thumbnailLoader,
+                                        if (dense) GalleryGridMetrics.Gap else CollectionTileGap, dense, onAlbumClick,
+                                    )
+                                }
                             }
                             "memories" -> {
-                                flushCards()
-                                item(key = "auto-header") { Text(labels.getValue(id), style = MaterialTheme.typography.titleMedium,
-                                    modifier = Modifier.semantics { heading() }) }
-                                collectionCardRows(momentCards, columns, thumbnailLoader)
+                                flushTiles()
+                                item(key = "auto-header") { CollectionSectionHeader(labels.getValue(id)) }
+                                collectionTileRows(momentCards, columns, thumbnailLoader, CollectionTileGap, dense = false)
                             }
                             else -> {
                                 val card = cards.getValue(id)
-                                if (card.wide) {
-                                    flushCards()
-                                    item(key = id) { CollectionCard(title = card.title, body = card.body,
-                                        onClick = card.onClick, icon = card.icon, cover = card.cover, circular = card.circular,
-                                        thumbnailLoader = thumbnailLoader, wide = true,
-                                        modifier = Modifier.fillMaxWidth().then(card.tag?.let {
-                                            Modifier.semantics { testTagsAsResourceId = true }.testTag(it)
-                                        } ?: Modifier)) }
-                                } else pendingCards += card
+                                if (!card.isShortcut()) pendingTiles += card
                             }
                         }
                     }
-                    flushCards()
+                    flushTiles()
                 }
             }
         }
     }
 }
 
-private fun LazyListScope.pagedAlbumCardRows(
+private fun LazyListScope.pagedAlbumTileRows(
     id: String,
     albums: LazyPagingItems<AlbumSummary>,
     columns: Int,
     thumbnailLoader: ThumbnailLoader?,
+    gap: Dp,
+    dense: Boolean,
     onAlbumClick: (AlbumSummary) -> Unit,
 ) {
-    val emptyState = collectionsSectionEmptyState(id, albums.itemCount, albums.loadState.refresh is LoadState.Loading)
-    if (emptyState != CollectionsSectionEmptyState.Hidden) {
-        val title = if (emptyState == CollectionsSectionEmptyState.NoAlbums) R.string.collections_albums_empty
-        else R.string.collections_folders_empty
-        val body = if (emptyState == CollectionsSectionEmptyState.NoAlbums) R.string.collections_albums_empty_body
-        else R.string.collections_folders_empty_body
-        item(key = "$id-empty") { GalleryStateContent(stringResource(title),
-            stringResource(body), stringResource(title), Modifier.fillMaxWidth()) }
-    }
     // Never access every Paging item to build/sort a block. Only composed rows request media.
     repeat(collectionRowCount(albums.itemCount, columns)) { rowIndex ->
         item(key = "$id-row:$rowIndex") {
-            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth().padding(bottom = gap), horizontalArrangement = Arrangement.spacedBy(gap)) {
                 repeat(columns) { columnIndex ->
                     val index = rowIndex * columns + columnIndex
                     val card = if (index < albums.itemCount) albums[index]?.asCollectionCard(onAlbumClick) else null
                     if (card == null) Spacer(Modifier.weight(1f)) else key(card.key) {
-                        CollectionCard(card.title, card.body, card.onClick, icon = card.icon, cover = card.cover,
-                            circular = card.circular, thumbnailLoader = thumbnailLoader,
-                            modifier = Modifier.weight(1f).fillMaxHeight())
+                        CollectionTile(card, thumbnailLoader, Modifier.weight(1f), dense)
                     }
                 }
             }
@@ -391,30 +392,18 @@ private fun AlbumSummary.asCollectionCard(onClick: (AlbumSummary) -> Unit) =
         cover = cover,
         onClick = { onClick(this) },
     )
-
-private fun LazyListScope.collectionCardRows(
+private fun LazyListScope.collectionTileRows(
     cards: List<CollectionCardSpec>,
     columns: Int,
     thumbnailLoader: ThumbnailLoader?,
+    gap: Dp,
+    dense: Boolean,
 ) {
     cards.chunked(columns).forEach { rowCards ->
         item(key = rowCards.joinToString("|") { it.key }) {
-            Row(
-                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                rowCards.forEach { card ->
-                    CollectionCard(
-                        title = card.title,
-                        body = card.body,
-                        onClick = card.onClick,
-                        icon = card.icon,
-                        cover = card.cover,
-                        circular = card.circular,
-                        thumbnailLoader = thumbnailLoader,
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                    )
-                }
+            Row(Modifier.fillMaxWidth().padding(bottom = gap), horizontalArrangement = Arrangement.spacedBy(gap)) {
+                rowCards.forEach { card -> CollectionTile(card, thumbnailLoader, Modifier.weight(1f), dense) }
+                // A short last row keeps square tiles instead of stretching them.
                 repeat(columns - rowCards.size) { Spacer(Modifier.weight(1f)) }
             }
         }
@@ -422,18 +411,67 @@ private fun LazyListScope.collectionCardRows(
 }
 
 @Composable
-private fun CollectionCard(
-    title: String,
-    body: String,
-    onClick: () -> Unit,
-    icon: ImageVector? = null,
-    cover: MediaKey? = null,
-    circular: Boolean = false,
-    thumbnailLoader: ThumbnailLoader? = null,
-    wide: Boolean = false,
+private fun CollectionSectionHeader(title: String) {
+    Text(
+        title,
+        style = MaterialTheme.typography.titleMedium,
+        modifier = Modifier.padding(top = GallerySpacing.Sm, bottom = CollectionTileGap).semantics { heading() },
+    )
+}
+
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class, ExperimentalLayoutApi::class)
+@Composable
+private fun CollectionShortcuts(shortcuts: List<CollectionCardSpec>, wrap: Boolean) {
+    val rowModifier = Modifier.fillMaxWidth().semantics { testTagsAsResourceId = true }.testTag("collections-shortcuts")
+    val gap = Arrangement.spacedBy(CollectionTileGap)
+    // Compact keeps one scrollable row; wide layouts wrap so every shortcut stays visible.
+    if (wrap) FlowRow(rowModifier, horizontalArrangement = gap, verticalArrangement = gap) {
+        shortcuts.forEach { key(it.key) { ShortcutChip(it) } }
+    } else LazyRow(rowModifier, horizontalArrangement = gap) {
+        items(shortcuts, key = { it.key }) { ShortcutChip(it) }
+    }
+}
+
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+@Composable
+private fun ShortcutChip(card: CollectionCardSpec) {
+    Surface(
+        onClick = card.onClick,
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.heightIn(min = 48.dp)
+            .semantics { contentDescription = "${card.title}. ${card.body}" }
+            .then(card.tag?.let { Modifier.semantics { testTagsAsResourceId = true }.testTag(it) } ?: Modifier),
+    ) {
+        Row(
+            Modifier.padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Box(
+                Modifier.size(32.dp).background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                card.icon?.let {
+                    Icon(it, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(20.dp))
+                }
+            }
+            Text(card.title, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+
+/** Square tile: full-bleed cover with a bottom scrim, or an expressive shape when there is no cover. */
+@Composable
+private fun CollectionTile(
+    card: CollectionCardSpec,
+    thumbnailLoader: ThumbnailLoader?,
     modifier: Modifier = Modifier,
+    dense: Boolean = false,
 ) {
-    val thumbnailRequest = cover?.let { ThumbnailRequest(it, 0, 512, 320) }
+    val thumbnailRequest = card.cover?.let { ThumbnailRequest(it, 0, 512, 512) }
     val cachedBitmap =
         remember(thumbnailRequest, thumbnailLoader) {
             thumbnailRequest?.let { request ->
@@ -455,75 +493,54 @@ private fun CollectionCard(
                     ?.let { value = it }
             }
         }
-    Card(
-        modifier.fillMaxWidth().clickable(onClick = onClick).semantics {
-            contentDescription = "$title. $body"
-        }
+    val image = bitmap
+    BoxWithConstraints(
+        modifier.aspectRatio(1f)
+            .clip(if (dense) MaterialTheme.shapes.medium else MaterialTheme.shapes.large)
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .clickable(onClick = card.onClick)
+            .semantics { contentDescription = "${card.title}. ${card.body}" }
+            .then(card.tag?.let { Modifier.semantics { testTagsAsResourceId = true }.testTag(it) } ?: Modifier),
     ) {
-        if (bitmap != null && circular) {
+        val overMedia = image != null
+        if (image != null) {
             Image(
-                bitmap = requireNotNull(bitmap).asImageBitmap(),
+                bitmap = image.asImageBitmap(),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier =
-                    Modifier.padding(start = 16.dp, top = 16.dp).size(56.dp).clip(CircleShape),
+                modifier = Modifier.fillMaxSize(),
             )
-        } else if (bitmap != null) {
-            Image(
-                bitmap = requireNotNull(bitmap).asImageBitmap(),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxWidth().height(CollectionCoverHeight),
+            Box(
+                Modifier.fillMaxSize().background(
+                    Brush.verticalGradient(
+                        0.45f to Color.Transparent,
+                        1f to GalleryOverlayTokens.ScrimBottom,
+                    ),
+                ),
+            )
+        } else if (card.icon != null) {
+            GalleryShapeIllustration(
+                card.icon,
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp),
+                size = maxWidth * 0.46f,
+                backdrop = MaterialTheme.colorScheme.surfaceContainerHigh,
             )
         }
-        if (wide) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                if (icon != null) CollectionCardIcon(icon)
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    CollectionCardText(title, body, bodyMaxLines = 3)
-                }
-            }
-        } else {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (bitmap == null && icon != null) CollectionCardIcon(icon)
-                CollectionCardText(title, body, bodyMaxLines = if (bitmap == null) 4 else 2)
-            }
+        Column(Modifier.align(Alignment.BottomStart).padding(if (dense) 8.dp else 12.dp)) {
+            Text(
+                card.title,
+                style = if (dense) MaterialTheme.typography.labelLarge else MaterialTheme.typography.titleMedium,
+                color = if (overMedia) GalleryOverlayTokens.Content else MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                card.body,
+                style = if (dense) MaterialTheme.typography.labelSmall else MaterialTheme.typography.bodySmall,
+                color = if (overMedia) GalleryOverlayTokens.Content else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
-}
-
-@Composable
-private fun CollectionCardIcon(icon: ImageVector) {
-    Icon(
-        imageVector = icon,
-        contentDescription = null,
-        tint = MaterialTheme.colorScheme.onSecondaryContainer,
-        modifier =
-            Modifier.background(
-                    MaterialTheme.colorScheme.secondaryContainer,
-                    MaterialTheme.shapes.medium,
-                )
-                .padding(10.dp),
-    )
-}
-
-@Composable
-private fun CollectionCardText(title: String, body: String, bodyMaxLines: Int) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleMedium,
-        maxLines = 2,
-        overflow = TextOverflow.Ellipsis,
-    )
-    Text(
-        text = body,
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        maxLines = bodyMaxLines,
-        overflow = TextOverflow.Ellipsis,
-    )
 }

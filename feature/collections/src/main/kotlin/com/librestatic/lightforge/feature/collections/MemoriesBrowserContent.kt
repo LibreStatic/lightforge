@@ -31,6 +31,7 @@ import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
 import com.librestatic.lightforge.core.thumbnail.ThumbnailRequest
 import kotlinx.coroutines.CancellationException
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 
 /** Paged access to every saved/suggested story, independent of the Collections preview limit. */
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class, ExperimentalLayoutApi::class)
@@ -101,9 +102,9 @@ fun MemoriesBrowserContent(
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                         }
-                        if (pages.loadState.refresh is LoadState.Loading)
+                        if (pages.loadState.refresh is LoadState.Loading && pages.itemCount == 0)
                             item("loading") {
-                                LinearProgressIndicator(
+                                GalleryIndeterminateProgressIndicator(
                                     Modifier.fillMaxWidth().testTag("memories-browser-loading")
                                 )
                                 Text(stringResource(R.string.memories_browser_loading))
@@ -151,7 +152,7 @@ fun MemoriesBrowserContent(
                                 }
                             }
                         if (pages.loadState.append is LoadState.Loading)
-                            item("more") { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+                            item("more") { GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth()) }
                     }
                 }
             }

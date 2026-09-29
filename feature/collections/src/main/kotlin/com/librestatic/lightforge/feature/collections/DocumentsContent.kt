@@ -7,6 +7,10 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -36,6 +40,7 @@ import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
 import com.librestatic.lightforge.core.thumbnail.ThumbnailRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 
 private fun DocumentRow.key() = MediaKey(media.volumeName, media.mediaStoreId)
 
@@ -76,6 +81,11 @@ fun DocumentsContent(
         return
     }
     val context = LocalContext.current
+    // Measured container width, so multi-window and foldable postures switch layouts.
+    BoxWithConstraints(modifier) {
+    val wide =
+        com.librestatic.lightforge.core.designsystem.galleryWindowClass(maxWidth) !=
+            com.librestatic.lightforge.core.designsystem.GalleryWindowClass.Compact
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
     var categoryName by rememberSaveable { mutableStateOf(DocumentCategory.All.name) }
@@ -112,28 +122,195 @@ fun DocumentsContent(
             focused?.mediaKey()?.let { repository.observe(it).collect { row -> value = row } }
         }
     BackHandler(focused != null) { focused = null }
+    val controls: @Composable ColumnScope.() -> Unit = {
+        Text(
+            stringResource(R.string.documents_hint),
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(vertical = 8.dp),
+        )
+        OutlinedTextField(
+            value = query,
+            onValueChange = { query = it.take(120) },
+            label = { Text(stringResource(R.string.documents_search)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            DocumentCategory.entries.forEach { filter ->
+                FilterChip(
+                    selected = category == filter,
+                    onClick = { categoryName = filter.name },
+                    label = { Text(stringResource(filter.label())) },
+                )
+            }
+        }
+        if (selection.isNotEmpty()) {
+            if (onCreateMemory != null) OutlinedButton(
+                enabled = !busy && selection.size in 1..120,
+                onClick = { onCreateMemory(selection.map { it.mediaKey() }) },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("documents-create-memory"),
+            ) { Text(stringResource(R.string.manual_moment_title)) }
+
+            Button(
+                enabled = !busy,
+                onClick = {
+                    mutate {
+                        onPdf(
+                            repository.pdfKeys(selection.map { it.mediaKey() })
+                        )
+                        selection = arrayListOf()
+                    }
+                },
+                modifier =
+                    Modifier.fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .testTag("documents-create-pdf"),
+            ) {
+                Text(
+                    stringResource(
+                        R.string.documents_prepare_pdf,
+                        selection.size,
+                    )
+                )
+            }
+            TextButton(
+                onClick = { selection = arrayListOf() },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.documents_clear_selection))
+            }
+        } else {
+            DocumentActionButton(
+                wide,
+                com.librestatic.lightforge.core.designsystem.GalleryIcons.PictureAsPdf,
+                stringResource(R.string.documents_studio),
+                onClick = onPdfStudio,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            )
+        }
+        DocumentActionButton(
+            wide,
+            com.librestatic.lightforge.core.designsystem.GalleryIcons.Archive,
+            stringResource(R.string.document_auto_title),
+            onClick = { showAutoArchive = true },
+            modifier =
+                Modifier.fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .testTag("documents-auto-archive"),
+        )
+        Text(
+            stringResource(R.string.documents_selection_hint),
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.padding(vertical = 6.dp),
+        )
+    }
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        modifier = modifier.testTag("documents-screen").semantics { testTagsAsResourceId = true },
+        modifier = Modifier.fillMaxSize().testTag("documents-screen").semantics { testTagsAsResourceId = true },
     ) { padding ->
-        Column(
-            Modifier.padding(padding)
-                .fillMaxSize()
-                .widthIn(max = 1200.dp)
-                .padding(horizontal = 16.dp)
-        ) {
-            TextButton(
-                onClick = { if (focused == null) onBack() else focused = null },
-                modifier = Modifier.heightIn(min = 48.dp),
-            ) {
-                Text(stringResource(R.string.documents_back))
+        if (wide && focused == null) {
+            Column(Modifier.padding(padding).fillMaxSize()) {
+                com.librestatic.lightforge.core.designsystem.GalleryTopAppBar(
+                    title = stringResource(R.string.documents_title),
+                    onBack = onBack,
+                    navigationContentDescription = stringResource(R.string.documents_back),
+                    windowInsets = WindowInsets(0, 0, 0, 0),
+                )
+                Row(Modifier.weight(1f).padding(horizontal = 16.dp)) {
+                    Column(
+                        Modifier.width(360.dp).fillMaxHeight().verticalScroll(rememberScrollState()).padding(end = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) { controls() }
+                    LazyVerticalGrid(
+                        GridCells.Adaptive(260.dp),
+                        Modifier.weight(1f).fillMaxHeight().testTag("documents-list"),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(bottom = 16.dp),
+                    ) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            Text(
+                                stringResource(category.label()) + " · " + rows.itemCount,
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.padding(vertical = 4.dp).semantics { heading() },
+                            )
+                        }
+                        if (rows.loadState.refresh is LoadState.Loading && rows.itemCount == 0)
+                            item(span = { GridItemSpan(maxLineSpan) }) { GalleryIndeterminateProgressIndicator() }
+                        if (rows.loadState.refresh is LoadState.Error)
+                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                TextButton(onClick = { rows.retry() }) { Text(stringResource(R.string.documents_retry)) }
+                            }
+                        if (rows.itemCount == 0 && rows.loadState.refresh is LoadState.NotLoading)
+                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                Text(stringResource(R.string.documents_empty), Modifier.padding(vertical = 24.dp))
+                            }
+                        items(rows.itemCount, key = rows.itemKey { it.key().saved() }) { index ->
+                            rows[index]?.let { row ->
+                                val id = row.key().saved()
+                                val name = row.media.displayName ?: stringResource(R.string.documents_untitled)
+                                Card(
+                                    Modifier.fillMaxWidth(),
+                                    shape = MaterialTheme.shapes.extraLarge,
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                                        contentColor = MaterialTheme.colorScheme.onSurface,
+                                    ),
+                                ) {
+                                    Box {
+                                        DocumentImage(
+                                            row,
+                                            thumbnailLoader,
+                                            Modifier.fillMaxWidth().height(220.dp).clickable { focused = id },
+                                        )
+                                        Checkbox(
+                                            checked = id in selection,
+                                            enabled = !busy && (id in selection || selection.size < 24),
+                                            onCheckedChange = { selected ->
+                                                selection = ArrayList(if (selected) selection + id else selection - id)
+                                            },
+                                            modifier = Modifier.align(Alignment.TopStart).semantics { contentDescription = name },
+                                        )
+                                    }
+                                    Column(
+                                        Modifier.clickable { focused = id }.padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        Text(name, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall)
+                                        AssistChip(
+                                            onClick = { focused = id },
+                                            label = {
+                                                Text(
+                                                    stringResource(
+                                                        (row.category?.let { DocumentCategory.valueOf(it) } ?: DocumentCategory.Suggested).label(),
+                                                    ) + if (row.archived) " · " + stringResource(R.string.documents_archived) else "",
+                                                )
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        if (rows.loadState.append is LoadState.Loading)
+                            item(span = { GridItemSpan(maxLineSpan) }) { GalleryIndeterminateProgressIndicator() }
+                        if (rows.loadState.append is LoadState.Error)
+                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                TextButton(onClick = { rows.retry() }) { Text(stringResource(R.string.documents_retry)) }
+                            }
+                    }
+                }
             }
-            Text(
-                stringResource(R.string.documents_title),
-                style = MaterialTheme.typography.headlineLarge,
-                modifier = Modifier.semantics { heading() },
-            )
+            return@Scaffold
+        }
+        Column(Modifier.padding(padding).fillMaxSize()) {
+        com.librestatic.lightforge.core.designsystem.GalleryTopAppBar(
+            title = stringResource(R.string.documents_title),
+            onBack = { if (focused == null) onBack() else focused = null },
+            navigationContentDescription = stringResource(R.string.documents_back),
+            windowInsets = WindowInsets(0, 0, 0, 0),
+        )
+        Column(Modifier.weight(1f).fillMaxWidth().widthIn(max = 1200.dp).padding(horizontal = 16.dp)) {
             if (focused == null) {
                 LazyColumn(
                     Modifier.weight(1f).testTag("documents-list"),
@@ -141,89 +318,10 @@ fun DocumentsContent(
                     contentPadding = PaddingValues(bottom = 16.dp),
                 ) {
                     item {
-                        Column {
-                            Text(
-                                stringResource(R.string.documents_hint),
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(vertical = 8.dp),
-                            )
-                            OutlinedTextField(
-                                value = query,
-                                onValueChange = { query = it.take(120) },
-                                label = { Text(stringResource(R.string.documents_search)) },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                DocumentCategory.entries.forEach { filter ->
-                                    FilterChip(
-                                        selected = category == filter,
-                                        onClick = { categoryName = filter.name },
-                                        label = { Text(stringResource(filter.label())) },
-                                    )
-                                }
-                            }
-                            if (selection.isNotEmpty()) {
-                                if (onCreateMemory != null) OutlinedButton(
-                                    enabled = !busy && selection.size in 1..120,
-                                    onClick = { onCreateMemory(selection.map { it.mediaKey() }) },
-                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("documents-create-memory"),
-                                ) { Text(stringResource(R.string.manual_moment_title)) }
-
-                                Button(
-                                    enabled = !busy,
-                                    onClick = {
-                                        mutate {
-                                            onPdf(
-                                                repository.pdfKeys(selection.map { it.mediaKey() })
-                                            )
-                                            selection = arrayListOf()
-                                        }
-                                    },
-                                    modifier =
-                                        Modifier.fillMaxWidth()
-                                            .heightIn(min = 48.dp)
-                                            .testTag("documents-create-pdf"),
-                                ) {
-                                    Text(
-                                        stringResource(
-                                            R.string.documents_prepare_pdf,
-                                            selection.size,
-                                        )
-                                    )
-                                }
-                                TextButton(
-                                    onClick = { selection = arrayListOf() },
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Text(stringResource(R.string.documents_clear_selection))
-                                }
-                            } else {
-                                OutlinedButton(
-                                    onClick = onPdfStudio,
-                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                                ) {
-                                    Text(stringResource(R.string.documents_studio))
-                                }
-                            }
-                            OutlinedButton(
-                                onClick = { showAutoArchive = true },
-                                modifier =
-                                    Modifier.fillMaxWidth()
-                                        .heightIn(min = 48.dp)
-                                        .testTag("documents-auto-archive"),
-                            ) {
-                                Text(stringResource(R.string.document_auto_title))
-                            }
-                            Text(
-                                stringResource(R.string.documents_selection_hint),
-                                style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.padding(vertical = 6.dp),
-                            )
-                        }
+                        Column { controls() }
                     }
-                    if (rows.loadState.refresh is LoadState.Loading)
-                        item { CircularProgressIndicator() }
+                    if (rows.loadState.refresh is LoadState.Loading && rows.itemCount == 0)
+                        item { GalleryIndeterminateProgressIndicator() }
                     if (rows.loadState.refresh is LoadState.Error)
                         item {
                             TextButton(onClick = { rows.retry() }) {
@@ -296,7 +394,7 @@ fun DocumentsContent(
                         }
                     }
                     if (rows.loadState.append is LoadState.Loading)
-                        item { CircularProgressIndicator() }
+                        item { GalleryIndeterminateProgressIndicator() }
                     if (rows.loadState.append is LoadState.Error)
                         item {
                             TextButton(onClick = { rows.retry() }) {
@@ -431,6 +529,8 @@ fun DocumentsContent(
                     }
             }
         }
+        }
+    }
     }
 }
 
@@ -471,5 +571,42 @@ internal fun DocumentImage(
             }
         else
             Image(image.asImageBitmap(), contentDescription = null, contentScale = ContentScale.Fit)
+    }
+}
+
+/** Primary document actions: tonal cards in the wide panel so they outweigh the filter chips. */
+@Composable
+private fun DocumentActionButton(
+    tonal: Boolean,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    onClick: () -> Unit,
+    modifier: Modifier,
+) {
+    if (!tonal) {
+        OutlinedButton(onClick = onClick, modifier = modifier) { Text(title) }
+        return
+    }
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
+        Row(
+            Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Surface(
+                shape = androidx.compose.foundation.shape.CircleShape,
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            ) {
+                Icon(icon, null, Modifier.padding(10.dp).size(24.dp))
+            }
+            Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+            Icon(com.librestatic.lightforge.core.designsystem.GalleryIcons.ChevronForward, null)
+        }
     }
 }

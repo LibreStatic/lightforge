@@ -29,6 +29,8 @@ import com.librestatic.lightforge.core.thumbnail.ThumbnailRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
 
 enum class MomentParticipantsMode { Automatic, Manual }
 
@@ -128,7 +130,7 @@ fun MomentParticipantsContent(
                 if (loadFailed) {
                     Text(stringResource(R.string.moment_participants_error), Modifier.padding(16.dp))
                     TextButton(onClick = onReload) { Text(stringResource(R.string.moment_participants_retry)) }
-                } else CircularProgressIndicator(Modifier.padding(16.dp))
+                } else GalleryIndeterminateProgressIndicator(Modifier.padding(16.dp))
             }
         }
         BackHandler(onBack = onBack)
@@ -207,7 +209,7 @@ fun MomentParticipantsContent(
                     }
                 }
             }
-            if (saving) LinearProgressIndicator(Modifier.fillMaxWidth().testTag("moment-participants-saving"))
+            GalleryProgressSlot(saving) { GalleryIndeterminateProgressIndicator(Modifier.testTag("moment-participants-saving")) }
             Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedButton(onClick = ::cancel, enabled = !saving, modifier = Modifier.weight(1f).testTag("moment-participants-cancel")) {
                     Text(stringResource(R.string.moment_participants_cancel))

@@ -32,6 +32,39 @@ class DocumentsContentDeviceTest {
 
     @Test fun compactDarkLargeTextKeepsActionsReachable() = exercise(true, 360, 1.6f)
 
+    @Test fun wideLayoutShowsFiltersAndDocumentGridTogether(): Unit = runBlocking {
+        val db = Room.inMemoryDatabaseBuilder(context, GalleryDatabase::class.java).build()
+        val repo = GalleryDocumentRepository(db)
+        val key = MediaKey("external_primary", 992)
+        val media = MediaItemEntity(
+            key.volumeName, key.mediaStoreId, 1, "image/jpeg", "Wide grid fixture", 100, 10, 10, 0, 0, 1000,
+            1, 1, 1000, 1, 1, 1, "Fixture", "DCIM/Fixture/", false, false, true, 1,
+        )
+        db.libraryDao().upsertMedia(listOf(media))
+        db.libraryDao().upsertOcr(MediaOcrEntity(key.volumeName, key.mediaStoreId, 1, "fixture", "TOTAL 7", "total 7", "[]", 1))
+        try {
+            compose.setContent {
+                val configuration = android.content.res.Configuration(androidx.compose.ui.platform.LocalConfiguration.current)
+                    .apply { screenWidthDp = 1000 }
+                CompositionLocalProvider(
+                    androidx.compose.ui.platform.LocalConfiguration provides configuration,
+                    LocalDensity provides Density(1f, 1f),
+                ) {
+                    LightforgeTheme(darkTheme = false) {
+                        DocumentsContent(repo, null, onPdf = {}, onPdfStudio = {}, onBack = {}, modifier = Modifier.width(1000.dp).height(600.dp))
+                    }
+                }
+            }
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithText("Wide grid fixture").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithText(text(R.string.documents_studio)).assertIsDisplayed()
+            compose.onNodeWithText("Wide grid fixture").assertIsDisplayed()
+        } finally {
+            db.close()
+        }
+    }
+
     private fun exercise(dark: Boolean, width: Int, scale: Float): Unit = runBlocking {
         val db = Room.inMemoryDatabaseBuilder(context, GalleryDatabase::class.java).build()
         val repo = GalleryDocumentRepository(db)

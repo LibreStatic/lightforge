@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="people_more">More options</string>
+    <string name="people_privacy_title">About privacy</string>
+    <string name="people_privacy_ok">Got it</string>
+    <string name="people_privacy_short">On this device · Your photos never leave it</string>
+    <string name="people_enable_title">Group faces privately</string>
+    <string name="people_enable_body">Analysis runs only on your device.</string>
+    <string name="people_how_it_works">How it works</string>
+    <string name="people_found_title">People found</string>
+    <string name="people_choose_me_title">Choose who you are</string>
+    <string name="people_choose_me_body">Open a person and tap Set as Me to find your photos.</string>
+    <string name="people_merge_confirm">Merge</string>
+    <plurals name="people_hidden_count">
+        <item quantity="one">Hidden (%d)</item>
+        <item quantity="other">Hidden (%d)</item>
+    </plurals>
+    <plurals name="people_split_selected">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+</resources>

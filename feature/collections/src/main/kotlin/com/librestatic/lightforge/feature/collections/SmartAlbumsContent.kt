@@ -33,6 +33,8 @@ import com.librestatic.lightforge.core.thumbnail.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
 
 private enum class SmartPage {
     Home,
@@ -194,7 +196,7 @@ fun SmartAlbumsContent(
                     style = MaterialTheme.typography.headlineMedium,
                     modifier = Modifier.semantics { heading() },
                 )
-                if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+                GalleryProgressSlot(busy)
                 error?.let { id ->
                     Text(
                         stringResource(id),
@@ -340,7 +342,7 @@ fun SmartAlbumsContent(
                         val row = album
                         if (row == null)
                             Column(content.padding(16.dp)) {
-                                if (!loaded && error == null) CircularProgressIndicator()
+                                if (!loaded && error == null) GalleryIndeterminateProgressIndicator()
                                 else {
                                     Text(stringResource(R.string.smart_missing))
                                     TextButton(onClick = { retry++ }) {
@@ -1024,13 +1026,13 @@ private fun SmartExcludedRow(
 
 @Composable
 private fun <T : Any> SmartPagingStatus(items: LazyPagingItems<T>, empty: Int) {
-    if (items.loadState.refresh is LoadState.Loading) CircularProgressIndicator()
+    if (items.loadState.refresh is LoadState.Loading && items.itemCount == 0) GalleryIndeterminateProgressIndicator()
     else if (items.loadState.refresh is LoadState.NotLoading && items.itemCount == 0)
         Text(stringResource(empty))
     if (items.loadState.refresh is LoadState.Error || items.loadState.append is LoadState.Error)
         TextButton(onClick = { items.retry() }) { Text(stringResource(R.string.smart_retry)) }
     if (items.loadState.append is LoadState.Loading)
-        LinearProgressIndicator(Modifier.fillMaxWidth())
+        GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
 }
 
 @Composable

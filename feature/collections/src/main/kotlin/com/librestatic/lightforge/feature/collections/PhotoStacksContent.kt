@@ -33,6 +33,8 @@ import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.core.thumbnail.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
 
 private fun MediaKey.stackKey() = "$volumeName:$mediaStoreId"
 
@@ -213,7 +215,7 @@ fun PhotoStacksContent(
                         2 -> separated.itemCount
                         else -> saved.itemCount
                     }
-                if (load.refresh is LoadState.Loading) item { CircularProgressIndicator() }
+                if (load.refresh is LoadState.Loading && count == 0) item { GalleryIndeterminateProgressIndicator() }
                 if (load.refresh is LoadState.NotLoading && count == 0)
                     item { Text(stringResource(R.string.stacks_empty)) }
                 if (load.refresh is LoadState.Error || load.append is LoadState.Error)
@@ -341,7 +343,7 @@ fun PhotoStacksContent(
                             }
                         }
                 }
-                if (load.append is LoadState.Loading) item { CircularProgressIndicator() }
+                if (load.append is LoadState.Loading) item { GalleryIndeterminateProgressIndicator() }
             } else {
                 item {
                     Text(
@@ -627,7 +629,7 @@ fun PhotoStacksContent(
                     )
                 }
             }
-            if (busy) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+            item { GalleryProgressSlot(busy) }
         }
     }
 }

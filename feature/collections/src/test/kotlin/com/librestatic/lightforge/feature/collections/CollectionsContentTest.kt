@@ -6,16 +6,13 @@ import org.junit.Test
 
 class CollectionsContentTest {
     @Test
-    fun gridColumnsRespectCompactAndExpandedBoundaries() {
-        assertEquals(1, collectionGridColumns(291.dp))
-        assertEquals(2, collectionGridColumns(292.dp))
-        assertEquals(2, collectionGridColumns(839.dp))
-        assertEquals(4, collectionGridColumns(840.dp))
-    }
-
-    @Test
-    fun razrCoverContentWidthUsesTwoColumns() {
+    fun tileColumnsFollowWidthWithATwoColumnFloor() {
+        assertEquals(2, collectionGridColumns(200.dp))
         assertEquals(2, collectionGridColumns(328.dp))
+        assertEquals(2, collectionGridColumns(495.dp))
+        assertEquals(3, collectionGridColumns(496.dp))
+        assertEquals(5, collectionGridColumns(840.dp))
+        assertEquals(6, collectionGridColumns(1_600.dp))
     }
 
     @Test

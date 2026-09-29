@@ -28,6 +28,8 @@ import java.time.LocalDate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
 
 private enum class MemoryControlPage {
     Home,
@@ -247,7 +249,7 @@ fun MemoryControlsContent(
             ) {
                 if (busy || !loaded)
                     item {
-                        LinearProgressIndicator(
+                        GalleryIndeterminateProgressIndicator(
                             Modifier.fillMaxWidth().testTag("memory-controls-loading")
                         )
                     }
@@ -635,7 +637,7 @@ private fun MemoryControlPersonReview(
                 ?: stringResource(R.string.memory_controls_unnamed),
             style = MaterialTheme.typography.titleLarge,
         )
-        if (!person.loaded || !known.loaded) LinearProgressIndicator(Modifier.fillMaxWidth())
+        GalleryProgressSlot(!person.loaded || !known.loaded)
         if (person.loaded && person.value == null)
             Text(
                 stringResource(R.string.memory_controls_missing),
@@ -677,7 +679,7 @@ private fun MemoryControlPeople(
             Text(stringResource(R.string.memory_controls_analysis))
         }
         when (people.loadState.refresh) {
-            is LoadState.Loading -> LinearProgressIndicator(Modifier.fillMaxWidth())
+            is LoadState.Loading -> if (people.itemCount == 0) GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
             is LoadState.Error -> {
                 Text(stringResource(R.string.memory_controls_error))
                 TextButton({ people.retry() }) {
@@ -735,7 +737,7 @@ private fun MemoryControlPeople(
                 }
             }
             if (people.loadState.append is LoadState.Loading)
-                item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+                item { GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth()) }
             if (people.loadState.append is LoadState.Error)
                 item {
                     TextButton({ people.retry() }) {

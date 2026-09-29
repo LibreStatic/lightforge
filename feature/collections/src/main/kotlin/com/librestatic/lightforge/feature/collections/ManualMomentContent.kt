@@ -30,6 +30,9 @@ import com.librestatic.lightforge.core.thumbnail.NativeImageDecoder
 import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
 import com.librestatic.lightforge.core.thumbnail.ThumbnailRequest
 import kotlinx.coroutines.CancellationException
+import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
 
 /** Draft-only UI. The caller owns source revalidation and atomic, idempotent persistence. */
 @OptIn(ExperimentalLayoutApi::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
@@ -146,7 +149,7 @@ fun ManualMomentContent(
                     }
                 }
             }
-            if (working) LinearProgressIndicator(Modifier.fillMaxWidth().testTag("manual-moment-progress"))
+            GalleryProgressSlot(working) { GalleryIndeterminateProgressIndicator(Modifier.testTag("manual-moment-progress")) }
             FlowRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 TextButton(onClick = { if (!busy && !submitting) onCancel() }, enabled = !working,

@@ -42,6 +42,7 @@ import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgress
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
+import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
 
 data class CleanupDuplicateGroupUi(
     val id: String,
@@ -133,7 +134,7 @@ fun CleanupContent(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            if (state.loading) item { GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth()) }
+            item { GalleryProgressSlot(state.loading) }
             if (!state.analysisEnabled) item {
                 Surface(
                     color = MaterialTheme.colorScheme.secondaryContainer,
