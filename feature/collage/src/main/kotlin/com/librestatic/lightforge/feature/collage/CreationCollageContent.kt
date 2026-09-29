@@ -216,7 +216,9 @@ fun CreationCollageContent(
                     }
                 }
         }
-        val wide = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 720
+        val wide = com.librestatic.lightforge.core.designsystem.galleryWindowClass(
+            androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp,
+        ) != com.librestatic.lightforge.core.designsystem.GalleryWindowClass.Compact
     Surface(modifier.fillMaxSize().testTag("creation-collage-screen").semantics { testTagsAsResourceId = true },
         color = MaterialTheme.colorScheme.background, contentColor = MaterialTheme.colorScheme.onBackground) {
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {

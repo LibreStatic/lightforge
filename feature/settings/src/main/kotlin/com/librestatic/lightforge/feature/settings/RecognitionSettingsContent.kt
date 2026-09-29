@@ -29,6 +29,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Language
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
@@ -313,7 +314,7 @@ fun RecognitionSettingsContent(
             val hinge = adaptiveInfo?.foldInfo?.takeIf { it.enablesSideBySide }
             val hingeListWidth = hinge?.let { it.left - originX }?.takeIf { it >= 240.dp }
             val listWidth = hingeListWidth
-                ?: if (adaptiveInfo?.windowClass == GalleryWindowClass.Expanded) 360.dp else 300.dp
+                ?: if (adaptiveInfo?.windowClass == GalleryWindowClass.Expanded) 360.dp else 248.dp
             Row(
                 Modifier.fillMaxSize().onGloballyPositioned { originX = with(density) { it.positionInWindow().x.toDp() } },
             ) {
@@ -1870,10 +1871,13 @@ private fun SettingsValueRow(
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.widthIn(max = 100.dp),
                     ) {
                         Text(
                             value,
                             style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.padding(horizontal = GallerySpacing.Md, vertical = GallerySpacing.Xs),
                         )
                     }

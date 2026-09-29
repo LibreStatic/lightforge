@@ -462,6 +462,11 @@ private fun PeopleConsent(onEnable: () -> Unit, onShowPrivacy: () -> Unit, modif
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
+                Text(
+                    stringResource(R.string.people_on_device_notice),
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                )
                 GalleryExpressiveButton(
                     onClick = onEnable,
                     modifier = Modifier.fillMaxWidth().widthIn(max = 420.dp).heightIn(min = 56.dp).testTag("people_enable"),

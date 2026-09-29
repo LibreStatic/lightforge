@@ -189,6 +189,7 @@ class RecognitionSettingsContentDeviceTest {
 
         // Nested IA: analysis controls live on the "Local analysis" sub-page.
         compose.onNode(hasText(context.getString(R.string.settings_page_ai)))
+            .performScrollTo()
             .performClick()
         compose.waitForIdle()
         compose.onNode(hasText(context.getString(R.string.face_analysis_no_identity)))

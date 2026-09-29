@@ -80,7 +80,7 @@ internal fun collectionGridColumns(availableWidth: Dp): Int =
 
 private val CollectionTileGap = 8.dp
 private val CollectionTileTarget = 160.dp
-private val WideCollectionsWidth = 600.dp
+private val WideCollectionsWidth = 520.dp
 
 /** Library entries shown as compact shortcuts instead of tiles, as in Google Photos. */
 private val ShortcutKeys = setOf("documents", "people", "favorites", "archive", "trash")

@@ -258,7 +258,7 @@ private fun ColumnScope.PdfLibraryEmptyState(
     onTemplate: (PdfTemplate) -> Unit,
 ) {
     // Window width, so multi-window and foldable postures switch layouts like the rest of the app.
-    if (androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 720) {
+    if (androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 600) {
         PdfLibraryWideEmptyState(busy, pendingImport, onNewProject, onImportProject, onTemplate)
         return
     }
