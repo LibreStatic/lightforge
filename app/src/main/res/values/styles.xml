@@ -6,4 +6,11 @@
         <item name="android:colorAccent">#1A73E8</item>
     </style>
 
+    <!-- Launch theme: animated star splash, then hands over to Theme.Lightforge. -->
+    <style name="Theme.Lightforge.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_star_animated</item>
+        <item name="windowSplashScreenAnimationDuration">1000</item>
+        <item name="postSplashScreenTheme">@style/Theme.Lightforge</item>
+    </style>
 </resources>

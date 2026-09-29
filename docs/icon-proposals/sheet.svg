@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1180" height="830"><defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+  <stop offset="0" stop-color="#2E2438"/><stop offset="1" stop-color="#15111C"/></linearGradient>
+<linearGradient id="amber" x1="0" y1="0" x2="1" y2="1">
+  <stop offset="0" stop-color="#FFD36B"/><stop offset=".55" stop-color="#FF9A3C"/><stop offset="1" stop-color="#F0552E"/></linearGradient>
+<linearGradient id="cbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E8EEF6"/></linearGradient><clipPath id="sq" clipPathUnits="objectBoundingBox"><rect width="1" height="1" rx=".3"/></clipPath><clipPath id="ci" clipPathUnits="objectBoundingBox"><circle cx=".5" cy=".5" r=".5"/></clipPath></defs><rect width="1180" height="830" fill="#ECEAF0"/><text x="305.0" y="40" font-family="sans-serif" font-size="18" text-anchor="middle" fill="#333">Squircle</text><text x="495.0" y="40" font-family="sans-serif" font-size="18" text-anchor="middle" fill="#333">Circle</text><text x="685.0" y="40" font-family="sans-serif" font-size="18" text-anchor="middle" fill="#333">Themed light</text><text x="875.0" y="40" font-family="sans-serif" font-size="18" text-anchor="middle" fill="#333">Themed dark</text><text x="1065.0" y="40" font-family="sans-serif" font-size="18" text-anchor="middle" fill="#333">48 dp</text><text x="20" y="151.0" font-family="sans-serif" font-size="19" font-weight="bold" fill="#222">Actual</text><svg x="230" y="70" width="150" height="150" viewBox="18 18 72 72" clip-path="url(#sq)"><g clip-path="url(#sq)"><rect width="108" height="108" fill="url(#cbg)"/><image x="0" y="0" width="108" height="108" xlink:href="file:///home/user/ugallery/app/src/main/res/drawable-nodpi/ic_launcher_artwork.png"/></g></svg><svg x="420" y="70" width="150" height="150" viewBox="18 18 72 72" clip-path="url(#ci)"><g clip-path="url(#ci)"><rect width="108" height="108" fill="url(#cbg)"/><image x="0" y="0" width="108" height="108" xlink:href="file:///home/user/ugallery/app/src/main/res/drawable-nodpi/ic_launcher_artwork.png"/></g></svg><g transform="translate(610 70)"><rect width="150" height="150" rx="45.0" fill="none" stroke="#999" stroke-dasharray="6 6"/><text x="75.0" y="71.0" font-family="sans-serif" font-size="14" text-anchor="middle" fill="#666">sin capa</text><text x="75.0" y="91.0" font-family="sans-serif" font-size="14" text-anchor="middle" fill="#666">monochrome</text></g><g transform="translate(800 70)"><rect width="150" height="150" rx="45.0" fill="none" stroke="#999" stroke-dasharray="6 6"/><text x="75.0" y="71.0" font-family="sans-serif" font-size="14" text-anchor="middle" fill="#666">sin capa</text><text x="75.0" y="91.0" font-family="sans-serif" font-size="14" text-anchor="middle" fill="#666">monochrome</text></g><svg x="1041.0" y="121.0" width="48" height="48" viewBox="18 18 72 72" clip-path="url(#sq)"><g clip-path="url(#sq)"><rect width="108" height="108" fill="url(#cbg)"/><image x="0" y="0" width="108" height="108" xlink:href="file:///home/user/ugallery/app/src/main/res/drawable-nodpi/ic_launcher_artwork.png"/></g></svg><text x="20" y="341.0" font-family="sans-serif" font-size="19" font-weight="bold" fill="#222">A · Obturador-chispa</text><svg x="230" y="260" width="150" height="150" viewBox="18 18 72 72" clip-path="url(#sq)"><g clip-path="url(#sq)"><rect width="108" height="108" fill="url(#bg)"/>
+<mask id="apmFalse"><rect width="108" height="108" fill="#000"/>
+  <circle cx="54" cy="54" r="27" fill="#fff"/>
+  <g stroke="#000" stroke-width="2.6" stroke-linecap="round"><line x1="54.00" y1="42.00" x2="99.03" y2="68.00"/><line x1="64.39" y1="48.00" x2="64.39" y2="100.00"/><line x1="64.39" y1="60.00" x2="19.36" y2="86.00"/><line x1="54.00" y1="66.00" x2="8.97" y2="40.00"/><line x1="43.61" y1="60.00" x2="43.61" y2="8.00"/><line x1="43.61" y1="48.00" x2="88.64" y2="22.00"/></g>
+  <path d="M54.00,42.00 L64.39,48.00 L64.39,60.00 L54.00,66.00 L43.61,60.00 L43.61,48.00 Z" fill="#000" stroke="#000" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M54,45.5 Q55.36,52.64 62.5,54 Q55.36,55.36 54,62.5 Q52.64,55.36 45.5,54 Q52.64,52.64 54,45.5 Z" fill="#fff"/></mask>
+<rect width="108" height="108" fill="url(#amber)" mask="url(#apmFalse)"/></g></svg><svg x="420" y="260" width="150" height="150" viewBox="18 18 72 72" clip-path="url(#ci)"><g clip-path="url(#ci)"><rect width="108" height="108" fill="url(#bg)"/>
+<mask id="apmFalse"><rect width="108" height="108" fill="#000"/>
+  <circle cx="54" cy="54" r="27" fill="#fff"/>
+  <g stroke="#000" stroke-width="2.6" stroke-linecap="round"><line x1="54.00" y1="42.00" x2="99.03" y2="68.00"/><line x1="64.39" y1="48.00" x2="64.39" y2="100.00"/><line x1="64.39" y1="60.00" x2="19.36" y2="86.00"/><line x1="54.00" y1="66.00" x2="8.97" y2="40.00"/><line x1="43.61" y1="60.00" x2="43.61" y2="8.00"/><line x1="43.61" y1="48.00" x2="88.64" y2="22.00"/></g>
+  <path d="M54.00,42.00 L64.39,48.00 L64.39,60.00 L54.00,66.00 L43.61,60.00 L43.61,48.00 Z" fill="#000" stroke="#000" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M54,45.5 Q55.36,52.64 62.5,54 Q55.36,55.36 54,62.5 Q52.64,55.36 45.5,54 Q52.64,52.64 54,45.5 Z" fill="#fff"/></mask>
+<rect width="108" height="108" fill="url(#amber)" mask="url(#apmFalse)"/></g></svg><svg x="610" y="260" width="150" height="150" viewBox="18 18 72 72" clip-path="url(#sq)"><g clip-path="url(#sq)"><rect width="108" height="108" fill="#D6E3FF"/>
+<mask id="apmTrue"><rect width="108" height="108" fill="#000"/>
+  <circle cx="54" cy="54" r="27" fill="#fff"/>
+  <g stroke="#000" stroke-width="2.6" stroke-linecap="round"><line x1="54.00" y1="42.00" x2="99.03" y2="68.00"/><line x1="64.39" y1="48.00" x2="64.39" y2="100.00"/><line x1="64.39" y1="60.00" x2="19.36" y2="86.00"/><line x1="54.00" y1="66.00" x2="8.97" y2="40.00"/><line x1="43.61" y1="60.00" x2="43.61" y2="8.00"/><line x1="43.61" y1="48.00" x2="88.64" y2="22.00"/></g>
+  <path d="M54.00,42.00 L64.39,48.00 L64.39,60.00 L54.00,66.00 L43.61,60.00 L43.61,48.00 Z" fill="#284777" stroke="#000" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M54,45.5 Q55.36,52.64 62.5,54 Q55.36,55.36 54,62.5 Q52.64,55.36 45.5,54 Q52.64,52.64 54,45.5 Z" fill="#fff"/></mask>
+<rect width="108" height="108" fill="#000" mask="url(#apmTrue)"/></g></svg><svg x="800" y="260" width="150" height="150" viewBox="18 18 72 72" clip-path="url(#sq)"><g clip-path="url(#sq)"><rect width="108" height="108" fill="#1F2B3D"/>
+<mask id="apmTrue"><rect width="108" height="108" fill="#000"/>
+  <circle cx="54" cy="54" r="27" fill="#fff"/>
+  <g stroke="#000" stroke-width="2.6" stroke-linecap="round"><line x1="54.00" y1="42.00" x2="99.03" y2="68.00"/><line x1="64.39" y1="48.00" x2="64.39" y2="100.00"/><line x1="64.39" y1="60.00" x2="19.36" y2="86.00"/><line x1="54.00" y1="66.00" x2="8.97" y2="40.00"/><line x1="43.61" y1="60.00" x2="43.61" y2="8.00"/><line x1="43.61" y1="48.00" x2="88.64" y2="22.00"/></g>
+  <path d="M54.00,42.00 L64.39,48.00 L64.39,60.00 L54.00,66.00 L43.61,60.00 L43.61,48.00 Z" fill="#AEC6FF" stroke="#000" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M54,45.5 Q55.36,52.64 62.5,54 Q55.36,55.36 54,62.5 Q52.64,55.36 45.5,54 Q52.64,52.64 54,45.5 Z" fill="#fff"/></mask>
+<rect width="108" height="108" fill="#000" mask="url(#apmTrue)"/></g></svg><svg x="1041.0" y="311.0" width="48" height="48" viewBox="18 18 72 72" clip-path="url(#sq)"><g clip-path="url(#sq)"><rect width="108" height="108" fill="url(#bg)"/>
+<mask id="apmFalse"><rect width="108" height="108" fill="#000"/>
+  <circle cx="54" cy="54" r="27" fill="#fff"/>
+  <g stroke="#000" stroke-width="2.6" stroke-linecap="round"><line x1="54.00" y1="42.00" x2="99.03" y2="68.00"/><line x1="64.39" y1="48.00" x2="64.39" y2="100.00"/><line x1="64.39" y1="60.00" x2="19.36" y2="86.00"/><line x1="54.00" y1="66.00" x2="8.97" y2="40.00"/><line x1="43.61" y1="60.00" x2="43.61" y2="8.00"/><line x1="43.61" y1="48.00" x2="88.64" y2="22.00"/></g>
+  <path d="M54.00,42.00 L64.39,48.00 L64.39,60.00 L54.00,66.00 L43.61,60.00 L43.61,48.00 Z" fill="#000" stroke="#000" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M54,45.5 Q55.36,52.64 62.5,54 Q55.36,55.36 54,62.5 Q52.64,55.36 45.5,54 Q52.64,52.64 54,45.5 Z" fill="#fff"/></mask>
+<rect width="108" height="108" fill="url(#amber)" mask="url(#apmFalse)"/></g></svg><text x="20" y="531.0" font-family="sans-serif" font-size="19" font-weight="bold" fill="#222">B · Yunque de luz</text><svg x="230" y="450" width="150" height="150" viewBox="18 18 72 72" clip-path="url(#sq)"><g clip-path="url(#sq)"><rect width="108" height="108" fill="url(#bg)"/><g transform="translate(54 56) scale(.88) translate(-53 -54)">
+  <path d="M40,52 L82,52 L82,60 L72,60 C68,61 66,64 66,68 L66,70 L73,70 L76,78 L36,78 L39,70 L46,70 L46,68 C46,64 44,62 40,62 C34,62 28,59 24,55 C29,53 35,52 40,52 Z" fill="#F3E9DC"/>
+  <path d="M58,19 Q60.4,31.6 73,34 Q60.4,36.4 58,49 Q55.6,36.4 43,34 Q55.6,31.6 58,19 Z" fill="url(#amber)"/>
+  <path d="M75,21.5 Q75.88,26.12 80.5,27 Q75.88,27.88 75,32.5 Q74.12,27.88 69.5,27 Q74.12,26.12 75,21.5 Z" fill="url(#amber)"/>
+  <circle cx="41" cy="31" r="2.2" fill="url(#amber)"/></g></g></svg><svg x="420" y="450" width="150" height="150" viewBox="18 18 72 72" clip-path="url(#ci)"><g clip-path="url(#ci)"><rect width="108" height="108" fill="url(#bg)"/><g transform="translate(54 56) scale(.88) translate(-53 -54)">
+  <path d="M40,52 L82,52 L82,60 L72,60 C68,61 66,64 66,68 L66,70 L73,70 L76,78 L36,78 L39,70 L46,70 L46,68 C46,64 44,62 40,62 C34,62 28,59 24,55 C29,53 35,52 40,52 Z" fill="#F3E9DC"/>
+  <path d="M58,19 Q60.4,31.6 73,34 Q60.4,36.4 58,49 Q55.6,36.4 43,34 Q55.6,31.6 58,19 Z" fill="url(#amber)"/>
+  <path d="M75,21.5 Q75.88,26.12 80.5,27 Q75.88,27.88 75,32.5 Q74.12,27.88 69.5,27 Q74.12,26.12 75,21.5 Z" fill="url(#amber)"/>
+  <circle cx="41" cy="31" r="2.2" fill="url(#amber)"/></g></g></svg><svg x="610" y="450" width="150" height="150" viewBox="18 18 72 72" clip-path="url(#sq)"><g clip-path="url(#sq)"><rect width="108" height="108" fill="#D6E3FF"/><g transform="translate(54 56) scale(.88) translate(-53 -54)">
+  <path d="M40,52 L82,52 L82,60 L72,60 C68,61 66,64 66,68 L66,70 L73,70 L76,78 L36,78 L39,70 L46,70 L46,68 C46,64 44,62 40,62 C34,62 28,59 24,55 C29,53 35,52 40,52 Z" fill="#284777"/>
+  <path d="M58,19 Q60.4,31.6 73,34 Q60.4,36.4 58,49 Q55.6,36.4 43,34 Q55.6,31.6 58,19 Z" fill="#284777"/>
+  <path d="M75,21.5 Q75.88,26.12 80.5,27 Q75.88,27.88 75,32.5 Q74.12,27.88 69.5,27 Q74.12,26.12 75,21.5 Z" fill="#284777"/>
+  <circle cx="41" cy="31" r="2.2" fill="#284777"/></g></g></svg><svg x="800" y="450" width="150" height="150" viewBox="18 18 72 72" clip-path="url(#sq)"><g clip-path="url(#sq)"><rect width="108" height="108" fill="#1F2B3D"/><g transform="translate(54 56) scale(.88) translate(-53 -54)">
+  <path d="M40,52 L82,52 L82,60 L72,60 C68,61 66,64 66,68 L66,70 L73,70 L76,78 L36,78 L39,70 L46,70 L46,68 C46,64 44,62 40,62 C34,62 28,59 24,55 C29,53 35,52 40,52 Z" fill="#AEC6FF"/>
+  <path d="M58,19 Q60.4,31.6 73,34 Q60.4,36.4 58,49 Q55.6,36.4 43,34 Q55.6,31.6 58,19 Z" fill="#AEC6FF"/>
+  <path d="M75,21.5 Q75.88,26.12 80.5,27 Q75.88,27.88 75,32.5 Q74.12,27.88 69.5,27 Q74.12,26.12 75,21.5 Z" fill="#AEC6FF"/>
+  <circle cx="41" cy="31" r="2.2" fill="#AEC6FF"/></g></g></svg><svg x="1041.0" y="501.0" width="48" height="48" viewBox="18 18 72 72" clip-path="url(#sq)"><g clip-path="url(#sq)"><rect width="108" height="108" fill="url(#bg)"/><g transform="translate(54 56) scale(.88) translate(-53 -54)">
+  <path d="M40,52 L82,52 L82,60 L72,60 C68,61 66,64 66,68 L66,70 L73,70 L76,78 L36,78 L39,70 L46,70 L46,68 C46,64 44,62 40,62 C34,62 28,59 24,55 C29,53 35,52 40,52 Z" fill="#F3E9DC"/>
+  <path d="M58,19 Q60.4,31.6 73,34 Q60.4,36.4 58,49 Q55.6,36.4 43,34 Q55.6,31.6 58,19 Z" fill="url(#amber)"/>
+  <path d="M75,21.5 Q75.88,26.12 80.5,27 Q75.88,27.88 75,32.5 Q74.12,27.88 69.5,27 Q74.12,26.12 75,21.5 Z" fill="url(#amber)"/>
+  <circle cx="41" cy="31" r="2.2" fill="url(#amber)"/></g></g></svg><text x="20" y="721.0" font-family="sans-serif" font-size="19" font-weight="bold" fill="#222">C · Marco + destello</text><svg x="230" y="640" width="150" height="150" viewBox="18 18 72 72" clip-path="url(#sq)"><g clip-path="url(#sq)"><rect width="108" height="108" fill="url(#bg)"/><g transform="translate(54 54) scale(.84) translate(-57 -51)">
+<mask id="frmFalse"><rect width="108" height="108" fill="#fff"/>
+  <path d="M73,25 Q75.08,35.92 86,38 Q75.08,40.08 73,51 Q70.92,40.08 60,38 Q70.92,35.92 73,25 Z" fill="#000" stroke="#000" stroke-width="7" stroke-linejoin="round"/></mask>
+<g mask="url(#frmFalse)">
+  <rect x="31" y="40" width="42" height="36" rx="8" fill="none" stroke="#F3E9DC" stroke-width="5"/>
+  <path d="M38,70 L48,57 L55,65 L60,60 L67,70 Z" fill="#F3E9DC" stroke="#F3E9DC" stroke-width="2" stroke-linejoin="round"/>
+</g>
+<path d="M73,25 Q75.08,35.92 86,38 Q75.08,40.08 73,51 Q70.92,40.08 60,38 Q70.92,35.92 73,25 Z" fill="url(#amber)"/></g></g></svg><svg x="420" y="640" width="150" height="150" viewBox="18 18 72 72" clip-path="url(#ci)"><g clip-path="url(#ci)"><rect width="108" height="108" fill="url(#bg)"/><g transform="translate(54 54) scale(.84) translate(-57 -51)">
+<mask id="frmFalse"><rect width="108" height="108" fill="#fff"/>
+  <path d="M73,25 Q75.08,35.92 86,38 Q75.08,40.08 73,51 Q70.92,40.08 60,38 Q70.92,35.92 73,25 Z" fill="#000" stroke="#000" stroke-width="7" stroke-linejoin="round"/></mask>
+<g mask="url(#frmFalse)">
+  <rect x="31" y="40" width="42" height="36" rx="8" fill="none" stroke="#F3E9DC" stroke-width="5"/>
+  <path d="M38,70 L48,57 L55,65 L60,60 L67,70 Z" fill="#F3E9DC" stroke="#F3E9DC" stroke-width="2" stroke-linejoin="round"/>
+</g>
+<path d="M73,25 Q75.08,35.92 86,38 Q75.08,40.08 73,51 Q70.92,40.08 60,38 Q70.92,35.92 73,25 Z" fill="url(#amber)"/></g></g></svg><svg x="610" y="640" width="150" height="150" viewBox="18 18 72 72" clip-path="url(#sq)"><g clip-path="url(#sq)"><rect width="108" height="108" fill="#D6E3FF"/><g transform="translate(54 54) scale(.84) translate(-57 -51)">
+<mask id="frmTrue"><rect width="108" height="108" fill="#fff"/>
+  <path d="M73,25 Q75.08,35.92 86,38 Q75.08,40.08 73,51 Q70.92,40.08 60,38 Q70.92,35.92 73,25 Z" fill="#284777" stroke="#000" stroke-width="7" stroke-linejoin="round"/></mask>
+<g mask="url(#frmTrue)">
+  <rect x="31" y="40" width="42" height="36" rx="8" fill="none" stroke="#000" stroke-width="5"/>
+  <path d="M38,70 L48,57 L55,65 L60,60 L67,70 Z" fill="#284777" stroke="#000" stroke-width="2" stroke-linejoin="round"/>
+</g>
+<path d="M73,25 Q75.08,35.92 86,38 Q75.08,40.08 73,51 Q70.92,40.08 60,38 Q70.92,35.92 73,25 Z" fill="#284777"/></g></g></svg><svg x="800" y="640" width="150" height="150" viewBox="18 18 72 72" clip-path="url(#sq)"><g clip-path="url(#sq)"><rect width="108" height="108" fill="#1F2B3D"/><g transform="translate(54 54) scale(.84) translate(-57 -51)">
+<mask id="frmTrue"><rect width="108" height="108" fill="#fff"/>
+  <path d="M73,25 Q75.08,35.92 86,38 Q75.08,40.08 73,51 Q70.92,40.08 60,38 Q70.92,35.92 73,25 Z" fill="#AEC6FF" stroke="#000" stroke-width="7" stroke-linejoin="round"/></mask>
+<g mask="url(#frmTrue)">
+  <rect x="31" y="40" width="42" height="36" rx="8" fill="none" stroke="#000" stroke-width="5"/>
+  <path d="M38,70 L48,57 L55,65 L60,60 L67,70 Z" fill="#AEC6FF" stroke="#000" stroke-width="2" stroke-linejoin="round"/>
+</g>
+<path d="M73,25 Q75.08,35.92 86,38 Q75.08,40.08 73,51 Q70.92,40.08 60,38 Q70.92,35.92 73,25 Z" fill="#AEC6FF"/></g></g></svg><svg x="1041.0" y="691.0" width="48" height="48" viewBox="18 18 72 72" clip-path="url(#sq)"><g clip-path="url(#sq)"><rect width="108" height="108" fill="url(#bg)"/><g transform="translate(54 54) scale(.84) translate(-57 -51)">
+<mask id="frmFalse"><rect width="108" height="108" fill="#fff"/>
+  <path d="M73,25 Q75.08,35.92 86,38 Q75.08,40.08 73,51 Q70.92,40.08 60,38 Q70.92,35.92 73,25 Z" fill="#000" stroke="#000" stroke-width="7" stroke-linejoin="round"/></mask>
+<g mask="url(#frmFalse)">
+  <rect x="31" y="40" width="42" height="36" rx="8" fill="none" stroke="#F3E9DC" stroke-width="5"/>
+  <path d="M38,70 L48,57 L55,65 L60,60 L67,70 Z" fill="#F3E9DC" stroke="#F3E9DC" stroke-width="2" stroke-linejoin="round"/>
+</g>
+<path d="M73,25 Q75.08,35.92 86,38 Q75.08,40.08 73,51 Q70.92,40.08 60,38 Q70.92,35.92 73,25 Z" fill="url(#amber)"/></g></g></svg></svg>
