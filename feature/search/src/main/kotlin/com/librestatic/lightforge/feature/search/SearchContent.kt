@@ -15,6 +15,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -68,6 +72,9 @@ import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.search.MediaSearchHit
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryGridMetrics
+import com.librestatic.lightforge.core.designsystem.GalleryContentWidths
+import com.librestatic.lightforge.core.designsystem.GalleryWindowClass
+import com.librestatic.lightforge.core.designsystem.galleryWindowClass
 import com.librestatic.lightforge.core.designsystem.MediaTileBadges
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveIconButton
 import com.librestatic.lightforge.core.designsystem.GalleryLoadingIndicator
@@ -92,7 +99,7 @@ internal const val SEARCH_CONTENT_COLUMN_TEST_TAG = "search_content_column"
 internal fun searchHorizontalGutter(width: Dp) =
     maxOf(GallerySpacing.Xl, galleryAdaptiveLayoutInfo(width).gutter)
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun SearchContent(
     query: String,
@@ -176,10 +183,11 @@ fun SearchContent(
     }
     BoxWithConstraints(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
       val horizontalGutter = searchHorizontalGutter(maxWidth)
+      val wideDiscovery = galleryWindowClass(maxWidth) != GalleryWindowClass.Compact
       Column(
           Modifier
               .fillMaxSize()
-              .widthIn(max = 1_200.dp)
+              .widthIn(max = GalleryContentWidths.Browsing)
               .padding(horizontal = horizontalGutter)
               .testTag(SEARCH_CONTENT_COLUMN_TEST_TAG),
           verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -194,27 +202,37 @@ fun SearchContent(
             inputField = inputField,
             modifier = Modifier.fillMaxWidth(),
         )
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 16.dp)) {
-            item {
-                val label = stringResource(R.string.search_photos)
-                AssistChip(onClick = { onPresetSearch(label) }, label = { Text(label) })
+        val presetChips: List<Pair<Int, (String) -> Unit>> = listOf(
+            R.string.search_photos to onPresetSearch,
+            R.string.search_videos to onPresetSearch,
+            R.string.search_documents to onPresetSearch,
+            R.string.search_local_analysis to { _ -> showDetectedContent = true },
+        )
+        val presetChip: @Composable (Pair<Int, (String) -> Unit>) -> Unit = { (res, action) ->
+            val label = stringResource(res)
+            AssistChip(onClick = { action(label) }, label = { Text(label) })
+        }
+        if (wideDiscovery) {
+            androidx.compose.foundation.layout.FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) { presetChips.forEach { presetChip(it) } }
+        } else {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 16.dp)) {
+                items(presetChips) { presetChip(it) }
             }
-            item {
-                val label = stringResource(R.string.search_videos)
-                AssistChip(onClick = { onPresetSearch(label) }, label = { Text(label) })
-            }
-            item {
-                val label = stringResource(R.string.search_documents)
-                AssistChip(onClick = { onPresetSearch(label) }, label = { Text(label) })
-            }
-            item { AssistChip(onClick = { showDetectedContent = true }, label = { Text(stringResource(R.string.search_local_analysis)) }) }
         }
         if (partialIndex) {
             Text(stringResource(R.string.search_partial_index), color = MaterialTheme.colorScheme.primary)
         }
         Text(stringResource(R.string.search_privacy), style = MaterialTheme.typography.bodySmall)
         if (query.isBlank()) {
-            SearchDiscovery(onPresetSearch = onPresetSearch, onOpenPlaces = onOpenPlaces, modifier = Modifier.weight(1f))
+            SearchDiscovery(
+                onPresetSearch = onPresetSearch,
+                onOpenPlaces = onOpenPlaces,
+                modifier = Modifier.weight(1f),
+                wide = wideDiscovery,
+            )
         }
         if (semanticUnavailable && !error && query.isNotBlank()) {
             Text(
@@ -392,90 +410,177 @@ private fun SearchDiscovery(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(),
     headingModifier: Modifier = Modifier,
+    wide: Boolean = false,
 ) {
+    val people = listOf(
+        R.string.search_me to GalleryIcons.User,
+        R.string.search_people to GalleryIcons.User,
+        R.string.search_cats to GalleryIcons.Pet,
+        R.string.search_dogs to GalleryIcons.Pet,
+    )
+    val places = listOf(R.string.search_coast, R.string.search_mountain, R.string.search_city, R.string.search_rain)
+    val contentTypes = listOf(R.string.search_documents, R.string.search_screenshots, R.string.search_video, R.string.search_camera)
+    val topics = listOf(R.string.search_landscapes, R.string.search_food)
+    val peopleSection: @Composable (Modifier) -> Unit = { m ->
+        SearchDiscoverySection(stringResource(R.string.search_people_pets), m, wide, null) {
+            SearchPeopleRow(people, wide, onPresetSearch)
+        }
+    }
+    val placesSection: @Composable (Modifier) -> Unit = { m ->
+        SearchDiscoverySection(stringResource(R.string.search_places), m, wide, onOpenPlaces) {
+            SearchChipRow(places, GalleryIcons.Image, wide, onPresetSearch)
+        }
+    }
+    val contentTypesSection: @Composable (Modifier) -> Unit = { m ->
+        SearchDiscoverySection(stringResource(R.string.search_content_types), m, wide, null) {
+            SearchChipRow(contentTypes, GalleryIcons.Collections, wide, onPresetSearch)
+        }
+    }
+    val topicsSection: @Composable (Modifier) -> Unit = { m ->
+        SearchDiscoverySection(stringResource(R.string.search_topics), m, wide, null) {
+            SearchChipRow(topics, null, wide, onPresetSearch)
+        }
+    }
     LazyColumn(
         modifier = modifier,
         contentPadding = contentPadding,
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(if (wide) 12.dp else 10.dp),
     ) {
-        item {
-            Text(
-                stringResource(R.string.search_people_pets),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = headingModifier,
-            )
-        }
-        item { LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(end = 16.dp)) {
-            val people = listOf(
-                R.string.search_me to GalleryIcons.User,
-                R.string.search_people to GalleryIcons.User,
-                R.string.search_cats to GalleryIcons.Pet,
-                R.string.search_dogs to GalleryIcons.Pet,
-            )
-            items(people) { (labelResource, icon) ->
-                val label = stringResource(labelResource)
-                Card(onClick = { onPresetSearch(label) }) {
-                    Column(
-                        Modifier.padding(10.dp),
-                        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
-                    ) {
-                        Box(
-                            Modifier.size(52.dp).background(MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.shapes.extraLarge),
-                            contentAlignment = androidx.compose.ui.Alignment.Center,
-                        ) {
-                            Icon(
-                                icon,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                        Text(label, style = MaterialTheme.typography.labelMedium)
-                    }
+        if (wide) {
+            // Width is plentiful: two tonal cards per row instead of stacked scrolling rows.
+            item {
+                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    peopleSection(Modifier.weight(1f).fillMaxHeight())
+                    placesSection(Modifier.weight(1f).fillMaxHeight())
                 }
             }
-        } }
-        item {
-            if (onOpenPlaces != null) {
-                // Same start edge and typography as the other section headers (R-07); a chevron
-                // marks it as the entry to Places instead of TextButton padding.
-                Row(
-                    Modifier
-                        .semantics { heading() }
-                        .testTag("search-open-places")
-                        .clip(MaterialTheme.shapes.small)
-                        .clickable(role = Role.Button, onClick = onOpenPlaces)
-                        .heightIn(min = 48.dp),
-                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text(stringResource(R.string.search_places), style = MaterialTheme.typography.titleMedium)
-                    Icon(GalleryIcons.ChevronForward, contentDescription = null)
+            item {
+                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    contentTypesSection(Modifier.weight(1f).fillMaxHeight())
+                    topicsSection(Modifier.weight(1f).fillMaxHeight())
                 }
-            } else {
-                Text(stringResource(R.string.search_places), style = MaterialTheme.typography.titleMedium)
             }
+        } else {
+            item { peopleSection(headingModifier) }
+            item { placesSection(headingModifier) }
+            item { contentTypesSection(headingModifier) }
+            item { topicsSection(headingModifier) }
         }
-        item { LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 16.dp)) {
-            items(listOf(R.string.search_coast, R.string.search_mountain, R.string.search_city, R.string.search_rain)) { labelResource ->
-                val label = stringResource(labelResource)
-                AssistChip(onClick = { onPresetSearch(label) }, label = { Text(label) }, leadingIcon = { Icon(GalleryIcons.Image, contentDescription = null) })
-            }
-        } }
-        item { Text(stringResource(R.string.search_content_types), style = MaterialTheme.typography.titleMedium) }
-        item { LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 16.dp)) {
-            items(listOf(R.string.search_documents, R.string.search_screenshots, R.string.search_video, R.string.search_camera)) { labelResource ->
-                val label = stringResource(labelResource)
-                AssistChip(onClick = { onPresetSearch(label) }, label = { Text(label) }, leadingIcon = { Icon(GalleryIcons.Collections, contentDescription = null) })
-            }
-        } }
-        item { Text(stringResource(R.string.search_topics), style = MaterialTheme.typography.titleMedium) }
-        item { LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 16.dp)) {
-            items(listOf(R.string.search_landscapes, R.string.search_food)) { labelResource ->
-                val label = stringResource(labelResource)
-                AssistChip(onClick = { onPresetSearch(label) }, label = { Text(label) })
-            }
-        } }
         item { Box(Modifier.size(1.dp)) }
+    }
+}
+
+/** A discovery section: a plain heading + row on phones, a tonal card on wide layouts. */
+@Composable
+private fun SearchDiscoverySection(
+    title: String,
+    modifier: Modifier,
+    tonal: Boolean,
+    onOpen: (() -> Unit)?,
+    content: @Composable () -> Unit,
+) {
+    val heading: @Composable () -> Unit = {
+        if (onOpen != null) {
+            // Same start edge and typography as the other section headers (R-07); a chevron
+            // marks it as the entry to Places instead of TextButton padding.
+            Row(
+                Modifier
+                    .semantics { heading() }
+                    .testTag("search-open-places")
+                    .clip(MaterialTheme.shapes.small)
+                    .clickable(role = Role.Button, onClick = onOpen)
+                    .heightIn(min = 48.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Icon(GalleryIcons.ChevronForward, contentDescription = null)
+            }
+        } else {
+            Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+        }
+    }
+    if (tonal) {
+        Surface(
+            modifier = modifier,
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                heading()
+                content()
+            }
+        }
+    } else {
+        Column(modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            heading()
+            content()
+        }
+    }
+}
+
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun SearchPeopleRow(
+    people: List<Pair<Int, androidx.compose.ui.graphics.vector.ImageVector>>,
+    wrap: Boolean,
+    onPresetSearch: (String) -> Unit,
+) {
+    val entry: @Composable (Pair<Int, androidx.compose.ui.graphics.vector.ImageVector>) -> Unit = { (labelResource, icon) ->
+        val label = stringResource(labelResource)
+        Card(onClick = { onPresetSearch(label) }) {
+            Column(
+                Modifier.padding(10.dp),
+                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+            ) {
+                Box(
+                    Modifier.size(52.dp).background(MaterialTheme.colorScheme.surfaceContainerHighest, MaterialTheme.shapes.extraLarge),
+                    contentAlignment = androidx.compose.ui.Alignment.Center,
+                ) {
+                    Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                }
+                Text(label, style = MaterialTheme.typography.labelMedium)
+            }
+        }
+    }
+    if (wrap) {
+        androidx.compose.foundation.layout.FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) { people.forEach { entry(it) } }
+    } else {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(end = 16.dp)) {
+            items(people) { entry(it) }
+        }
+    }
+}
+
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun SearchChipRow(
+    labels: List<Int>,
+    icon: androidx.compose.ui.graphics.vector.ImageVector?,
+    wrap: Boolean,
+    onPresetSearch: (String) -> Unit,
+) {
+    val chip: @Composable (Int) -> Unit = { labelResource ->
+        val label = stringResource(labelResource)
+        AssistChip(
+            onClick = { onPresetSearch(label) },
+            label = { Text(label) },
+            leadingIcon = icon?.let { vector -> { Icon(vector, contentDescription = null) } },
+        )
+    }
+    if (wrap) {
+        androidx.compose.foundation.layout.FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) { labels.forEach { chip(it) } }
+    } else {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 16.dp)) {
+            items(labels) { chip(it) }
+        }
     }
 }
 
