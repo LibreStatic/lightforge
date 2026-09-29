@@ -20,4 +20,8 @@
     <string name="album_cover_auto_confirm">Usar o item disponível mais recente do álbum como capa?</string>
     <string name="album_cover_confirm">Usar “%1$s” como capa do álbum?</string>
     <string name="album_cover_failed">Não foi possível salvar a capa. Seus arquivos não foram alterados. Tente novamente.</string>
+    <string name="album_side_panel_show">Mostrar painel de álbuns</string>
+    <string name="album_side_panel_hide">Ocultar painel de álbuns</string>
+    <string name="album_side_panel_label">Álbuns</string>
+    <plurals name="album_item_count"><item quantity="one">%1$d item</item><item quantity="many">%1$d itens</item><item quantity="other">%1$d itens</item></plurals>
 </resources>

@@ -3,6 +3,12 @@ package com.librestatic.lightforge.feature.album
 import androidx.compose.material3.AlertDialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Surface
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -92,6 +98,7 @@ fun AlbumContent(
     coverFailed: Boolean = false,
     coverRevision: Int = 0,
 ) {
+    val wide = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 600
     var sortExpanded by remember(album.key) { mutableStateOf(false) }
     var choosingCover by remember(album.key, coverRevision) { mutableStateOf(false) }
     var reviewedCover by remember(album.key, coverRevision) { mutableStateOf<TimelineMedia?>(null) }
@@ -130,7 +137,8 @@ fun AlbumContent(
     )
     Column(modifier.fillMaxSize()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (showHeader) Text(
+            if (showHeader && wide) WideAlbumHeader(album, thumbnails)
+            else if (showHeader) Text(
                 album.name ?: stringResource(R.string.album_untitled),
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.semantics { heading() },
@@ -166,40 +174,54 @@ fun AlbumContent(
             if (album.availability == AlbumAvailability.VolumeUnavailable) {
                 Text(stringResource(R.string.album_volume_unavailable), color = MaterialTheme.colorScheme.error)
             }
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(AlbumMediaFilter.entries) { value ->
-                    FilterChip(
-                        selected = filter == value,
-                        enabled = !coverWorking,
-                        onClick = { onFilterChange(value) },
-                        label = { Text(stringResource(value.label())) },
-                    )
-                }
-            }
-            Box(Modifier.fillMaxWidth()) {
-                TextButton(
-                    onClick = { sortExpanded = true },
-                    enabled = !coverWorking,
-                    modifier = Modifier.fillMaxWidth().testTag("album-sort"),
-                ) {
-                    Text(stringResource(R.string.album_sort_current, stringResource(sort.label())))
-                }
-                DropdownMenu(expanded = sortExpanded, onDismissRequest = { sortExpanded = false }) {
-                    AlbumSort.entries.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(stringResource(option.label())) },
-                            onClick = {
-                                sortExpanded = false
-                                if (option != sort) onSortChange(option)
-                            },
-                            leadingIcon = {
-                                if (option == sort) Icon(GalleryIcons.Check, contentDescription = null)
-                            },
-                            modifier = Modifier.testTag("album-sort-${option.name}")
-                                .semantics { selected = option == sort },
+            val filterChips: @Composable (Modifier) -> Unit = { chipsModifier ->
+                LazyRow(chipsModifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(AlbumMediaFilter.entries) { value ->
+                        FilterChip(
+                            selected = filter == value,
+                            enabled = !coverWorking,
+                            onClick = { onFilterChange(value) },
+                            label = { Text(stringResource(value.label())) },
                         )
                     }
                 }
+            }
+            val sortButton: @Composable (Modifier) -> Unit = { sortModifier ->
+                Box(sortModifier) {
+                    TextButton(
+                        onClick = { sortExpanded = true },
+                        enabled = !coverWorking,
+                        modifier = Modifier.then(if (wide) Modifier else Modifier.fillMaxWidth()).testTag("album-sort"),
+                    ) {
+                        Text(stringResource(R.string.album_sort_current, stringResource(sort.label())))
+                    }
+                    DropdownMenu(expanded = sortExpanded, onDismissRequest = { sortExpanded = false }) {
+                        AlbumSort.entries.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(stringResource(option.label())) },
+                                onClick = {
+                                    sortExpanded = false
+                                    if (option != sort) onSortChange(option)
+                                },
+                                leadingIcon = {
+                                    if (option == sort) Icon(GalleryIcons.Check, contentDescription = null)
+                                },
+                                modifier = Modifier.testTag("album-sort-${option.name}")
+                                    .semantics { selected = option == sort },
+                            )
+                        }
+                    }
+                }
+            }
+            if (wide) {
+                // Filters and sort share one toolbar row; the sort button no longer spans the width.
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    filterChips(Modifier.weight(1f))
+                    sortButton(Modifier)
+                }
+            } else {
+                filterChips(Modifier)
+                sortButton(Modifier.fillMaxWidth())
             }
             val count = runCatching { SelectionReducer.count(selection, selectionQueryCount) }.getOrDefault(0)
             if (count > 0 && !picking) Text(stringResource(R.string.album_selected_count, count))
@@ -279,6 +301,38 @@ fun AlbumContent(
                         )
                     },
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WideAlbumHeader(album: AlbumSummary, loader: ThumbnailLoader) {
+    val colors = MaterialTheme.colorScheme
+    val request = album.cover?.let { ThumbnailRequest(it, 0, 256, 256) }
+    val bitmap by produceState(
+        initialValue = request?.let { loader.cached(it) ?: loader.bestCached(it.mediaKey, it.generationModified) },
+        request,
+    ) {
+        if (request != null) runCatching { loader.load(request) }.getOrNull()?.let { value = it }
+    }
+    Surface(color = colors.surfaceContainerLow, contentColor = colors.onSurface, shape = MaterialTheme.shapes.large,
+        modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(72.dp).clip(MaterialTheme.shapes.medium).background(colors.surfaceContainerHighest),
+                contentAlignment = Alignment.Center,
+            ) {
+                bitmap?.let { Image(it.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
+                    ?: Icon(GalleryIcons.Album, contentDescription = null, tint = colors.onSurfaceVariant)
+            }
+            Column(Modifier.weight(1f)) {
+                Text(album.name ?: stringResource(R.string.album_untitled), style = MaterialTheme.typography.headlineSmall,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.semantics { heading() })
+                if (album.availability != AlbumAvailability.VolumeUnavailable) {
+                    Text(pluralStringResource(R.plurals.album_item_count, album.itemCount.toInt(), album.itemCount),
+                        style = MaterialTheme.typography.bodyMedium, color = colors.onSurfaceVariant)
+                }
             }
         }
     }

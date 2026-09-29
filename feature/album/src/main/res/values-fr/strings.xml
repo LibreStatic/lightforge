@@ -20,4 +20,8 @@
     <string name="album_cover_auto_confirm">Utiliser l’élément disponible le plus récent de l’album comme couverture ?</string>
     <string name="album_cover_confirm">Utiliser « %1$s » comme couverture de l’album ?</string>
     <string name="album_cover_failed">La couverture n’a pas pu être enregistrée. Vos fichiers sont inchangés. Réessayez.</string>
+    <string name="album_side_panel_show">Afficher le panneau des albums</string>
+    <string name="album_side_panel_hide">Masquer le panneau des albums</string>
+    <string name="album_side_panel_label">Albums</string>
+    <plurals name="album_item_count"><item quantity="one">%1$d élément</item><item quantity="many">%1$d éléments</item><item quantity="other">%1$d éléments</item></plurals>
 </resources>

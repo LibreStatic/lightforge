@@ -20,4 +20,8 @@
     <string name="album_cover_auto_confirm">¿Usar el elemento disponible más reciente del álbum como portada?</string>
     <string name="album_cover_confirm">¿Usar «%1$s» como portada del álbum?</string>
     <string name="album_cover_failed">No se pudo guardar la portada. Tus archivos no cambiaron. Intentá de nuevo.</string>
+    <string name="album_side_panel_show">Mostrar panel de álbumes</string>
+    <string name="album_side_panel_hide">Ocultar panel de álbumes</string>
+    <string name="album_side_panel_label">Álbumes</string>
+    <plurals name="album_item_count"><item quantity="one">%1$d elemento</item><item quantity="many">%1$d elementos</item><item quantity="other">%1$d elementos</item></plurals>
 </resources>

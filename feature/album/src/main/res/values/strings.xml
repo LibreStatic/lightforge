@@ -20,4 +20,8 @@
     <string name="album_cover_auto_confirm">Use the most recent available album item as the cover?</string>
     <string name="album_cover_confirm">Use “%1$s” as the album cover?</string>
     <string name="album_cover_failed">The cover could not be saved. Your files were not changed. Try again.</string>
+    <string name="album_side_panel_show">Show albums panel</string>
+    <string name="album_side_panel_hide">Hide albums panel</string>
+    <string name="album_side_panel_label">Albums</string>
+    <plurals name="album_item_count"><item quantity="one">%1$d item</item><item quantity="other">%1$d items</item></plurals>
 </resources>
