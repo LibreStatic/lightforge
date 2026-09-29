@@ -164,4 +164,8 @@
     <string name="video_editor_discard_message">Deine Änderungen wurden noch nicht als Kopie gespeichert.</string>
     <string name="video_editor_discard_confirm">Verwerfen</string>
     <string name="video_editor_keep_editing">Weiter bearbeiten</string>
+    <string name="video_editor_timeline_time">%1$s / %2$s</string>
+    <string name="video_editor_trim_range">Kürzen · %1$s–%2$s</string>
+    <string name="video_editor_trim_start_description">Kürzungsanfang, %1$s</string>
+    <string name="video_editor_trim_end_description">Kürzungsende, %1$s</string>
 </resources>

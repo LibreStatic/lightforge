@@ -435,15 +435,52 @@ class VideoEditorContentDeviceTest {
         val restoredPosition = compose.onNode(hasTestTag("video-editor-position"))
             .fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.ProgressBarRangeInfo]
         assertEquals(4_000f, restoredPosition.current, 0f)
-        compose.onNode(hasTestTag("video-editor-position-value").and(hasText("0:04.000", substring = true)))
+        compose.onNode(hasTestTag("video-editor-position-value").and(hasText("0:04 / 0:18")))
             .assertExists()
-        compose.onNode(hasTestTag("video-editor-trim-value").and(hasText("0:00.500", substring = true)))
+        compose.onNode(hasTestTag("video-editor-trim-value").and(hasText("Trim · 0:00–0:15")))
             .assertExists()
         compose.runOnIdle { sessionId = "video-draft-b" }
         compose.onNode(hasContentDescription(text(R.string.video_editor_audio_description))).assertDoesNotExist()
         val freshPosition = compose.onNode(hasTestTag("video-editor-position"))
             .fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.ProgressBarRangeInfo]
         assertEquals(1_000f, freshPosition.current, 0f)
+    }
+
+    @Test
+    fun timelineHandlesExposeSliderSemanticsAndClampTrim() {
+        var trim = 500L to 15_000L
+        compose.setContent {
+            LightforgeTheme {
+                VideoEditorContent(
+                    sessionId = "device-video-editor",
+                    state = VideoEditorContentState(
+                        durationMillis = 18_000,
+                        trimStartMillis = 500,
+                        trimEndMillis = 15_000,
+                    ),
+                    controller = null,
+                    onBack = {},
+                    onSaveCopy = {},
+                    onSpeedChange = {},
+                    onOriginalVolumeChange = {},
+                    onChooseMusic = {},
+                    onRemoveMusic = {},
+                    onSeek = {},
+                    onTrimChange = { start, end -> trim = start to end },
+                )
+            }
+        }
+
+        compose.onNode(hasTestTag("video-editor-timeline")).assertIsDisplayed()
+        compose.onNode(hasTestTag("video-editor-trim-start")).performSemanticsAction(
+            SemanticsActions.SetProgress,
+        ) { it(2_000f) }
+        compose.runOnIdle { assertEquals(2_000L to 15_000L, trim) }
+        // A handle can never cross the other one: the end handle stops at start + minimum span.
+        compose.onNode(hasTestTag("video-editor-trim-end")).performSemanticsAction(
+            SemanticsActions.SetProgress,
+        ) { it(600f) }
+        compose.runOnIdle { assertEquals(500L to 700L, trim) }
     }
 
     private fun text(id: Int): String =

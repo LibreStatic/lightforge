@@ -175,4 +175,8 @@
     <string name="video_editor_discard_message">Your changes haven’t been saved as a copy.</string>
     <string name="video_editor_discard_confirm">Discard</string>
     <string name="video_editor_keep_editing">Keep editing</string>
+    <string name="video_editor_timeline_time">%1$s / %2$s</string>
+    <string name="video_editor_trim_range">Trim · %1$s–%2$s</string>
+    <string name="video_editor_trim_start_description">Trim start, %1$s</string>
+    <string name="video_editor_trim_end_description">Trim end, %1$s</string>
 </resources>

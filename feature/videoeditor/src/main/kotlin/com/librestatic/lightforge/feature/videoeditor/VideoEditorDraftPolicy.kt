@@ -35,3 +35,10 @@ internal fun formatVideoEditorDraftTime(millis: Long): String {
     val fraction = millis % 1_000
     return "$minutes:${seconds.toString().padStart(2, '0')}.${fraction.toString().padStart(3, '0')}"
 }
+
+/** Compact timecode for the timeline labels (`m:ss`); the exact value stays in the semantics. */
+internal fun formatVideoEditorShortTime(millis: Long): String {
+    require(millis >= 0)
+    val totalSeconds = millis / 1_000
+    return "${totalSeconds / 60}:${(totalSeconds % 60).toString().padStart(2, '0')}"
+}

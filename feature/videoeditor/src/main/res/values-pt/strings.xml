@@ -164,4 +164,8 @@
     <string name="video_editor_discard_message">Suas alterações não foram salvas como cópia.</string>
     <string name="video_editor_discard_confirm">Descartar</string>
     <string name="video_editor_keep_editing">Continuar editando</string>
+    <string name="video_editor_timeline_time">%1$s / %2$s</string>
+    <string name="video_editor_trim_range">Corte · %1$s–%2$s</string>
+    <string name="video_editor_trim_start_description">Início do corte, %1$s</string>
+    <string name="video_editor_trim_end_description">Fim do corte, %1$s</string>
 </resources>

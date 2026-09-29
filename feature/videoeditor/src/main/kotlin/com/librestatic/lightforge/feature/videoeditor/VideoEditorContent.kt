@@ -55,6 +55,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.listSaver
@@ -97,6 +98,7 @@ import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
 import com.librestatic.lightforge.core.designsystem.GalleryMonoTypography
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import com.librestatic.lightforge.core.designsystem.galleryWindowClass
+import com.librestatic.lightforge.feature.viewer.VideoFrameExtractor
 import com.librestatic.lightforge.feature.viewer.VideoViewerState
 import com.librestatic.lightforge.core.editing.video.BuiltInLook
 import com.librestatic.lightforge.core.editing.video.CubeLut
@@ -123,6 +125,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 private const val PreviewCubeSize = 17
+private const val FilmstripFrameCount = 8
 private const val GeometryPreviewDebounceMillis = 50L
 private val EditorChipModifier = Modifier.widthIn(min = 80.dp).heightIn(min = 48.dp)
 
@@ -418,6 +421,35 @@ fun VideoEditorContent(
             }
         }
     }
+    val sourceUri = (controller?.state?.collectAsState()?.value).let { viewerState ->
+        when (viewerState) {
+            is VideoViewerState.Ready -> viewerState.uri
+            is VideoViewerState.Loading -> viewerState.uri
+            else -> null
+        }
+    }
+    val filmstripFrames by produceState<List<android.graphics.Bitmap>?>(
+        initialValue = null,
+        sourceUri,
+        state.durationMillis,
+    ) {
+        val uri = sourceUri
+        if (uri == null) {
+            value = null
+            return@produceState
+        }
+        value = try {
+            VideoFrameExtractor.extract(context, uri, state.durationMillis, FilmstripFrameCount)
+                .takeIf { it.isNotEmpty() }
+        } catch (failure: Throwable) {
+            if (failure is kotlinx.coroutines.CancellationException) throw failure
+            null
+        }
+    }
+    DisposableEffect(filmstripFrames) {
+        val loaded = filmstripFrames
+        onDispose { loaded?.forEach { if (!it.isRecycled) it.recycle() } }
+    }
     val requestBack: () -> Unit = { if (state.isDirty) showDiscardDialog = true else onBack() }
     BackHandler(enabled = state.isDirty && !showExportSheet) { showDiscardDialog = true }
     if (showDiscardDialog) {
@@ -507,6 +539,7 @@ fun VideoEditorContent(
                 ) {
                     VideoEditingPanel(
                         state = state,
+                        frames = filmstripFrames,
                         currentMillis = previewPositionMillis,
                         onSeek = { position ->
                             previewPositionMillis = videoEditorDraftPosition(
@@ -858,6 +891,7 @@ private fun VideoPanelResizeHandle(
 @Composable
 private fun VideoEditingPanel(
     state: VideoEditorContentState,
+    frames: List<android.graphics.Bitmap>?,
     currentMillis: Long,
     onSeek: (Long) -> Unit,
     onTrimChange: (Long, Long) -> Unit,
@@ -883,12 +917,15 @@ private fun VideoEditingPanel(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.fillMaxWidth()) {
-        VideoTimeline(
-                    state = state,
-                    currentMillis = currentMillis,
-                    onSeek = onSeek,
-                    onTrimChange = onTrimChange,
-                )
+        VideoFilmstripTimeline(
+            frames = frames,
+            durationMillis = state.durationMillis,
+            trimStartMillis = state.trimStartMillis,
+            trimEndMillis = state.trimEndMillis,
+            positionMillis = currentMillis,
+            onSeek = onSeek,
+            onTrimChange = onTrimChange,
+        )
         VideoControls(
             state = state,
             currentMillis = currentMillis,
@@ -1060,59 +1097,6 @@ private const val VideoExportSheetTag = "video-export-sheet"
 private const val VideoExportSaveCopyTag = "video-export-save-copy"
 private const val VideoExportProgressCardTag = "video-export-progress-card"
 private const val VideoExportProgressIndicatorTag = "video-export-progress-indicator"
-
-@Composable
-private fun VideoTimeline(
-    state: VideoEditorContentState,
-    currentMillis: Long,
-    onSeek: (Long) -> Unit,
-    onTrimChange: (Long, Long) -> Unit,
-) {
-    val duration = state.durationMillis.coerceAtLeast(1)
-    val trimStart = state.trimStartMillis.coerceIn(0, (duration - 1).coerceAtLeast(0))
-    val trimEnd = (state.trimEndMillis.takeIf { it > trimStart } ?: duration)
-        .coerceIn(trimStart + 1, duration)
-    val position = currentMillis.coerceIn(trimStart, trimEnd)
-    Column(Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Sm)) {
-        val positionDescription = stringResource(
-            R.string.video_editor_position_description,
-            formatVideoEditorDraftTime(position),
-            formatVideoEditorDraftTime(trimEnd),
-        )
-        Text(
-            positionDescription,
-            modifier = Modifier.testTag("video-editor-position-value"),
-            style = GalleryMonoTypography,
-        )
-        Slider(
-            value = position.toFloat(),
-            onValueChange = { onSeek(it.toLong()) },
-            valueRange = trimStart.toFloat()..trimEnd.toFloat(),
-            modifier = Modifier.fillMaxWidth().testTag("video-editor-position").semantics {
-                contentDescription = positionDescription
-            },
-        )
-        val trimDescription = stringResource(
-            R.string.video_editor_trim_description,
-            formatVideoEditorDraftTime(trimStart),
-            formatVideoEditorDraftTime(trimEnd),
-        )
-        Text(
-            trimDescription,
-            modifier = Modifier.testTag("video-editor-trim-value"),
-            style = GalleryMonoTypography,
-        )
-        RangeSlider(
-            value = trimStart.toFloat()..trimEnd.toFloat(),
-            onValueChange = { range -> onTrimChange(range.start.toLong(), range.endInclusive.toLong()) },
-            valueRange = 0f..duration.toFloat(),
-            // The start thumb rests on the left screen edge; keep it out of the back gesture (V-04).
-            modifier = Modifier.fillMaxWidth().systemGestureExclusion().testTag("video-editor-trim").semantics {
-                contentDescription = trimDescription
-            },
-        )
-    }
-}
 
 @Composable
 private fun VideoControls(

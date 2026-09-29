@@ -164,4 +164,8 @@
     <string name="video_editor_discard_message">Vos modifications n’ont pas été enregistrées dans une copie.</string>
     <string name="video_editor_discard_confirm">Abandonner</string>
     <string name="video_editor_keep_editing">Continuer à modifier</string>
+    <string name="video_editor_timeline_time">%1$s / %2$s</string>
+    <string name="video_editor_trim_range">Rognage · %1$s–%2$s</string>
+    <string name="video_editor_trim_start_description">Début du rognage, %1$s</string>
+    <string name="video_editor_trim_end_description">Fin du rognage, %1$s</string>
 </resources>

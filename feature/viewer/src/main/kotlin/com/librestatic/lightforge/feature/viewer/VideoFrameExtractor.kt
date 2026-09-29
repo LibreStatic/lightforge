@@ -8,7 +8,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
-internal object VideoFrameExtractor {
+/** Samples evenly spaced thumbnails from a video; callers own (and must recycle) the bitmaps. */
+object VideoFrameExtractor {
     suspend fun extract(
         context: Context,
         uri: Uri,
