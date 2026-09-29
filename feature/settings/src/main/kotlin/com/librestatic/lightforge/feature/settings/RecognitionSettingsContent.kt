@@ -29,6 +29,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Language
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -944,7 +945,7 @@ private fun FolderNodeRow(
             }
         },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-        modifier = Modifier.fillMaxWidth().clickable {
+        modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).clickable {
             if (onOpen != null) onOpen() else onToggle(state != ToggleableState.On)
         },
     ) { Text(node.name) }
@@ -963,7 +964,7 @@ private fun FolderSelectionRow(
             TriStateCheckbox(state = state, onClick = { onToggle(state != ToggleableState.On) })
         },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-        modifier = Modifier.fillMaxWidth().clickable { onToggle(state != ToggleableState.On) },
+        modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).clickable { onToggle(state != ToggleableState.On) },
     ) { Text(label) }
 }
 
@@ -980,7 +981,7 @@ private fun DirectFolderSelectionRow(count: Long, selected: Boolean, onToggle: (
             )
         },
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
-        modifier = Modifier.fillMaxWidth().clickable { onToggle(!selected) },
+        modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).clickable { onToggle(!selected) },
     ) { Text(label) }
 }
 
@@ -1436,7 +1437,7 @@ private fun SettingsActionRow(
     }
     ListItem(
         onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().clip(MaterialTheme.shapes.large),
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         leadingContent = {
             Box(
@@ -1831,7 +1832,7 @@ private fun SettingsSwitchRow(
         ),
         checked = checked,
         onCheckedChange = onCheckedChange,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().clip(MaterialTheme.shapes.large),
         trailingContent = {
             Switch(
                 checked = checked,
@@ -1859,7 +1860,7 @@ private fun SettingsValueRow(
 ) {
     ListItem(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.clip(MaterialTheme.shapes.large),
         // Inside a card the rows share the tone of the switch rows.
         colors = if (LocalSettingsCards.current) {
             ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)

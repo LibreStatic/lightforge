@@ -44,13 +44,10 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.hapticfeedback.HapticFeedback
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -134,7 +131,7 @@ private class ScrubberController(
     private val entries: State<LazyPagingItems<TimelineEntry>>,
     private val index: State<TimelineIndex>,
     private val onJump: State<(TimelineAnchor?) -> Unit>,
-    private val haptics: State<HapticFeedback>,
+    private val haptics: ScrubberHaptics,
     private val scope: CoroutineScope,
     private val zone: ZoneId,
     deadbandPx: Float,
@@ -172,7 +169,7 @@ private class ScrubberController(
         deadband.reset(fingerPx)
         lastMonth = monthAt(fromFraction)
         scrubbing = true
-        haptics.value.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+        haptics.begin()
     }
 
     fun dragBy(deltaPx: Float, travelPx: Float) {
@@ -185,10 +182,7 @@ private class ScrubberController(
         val previous = lastMonth
         if (month != null && month != previous) {
             // A light tick per month and a firmer one per year, like the detents on Google Photos.
-            haptics.value.performHapticFeedback(
-                if (previous != null && previous.year != month.year) HapticFeedbackType.SegmentTick
-                else HapticFeedbackType.SegmentFrequentTick,
-            )
+            if (previous != null && previous.year != month.year) haptics.year() else haptics.month()
             lastMonth = month
         }
         seek(dragFraction)
@@ -197,7 +191,7 @@ private class ScrubberController(
     fun endScrub() {
         if (!scrubbing) return
         scrubbing = false
-        haptics.value.performHapticFeedback(HapticFeedbackType.GestureEnd)
+        haptics.end()
         seek(dragFraction)
     }
 
@@ -356,10 +350,11 @@ internal fun TimelineScrubber(
     val entriesState = rememberUpdatedState(entries)
     val indexState = rememberUpdatedState(index)
     val jumpState = rememberUpdatedState(onJump)
-    val hapticsState = rememberUpdatedState(LocalHapticFeedback.current)
+    val view = androidx.compose.ui.platform.LocalView.current
+    val haptics = remember(view) { ScrubberHaptics(view) }
     val deadbandPx = with(LocalDensity.current) { ScrubDeadband.toPx() }
     val controller = remember(gridState) {
-        ScrubberController(gridState, entriesState, indexState, jumpState, hapticsState, scope, zone, deadbandPx)
+        ScrubberController(gridState, entriesState, indexState, jumpState, haptics, scope, zone, deadbandPx)
     }
     val scrubbingState = rememberUpdatedState(onScrubbingChange)
     LaunchedEffect(controller.pointing) { scrubbingState.value(controller.pointing) }
