@@ -608,6 +608,9 @@ private fun SettingsCategoryRow(
 private val LocalSettingsCards = compositionLocalOf { false }
 
 @Composable
+private fun settingsRowMinHeight() = if (LocalSettingsCards.current) 64.dp else 0.dp
+
+@Composable
 private fun SettingsSubPage(
     title: String,
     onBack: () -> Unit,
@@ -621,8 +624,8 @@ private fun SettingsSubPage(
         if (!embedded) SettingsHeader(title, onBack)
         Column(
             Modifier.fillMaxSize().then(if (embedded) Modifier else Modifier.widthIn(max = 720.dp))
-                .verticalScroll(rememberScrollState()).padding(GallerySpacing.Xl),
-            verticalArrangement = Arrangement.spacedBy(GallerySpacing.Lg),
+                .verticalScroll(rememberScrollState()).padding(if (embedded) GallerySpacing.Xxl else GallerySpacing.Xl),
+            verticalArrangement = Arrangement.spacedBy(if (embedded) GallerySpacing.Xl else GallerySpacing.Lg),
         ) {
             if (embedded) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -656,13 +659,13 @@ private fun SettingsCard(title: String? = null, content: @Composable () -> Unit)
         contentColor = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(GallerySpacing.Sm), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
+        Column(Modifier.padding(GallerySpacing.Md), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
             if (title != null) {
                 Text(
                     title,
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(horizontal = GallerySpacing.Md, vertical = GallerySpacing.Sm),
+                    modifier = Modifier.padding(start = GallerySpacing.Md, end = GallerySpacing.Md, top = GallerySpacing.Sm, bottom = GallerySpacing.Xs),
                 )
             }
             content()
@@ -1437,7 +1440,7 @@ private fun SettingsActionRow(
     }
     ListItem(
         onClick = onClick,
-        modifier = modifier.fillMaxWidth().clip(MaterialTheme.shapes.large),
+        modifier = modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).heightIn(min = settingsRowMinHeight()),
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
         leadingContent = {
             Box(
@@ -1832,7 +1835,7 @@ private fun SettingsSwitchRow(
         ),
         checked = checked,
         onCheckedChange = onCheckedChange,
-        modifier = modifier.fillMaxWidth().clip(MaterialTheme.shapes.large),
+        modifier = modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).heightIn(min = settingsRowMinHeight()),
         trailingContent = {
             Switch(
                 checked = checked,
@@ -1860,7 +1863,7 @@ private fun SettingsValueRow(
 ) {
     ListItem(
         onClick = onClick,
-        modifier = modifier.clip(MaterialTheme.shapes.large),
+        modifier = modifier.clip(MaterialTheme.shapes.large).heightIn(min = settingsRowMinHeight()),
         // Inside a card the rows share the tone of the switch rows.
         colors = if (LocalSettingsCards.current) {
             ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
