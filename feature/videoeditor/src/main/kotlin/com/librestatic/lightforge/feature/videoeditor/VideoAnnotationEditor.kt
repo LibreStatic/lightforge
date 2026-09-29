@@ -214,8 +214,9 @@ internal fun VideoAnnotationControls(
             }
         }
         if (tool.appearance in setOf(VideoAnnotationAppearance.Pen, VideoAnnotationAppearance.Highlighter)) {
+            // Seven 44 dp swatches with 4 dp gaps fit one row on a 360 dp phone instead of wrapping.
             FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
             ) {
                 listOf(
@@ -233,7 +234,7 @@ internal fun VideoAnnotationControls(
                     Surface(
                         onClick = { onToolChange(tool.copy(color = color, eraser = false)) },
                         modifier = Modifier
-                            .size(48.dp)
+                            .size(44.dp)
                             .semantics {
                                 contentDescription = description
                                 this.selected = isSelected
@@ -288,8 +289,6 @@ internal fun VideoAnnotationControls(
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            IconButton(onClick = onUndo) { Icon(GalleryIcons.Undo, stringResource(R.string.video_editor_undo)) }
-            IconButton(onClick = onRedo) { Icon(GalleryIcons.Redo, stringResource(R.string.video_editor_redo)) }
             TextButton(onClick = onClear, enabled = state.annotations.isNotEmpty()) {
                 Text(stringResource(R.string.video_editor_clear_annotations))
             }

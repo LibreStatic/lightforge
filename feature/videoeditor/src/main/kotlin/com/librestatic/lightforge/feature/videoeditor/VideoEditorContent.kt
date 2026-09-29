@@ -1518,6 +1518,31 @@ private fun TransformControls(
         modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(GallerySpacing.Md),
         verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
     ) {
+        // Quick actions first: they are what most edits need, and the sliders are fine-tuning.
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
+            verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
+        ) {
+            OutlinedButton(onClick = {
+                val rotated = normalizeVideoRotation(geometry.rotationDegrees + 90f)
+                onChange(geometry.copy(rotationDegrees = rotated))
+            }, modifier = Modifier.heightIn(min = 48.dp)) {
+                Icon(GalleryIcons.RotateRight, contentDescription = null)
+                Text(stringResource(R.string.video_editor_rotate_90), modifier = Modifier.padding(start = GallerySpacing.Xs))
+            }
+            FilterChip(
+                selected = geometry.flipHorizontal,
+                onClick = { onChange(geometry.copy(flipHorizontal = !geometry.flipHorizontal)) },
+                label = { Text(stringResource(R.string.video_editor_flip_horizontal)) },
+                leadingIcon = { Icon(GalleryIcons.SwapHoriz, contentDescription = null) },
+                modifier = EditorChipModifier,
+            )
+            TextButton(
+                onClick = { onChange(VideoGeometry()) },
+                enabled = geometry != VideoGeometry(),
+                modifier = Modifier.heightIn(min = 48.dp),
+            ) { Text(stringResource(R.string.video_editor_reset_transform)) }
+        }
         Text(stringResource(R.string.video_editor_crop_horizontal), style = MaterialTheme.typography.labelLarge)
         RangeSlider(
             value = geometry.left..geometry.right,
@@ -1555,24 +1580,6 @@ private fun TransformControls(
                 contentDescription = straightenDescription
             },
         )
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
-            verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
-        ) {
-            OutlinedButton(onClick = {
-                val rotated = normalizeVideoRotation(geometry.rotationDegrees + 90f)
-                onChange(geometry.copy(rotationDegrees = rotated))
-            }) { Text(stringResource(R.string.video_editor_rotate_90)) }
-            FilterChip(
-                selected = geometry.flipHorizontal,
-                onClick = { onChange(geometry.copy(flipHorizontal = !geometry.flipHorizontal)) },
-                label = { Text(stringResource(R.string.video_editor_flip_horizontal)) },
-                modifier = EditorChipModifier,
-            )
-            TextButton(onClick = { onChange(VideoGeometry()) }) {
-                Text(stringResource(R.string.video_editor_reset_transform))
-            }
-        }
     }
 }
 
