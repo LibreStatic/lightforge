@@ -26,6 +26,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
+import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
 
 private val FINISHED = setOf(PdfExportPhase.Published, PdfExportPhase.Cancelled, PdfExportPhase.Failed)
 
@@ -221,7 +222,7 @@ private fun PdfExportJobCard(
                 Text(stringResource(PdfFailure.persisted(job.error).message))
             }
             if (job.phase == PdfExportPhase.Running) {
-                LinearProgressIndicator(
+                GalleryProgressIndicator(
                     progress = { job.completed.toFloat() / job.total.coerceAtLeast(1) },
                     modifier = Modifier.fillMaxWidth(),
                 )

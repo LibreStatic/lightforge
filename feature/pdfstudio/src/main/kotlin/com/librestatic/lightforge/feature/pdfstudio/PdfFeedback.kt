@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -25,6 +24,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.designsystem.GalleryIcon
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 
 private val WATCHED_PROGRESS_PHASES =
     setOf(PdfExportPhase.Queued, PdfExportPhase.Running, PdfExportPhase.Publishing)
@@ -118,7 +119,7 @@ internal fun PdfFeedbackOverlay(
                             total,
                         )
                     )
-                    LinearProgressIndicator(
+                    GalleryProgressIndicator(
                         progress = { copied.toFloat() / total.coerceAtLeast(1) },
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -245,7 +246,7 @@ internal fun PdfFeedbackOverlay(
         val intakeCardShown = galleryRows.any { it.error == null } && state.progress != null
         if (state.busy && !intakeCardShown) {
             IssueCard {
-                LinearProgressIndicator(Modifier.fillMaxWidth())
+                GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         state.progress?.let {
@@ -260,7 +261,7 @@ internal fun PdfFeedbackOverlay(
         val watchedJob = exportJobs.firstOrNull { it.id == watchedExportId }
         if (watchedJob != null && watchedJob.phase in WATCHED_PROGRESS_PHASES && !progressHidden) {
             IssueCard {
-                LinearProgressIndicator(
+                GalleryProgressIndicator(
                     progress = { watchedJob.completed.toFloat() / watchedJob.total.coerceAtLeast(1) },
                     modifier = Modifier.fillMaxWidth(),
                 )

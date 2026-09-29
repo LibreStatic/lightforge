@@ -54,6 +54,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.io.File
 import kotlin.math.max
 import kotlinx.coroutines.delay
+import com.librestatic.lightforge.core.designsystem.GalleryCircularProgressIndicator
 
 @Composable
 internal fun PdfBitmap(
@@ -253,7 +254,7 @@ internal fun PdfIntakeStrip(delivery: PdfGalleryDelivery, copied: Int) {
                             modifier = Modifier.align(Alignment.BottomEnd).size(16.dp),
                         )
                     inProgress ->
-                        androidx.compose.material3.CircularProgressIndicator(
+                        GalleryCircularProgressIndicator(
                             Modifier.align(Alignment.BottomEnd).size(16.dp),
                             strokeWidth = 2.dp,
                         )
@@ -1060,6 +1061,10 @@ private fun PdfImageElement(
                         val snapThresholdMm =
                             (with(density) { 8.dp.toPx() } / (pxPerMm * zoom))
                                 .coerceIn(0.1, 50.0)
+                        // Live geometry while a resize handle is held; keyed on the committed image
+                        // so the VM's commit on release replaces it without a one-frame snap back.
+                        var resizePreview by remember(i) { mutableStateOf<PdfImage?>(null) }
+                        val shown = resizePreview ?: i
                         var delta by
                             remember(i.id, i.x, i.y) {
                                 mutableStateOf(androidx.compose.ui.geometry.Offset.Zero)
@@ -1084,12 +1089,12 @@ private fun PdfImageElement(
                         val clickModifierHeld = remember(i.id) { mutableStateOf(false) }
                         Box(
                             Modifier.absoluteOffset(
-                                    x = width * (i.x / page.width).toFloat(),
-                                    y = height * (i.y / page.height).toFloat(),
+                                    x = width * (shown.x / page.width).toFloat(),
+                                    y = height * (shown.y / page.height).toFloat(),
                                 )
                                 .size(
-                                    width * (i.width / page.width).toFloat(),
-                                    height * (i.height / page.height).toFloat(),
+                                    width * (shown.width / page.width).toFloat(),
+                                    height * (shown.height / page.height).toFloat(),
                                 )
                                 .graphicsLayer {
                                     // Fix-round item 1: a group member (2+ selected) always
@@ -1409,10 +1414,16 @@ private fun PdfImageElement(
                                                         PdfGeometry.resize(it, page, w, h, true)
                                                     }
                                                 },
-                                                onDragCancel = { elementDragActive?.value = false },
+                                                onDragCancel = {
+                                                    elementDragActive?.value = false
+                                                    resizePreview = null
+                                                },
                                             ) { change, drag ->
                                                 change.consume()
                                                 resize += drag
+                                                val w = max(.1, i.width + resize.x / pxPerMm)
+                                                val h = max(.1, i.height + resize.y / pxPerMm)
+                                                resizePreview = PdfGeometry.resize(i, page, w, h, true)
                                             }
                                         },
                                     contentAlignment = Alignment.Center,
@@ -1448,6 +1459,12 @@ private fun PdfImageElement(
                                                         dyMm,
                                                     )
                                                 }
+                                            },
+                                            onPreview = { delta ->
+                                                resizePreview =
+                                                    delta?.let { (dxMm, dyMm) ->
+                                                        PdfGeometry.resizeFromCorner(i, page, corner, dxMm, dyMm)
+                                                    }
                                             },
                                             pxPerMm = pxPerMm,
                                             elementDragActive = elementDragActive,
@@ -1666,17 +1683,20 @@ private fun PdfTextElement(
     val adjustLabel = stringResource(R.string.pdf_adjust)
     val addToSelectionLabel = stringResource(R.string.pdf_multiselect_add)
     val removeFromSelectionLabel = stringResource(R.string.pdf_multiselect_remove)
+    // Live geometry while a corner handle is held (see PdfImageElement's twin).
+    var resizePreview by remember(t) { mutableStateOf<PdfText?>(null) }
+    val shown = resizePreview ?: t
     var delta by remember(t.id, t.x, t.y) { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
     var lastClickAtMs by remember(t.id) { mutableStateOf(0L) }
     val clickModifierHeld = remember(t.id) { mutableStateOf(false) }
     Box(
         Modifier.absoluteOffset(
-                x = width * (t.x / page.width).toFloat(),
-                y = height * (t.y / page.height).toFloat(),
+                x = width * (shown.x / page.width).toFloat(),
+                y = height * (shown.y / page.height).toFloat(),
             )
             .size(
-                width * (t.width / page.width).toFloat(),
-                height * (t.height / page.height).toFloat(),
+                width * (shown.width / page.width).toFloat(),
+                height * (shown.height / page.height).toFloat(),
             )
             .graphicsLayer {
                 // Fix-round item 1: as PdfImageElement's twin above — a group member always
@@ -1877,7 +1897,7 @@ private fun PdfTextElement(
         if (isEditing) {
             PdfInlineTextEditor(t, vm, pxPerMm, onDone = { onEditingTextChange(null) })
         } else {
-            PdfTextContent(t, pxPerMm, Modifier.fillMaxSize())
+            PdfTextContent(shown, pxPerMm, Modifier.fillMaxSize())
         }
         if (isSelected && !busy && !isEditing) {
             // Round-2 fix (item G): reuse the same PdfCornerHandle every image corner uses,
@@ -1897,6 +1917,12 @@ private fun PdfTextElement(
                                 .offset(x = cornerOffset.first, y = cornerOffset.second),
                         onResize = { dxMm, dyMm ->
                             vm.resizeSelectedTextFromCorner(corner, dxMm, dyMm)
+                        },
+                        onPreview = { delta ->
+                            resizePreview =
+                                delta?.let { (dxMm, dyMm) ->
+                                    PdfGeometry.resizeTextFromCorner(t, page, corner, dxMm, dyMm)
+                                }
                         },
                         pxPerMm = pxPerMm,
                         elementDragActive = elementDragActive,
@@ -2164,8 +2190,12 @@ private fun PdfCornerHandle(
     onResize: (dxMm: Double, dyMm: Double) -> Unit,
     pxPerMm: Double,
     elementDragActive: MutableState<Boolean>? = null,
+    /** Cumulative (dxMm, dyMm) on every move so the element follows the finger; null on cancel. */
+    onPreview: (Pair<Double, Double>?) -> Unit = {},
 ) {
     var resize by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    // The detector below only restarts on pxPerMm, so read the latest element-bound callback.
+    val preview by androidx.compose.runtime.rememberUpdatedState(onPreview)
     Box(
         modifier.size(48.dp).pointerInput(pxPerMm) {
             detectDragGestures(
@@ -2181,10 +2211,12 @@ private fun PdfCornerHandle(
                 onDragCancel = {
                     elementDragActive?.value = false
                     resize = androidx.compose.ui.geometry.Offset.Zero
+                    preview(null)
                 },
             ) { change, drag ->
                 change.consume()
                 resize += drag
+                preview(resize.x / pxPerMm to resize.y / pxPerMm)
             }
         },
         contentAlignment = Alignment.Center,

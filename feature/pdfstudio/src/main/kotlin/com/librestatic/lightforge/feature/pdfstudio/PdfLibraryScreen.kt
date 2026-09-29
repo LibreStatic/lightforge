@@ -24,7 +24,14 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import com.librestatic.lightforge.core.designsystem.GalleryContentWidths
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.designsystem.GalleryWindowClass
+import com.librestatic.lightforge.core.designsystem.galleryWindowClass
+import com.librestatic.lightforge.core.designsystem.GalleryShapeIllustration
 
 internal enum class PdfLibrarySort {
     Recent,
@@ -80,24 +87,68 @@ internal fun ColumnScope.PdfLibraryScreen(
             onTemplate = { openNewProject(it) },
         )
     } else {
-        FlowRowActions(busy, pendingImport, onNewProject = { openNewProject(null) }, onImportProject = onImportProject)
-        PdfLibrarySearchAndSort(query, { query = it }, sort, { sort = it })
         val visible = remember(projects, query, sort) { filterAndSortProjects(projects, query, sort) }
-        LazyColumn(
-            Modifier.weight(1f).padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            items(visible, key = { it.id }) { row ->
-                PdfLibraryCard(
-                    row = row,
-                    vm = vm,
-                    busy = busy,
-                    onOpen = { vm.open(row.id) },
-                    onRename = { renameTarget = row },
-                    onDuplicate = { vm.duplicate(row.id) },
-                    onExport = { onExportProject(row) },
-                    onDelete = { onDeleteProject(row) },
-                )
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+            val wide = galleryWindowClass(maxWidth) != GalleryWindowClass.Compact
+            Column(
+                if (wide) Modifier.fillMaxHeight().widthIn(max = GalleryContentWidths.Browsing) else Modifier.fillMaxSize()
+            ) {
+                if (wide) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text(
+                            stringResource(R.string.pdf_projects),
+                            style = MaterialTheme.typography.headlineMedium,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                        )
+                        FilledTonalButton(
+                            onClick = onImportProject,
+                            enabled = !busy && pendingImport == null,
+                        ) {
+                            Text(stringResource(R.string.pdf_importproject))
+                        }
+                        Button(onClick = { openNewProject(null) }, enabled = !busy) {
+                            Text(stringResource(R.string.pdf_newproject))
+                        }
+                    }
+                } else {
+                    FlowRowActions(busy, pendingImport, onNewProject = { openNewProject(null) }, onImportProject = onImportProject)
+                }
+                PdfLibrarySearchAndSort(query, { query = it }, sort, { sort = it })
+                val cardContent: @Composable (PdfProjectRow) -> Unit = { row ->
+                    PdfLibraryCard(
+                        row = row,
+                        vm = vm,
+                        busy = busy,
+                        onOpen = { vm.open(row.id) },
+                        onRename = { renameTarget = row },
+                        onDuplicate = { vm.duplicate(row.id) },
+                        onExport = { onExportProject(row) },
+                        onDelete = { onDeleteProject(row) },
+                    )
+                }
+                if (wide) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(280.dp),
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(visible, key = { it.id }) { row -> cardContent(row) }
+                    }
+                } else {
+                    LazyColumn(
+                        Modifier.weight(1f).padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(visible, key = { it.id }) { row -> cardContent(row) }
+                    }
+                }
             }
         }
     }
@@ -206,6 +257,11 @@ private fun ColumnScope.PdfLibraryEmptyState(
     onImportProject: () -> Unit,
     onTemplate: (PdfTemplate) -> Unit,
 ) {
+    // Window width, so multi-window and foldable postures switch layouts like the rest of the app.
+    if (androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 720) {
+        PdfLibraryWideEmptyState(busy, pendingImport, onNewProject, onImportProject, onTemplate)
+        return
+    }
     Column(
         // G4 review fix: PdfTemplateCard's two-line name+description made the template row much
         // taller than the old icon-only tiles it replaced; at 200% font, "Prints 10 x 15" fell
@@ -249,6 +305,67 @@ private fun ColumnScope.PdfLibraryEmptyState(
         }
         Spacer(Modifier.height(20.dp))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            PdfTemplate.LIBRARY_SHORTCUTS.forEach { template ->
+                PdfTemplateCard(template = template, selected = false, enabled = !busy) { onTemplate(template) }
+            }
+        }
+    }
+}
+
+/** Wide first-run layout: value prop and actions beside a large shape, templates as a full row. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun ColumnScope.PdfLibraryWideEmptyState(
+    busy: Boolean,
+    pendingImport: Any?,
+    onNewProject: () -> Unit,
+    onImportProject: () -> Unit,
+    onTemplate: (PdfTemplate) -> Unit,
+) {
+    Column(
+        Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(32.dp, Alignment.CenterVertically),
+    ) {
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            shape = MaterialTheme.shapes.extraLarge,
+            modifier = Modifier.widthIn(max = GalleryContentWidths.Browsing).fillMaxWidth(),
+        ) {
+        Row(
+            Modifier.padding(40.dp),
+            horizontalArrangement = Arrangement.spacedBy(48.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.pdf_library_empty_headline), style = MaterialTheme.typography.displaySmall)
+                Text(
+                    stringResource(R.string.pdf_library_empty_body),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(4.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onNewProject, enabled = !busy) { Text(stringResource(R.string.pdf_newproject)) }
+                    OutlinedButton(onClick = onImportProject, enabled = !busy && pendingImport == null) {
+                        Text(stringResource(R.string.pdf_importproject))
+                    }
+                }
+            }
+            GalleryShapeIllustration(
+                GalleryIcons.PictureAsPdf,
+                size = 220.dp,
+                backdrop = MaterialTheme.colorScheme.surfaceContainerLow,
+                animateEntrance = true,
+            )
+        }
+        }
+        FlowRow(
+            Modifier.widthIn(max = GalleryContentWidths.Browsing).fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             PdfTemplate.LIBRARY_SHORTCUTS.forEach { template ->
                 PdfTemplateCard(template = template, selected = false, enabled = !busy) { onTemplate(template) }
             }

@@ -55,7 +55,10 @@ internal fun PdfAdjustPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
         return
     }
     Text(stringResource(R.string.pdf_adjust), style = MaterialTheme.typography.titleMedium)
-    FlowRow {
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
+    ) {
         page.images.forEachIndexed { n, _ ->
             FilterChip(
                 selected = n == s.image,

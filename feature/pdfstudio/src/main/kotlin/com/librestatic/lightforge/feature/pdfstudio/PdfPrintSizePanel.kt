@@ -2,6 +2,9 @@ package com.librestatic.lightforge.feature.pdfstudio
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -13,6 +16,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.librestatic.lightforge.core.designsystem.GalleryIcons
 
 /**
  * Feedback item B's "Print size" selector: "Free grid" plus every [PdfPrintSize], as wrapping
@@ -30,7 +34,7 @@ internal fun PdfPrintSizeSelector(
 ) {
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(0.dp),
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
     ) {
         PdfPrintSizeChip(stringResource(R.string.pdf_print_size_free_grid), selected == null, enabled) {
@@ -44,23 +48,19 @@ internal fun PdfPrintSizeSelector(
 
 @Composable
 private fun PdfPrintSizeChip(label: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
-    val container =
-        if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer
-    val content =
-        if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
-    val fontScale = LocalDensity.current.fontScale.coerceIn(1f, 1.6f)
-    Surface(
-        color = container,
-        contentColor = content,
-        shape = RoundedCornerShape(20.dp),
-        modifier =
-            Modifier.heightIn(min = 40.dp * fontScale)
-                .selectableTile(label, selected, enabled, onClick),
-    ) {
-        Box(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
-            Text(label, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center)
-        }
-    }
+    // A standard M3 filter chip (32dp visual, 48dp touch target, secondaryContainer when
+    // selected): the same weight as every other chip in the app instead of a heavier bespoke pill.
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        enabled = enabled,
+        label = { Text(label, maxLines = 1) },
+        leadingIcon =
+            if (selected) {
+                { Icon(GalleryIcons.Check, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
+            } else null,
+        modifier = Modifier.selectableTile(label, selected, enabled, onClick),
+    )
 }
 
 /**
@@ -76,23 +76,36 @@ internal fun PdfPlacementModeSelector(
     enabled: Boolean,
     onSelect: (PdfFit) -> Unit,
 ) {
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-    ) {
+    // Two equal-width cards on one row (equal height via IntrinsicSize.Min) so neither wraps
+    // alone and leaves half the sheet empty; stacked full-width only at very large font scales.
+    val stacked = LocalDensity.current.fontScale > 1.5f
+    val cards: @Composable (Modifier) -> Unit = { cardModifier ->
         PdfPlacementModeCard(
             label = stringResource(R.string.pdf_placement_fill_label),
             description = stringResource(R.string.pdf_placement_fill_desc),
             selected = mode == PdfFit.Cover,
             enabled = enabled,
+            modifier = cardModifier,
         ) { onSelect(PdfFit.Cover) }
         PdfPlacementModeCard(
             label = stringResource(R.string.pdf_placement_fit_label),
             description = stringResource(R.string.pdf_placement_fit_desc),
             selected = mode == PdfFit.Contain,
             enabled = enabled,
+            modifier = cardModifier,
         ) { onSelect(PdfFit.Contain) }
+    }
+    if (stacked) {
+        Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            cards(Modifier.fillMaxWidth())
+        }
+    } else {
+        Row(
+            Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            cards(Modifier.weight(1f).fillMaxHeight())
+        }
     }
 }
 
@@ -102,6 +115,7 @@ private fun PdfPlacementModeCard(
     description: String,
     selected: Boolean,
     enabled: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     val container =
@@ -114,11 +128,11 @@ private fun PdfPlacementModeCard(
     Surface(
         color = container,
         contentColor = content,
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.widthIn(min = 140.dp, max = 220.dp).selectableTile(a11yLabel, selected, enabled, onClick),
+        shape = RoundedCornerShape(16.dp),
+        modifier = modifier.selectableTile(a11yLabel, selected, enabled, onClick),
     ) {
-        Column(Modifier.padding(12.dp)) {
-            Text(label, style = MaterialTheme.typography.labelLarge)
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(label, style = MaterialTheme.typography.titleSmall)
             Text(
                 description,
                 style = MaterialTheme.typography.bodySmall,

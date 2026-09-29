@@ -237,15 +237,22 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
     if (currentPrintSize == null) {
         Spacer(Modifier.height(8.dp))
         Text(stringResource(R.string.pdf_grid_template), style = MaterialTheme.typography.labelLarge)
-        FlowRow(
+        // One row of equal square tiles spanning the sheet, so none wraps or clips at the edge.
+        Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         ) {
             PdfLayoutTemplates.TEMPLATES.forEach { template ->
                 val columns = PdfLayoutTemplates.columnsFor(template, landscape)
                 val selected = selectedTemplate == template
-                PdfTemplateTile(template, columns, landscape, selected, !s.editorLocked) {
+                PdfTemplateTile(
+                    template,
+                    columns,
+                    landscape,
+                    selected,
+                    !s.editorLocked,
+                    Modifier.weight(1f).aspectRatio(1f),
+                ) {
                     selectedTemplateByPage[page.id] = template
                     vm.update { it.copy(columns = columns) }
                 }
@@ -360,6 +367,8 @@ internal fun PdfTemplateTile(
     landscape: Boolean,
     selected: Boolean,
     enabled: Boolean,
+    /** Overrides the default fixed 56dp (font-scaled) square, e.g. to share a row's width. */
+    modifier: Modifier? = null,
     onClick: () -> Unit,
 ) {
     val container =
@@ -373,7 +382,7 @@ internal fun PdfTemplateTile(
         color = container,
         contentColor = content,
         shape = RoundedCornerShape(8.dp),
-        modifier = Modifier.size(56.dp * fontScale).selectableTile(label, selected, enabled, onClick),
+        modifier = (modifier ?: Modifier.size(56.dp * fontScale)).selectableTile(label, selected, enabled, onClick),
     ) {
         Column(Modifier.padding(6.dp).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             repeat(rows) { r ->
