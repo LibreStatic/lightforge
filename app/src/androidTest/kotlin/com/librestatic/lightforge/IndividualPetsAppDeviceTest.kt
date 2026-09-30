@@ -121,7 +121,7 @@ class IndividualPetsAppDeviceTest {
         try {
             clearOwnedPetNamespace()
             ZipOutputStream(pack.outputStream()).use { zip ->
-                for((entry,file) in listOf("detector.tflite" to File(fixture,"efficientdet_lite0.tflite"),"recognition.onnx" to File(fixture,"pet-recognition-small.onnx"))) {
+                for((entry,file) in listOf("detector.tflite" to File(fixture,"efficientdet_lite0.tflite"),"recognition.tflite" to File(fixture,"pet-recognition-small-fp16.tflite"))) {
                     zip.putNextEntry(ZipEntry(entry));file.inputStream().use { it.copyTo(zip,128*1024) };zip.closeEntry()
                 }
             }

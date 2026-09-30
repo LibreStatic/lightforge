@@ -124,7 +124,20 @@ data class SemanticModelSettingsItemUi(
     val active: Boolean,
     val downloading: Boolean,
     val downloadedBytes: Long = 0,
+    val waiting: ModelDownloadWaitUi? = null,
     val error: String? = null,
+)
+
+/** Why a queued model download is paused. */
+enum class ModelDownloadWaitUi { Network, WiFi, Battery }
+
+@Composable
+fun modelDownloadWaitText(wait: ModelDownloadWaitUi): String = stringResource(
+    when (wait) {
+        ModelDownloadWaitUi.Network -> R.string.model_download_waiting_network
+        ModelDownloadWaitUi.WiFi -> R.string.model_download_waiting_wifi
+        ModelDownloadWaitUi.Battery -> R.string.model_download_waiting_battery
+    },
 )
 
 data class SemanticModelSettingsUiState(
@@ -177,7 +190,7 @@ fun RecognitionSettingsContent(
     onCleanupAnalysisEnabledChange: (Boolean) -> Unit = {},
     semanticModels: SemanticModelSettingsUiState = SemanticModelSettingsUiState(),
     onSemanticEnabledChange: (Boolean) -> Unit = {},
-    onSemanticDownload: (String, Boolean) -> Unit = { _, _ -> },
+    onSemanticDownload: (String) -> Unit = {},
     onSemanticCancelDownload: (String) -> Unit = {},
     onSemanticActivate: (String, Boolean) -> Unit = { _, _ -> },
     onSemanticDelete: (String) -> Unit = {},
@@ -1483,7 +1496,7 @@ private fun AiAnalysisSection(
     onCleanupAnalysisEnabledChange: (Boolean) -> Unit,
     semanticModels: SemanticModelSettingsUiState,
     onSemanticEnabledChange: (Boolean) -> Unit,
-    onSemanticDownload: (String, Boolean) -> Unit,
+    onSemanticDownload: (String) -> Unit,
     onSemanticCancelDownload: (String) -> Unit,
     onSemanticActivate: (String, Boolean) -> Unit,
     onSemanticDelete: (String) -> Unit,
@@ -1522,6 +1535,20 @@ private fun AiAnalysisSection(
     }
     Text(
         stringResource(R.string.local_analysis_minimum_battery_summary),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    SettingsSwitchRow(
+        stringResource(R.string.model_downloads_mobile_data),
+        settings.analysis.modelDownloadsOnMobileData,
+        modifier = Modifier.testTag("model_downloads_mobile_data_switch"),
+    ) { allowed ->
+        onSettingsChange { current ->
+            current.copy(analysis = current.analysis.copy(modelDownloadsOnMobileData = allowed))
+        }
+    }
+    Text(
+        stringResource(R.string.model_downloads_mobile_data_summary),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -1640,14 +1667,13 @@ private fun SemanticModelsSection(
     state: SemanticModelSettingsUiState,
     switchModifier: Modifier = Modifier,
     onEnabledChange: (Boolean) -> Unit,
-    onDownload: (String, Boolean) -> Unit,
+    onDownload: (String) -> Unit,
     onCancelDownload: (String) -> Unit,
     onActivate: (String, Boolean) -> Unit,
     onDelete: (String) -> Unit,
     onDeleteAll: () -> Unit,
     onAutomaticSelection: () -> Unit,
 ) {
-    var downloadModel by rememberSaveable { mutableStateOf<String?>(null) }
     var activateModel by rememberSaveable { mutableStateOf<String?>(null) }
     var deleteModel by rememberSaveable { mutableStateOf<String?>(null) }
     var confirmDeleteAll by rememberSaveable { mutableStateOf(false) }
@@ -1719,10 +1745,13 @@ private fun SemanticModelsSection(
                 }
                 when {
                     model.downloading -> {
-                        Text(stringResource(R.string.semantic_model_downloading, model.downloadedBytes / (1024 * 1024)))
+                        Text(
+                            model.waiting?.let { modelDownloadWaitText(it) }
+                                ?: stringResource(R.string.semantic_model_downloading, model.downloadedBytes / (1024 * 1024)),
+                        )
                         TextButton(colors = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = androidx.compose.material3.LocalContentColor.current), modifier = Modifier.testTag("semantic_model_cancel_${model.id}"), onClick = { onCancelDownload(model.id) }) { Text(stringResource(R.string.semantic_model_cancel)) }
                     }
-                    !model.installed -> GalleryExpressiveButton(modifier = Modifier.testTag("semantic_model_download_${model.id}"), onClick = { downloadModel = model.id }) {
+                    !model.installed -> GalleryExpressiveButton(modifier = Modifier.testTag("semantic_model_download_${model.id}"), onClick = { onDownload(model.id) }) {
                         Text(stringResource(R.string.semantic_model_download))
                     }
                     else -> Row(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
@@ -1748,24 +1777,6 @@ private fun SemanticModelsSection(
         TextButton(onClick = { confirmDeleteAll = true }) {
             Text(stringResource(R.string.semantic_models_delete_all), color = MaterialTheme.colorScheme.error)
         }
-    }
-    downloadModel?.let { id ->
-        AlertDialog(
-            modifier = Modifier.semantics { testTagsAsResourceId = true },
-            onDismissRequest = { downloadModel = null },
-            title = { Text(stringResource(R.string.semantic_download_title)) },
-            text = { Text(stringResource(R.string.semantic_download_body)) },
-            confirmButton = {
-                TextButton(onClick = { downloadModel = null; onDownload(id, false) }) {
-                    Text(stringResource(R.string.semantic_download_wifi))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { downloadModel = null; onDownload(id, true) }) {
-                    Text(stringResource(R.string.semantic_download_any_network))
-                }
-            },
-        )
     }
     activateModel?.let { id ->
         AlertDialog(
@@ -1811,7 +1822,7 @@ internal fun SemanticModelsTestContent(state: SemanticModelSettingsUiState) {
         SemanticModelsSection(
             state = state,
             onEnabledChange = {},
-            onDownload = { _, _ -> },
+            onDownload = {},
             onCancelDownload = {},
             onActivate = { _, _ -> },
             onDelete = {},

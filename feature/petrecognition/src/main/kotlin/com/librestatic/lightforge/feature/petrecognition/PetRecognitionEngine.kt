@@ -3,12 +3,6 @@ package com.librestatic.lightforge.feature.petrecognition
 import android.content.Context
 import android.graphics.Bitmap
 import android.os.CancellationSignal
-import android.system.Os
-import ai.onnxruntime.OnnxJavaType
-import ai.onnxruntime.OnnxTensor
-import ai.onnxruntime.OrtEnvironment
-import ai.onnxruntime.OrtSession
-import ai.onnxruntime.TensorInfo
 import com.google.ai.edge.litert.Accelerator
 import com.google.ai.edge.litert.CompiledModel
 import com.google.ai.edge.litert.Environment
@@ -20,7 +14,6 @@ import com.google.mlkit.vision.label.ImageLabeler
 import com.google.mlkit.vision.label.ImageLabeling
 import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
 import java.io.Closeable
-import java.nio.FloatBuffer
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.math.floor
@@ -34,36 +27,28 @@ class PetRecognitionEngine(context: Context, models: PetModelFiles, signal: Canc
     private val detectorInput: TensorBuffer
     private val detectorBoxes: TensorBuffer
     private val detectorScores: TensorBuffer
-    private val recognition: OrtSession
-    private val ort: OrtEnvironment
+    private val recognition: CompiledModel
+    private val recognitionInput: TensorBuffer
+    private val recognitionOutput: TensorBuffer
     private val labeler: ImageLabeler
 
     init {
         try {
             models.verify(signal) // Untrusted/corrupt bytes never reach a native parser.
-            // Must precede ANY ORT environment/session/native initialization, including SessionOptions.
-            Os.setenv("ORT_DISABLE_TELEMETRY", "1", true)
-            check(Os.getenv("ORT_DISABLE_TELEMETRY") == "1")
-            ort = OrtEnvironment.getEnvironment()
-            ort.setTelemetry(false)
-            val options = OrtSession.SessionOptions().also { resources += it }
-            options.setIntraOpNumThreads(2)
-            options.setInterOpNumThreads(1)
-            options.addConfigEntry("session.intra_op.allow_spinning", "0")
-            recognition = ort.createSession(models.recognition.absolutePath, options).also { resources += it }
-            val input = requireNotNull(recognition.inputInfo["input"]?.info as? TensorInfo)
-            val output = requireNotNull(recognition.outputInfo["embedding"]?.info as? TensorInfo)
-            require(input.type == OnnxJavaType.FLOAT && input.shape.drop(1) == listOf(3L, 224L, 224L))
-            require(output.type == OnnxJavaType.FLOAT && output.shape.drop(1) == listOf(512L))
             val environment = Environment.create(context.applicationContext).also { resources += it }
             detector = CompiledModel.create(models.detector.absolutePath, CompiledModel.Options(Accelerator.CPU), environment).also { resources += it }
-            fun checkTensor(name: String, dimensions: List<Int>, isInput: Boolean) {
-                val type = if (isInput) detector.getInputTensorType(name, "serving_default") else detector.getOutputTensorType(name, "serving_default")
+            recognition = CompiledModel.create(models.recognition.absolutePath, CompiledModel.Options(Accelerator.CPU), environment).also { resources += it }
+            fun checkTensor(model: CompiledModel, name: String, dimensions: List<Int>, isInput: Boolean) {
+                val type = if (isInput) model.getInputTensorType(name, "serving_default") else model.getOutputTensorType(name, "serving_default")
                 require(type.elementType == TensorType.ElementType.FLOAT && requireNotNull(type.layout).dimensions == dimensions)
             }
-            checkTensor("images", listOf(1, 320, 320, 3), true)
-            checkTensor("output_0", listOf(1, PetDetectionDecoder.Anchors, 4), false)
-            checkTensor("output_1", listOf(1, PetDetectionDecoder.Anchors, PetDetectionDecoder.Classes), false)
+            checkTensor(detector, "images", listOf(1, 320, 320, 3), true)
+            checkTensor(detector, "output_0", listOf(1, PetDetectionDecoder.Anchors, 4), false)
+            checkTensor(detector, "output_1", listOf(1, PetDetectionDecoder.Anchors, PetDetectionDecoder.Classes), false)
+            checkTensor(recognition, "input", listOf(1, 224, 224, 3), true)
+            checkTensor(recognition, "embedding", listOf(1, 512), false)
+            recognitionInput = recognition.createInputBuffer("input", "serving_default").also { resources += it }
+            recognitionOutput = recognition.createOutputBuffer("embedding", "serving_default").also { resources += it }
             detectorInput = detector.createInputBuffer("images", "serving_default").also { resources += it }
             detectorBoxes = detector.createOutputBuffer("output_0", "serving_default").also { resources += it }
             detectorScores = detector.createOutputBuffer("output_1", "serving_default").also { resources += it }
@@ -118,29 +103,19 @@ class PetRecognitionEngine(context: Context, models: PetModelFiles, signal: Canc
         try {
             val pixels = IntArray(224 * 224)
             scaled.getPixels(pixels, 0, 224, 0, 0, 224, 224)
-            val input = FloatArray(3 * 224 * 224)
+            val input = FloatArray(pixels.size * 3)
             val means = floatArrayOf(.485f, .456f, .406f); val stds = floatArrayOf(.229f, .224f, .225f)
             pixels.forEachIndexed { index, pixel ->
-                for (channel in 0..2) input[channel * pixels.size + index] =
+                for (channel in 0..2) input[index * 3 + channel] =
                     ((((pixel ushr (16 - channel * 8)) and 255) / 255f) - means[channel]) / stds[channel]
             }
-            OnnxTensor.createTensor(ort, FloatBuffer.wrap(input), longArrayOf(1, 3, 224, 224)).use { tensor ->
-                OrtSession.RunOptions().use { options ->
-                    signal.setOnCancelListener { options.setTerminate(true) }
-                    try {
-                        signal.throwIfCanceled()
-                        recognition.run(mapOf("input" to tensor), options).use { result ->
-                            @Suppress("UNCHECKED_CAST")
-                            val vectors = result.get("embedding").orElseThrow().value as Array<FloatArray>
-                            val vector = vectors.single().copyOf()
-                            require(vector.size == 512 && vector.all(Float::isFinite))
-                            require(kotlin.math.abs(vector.sumOf { (it * it).toDouble() } - 1.0) <= 0.02)
-                            signal.throwIfCanceled()
-                            return vector
-                        }
-                    } finally { signal.setOnCancelListener(null) }
-                }
-            }
+            recognitionInput.writeFloat(input)
+            recognition.run(mapOf("input" to recognitionInput), mapOf("embedding" to recognitionOutput), "serving_default")
+            val vector = recognitionOutput.readFloat()
+            require(vector.size == 512 && vector.all(Float::isFinite))
+            require(kotlin.math.abs(vector.sumOf { (it * it).toDouble() } - 1.0) <= 0.02)
+            signal.throwIfCanceled()
+            return vector
         } finally { if (scaled !== bitmap) scaled.recycle() }
     }
 

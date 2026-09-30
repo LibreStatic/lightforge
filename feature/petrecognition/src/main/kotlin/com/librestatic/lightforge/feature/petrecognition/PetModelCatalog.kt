@@ -6,11 +6,13 @@ import java.security.MessageDigest
 
 object PetModelCatalog {
     const val Fingerprint = "open-noodle-small-9dd4c915-effdet0-40338edf-v1"
-    const val RecognitionSha256 = "6a5e2373ab348bed588cef4072f3914ca9c8bacde3e8d0651019e8dad86b24ba"
+    const val RecognitionSha256 = "63f88741ce15406e90f6ce2194f4fc5018345f03cb408c97405a714ae1cc5759"
     const val DetectorSha256 = "40338edf5ec70d43e318b0a716a84d4564cd1802759a7a07170c7e43796dbf58"
-    const val RecognitionBytes = 89_227_604L
+    const val RecognitionBytes = 43_832_152L
     const val DetectorBytes = 13_836_895L
-    const val RecognitionUrl = "https://huggingface.co/open-noodle/pet-recognition-small/resolve/9dd4c915be29a81b116b3e30eb996c59d0e7ede0/recognition/model.onnx"
+    // LiteRT fp16 conversion of open-noodle/pet-recognition-small@9dd4c915 recognition/model.onnx; embeddings
+    // match the ONNX original (cosine >= 0.9999), so the fingerprint and stored analyses stay valid.
+    const val RecognitionUrl = "https://github.com/LibreStatic/lightforge-models/releases/download/pet-recognition-small-tflite-v1/pet-recognition-small-fp16.tflite"
     const val DetectorUrl = "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float32/1/efficientdet_lite0.tflite"
 
     fun verify(file: File, expectedBytes: Long, expectedSha256: String, signal: CancellationSignal = CancellationSignal()) {

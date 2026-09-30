@@ -67,7 +67,6 @@ com.google.code.gson:gson
 com.jakewharton.timber:timber
 
 # Explicit local identity inference and offline pairing QR generation only.
-com.microsoft.onnxruntime:onnxruntime-android
 com.google.zxing:core
 
 # Local streaming authenticated encryption for private media and portable encrypted archives.

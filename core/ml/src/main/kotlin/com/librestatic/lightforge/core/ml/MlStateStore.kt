@@ -39,7 +39,7 @@ class MlStateStore(context: Context) {
     fun clear(task: MlTaskType) {
         val prefix = task.name
         preferences.edit().also { editor ->
-            listOf("version", "volume", "id", "completed", "status", "requestedMode").forEach {
+            listOf("version", "volume", "id", "completed", "status", "requestedMode", "waitReason").forEach {
                 editor.remove("$prefix.$it")
             }
         }.commit()
@@ -56,6 +56,19 @@ class MlStateStore(context: Context) {
         checkpoint(task)?.let {
             write(it.copy(status = if (paused) MlCheckpoint.Status.Paused else MlCheckpoint.Status.Ready))
         }
+    }
+
+    /** Why the last run backed off instead of working; null once a run proceeds or stops. */
+    fun waitReason(task: MlTaskType): MlBackoffWait? = preferences
+        .getString("${task.name}.waitReason", null)
+        ?.let { runCatching { MlBackoffWait.valueOf(it) }.getOrNull() }
+
+    fun setWaitReason(task: MlTaskType, wait: MlBackoffWait?) {
+        if (waitReason(task) == wait) return
+        preferences.edit().also { editor ->
+            if (wait == null) editor.remove("${task.name}.waitReason")
+            else editor.putString("${task.name}.waitReason", wait.name)
+        }.commit()
     }
 
     fun requestedMode(task: MlTaskType): MlRunMode? = preferences

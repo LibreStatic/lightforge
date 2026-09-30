@@ -1,15 +1,14 @@
 package com.librestatic.lightforge.feature.semanticsearch
 
 import android.content.Context
-import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.librestatic.lightforge.core.database.GalleryDatabase
 import com.librestatic.lightforge.core.ml.AndroidAnalysisBatteryStateProvider
+import com.librestatic.lightforge.core.ml.ModelDownloadWait
+import com.librestatic.lightforge.core.ml.ModelDownloads
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -17,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.util.UUID
 import java.io.Closeable
 import kotlinx.coroutines.cancel
@@ -42,6 +42,8 @@ data class SemanticModelItemState(
     val active: Boolean,
     val downloading: Boolean,
     val downloadedBytes: Long = 0,
+    /** Set while a queued download waits for Wi-Fi, a connection or enough battery. */
+    val waiting: ModelDownloadWait? = null,
     val error: String? = null,
 )
 
@@ -104,7 +106,7 @@ class SemanticModelManager(
         preferences.edit().putString(KeySelectionMode, SemanticSelectionMode.Automatic.name).apply()
         recommended()?.let { model ->
             if (storage.installed(model)) activate(model.id, keepAutomatic = true)
-            else download(model.id, allowMetered = false, userInitiated = true)
+            else download(model.id, userInitiated = true)
         }
         refresh()
     }
@@ -113,24 +115,28 @@ class SemanticModelManager(
      * [userInitiated] is true only for an explicit download the user confirmed. Every other
      * caller is refused while semantic search is off.
      */
-    fun download(modelId: String, allowMetered: Boolean, userInitiated: Boolean = false) {
+    fun download(modelId: String, userInitiated: Boolean = false) {
         val model = requireModel(modelId)
         if (storage.installed(model)) return
         if (!SemanticDownloadConsent.downloadAllowed(isEnabled(), userInitiated)) return
-        val request = OneTimeWorkRequestBuilder<SemanticModelDownloadWorker>()
-            .setConstraints(Constraints.Builder().setRequiredNetworkType(if (allowMetered) NetworkType.CONNECTED else NetworkType.UNMETERED).build())
-            .setInputData(workDataOf(
-                SemanticModelDownloadWorker.KeyModelId to modelId,
-                SemanticModelDownloadWorker.KeyWifiOnly to !allowMetered,
-                SemanticModelDownloadWorker.KeyUserInitiated to userInitiated,
-            ))
-            .build()
-        work.enqueueUniqueWork(SemanticModelDownloadWorker.uniqueName(modelId), ExistingWorkPolicy.KEEP, request)
-        refresh()
+        // Network and battery gates come from the shared model download policy.
+        scope.launch {
+            ModelDownloads.enqueue(
+                appContext,
+                SemanticModelDownloadWorker.uniqueName(modelId),
+                SemanticModelDownloadWorker::class.java,
+                workDataOf(
+                    SemanticModelDownloadWorker.KeyModelId to modelId,
+                    SemanticModelDownloadWorker.KeyUserInitiated to userInitiated,
+                ),
+            )
+            refresh()
+        }
     }
 
     fun cancelDownload(modelId: String) {
         work.cancelUniqueWork(SemanticModelDownloadWorker.uniqueName(modelId))
+        ModelDownloads.finished(appContext, SemanticModelDownloadWorker.uniqueName(modelId))
         refresh()
     }
 
@@ -240,11 +246,11 @@ class SemanticModelManager(
     }
 
     /** [localAnalysisAccepted] is the user's local-analysis consent; without it nothing is fetched. */
-    fun ensureAutomaticDownload(localAnalysisAccepted: Boolean, allowMetered: Boolean = false) {
+    fun ensureAutomaticDownload(localAnalysisAccepted: Boolean) {
         if (!SemanticDownloadConsent.automaticDownloadAllowed(isEnabled(), localAnalysisAccepted, selectionMode())) return
         recommended()?.let { model ->
             if (storage.installed(model)) activateRecommendedIfReady()
-            else download(model.id, allowMetered)
+            else download(model.id)
         }
     }
 
@@ -255,6 +261,9 @@ class SemanticModelManager(
                 work.getWorkInfosForUniqueWork(SemanticModelDownloadWorker.uniqueName(model.id)).get().firstOrNull()
             }
         } else emptyMap()
+        val wait = if (infos.values.any { it?.state == WorkInfo.State.ENQUEUED }) {
+            runBlocking { ModelDownloads.currentWait(appContext) }
+        } else null
         return SemanticModelManagerState(
             enabled = preferences.getBoolean(KeyEnabled, false),
             selectionMode = selectionMode(),
@@ -271,6 +280,7 @@ class SemanticModelManager(
                     active = active == model.id,
                     downloading = info?.state == WorkInfo.State.RUNNING || info?.state == WorkInfo.State.ENQUEUED,
                     downloadedBytes = info?.progress?.getLong(SemanticModelDownloadWorker.KeyDownloadedBytes, 0L) ?: 0L,
+                    waiting = wait.takeIf { info?.state == WorkInfo.State.ENQUEUED },
                     error = info?.takeIf { it.state == WorkInfo.State.FAILED && !storage.supersedesDownloadFailure(model, it.id.toString()) }?.outputData?.getString(SemanticModelDownloadWorker.KeyError),
                 )
             },

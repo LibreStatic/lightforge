@@ -1,6 +1,9 @@
 package com.librestatic.lightforge.core.ml
 
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
 import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkManager
 import androidx.work.await
@@ -13,6 +16,8 @@ data class MlControlState(
     val requested: Boolean = false,
     val runMode: MlRunMode? = null,
     val activeTask: MlTaskType? = null,
+    /** Set while requested work waits on an external condition (power, heat) rather than the user. */
+    val waitReason: MlBackoffWait? = null,
 )
 
 class MlScheduler(context: Context) {
@@ -138,6 +143,15 @@ class MlScheduler(context: Context) {
             requested = state.requestedMode(task) != null,
             runMode = state.requestedMode(task),
             activeTask = task,
+            waitReason = waitReason(task),
         )
+    }
+
+    private fun waitReason(task: MlTaskType): MlBackoffWait? {
+        if (state.requestedMode(task) == null || state.checkpoint(task)?.status == MlCheckpoint.Status.Running) return null
+        state.waitReason(task)?.let { return it }
+        // WorkManager holds battery-not-low work before the worker can record why it is waiting.
+        val battery = appContext.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        return if (battery?.getBooleanExtra(BatteryManager.EXTRA_BATTERY_LOW, false) == true) MlBackoffWait.Charging else null
     }
 }

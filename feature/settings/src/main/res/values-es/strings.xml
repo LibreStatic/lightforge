@@ -122,6 +122,11 @@
     <string name="local_analysis_minimum_battery">Batería mínima para el análisis completo</string>
     <string name="local_analysis_battery_percent">%1$d%%</string>
     <string name="local_analysis_minimum_battery_summary">Sin cargador, el análisis completo solo se ejecuta mientras Lightforge Studio está abierto y la batería está en este nivel o más. La carga siempre lo permite.</string>
+    <string name="model_downloads_mobile_data">Descargar modelos con datos móviles</string>
+    <string name="model_downloads_mobile_data_summary">Desactivado de forma predeterminada: las descargas y actualizaciones de modelos se pausan con datos móviles y se reanudan con Wi-Fi. También esperan a que el dispositivo esté cargando o la batería esté en el mínimo indicado arriba o por encima.</string>
+    <string name="model_download_waiting_network">En pausa: esperando conexión</string>
+    <string name="model_download_waiting_wifi">En pausa: esperando Wi-Fi</string>
+    <string name="model_download_waiting_battery">En pausa: batería por debajo del mínimo de análisis</string>
     <string name="local_analysis_features">Funciones de análisis</string>
     <string name="local_analysis_people">Personas y rostros</string>
     <string name="local_analysis_people_summary">Detecta rostros y agrupa localmente fotos de una misma persona.</string>
@@ -152,10 +157,6 @@
     <string name="semantic_model_use">Usar</string>
     <string name="semantic_model_delete">Eliminar</string>
     <string name="semantic_models_delete_all">Eliminar todos los modelos descargados</string>
-    <string name="semantic_download_title">Descargar modelo semántico</string>
-    <string name="semantic_download_body">Elegí si querés esperar una red Wi‑Fi no medida o permitir la red actual. Nunca se suben datos de la galería.</string>
-    <string name="semantic_download_wifi">Solo Wi‑Fi</string>
-    <string name="semantic_download_any_network">Usar red actual</string>
     <string name="semantic_override_title">¿Usar un modelo no recomendado?</string>
     <string name="semantic_override_body">Este modelo puede usar más memoria, batería o tiempo de procesamiento en este dispositivo. Podés continuar de todos modos.</string>
     <string name="semantic_override_confirm">Usar de todos modos</string>

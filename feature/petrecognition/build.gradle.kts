@@ -22,7 +22,6 @@ android {
 
 dependencies {
     implementation("com.google.mlkit:image-labeling:17.0.9")
-    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.29.0")
     implementation(libs.litert.api) {
         exclude(group = "com.google.android.play", module = "ai-delivery")
     }
@@ -32,6 +31,7 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:database"))
     implementation(project(":core:ml"))
+    implementation(libs.androidx.work.runtime)
     implementation(project(":core:designsystem"))
     implementation(libs.kotlinx.coroutines.core)
     implementation(platform(libs.compose.bom))

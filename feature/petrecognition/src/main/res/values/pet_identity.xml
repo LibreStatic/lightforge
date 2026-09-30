@@ -2,7 +2,13 @@
     <string name="pet_title">Pets</string>
     <string name="pet_back">Back</string>
     <string name="pet_explanation">Recognize individual cats and dogs locally. Similarity suggestions require your review. Photos stay on this device.</string>
-    <string name="pet_download">Download models (103 MB)</string>
+    <string name="pet_download">Download models (58 MB)</string>
+    <string name="pet_download_progress">Downloading models: %1$d of %2$d MB</string>
+    <string name="pet_download_queued">Starting download…</string>
+    <string name="pet_download_waiting_network">Paused: waiting for a connection</string>
+    <string name="pet_download_waiting_wifi">Paused: waiting for Wi-Fi</string>
+    <string name="pet_download_waiting_battery">Paused: battery below the analysis minimum</string>
+    <string name="pet_download_cancel">Cancel download</string>
     <string name="pet_import">Import verified model ZIP</string>
     <string name="pet_enable">Enable pet recognition</string>
     <string name="pet_remove">Remove pet recognition data</string>

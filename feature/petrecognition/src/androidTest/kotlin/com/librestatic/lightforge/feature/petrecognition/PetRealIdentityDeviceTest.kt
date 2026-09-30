@@ -6,7 +6,6 @@ import android.os.CancellationSignal
 import android.os.Debug
 import android.os.OperationCanceledException
 import android.os.SystemClock
-import android.system.Os
 import androidx.test.platform.app.InstrumentationRegistry
 import org.json.JSONArray
 import org.json.JSONObject
@@ -24,7 +23,7 @@ class PetRealIdentityDeviceTest {
         check(InstrumentationRegistry.getArguments().getString("petFixture") == "lightforge-pet-models")
         return File(context.filesDir, "pet-fixtures")
     }
-    private fun models() = PetModelFiles(File(fixture(), "efficientdet_lite0.tflite"), File(fixture(), "pet-recognition-small.onnx"))
+    private fun models() = PetModelFiles(File(fixture(), "efficientdet_lite0.tflite"), File(fixture(), "pet-recognition-small-fp16.tflite"))
     private fun image(file: File): Bitmap = ImageDecoder.decodeBitmap(ImageDecoder.createSource(file)) { decoder, _, _ ->
         decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
     }
@@ -40,7 +39,6 @@ class PetRealIdentityDeviceTest {
     @Test fun realMultiAnimalDetectorAndIndividualEncoderKeepIndependentBoxesAndRejectFood() {
         val rows = JSONArray()
         PetRecognitionEngine(context, models()).use { engine ->
-            assertEquals("1", Os.getenv("ORT_DISABLE_TELEMETRY"))
             for (name in listOf("cats_and_dogs.jpg", "burger.jpg", "cat.jpg")) {
                 val file = File(fixture(), name); val before = sha(file); val bitmap = image(file)
                 try {
@@ -119,7 +117,7 @@ class PetRealIdentityDeviceTest {
     }
 
     @Test fun changedModelBytesAndCancellationAreRejectedBeforeNativeParsing() {
-        val original = models(); val changed = File(context.cacheDir,"pet-corrupt-${java.util.UUID.randomUUID()}.onnx")
+        val original = models(); val changed = File(context.cacheDir,"pet-corrupt-${java.util.UUID.randomUUID()}.tflite")
         try {
             original.recognition.copyTo(changed)
             RandomAccessFile(changed,"rw").use { file -> file.seek(4096); val byte=file.readByte(); file.seek(4096); file.writeByte(byte.toInt() xor 1) }
@@ -137,7 +135,7 @@ class PetRealIdentityDeviceTest {
         check(context.packageName == "com.librestatic.lightforge.feature.petrecognition.test")
         try {
             java.util.zip.ZipOutputStream(pack.outputStream()).use { zip ->
-                for ((name,file) in listOf("detector.tflite" to sources.detector,"recognition.onnx" to sources.recognition)) {
+                for ((name,file) in listOf("detector.tflite" to sources.detector,"recognition.tflite" to sources.recognition)) {
                     zip.putNextEntry(java.util.zip.ZipEntry(name)); file.inputStream().use { it.copyTo(zip,128*1024) }; zip.closeEntry()
                 }
             }
@@ -170,7 +168,7 @@ class PetRealIdentityDeviceTest {
         val pack=File(context.cacheDir,"pet-invalid-${java.util.UUID.randomUUID()}.zip")
         try {
             java.util.zip.ZipOutputStream(pack.outputStream()).use { zip ->
-                zip.putNextEntry(java.util.zip.ZipEntry("../recognition.onnx")); zip.write(byteArrayOf(1,2,3)); zip.closeEntry()
+                zip.putNextEntry(java.util.zip.ZipEntry("../recognition.tflite")); zip.write(byteArrayOf(1,2,3)); zip.closeEntry()
             }
             var traversalRejected = false
             try { store.importPack(android.net.Uri.fromFile(pack)) }
@@ -179,24 +177,12 @@ class PetRealIdentityDeviceTest {
             assertTrue("Traversal is rejected by the importer or the platform ZIP validator", traversalRejected)
             assertFalse(store.installed())
             java.util.zip.ZipOutputStream(pack.outputStream()).use { zip ->
-                zip.putNextEntry(java.util.zip.ZipEntry("recognition.onnx")); zip.write(byteArrayOf(1,2,3)); zip.closeEntry()
+                zip.putNextEntry(java.util.zip.ZipEntry("recognition.tflite")); zip.write(byteArrayOf(1,2,3)); zip.closeEntry()
             }
             assertThrows(IllegalArgumentException::class.java) { store.importPack(android.net.Uri.fromFile(pack)) }
             assertFalse(store.installed())
             assertTrue(File(context.filesDir,"pet-models").listFiles().orEmpty().none { it.name.startsWith(".install-") })
         } finally { pack.delete() }
-    }
-
-    @Test fun aColdProcessManifestHasNoEagerTelemetryProviderAndEngineDisablesNativeTelemetry() {
-        @Suppress("DEPRECATION")
-        val providers = context.packageManager.getPackageInfo(context.packageName, android.content.pm.PackageManager.GET_PROVIDERS).providers.orEmpty()
-        assertTrue("Eager ORT telemetry provider must be removed before process startup", providers.none { it.name == "ai.onnxruntime.TelemetryInitializer" })
-        PetRecognitionEngine(context, models()).use {
-            assertEquals("1", Os.getenv("ORT_DISABLE_TELEMETRY"))
-        }
-        evidence("telemetry-disabled.json", JSONObject().put("status","PASS")
-            .put("package",context.packageName).put("eagerTelemetryProviderAbsent",true)
-            .put("ORT_DISABLE_TELEMETRY",Os.getenv("ORT_DISABLE_TELEMETRY")))
     }
 
 }

@@ -121,6 +121,11 @@
     <string name="local_analysis_minimum_battery">Mindestakku für vollständige Analyse</string>
     <string name="local_analysis_battery_percent">%1$d%%</string>
     <string name="local_analysis_minimum_battery_summary">Ohne Ladegerät läuft die vollständige Analyse nur, wenn Lightforge Studio geöffnet ist und der Akku mindestens diesen Stand hat. Beim Laden ist sie immer erlaubt.</string>
+    <string name="model_downloads_mobile_data">Modelle über mobile Daten herunterladen</string>
+    <string name="model_downloads_mobile_data_summary">Standardmäßig aus: Modell-Downloads und -Updates pausieren bei mobilen Daten und werden im WLAN fortgesetzt. Sie warten außerdem, bis das Gerät lädt oder der Akku mindestens das oben festgelegte Minimum erreicht.</string>
+    <string name="model_download_waiting_network">Pausiert: Warten auf Verbindung</string>
+    <string name="model_download_waiting_wifi">Pausiert: Warten auf WLAN</string>
+    <string name="model_download_waiting_battery">Pausiert: Akku unter dem Analyse-Minimum</string>
     <string name="local_analysis_features">Analysefunktionen</string>
     <string name="local_analysis_people">Personen und Gesichter</string>
     <string name="local_analysis_people_summary">Erkennt Gesichter und gruppiert Fotos derselben Person lokal.</string>
@@ -151,10 +156,6 @@
     <string name="semantic_model_use">Verwenden</string>
     <string name="semantic_model_delete">Löschen</string>
     <string name="semantic_models_delete_all">Alle geladenen Modelle löschen</string>
-    <string name="semantic_download_title">Semantisches Modell herunterladen</string>
-    <string name="semantic_download_body">Warte auf ungetaktetes WLAN oder erlaube das aktuelle Netzwerk. Galeriedaten werden nie hochgeladen.</string>
-    <string name="semantic_download_wifi">Nur WLAN</string>
-    <string name="semantic_download_any_network">Aktuelles Netzwerk verwenden</string>
     <string name="semantic_override_title">Nicht empfohlenes Modell verwenden?</string>
     <string name="semantic_override_body">Dieses Modell kann mehr Arbeitsspeicher, Akku oder Verarbeitungszeit benötigen. Du kannst trotzdem fortfahren.</string>
     <string name="semantic_override_confirm">Trotzdem verwenden</string>

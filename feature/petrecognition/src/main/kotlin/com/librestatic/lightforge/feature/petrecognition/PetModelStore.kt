@@ -16,9 +16,10 @@ class PetModelStore(context: Context) {
     private val app = context.applicationContext
     private val root = File(app.filesDir, "pet-models")
     private val directory = File(root, PetModelCatalog.Fingerprint)
+    private val partial = File(root, ".download-${PetModelCatalog.Fingerprint}")
     fun installed(): Boolean = synchronized(lock) {
         File(directory, "detector.tflite").length() == PetModelCatalog.DetectorBytes &&
-            File(directory, "recognition.onnx").length() == PetModelCatalog.RecognitionBytes
+            File(directory, "recognition.tflite").length() == PetModelCatalog.RecognitionBytes
     }
     fun openEngine(signal: CancellationSignal = CancellationSignal()): PetRecognitionEngine = synchronized(lock) {
         PetRecognitionEngine(app, files(directory), signal).also {
@@ -32,6 +33,7 @@ class PetModelStore(context: Context) {
         epochs[directory.absolutePath] = (epochs[directory.absolutePath] ?: 0L) + 1L
         closeSessions()
         check(!directory.exists() || directory.deleteRecursively()) { "Pet model deletion failed" }
+        partial.deleteRecursively()
     }
     fun importPack(uri: Uri, signal: CancellationSignal = CancellationSignal(), progress: (Float) -> Unit = {}) {
         prepare(signal) { staging ->
@@ -47,7 +49,7 @@ class PetModelStore(context: Context) {
                         while (true) {
                             signal.throwIfCanceled()
                             val entry = zip.nextEntry ?: break
-                            require(!entry.isDirectory && entry.name in setOf("detector.tflite", "recognition.onnx") && seen.add(entry.name)) { "Unexpected or duplicate pet package entry" }
+                            require(!entry.isDirectory && entry.name in setOf("detector.tflite", "recognition.tflite") && seen.add(entry.name)) { "Unexpected or duplicate pet package entry" }
                             val limit = if (entry.name == "detector.tflite") PetModelCatalog.DetectorBytes else PetModelCatalog.RecognitionBytes
                             copy(zip, File(staging, entry.name), limit, signal) { bytes ->
                                 progress(((total + bytes).toDouble() / PackageBytes).toFloat().coerceIn(0f, .95f))
@@ -58,47 +60,96 @@ class PetModelStore(context: Context) {
                     }
                 } finally { signal.setOnCancelListener(null) }
             }
-            require(seen == setOf("detector.tflite", "recognition.onnx")) { "Incomplete pet model package" }
+            require(seen == setOf("detector.tflite", "recognition.tflite")) { "Incomplete pet model package" }
         }
         progress(1f)
     }
-    fun download(signal: CancellationSignal = CancellationSignal(), progress: (Float) -> Unit = {}) {
+    /** Bytes already on disk from an interrupted download; they are resumed, not fetched again. */
+    fun partialBytes(): Long = sources().sumOf { (name, _, size) -> File(partial, name).length().coerceAtMost(size) }
+
+    /** Drops a paused download's partial bytes, for example after the user cancels it. */
+    fun discardPartialDownload() = synchronized(lock) { partial.deleteRecursively() }
+
+    /** True when an older model generation is installed; the new one downloads under the model download policy. */
+    fun needsUpdate(): Boolean = !installed() && File(directory, "recognition.onnx").isFile
+
+    /**
+     * Resumable download: each file continues from its partial bytes with a Range request, so a dropped
+     * connection or a paused worker never restarts it. [checkpoint] may throw to pause between reads.
+     */
+    fun download(signal: CancellationSignal = CancellationSignal(), checkpoint: () -> Unit = {}, progress: (Long) -> Unit = {}) {
+        check(partial.isDirectory || partial.mkdirs())
+        var completed = 0L
+        for ((name, url, size) in sources()) {
+            val file = File(partial, name)
+            if (file.length() > size) check(file.delete())
+            if (file.length() < size) fetch(url, file, size, signal, checkpoint) { bytes -> progress(completed + bytes) }
+            completed += size
+            progress(completed)
+        }
+        for ((name, _, size) in sources()) {
+            val file = File(partial, name)
+            // A corrupt file cannot be resumed; drop it so the next attempt fetches it again.
+            runCatching { PetModelCatalog.verify(file, size, sha(name), signal) }
+                .onFailure { if (it is IllegalArgumentException) file.delete(); throw it }
+        }
         prepare(signal) { staging ->
-            var total = 0L
-            for ((name, url, size) in listOf(Triple("detector.tflite", PetModelCatalog.DetectorUrl, PetModelCatalog.DetectorBytes),
-                Triple("recognition.onnx", PetModelCatalog.RecognitionUrl, PetModelCatalog.RecognitionBytes))) {
-                signal.throwIfCanceled()
-                var connection: HttpURLConnection? = null
-                try {
-                    var target = URL(url)
-                    var redirects = 0
-                    while (true) {
-                        require(target.protocol == "https")
-                        val current = (target.openConnection() as HttpURLConnection).apply {
-                            connectTimeout = 15_000; readTimeout = 30_000; instanceFollowRedirects = false
-                        }
-                        connection = current
-                        signal.setOnCancelListener { current.disconnect() }
-                        signal.throwIfCanceled()
-                        val code = current.responseCode
-                        if (code in listOf(301, 302, 303, 307, 308)) {
-                            require(++redirects <= 5)
-                            target = URL(target, requireNotNull(current.getHeaderField("Location")))
-                            current.disconnect()
-                            continue
-                        }
-                        require(code == 200) { "Pet model download failed: $code" }
-                        current.inputStream.use { stream -> copy(stream, File(staging, name), size, signal) { bytes ->
-                            progress(((total + bytes).toDouble() / PackageBytes).toFloat().coerceIn(0f, .95f))
-                        } }
-                        break
-                    }
-                } finally { signal.setOnCancelListener(null); connection?.disconnect() }
-                total += size
-            }
+            for ((name, _, _) in sources()) check(File(partial, name).renameTo(File(staging, name))) { "Pet model staging failed" }
         }
-        progress(1f)
+        partial.deleteRecursively()
+        progress(PackageBytes)
     }
+    private fun fetch(url: String, file: File, size: Long, signal: CancellationSignal, checkpoint: () -> Unit, progress: (Long) -> Unit) {
+        var connection: HttpURLConnection? = null
+        try {
+            var target = URL(url)
+            var redirects = 0
+            while (true) {
+                require(target.protocol == "https")
+                val offset = file.length()
+                val current = (target.openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 15_000; readTimeout = 30_000; instanceFollowRedirects = false
+                    if (offset > 0L) setRequestProperty("Range", "bytes=$offset-")
+                }
+                connection = current
+                signal.setOnCancelListener { current.disconnect() }
+                signal.throwIfCanceled()
+                val code = current.responseCode
+                if (code in listOf(301, 302, 303, 307, 308)) {
+                    require(++redirects <= 5)
+                    target = URL(target, requireNotNull(current.getHeaderField("Location")))
+                    current.disconnect()
+                    continue
+                }
+                require(code == 200 || code == 206 && offset > 0L) { "Pet model download failed: $code" }
+                // A server that ignores Range answers 200 with the whole file; start over instead of appending.
+                val append = code == 206
+                var total = if (append) offset else 0L
+                current.inputStream.use { input ->
+                    java.io.FileOutputStream(file, append).use { output ->
+                        val bytes = ByteArray(128 * 1024)
+                        while (true) {
+                            signal.throwIfCanceled()
+                            checkpoint()
+                            val read = input.read(bytes)
+                            if (read < 0) break
+                            total += read
+                            require(total <= size) { "Pet model file exceeds pinned length" }
+                            output.write(bytes, 0, read); progress(total)
+                        }
+                        output.fd.sync()
+                    }
+                }
+                if (total < size) throw java.io.IOException("Pet model connection closed early")
+                return
+            }
+        } finally { signal.setOnCancelListener(null); connection?.disconnect() }
+    }
+    private fun sources() = listOf(
+        Triple("detector.tflite", PetModelCatalog.DetectorUrl, PetModelCatalog.DetectorBytes),
+        Triple("recognition.tflite", PetModelCatalog.RecognitionUrl, PetModelCatalog.RecognitionBytes),
+    )
+    private fun sha(name: String) = if (name == "detector.tflite") PetModelCatalog.DetectorSha256 else PetModelCatalog.RecognitionSha256
     private fun prepare(signal: CancellationSignal, write: (File) -> Unit) {
         val expectedEpoch = synchronized(lock) { epochs[directory.absolutePath] ?: 0L }
         check(root.isDirectory || root.mkdirs())
@@ -147,11 +198,11 @@ class PetModelStore(context: Context) {
         }
         require(total == limit) { "Incomplete pet model file" }
     }
-    private fun files(at: File) = PetModelFiles(File(at, "detector.tflite"), File(at, "recognition.onnx"))
-    private companion object {
-        val lock = Any()
-        val epochs = mutableMapOf<String, Long>()
-        val sessions = mutableMapOf<String, MutableList<WeakReference<PetRecognitionEngine>>>()
+    private fun files(at: File) = PetModelFiles(File(at, "detector.tflite"), File(at, "recognition.tflite"))
+    companion object {
+        private val lock = Any()
+        private val epochs = mutableMapOf<String, Long>()
+        private val sessions = mutableMapOf<String, MutableList<WeakReference<PetRecognitionEngine>>>()
         const val PackageBytes = PetModelCatalog.DetectorBytes + PetModelCatalog.RecognitionBytes
     }
 }

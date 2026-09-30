@@ -26,13 +26,19 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
+import androidx.work.WorkInfo
+import com.librestatic.lightforge.core.ml.ModelDownloadWait
+import com.librestatic.lightforge.core.ml.ModelDownloads
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
+
+private const val MegaByte = 1024 * 1024
 
 private class PetLocalPackContract : ActivityResultContracts.OpenDocument() {
     override fun createIntent(context: Context, input: Array<String>): Intent = super.createIntent(context, input).putExtra(Intent.EXTRA_LOCAL_ONLY, true)
@@ -51,7 +57,11 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
     var progress by remember { mutableFloatStateOf(0f) }
     // Analysis runs in PetIdentityAnalysisRunner so leaving this screen does not cancel it.
     val analysis by PetIdentityAnalysisRunner.progress.collectAsState()
-    val working = busy || analysis.running
+    // Downloads run in PetModelDownloadWorker, so they survive this screen and pause off Wi-Fi.
+    val downloads by remember(context) { PetModelDownloadWorker.state(context) }.collectAsState(initial = emptyList())
+    val download = downloads.firstOrNull { !it.state.isFinished }
+    var downloadWait by remember { mutableStateOf<ModelDownloadWait?>(null) }
+    val working = busy || analysis.running || download != null
     var signal by remember { mutableStateOf<CancellationSignal?>(null) }
     var operation by remember { mutableStateOf<Job?>(null) }
     var removal by remember { mutableStateOf(false) }
@@ -71,6 +81,18 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
     fun back() { if (busy) leaving = true else onBack() }
     DisposableEffect(Unit) { onDispose { cancel() } }
     LaunchedEffect(analysis.running) { if (!analysis.running) refresh++ }
+    LaunchedEffect(download?.state) {
+        downloadWait = null
+        // A queued download explains why it waits; the reason can change without a WorkInfo update.
+        while (download?.state == WorkInfo.State.ENQUEUED) {
+            downloadWait = ModelDownloads.currentWait(context)
+            delay(5_000)
+        }
+    }
+    LaunchedEffect(downloads) {
+        if (downloads.any { it.state == WorkInfo.State.SUCCEEDED }) { installed = store.installed(); refresh++ }
+        if (!installed && download == null && downloads.any { it.state == WorkInfo.State.FAILED }) error = true
+    }
     BackHandler { back() }
     fun run(action: suspend (CancellationSignal) -> Unit) {
         if (busy) return
@@ -114,7 +136,7 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
         item { Text(stringResource(R.string.pet_title), style = MaterialTheme.typography.headlineMedium) }
         item { Text(stringResource(R.string.pet_explanation)) }
         if (error || analysis.failed) item { Surface(color = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer) { Text(stringResource(R.string.pet_error), Modifier.padding(12.dp).testTag("pet-error")) } }
-        if (working) item {
+        if (busy || analysis.running) item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (analysis.running) GalleryIndeterminateProgressIndicator(modifier = Modifier.fillMaxWidth().testTag("pet-progress"))
                 else GalleryProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().testTag("pet-progress"))
@@ -136,7 +158,26 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
             )
         }
         if (!installed) {
-            item { Button(enabled = !working, onClick = { run { cancellation -> withContext(Dispatchers.IO) { store.download(cancellation) { progress = it } } } }, modifier = Modifier.testTag("pet-download")) { Text(stringResource(R.string.pet_download)) } }
+            if (download != null) item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.testTag("pet-download-status")) {
+                    val bytes = download.progress.getLong(PetModelDownloadWorker.KeyDownloadedBytes, 0L)
+                    val wait = downloadWait
+                    if (download.state == WorkInfo.State.RUNNING) {
+                        GalleryProgressIndicator(progress = { bytes.toFloat() / PetModelStore.PackageBytes }, modifier = Modifier.fillMaxWidth())
+                        Text(stringResource(R.string.pet_download_progress, bytes / MegaByte, PetModelStore.PackageBytes / MegaByte))
+                    } else Text(
+                        when (wait) {
+                            ModelDownloadWait.Network -> stringResource(R.string.pet_download_waiting_network)
+                            ModelDownloadWait.WiFi -> stringResource(R.string.pet_download_waiting_wifi)
+                            ModelDownloadWait.Battery -> stringResource(R.string.pet_download_waiting_battery)
+                            null -> stringResource(R.string.pet_download_queued)
+                        },
+                        modifier = Modifier.testTag("pet-download-wait"),
+                    )
+                    OutlinedButton(onClick = { PetModelDownloadWorker.cancel(context) }, modifier = Modifier.testTag("pet-download-cancel")) { Text(stringResource(R.string.pet_download_cancel)) }
+                }
+            }
+            else item { Button(enabled = !working, onClick = { error = false; scope.launch { PetModelDownloadWorker.enqueue(context) } }, modifier = Modifier.testTag("pet-download")) { Text(stringResource(R.string.pet_download)) } }
             item { OutlinedButton(enabled = !working, onClick = { picker.launch(arrayOf("application/zip", "application/octet-stream")) }, modifier = Modifier.testTag("pet-import")) { Text(stringResource(R.string.pet_import)) } }
         } else item { Text(stringResource(R.string.pet_model_ready), Modifier.testTag("pet-model-ready")) }
         if (!summary.enabled) item {

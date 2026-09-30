@@ -114,6 +114,11 @@
     <string name="local_analysis_minimum_battery">Minimum battery for full analysis</string>
     <string name="local_analysis_battery_percent">%1$d%%</string>
     <string name="local_analysis_minimum_battery_summary">When unplugged, full analysis runs only while Lightforge Studio is open and the battery is at or above this level. Charging always allows it.</string>
+    <string name="model_downloads_mobile_data">Download models on mobile data</string>
+    <string name="model_downloads_mobile_data_summary">Off by default: model downloads and updates pause on mobile data and resume on Wi-Fi. They also wait until the device is charging or the battery is at or above the minimum above.</string>
+    <string name="model_download_waiting_network">Paused: waiting for a connection</string>
+    <string name="model_download_waiting_wifi">Paused: waiting for Wi-Fi</string>
+    <string name="model_download_waiting_battery">Paused: battery below the analysis minimum</string>
     <string name="local_analysis_features">Analysis features</string>
     <string name="local_analysis_people">People and faces</string>
     <string name="local_analysis_people_summary">Detects faces and groups photos of the same person locally.</string>
@@ -150,10 +155,6 @@
     <string name="semantic_model_use">Use</string>
     <string name="semantic_model_delete">Delete</string>
     <string name="semantic_models_delete_all">Delete all downloaded models</string>
-    <string name="semantic_download_title">Download semantic model</string>
-    <string name="semantic_download_body">Choose whether to wait for unmetered Wi-Fi or allow the current network. Gallery data is never uploaded.</string>
-    <string name="semantic_download_wifi">Wi-Fi only</string>
-    <string name="semantic_download_any_network">Use current network</string>
     <string name="semantic_override_title">Use a non-recommended model?</string>
     <string name="semantic_override_body">This model may use more memory, battery, or processing time on this device. You can still continue.</string>
     <string name="semantic_override_confirm">Use anyway</string>

@@ -17,12 +17,21 @@ class MlChunkRunner(
     private val controller: MlExecutionController,
 ) {
     suspend fun run(engine: MlTaskEngine, policy: MlWorkPolicy): MlRunnerResult {
-        when (controller.decide(
+        val decision = controller.decide(
             state.isConsentEnabled(engine.task),
             state.isPaused(engine.task),
             engine.hasCurrentPermission(),
             policy.mode,
-        )) {
+        )
+        state.setWaitReason(
+            engine.task,
+            when (decision) {
+                MlExecutionDecision.ThermalBackoff -> MlBackoffWait.Thermal
+                MlExecutionDecision.PowerBackoff -> MlBackoffWait.Charging
+                else -> null
+            },
+        )
+        when (decision) {
             MlExecutionDecision.ConsentRequired,
             MlExecutionDecision.Paused,
             -> {

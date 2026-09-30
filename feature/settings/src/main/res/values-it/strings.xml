@@ -122,6 +122,11 @@
     <string name="local_analysis_minimum_battery">Batteria minima per l’analisi completa</string>
     <string name="local_analysis_battery_percent">%1$d%%</string>
     <string name="local_analysis_minimum_battery_summary">Senza caricatore, l’analisi completa viene eseguita solo mentre Lightforge Studio è aperto e la batteria è a questo livello o superiore. La ricarica la consente sempre.</string>
+    <string name="model_downloads_mobile_data">Scarica i modelli con i dati mobili</string>
+    <string name="model_downloads_mobile_data_summary">Disattivato per impostazione predefinita: download e aggiornamenti dei modelli vengono sospesi con i dati mobili e riprendono con il Wi-Fi. Attendono inoltre che il dispositivo sia in carica o che la batteria sia pari o superiore al minimo indicato sopra.</string>
+    <string name="model_download_waiting_network">In pausa: in attesa di connessione</string>
+    <string name="model_download_waiting_wifi">In pausa: in attesa del Wi-Fi</string>
+    <string name="model_download_waiting_battery">In pausa: batteria sotto il minimo per l’analisi</string>
     <string name="local_analysis_features">Funzioni di analisi</string>
     <string name="local_analysis_people">Persone e volti</string>
     <string name="local_analysis_people_summary">Rileva i volti e raggruppa localmente le foto della stessa persona.</string>
@@ -152,10 +157,6 @@
     <string name="semantic_model_use">Usa</string>
     <string name="semantic_model_delete">Elimina</string>
     <string name="semantic_models_delete_all">Elimina tutti i modelli scaricati</string>
-    <string name="semantic_download_title">Scarica modello semantico</string>
-    <string name="semantic_download_body">Attendi un Wi‑Fi non a consumo o consenti la rete attuale. I dati della galleria non vengono mai inviati.</string>
-    <string name="semantic_download_wifi">Solo Wi‑Fi</string>
-    <string name="semantic_download_any_network">Usa rete attuale</string>
     <string name="semantic_override_title">Usare un modello non consigliato?</string>
     <string name="semantic_override_body">Questo modello può usare più memoria, batteria o tempo di elaborazione. Puoi comunque continuare.</string>
     <string name="semantic_override_confirm">Usa comunque</string>
