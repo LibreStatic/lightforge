@@ -68,6 +68,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -78,6 +79,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import androidx.compose.ui.unit.Dp
 
 enum class GalleryMotionEdge { Top, Bottom, Start, End }
@@ -307,6 +309,51 @@ fun GalleryResponsiveContainer(
         ) {
             content(adaptiveInfo)
         }
+    }
+}
+
+/**
+ * Caps the width of a list item's trailing slot to [fraction] of the row.
+ *
+ * Material's `ListItem` measures the trailing slot before the headline and hands the headline
+ * whatever is left, so an unbounded value (a long translated chip, a folder name) squeezes the
+ * label down to one glyph per line. Applying this to the trailing content guarantees the label
+ * keeps the rest of the row; the trailing text is expected to wrap or ellipsize inside the cap.
+ */
+fun Modifier.galleryTrailingSlot(fraction: Float = 0.5f): Modifier = layout { measurable, constraints ->
+    val cap = if (constraints.hasBoundedWidth) {
+        (constraints.maxWidth * fraction).roundToInt().coerceAtLeast(constraints.minWidth)
+    } else {
+        constraints.maxWidth
+    }
+    val placeable = measurable.measure(constraints.copy(maxWidth = cap))
+    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+}
+
+/**
+ * Pill that shows the current value of a setting next to its label. The text wraps to a second
+ * line instead of growing past its parent, so pair it with [galleryTrailingSlot] in list rows.
+ */
+@Composable
+fun GalleryValueChip(
+    value: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        // A full-radius shape stays a pill on one line and a rounded card on two.
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        modifier = modifier,
+    ) {
+        Text(
+            value,
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = GallerySpacing.Md, vertical = GallerySpacing.Xs),
+        )
     }
 }
 

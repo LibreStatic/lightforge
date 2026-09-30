@@ -30,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -86,6 +87,8 @@ import com.librestatic.lightforge.core.designsystem.GalleryShapeIllustration
 import com.librestatic.lightforge.core.designsystem.GalleryWindowClass
 import com.librestatic.lightforge.core.designsystem.GalleryAdaptiveLayoutInfo
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
+import com.librestatic.lightforge.core.designsystem.GalleryValueChip
+import com.librestatic.lightforge.core.designsystem.galleryTrailingSlot
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveButton
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
@@ -1870,27 +1873,23 @@ private fun SettingsValueRow(
         } else ListItemDefaults.colors(),
         trailingContent = {
             if (LocalSettingsCards.current) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                        // The card only exists in the wide detail pane, so the value fits in full;
-                        // the cap just keeps a pathological translation from starving the label.
-                        modifier = Modifier.widthIn(max = 320.dp),
-                    ) {
-                        Text(
-                            value,
-                            style = MaterialTheme.typography.labelLarge,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(horizontal = GallerySpacing.Md, vertical = GallerySpacing.Xs),
-                        )
-                    }
+                Row(
+                    modifier = Modifier.galleryTrailingSlot(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
+                ) {
+                    GalleryValueChip(value, Modifier.weight(1f, fill = false))
                     Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
-                Text(value, color = MaterialTheme.colorScheme.primary)
+                Text(
+                    value,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.End,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.galleryTrailingSlot(),
+                )
             }
         },
     ) { Text(label) }
