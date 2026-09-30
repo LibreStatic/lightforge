@@ -35,8 +35,14 @@ class ZoomPanStateTest {
 
     private class EagerFrameClock(private val scheduler: kotlinx.coroutines.test.TestCoroutineScheduler) : MonotonicFrameClock {
         private var frame = 0L
+
+        private companion object {
+            // withFrameNanos expects nanoseconds: one 60 Hz frame per call.
+            const val FRAME_MILLIS = 16L
+            const val FRAME_NANOS = FRAME_MILLIS * 1_000_000L
+        }
         override suspend fun <R> withFrameNanos(onFrame: (frameTimeNanos: Long) -> R): R =
-            onFrame(scheduler.currentTime + (++frame)).also { scheduler.advanceTimeBy(16) }
+            onFrame(++frame * FRAME_NANOS).also { scheduler.advanceTimeBy(FRAME_MILLIS) }
     }
 
     @Test
