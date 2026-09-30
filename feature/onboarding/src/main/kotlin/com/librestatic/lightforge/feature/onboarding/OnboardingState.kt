@@ -1,10 +1,18 @@
 package com.librestatic.lightforge.feature.onboarding
 
+import androidx.compose.ui.geometry.Rect
 import com.librestatic.lightforge.core.model.GrantLevel
 import com.librestatic.lightforge.core.model.LibraryAccess
 
 /** Top-level wizard steps, in order. Stable names back the saved step across process death. */
-enum class OnboardingStep { Welcome, Features, Permissions, Analysis, OpenSource }
+enum class OnboardingStep { Welcome, Features, Permissions, Analysis, OpenSource, Done }
+
+/**
+ * Hand-off from the system splash screen. [iconBounds] is where its star sat, in window pixels
+ * (null when unknown), and [onScreen] stays true until the splash starts leaving, so the wizard's
+ * intro can pick the logo up in place instead of starting behind it.
+ */
+data class OnboardingSplashHandoff(val onScreen: Boolean, val iconBounds: Rect? = null)
 
 /** Opt-in on-device analysis features offered by the wizard; the host maps them to its switches. */
 enum class OnboardingAnalysisOption { People, Content, Pets, Semantic }

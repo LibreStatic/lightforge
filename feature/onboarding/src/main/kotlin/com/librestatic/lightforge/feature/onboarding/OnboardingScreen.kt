@@ -15,7 +15,21 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -55,16 +69,22 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -75,14 +95,19 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveButton
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
+import com.librestatic.lightforge.core.designsystem.LocalGallerySuccessColors
 import com.librestatic.lightforge.core.designsystem.rememberGalleryReducedMotion
 import com.librestatic.lightforge.core.model.LibraryAccess
 import com.librestatic.lightforge.feature.permissions.PermissionCoordinator
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 const val FeaturePageCount = 4
 private const val SourceRepositoryUrl = "https://github.com/LibreStatic/lightforge"
@@ -107,35 +132,107 @@ fun OnboardingScreen(
     onPermissionResult: () -> Unit,
     onFinish: (analysis: Set<OnboardingAnalysisOption>?) -> Unit,
     modifier: Modifier = Modifier,
+    splash: OnboardingSplashHandoff = OnboardingSplashHandoff(onScreen = false),
 ) {
     val reducedMotion = rememberGalleryReducedMotion()
     val pager = rememberPagerState { FeaturePageCount }
     val scope = rememberCoroutineScope()
     val steps = OnboardingStep.entries
     val last = step == steps.last()
+    // The backdrop scatters on the last page, so finishing there is immediate. Skipping from an
+    // earlier page waits for that scatter first; null while the wizard is still running.
+    var finishing by remember { mutableStateOf<FinishRequest?>(null) }
+    fun finish(analysis: Set<OnboardingAnalysisOption>?) {
+        when {
+            finishing != null -> Unit
+            last -> onFinish(analysis)
+            else -> finishing = FinishRequest(analysis)
+        }
+    }
 
     fun back() {
+        if (finishing != null) return
         if (step == OnboardingStep.Features && pager.currentPage > 0) {
             scope.launch { pager.animateScrollToPage(pager.currentPage - 1) }
         } else if (step.ordinal > 0) onStepChange(steps[step.ordinal - 1])
     }
     fun next() {
+        if (finishing != null) return
         when {
             step == OnboardingStep.Features && pager.currentPage < FeaturePageCount - 1 ->
                 scope.launch { pager.animateScrollToPage(pager.currentPage + 1) }
-            last -> onFinish(analysis)
+            last -> finish(analysis)
             else -> onStepChange(steps[step.ordinal + 1])
         }
     }
     BackHandler(enabled = step.ordinal > 0 || pager.currentPage > 0, onBack = ::back)
 
     val stepLabel = stringResource(R.string.onboarding_step_of, step.ordinal + 1, steps.size)
+    // Read by the backdrop, not here, so page changes never recompose the wizard. The step
+    // goes through state because the lambdas are remembered once; capturing `step` directly would
+    // freeze it (equal function references never update the backdrop's view of them).
+    val stepState = rememberUpdatedState(step)
+    // Every page, feature sub-pages included, is one equal move along the backdrop's rail. Feature
+    // pages aim at the pager's target page rather than tracking its scroll offset: chasing a target
+    // that moves every frame kept restarting the spring, so the shapes trailed the page and crept
+    // on after it settled. One discrete target per move behaves like every other step.
+    val railProgress = remember(pager) {
+        {
+            val current = stepState.value
+            when {
+                current == OnboardingStep.Features -> current.ordinal + pager.targetPage.toFloat()
+                current.ordinal > OnboardingStep.Features.ordinal -> current.ordinal + FeaturePageCount - 1f
+                else -> current.ordinal.toFloat()
+            }
+        }
+    }
+    // targetPage, not currentPage: the burst fires when a page change starts, together with the move.
+    val railBeat = remember(pager) {
+        {
+            val current = stepState.value
+            current.ordinal * FeaturePageCount + if (current == OnboardingStep.Features) pager.targetPage else 0
+        }
+    }
+    // First-launch intro: the logo breaks up into the backdrop before the wizard fades in. Played
+    // once per session, only when the wizard opens on its first page, never with animations off.
+    var introPlayed by rememberSaveable { mutableStateOf(step != OnboardingStep.Welcome) }
+    val intro = remember { Animatable(if (introPlayed || reducedMotion) 1f else 0f) }
+    val currentSplash by rememberUpdatedState(splash)
+    LaunchedEffect(Unit) {
+        if (intro.value < 1f) {
+            // The logo sits under the splash until it starts leaving; never wait on it for long.
+            withTimeoutOrNull(2_000) { snapshotFlow { currentSplash.onScreen }.first { !it } }
+            intro.animateTo(1f, tween(durationMillis = 1_900, easing = LinearEasing))
+        }
+        introPlayed = true
+    }
+    val contentAlpha by animateFloatAsState(
+        targetValue = if (finishing == null) 1f else 0f,
+        animationSpec = tween(durationMillis = 300),
+        label = "onboarding-content-exit",
+    )
     Surface(modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
-        Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+        OnboardingBackdrop(
+            beat = railBeat,
+            progress = railProgress,
+            intro = { intro.value },
+            logoBounds = splash.iconBounds,
+            dispersed = last || finishing != null,
+            onDispersed = { finishing?.let { onFinish(it.analysis) } },
+        )
+        Column(
+            Modifier.fillMaxSize().graphicsLayer {
+                val arrival = FastOutSlowInEasing.transform(((intro.value - 0.65f) / 0.35f).coerceIn(0f, 1f))
+                alpha = contentAlpha * arrival
+                translationY = (1f - arrival) * 24.dp.toPx()
+            }
+                .windowInsetsPadding(WindowInsets.safeDrawing),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             OnboardingTopBar(
                 step = step,
                 stepLabel = stepLabel,
-                onSkip = { onFinish(null) },
+                onSkip = { finish(null) },
             )
             AnimatedContent(
                 targetState = step,
@@ -145,10 +242,16 @@ fun OnboardingScreen(
                     if (reducedMotion) {
                         fadeIn() togetherWith fadeOut()
                     } else {
+                        // Material shared axis: the old page leaves quickly, the new one arrives
+                        // after it, both riding the same spring so the swap never reads as a cut.
                         val forward = targetState.ordinal > initialState.ordinal
                         val sign = if (forward) 1 else -1
-                        (slideInHorizontally { width -> sign * width / 5 } + fadeIn()) togetherWith
-                            (slideOutHorizontally { width -> -sign * width / 5 } + fadeOut())
+                        val slide = spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow, visibilityThreshold = IntOffset.VisibilityThreshold)
+                        (slideInHorizontally(slide) { width -> sign * width / 4 } +
+                            fadeIn(tween(durationMillis = 220, delayMillis = 90, easing = LinearOutSlowInEasing))) togetherWith
+                            (slideOutHorizontally(slide) { width -> -sign * width / 4 } +
+                                fadeOut(tween(durationMillis = 90, easing = FastOutLinearInEasing))) using
+                            SizeTransform(clip = false)
                     }
                 },
                 label = "onboarding-step",
@@ -160,6 +263,7 @@ fun OnboardingScreen(
                         OnboardingStep.Permissions -> PermissionsStep(access, permissions, onPermissionResult)
                         OnboardingStep.Analysis -> AnalysisStep(analysis, onAnalysisChange)
                         OnboardingStep.OpenSource -> OpenSourceStep(versionName, onOpenLicenses)
+                        OnboardingStep.Done -> DoneStep(reducedMotion)
                     }
                 }
             }
@@ -169,7 +273,8 @@ fun OnboardingScreen(
                 primaryLabel = stringResource(
                     when (step) {
                         OnboardingStep.Welcome -> R.string.onboarding_get_started
-                        OnboardingStep.OpenSource -> R.string.onboarding_start_exploring
+                        OnboardingStep.OpenSource -> R.string.onboarding_got_it
+                        OnboardingStep.Done -> R.string.onboarding_start_exploring
                         else -> R.string.onboarding_next
                     },
                 ),
@@ -180,10 +285,20 @@ fun OnboardingScreen(
     }
 }
 
+/**
+ * Widest the progress, Skip and navigation controls spread. On desktop-sized windows they stay
+ * near the 560dp page column instead of drifting to the far edges.
+ */
+private val ControlsMaxWidth = 720.dp
+
+/** Wraps the finish result so "skipped" (null analysis) is distinct from "not finishing yet". */
+private class FinishRequest(val analysis: Set<OnboardingAnalysisOption>?)
+
 @Composable
 private fun OnboardingTopBar(step: OnboardingStep, stepLabel: String, onSkip: () -> Unit) {
     Row(
-        Modifier.fillMaxWidth().padding(start = GallerySpacing.Xl, end = GallerySpacing.Sm, top = GallerySpacing.Sm),
+        Modifier.widthIn(max = ControlsMaxWidth).fillMaxWidth()
+            .padding(start = GallerySpacing.Xl, end = GallerySpacing.Sm, top = GallerySpacing.Sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
@@ -249,7 +364,8 @@ private fun OnboardingBottomBar(
     onPrimary: () -> Unit,
 ) {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Md),
+        Modifier.widthIn(max = ControlsMaxWidth).fillMaxWidth()
+            .padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (showBack) {
@@ -542,6 +658,78 @@ private fun OpenSourceStep(versionName: String, onOpenLicenses: () -> Unit) {
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
+}
+
+/**
+ * Closing page: a single expressive shape in the success pair that spins in, pops its check mark
+ * and then keeps turning and breathing gently. Static with system animations off.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun DoneStep(reducedMotion: Boolean) {
+    val success = LocalGallerySuccessColors.current
+    val entrance = remember { Animatable(if (reducedMotion) 1f else 0f) }
+    val check = remember { Animatable(if (reducedMotion) 1f else 0f) }
+    LaunchedEffect(reducedMotion) {
+        if (reducedMotion) return@LaunchedEffect
+        launch { entrance.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessLow)) }
+        delay(280)
+        check.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
+    }
+    val idle = rememberInfiniteTransition(label = "done-idle")
+    val turn by idle.animateFloat(
+        initialValue = 0f,
+        targetValue = if (reducedMotion) 0f else 360f,
+        animationSpec = infiniteRepeatable(tween(durationMillis = 24_000, easing = LinearEasing)),
+        label = "done-turn",
+    )
+    val breath by idle.animateFloat(
+        initialValue = 1f,
+        targetValue = if (reducedMotion) 1f else 1.05f,
+        animationSpec = infiniteRepeatable(tween(durationMillis = 1_800, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "done-breath",
+    )
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Spacer(Modifier.height(GallerySpacing.Xxl))
+        Box(Modifier.size(220.dp), contentAlignment = Alignment.Center) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val scale = entrance.value * breath
+                        scaleX = scale
+                        scaleY = scale
+                        rotationZ = (1f - entrance.value) * -150f + turn
+                    }
+                    .background(success.container, MaterialShapes.Cookie12Sided.toShape()),
+            )
+            Icon(
+                GalleryIcons.Check,
+                contentDescription = null,
+                tint = success.onContainer,
+                modifier = Modifier.size(104.dp).graphicsLayer {
+                    scaleX = check.value
+                    scaleY = check.value
+                    alpha = check.value.coerceIn(0f, 1f)
+                },
+            )
+        }
+        Spacer(Modifier.height(GallerySpacing.Xxl))
+        Text(
+            stringResource(R.string.onboarding_done_title),
+            style = MaterialTheme.typography.displaySmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.semantics { heading() },
+        )
+        Spacer(Modifier.height(GallerySpacing.Md))
+        Text(
+            stringResource(R.string.onboarding_done_body),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+    }
 }
 
 internal fun Context.findActivity(): Activity? {

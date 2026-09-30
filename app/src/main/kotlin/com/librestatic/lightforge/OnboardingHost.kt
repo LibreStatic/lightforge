@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import com.librestatic.lightforge.core.ml.LocalAnalysisFeature
 import com.librestatic.lightforge.feature.onboarding.OnboardingAnalysisOption
 import com.librestatic.lightforge.feature.onboarding.OnboardingScreen
+import com.librestatic.lightforge.feature.onboarding.OnboardingSplashHandoff
 import com.librestatic.lightforge.feature.onboarding.OnboardingStep
 import com.librestatic.lightforge.feature.permissions.PermissionCoordinator
 
@@ -21,7 +22,11 @@ internal fun OnboardingAnalysisOption.toFeature(): LocalAnalysisFeature = when (
 
 /** Hosts the first-run wizard plus its one detour, the open-source license list. */
 @Composable
-internal fun OnboardingHost(viewModel: GalleryViewModel, permissions: PermissionCoordinator) {
+internal fun OnboardingHost(
+    viewModel: GalleryViewModel,
+    permissions: PermissionCoordinator,
+    splash: OnboardingSplashHandoff = OnboardingSplashHandoff(onScreen = false),
+) {
     var step by rememberSaveable { mutableStateOf(OnboardingStep.Welcome) }
     var showLicenses by rememberSaveable { mutableStateOf(false) }
     val switches by viewModel.localAnalysisSwitches.collectAsState()
@@ -54,5 +59,6 @@ internal fun OnboardingHost(viewModel: GalleryViewModel, permissions: Permission
         onFinish = { chosen ->
             viewModel.completeOnboarding(chosen?.mapTo(mutableSetOf()) { it.toFeature() })
         },
+        splash = splash,
     )
 }

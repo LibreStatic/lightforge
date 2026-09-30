@@ -22,12 +22,35 @@ import com.librestatic.lightforge.feature.permissions.PermissionCoordinator
 import com.librestatic.lightforge.feature.settings.LegacyAppLanguage
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import com.librestatic.lightforge.feature.onboarding.OnboardingSplashHandoff
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
+import com.librestatic.lightforge.core.designsystem.rememberGalleryReducedMotion
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.Modifier
 
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
     @Inject lateinit var permissionCoordinator: PermissionCoordinator
     private val galleryViewModel: GalleryViewModel by viewModels()
     private var usesProductionRuntime = false
+
+    // Only a cold start shows the system splash; a recreated activity has nothing to hand off.
+    private val splashHandoff = mutableStateOf(OnboardingSplashHandoff(onScreen = true))
 
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(LegacyAppLanguage.wrap(newBase))
@@ -36,6 +59,25 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+        if (savedInstanceState != null) splashHandoff.value = OnboardingSplashHandoff(onScreen = false)
+        // Hand the star over to the first-run intro: note where the icon sits, then fade the
+        // splash away over the identical logo the wizard draws in that same spot.
+        splashScreen.setOnExitAnimationListener { provider ->
+            val icon = provider.iconView
+            val location = IntArray(2).also(icon::getLocationInWindow)
+            splashHandoff.value = OnboardingSplashHandoff(
+                onScreen = false,
+                iconBounds = Rect(
+                    offset = Offset(location[0].toFloat(), location[1].toFloat()),
+                    size = Size(icon.width.toFloat(), icon.height.toFloat()),
+                ),
+            )
+            provider.view.animate()
+                .alpha(0f)
+                .setDuration(SPLASH_FADE_MILLIS)
+                .withEndAction(provider::remove)
+                .start()
+        }
         lifecycle.addObserver(permissionCoordinator)
         enableEdgeToEdge()
         val performanceBuild = BuildConfig.BUILD_TYPE.contains("benchmark", ignoreCase = true) ||
@@ -80,12 +122,38 @@ class MainActivity : FragmentActivity() {
                         // Media opened from another app is shown right away; the wizard waits.
                         val external = galleryViewModel.externalMedia.collectAsState().value != null
                         val onboardingCompleted = galleryViewModel.onboardingCompleted.collectAsState().value
-                        when {
-                            external || onboardingCompleted == true ->
-                                ProductionGalleryApp(galleryViewModel, permissionCoordinator)
-                            onboardingCompleted == false -> OnboardingHost(galleryViewModel, permissionCoordinator)
+                        val root = when {
+                            external || onboardingCompleted == true -> RootScreen.Gallery
+                            onboardingCompleted == false -> RootScreen.Onboarding
                             // Settling the first-run flag takes one DataStore read; draw nothing meanwhile.
-                            else -> Unit
+                            else -> RootScreen.Pending
+                        }
+                        val reducedMotion = rememberGalleryReducedMotion()
+                        AnimatedContent(
+                            targetState = root,
+                            // An opaque themed floor: crossfades and the pending frame must never
+                            // reveal the window background underneath.
+                            modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface),
+                            transitionSpec = {
+                                if (initialState == RootScreen.Onboarding && targetState == RootScreen.Gallery && !reducedMotion) {
+                                    // Leaving the wizard: it swells slightly and fades while the
+                                    // gallery settles in from just below full size.
+                                    (fadeIn(tween(durationMillis = 420, delayMillis = 120)) +
+                                        scaleIn(tween(durationMillis = 600, easing = FastOutSlowInEasing), initialScale = 0.94f)) togetherWith
+                                        (fadeOut(tween(durationMillis = 300)) +
+                                            scaleOut(tween(durationMillis = 450, easing = FastOutSlowInEasing), targetScale = 1.06f))
+                                } else {
+                                    EnterTransition.None togetherWith ExitTransition.None
+                                }
+                            },
+                            label = "root-screen",
+                        ) { screen ->
+                            when (screen) {
+                                RootScreen.Gallery -> ProductionGalleryApp(galleryViewModel, permissionCoordinator)
+                                RootScreen.Onboarding ->
+                                    OnboardingHost(galleryViewModel, permissionCoordinator, splashHandoff.value)
+                                RootScreen.Pending -> Unit
+                            }
                         }
                     }
                 }
@@ -122,6 +190,7 @@ class MainActivity : FragmentActivity() {
         const val BENCHMARK_ITEM_COUNT_EXTRA = "com.librestatic.lightforge.extra.BENCHMARK_ITEM_COUNT"
         const val BENCHMARK_ML_LOAD_EXTRA = "com.librestatic.lightforge.extra.BENCHMARK_ML_LOAD"
         const val PRODUCTION_TIMELINE_EXTRA = "com.librestatic.lightforge.extra.PRODUCTION_TIMELINE"
+        const val SPLASH_FADE_MILLIS = 200L
     }
 }
 
@@ -132,3 +201,6 @@ internal fun LibraryEngineState.toUiState(): LibraryUiState = when (this) {
     LibraryEngineState.PermissionRequired -> LibraryUiState.PermissionRequired
     LibraryEngineState.Error -> LibraryUiState.Error
 }
+
+/** Top-level content of the activity; switching from the wizard to the gallery is animated. */
+private enum class RootScreen { Pending, Onboarding, Gallery }

@@ -9,6 +9,10 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.expressiveLightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -128,6 +132,20 @@ val GalleryMonoTypography: TextStyle = TextStyle(
     lineHeight = 16.sp,
 )
 
+/**
+ * Container pair for positive confirmations (a finished setup, a completed task). Material has no
+ * success role, so this is a fixed green tonal pair: tone 90 on tone 10 in light, tone 30 on
+ * tone 90 in dark, both well above 7:1. Always draw [onContainer] on [container], never mix it
+ * with scheme roles.
+ */
+@Immutable
+data class GallerySuccessColors(val container: Color, val onContainer: Color)
+
+private val SuccessLight = GallerySuccessColors(container = Color(0xFFB8F397), onContainer = Color(0xFF042100))
+private val SuccessDark = GallerySuccessColors(container = Color(0xFF1F5108), onContainer = Color(0xFFB8F397))
+
+val LocalGallerySuccessColors = staticCompositionLocalOf { SuccessLight }
+
 @Composable
 fun LightforgeTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -145,9 +163,11 @@ fun LightforgeTheme(
         darkTheme -> darkColorScheme()
         else -> expressiveLightColorScheme()
     }
-    MaterialExpressiveTheme(
-        colorScheme = colors,
-        motionScheme = MotionScheme.expressive(),
-        content = content,
-    )
+    CompositionLocalProvider(LocalGallerySuccessColors provides if (darkTheme) SuccessDark else SuccessLight) {
+        MaterialExpressiveTheme(
+            colorScheme = colors,
+            motionScheme = MotionScheme.expressive(),
+            content = content,
+        )
+    }
 }

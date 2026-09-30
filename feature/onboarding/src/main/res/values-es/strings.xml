@@ -6,6 +6,7 @@
     <string name="onboarding_next">Siguiente</string>
     <string name="onboarding_get_started">Comenzar</string>
     <string name="onboarding_start_exploring">Empezar a explorar</string>
+    <string name="onboarding_got_it">Entendido</string>
     <string name="onboarding_welcome_title">Te damos la bienvenida a Lightforge</string>
     <string name="onboarding_welcome_body">Tus fotos siguen siendo tuyas. Explora, busca, edita y crea, todo en tu dispositivo.</string>
     <string name="onboarding_chip_offline">Sin conexión primero</string>
@@ -66,4 +67,6 @@
     <string name="onboarding_version">Versión %1$s</string>
     <string name="onboarding_reopen_title">Primeros pasos</string>
     <string name="onboarding_reopen_body">Repite la introducción y revisa los permisos</string>
+    <string name="onboarding_done_title">Todo listo</string>
+    <string name="onboarding_done_body">Tu biblioteca está preparada. Puedes cambiar cualquiera de estas opciones más adelante en Ajustes.</string>
 </resources>

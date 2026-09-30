@@ -52,10 +52,12 @@ class OnboardingScreenTest {
         OnboardingStep.entries.forEach { step ->
             rule.onNodeWithTag("onboarding-step-${step.name}").assertIsDisplayed()
             rule.onNodeWithTag("onboarding-skip").assertIsDisplayed()
-            if (step == OnboardingStep.Features) repeat(FeaturePageCount) { next() } else if (step != OnboardingStep.OpenSource) next()
+            if (step == OnboardingStep.Features) repeat(FeaturePageCount) { next() } else if (step != OnboardingStep.Done) next()
             rule.waitForIdle()
         }
         rule.onNodeWithTag("onboarding-skip").performClick()
+        // Finishing waits for the backdrop's exit, which completes at once with animations off.
+        rule.waitUntil { finishCalls > 0 }
         assertEquals(1, finishCalls)
         assertNull(finished)
     }
@@ -67,7 +69,9 @@ class OnboardingScreenTest {
         next() // Permissions
         rule.onNodeWithTag("onboarding-analysis-People").performClick()
         next() // Analysis
-        next() // Open source -> finish
+        next() // Open source
+        next() // Done -> finish
+        rule.waitUntil { finishCalls > 0 }
         assertEquals(1, finishCalls)
         assertEquals(setOf(OnboardingAnalysisOption.People), finished)
     }

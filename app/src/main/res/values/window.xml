@@ -1,0 +1,4 @@
+<resources>
+    <!-- Shown only before Compose draws or through a translucent frame; tracks light/dark. -->
+    <color name="window_background">#FFFFFBFF</color>
+</resources>
