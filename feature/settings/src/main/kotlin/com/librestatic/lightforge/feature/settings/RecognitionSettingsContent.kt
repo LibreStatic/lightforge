@@ -30,7 +30,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -88,7 +87,7 @@ import com.librestatic.lightforge.core.designsystem.GalleryWindowClass
 import com.librestatic.lightforge.core.designsystem.GalleryAdaptiveLayoutInfo
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import com.librestatic.lightforge.core.designsystem.GalleryValueChip
-import com.librestatic.lightforge.core.designsystem.galleryTrailingSlot
+import com.librestatic.lightforge.core.designsystem.GalleryLabelValueLayout
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveButton
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
@@ -1864,33 +1863,29 @@ private fun SettingsValueRow(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    val cards = LocalSettingsCards.current
     ListItem(
         onClick = onClick,
         modifier = modifier.clip(MaterialTheme.shapes.large).heightIn(min = settingsRowMinHeight()),
         // Inside a card the rows share the tone of the switch rows.
-        colors = if (LocalSettingsCards.current) {
+        colors = if (cards) {
             ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
         } else ListItemDefaults.colors(),
-        trailingContent = {
-            if (LocalSettingsCards.current) {
-                Row(
-                    modifier = Modifier.galleryTrailingSlot(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
-                ) {
-                    GalleryValueChip(value, Modifier.weight(1f, fill = false))
-                    Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        trailingContent = if (cards) {
+            { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+        } else null,
+    ) {
+        // The value sits beside the label when both fit and drops below it otherwise, so
+        // neither a long translation nor a narrow pane squeezes the label.
+        GalleryLabelValueLayout(
+            label = { Text(label) },
+            value = {
+                if (cards) {
+                    GalleryValueChip(value)
+                } else {
+                    Text(value, color = MaterialTheme.colorScheme.primary, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
-            } else {
-                Text(
-                    value,
-                    color = MaterialTheme.colorScheme.primary,
-                    textAlign = TextAlign.End,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.galleryTrailingSlot(),
-                )
-            }
-        },
-    ) { Text(label) }
+            },
+        )
+    }
 }

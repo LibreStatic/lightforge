@@ -68,7 +68,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -79,7 +79,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import kotlin.math.roundToInt
 import androidx.compose.ui.unit.Dp
 
 enum class GalleryMotionEdge { Top, Bottom, Start, End }
@@ -313,26 +312,50 @@ fun GalleryResponsiveContainer(
 }
 
 /**
- * Caps the width of a list item's trailing slot to [fraction] of the row.
+ * Lays out a list item's label and its current value on one line when both fit, and drops the
+ * value onto its own line below the label otherwise, following Material's list anatomy where
+ * content that doesn't fit the headline moves to a supporting line instead of squeezing it.
  *
- * Material's `ListItem` measures the trailing slot before the headline and hands the headline
- * whatever is left, so an unbounded value (a long translated chip, a folder name) squeezes the
- * label down to one glyph per line. Applying this to the trailing content guarantees the label
- * keeps the rest of the row; the trailing text is expected to wrap or ellipsize inside the cap.
+ * Use it as the headline of a `ListItem` rather than putting the value in the trailing slot:
+ * Material measures the trailing slot first, so a long value there starves the label.
  */
-fun Modifier.galleryTrailingSlot(fraction: Float = 0.5f): Modifier = layout { measurable, constraints ->
-    val cap = if (constraints.hasBoundedWidth) {
-        (constraints.maxWidth * fraction).roundToInt().coerceAtLeast(constraints.minWidth)
-    } else {
-        constraints.maxWidth
+@Composable
+fun GalleryLabelValueLayout(
+    label: @Composable () -> Unit,
+    value: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Layout(
+        contents = listOf(label, value),
+        modifier = modifier,
+    ) { (labelMeasurables, valueMeasurables), constraints ->
+        val loose = constraints.copy(minWidth = 0, minHeight = 0)
+        val gap = GallerySpacing.Lg.roundToPx()
+        val lineGap = GallerySpacing.Xs.roundToPx()
+        val labelPlaceable = labelMeasurables.first().measure(loose)
+        val valuePlaceable = valueMeasurables.first().measure(loose)
+        val inline = labelPlaceable.width + gap + valuePlaceable.width <= constraints.maxWidth
+        if (inline) {
+            val width = if (constraints.hasBoundedWidth) constraints.maxWidth else labelPlaceable.width + gap + valuePlaceable.width
+            val height = maxOf(labelPlaceable.height, valuePlaceable.height).coerceAtLeast(constraints.minHeight)
+            layout(width, height) {
+                labelPlaceable.placeRelative(0, (height - labelPlaceable.height) / 2)
+                valuePlaceable.placeRelative(width - valuePlaceable.width, (height - valuePlaceable.height) / 2)
+            }
+        } else {
+            val width = maxOf(labelPlaceable.width, valuePlaceable.width).coerceAtLeast(constraints.minWidth)
+            val height = (labelPlaceable.height + lineGap + valuePlaceable.height).coerceAtLeast(constraints.minHeight)
+            layout(width, height) {
+                labelPlaceable.placeRelative(0, 0)
+                valuePlaceable.placeRelative(0, labelPlaceable.height + lineGap)
+            }
+        }
     }
-    val placeable = measurable.measure(constraints.copy(maxWidth = cap))
-    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
 }
 
 /**
  * Pill that shows the current value of a setting next to its label. The text wraps to a second
- * line instead of growing past its parent, so pair it with [galleryTrailingSlot] in list rows.
+ * line instead of growing past its parent; see [GalleryLabelValueLayout] for placing it in list rows.
  */
 @Composable
 fun GalleryValueChip(
