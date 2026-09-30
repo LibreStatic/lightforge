@@ -16,6 +16,8 @@ jobs:
           java-version: 17
           cache: gradle
       - uses: android-actions/setup-android@v3
+        with:
+          packages: ''
       - run: sdkmanager "platforms;android-37" "build-tools;37.0.0"
       - run: ./gradlew :app:assembleOfflineDebug :app:assembleOfflineRelease test lint
       - run: python tools/verify_design_handoff.py
