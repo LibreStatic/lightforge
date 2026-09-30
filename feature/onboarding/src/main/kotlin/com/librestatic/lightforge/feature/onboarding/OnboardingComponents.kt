@@ -46,7 +46,7 @@ import kotlinx.coroutines.delay
 
 /** Non-interactive label chip; a clickable chip that does nothing would mislead TalkBack. */
 @Composable
-internal fun StaticChip(icon: ImageVector, label: String) {
+internal fun StaticChip(icon: ImageVector?, label: String) {
     Surface(
         shape = MaterialTheme.shapes.small,
         color = MaterialTheme.colorScheme.secondaryContainer,
@@ -56,8 +56,10 @@ internal fun StaticChip(icon: ImageVector, label: String) {
             Modifier.heightIn(min = 32.dp).padding(horizontal = GallerySpacing.Md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(GallerySpacing.Sm))
+            if (icon != null) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(GallerySpacing.Sm))
+            }
             Text(label, style = MaterialTheme.typography.labelLarge)
         }
     }
@@ -254,6 +256,88 @@ internal fun AnalysisStep(
     )
 }
 
+/** One creative tool on the Studio step; [specs] are optional technical highlights shown as chips. */
+private class StudioTool(
+    val icon: ImageVector,
+    val title: Int,
+    val body: Int,
+    val container: Color,
+    val content: Color,
+    val specs: List<String> = emptyList(),
+)
+
+// Camera and format names are trademarks and read the same in every language.
+private val LogProfileSpecs = listOf("Apple Log", "S-Log3", "Canon Log", "V-Log", "D-Log", "HDR10 · HLG")
+private val RawSpecs = listOf("Camera RAW", "16-bit TIFF")
+
+@Composable
+internal fun StudioStep() {
+    val scheme = MaterialTheme.colorScheme
+    OnboardingHero(
+        icon = GalleryIcons.Palette,
+        shapeIndex = 1,
+        container = scheme.secondaryContainer,
+        content = scheme.onSecondaryContainer,
+        height = 140,
+    )
+    OnboardingHeadline(
+        stringResource(R.string.onboarding_studio_title),
+        stringResource(R.string.onboarding_studio_body),
+    )
+    Spacer(Modifier.height(GallerySpacing.Lg))
+    val tools = listOf(
+        StudioTool(
+            GalleryIcons.Tune, R.string.onboarding_studio_photo_title, R.string.onboarding_studio_photo_body,
+            scheme.primaryContainer, scheme.onPrimaryContainer,
+            listOf(stringResource(R.string.onboarding_studio_chip_filters)) + RawSpecs,
+        ),
+        StudioTool(
+            GalleryIcons.Video, R.string.onboarding_studio_video_title, R.string.onboarding_studio_video_body,
+            scheme.tertiaryContainer, scheme.onTertiaryContainer, LogProfileSpecs,
+        ),
+        StudioTool(
+            GalleryIcons.PictureAsPdf, R.string.onboarding_studio_pdf_title, R.string.onboarding_studio_pdf_body,
+            scheme.secondaryContainer, scheme.onSecondaryContainer,
+        ),
+        StudioTool(
+            GalleryIcons.GridView, R.string.onboarding_studio_collage_title, R.string.onboarding_studio_collage_body,
+            scheme.primaryContainer, scheme.onPrimaryContainer,
+        ),
+        StudioTool(
+            GalleryIcons.Repeat, R.string.onboarding_studio_gif_title, R.string.onboarding_studio_gif_body,
+            scheme.tertiaryContainer, scheme.onTertiaryContainer,
+        ),
+    )
+    Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
+        tools.forEach { tool ->
+            RowSurface(Modifier.semantics(mergeDescendants = true) {}) {
+                Row(
+                    Modifier.heightIn(min = 64.dp).padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Md),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    IconBadge(tool.icon, tool.container, tool.content)
+                    Spacer(Modifier.width(GallerySpacing.Lg))
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(tool.title), style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            stringResource(tool.body),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = scheme.onSurfaceVariant,
+                        )
+                        if (tool.specs.isNotEmpty()) {
+                            FlowRow(
+                                Modifier.padding(top = GallerySpacing.Sm),
+                                horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
+                                verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
+                            ) { tool.specs.forEach { StaticChip(icon = null, label = it) } }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 /** Small live UI samples for the walkthrough pages; built from real components, not screenshots. */
 @Composable
 internal fun FeatureSample(page: Int, reducedMotion: Boolean) {
@@ -367,7 +451,7 @@ private fun MoreSample() {
     Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm), modifier = Modifier.fillMaxWidth()) {
         listOf(
             Triple(GalleryIcons.Lock, R.string.onboarding_sample_private, scheme.primaryContainer to scheme.onPrimaryContainer),
-            Triple(GalleryIcons.PictureAsPdf, R.string.onboarding_sample_pdf, scheme.secondaryContainer to scheme.onSecondaryContainer),
+            Triple(GalleryIcons.PhotoLibrary, R.string.onboarding_sample_memories, scheme.secondaryContainer to scheme.onSecondaryContainer),
             Triple(GalleryIcons.User, R.string.onboarding_sample_people, scheme.tertiaryContainer to scheme.onTertiaryContainer),
         ).forEach { (icon, label, colors) ->
             Surface(shape = RoundedCornerShape(16.dp), color = colors.first, contentColor = colors.second) {

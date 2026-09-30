@@ -38,7 +38,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -260,6 +259,7 @@ fun OnboardingScreen(
                     when (current) {
                         OnboardingStep.Welcome -> WelcomeStep()
                         OnboardingStep.Features -> FeaturesStep(pager, reducedMotion)
+                        OnboardingStep.Studio -> StudioStep()
                         OnboardingStep.Permissions -> PermissionsStep(access, permissions, onPermissionResult)
                         OnboardingStep.Analysis -> AnalysisStep(analysis, onAnalysisChange)
                         OnboardingStep.OpenSource -> OpenSourceStep(versionName, onOpenLicenses)
@@ -384,7 +384,7 @@ private fun OnboardingBottomBar(
 /** Scrollable, width-capped page body so large font scales and tablets both stay readable. */
 @Composable
 private fun OnboardingPage(step: OnboardingStep, content: @Composable () -> Unit) {
-    BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(
             Modifier
                 .widthIn(max = 560.dp)

@@ -5,7 +5,7 @@ import com.librestatic.lightforge.core.model.GrantLevel
 import com.librestatic.lightforge.core.model.LibraryAccess
 
 /** Top-level wizard steps, in order. Stable names back the saved step across process death. */
-enum class OnboardingStep { Welcome, Features, Permissions, Analysis, OpenSource, Done }
+enum class OnboardingStep { Welcome, Features, Studio, Permissions, Analysis, OpenSource, Done }
 
 /**
  * Hand-off from the system splash screen. [iconBounds] is where its star sat, in window pixels

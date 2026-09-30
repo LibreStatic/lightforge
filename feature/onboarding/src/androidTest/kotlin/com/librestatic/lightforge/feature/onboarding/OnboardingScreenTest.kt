@@ -66,6 +66,7 @@ class OnboardingScreenTest {
         show()
         next() // Welcome
         repeat(FeaturePageCount) { next() }
+        next() // Studio
         next() // Permissions
         rule.onNodeWithTag("onboarding-analysis-People").performClick()
         next() // Analysis
