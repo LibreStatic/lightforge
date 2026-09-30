@@ -67,10 +67,16 @@ class MainActivity : FragmentActivity() {
             val location = IntArray(2).also(icon::getLocationInWindow)
             splashHandoff.value = OnboardingSplashHandoff(
                 onScreen = false,
-                iconBounds = Rect(
-                    offset = Offset(location[0].toFloat(), location[1].toFloat()),
-                    size = Size(icon.width.toFloat(), icon.height.toFloat()),
-                ),
+                // An icon-less splash hands back a detached, empty stand-in view; its zero bounds
+                // would draw the intro logo at 0px, so the wizard centres it instead.
+                iconBounds = if (icon.isAttachedToWindow && icon.width > 0 && icon.height > 0) {
+                    Rect(
+                        offset = Offset(location[0].toFloat(), location[1].toFloat()),
+                        size = Size(icon.width.toFloat(), icon.height.toFloat()),
+                    )
+                } else {
+                    null
+                },
             )
             provider.view.animate()
                 .alpha(0f)
