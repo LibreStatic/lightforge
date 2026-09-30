@@ -42,3 +42,8 @@ docs/evidence/*
 # Rendered promo media (hundreds of MB); regenerate with docs/promo/render.mjs and soundtrack.py.
 docs/promo/*.mp4
 docs/promo/*.wav
+
+# Signing material
+*.jks
+*.keystore
+keystore.properties

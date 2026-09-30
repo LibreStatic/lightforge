@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -10,6 +12,25 @@ dependencyLocking {
     lockAllConfigurations()
 }
 
+// Upload key for Play: env vars in CI, ~/.android/lightforge/keystore.properties locally.
+val releaseKeystore: Map<String, String> = run {
+    val props = Properties()
+    val file = File(
+        providers.gradleProperty("lightforge.keystoreProperties").orNull
+            ?: "${System.getProperty("user.home")}/.android/lightforge/keystore.properties",
+    )
+    if (file.isFile) file.inputStream().use { props.load(it) }
+    val values = props.stringPropertyNames().associateWith { props.getProperty(it) }.toMutableMap()
+    mapOf(
+        "storeFile" to "LIGHTFORGE_KEYSTORE_PATH",
+        "storePassword" to "LIGHTFORGE_KEYSTORE_PASSWORD",
+        "keyAlias" to "LIGHTFORGE_KEY_ALIAS",
+        "keyPassword" to "LIGHTFORGE_KEY_PASSWORD",
+    ).forEach { (key, env) -> System.getenv(env)?.let { values[key] = it } }
+    values
+}
+val hasReleaseKeystore = releaseKeystore["storeFile"]?.let { File(it).isFile } == true
+
 android {
     namespace = "com.librestatic.lightforge"
     compileSdk = 37
@@ -18,9 +39,20 @@ android {
         applicationId = "com.librestatic.lightforge"
         minSdk = 30
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.1.1-m0"
+        versionCode = providers.gradleProperty("lightforge.versionCode").orNull?.toInt() ?: 3
+        versionName = "0.2.0-beta"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                storeFile = File(releaseKeystore.getValue("storeFile"))
+                storePassword = releaseKeystore.getValue("storePassword")
+                keyAlias = releaseKeystore.getValue("keyAlias")
+                keyPassword = releaseKeystore.getValue("keyPassword")
+            }
+        }
     }
 
     flavorDimensions += "distribution"
@@ -49,6 +81,8 @@ android {
             if (providers.gradleProperty("lightforge.remoteReleaseAcceptance").orNull == "true") {
                 applicationIdSuffix = ".remoteacceptance"
                 signingConfig = signingConfigs.getByName("debug")
+            } else if (hasReleaseKeystore) {
+                signingConfig = signingConfigs.getByName("release")
             }
             isMinifyEnabled = true
             isShrinkResources = true
