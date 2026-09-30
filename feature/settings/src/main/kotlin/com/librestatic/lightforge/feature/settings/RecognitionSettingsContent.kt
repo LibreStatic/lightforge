@@ -221,7 +221,7 @@ fun RecognitionSettingsContent(
         // Root is only reachable in single-pane mode, where it is rendered by the caller.
         when (visiblePage) {
             SettingsPage.Root -> Unit
-            SettingsPage.Library -> SettingsSubPage(embedded = twoPane, title = stringResource(R.string.settings_library), onBack = { page = SettingsPage.Root }) {
+            SettingsPage.Library -> SettingsSubPage(embedded = twoPane, illustration = GalleryIcons.Collections, title = stringResource(R.string.settings_library), onBack = { page = SettingsPage.Root }) {
                 LibrarySection(settings, folderOptions, onSettingsChange) {
                     folderVolume = null
                     folderPath = null
@@ -237,16 +237,16 @@ fun RecognitionSettingsContent(
                 onBack = ::leaveFolderLevel,
                 onSettingsChange = onSettingsChange,
             )
-            SettingsPage.Playback -> SettingsSubPage(embedded = twoPane, title = stringResource(R.string.settings_playback), onBack = { page = SettingsPage.Root }) {
+            SettingsPage.Playback -> SettingsSubPage(embedded = twoPane, illustration = GalleryIcons.Play, title = stringResource(R.string.settings_playback), onBack = { page = SettingsPage.Root }) {
                 PlaybackSection(settings, onSettingsChange)
             }
-            SettingsPage.Gestures -> SettingsSubPage(embedded = twoPane, title = stringResource(R.string.settings_gestures), onBack = { page = SettingsPage.Root }) {
+            SettingsPage.Gestures -> SettingsSubPage(embedded = twoPane, illustration = GalleryIcons.Tune, title = stringResource(R.string.settings_gestures), onBack = { page = SettingsPage.Root }) {
                 GesturesSection(settings, onSettingsChange)
             }
-            SettingsPage.Thumbnails -> SettingsSubPage(embedded = twoPane, title = stringResource(R.string.settings_thumbnails), onBack = { page = SettingsPage.Root }) {
+            SettingsPage.Thumbnails -> SettingsSubPage(embedded = twoPane, illustration = GalleryIcons.Image, title = stringResource(R.string.settings_thumbnails), onBack = { page = SettingsPage.Root }) {
                 ThumbnailsSection(settings, onSettingsChange)
             }
-            SettingsPage.Operations -> SettingsSubPage(embedded = twoPane, title = stringResource(R.string.settings_operations), onBack = { page = SettingsPage.Root }) {
+            SettingsPage.Operations -> SettingsSubPage(embedded = twoPane, illustration = GalleryIcons.Folder, title = stringResource(R.string.settings_operations), onBack = { page = SettingsPage.Root }) {
                 OperationsSection(settings, onSettingsChange)
             }
             SettingsPage.Security -> SettingsSubPage(embedded = twoPane, illustration = GalleryIcons.Lock, title = stringResource(R.string.settings_security), onBack = { page = SettingsPage.Root }) {
@@ -1875,7 +1875,9 @@ private fun SettingsValueRow(
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.secondaryContainer,
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                        modifier = Modifier.widthIn(max = 100.dp),
+                        // The card only exists in the wide detail pane, so the value fits in full;
+                        // the cap just keeps a pathological translation from starving the label.
+                        modifier = Modifier.widthIn(max = 320.dp),
                     ) {
                         Text(
                             value,
