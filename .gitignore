@@ -47,3 +47,8 @@ docs/promo/*.wav
 *.jks
 *.keystore
 keystore.properties
+
+# Generated Play store images (regenerate with store/play/compose_store_images.py)
+store/play/images/
+store/play/raw/*
+!store/play/raw/MEDIA_LICENSES.md
