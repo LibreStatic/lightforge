@@ -108,7 +108,10 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
-const val FeaturePageCount = 4
+const val FeaturePageCount = 5
+
+/** The creative tools page, placed right before the closing "And much more" page. */
+internal const val StudioFeaturePage = 3
 private const val SourceRepositoryUrl = "https://github.com/LibreStatic/lightforge"
 
 /**
@@ -255,11 +258,11 @@ fun OnboardingScreen(
                 },
                 label = "onboarding-step",
             ) { current ->
-                OnboardingPage(current) {
+                // Feature pages share one scroll; each page starts at its top, not where the last one was left.
+                OnboardingPage(current, scrollKey = if (current == OnboardingStep.Features) pager.targetPage else null) {
                     when (current) {
                         OnboardingStep.Welcome -> WelcomeStep()
                         OnboardingStep.Features -> FeaturesStep(pager, reducedMotion)
-                        OnboardingStep.Studio -> StudioStep()
                         OnboardingStep.Permissions -> PermissionsStep(access, permissions, onPermissionResult)
                         OnboardingStep.Analysis -> AnalysisStep(analysis, onAnalysisChange)
                         OnboardingStep.OpenSource -> OpenSourceStep(versionName, onOpenLicenses)
@@ -383,13 +386,15 @@ private fun OnboardingBottomBar(
 
 /** Scrollable, width-capped page body so large font scales and tablets both stay readable. */
 @Composable
-private fun OnboardingPage(step: OnboardingStep, content: @Composable () -> Unit) {
+private fun OnboardingPage(step: OnboardingStep, scrollKey: Any?, content: @Composable () -> Unit) {
+    val scroll = rememberScrollState()
+    LaunchedEffect(scrollKey) { if (scroll.value > 0) scroll.animateScrollTo(0) }
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(
             Modifier
                 .widthIn(max = 560.dp)
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scroll)
                 .padding(horizontal = GallerySpacing.Xl, vertical = GallerySpacing.Lg)
                 .testTag("onboarding-step-${step.name}"),
         ) { content() }
@@ -487,9 +492,14 @@ private fun FeaturesStep(pager: androidx.compose.foundation.pager.PagerState, re
                 0 -> R.string.onboarding_feature_search_title to R.string.onboarding_feature_search_body
                 1 -> R.string.onboarding_feature_timeline_title to R.string.onboarding_feature_timeline_body
                 2 -> R.string.onboarding_feature_edit_title to R.string.onboarding_feature_edit_body
+                StudioFeaturePage -> R.string.onboarding_studio_title to R.string.onboarding_studio_body
                 else -> R.string.onboarding_feature_more_title to R.string.onboarding_feature_more_body
             }
             OnboardingHeadline(stringResource(title), stringResource(body))
+            when (page) {
+                StudioFeaturePage -> StudioFeatures()
+                FeaturePageCount - 1 -> MoreFeatures()
+            }
         }
     }
 }

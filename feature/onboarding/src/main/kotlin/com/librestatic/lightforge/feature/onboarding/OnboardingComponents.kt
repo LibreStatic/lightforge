@@ -16,13 +16,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
@@ -40,6 +44,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
+import androidx.graphics.shapes.RoundedPolygon
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import kotlinx.coroutines.delay
@@ -256,8 +261,8 @@ internal fun AnalysisStep(
     )
 }
 
-/** One creative tool on the Studio step; [specs] are optional technical highlights shown as chips. */
-private class StudioTool(
+/** One feature explained under a walkthrough page's headline; [specs] are optional highlights shown as chips. */
+private class FeatureItem(
     val icon: ImageVector,
     val title: Int,
     val body: Int,
@@ -270,66 +275,91 @@ private class StudioTool(
 private val LogProfileSpecs = listOf("Apple Log", "S-Log3", "Canon Log", "V-Log", "D-Log", "HDR10 · HLG")
 private val RawSpecs = listOf("Camera RAW", "16-bit TIFF")
 
+/** Creative tools listed under the Studio page's headline. */
 @Composable
-internal fun StudioStep() {
+internal fun StudioFeatures() {
     val scheme = MaterialTheme.colorScheme
-    OnboardingHero(
-        icon = GalleryIcons.Palette,
-        shapeIndex = 1,
-        container = scheme.secondaryContainer,
-        content = scheme.onSecondaryContainer,
-        height = 140,
-    )
-    OnboardingHeadline(
-        stringResource(R.string.onboarding_studio_title),
-        stringResource(R.string.onboarding_studio_body),
-    )
-    Spacer(Modifier.height(GallerySpacing.Lg))
-    val tools = listOf(
-        StudioTool(
-            GalleryIcons.Tune, R.string.onboarding_studio_photo_title, R.string.onboarding_studio_photo_body,
-            scheme.primaryContainer, scheme.onPrimaryContainer,
-            listOf(stringResource(R.string.onboarding_studio_chip_filters)) + RawSpecs,
-        ),
-        StudioTool(
-            GalleryIcons.Video, R.string.onboarding_studio_video_title, R.string.onboarding_studio_video_body,
-            scheme.tertiaryContainer, scheme.onTertiaryContainer, LogProfileSpecs,
-        ),
-        StudioTool(
-            GalleryIcons.PictureAsPdf, R.string.onboarding_studio_pdf_title, R.string.onboarding_studio_pdf_body,
-            scheme.secondaryContainer, scheme.onSecondaryContainer,
-        ),
-        StudioTool(
-            GalleryIcons.GridView, R.string.onboarding_studio_collage_title, R.string.onboarding_studio_collage_body,
-            scheme.primaryContainer, scheme.onPrimaryContainer,
-        ),
-        StudioTool(
-            GalleryIcons.Repeat, R.string.onboarding_studio_gif_title, R.string.onboarding_studio_gif_body,
-            scheme.tertiaryContainer, scheme.onTertiaryContainer,
+    FeatureItemList(
+        listOf(
+            FeatureItem(
+                GalleryIcons.Tune, R.string.onboarding_studio_photo_title, R.string.onboarding_studio_photo_body,
+                scheme.primaryContainer, scheme.onPrimaryContainer,
+                listOf(stringResource(R.string.onboarding_studio_chip_filters)) + RawSpecs,
+            ),
+            FeatureItem(
+                GalleryIcons.Video, R.string.onboarding_studio_video_title, R.string.onboarding_studio_video_body,
+                scheme.tertiaryContainer, scheme.onTertiaryContainer, LogProfileSpecs,
+            ),
+            FeatureItem(
+                GalleryIcons.PictureAsPdf, R.string.onboarding_studio_pdf_title, R.string.onboarding_studio_pdf_body,
+                scheme.secondaryContainer, scheme.onSecondaryContainer,
+            ),
+            FeatureItem(
+                GalleryIcons.GridView, R.string.onboarding_studio_collage_title, R.string.onboarding_studio_collage_body,
+                scheme.primaryContainer, scheme.onPrimaryContainer,
+            ),
+            FeatureItem(
+                GalleryIcons.Repeat, R.string.onboarding_studio_gif_title, R.string.onboarding_studio_gif_body,
+                scheme.tertiaryContainer, scheme.onTertiaryContainer,
+            ),
         ),
     )
-    Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
-        tools.forEach { tool ->
+}
+
+/** Everything else, listed under the closing "And much more" page's headline. */
+@Composable
+internal fun MoreFeatures() {
+    val scheme = MaterialTheme.colorScheme
+    FeatureItemList(
+        listOf(
+            FeatureItem(
+                GalleryIcons.Lock, R.string.onboarding_more_private_title, R.string.onboarding_more_private_body,
+                scheme.primaryContainer, scheme.onPrimaryContainer,
+            ),
+            FeatureItem(
+                GalleryIcons.Place, R.string.onboarding_more_people_title, R.string.onboarding_more_people_body,
+                scheme.tertiaryContainer, scheme.onTertiaryContainer,
+            ),
+            FeatureItem(
+                GalleryIcons.PhotoLibrary, R.string.onboarding_more_memories_title, R.string.onboarding_more_memories_body,
+                scheme.secondaryContainer, scheme.onSecondaryContainer,
+            ),
+            FeatureItem(
+                GalleryIcons.SwapHoriz, R.string.onboarding_more_transfer_title, R.string.onboarding_more_transfer_body,
+                scheme.primaryContainer, scheme.onPrimaryContainer,
+            ),
+            FeatureItem(
+                GalleryIcons.Folder, R.string.onboarding_more_sync_title, R.string.onboarding_more_sync_body,
+                scheme.tertiaryContainer, scheme.onTertiaryContainer,
+            ),
+        ),
+    )
+}
+
+@Composable
+private fun FeatureItemList(items: List<FeatureItem>) {
+    Column(Modifier.padding(top = GallerySpacing.Lg), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
+        items.forEach { item ->
             RowSurface(Modifier.semantics(mergeDescendants = true) {}) {
                 Row(
                     Modifier.heightIn(min = 64.dp).padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Md),
                     verticalAlignment = Alignment.Top,
                 ) {
-                    IconBadge(tool.icon, tool.container, tool.content)
+                    IconBadge(item.icon, item.container, item.content)
                     Spacer(Modifier.width(GallerySpacing.Lg))
                     Column(Modifier.weight(1f)) {
-                        Text(stringResource(tool.title), style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(item.title), style = MaterialTheme.typography.titleMedium)
                         Text(
-                            stringResource(tool.body),
+                            stringResource(item.body),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = scheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        if (tool.specs.isNotEmpty()) {
+                        if (item.specs.isNotEmpty()) {
                             FlowRow(
                                 Modifier.padding(top = GallerySpacing.Sm),
                                 horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
                                 verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
-                            ) { tool.specs.forEach { StaticChip(icon = null, label = it) } }
+                            ) { item.specs.forEach { StaticChip(icon = null, label = it) } }
                         }
                     }
                 }
@@ -339,6 +369,7 @@ internal fun StudioStep() {
 }
 
 /** Small live UI samples for the walkthrough pages; built from real components, not screenshots. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun FeatureSample(page: Int, reducedMotion: Boolean) {
     Surface(
@@ -352,7 +383,8 @@ internal fun FeatureSample(page: Int, reducedMotion: Boolean) {
                 0 -> SearchSample()
                 1 -> TimelineSample(reducedMotion)
                 2 -> EditSample()
-                else -> MoreSample()
+                StudioFeaturePage -> ShapeSample(MaterialShapes.Clover4Leaf, GalleryIcons.Palette)
+                else -> ShapeSample(MaterialShapes.SoftBurst, GalleryIcons.Plus)
             }
         }
     }
@@ -445,25 +477,11 @@ private fun EditSample() {
     }
 }
 
+/** Hero-style sample for the list pages, whose rows below already show the features themselves. */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-private fun MoreSample() {
+private fun ShapeSample(shape: RoundedPolygon, icon: ImageVector) {
     val scheme = MaterialTheme.colorScheme
-    Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm), modifier = Modifier.fillMaxWidth()) {
-        listOf(
-            Triple(GalleryIcons.Lock, R.string.onboarding_sample_private, scheme.primaryContainer to scheme.onPrimaryContainer),
-            Triple(GalleryIcons.PhotoLibrary, R.string.onboarding_sample_memories, scheme.secondaryContainer to scheme.onSecondaryContainer),
-            Triple(GalleryIcons.User, R.string.onboarding_sample_people, scheme.tertiaryContainer to scheme.onTertiaryContainer),
-        ).forEach { (icon, label, colors) ->
-            Surface(shape = RoundedCornerShape(16.dp), color = colors.first, contentColor = colors.second) {
-                Row(
-                    Modifier.fillMaxWidth().height(48.dp).padding(horizontal = GallerySpacing.Lg),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(icon, contentDescription = null)
-                    Spacer(Modifier.width(GallerySpacing.Md))
-                    Text(stringResource(label), style = MaterialTheme.typography.titleSmall)
-                }
-            }
-        }
-    }
+    Box(Modifier.size(158.dp).rotate(24f).clip(shape.toShape()).background(scheme.secondaryContainer))
+    Icon(icon, contentDescription = null, tint = scheme.onSecondaryContainer, modifier = Modifier.size(62.dp))
 }
