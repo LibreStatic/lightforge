@@ -1,7 +1,7 @@
 name: Release
 
 # Builds signed AAB/APK on every push to main and publishes a GitHub Release
-# when the versionName/versionCode pair has not been released yet.
+# for each build; versionCode = GITHUB_RUN_NUMBER + offset (see app/build.gradle.kts).
 # Uploading the AAB to Google Play stays manual.
 
 on:
@@ -37,7 +37,7 @@ jobs:
         id: version
         run: |
           name=$(sed -n 's/^ *versionName = "\(.*\)"/\1/p' app/build.gradle.kts | head -1)
-          code=$(sed -n 's/.*versionCode = .*?: \([0-9]\+\).*/\1/p' app/build.gradle.kts | head -1)
+          code=$((GITHUB_RUN_NUMBER + 100))
           tag="v${name}+${code}"
           echo "name=$name" >> "$GITHUB_OUTPUT"
           echo "code=$code" >> "$GITHUB_OUTPUT"
