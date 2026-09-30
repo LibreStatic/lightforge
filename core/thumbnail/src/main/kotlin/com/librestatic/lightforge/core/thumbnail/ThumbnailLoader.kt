@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.os.CancellationSignal
+import android.os.Process
 import android.util.Size
 import com.librestatic.lightforge.core.mediastore.MediaStoreUriFactory
 import com.librestatic.lightforge.core.model.MediaKey
@@ -159,7 +160,11 @@ class ThumbnailLoader(
     }
 
     private fun decode(request: ThumbnailRequest, flight: InFlightRequest) {
-        val result = runCatching { source.load(request, flight.signal) }
+        // Tiles scrolled past leave their cancelled task queued; it must not cost a provider call.
+        val result = runCatching {
+            flight.signal.throwIfCanceled()
+            source.load(request, flight.signal)
+        }
         val waiters = synchronized(inFlightLock) {
             if (inFlight[request] === flight) inFlight.remove(request)
             flight.waiters.toList()
@@ -181,6 +186,7 @@ class ThumbnailLoader(
         val pool = executor as? ThreadPoolExecutor ?: return
         if (pool.queue.remove(task)) {
             task.priority = ThumbnailLoadPriority.Visible
+            task.sequence = sequence.incrementAndGet()
             pool.execute(task)
         }
     }
@@ -220,15 +226,31 @@ class ThumbnailLoader(
 
     private class PrioritizedDecodeTask(
         var priority: ThumbnailLoadPriority,
-        private val sequence: Long,
+        var sequence: Long,
         private val block: () -> Unit,
     ) : Runnable, Comparable<PrioritizedDecodeTask> {
         override fun run() = block()
         override fun compareTo(other: PrioritizedDecodeTask): Int =
-            compareValuesBy(this, other, { it.priority.order }, { it.sequence })
+            compareOrder(priority, sequence, other.priority, other.sequence)
     }
 
     companion object {
+        /**
+         * Visible work runs newest first: while scrolling, the most recently bound tiles are the
+         * ones on screen, and older queued requests belong to rows already passed. Prefetch keeps
+         * planning order, which is nearest to the viewport first.
+         */
+        internal fun compareOrder(
+            priority: ThumbnailLoadPriority,
+            sequence: Long,
+            otherPriority: ThumbnailLoadPriority,
+            otherSequence: Long,
+        ): Int = when {
+            priority != otherPriority -> priority.order.compareTo(otherPriority.order)
+            priority == ThumbnailLoadPriority.Visible -> otherSequence.compareTo(sequence)
+            else -> sequence.compareTo(otherSequence)
+        }
+
         fun native(context: Context, decoder: NativeImageDecoder, maxCacheBytes: Long): ThumbnailLoader =
             ThumbnailLoader(
                 source = ThumbnailSource { request, signal ->
@@ -245,13 +267,25 @@ class ThumbnailLoader(
 
         private fun priorityExecutor(threadCount: Int): ExecutorService {
             val queue: BlockingQueue<Runnable> = PriorityBlockingQueue()
+            val threads = AtomicLong()
             return ThreadPoolExecutor(
                 threadCount,
                 threadCount,
                 0L,
                 TimeUnit.MILLISECONDS,
                 queue,
-            )
+            ) { runnable ->
+                Thread({
+                    // Binder hands this priority to MediaProvider, whose video frame extraction
+                    // would otherwise compete with the UI and render threads while scrolling.
+                    runCatching {
+                        Process.setThreadPriority(
+                            Process.THREAD_PRIORITY_BACKGROUND + Process.THREAD_PRIORITY_MORE_FAVORABLE,
+                        )
+                    }
+                    runnable.run()
+                }, "thumbnail-decode-${threads.incrementAndGet()}")
+            }
         }
     }
 }

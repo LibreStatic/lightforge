@@ -54,12 +54,26 @@ class ThumbnailPrefetchPolicy internal constructor(
     private val maxCacheBytes: Long,
     private val memorySnapshot: () -> ThumbnailMemorySnapshot,
 ) {
+    private var cachedSnapshot: ThumbnailMemorySnapshot? = null
+    private var cachedAtNanos = 0L
+
     fun safeBudgetBytes(): Long {
         if (tier == DevicePerformanceTier.LowRam) return 0
-        val memory = memorySnapshot()
+        val memory = recentMemorySnapshot()
         if (memory.lowMemory) return 0
         val headroom = (memory.availableBytes - memory.lowMemoryThresholdBytes).coerceAtLeast(0)
         return min(maxCacheBytes, headroom / MemoryHeadroomDivisor)
+    }
+
+    /** getMemoryInfo is a binder call; a viewport replan must not pay it on every row change. */
+    @Synchronized
+    private fun recentMemorySnapshot(): ThumbnailMemorySnapshot {
+        val now = System.nanoTime()
+        cachedSnapshot?.takeIf { now - cachedAtNanos < MemorySnapshotMaxAgeNanos }?.let { return it }
+        return memorySnapshot().also {
+            cachedSnapshot = it
+            cachedAtNanos = now
+        }
     }
 
     fun isSourceEligible(width: Int, height: Int): Boolean =
@@ -67,6 +81,7 @@ class ThumbnailPrefetchPolicy internal constructor(
 
     companion object {
         private const val MemoryHeadroomDivisor = 8L
+        private const val MemorySnapshotMaxAgeNanos = 1_000_000_000L
         private const val FlagshipMaxPixels = 50_000_000L
         private const val MidRangeMaxPixels = 12_000_000L
 

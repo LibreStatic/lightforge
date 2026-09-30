@@ -353,7 +353,7 @@ private fun TimelineThumbnail(
     deferLoad: Boolean = false,
 ) {
     val inputFocusRequester = remember(entry.value.key) { FocusRequester() }
-    var placedVisible by remember(entry.value.key) { mutableStateOf(false) }
+    var placedVisible by remember(entry.value.key, focusReturn) { mutableStateOf(false) }
     LaunchedEffect(focusReturn, placedVisible) {
         val request = focusReturn ?: return@LaunchedEffect
         if (placedVisible) {
@@ -404,9 +404,12 @@ private fun TimelineThumbnail(
                 true
             }
         }
-        .onGloballyPositioned { coordinates ->
-            placedVisible = coordinates.isAttached && !coordinates.boundsInWindow().isEmpty
-        }
+        // Only a pending focus return needs placement; the callback runs every scrolled frame.
+        .then(
+            if (focusReturn == null) Modifier else Modifier.onGloballyPositioned { coordinates ->
+                placedVisible = coordinates.isAttached && !coordinates.boundsInWindow().isEmpty
+            },
+        )
         .focusRequester(inputFocusRequester)
         .clickable(onClick = onClick)
     Box(cellModifier) {

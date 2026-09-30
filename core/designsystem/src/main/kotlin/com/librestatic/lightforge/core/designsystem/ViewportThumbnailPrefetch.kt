@@ -5,7 +5,6 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
@@ -13,18 +12,21 @@ import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
 import com.librestatic.lightforge.core.thumbnail.ThumbnailPrefetchCandidate
 import com.librestatic.lightforge.core.thumbnail.ThumbnailPrefetchPlanner
 import com.librestatic.lightforge.core.thumbnail.ThumbnailRequest
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 /**
  * Retains the complete safe viewport thumbnail window plus [aheadRows] in the scroll direction and
  * [behindRows] against it. While [paused] (a fast scrub) nothing new is decoded; the window is
  * planned again as soon as it resumes.
+ *
+ * The window is replanned only when the visible index range changes, never per scrolled pixel,
+ * and a request that stays in the window keeps its running decode. Slow sources (video frames on
+ * a cold provider) would otherwise be cancelled and restarted on every frame and never land.
  */
 @Composable
 fun RetainGridThumbnailViewport(
@@ -41,7 +43,8 @@ fun RetainGridThumbnailViewport(
     if (columns <= 0 || itemCount <= 0 || loader.prefetchPolicy == null) return
     val currentItems = rememberUpdatedState(itemCount to itemAtIndex)
     val pausedState = rememberUpdatedState(paused)
-    val retained = remember(loader) { mutableStateMapOf<ThumbnailRequest, Bitmap>() }
+    // Main-thread only: written by the collector and its child loads, read on dispose.
+    val retained = remember(loader) { LinkedHashMap<ThumbnailRequest, Bitmap>() }
     val owner = remember(loader) { Any() }
     DisposableEffect(loader, owner) {
         onDispose {
@@ -50,40 +53,51 @@ fun RetainGridThumbnailViewport(
         }
     }
     LaunchedEffect(state, loader, columns, itemCount, contentKey, aheadRows, behindRows) {
-        var previousAnchor: Pair<Int, Int>? = null
+        var previousFirst: Int? = null
         var forward = true
         var observedMemoryPressure = loader.memoryPressureGeneration.value
+        val loads = HashMap<ThumbnailRequest, Job>()
+        fun cancelLoads() {
+            loads.values.forEach { it.cancel() }
+            loads.clear()
+        }
         val viewportFlow = snapshotFlow {
+            val visible = state.layoutInfo.visibleItemsInfo
             GridViewportSnapshot(
-                visibleIndices = state.layoutInfo.visibleItemsInfo.map { it.index },
-                anchorIndex = state.firstVisibleItemIndex,
-                anchorOffset = state.firstVisibleItemScrollOffset,
+                firstVisible = visible.minOfOrNull { it.index } ?: -1,
+                lastVisible = visible.maxOfOrNull { it.index } ?: -1,
                 paused = pausedState.value,
             )
         }.distinctUntilChanged()
         viewportFlow.combine(loader.memoryPressureGeneration) { viewport, pressure -> viewport to pressure }
-            .collectLatest { (viewport, pressure) ->
+            .collect { (viewport, pressure) ->
                 if (pressure != observedMemoryPressure) {
                     observedMemoryPressure = pressure
+                    cancelLoads()
                     retained.clear()
                     loader.retainWindow(owner, emptyMap())
-                    return@collectLatest
+                    return@collect
                 }
-                if (viewport.paused) return@collectLatest
-                val anchor = viewport.anchorIndex to viewport.anchorOffset
-                previousAnchor?.let { previous ->
-                    forward = anchor.first > previous.first ||
-                        (anchor.first == previous.first && anchor.second >= previous.second)
+                if (viewport.paused) {
+                    cancelLoads()
+                    return@collect
                 }
-                previousAnchor = anchor
+                previousFirst?.let { previous ->
+                    if (viewport.firstVisible != previous) forward = viewport.firstVisible > previous
+                }
+                previousFirst = viewport.firstVisible
                 // The old layout may outlive a Paging refresh. Read count and accessor from
                 // the same composition; never feed stale viewport indices to the new dataset.
                 val (currentCount, currentItemAtIndex) = currentItems.value
-                val visibleIndices = boundedViewportIndices(viewport.visibleIndices, currentCount)
+                val visibleIndices = if (viewport.firstVisible < 0) emptyList() else boundedViewportIndices(
+                    (viewport.firstVisible..viewport.lastVisible).toList(),
+                    currentCount,
+                )
                 if (visibleIndices.isEmpty()) {
+                    cancelLoads()
                     retained.clear()
                     loader.retainWindow(owner, emptyMap())
-                    return@collectLatest
+                    return@collect
                 }
                 val center = (visibleIndices.first() + visibleIndices.last()) / 2
                 val visible = visibleIndices.mapNotNull { index ->
@@ -111,27 +125,36 @@ fun RetainGridThumbnailViewport(
                     extraRow = extra,
                     policy = requireNotNull(loader.prefetchPolicy),
                 )
-                val requests = plan.mapTo(linkedSetOf()) { it.request }
-                retained.keys.toList().filterNot(requests::contains).forEach(retained::remove)
-                val loaded = coroutineScope {
-                    plan.map { planned ->
-                        async {
-                            runCatching {
-                                planned.request to loader.load(planned.request, planned.priority)
-                            }.getOrNull()
-                        }
-                    }.awaitAll().filterNotNull()
-                }
-                loaded.forEach { (request, bitmap) -> retained[request] = bitmap }
+                val requests = plan.mapTo(HashSet()) { it.request }
+                loads.keys.filterNot(requests::contains).forEach { loads.remove(it)?.cancel() }
+                retained.keys.filterNot(requests::contains).forEach(retained::remove)
                 loader.retainWindow(owner, retained)
+                plan.forEach { planned ->
+                    val request = planned.request
+                    if (request in retained || loads[request]?.isActive == true) return@forEach
+                    loads[request] = launch {
+                        val bitmap = try {
+                            loader.load(request, planned.priority)
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            null
+                        } finally {
+                            if (loads[request] === coroutineContext[Job]) loads.remove(request)
+                        }
+                        if (bitmap != null) {
+                            retained[request] = bitmap
+                            loader.retainWindow(owner, retained)
+                        }
+                    }
+                }
             }
     }
 }
 
 private data class GridViewportSnapshot(
-    val visibleIndices: List<Int>,
-    val anchorIndex: Int,
-    val anchorOffset: Int,
+    val firstVisible: Int,
+    val lastVisible: Int,
     val paused: Boolean,
 )
 
