@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.feature.permissions"
+    namespace = "com.librestatic.lightforge.feature.permissions"
     compileSdk = 37
 
     defaultConfig {

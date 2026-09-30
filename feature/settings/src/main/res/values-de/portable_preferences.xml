@@ -5,7 +5,15 @@
     <string name="portable_preferences_applied">Ausgewählte Einstellungen übernommen. Andere Einstellungen bleiben erhalten.</string>
     <string name="portable_preferences_replayed">Dieser Vorgang wurde bereits angewendet. Spätere Änderungen werden auch nach dem Zurücksetzen der Einstellungen nicht überschrieben.</string>
     <string name="portable_preferences_empty">Diese Sicherung enthält keine unterstützten Einstellungsfelder.</string>
-    <string name="portable_preferences_changes">%1$d Änderungen bei %2$d Feldern</string>
+    <string name="portable_preferences_changes">%1$s bei %2$s</string>
+    <plurals name="portable_preferences_changed">
+        <item quantity="one">%d Änderung</item>
+        <item quantity="other">%d Änderungen</item>
+    </plurals>
+    <plurals name="portable_preferences_fields">
+        <item quantity="one">%d Feld</item>
+        <item quantity="other">%d Feldern</item>
+    </plurals>
     <string name="portable_preferences_hide">Werte ausblenden</string>
     <string name="portable_preferences_details">Aktuelle und gesicherte Werte prüfen</string>
     <string name="portable_preferences_difference">Aktuell: %1$s\nSicherung: %2$s</string>

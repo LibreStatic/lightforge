@@ -14,7 +14,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "UGallery"
+rootProject.name = "Lightforge"
 
 include(
     ":app",
@@ -51,12 +51,10 @@ include(
     ":feature:details",
     ":feature:photoeditor",
     ":feature:videoeditor",
-    ":feature:moments",
     ":feature:permissions",
+    ":feature:onboarding",
     ":feature:trash",
     ":feature:settings",
-    ":feature:profile",
-    ":feature:cleanup",
    ":feature:privatealbum",
     ":feature:collage",
     ":feature:pdfstudio",
@@ -65,6 +63,8 @@ include(
     ":feature:semanticsearch",
     ":feature:petrecognition",
    ":feature:motionphotos",
+    ":feature:objecteraser",
+    ":feature:subjectclip",
 )
 
 include(":feature:localsharing")

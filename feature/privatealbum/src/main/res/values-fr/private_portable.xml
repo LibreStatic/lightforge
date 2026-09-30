@@ -8,10 +8,10 @@
     <string name="private_portable_confirm_password">Confirmer le mot de passe</string>
     <string name="private_portable_prepare">Préparer et vérifier</string>
     <string name="private_portable_progress">Vérification de %1$d sur %2$d…</string>
-    <string name="private_portable_review">%1$d éléments vérifiés sont prêts. Les originaux restent intacts. Des copies chiffrées seront ajoutées à cet album privé.</string>
+    <plurals name="private_portable_review"><item quantity="one">%1$d élément vérifié est prêt. Les originaux restent intacts. Des copies chiffrées seront ajoutées à cet album privé.</item><item quantity="many">%1$d éléments vérifiés sont prêts. Les originaux restent intacts. Des copies chiffrées seront ajoutées à cet album privé.</item><item quantity="other">%1$d éléments vérifiés sont prêts. Les originaux restent intacts. Des copies chiffrées seront ajoutées à cet album privé.</item></plurals>
     <string name="private_portable_commit">Restaurer les copies privées</string>
-    <string name="private_portable_restored">%1$d copies privées restaurées.</string>
-    <string name="private_portable_previous">Cette sauvegarde a déjà été restaurée (%1$d éléments). Ce reçu est historique ; les éléments supprimés ne sont pas restaurés à nouveau.</string>
+    <plurals name="private_portable_restored"><item quantity="one">%1$d copie privée restaurée.</item><item quantity="many">%1$d copies privées restaurées.</item><item quantity="other">%1$d copies privées restaurées.</item></plurals>
+    <plurals name="private_portable_previous"><item quantity="one">Cette sauvegarde a déjà été restaurée (%1$d élément). Ce reçu est historique ; les éléments supprimés ne sont pas restaurés à nouveau.</item><item quantity="many">Cette sauvegarde a déjà été restaurée (%1$d éléments). Ce reçu est historique ; les éléments supprimés ne sont pas restaurés à nouveau.</item><item quantity="other">Cette sauvegarde a déjà été restaurée (%1$d éléments). Ce reçu est historique ; les éléments supprimés ne sont pas restaurés à nouveau.</item></plurals>
     <string name="private_portable_saved">Sauvegarde chiffrée enregistrée et vérifiée par relecture.</string>
     <string name="private_portable_share">Partager la sauvegarde chiffrée</string>
     <string name="private_portable_error">La sauvegarde n’a pas pu être vérifiée. Vérifiez le mot de passe, l’accès au document et l’espace libre. Aucun élément non vérifié n’a été ajouté.</string>

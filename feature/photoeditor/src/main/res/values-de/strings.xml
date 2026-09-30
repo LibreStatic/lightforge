@@ -37,4 +37,24 @@
     <string name="photo_editor_chromatic_aberration">Chromatische Aberration korrigieren</string>
     <string name="photo_editor_lens_correction">Objektivkorrektur</string>
     <string name="photo_editor_tiff_geometry_unsupported">Zuschneiden, Drehen, Spiegeln und Begradigen erfordern für RAW-Fotos eine JPEG-Ausgabe.</string>
+    <string name="photo_editor_warning_png">Kopie als PNG gespeichert, um die volle Auflösung zu erhalten</string>
+    <string name="photo_editor_warning_hdr_metadata">HDR- und Container-Metadaten wurden nicht in die Kopie übernommen</string>
+    <string name="photo_editor_error_decode">Dieses Foto konnte nicht gelesen werden</string>
+    <string name="photo_editor_error_save">Kopie konnte nicht gespeichert werden</string>
+    <string name="photo_editor_error_raw_too_large">Dieses RAW ist zu groß für den JPEG-Export. Wähle 16-Bit-TIFF.</string>
+    <string name="photo_editor_error_raw_render">Dieses RAW-Foto konnte nicht entwickelt werden</string>
+    <plurals name="photo_editor_error_raw_storage"><item quantity="one">Der RAW-Export benötigt %1$d MB freien temporären Speicher</item><item quantity="other">Der RAW-Export benötigt %1$d MB freien temporären Speicher</item></plurals>
+    <string name="photo_editor_object_eraser">Objektradierer</string>
+    <string name="photo_editor_subject_clip">Motiv freistellen</string>
+    <string name="photo_editor_experimental_tool">%1$s · Experimentell</string>
+    <string name="photo_editor_eraser_fallback">Ersatzqualität (%1$s): füllt den bemalten Bereich mit den umliegenden Farben. Das Ergebnis ist eine Näherung.</string>
+    <string name="photo_editor_clip_fallback">Ersatzqualität (%1$s): behält Pixel mit ähnlicher Farbe wie der angetippte Punkt. Das Ergebnis ist eine Näherung.</string>
+    <string name="photo_editor_eraser_hint">Male über das zu entfernende Objekt und tippe auf Anwenden. Kopie speichern lässt das Original unverändert.</string>
+    <string name="photo_editor_clip_hint">Tippe auf das Motiv, um die Freistellung anzusehen. Sie wird als neue PNG-Datei mit transparentem Hintergrund gespeichert.</string>
+    <string name="photo_editor_eraser_apply">Anwenden</string>
+    <string name="photo_editor_eraser_clear">Löschen</string>
+    <string name="photo_editor_clip_save">Freistellung speichern</string>
+    <string name="photo_editor_eraser_mask_description">Zum Entfernen markierte Bereiche</string>
+    <string name="photo_editor_experimental_too_large">Dieses Foto ist zu groß für das experimentelle Werkzeug</string>
+    <string name="photo_editor_eraser_reset">Die radierten Bereiche wurden entfernt, weil sich die Fotogeometrie geändert hat</string>
 </resources>

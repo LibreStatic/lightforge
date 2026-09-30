@@ -4,7 +4,7 @@ from pathlib import Path
 import sys
 
 root = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path(__file__).resolve().parents[1]
-base = root / "feature/pdfstudio/src/main/kotlin/com/ugallery/feature/pdfstudio"
+base = root / "feature/pdfstudio/src/main/kotlin/com/librestatic/lightforge/feature/pdfstudio"
 service = (base / "PdfProcessingService.kt").read_text()
 required = ['bounded("inspect")', 'bounded("preview")', 'bounded("export", id)']
 if not all(value in service for value in required):

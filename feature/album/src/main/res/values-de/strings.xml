@@ -20,4 +20,8 @@
     <string name="album_cover_auto_confirm">Das neueste verfügbare Albumelement als Cover verwenden?</string>
     <string name="album_cover_confirm">„%1$s“ als Albumcover verwenden?</string>
     <string name="album_cover_failed">Das Cover konnte nicht gespeichert werden. Deine Dateien wurden nicht geändert. Versuche es erneut.</string>
+    <string name="album_side_panel_show">Albumleiste einblenden</string>
+    <string name="album_side_panel_hide">Albumleiste ausblenden</string>
+    <string name="album_side_panel_label">Alben</string>
+    <plurals name="album_item_count"><item quantity="one">%1$d Element</item><item quantity="other">%1$d Elemente</item></plurals>
 </resources>

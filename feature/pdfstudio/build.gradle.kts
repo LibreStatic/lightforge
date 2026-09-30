@@ -6,12 +6,12 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.feature.pdfstudio"
+    namespace = "com.librestatic.lightforge.feature.pdfstudio"
     compileSdk = 37
     defaultConfig {
         minSdk = 30
         consumerProguardFiles("consumer-rules.pro")
-        testInstrumentationRunner = "com.ugallery.feature.pdfstudio.PdfRecoveryProbeRunner"
+        testInstrumentationRunner = "com.librestatic.lightforge.feature.pdfstudio.PdfRecoveryProbeRunner"
     }
     buildTypes {
         create("benchmark") { initWith(getByName("release")) }
@@ -59,4 +59,14 @@ dependencies {
     testImplementation("org.json:json:20240303")
     androidTestImplementation(libs.androidx.test.ext)
     androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.room.testing)
+}
+
+// The Room asset-copy task otherwise snapshots the schema directory before KSP exports a
+// newly introduced version. Order generation and export before packaging migration fixtures.
+tasks.matching { it.name == "copyRoomSchemasToAndroidTestAssetsDebugAndroidTest" }.configureEach {
+    dependsOn("kspDebugKotlin", "copyRoomSchemas")
+}
+tasks.matching { it.name == "copyRoomSchemas" }.configureEach {
+    mustRunAfter("kspDebugKotlin")
 }

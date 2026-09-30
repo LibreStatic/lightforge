@@ -11,11 +11,11 @@ dependencyLocking {
 }
 
 android {
-    namespace = "com.ugallery.app"
+    namespace = "com.librestatic.lightforge"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.ugallery.app"
+        applicationId = "com.librestatic.lightforge"
         minSdk = 30
         targetSdk = 36
         versionCode = 2
@@ -38,7 +38,7 @@ android {
     buildTypes {
         debug {
             // Explicit acceptance installs must never replace the user's debug application/data.
-            applicationIdSuffix = if (providers.gradleProperty("ugallery.pdfAcceptance").orNull == "true") {
+            applicationIdSuffix = if (providers.gradleProperty("lightforge.pdfAcceptance").orNull == "true") {
                 ".pdfacceptance"
             } else {
                 ".debug"
@@ -46,7 +46,7 @@ android {
         }
         release {
             // Opt-in minified acceptance APK is isolated from every user's normal/debug install.
-            if (providers.gradleProperty("ugallery.remoteReleaseAcceptance").orNull == "true") {
+            if (providers.gradleProperty("lightforge.remoteReleaseAcceptance").orNull == "true") {
                 applicationIdSuffix = ".remoteacceptance"
                 signingConfig = signingConfigs.getByName("debug")
             }
@@ -79,8 +79,8 @@ android {
 }
 
 val verbatimLicenseCopies = listOf(
-    "LICENSE" to "app/src/main/assets/licenses/UGallery-Apache-2.0.txt",
-    "COPYRIGHT" to "app/src/main/assets/licenses/UGallery-Copyright.txt",
+    "LICENSE" to "app/src/main/assets/licenses/Lightforge-Apache-2.0.txt",
+    "COPYRIGHT" to "app/src/main/assets/licenses/Lightforge-Copyright.txt",
     "core/raw/third_party/libraw/LICENSE.LGPL" to "app/src/main/assets/licenses/LibRaw-LGPL.txt",
     "core/raw/third_party/libraw/LICENSE.CDDL" to "app/src/main/assets/licenses/LibRaw-CDDL.txt",
     "core/frame-interpolation/src/main/resources/META-INF/NCNN_LICENSE.txt" to
@@ -89,12 +89,18 @@ val verbatimLicenseCopies = listOf(
         "app/src/main/assets/licenses/rife-ncnn-vulkan-MIT.txt",
     "docs/models/licenses/SFACE_APACHE_2.0.txt" to
         "app/src/main/assets/licenses/SFace-Apache-2.0.txt",
+    "feature/pdfstudio/src/main/assets/fonts/OFL.txt" to
+        "app/src/main/assets/licenses/Noto-OFL-1.1.txt",
 )
 
 val verifyVerbatimLicenseCopies by tasks.registering(Exec::class) {
     group = "verification"
     description = "Verifies that license assets are byte-for-byte copies of their canonical sources."
     inputs.files(verbatimLicenseCopies.flatMap { (source, bundled) -> listOf(source, bundled) })
+    // Stamp output lets Gradle skip the check when no license file changed.
+    val stamp = layout.buildDirectory.file("verification/verbatim-licenses.ok")
+    outputs.file(stamp)
+    doLast { stamp.get().asFile.writeText("ok\n") }
     workingDir(rootProject.projectDir)
     commandLine(
         "bash",
@@ -113,6 +119,9 @@ val verifyThirdPartyLicenses by tasks.registering(Exec::class) {
         rootProject.file("tools/generate_third_party_licenses.py"),
         "src/main/assets/third_party_licenses.json",
     )
+    val stamp = layout.buildDirectory.file("verification/third-party-licenses.ok")
+    outputs.file(stamp)
+    doLast { stamp.get().asFile.writeText("ok\n") }
     workingDir(rootProject.projectDir)
     commandLine(
         "python3",
@@ -133,6 +142,12 @@ tasks.named("preBuild").configure {
 dependencies {
     androidTestImplementation("org.maplibre.gl:android-sdk-opengl:13.6.0")
     androidTestImplementation("com.tom-roush:pdfbox-android:2.0.27.0")
+    // Compile instrumented tests against the BouncyCastle family they run with, not the port's 1.72.
+    constraints {
+        androidTestImplementation("org.bouncycastle:bcprov-jdk15to18:1.85.2")
+        androidTestImplementation("org.bouncycastle:bcpkix-jdk15to18:1.85")
+        androidTestImplementation("org.bouncycastle:bcutil-jdk15to18:1.85.1")
+    }
     implementation(project(":core:designsystem"))
     implementation(project(":core:navigation"))
     implementation(project(":core:model"))
@@ -145,6 +160,7 @@ dependencies {
     implementation(project(":core:preferences"))
     implementation(project(":feature:photos"))
     implementation(project(":feature:permissions"))
+    implementation(project(":feature:onboarding"))
     implementation(project(":feature:collections"))
     implementation(project(":feature:album"))
     implementation(project(":feature:viewer"))
@@ -162,6 +178,8 @@ dependencies {
     implementation(project(":core:editing-video"))
     implementation(project(":core:security"))
     implementation(project(":feature:photoeditor"))
+    implementation(project(":feature:objecteraser"))
+    implementation(project(":feature:subjectclip"))
     implementation(project(":feature:videoeditor"))
     implementation(project(":feature:privatealbum"))
     implementation(project(":feature:motionphotos"))
@@ -177,6 +195,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime)
     implementation(libs.androidx.lifecycle.runtime.compose)

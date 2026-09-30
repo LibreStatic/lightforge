@@ -12,7 +12,7 @@
     <string name="stacks_empty">Hier gibt es noch keine Stapel.</string>
     <string name="stacks_retry">Erneut versuchen</string>
     <string name="stacks_default_title">Fotostapel</string>
-    <string name="stacks_available">%1$d von %2$d Fotos verfügbar</string>
+    <string name="stacks_available">Verfügbar: %1$d / %2$d</string>
     <string name="stacks_suggestion_count">Vorgeschlagene Gruppe · %1$d Fotos</string>
     <string name="stacks_review">Stapel prüfen</string>
     <string name="stacks_allow">Stapelvorschläge zulassen</string>

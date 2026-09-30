@@ -8,10 +8,10 @@
     <string name="private_portable_confirm_password">Confirmar senha</string>
     <string name="private_portable_prepare">Preparar e verificar</string>
     <string name="private_portable_progress">Verificando %1$d de %2$d…</string>
-    <string name="private_portable_review">%1$d itens verificados estão prontos. Os originais permanecem intactos. Cópias criptografadas serão adicionadas a este álbum privado.</string>
+    <plurals name="private_portable_review"><item quantity="one">%1$d item verificado está pronto. Os originais permanecem intactos. Cópias criptografadas serão adicionadas a este álbum privado.</item><item quantity="many">%1$d itens verificados estão prontos. Os originais permanecem intactos. Cópias criptografadas serão adicionadas a este álbum privado.</item><item quantity="other">%1$d itens verificados estão prontos. Os originais permanecem intactos. Cópias criptografadas serão adicionadas a este álbum privado.</item></plurals>
     <string name="private_portable_commit">Restaurar cópias privadas</string>
-    <string name="private_portable_restored">%1$d cópias privadas restauradas.</string>
-    <string name="private_portable_previous">Este backup já foi restaurado (%1$d itens). Este é um recibo histórico; os itens excluídos não são restaurados novamente.</string>
+    <plurals name="private_portable_restored"><item quantity="one">%1$d cópia privada restaurada.</item><item quantity="many">%1$d cópias privadas restauradas.</item><item quantity="other">%1$d cópias privadas restauradas.</item></plurals>
+    <plurals name="private_portable_previous"><item quantity="one">Este backup já foi restaurado (%1$d item). Este é um recibo histórico; os itens excluídos não são restaurados novamente.</item><item quantity="many">Este backup já foi restaurado (%1$d itens). Este é um recibo histórico; os itens excluídos não são restaurados novamente.</item><item quantity="other">Este backup já foi restaurado (%1$d itens). Este é um recibo histórico; os itens excluídos não são restaurados novamente.</item></plurals>
     <string name="private_portable_saved">Backup criptografado salvo e verificado por leitura.</string>
     <string name="private_portable_share">Compartilhar backup criptografado</string>
     <string name="private_portable_error">O backup não pôde ser verificado. Confira a senha, o acesso ao documento e o espaço livre. Nenhum item não verificado foi adicionado.</string>

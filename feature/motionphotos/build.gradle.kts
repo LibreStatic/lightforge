@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.feature.motionphotos"
+    namespace = "com.librestatic.lightforge.feature.motionphotos"
     compileSdk = 37
 
     defaultConfig {

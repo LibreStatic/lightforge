@@ -28,8 +28,18 @@
     <string name="private_picker_limit">You can add up to 500 items at a time.</string>
     <string name="private_importing">Encrypting %1$d of %2$d…</string>
     <string name="private_import_result_title">Private copies added</string>
-    <string name="private_import_result">%1$d of %2$d items were added. What should happen to the %1$d successfully copied originals?</string>
+    <plurals name="private_import_result">
+        <item quantity="one">%1$d of %2$s was added. What should happen to the original that was copied successfully?</item>
+        <item quantity="other">%1$d of %2$s were added. What should happen to the %1$d successfully copied originals?</item>
+    </plurals>
+    <plurals name="private_import_result_items">
+        <item quantity="one">%d item</item>
+        <item quantity="other">%d items</item>
+    </plurals>
     <string name="private_import_result_failed">No items could be added. Your originals were not changed.</string>
     <string name="private_keep_originals">Keep originals</string>
     <string name="private_delete_originals">Delete originals</string>
-<string name="private_open_security_settings">Open settings</string></resources>
+<string name="private_open_security_settings">Open settings</string>
+    <string name="private_import_confirm_body">Confirm it’s you to keep adding items to the private album.</string>
+    <string name="private_import_interrupted">Adding to the private album stopped before it finished. Originals that were not added are unchanged.</string>
+</resources>

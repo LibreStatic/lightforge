@@ -44,7 +44,7 @@
     <string name="remote_local_task">Abrir restauración local</string>
     <string name="remote_cancel_hint">¿Detener esta tarea? Los parciales y finales remotos inciertos quedan visibles para revisión manual. No se borra ningún archivo remoto ni original.</string>
     <string name="remote_residuals">Objetos remotos para revisar: %1$s</string>
-    <string name="remote_archive_summary">Archivo v%1$d · %2$d archivos · %3$d bytes</string>
+    <plurals name="remote_archive_summary"><item quantity="one">Archivo v%1$d · %2$d archivo · %3$s</item><item quantity="many">Archivo v%1$d · %2$d archivos · %3$s</item><item quantity="other">Archivo v%1$d · %2$d archivos · %3$s</item></plurals>
     <string name="remote_org_summary">Organización: %1$d/%2$d fuentes; referencias/estados omitidos: %3$d; sin resolver: %4$d.</string>
     <string name="remote_partial">Acepto el alcance parcial de organización mostrado</string>
     <string name="remote_global">También importar reglas de recuerdos que afectan la biblioteca existente</string>
@@ -77,6 +77,10 @@
     <string name="remote_error_port_invalid">Ingresá un puerto entre 1 y 65535.</string>
     <string name="remote_error_user_required">Ingresá un usuario.</string>
     <string name="remote_error_folder_invalid">Carpeta inválida: no puede contener segmentos «..».</string>
+    <string name="remote_error_folder_sftp_absolute">Las carpetas SFTP deben empezar con / y no pueden contener una barra invertida, por ejemplo /backups.</string>
+    <string name="remote_error_invalid_path">El servidor rechazó la ruta de la carpeta. Volvé a agregar el servidor con una carpeta absoluta como /backups.</string>
     <string name="remote_error_share_required">Ingresá un nombre de recurso SMB válido.</string>
     <string name="remote_error_key_required">Elegí un archivo de clave privada SSH.</string>
+    <string name="remote_transfer_progress">%1$s de %2$s</string>
+    <string name="remote_archive_checksum">Suma de verificación (SHA-256): %1$s</string>
 </resources>

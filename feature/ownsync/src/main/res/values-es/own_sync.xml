@@ -11,7 +11,17 @@
     <string name="own_sync_quarantined">Cuarentena: %1$s</string>
     <string name="own_sync_restore">Restaurar desde cuarentena</string>
     <string name="own_sync_history">Historial de ejecuciones</string>
-    <string name="own_sync_progress">%1$d / %2$d operaciones · %3$d bytes copiados</string>
+    <string name="own_sync_progress">%1$s · %2$s</string>
+    <plurals name="own_sync_progress_operations">
+        <item quantity="one">%1$d / %2$d operación</item>
+        <item quantity="many">%1$d / %2$d operaciones</item>
+        <item quantity="other">%1$d / %2$d operaciones</item>
+    </plurals>
+    <plurals name="own_sync_progress_bytes">
+        <item quantity="one">%d byte copiado</item>
+        <item quantity="many">%d bytes copiados</item>
+        <item quantity="other">%d bytes copiados</item>
+    </plurals>
     <string name="own_sync_review">Revisar cambios</string>
     <string name="own_sync_pause">Pausar</string>
     <string name="own_sync_resume">Reanudar</string>

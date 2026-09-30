@@ -20,4 +20,8 @@
     <string name="album_cover_auto_confirm">Usare l’elemento disponibile più recente dell’album come copertina?</string>
     <string name="album_cover_confirm">Usare «%1$s» come copertina dell’album?</string>
     <string name="album_cover_failed">Impossibile salvare la copertina. I file non sono stati modificati. Riprova.</string>
+    <string name="album_side_panel_show">Mostra pannello album</string>
+    <string name="album_side_panel_hide">Nascondi pannello album</string>
+    <string name="album_side_panel_label">Album</string>
+    <plurals name="album_item_count"><item quantity="one">%1$d elemento</item><item quantity="many">%1$d elementi</item><item quantity="other">%1$d elementi</item></plurals>
 </resources>

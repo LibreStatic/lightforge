@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.feature.remotebackup"
+    namespace = "com.librestatic.lightforge.feature.remotebackup"
     compileSdk = 37
 
     defaultConfig {

@@ -12,15 +12,15 @@ NONE = "User State:\n  User 0\n    Quality: 0\n    CredentialType: None\n"
 
 class TargetContract(unittest.TestCase):
     def test_api30_exact(self):
-        self.assertEqual(runner.validate_target("emulator-5554", "UGallery_M2_API30\n", "30\n", "1\n")[:2], ("UGallery_M2_API30", "30"))
+        self.assertEqual(runner.validate_target("emulator-5554", "Lightforge_M2_API30\n", "30\n", "1\n")[:2], ("Lightforge_M2_API30", "30"))
     def test_api35_exact(self):
-        self.assertEqual(runner.validate_target("127.0.0.1:5563", "UGallery_PDF_API35", "35", "1")[:2], ("UGallery_PDF_API35", "35"))
+        self.assertEqual(runner.validate_target("127.0.0.1:5563", "Lightforge_PDF_API35", "35", "1")[:2], ("Lightforge_PDF_API35", "35"))
     def test_reject_unassigned_and_alias(self):
         for serial in ("localhost:5563", "emulator-5562", "127.0.0.1:5038", "SAMSUNG", "emulator-5554 "):
             with self.subTest(serial=serial), self.assertRaises(ValueError):
-                runner.validate_target(serial, "UGallery_PDF_API35", "35", "1")
+                runner.validate_target(serial, "Lightforge_PDF_API35", "35", "1")
     def test_reject_tuple_mismatch(self):
-        for avd, api, qemu in (("UGallery_M2_API30", "35", "1"), ("UGallery_PDF_API35", "30", "1"), ("UGallery_PDF_API35", "35", "0"), ("UGallery_PDF_API35X", "35", "1")):
+        for avd, api, qemu in (("Lightforge_M2_API30", "35", "1"), ("Lightforge_PDF_API35", "30", "1"), ("Lightforge_PDF_API35", "35", "0"), ("Lightforge_PDF_API35X", "35", "1")):
             with self.subTest(identity=(avd,api,qemu)), self.assertRaises(ValueError):
                 runner.validate_target("127.0.0.1:5563", avd, api, qemu)
     def test_none_is_exact(self):
@@ -57,7 +57,7 @@ class TargetContract(unittest.TestCase):
         path = "/sdcard/creation-process-private-auth-00000000-0000-0000-0000-000000000001-0.xml"
         receipt = dict(version=1, observer="builtin-real-display", path=path, appWidth=2560,
             appHeight=1504, realWidth=2560, realHeight=1600, rotation=0, rawRootBounds="0 0 2560 1600", nodes=1)
-        xml = '<hierarchy><node package="com.ugallery.feature.privatealbum.test" resource-id="own-button" content-desc="private-auth-fixture-ready" enabled="true" bounds="[4,8][100,80]" /></hierarchy>'
+        xml = '<hierarchy><node package="com.librestatic.lightforge.feature.privatealbum.test" resource-id="own-button" content-desc="private-auth-fixture-ready" enabled="true" bounds="[4,8][100,80]" /></hierarchy>'
         root, actual = runner.active_display_tree(json.dumps(receipt), xml, path)
         self.assertEqual(actual, receipt)
         node = list(root.iter("node"))[0]
@@ -65,7 +65,7 @@ class TargetContract(unittest.TestCase):
         self.assertEqual(node.get("content-desc"), "private-auth-fixture-ready")
         self.assertEqual(node.get("resource-id"), "own-button")
         self.assertEqual(runner.observer_remote_path(runner.OBSERVER_SHA256),
-                         "/data/local/tmp/ugallery-ui-observer-" + runner.OBSERVER_SHA256 + ".jar")
+                         "/data/local/tmp/lightforge-ui-observer-" + runner.OBSERVER_SHA256 + ".jar")
     def test_real_display_rejects_stale_receipt_missing_xml_and_count(self):
         path = "/sdcard/creation-process-private-auth-00000000-0000-0000-0000-000000000001-0.xml"
         base = dict(version=1, observer="builtin-real-display", path=path, appWidth=100,
@@ -89,7 +89,7 @@ class TargetContract(unittest.TestCase):
             if args[0] == "sha256sum":
                 return runner.OBSERVER_SHA256 + "  " + args[1] + "\n", 0, ""
             self.assertEqual(args[:4], ("env", "CLASSPATH=/system/framework/uiautomator.jar:" + runner.observer_remote_path(runner.OBSERVER_SHA256), "app_process", "/system/bin"))
-            self.assertEqual(args[4], "com.ugallery.tools.RealDisplayDump")
+            self.assertEqual(args[4], "com.librestatic.lightforge.tools.RealDisplayDump")
             self.assertRegex(args[5], r"^/(?:sdcard|data/local/tmp)/creation-process-[a-z0-9-]+\.xml$")
             self.assertEqual(kwargs["timeout"], 35)
             return json.dumps(dict(version=1,observer="builtin-real-display",path=args[5],appWidth=100,appHeight=90,realWidth=100,realHeight=100,rotation=0,rawRootBounds="0 0 100 100",nodes=1)), 0, ""

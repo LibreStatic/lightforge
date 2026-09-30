@@ -15,14 +15,14 @@ import sys
 import time
 import uuid
 
-PACKAGE = "com.ugallery.app.pdfacceptance"
-OWNER = "com.ugallery.mediaprovider.fixture"
+PACKAGE = "com.librestatic.lightforge.pdfacceptance"
+OWNER = "com.librestatic.lightforge.mediaprovider.fixture"
 AUTHORITY = OWNER + ".documents"
 SOURCE_SHA256 = "ca9dc6afcd80d25b6d70c9057312e8584b9a59c1ac642d8beff3c1a50fa82861"
 SOURCE_SIZE = 145922
 ASSIGNED_LANES = {
-    "emulator-5554": ("UGallery_M2_API30", "30"),
-    "127.0.0.1:5563": ("UGallery_PDF_API35", "35"),
+    "emulator-5554": ("Lightforge_M2_API30", "30"),
+    "127.0.0.1:5563": ("Lightforge_PDF_API35", "35"),
 }
 
 
@@ -78,7 +78,7 @@ def probe_type(h):
             # Launcher RESET_TASK_IF_NEEDED may put a new MAIN above a saved external EDIT.
             # Reorder the existing component, without changing its URI grant or resetting its task.
             self.shell("am", "start", "-W", "-a", "android.intent.action.MAIN", "-f", "0x30020000",
-                       "-n", PACKAGE + "/com.ugallery.app.MainActivity")
+                       "-n", PACKAGE + "/com.librestatic.lightforge.MainActivity")
 
         def normal_process(self, expected_pid=None):
             dump = self.shell("dumpsys", "activity", "processes")[0]
@@ -90,7 +90,7 @@ def probe_type(h):
                     "Activity history dump is unrecognized; task absence is unverified")
             prefix = (r"^\s*(?:mResumedActivity|ResumedActivity):\s*ActivityRecord\{" if resumed
                       else r"^\s*\*?\s*Hist\s+#\d+:\s*ActivityRecord\{")
-            component = re.escape(PACKAGE + "/com.ugallery.app.MainActivity")
+            component = re.escape(PACKAGE + "/com.librestatic.lightforge.MainActivity")
             target = r"\bu0\s+" + component + r"(?=\s)"
             tasks = set()
             for line in dump.splitlines():
@@ -158,7 +158,7 @@ def probe_type(h):
                 self.manifest = {"uid": uid}
                 self.normal_process()
                 processes = self.shell("ps", "-A", "-o", "ARGS")[0]
-                require(not any("com.ugallery.tools.RealDisplayDump" in line or "uiautomator" in line
+                require(not any("com.librestatic.lightforge.tools.RealDisplayDump" in line or "uiautomator" in line
                                 for line in processes.splitlines()), "Another accessibility observer is active")
                 # Compatibility gate for the imported observer: no native seed is used here.
                 # Set only after positively recognizing absence of target instrumentation.

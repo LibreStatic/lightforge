@@ -48,10 +48,10 @@ def current_override(adb: str, setting: str) -> str | None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--adb", default="adb")
-    parser.add_argument("--package", default="com.ugallery.app.debug")
+    parser.add_argument("--package", default="com.librestatic.lightforge.debug")
     parser.add_argument(
         "--activity",
-        default="com.ugallery.app.MainActivity",
+        default="com.librestatic.lightforge.MainActivity",
     )
     parser.add_argument(
         "--output",

@@ -1,4 +1,4 @@
-package com.ugallery.tools;
+package com.librestatic.lightforge.tools;
 
 import android.app.UiAutomation;
 import android.graphics.Rect;
@@ -19,7 +19,7 @@ import org.json.JSONObject;
 public final class TalkBackFocusDump {
     private static int nodes;
     public static void main(String[] args) {
-        HandlerThread thread = new HandlerThread("ugallery-talkback-observer");
+        HandlerThread thread = new HandlerThread("lightforge-talkback-observer");
         UiAutomation automation = null;
         AccessibilityNodeInfo root = null;
         JSONObject result = null;

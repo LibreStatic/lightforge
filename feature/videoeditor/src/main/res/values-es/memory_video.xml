@@ -28,7 +28,7 @@
     <string name="memory_video_publishing">Guardando video validado…</string>
     <string name="memory_video_cancel">Cancelar exportación</string>
     <string name="memory_video_export">Crear y guardar MP4</string>
-    <string name="memory_video_saved">Video guardado en Movies/UGallery/Memories.</string>
+    <string name="memory_video_saved">Video guardado en Movies/Lightforge/Memories.</string>
     <string name="memory_video_open">Abrir video</string>
     <string name="memory_video_share">Compartir video</string>
     <string name="memory_video_cancel_title">¿Cancelar esta exportación?</string>

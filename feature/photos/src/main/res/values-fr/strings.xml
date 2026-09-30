@@ -14,4 +14,17 @@
     <string name="photo_thumbnail_description">Photo</string>
     <string name="video_thumbnail_description">Vidéo</string>
 <string name="open_settings">Ouvrir les réglages</string><string name="change_grid_density">Modifier la densité de la grille</string><string name="photos_create">Créer</string><string name="photos_updates">Actualités</string>    <string name="library_ready_status">Bibliothèque prête</string>
+    <string name="scrubber_handle_description">Curseur de chronologie</string>
+    <string name="scrubber_today">Aujourd’hui</string>
+    <string name="scrubber_yesterday">Hier</string>
+    <string name="library_background_search">Mise à jour de la recherche en arrière-plan…</string>
+    <string name="library_background_moments">Création des moments en arrière-plan…</string>
+    <string name="library_background_faces">Détection des visages en arrière-plan…</string>
+    <string name="library_background_people">Regroupement des personnes en arrière-plan…</string>
+    <string name="library_background_pets">Reconnaissance des animaux en arrière-plan…</string>
+    <string name="library_task_faces">Détection des visages</string>
+    <string name="library_task_people">Regroupement des personnes</string>
+    <string name="library_task_pets">Reconnaissance des animaux</string>
+    <string name="library_paused_battery">%1$s en pause pour économiser la batterie</string>
+    <string name="library_paused_heat">%1$s en pause le temps que l\'appareil refroidisse</string>
 </resources>

@@ -18,4 +18,6 @@
     <string name="private_key_protection_credentials_required">Set up a PIN, pattern, or password screen lock in system Settings. Then return here and tap Retry to protect the media and index keys.</string>
     <string name="private_key_unlock_body">Unlock with biometrics or your device screen lock.</string>
     <string name="private_key_auth_unavailable">Device authentication is unavailable. Configure a screen lock in system Settings, then return and try again.</string>
+    <string name="private_key_protection_auto_working">Your private album is being upgraded so its keys require your screen lock. Keep the app open until it finishes.</string>
+    <string name="private_key_protection_auto_failed">The upgrade could not finish. Your private album still works and the upgrade will be retried the next time you unlock it.</string>
 </resources>

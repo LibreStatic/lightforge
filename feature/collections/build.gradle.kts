@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.feature.collections"
+    namespace = "com.librestatic.lightforge.feature.collections"
     compileSdk = 37
 
     defaultConfig {

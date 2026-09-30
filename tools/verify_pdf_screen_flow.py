@@ -4,7 +4,7 @@ import argparse,json,re,subprocess,time,xml.etree.ElementTree as ET
 from pathlib import Path
 p=argparse.ArgumentParser();p.add_argument('--serial',required=True);p.add_argument('--output',required=True);p.add_argument('--resume',action='store_true');p.add_argument('--baseline',action='store_true');args=p.parse_args()
 out=Path(args.output);out.mkdir(parents=True,exist_ok=True)
-b=['rtk','proxy','adb','-s',args.serial];pkg='com.ugallery.feature.pdfstudio.test'
+b=['rtk','proxy','adb','-s',args.serial];pkg='com.librestatic.lightforge.feature.pdfstudio.test'
 def adb(*a):return subprocess.check_output(b+list(a),timeout=45)
 def shell(*a):return adb('shell',*a).decode().strip()
 def marker(name):return json.loads(shell('run-as',pkg,'cat','files/pdf-flow-'+name+'.json'))
@@ -25,14 +25,33 @@ def dump():
         except (subprocess.CalledProcessError,ET.ParseError):time.sleep(.4)
     raise AssertionError('Accessibility observer failed; inspect same live Activity')
 def match(n,label):return n.get('text')==label or n.get('content-desc')==label
+# The quality cards compose their own contentDescription as "<label>, <estimate>" (so TalkBack
+# reads the live size estimate, not just the label) instead of exposing exactly the bare label.
+def match_prefix(n,label):
+    text=n.get('text') or n.get('content-desc') or ''
+    return text==label or text.startswith(label+', ')
+def visible_prefix(label):return any(match_prefix(n,label) for n in dump()[0].iter('node'))
+def visible_contains(fragment):
+    return any(fragment in (n.get('text') or '') or fragment in (n.get('content-desc') or '') for n in dump()[0].iter('node'))
 def tap_where(predicate):
-    root,_=dump();parents={c:p for p in root.iter() for c in p};matches=[]
-    for n in root.iter('node'):
-        if not predicate(n):continue
-        original=n
-        while n.get('clickable')!='true' and n in parents:n=parents[n]
-        if n.get('clickable')=='true' and n.get('enabled')=='true':matches.append(n)
-        elif 'documentsui' in original.get('package','') and original.get('enabled')=='true':matches.append(original)
+    # UI transitions (sheets closing, library/editor swaps) are not instantaneous: retry briefly
+    # before failing, and keep the screen that was actually showing when it does fail. A target
+    # below the fold in a scrollable sheet (e.g. Create, once the New project sheet's template row
+    # pushes it past the visible area on a shorter screen) never gets an on-screen accessibility
+    # node at all, so after a few plain retries also try swiping the sheet up before giving up.
+    for attempt in range(12):
+        root,raw=dump();parents={c:p for p in root.iter() for c in p};matches=[]
+        for n in root.iter('node'):
+            if not predicate(n):continue
+            original=n
+            while n.get('clickable')!='true' and n in parents:n=parents[n]
+            if n.get('clickable')=='true' and n.get('enabled')=='true':matches.append(n)
+            elif 'documentsui' in original.get('package','') and original.get('enabled')=='true':matches.append(original)
+        if matches:break
+        if attempt>=3:shell('input','swipe','540','1800','540','500','120')
+        time.sleep(.5)
+    if not matches:
+        (out/'tap-failure.xml').write_bytes(raw);(out/'tap-failure.png').write_bytes(adb('exec-out','screencap','-p'))
     assert matches,'Enabled UI control missing'
     n=matches[-1];x,y,r,d=map(int,re.findall(r'\d+',n.get('bounds')))
     if r>x and d>y:shell('input','tap',str((x+r)//2),str((y+d)//2))
@@ -44,7 +63,15 @@ def tap_where(predicate):
         else:raise AssertionError('Zero-size control did not receive focus')
     time.sleep(.4)
 def tap(label):tap_where(lambda n:match(n,label))
+# Template cards (Phase G4) compose their contentDescription as "<name>, <description>[, selected]"
+# (same pattern as the export quality cards above), so locate them by name prefix, not exact match.
+def tap_prefix(label):tap_where(lambda n:match_prefix(n,label))
 def visible(label):return any(match(n,label) for n in dump()[0].iter('node'))
+def scroll_until_visible(predicate,attempts=8):
+    for _ in range(attempts):
+        if predicate():return True
+        shell('input','swipe','540','1800','540','500','120');time.sleep(.3)
+    return predicate()
 def snap(name):
     root,raw=dump();(out/(name+'.xml')).write_bytes(raw);(out/(name+'.png')).write_bytes(adb('exec-out','screencap','-p'))
     (out/(name+'-state.json')).write_text(json.dumps(marker('state'),indent=2)+'\n')
@@ -83,8 +110,8 @@ checkpoint=out/'checkpoint.json'
 if not args.resume:
     assert not checkpoint.exists(),'Use --resume to retain the existing fixture'
     for name in ('state','done'):shell('run-as',pkg,'rm','-f','files/pdf-flow-'+name+'.json')
-    shell('am','start','-W','-n',pkg+'/com.ugallery.feature.pdfstudio.PdfFlowProbeActivity')
-    wait(lambda s:not s['busy']);cp={'step':0,'name':'UGallery-screen-flow-'+str(time.time_ns())};checkpoint.write_text(json.dumps(cp))
+    shell('am','start','-W','-n',pkg+'/com.librestatic.lightforge.feature.pdfstudio.PdfFlowProbeActivity')
+    wait(lambda s:not s['busy']);cp={'step':0,'name':'Lightforge-screen-flow-'+str(time.time_ns())};checkpoint.write_text(json.dumps(cp))
 else:cp=json.loads(checkpoint.read_text())
 def run(number,name,action):
     if cp['step']>=number:return
@@ -92,7 +119,31 @@ def run(number,name,action):
 
 def create():
     if not marker('state').get('project'):
-        tap('New project');wait(lambda s:s['pages']==1 and not s['busy'])
+        # New project opens a setup sheet: a template row (Phase G4) up top prefills paper/
+        # orientation/photos-per-page, then paper cards, orientation and photos-per-page below
+        # that the user could still tweak. Pick "Prints 10 × 15" instead of accepting the sheet's
+        # "Blank" default so this run also exercises PdfTemplate end-to-end.
+        #
+        # Feedback item B redefined this template: 10x15 cm prints, as many as fit, on A4 (2 per
+        # page with the sheet's defaults) instead of a dedicated 10x15 sheet with one photo. The
+        # sheet's "Print size" row shows "10 × 15 cm" selected and the live "2 photos per page"
+        # line once the template is picked; assert both the live UI text and the created
+        # project's slots via the probe state.
+        tap('New project');snap('new-project-sheet');tap_prefix('Prints 10 × 15')
+        assert scroll_until_visible(lambda:visible_prefix('10 × 15 cm')),'Print size chip did not show 10 x 15 selected'
+        assert scroll_until_visible(lambda:visible_contains('2 photos per page')), \
+            'Live photos-per-page line did not show the computed count'
+        snap('new-project-sheet-10x15-a4')
+        tap('Create')
+        wait(lambda s:s['pages']==1 and not s['busy'])
+        state=marker('state')
+        assert abs(state['pageWidthMm']-210.0)<0.5 and abs(state['pageHeightMm']-297.0)<0.5, \
+            'Prints 10 x 15 template did not land its A4 paper size: '+repr(state)
+        assert abs(state['pageMarginMm']-5.0)<0.5,'Prints 10 x 15 template did not land its 5mm margin: '+repr(state)
+        assert state['columns']==2,'Prints 10 x 15 template did not land its computed 2-column layout: '+repr(state)
+        assert state['printSize']=='10x15','Prints 10 x 15 template did not store its print size: '+repr(state)
+        assert state['photosPerPage']==2,'Prints 10 x 15 template did not compute 2 photos per page: '+repr(state)
+        assert state['placementMode']=='Cover','Prints 10 x 15 template did not default to Fill placement: '+repr(state)
     if marker('state')['assets']==1:return
     if not any('documentsui' in n.get('package','') for n in dump()[0].iter('node')):
         tap('Insert');tap('Import images / PDF')
@@ -101,17 +152,98 @@ def create():
 run(1,'native-import',create)
 def edit():
     tap('Pages');tap('Duplicate page');wait(lambda s:s['pages']==2)
-    editor();tap('Project actions');tap('Undo');wait(lambda s:s['pages']==1)
-    tap('Project actions');tap('Redo');wait(lambda s:s['pages']==2)
+    # Undo/Redo are top-bar icon buttons now (no longer behind the overflow menu), and there is no
+    # manual Save action any more: autosave persists every edit, reported by the top bar subtitle.
+    editor();tap('Undo');wait(lambda s:s['pages']==1)
+    tap('Redo');wait(lambda s:s['pages']==2)
     if not args.baseline:
-        tap('Project actions');tap('Save');wait(lambda s:not s['busy'])
-        assert visible('Saved on this device')
+        wait(lambda s:not s['busy'])
+        assert visible('Saved · just now')
 run(2,'duplicate-undo-redo',edit)
+def custom_field():
+    root,_=dump();edits=[n for n in root.iter('node') if n.get('class')=='android.widget.EditText']
+    assert edits,'Custom pages field not found'
+    return edits[-1]
+def focus_custom_field():
+    n=custom_field();x,y,r,d=map(int,re.findall(r'\d+',n.get('bounds')))
+    if r>x and d>y:shell('input','tap',str((x+r)//2),str((y+d)//2))
+    for _ in range(20):
+        if any(n.get('class')=='android.widget.EditText' and n.get('focused')=='true' for n in dump()[0].iter('node')):return
+        shell('input','keyevent','61')
+    raise AssertionError('Custom pages field did not receive focus')
+def set_custom_text(text):
+    focus_custom_field()
+    shell('input','keyevent','123',*['67']*40) # move to end, delete whatever was prefilled
+    if text:shell('input','text',text.replace(' ','%s')) # ascii only; %s is adb's escape for a space
+    time.sleep(.3)
+def export_enabled():
+    # The "Export" TextView's own `enabled` always reads true; the disabled state lives on the
+    # clickable Button ancestor instead (same climb tap_where does to find the real target).
+    root,_=dump();parents={c:p for p in root.iter() for c in p}
+    for n in root.iter('node'):
+        if n.get('text')!='Export':continue
+        while n.get('clickable')!='true' and n in parents:n=parents[n]
+        if n.get('clickable')=='true':return n.get('enabled')=='true'
+    return False
+def select_compact_card():
+    # The Original/Compact quality picker is two selectable cards, not a single switch; each card
+    # is one checkable node owning its own contentDescription, composed as "Original, <estimate>" /
+    # "Compact, <estimate>" so TalkBack reads the live size estimate too, not just the label.
+    def labeled_cards():
+        return [n for n in dump()[0].iter('node') if n.get('checkable')=='true' and match_prefix(n,'Compact')]
+    cards=labeled_cards();assert len(cards)==1,'Label must belong to the checkable card'
+    if cards[0].get('checked')!='true':tap_where(lambda n:match_prefix(n,'Compact'))
+    cards=labeled_cards()
+    # A selected radio exposes no click action (Android drops ACTION_CLICK once checked), so
+    # require the checked state and a real label instead of clickability.
+    assert len(cards)==1 and cards[0].get('checked')=='true' and cards[0].get('NAF')!='true'
+    x,y,r,d=map(int,re.findall(r'\d+',cards[0].get('bounds')));assert r>x and d>y
+def custom_range():
+    # Phase G3: the Export sheet's pages choice gains a fourth "Custom" option with a live-validated
+    # page-range field ("1-3, 5"). Not present pre-redesign, so the baseline run skips it entirely.
+    if args.baseline:return
+    # Unlike pdf()'s check below, this can't key off "Compact": once the Custom field's keyboard is
+    # up, the quality cards are scrolled out of the accessibility dump on a --resume retry. "File
+    # name" sits above the pages section and stays visible whether or not the IME is showing.
+    if not visible_prefix('File name'):tap('Export')
+    tap('Custom') # idempotent: re-selecting an already-selected choice is a no-op
+    snap('custom-pages-initial')
+    # There are 2 pages at this point (edit() duplicated one): "9" is out of range and must disable
+    # Export with a specific error, not just silently reject the keystrokes.
+    set_custom_text('9');snap('custom-pages-invalid')
+    assert not export_enabled(),'Export must be disabled for an out-of-range custom page'
+    assert visible_contains("Page 9 doesn't exist"),'Missing the specific out-of-range error text'
+    # A valid, ascending range re-enables Export and shows the normalized "N pages: ..." summary.
+    set_custom_text('1-2')
+    for _ in range(25):
+        if visible_contains('2 pages: 1'):break
+        time.sleep(.2)
+    else:raise AssertionError('Custom pages summary text did not appear for a valid range')
+    assert export_enabled(),'Export must be enabled once the custom range is valid'
+    # Back closes the IME without dismissing the sheet (Android's usual "back closes the keyboard
+    # first" behavior) and brings the quality cards back into the accessibility dump — Compose
+    # excludes content scrolled out of the visible viewport, and the open keyboard had pushed the
+    # cards below it.
+    shell('input','keyevent','4');time.sleep(.4)
+    select_compact_card()
+    snap('custom-pages-valid')
+    # "then export": the sticky Export action launches CreateDocument immediately, same as the
+    # plain-pages flow below — this is the flow's first real export, so pdf() finds it already
+    # done (verified) and just confirms that instead of exporting a second time.
+    tap('Export');save_file(cp['name']+'-custom.pdf')
+    wait(lambda s:any(j['phase']!='Ready' and not j['portable'] for j in s['jobs']))
+    wait(lambda s:any(j['verified'] and not j['portable'] for j in s['jobs']))
+    if visible('PDF saved'):
+        snap('export-custom-saved-sheet');tap('Done')
+run(3,'export-custom-range',custom_range)
 def pdf():
+    # Phase B moved the picker before rendering: exporting a regular PDF never enters Ready any
+    # more (the worker publishes as soon as it renders), so the only wait is for verification.
     jobs=[j for j in marker('state')['jobs'] if not j['portable']]
     if jobs and jobs[0]['verified']:return
     if not jobs:
-        if not visible('Compact'):tap('Project actions');tap('Export PDF')
+        # Export is a filled top-bar action, opening the destination-first export sheet.
+        if not visible_prefix('Compact'):tap('Export')
         snap('quality-dialog')
         if args.baseline:
             switches=[n for n in dump()[0].iter('node') if n.get('checkable')=='true']
@@ -119,27 +251,36 @@ def pdf():
             print('BASELINE LABEL MISSING: native Compact switch has no accessible label',flush=True)
             tap_where(lambda n:n.get('checkable')=='true')
         else:
-            def labeled_toggles():
-                return [n for n in dump()[0].iter('node') if n.get('checkable')=='true' and any(match(c,'Compact') for c in n.iter('node'))]
-            toggles=labeled_toggles();assert len(toggles)==1,'Label must belong to the checkable control'
-            if toggles[0].get('checked')!='true':tap('Compact')
-            toggles=labeled_toggles()
-            assert len(toggles)==1 and toggles[0].get('checked')=='true' and toggles[0].get('clickable')=='true' and toggles[0].get('NAF')!='true'
-            x,y,r,d=map(int,re.findall(r'\d+',toggles[0].get('bounds')));assert r-x>3*(d-y)
+            select_compact_card()
             snap('quality-selected')
-        tap('Export PDF')
-    ready=wait(lambda s:any(j['phase']=='Ready' and not j['portable'] for j in s['jobs']))
-    if not args.baseline:assert all(j['compact'] for j in ready['jobs'] if not j['portable'])
-    if not any('documentsui' in n.get('package','') for n in dump()[0].iter('node')):tap('Save PDF')
-    save_file(cp['name']+'.pdf')
+        # The sticky Export action launches CreateDocument immediately: the destination is chosen
+        # before anything is queued or rendered.
+        tap('Export')
+        save_file(cp['name']+'.pdf')
+    queued=wait(lambda s:any(j['phase']!='Ready' and not j['portable'] for j in s['jobs']))
+    if not args.baseline:assert all(j['compact'] for j in queued['jobs'] if not j['portable'])
     wait(lambda s:any(j['verified'] and not j['portable'] for j in s['jobs']))
-run(3,'native-pdf-saved',pdf)
+    # Phase B item 6: reaching Published pops the "PDF saved" sheet (Open/Share/Done); dismiss it
+    # with Done so the editor is the frontmost thing again for the steps that follow.
+    if not args.baseline and visible('PDF saved'):
+        snap('export-saved-sheet')
+        tap('Done')
+run(4,'native-pdf-saved',pdf)
 def portable():
     editor();tap('Insert');tap('Download project')
     wait(lambda s:any(j['phase']=='Ready' and j['portable'] for j in s['jobs']))
     tap('Download project');save_file(cp['name']+'.ugpdfproject')
     wait(lambda s:any(j['verified'] and j['portable'] for j in s['jobs']))
-run(4,'native-project-saved',portable)
+    # The result sheet and the full-screen Exports history stay on top; close both so the
+    # following steps start from the editor.
+    if not args.baseline and visible('Project file saved'):
+        snap('project-saved-sheet');tap('Done')
+    # "Download project" opens the full-screen Exports history; the editor behind it still shows
+    # up in the accessibility dump, so close the history explicitly.
+    for _ in range(3):
+        if not visible('Exports'):break
+        shell('input','keyevent','4');time.sleep(.5)
+run(5,'native-project-saved',portable)
 def restore():
     if not any('documentsui' in n.get('package','') for n in dump()[0].iter('node')):
         editor();tap('My projects');tap('Import project')
@@ -148,8 +289,8 @@ def restore():
     root,_=dump();names=[n.get('text') or n.get('content-desc','').split(',')[0] for n in root.iter('node')]
     names=[n for n in names if n.startswith(cp['name']+'.ugpdfproject') or (args.baseline and n=='Untitled project.ugpdfproject.zip')];assert names,names
     choose_file(names[0]);wait(lambda s:len(s['seen'])==2 and s['pages']==2 and s['images']==2 and not s['busy'])
-run(5,'native-project-restored',restore)
-if cp['step']==5:
+run(6,'native-project-restored',restore)
+if cp['step']==6:
     shell('run-as',pkg,'touch','files/pdf-flow-finish')
     end=time.monotonic()+40
     while time.monotonic()<end:

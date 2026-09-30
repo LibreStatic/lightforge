@@ -1,0 +1,792 @@
+package com.librestatic.lightforge.core.database
+
+import android.content.Context
+import android.database.sqlite.SQLiteDatabaseCorruptException
+import androidx.room.Database
+import androidx.room.Room
+import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+
+@Database(
+    entities =
+        [
+            MediaItemEntity::class,
+            PortableTimelineOverrideEntity::class,
+            MotionKeyFrameEntity::class,
+            GalleryRestoreReceiptEntity::class,
+            MemoryDateExclusionEntity::class,
+            MemoryPersonExclusionEntity::class,
+            MemoryPersonSourceEntity::class,
+            SmartAlbumEntity::class,
+            SmartAlbumExclusionEntity::class,
+            DocumentAnnotationEntity::class,
+            PhotoStackEntity::class,
+            PhotoStackMemberEntity::class,
+            PhotoStackExclusionEntity::class,
+            DocumentArchiveRuleEntity::class,
+            DocumentArchiveHistoryEntity::class,
+            ArchivedMediaEntity::class,
+            ActivityEventEntity::class,
+            MediaStoreCheckpointEntity::class,
+            AlbumAggregateEntity::class,
+            VirtualAlbumEntity::class,
+            VirtualAlbumMediaEntity::class,
+            MediaExifEntity::class,
+            MediaLabelRunEntity::class,
+            MediaLabelEntity::class,
+            LabelSuppressionEntity::class,
+            MediaOcrEntity::class,
+            DuplicateHashEntity::class,
+            SimilarityFeatureEntity::class,
+            SimilarityEdgeEntity::class,
+            SimilarityMembershipEntity::class,
+            SimilarityExclusionEntity::class,
+            FaceDetectionRunEntity::class,
+            DetectedFaceEntity::class,
+            FaceEmbeddingEntity::class,
+            PersonClusterEntity::class,
+            PersonMembershipEntity::class,
+            PersonClusterProjectionEntity::class,
+            PersonConstraintEntity::class,
+            PersonFaceOverrideEntity::class,
+            MeProfileEntity::class,
+            MeReferenceEntity::class,
+            MeMatchEntity::class,
+            MomentEntity::class,
+            MomentParticipantStateEntity::class,
+            MomentParticipantEntity::class,
+            MomentMemberEntity::class,
+            MomentCoverEntity::class,
+            MomentRunEntity::class,
+            MomentRunCandidateEntity::class,
+            MomentDiscoveryRevisionEntity::class,
+            MomentDiscoverySeenEntity::class,
+            EditRecipeEntity::class,
+            EditOperationEntity::class,
+            VideoEditRecipeEntity::class,
+            CustomLutEntity::class,
+            VideoPlaybackPositionEntity::class,
+            SemanticIndexEntity::class,
+            SemanticEmbeddingEntity::class,
+            PetStateEntity::class,
+            PetIdentityEntity::class,
+            PetObservationEntity::class,
+            PetAnalysisStampEntity::class,
+            PetUndoEntity::class,
+            PeerImportVersionEntity::class,
+            PeerImportSourceEntity::class,
+        ],
+    version = 31,
+    exportSchema = true,
+)
+abstract class GalleryDatabase : RoomDatabase() {
+    abstract fun portableTimelineOverrideDao(): PortableTimelineOverrideDao
+
+    abstract fun motionKeyFrameDao(): MotionKeyFrameDao
+
+    abstract fun galleryRestoreReceiptDao(): GalleryRestoreReceiptDao
+
+    abstract fun memoryExclusionDao(): MemoryExclusionDao
+
+    abstract fun smartAlbumDao(): SmartAlbumDao
+
+    abstract fun photoStackDao(): PhotoStackDao
+
+    abstract fun documentDao(): DocumentDao
+
+    abstract fun documentArchiveDao(): DocumentArchiveDao
+
+    abstract fun libraryDao(): LibraryDao
+
+    abstract fun momentDao(): MomentDao
+
+    abstract fun momentParticipantsDao(): MomentParticipantsDao
+
+    abstract fun momentDiscoveryDao(): MomentDiscoveryDao
+
+    abstract fun personDao(): PersonDao
+
+    abstract fun editRecipeDao(): EditRecipeDao
+
+    abstract fun colorEditDao(): ColorEditDao
+
+    abstract fun semanticDao(): SemanticDao
+
+    abstract fun petIdentityDao(): PetIdentityDao
+
+    abstract fun peerImportDao(): PeerImportDao
+
+    abstract fun placesDao(): PlacesDao
+
+    abstract fun activityDao(): ActivityDao
+}
+
+object GalleryDatabaseFactory {
+    const val DatabaseName = "lightforge-library.db"
+
+    private val instances = HashMap<String, GalleryDatabase>()
+
+    /**
+     * Returns this process's single [GalleryDatabase] for [name]. Every caller (UI runtime,
+     * workers, services, widget, ML) shares one Room instance and therefore one connection pool,
+     * so Room serializes their writers. Separate instances on the same file each held their own
+     * connections and, while one ran a long write transaction (the first-run library index), the
+     * others' transactions failed with SQLITE_BUSY and crashed the app. The shared instance lives
+     * for the whole process: callers must not close it.
+     */
+    fun open(context: Context, name: String = DatabaseName): GalleryDatabase =
+        synchronized(instances) {
+            instances[name]?.takeIf { it.isOpen }
+                ?: openNew(context, name).also { instances[name] = it }
+        }
+
+    private fun openNew(context: Context, name: String): GalleryDatabase {
+        val database = build(context, name)
+        return try {
+            database.openHelper.writableDatabase
+            database
+        } catch (corrupt: SQLiteDatabaseCorruptException) {
+            database.close()
+            if (!context.deleteDatabase(name)) throw corrupt
+            build(context, name).also { it.openHelper.writableDatabase }
+        }
+    }
+
+    val Migration1To2 =
+        object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE media_store_checkpoints ADD COLUMN deltaTargetGeneration INTEGER"
+                )
+                db.execSQL(
+                    "ALTER TABLE media_store_checkpoints ADD COLUMN deltaGenerationCursor INTEGER " +
+                        "NOT NULL DEFAULT 0"
+                )
+                db.execSQL(
+                    "ALTER TABLE media_store_checkpoints ADD COLUMN deltaMediaStoreIdCursor INTEGER " +
+                        "NOT NULL DEFAULT -1"
+                )
+            }
+        }
+
+    val Migration2To3 =
+        object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `virtual_albums` (
+                    `albumId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `name` TEXT NOT NULL, `normalizedName` TEXT NOT NULL,
+                    `createdAtMillis` INTEGER NOT NULL, `updatedAtMillis` INTEGER NOT NULL)"""
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_virtual_album_name` " +
+                        "ON `virtual_albums` (`normalizedName`)"
+                )
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `virtual_album_media` (
+                    `albumId` INTEGER NOT NULL, `volumeName` TEXT NOT NULL,
+                    `mediaStoreId` INTEGER NOT NULL, `addedAtMillis` INTEGER NOT NULL,
+                    PRIMARY KEY(`albumId`, `volumeName`, `mediaStoreId`),
+                    FOREIGN KEY(`albumId`) REFERENCES `virtual_albums`(`albumId`)
+                    ON UPDATE NO ACTION ON DELETE CASCADE)"""
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_virtual_album_media_key` " +
+                        "ON `virtual_album_media` (`volumeName`, `mediaStoreId`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_virtual_album_added` " +
+                        "ON `virtual_album_media` (`albumId`, `addedAtMillis`)"
+                )
+            }
+        }
+
+    val Migration3To4 =
+        object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `media_exif_cache` (
+                    `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL,
+                    `generationModified` INTEGER NOT NULL, `orientation` INTEGER NOT NULL,
+                    `dateTimeOriginal` TEXT, `offsetTimeOriginal` TEXT, `make` TEXT, `model` TEXT,
+                    `lensModel` TEXT, `focalLength` TEXT, `aperture` TEXT, `exposureTime` TEXT,
+                    `iso` INTEGER, `latitude` REAL, `longitude` REAL,
+                    `locationReadWithPermission` INTEGER NOT NULL, `cachedAtMillis` INTEGER NOT NULL,
+                    PRIMARY KEY(`volumeName`, `mediaStoreId`))"""
+                )
+            }
+        }
+
+    val Migration4To5 =
+        object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE media_items ADD COLUMN dateExpiresSeconds INTEGER")
+            }
+        }
+
+    val Migration5To6 =
+        object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `media_label_runs` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `generationModified` INTEGER NOT NULL, `modelVersion` TEXT NOT NULL, `completedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`))"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_label_run_version` ON `media_label_runs` (`modelVersion`, `generationModified`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `media_labels` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `canonicalLabel` TEXT NOT NULL, `rawLabel` TEXT NOT NULL, `confidence` REAL NOT NULL, `modelVersion` TEXT NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`, `canonicalLabel`))"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_media_label_canonical` ON `media_labels` (`canonicalLabel`, `confidence`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `label_suppressions` (`canonicalLabel` TEXT NOT NULL, `suppressedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`canonicalLabel`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `media_ocr` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `generationModified` INTEGER NOT NULL, `modelVersion` TEXT NOT NULL, `rawText` TEXT NOT NULL, `normalizedText` TEXT NOT NULL, `blocksJson` TEXT NOT NULL, `completedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`))"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_media_ocr_version` ON `media_ocr` (`modelVersion`, `generationModified`)"
+                )
+            }
+        }
+
+    val Migration6To7 =
+        object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `duplicate_hashes` (
+                    `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL,
+                    `generationModified` INTEGER NOT NULL, `sizeBytes` INTEGER NOT NULL,
+                    `hashVersion` TEXT NOT NULL, `sampleSha256` TEXT NOT NULL,
+                    `sha256` TEXT, `updatedAtMillis` INTEGER NOT NULL,
+                    PRIMARY KEY(`volumeName`, `mediaStoreId`),
+                    FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `media_items`(`volumeName`, `mediaStoreId`)
+                    ON UPDATE NO ACTION ON DELETE CASCADE)"""
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_duplicate_sample` ON `duplicate_hashes` (`hashVersion`, `sizeBytes`, `sampleSha256`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_duplicate_full` ON `duplicate_hashes` (`hashVersion`, `sizeBytes`, `sha256`)"
+                )
+            }
+        }
+
+    val Migration7To8 =
+        object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `similarity_features` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `generationModified` INTEGER NOT NULL, `algorithmVersion` TEXT NOT NULL, `pHash` INTEGER NOT NULL, `compactEmbedding` BLOB NOT NULL, `lsh0` INTEGER NOT NULL, `lsh1` INTEGER NOT NULL, `lsh2` INTEGER NOT NULL, `lsh3` INTEGER NOT NULL, `blurScore` REAL NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`), FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `media_items`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_similarity_lsh0` ON `similarity_features` (`algorithmVersion`, `lsh0`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_similarity_lsh1` ON `similarity_features` (`algorithmVersion`, `lsh1`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_similarity_lsh2` ON `similarity_features` (`algorithmVersion`, `lsh2`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_similarity_lsh3` ON `similarity_features` (`algorithmVersion`, `lsh3`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `similarity_edges` (`aVolumeName` TEXT NOT NULL, `aMediaStoreId` INTEGER NOT NULL, `bVolumeName` TEXT NOT NULL, `bMediaStoreId` INTEGER NOT NULL, `score` REAL NOT NULL, PRIMARY KEY(`aVolumeName`, `aMediaStoreId`, `bVolumeName`, `bMediaStoreId`), FOREIGN KEY(`aVolumeName`, `aMediaStoreId`) REFERENCES `similarity_features`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`bVolumeName`, `bMediaStoreId`) REFERENCES `similarity_features`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_similarity_edge_b` ON `similarity_edges` (`bVolumeName`, `bMediaStoreId`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `similarity_memberships` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `clusterId` TEXT NOT NULL, `bestScore` REAL NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`), FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `similarity_features`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_similarity_cluster` ON `similarity_memberships` (`clusterId`, `bestScore`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `similarity_exclusions` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `excludedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`), FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `media_items`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+            }
+        }
+
+    val Migration8To9 =
+        object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `face_detection_runs` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `generationModified` INTEGER NOT NULL, `modelVersion` TEXT NOT NULL, `acceptedFaceCount` INTEGER NOT NULL, `completedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`), FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `media_items`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_face_run_version` ON `face_detection_runs` (`modelVersion`, `generationModified`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `detected_faces` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `faceOrdinal` INTEGER NOT NULL, `modelVersion` TEXT NOT NULL, `leftPermille` INTEGER NOT NULL, `topPermille` INTEGER NOT NULL, `rightPermille` INTEGER NOT NULL, `bottomPermille` INTEGER NOT NULL, `cropLeftPermille` INTEGER NOT NULL, `cropTopPermille` INTEGER NOT NULL, `cropRightPermille` INTEGER NOT NULL, `cropBottomPermille` INTEGER NOT NULL, `eulerX` REAL NOT NULL, `eulerY` REAL NOT NULL, `eulerZ` REAL NOT NULL, `qualityScore` REAL NOT NULL, `landmarksJson` TEXT NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`), FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `face_detection_runs`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_detected_face_media` ON `detected_faces` (`volumeName`, `mediaStoreId`)"
+                )
+            }
+        }
+
+    val Migration9To10 =
+        object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `moments` (`momentId` TEXT NOT NULL, `origin` TEXT NOT NULL, `state` TEXT NOT NULL, `algorithmVersion` TEXT NOT NULL, `startMillis` INTEGER NOT NULL, `endMillis` INTEGER NOT NULL, `title` TEXT, `titleMode` TEXT NOT NULL, `isUserEdited` INTEGER NOT NULL, `createdAtMillis` INTEGER NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`momentId`))"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_moment_state_updated` ON `moments` (`state`,`updatedAtMillis`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_moment_state_start` ON `moments` (`state`,`startMillis`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `moment_members` (`momentId` TEXT NOT NULL, `ordinal` INTEGER NOT NULL, `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `generationModifiedAtSelection` INTEGER NOT NULL, `origin` TEXT NOT NULL, `score` REAL NOT NULL, PRIMARY KEY(`momentId`,`ordinal`), FOREIGN KEY(`momentId`) REFERENCES `moments`(`momentId`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`volumeName`,`mediaStoreId`) REFERENCES `media_items`(`volumeName`,`mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_moment_member_key` ON `moment_members` (`volumeName`,`mediaStoreId`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_moment_member_order` ON `moment_members` (`momentId`,`ordinal`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `moment_covers` (`momentId` TEXT NOT NULL, `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `isUserSelected` INTEGER NOT NULL, PRIMARY KEY(`momentId`), FOREIGN KEY(`momentId`) REFERENCES `moments`(`momentId`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`volumeName`,`mediaStoreId`) REFERENCES `media_items`(`volumeName`,`mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_moment_cover_key` ON `moment_covers` (`volumeName`,`mediaStoreId`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `moment_runs` (`algorithmVersion` TEXT NOT NULL, `runId` TEXT NOT NULL, `status` TEXT NOT NULL, `afterTimelineSortMillis` INTEGER, `afterMediaStoreId` INTEGER, `afterVolumeName` TEXT, `openStartMillis` INTEGER, `openEndMillis` INTEGER, `openLastMillis` INTEGER, `openItemCount` INTEGER NOT NULL, `processedItems` INTEGER NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`algorithmVersion`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `moment_run_candidates` (`algorithmVersion` TEXT NOT NULL, `rank` INTEGER NOT NULL, `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `generationModified` INTEGER NOT NULL, `timelineSortMillis` INTEGER NOT NULL, `score` REAL NOT NULL, `timeBucket` INTEGER NOT NULL, `visualBucket` TEXT NOT NULL, PRIMARY KEY(`algorithmVersion`,`rank`), FOREIGN KEY(`algorithmVersion`) REFERENCES `moment_runs`(`algorithmVersion`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`volumeName`,`mediaStoreId`) REFERENCES `media_items`(`volumeName`,`mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_moment_run_candidate_key` ON `moment_run_candidates` (`volumeName`,`mediaStoreId`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_media_moment_scan` ON `media_items` (`isAccessible`,`isTrashed`,`timelineSortMillis`,`mediaStoreId`,`volumeName`)"
+                )
+            }
+        }
+
+    val Migration10To11 =
+        object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `face_embeddings` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `faceOrdinal` INTEGER NOT NULL, `detectionModelVersion` TEXT NOT NULL, `embeddingModelVersion` TEXT NOT NULL, `quantizedVector` BLOB NOT NULL, `completedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`), FOREIGN KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`) REFERENCES `detected_faces`(`volumeName`, `mediaStoreId`, `faceOrdinal`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_face_embedding_version` ON `face_embeddings` (`embeddingModelVersion`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_face_embedding_media` ON `face_embeddings` (`volumeName`, `mediaStoreId`)"
+                )
+            }
+        }
+
+    val Migration11To12 =
+        object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `person_clusters` (`clusterId` TEXT NOT NULL, `algorithmVersion` TEXT NOT NULL, `centroidVector` BLOB NOT NULL, `memberCount` INTEGER NOT NULL, `displayName` TEXT, `isHidden` INTEGER NOT NULL, `isUserEdited` INTEGER NOT NULL, `createdAtMillis` INTEGER NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`clusterId`))"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_person_cluster_visible` ON `person_clusters` (`algorithmVersion`, `isHidden`, `updatedAtMillis`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `person_memberships` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `faceOrdinal` INTEGER NOT NULL, `clusterId` TEXT NOT NULL, `algorithmVersion` TEXT NOT NULL, `assignmentSource` TEXT NOT NULL, `similarity` REAL NOT NULL, `assignedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`), FOREIGN KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`) REFERENCES `face_embeddings`(`volumeName`, `mediaStoreId`, `faceOrdinal`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`clusterId`) REFERENCES `person_clusters`(`clusterId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_person_membership_cluster` ON `person_memberships` (`clusterId`, `similarity`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `person_cluster_projections` (`clusterId` TEXT NOT NULL, `band` INTEGER NOT NULL, `q0` INTEGER NOT NULL, `q1` INTEGER NOT NULL, `q2` INTEGER NOT NULL, `q3` INTEGER NOT NULL, `q4` INTEGER NOT NULL, `q5` INTEGER NOT NULL, PRIMARY KEY(`clusterId`, `band`), FOREIGN KEY(`clusterId`) REFERENCES `person_clusters`(`clusterId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_person_projection_lookup` ON `person_cluster_projections` (`band`, `q0`, `q1`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `person_constraints` (`leftVolumeName` TEXT NOT NULL, `leftMediaStoreId` INTEGER NOT NULL, `leftFaceOrdinal` INTEGER NOT NULL, `rightVolumeName` TEXT NOT NULL, `rightMediaStoreId` INTEGER NOT NULL, `rightFaceOrdinal` INTEGER NOT NULL, `relation` TEXT NOT NULL, `preferredClusterId` TEXT, `createdAtMillis` INTEGER NOT NULL, PRIMARY KEY(`leftVolumeName`, `leftMediaStoreId`, `leftFaceOrdinal`, `rightVolumeName`, `rightMediaStoreId`, `rightFaceOrdinal`), FOREIGN KEY(`leftVolumeName`, `leftMediaStoreId`, `leftFaceOrdinal`) REFERENCES `detected_faces`(`volumeName`, `mediaStoreId`, `faceOrdinal`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`rightVolumeName`, `rightMediaStoreId`, `rightFaceOrdinal`) REFERENCES `detected_faces`(`volumeName`, `mediaStoreId`, `faceOrdinal`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_person_constraint_right` ON `person_constraints` (`rightVolumeName`, `rightMediaStoreId`, `rightFaceOrdinal`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `person_face_overrides` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `faceOrdinal` INTEGER NOT NULL, `clusterId` TEXT NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`), FOREIGN KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`) REFERENCES `detected_faces`(`volumeName`, `mediaStoreId`, `faceOrdinal`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`clusterId`) REFERENCES `person_clusters`(`clusterId`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_person_face_override_cluster` ON `person_face_overrides` (`clusterId`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `me_profiles` (`profileId` INTEGER NOT NULL, `embeddingModelVersion` TEXT NOT NULL, `centroidVector` BLOB NOT NULL, `matchThreshold` REAL NOT NULL, `referenceCount` INTEGER NOT NULL, `state` TEXT NOT NULL, `afterVolumeName` TEXT, `afterMediaStoreId` INTEGER, `afterFaceOrdinal` INTEGER, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`profileId`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `me_references` (`profileId` INTEGER NOT NULL, `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `faceOrdinal` INTEGER NOT NULL, `addedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`profileId`, `volumeName`, `mediaStoreId`, `faceOrdinal`), FOREIGN KEY(`profileId`) REFERENCES `me_profiles`(`profileId`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`) REFERENCES `face_embeddings`(`volumeName`, `mediaStoreId`, `faceOrdinal`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_me_reference_face` ON `me_references` (`volumeName`, `mediaStoreId`, `faceOrdinal`)"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `me_matches` (`profileId` INTEGER NOT NULL, `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `faceOrdinal` INTEGER NOT NULL, `similarity` REAL NOT NULL, `matchedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`profileId`, `volumeName`, `mediaStoreId`, `faceOrdinal`), FOREIGN KEY(`profileId`) REFERENCES `me_profiles`(`profileId`) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(`volumeName`, `mediaStoreId`, `faceOrdinal`) REFERENCES `face_embeddings`(`volumeName`, `mediaStoreId`, `faceOrdinal`) ON UPDATE NO ACTION ON DELETE CASCADE)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_me_match_score` ON `me_matches` (`profileId`, `similarity`)"
+                )
+            }
+        }
+
+    val Migration12To13 =
+        object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `edit_recipes` (
+                    `recipeId` TEXT NOT NULL, `volumeName` TEXT NOT NULL,
+                    `mediaStoreId` INTEGER NOT NULL, `sourceGenerationModified` INTEGER NOT NULL,
+                    `revision` INTEGER NOT NULL, `createdAtMillis` INTEGER NOT NULL,
+                    `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`recipeId`),
+                    FOREIGN KEY(`volumeName`,`mediaStoreId`) REFERENCES `media_items`(`volumeName`,`mediaStoreId`)
+                    ON UPDATE NO ACTION ON DELETE CASCADE)"""
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_edit_recipe_source` ON `edit_recipes` (`volumeName`,`mediaStoreId`)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_edit_recipe_updated` ON `edit_recipes` (`updatedAtMillis`)"
+                )
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `edit_operations` (
+                    `recipeId` TEXT NOT NULL, `ordinal` INTEGER NOT NULL,
+                    `encodedOperation` TEXT NOT NULL, PRIMARY KEY(`recipeId`,`ordinal`),
+                    FOREIGN KEY(`recipeId`) REFERENCES `edit_recipes`(`recipeId`)
+                    ON UPDATE NO ACTION ON DELETE CASCADE)"""
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_edit_operation_recipe` ON `edit_operations` (`recipeId`,`ordinal`)"
+                )
+            }
+        }
+
+    val Migration13To14 =
+        object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `video_edit_recipes` (
+                    `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL,
+                    `sourceGenerationModified` INTEGER NOT NULL, `encodedRecipe` TEXT NOT NULL,
+                    `updatedAtMillis` INTEGER NOT NULL,
+                    PRIMARY KEY(`volumeName`,`mediaStoreId`,`sourceGenerationModified`),
+                    FOREIGN KEY(`volumeName`,`mediaStoreId`) REFERENCES `media_items`(`volumeName`,`mediaStoreId`)
+                    ON UPDATE NO ACTION ON DELETE CASCADE)"""
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_video_edit_recipe_updated` ON `video_edit_recipes` (`updatedAtMillis`)"
+                )
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `custom_luts` (
+                    `lutId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `displayName` TEXT NOT NULL,
+                    `fileName` TEXT NOT NULL, `cubeSize` INTEGER NOT NULL, `sha256` TEXT NOT NULL,
+                    `importedAtMillis` INTEGER NOT NULL)"""
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS `index_custom_luts_displayName` ON `custom_luts` (`displayName`)"
+                )
+            }
+        }
+
+    val Migration14To15 =
+        object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `video_playback_positions` (
+                    `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL,
+                    `positionMillis` INTEGER NOT NULL, `durationMillis` INTEGER NOT NULL,
+                    `updatedAtMillis` INTEGER NOT NULL,
+                    PRIMARY KEY(`volumeName`,`mediaStoreId`),
+                    FOREIGN KEY(`volumeName`,`mediaStoreId`) REFERENCES `media_items`(`volumeName`,`mediaStoreId`)
+                    ON UPDATE NO ACTION ON DELETE CASCADE)"""
+                )
+            }
+        }
+
+    val Migration15To16 =
+        object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """DELETE FROM media_labels
+                    WHERE canonicalLabel IN ('dog','cat') AND EXISTS (
+                        SELECT 1 FROM media_labels AS competing
+                        WHERE competing.volumeName=media_labels.volumeName
+                        AND competing.mediaStoreId=media_labels.mediaStoreId
+                        AND competing.canonicalLabel=CASE media_labels.canonicalLabel
+                            WHEN 'dog' THEN 'cat' ELSE 'dog' END
+                        AND (competing.confidence>media_labels.confidence OR
+                            (competing.confidence=media_labels.confidence AND
+                                media_labels.canonicalLabel='cat'))
+                    )"""
+                        .trimIndent()
+                )
+            }
+        }
+
+    val Migration16To17 =
+        object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `semantic_indexes` (
+                    `indexId` TEXT NOT NULL, `modelId` TEXT NOT NULL, `modelVersion` TEXT NOT NULL,
+                    `status` TEXT NOT NULL, `embeddedCount` INTEGER NOT NULL,
+                    `createdAtMillis` INTEGER NOT NULL, `updatedAtMillis` INTEGER NOT NULL,
+                    PRIMARY KEY(`indexId`))"""
+                )
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `semantic_embeddings` (
+                    `indexId` TEXT NOT NULL, `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL,
+                    `generationModified` INTEGER NOT NULL, `modelVersion` TEXT NOT NULL,
+                    `quantizedVector` BLOB NOT NULL,
+                    `lsh0` INTEGER NOT NULL, `lsh1` INTEGER NOT NULL, `lsh2` INTEGER NOT NULL,
+                    `lsh3` INTEGER NOT NULL, `lsh4` INTEGER NOT NULL, `lsh5` INTEGER NOT NULL,
+                    `lsh6` INTEGER NOT NULL, `lsh7` INTEGER NOT NULL,
+                    `completedAtMillis` INTEGER NOT NULL,
+                    PRIMARY KEY(`indexId`,`volumeName`,`mediaStoreId`),
+                    FOREIGN KEY(`indexId`) REFERENCES `semantic_indexes`(`indexId`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                    FOREIGN KEY(`volumeName`,`mediaStoreId`) REFERENCES `media_items`(`volumeName`,`mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)"""
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_semantic_embeddings_volumeName_mediaStoreId` ON `semantic_embeddings` (`volumeName`,`mediaStoreId`)"
+                )
+                repeat(8) { band ->
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS `index_semantic_embeddings_indexId_lsh$band` ON `semantic_embeddings` (`indexId`,`lsh$band`)"
+                    )
+                }
+            }
+        }
+
+    val Migration17To18 =
+        object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `archived_media` (
+                    `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL,
+                    `archivedAtMillis` INTEGER NOT NULL,
+                    PRIMARY KEY(`volumeName`,`mediaStoreId`),
+                    FOREIGN KEY(`volumeName`,`mediaStoreId`) REFERENCES `media_items`(`volumeName`,`mediaStoreId`)
+                        ON UPDATE NO ACTION ON DELETE CASCADE)"""
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_archived_media_archivedAtMillis` " +
+                        "ON `archived_media` (`archivedAtMillis`)"
+                )
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `activity_events` (
+                    `eventId` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `type` TEXT NOT NULL, `occurredAtMillis` INTEGER NOT NULL,
+                    `itemCount` INTEGER NOT NULL, `detail` TEXT)"""
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_activity_events_occurredAtMillis` " +
+                        "ON `activity_events` (`occurredAtMillis`)"
+                )
+            }
+        }
+
+    val Migration18To19 =
+        object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `document_annotations` (
+                `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL,
+                `category` TEXT NOT NULL, `updatedAtMillis` INTEGER NOT NULL,
+                PRIMARY KEY(`volumeName`,`mediaStoreId`),
+                FOREIGN KEY(`volumeName`,`mediaStoreId`) REFERENCES `media_items`(`volumeName`,`mediaStoreId`)
+                    ON UPDATE NO ACTION ON DELETE CASCADE)"""
+                )
+            }
+        }
+
+    val Migration19To20 =
+        object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `document_archive_rule` (
+                `id` INTEGER NOT NULL, `enabled` INTEGER NOT NULL, `category` TEXT NOT NULL,
+                `minimumAgeDays` INTEGER NOT NULL, `revision` TEXT NOT NULL,
+                `lastRunId` TEXT, `lastRunMillis` INTEGER, `lastRunCount` INTEGER NOT NULL,
+                PRIMARY KEY(`id`))"""
+                )
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `document_archive_history` (
+                `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL,
+                `generationModified` INTEGER NOT NULL, `runId` TEXT NOT NULL,
+                `writtenAtMillis` INTEGER, PRIMARY KEY(`volumeName`,`mediaStoreId`),
+                FOREIGN KEY(`volumeName`,`mediaStoreId`) REFERENCES `media_items`(`volumeName`,`mediaStoreId`)
+                    ON UPDATE NO ACTION ON DELETE CASCADE)"""
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_document_archive_history_runId` ON `document_archive_history` (`runId`)"
+                )
+            }
+        }
+
+    val Migration20To21 =
+        object : Migration(20, 21) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE document_archive_rule ADD COLUMN afterSortMillis INTEGER")
+                db.execSQL("ALTER TABLE document_archive_rule ADD COLUMN afterMediaStoreId INTEGER")
+                db.execSQL("ALTER TABLE document_archive_rule ADD COLUMN afterVolumeName TEXT")
+            }
+        }
+
+    val Migration21To22 =
+        object : Migration(21, 22) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `photo_stacks` (`stackId` TEXT NOT NULL, `title` TEXT,
+                `coverVolumeName` TEXT NOT NULL, `coverMediaStoreId` INTEGER NOT NULL, `revision` TEXT NOT NULL,
+                `createdAtMillis` INTEGER NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`stackId`))"""
+                )
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `photo_stack_members` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL,
+                `stackId` TEXT NOT NULL, `ordinal` INTEGER NOT NULL, PRIMARY KEY(`volumeName`,`mediaStoreId`),
+                FOREIGN KEY(`stackId`) REFERENCES `photo_stacks`(`stackId`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                FOREIGN KEY(`volumeName`,`mediaStoreId`) REFERENCES `media_items`(`volumeName`,`mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)"""
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_photo_stack_members_stackId_ordinal` ON `photo_stack_members` (`stackId`,`ordinal`)"
+                )
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS `photo_stack_exclusions` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL,
+                `separatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`,`mediaStoreId`),
+                FOREIGN KEY(`volumeName`,`mediaStoreId`) REFERENCES `media_items`(`volumeName`,`mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)"""
+                )
+            }
+        }
+
+    val Migration22To23 = object : Migration(22, 23) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""CREATE TABLE IF NOT EXISTS `smart_albums` (
+                `albumId` TEXT NOT NULL, `name` TEXT NOT NULL, `topic` TEXT, `personClusterId` TEXT,
+                `personAlgorithmVersion` TEXT, `year` INTEGER, `zoneId` TEXT NOT NULL,
+                `fromMillis` INTEGER, `untilMillis` INTEGER, `favoritesOnly` INTEGER NOT NULL,
+                `revision` TEXT NOT NULL, `createdAtMillis` INTEGER NOT NULL, `updatedAtMillis` INTEGER NOT NULL,
+                PRIMARY KEY(`albumId`))""")
+            db.execSQL("""CREATE TABLE IF NOT EXISTS `smart_album_exclusions` (
+                `albumId` TEXT NOT NULL, `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL,
+                `token` TEXT NOT NULL, `excludedAtMillis` INTEGER NOT NULL,
+                PRIMARY KEY(`albumId`,`volumeName`,`mediaStoreId`),
+                FOREIGN KEY(`albumId`) REFERENCES `smart_albums`(`albumId`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                FOREIGN KEY(`volumeName`,`mediaStoreId`) REFERENCES `media_items`(`volumeName`,`mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)""")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_smart_album_exclusions_volumeName_mediaStoreId` ON `smart_album_exclusions` (`volumeName`,`mediaStoreId`)")
+        }
+    }
+
+    val Migration30To31 = object : Migration(30, 31) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE virtual_albums ADD COLUMN chosenCoverVolumeName TEXT")
+            db.execSQL("ALTER TABLE virtual_albums ADD COLUMN chosenCoverMediaStoreId INTEGER")
+        }
+    }
+
+    val Migration29To30 = object : Migration(29, 30) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE moments ADD COLUMN includeSpecialMedia INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
+    val Migration28To29 = object : Migration(28, 29) {
+        override fun migrate(db: SupportSQLiteDatabase) = MomentParticipantsSchema.install(db)
+    }
+
+    val Migration27To28 = object : Migration(27, 28) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            MomentDiscoverySchema.installDocumentTriggers(db)
+            // Existing completed runs predate the document filter, including those with no
+            // annotations yet. A new revision also discards any old paged-run checkpoint.
+            db.execSQL("UPDATE moment_discovery_revision SET revision=revision+1 WHERE id=1")
+        }
+    }
+
+    val Migration26To27 = object : Migration(26, 27) {
+        override fun migrate(db: SupportSQLiteDatabase) = OfflineIdentitySchema.install(db)
+    }
+
+    val Migration25To26 = object : Migration(25, 26) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE moment_runs ADD COLUMN inputRevision INTEGER NOT NULL DEFAULT -1")
+            db.execSQL("ALTER TABLE moment_runs ADD COLUMN openLastLatitude REAL")
+            db.execSQL("ALTER TABLE moment_runs ADD COLUMN openLastLongitude REAL")
+            db.execSQL("CREATE TABLE IF NOT EXISTS moment_discovery_revision (id INTEGER NOT NULL, revision INTEGER NOT NULL, PRIMARY KEY(id))")
+            db.execSQL("CREATE TABLE IF NOT EXISTS moment_discovery_seen (algorithmVersion TEXT NOT NULL, runId TEXT NOT NULL, momentId TEXT NOT NULL, PRIMARY KEY(algorithmVersion,runId,momentId), FOREIGN KEY(algorithmVersion) REFERENCES moment_runs(algorithmVersion) ON UPDATE NO ACTION ON DELETE CASCADE, FOREIGN KEY(momentId) REFERENCES moments(momentId) ON UPDATE NO ACTION ON DELETE CASCADE)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_moment_discovery_seen_momentId ON moment_discovery_seen(momentId)")
+            MomentDiscoverySchema.install(db)
+        }
+    }
+
+    val Migration24To25 = object : Migration(24, 25) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS portable_timeline_overrides (volumeName TEXT NOT NULL, mediaStoreId INTEGER NOT NULL, generationAdded INTEGER NOT NULL, timelineSortMillis INTEGER NOT NULL, dateTakenMillis INTEGER, PRIMARY KEY(volumeName, mediaStoreId), FOREIGN KEY(volumeName, mediaStoreId) REFERENCES media_items(volumeName, mediaStoreId) ON UPDATE NO ACTION ON DELETE CASCADE)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `motion_key_frames` (`volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL, `generationModified` INTEGER NOT NULL, `timeUs` INTEGER NOT NULL, `fileName` TEXT NOT NULL, `sha256` TEXT NOT NULL, `sizeBytes` INTEGER NOT NULL, `revision` TEXT NOT NULL, `updatedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`volumeName`, `mediaStoreId`), FOREIGN KEY(`volumeName`, `mediaStoreId`) REFERENCES `media_items`(`volumeName`, `mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS `gallery_restore_receipts` (`operationId` TEXT NOT NULL, `snapshotId` TEXT NOT NULL, `files` INTEGER NOT NULL, `importedObjects` INTEGER NOT NULL, `skippedObjects` INTEGER NOT NULL, `appliedAtMillis` INTEGER NOT NULL, PRIMARY KEY(`operationId`))")
+        }
+    }
+
+    val Migration23To24 = object : Migration(23, 24) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("""CREATE TABLE IF NOT EXISTS `memory_date_exclusions` (
+                `ruleId` TEXT NOT NULL, `startDay` INTEGER NOT NULL, `endDay` INTEGER NOT NULL,
+                `zoneId` TEXT NOT NULL, `fromMillis` INTEGER NOT NULL, `untilMillis` INTEGER NOT NULL,
+                `createdAtMillis` INTEGER NOT NULL, PRIMARY KEY(`ruleId`))""")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_memory_date_exclusions_startDay_endDay_zoneId` ON `memory_date_exclusions` (`startDay`,`endDay`,`zoneId`)")
+            db.execSQL("""CREATE TABLE IF NOT EXISTS `memory_person_exclusions` (
+                `ruleId` TEXT NOT NULL, `clusterId` TEXT NOT NULL, `algorithmVersion` TEXT NOT NULL,
+                `displayName` TEXT, `createdAtMillis` INTEGER NOT NULL, PRIMARY KEY(`ruleId`))""")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_memory_person_exclusions_clusterId_algorithmVersion` ON `memory_person_exclusions` (`clusterId`,`algorithmVersion`)")
+            db.execSQL("""CREATE TABLE IF NOT EXISTS `memory_person_sources` (
+                `ruleId` TEXT NOT NULL, `volumeName` TEXT NOT NULL, `mediaStoreId` INTEGER NOT NULL,
+                PRIMARY KEY(`ruleId`,`volumeName`,`mediaStoreId`),
+                FOREIGN KEY(`ruleId`) REFERENCES `memory_person_exclusions`(`ruleId`) ON UPDATE NO ACTION ON DELETE CASCADE,
+                FOREIGN KEY(`volumeName`,`mediaStoreId`) REFERENCES `media_items`(`volumeName`,`mediaStoreId`) ON UPDATE NO ACTION ON DELETE CASCADE)""")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_memory_person_sources_volumeName_mediaStoreId` ON `memory_person_sources` (`volumeName`,`mediaStoreId`)")
+        }
+    }
+
+    private fun build(context: Context, name: String): GalleryDatabase =
+        Room.databaseBuilder(context.applicationContext, GalleryDatabase::class.java, name)
+            // Runtime, local workers and other app connections must observe the same writes.
+            .enableMultiInstanceInvalidation()
+            .addCallback(MomentDiscoverySchema.Callback)
+            .addMigrations(
+                Migration1To2,
+                Migration2To3,
+                Migration3To4,
+                Migration4To5,
+                Migration5To6,
+                Migration6To7,
+                Migration7To8,
+                Migration8To9,
+                Migration9To10,
+                Migration10To11,
+                Migration11To12,
+                Migration12To13,
+                Migration13To14,
+                Migration14To15,
+                Migration15To16,
+                Migration16To17,
+                Migration17To18,
+                Migration18To19,
+                Migration19To20,
+                Migration20To21,
+                Migration21To22,
+                Migration22To23,
+                Migration23To24,
+                Migration24To25,
+                Migration25To26,
+                Migration26To27,
+                Migration27To28,
+                Migration28To29,
+                Migration29To30,
+                Migration30To31,
+            )
+            .build()
+}

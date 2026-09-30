@@ -1,4 +1,4 @@
-package com.ugallery.mediaprovider.fixture;
+package com.librestatic.lightforge.mediaprovider.fixture;
 
 import android.database.Cursor;
 import android.database.MatrixCursor;

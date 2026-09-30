@@ -11,7 +11,15 @@
     <string name="own_sync_quarantined">Quarantine: %1$s</string>
     <string name="own_sync_restore">Restore from quarantine</string>
     <string name="own_sync_history">Run history</string>
-    <string name="own_sync_progress">%1$d / %2$d operations · %3$d bytes copied</string>
+    <string name="own_sync_progress">%1$s · %2$s</string>
+    <plurals name="own_sync_progress_operations">
+        <item quantity="one">%1$d / %2$d operation</item>
+        <item quantity="other">%1$d / %2$d operations</item>
+    </plurals>
+    <plurals name="own_sync_progress_bytes">
+        <item quantity="one">%d byte copied</item>
+        <item quantity="other">%d bytes copied</item>
+    </plurals>
     <string name="own_sync_review">Review changes</string>
     <string name="own_sync_pause">Pause</string>
     <string name="own_sync_resume">Resume</string>

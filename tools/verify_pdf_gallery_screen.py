@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Install an opt-in, separate app ID and exercise the real gallery-to-PDF UI.
 
-Build both APKs with -Pugallery.pdfAcceptance=true first. The target must be a
+Build both APKs with -Plightforge.pdfAcceptance=true first. The target must be a
 fresh acceptance install. This observer never clears or uninstalls an app and
 leaves evidence/failed state available for inspection rather than retrying.
 """
@@ -23,7 +23,7 @@ def main():
     parser.add_argument("--aapt", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
-    target = "com.ugallery.app.pdfacceptance"
+    target = "com.librestatic.lightforge.pdfacceptance"
     test = target + ".test"
     adb = ["rtk", "proxy", "adb", "-s", args.serial]
     args.output.mkdir(parents=True, exist_ok=True)
@@ -51,16 +51,16 @@ def main():
     assert "package:" + test not in packages, "Existing acceptance test APK must be inspected first"
     def user_install():
         installed = command(*adb, "shell", "pm", "list", "packages").decode().splitlines()
-        if "package:com.ugallery.app.debug" not in installed:
+        if "package:com.librestatic.lightforge.debug" not in installed:
             return None
-        return command(*adb, "shell", "pm", "path", "com.ugallery.app.debug")
+        return command(*adb, "shell", "pm", "path", "com.librestatic.lightforge.debug")
 
     user_path = user_install()
     for apk in (args.app_apk, args.test_apk):
         output = command(*adb, "install", str(apk)).decode()
         assert "Success" in output, output
     run = subprocess.run(adb + ["shell", "am", "instrument", "-w", "-e", "class",
-                               "com.ugallery.app.PdfGallerySelectionUiDeviceTest",
+                               "com.librestatic.lightforge.PdfGallerySelectionUiDeviceTest",
                                test + "/androidx.test.runner.AndroidJUnitRunner"],
                          capture_output=True, timeout=360)
     literal = (run.stdout + run.stderr).decode()

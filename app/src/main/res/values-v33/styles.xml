@@ -1,0 +1,14 @@
+<resources>
+    <!--
+        Launches that do not come straight from a home-screen icon (launcher search, other apps)
+        get an icon-less, solid-colour splash by default; the star must always be there for the
+        hand-off into the first-run intro.
+    -->
+    <style name="Theme.Lightforge.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_star_animated</item>
+        <item name="windowSplashScreenAnimationDuration">1000</item>
+        <item name="postSplashScreenTheme">@style/Theme.Lightforge</item>
+        <item name="android:windowSplashScreenBehavior">icon_preferred</item>
+    </style>
+</resources>

@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.feature.ownsync"
+    namespace = "com.librestatic.lightforge.feature.ownsync"
     compileSdk = 37
 
     defaultConfig {

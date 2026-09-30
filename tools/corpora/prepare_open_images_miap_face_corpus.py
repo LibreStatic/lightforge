@@ -67,7 +67,7 @@ def face_size(face: dict[str, str]) -> float:
 
 
 def stable_rank(image_id: str, salt: str) -> str:
-    return hashlib.sha256(f"ugallery-m4-v1:{salt}:{image_id}".encode()).hexdigest()
+    return hashlib.sha256(f"lightforge-m4-v1:{salt}:{image_id}".encode()).hexdigest()
 
 
 def select_targets(boxes_path: Path, miap_path: Path) -> list[dict[str, object]]:
@@ -154,7 +154,7 @@ def main() -> None:
     manifest = {
         "schemaVersion": 1,
         "dataset": "Open Images V7 validation + MIAP validation",
-        "selectionVersion": "ugallery-m4-v1",
+        "selectionVersion": "lightforge-m4-v1",
         "imageCount": len(entries),
         "annotationLicense": "https://creativecommons.org/licenses/by/4.0/",
         "imageLicensePolicy": "Images are listed by Open Images as CC BY; retain per-image attribution and upstream disclaimer.",

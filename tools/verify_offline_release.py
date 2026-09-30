@@ -73,16 +73,16 @@ def verify_network_sources() -> list[str]:
             if path.name == "SemanticModelStorage.kt" and "feature/semanticsearch/" in path.as_posix():
                 continue
             if path.relative_to(ROOT).as_posix() in {
-                "feature/petrecognition/src/main/kotlin/com/ugallery/feature/petrecognition/PetModelStore.kt",
-                "feature/localsharing/src/main/kotlin/com/ugallery/feature/localsharing/LocalSharingTls.kt",
-                "feature/localsharing/src/main/kotlin/com/ugallery/feature/localsharing/LocalSharingClient.kt",
-                "feature/localsharing/src/main/kotlin/com/ugallery/feature/localsharing/LocalSharingReceiver.kt",
-                "feature/localsharing/src/main/kotlin/com/ugallery/feature/localsharing/LocalSharingRunner.kt",
-                "feature/semanticsearch/src/main/kotlin/com/ugallery/feature/semanticsearch/SemanticDownloadCancellation.kt",
-                "feature/places/src/main/kotlin/com/ugallery/feature/places/OfflinePlacesController.kt",
-                "core/remotestorage/src/main/kotlin/com/ugallery/core/remotestorage/sftp/SftpRemoteConnectionFactory.kt",
-                "core/remotestorage/src/main/kotlin/com/ugallery/core/remotestorage/sftp/SftpRemoteConnection.kt",
-                "core/remotestorage/src/main/kotlin/com/ugallery/core/remotestorage/smb/SmbRemoteConnectionFactory.kt",
+                "feature/petrecognition/src/main/kotlin/com/librestatic/lightforge/feature/petrecognition/PetModelStore.kt",
+                "feature/localsharing/src/main/kotlin/com/librestatic/lightforge/feature/localsharing/LocalSharingTls.kt",
+                "feature/localsharing/src/main/kotlin/com/librestatic/lightforge/feature/localsharing/LocalSharingClient.kt",
+                "feature/localsharing/src/main/kotlin/com/librestatic/lightforge/feature/localsharing/LocalSharingReceiver.kt",
+                "feature/localsharing/src/main/kotlin/com/librestatic/lightforge/feature/localsharing/LocalSharingRunner.kt",
+                "feature/semanticsearch/src/main/kotlin/com/librestatic/lightforge/feature/semanticsearch/SemanticDownloadCancellation.kt",
+                "feature/places/src/main/kotlin/com/librestatic/lightforge/feature/places/OfflinePlacesController.kt",
+                "core/remotestorage/src/main/kotlin/com/librestatic/lightforge/core/remotestorage/sftp/SftpRemoteConnectionFactory.kt",
+                "core/remotestorage/src/main/kotlin/com/librestatic/lightforge/core/remotestorage/sftp/SftpRemoteConnection.kt",
+                "core/remotestorage/src/main/kotlin/com/librestatic/lightforge/core/remotestorage/smb/SmbRemoteConnectionFactory.kt",
             }:
                 continue
             source = path.read_text(encoding="utf-8")

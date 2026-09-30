@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lightforge Studio — promo</title>
+<!--
+  Deterministic promo mock: nothing animates on its own. render(t) positions every
+  element for time t (seconds), so render.mjs can capture exact frames.
+  Open with ?play to preview in real time.
+  App colors follow the Material 3 dark scheme used by LightforgeTheme, always as
+  matching container/on-container pairs.
+-->
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:#0d0b12}
+body{font-family:'Adwaita Sans','Inter','Roboto',system-ui,sans-serif;color:#E6E0E9;-webkit-font-smoothing:antialiased}
+.abs{position:absolute}
+#stage{position:absolute;inset:0;overflow:hidden}
+.blob{position:absolute;border-radius:50%;filter:blur(140px)}
+#grain{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,transparent 40%,rgba(0,0,0,.55) 100%)}
+
+/* captions (video canvas, not app UI) */
+#cap{position:absolute;left:170px;top:0;width:820px;height:1080px}
+.capblk{position:absolute;left:0;top:360px;width:820px}
+.capblk h1{font-size:82px;line-height:1.02;font-weight:800;letter-spacing:-2.5px;color:#F4EFF8}
+.capblk p{margin-top:28px;font-size:31px;line-height:1.35;color:#CAC4D0;max-width:700px}
+.w{display:inline-block;will-change:transform}
+.kicker{display:inline-flex;align-items:center;gap:12px;font-size:22px;font-weight:700;letter-spacing:3px;text-transform:uppercase;margin-bottom:26px;color:#FFC247}
+.kicker i{width:34px;height:4px;border-radius:2px;background:linear-gradient(90deg,#FFC247,#F2607A,#7B61F0)}
+
+/* phone */
+#phoneWrap{position:absolute;left:1180px;top:95px;width:424px;height:890px;perspective:1800px}
+#phone{position:absolute;inset:0;border-radius:58px;background:linear-gradient(145deg,#2a2731,#141218);padding:12px;
+  box-shadow:0 50px 140px rgba(0,0,0,.65),0 0 0 2px #3a3642 inset,0 0 0 1px #000}
+#screen{position:relative;width:400px;height:866px;border-radius:46px;overflow:hidden;background:#141218}
+.scr{position:absolute;inset:0;will-change:transform,opacity}
+.status{position:absolute;left:0;right:0;top:0;height:40px;display:flex;justify-content:space-between;align-items:center;padding:6px 30px 0;font-size:15px;font-weight:600;color:#E6E0E9;z-index:30}
+.cam{position:absolute;left:50%;top:12px;width:22px;height:22px;margin-left:-11px;border-radius:50%;background:#000;z-index:31}
+.topbar{position:absolute;left:0;right:0;top:40px;height:64px;display:flex;align-items:center;padding:0 20px;gap:12px}
+.topbar h2{font-size:26px;font-weight:600;flex:1;color:#E6E0E9}
+.iconbtn{width:44px;height:44px;border-radius:22px;display:flex;align-items:center;justify-content:center}
+svg.ic{width:24px;height:24px;fill:currentColor}
+.tile{position:absolute;overflow:hidden;will-change:transform}
+.tile .ph{position:absolute;inset:0}
+.nav{position:absolute;left:0;right:0;bottom:0;height:86px;background:#211F26;display:flex;justify-content:space-around;align-items:flex-start;padding-top:12px;z-index:20}
+.navit{width:110px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px;font-weight:600;color:#CAC4D0;position:relative}
+.navit .pill{width:64px;height:32px;border-radius:16px;display:flex;align-items:center;justify-content:center;position:relative}
+.navind{position:absolute;top:12px;width:64px;height:32px;border-radius:16px;background:#4A4458}
+.searchbar{position:absolute;left:16px;right:16px;top:52px;height:56px;border-radius:28px;background:#2B2930;color:#E6E0E9;display:flex;align-items:center;padding:0 18px;gap:14px;font-size:18px}
+.caret{display:inline-block;width:2px;height:22px;background:#D0BCFF;vertical-align:middle;margin-left:1px}
+.chip{height:36px;border-radius:10px;padding:0 14px;display:inline-flex;align-items:center;gap:6px;font-size:14px;font-weight:600;background:#4A4458;color:#E8DEF8}
+.chip.out{background:transparent;box-shadow:0 0 0 1px #938F99 inset;color:#CAC4D0}
+.label{font-size:15px;font-weight:600;color:#CAC4D0}
+.badge{position:absolute;display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 12px;border-radius:15px;font-size:13px;font-weight:700;background:#4F378B;color:#EADDFF}
+.avatar{position:absolute;width:84px;height:84px;border-radius:50%;overflow:hidden}
+.aname{position:absolute;width:100px;text-align:center;font-size:14px;font-weight:600;color:#E6E0E9}
+.card{position:absolute;border-radius:28px;background:#211F26;overflow:hidden}
+.pin{position:absolute;width:44px;height:44px;margin:-44px 0 0 -22px}
+.pin .cnt{position:absolute;left:50%;top:-14px;transform:translateX(-50%);min-width:28px;height:22px;border-radius:11px;padding:0 7px;font-size:12px;font-weight:800;line-height:22px;text-align:center;background:#D0BCFF;color:#381E72}
+.check{position:absolute;left:8px;top:8px;width:26px;height:26px;border-radius:13px;background:#D0BCFF;color:#381E72;display:flex;align-items:center;justify-content:center}
+.check svg{width:18px;height:18px;fill:currentColor}
+.toolbar{position:absolute;left:18px;right:18px;bottom:22px;height:72px;border-radius:36px;background:#2B2930;display:flex;align-items:center;justify-content:space-around;padding:0 8px;z-index:25;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.tb{height:52px;border-radius:26px;padding:0 16px;display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:#E6E0E9}
+.tb.on{background:#4A4458;color:#E8DEF8}
+.snack{position:absolute;left:16px;right:16px;bottom:24px;height:56px;border-radius:12px;background:#E6E0E9;color:#322F35;display:flex;align-items:center;justify-content:space-between;padding:0 18px;font-size:15px;font-weight:600;z-index:40}
+.snack b{color:#6750A4}
+.touch{position:absolute;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;background:rgba(255,255,255,.28);box-shadow:0 0 0 2px rgba(255,255,255,.55);z-index:60;pointer-events:none}
+.float{position:absolute;display:flex;align-items:center;gap:14px;padding:16px 22px 16px 16px;border-radius:24px;background:rgba(43,41,48,.86);box-shadow:0 20px 60px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.07) inset;backdrop-filter:blur(12px)}
+.float .fi{width:48px;height:48px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:#4F378B;color:#EADDFF}
+.float .ft{font-size:21px;font-weight:800;color:#E6E0E9}
+.float .fs{font-size:15px;color:#CAC4D0;margin-top:2px}
+
+/* editor / gif / pdf */
+.tabs{position:absolute;left:16px;right:16px;display:flex;gap:8px;justify-content:center}
+.tab{height:40px;padding:0 18px;border-radius:20px;display:flex;align-items:center;gap:6px;font-size:15px;font-weight:700;color:#CAC4D0}
+.tab.on{background:#4A4458;color:#E8DEF8}
+.fthumb{position:absolute;width:78px;text-align:center;font-size:13px;font-weight:600;color:#CAC4D0}
+.fthumb .im{width:78px;height:78px;border-radius:16px;overflow:hidden;position:relative;margin-bottom:6px}
+.fthumb.on{color:#E6E0E9}
+.btn{position:absolute;height:52px;border-radius:26px;display:flex;align-items:center;justify-content:center;gap:8px;font-size:16px;font-weight:700;background:#D0BCFF;color:#381E72}
+.txtbtn{font-size:16px;font-weight:700;color:#D0BCFF;padding:0 8px}
+.slider{position:absolute;height:4px;border-radius:2px;background:#4A4458}
+.slider i{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:#D0BCFF}
+.slider b{position:absolute;top:-8px;width:20px;height:20px;margin-left:-10px;border-radius:10px;background:#D0BCFF}
+.row{position:absolute;left:20px;right:20px;display:flex;align-items:center;justify-content:space-between;font-size:15px;font-weight:600;color:#E6E0E9}
+.row span.v{color:#CAC4D0}
+.page{position:absolute;background:#FFFFFF;box-shadow:0 8px 30px rgba(0,0,0,.5);overflow:hidden}
+.pthumb{position:absolute;width:46px;height:64px;border-radius:6px;background:#FFFFFF;overflow:hidden}
+.pthumb.on{box-shadow:0 0 0 3px #D0BCFF}
+.pthumb.add{background:#2B2930;color:#CAC4D0;display:flex;align-items:center;justify-content:center;font-size:26px}
+.pnum{position:absolute;font-size:12px;font-weight:700;color:#CAC4D0}
+/* licenses (video canvas) */
+#lic{position:absolute;left:980px;top:0;width:860px;height:1080px}
+.lcard{position:absolute;width:262px;height:170px;border-radius:28px;background:#2B2930;color:#E6E0E9;padding:22px;box-shadow:0 20px 50px rgba(0,0,0,.4)}
+.lcard .lk{display:inline-flex;height:32px;padding:0 14px;border-radius:16px;align-items:center;font-size:16px;font-weight:800;background:#4A4458;color:#E8DEF8}
+.lcard .lw{margin-top:14px;font-size:18px;font-weight:700;line-height:1.3}
+.lcard .ln{margin-top:6px;font-size:14px;color:#CAC4D0;line-height:1.3}
+.lcard.hero{width:826px;height:190px;background:#4F378B;color:#EADDFF;display:flex;align-items:center;gap:28px}
+.lcard.hero .big{font-size:60px;white-space:nowrap;font-weight:800;letter-spacing:-2px}
+.lcard.hero .ln{color:#EADDFF;font-size:19px;margin:0}
+/* logo */
+#logo{position:absolute;left:960px;top:430px;width:0;height:0}
+#logo svg{position:absolute;left:-190px;top:-190px;width:380px;height:380px;overflow:visible}
+#word{position:absolute;left:0;right:0;top:640px;text-align:center}
+#word .name{font-size:112px;font-weight:800;letter-spacing:-4px;background:linear-gradient(90deg,#FFC247,#FF8A4C 30%,#F2607A 55%,#C45ED8 75%,#7B61F0);-webkit-background-clip:text;background-clip:text;color:transparent;display:inline-block}
+#word .tag{font-size:34px;color:#CAC4D0;margin-top:10px}
+#pills{position:absolute;left:0;right:0;top:880px;display:flex;justify-content:center;gap:18px}
+#pills span{height:52px;padding:0 26px;border-radius:26px;display:inline-flex;align-items:center;font-size:22px;font-weight:700;background:#4A4458;color:#E8DEF8}
+/* portrait (Reels, 1080x1920): ?portrait. Text stays out of the top ~250px and bottom ~420px
+   that Instagram covers with its own UI. */
+body.portrait,body.portrait #stage{width:1080px;height:1920px}
+html:has(body.portrait){width:1080px;height:1920px}
+.portrait #cap{left:80px;width:920px;height:auto}
+.portrait .capblk{top:230px;width:920px}
+.portrait .capblk h1{font-size:84px}
+.portrait .capblk p{font-size:32px;max-width:900px;margin-top:22px}
+.portrait #phoneWrap{left:328px;top:740px}
+.portrait #floats{position:absolute;inset:0;z-index:5}
+.portrait #lic{left:127px;top:500px}
+.portrait #logo{left:540px;top:720px}
+.portrait #word{top:930px}
+.portrait #word .name{font-size:92px;letter-spacing:-3px}
+.portrait #word .tag{font-size:32px}
+.portrait #pills{top:1180px;flex-wrap:wrap;padding:0 120px}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="blob" id="b0"></div><div class="blob" id="b1"></div><div class="blob" id="b2"></div><div class="blob" id="b3"></div>
+  <div id="grain"></div>
+  <div id="cap"></div>
+  <div id="floats"></div>
+  <div id="lic"></div>
+  <div id="phoneWrap"><div id="phone"><div id="screen">
+    <div class="status"><span>9:41</span><span>●●● 5G ▮</span></div><div class="cam"></div>
+    <div class="scr" id="sGrid"></div>
+    <div class="scr" id="sSearch"></div>
+    <div class="scr" id="sPeople"></div>
+    <div class="scr" id="sPrivate"></div>
+    <div class="scr" id="sCreate"></div>
+    <div class="scr" id="sEdit"></div>
+    <div class="scr" id="sGif"></div>
+    <div class="scr" id="sPdf"></div>
+    <div class="nav" id="nav"></div>
+    <div id="touches"></div>
+  </div></div></div>
+  <div id="logo"></div>
+  <div id="word"><div class="name">Lightforge Studio</div><div class="tag" id="tag"></div></div>
+  <div id="pills"><span>Offline-first</span><span>Open source</span><span>No cloud</span><span>Apache-2.0</span></div>
+</div>
+<script>
+const DURATION = 57;
+const PORTRAIT = location.search.includes('portrait');
+if (PORTRAIT) document.body.classList.add('portrait');
+const SHIFT = 24.1; // outro logo reuses the intro-relative timings, shifted
+const W = 400, H = 866;
+const $ = id => document.getElementById(id);
+const el = (tag, cls, html, parent) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; if (parent) parent.appendChild(e); return e; };
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const P = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, x) => a + (b - a) * x;
+const eo = x => 1 - Math.pow(1 - x, 3);
+const eo5 = x => 1 - Math.pow(1 - x, 5);
+const eio = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const back = x => { const c1 = 1.9, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const css = (e, s) => { for (const k in s) e.style[k] = s[k]; };
+const rng = seed => () => (seed = (seed * 16807) % 2147483647, (seed - 1) / 2147483646);
+
+const ICON = {
+  search: 'M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z',
+  lock: 'M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z',
+  lockOpen: 'M12 17c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm6-9h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6h1.9c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm0 12H6V10h12v10z',
+  check: 'M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z',
+  photo: 'M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z',
+  collections: 'M22 16V4c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2zm-11-4 2.03 2.71L16 11l4 5H8l3-4zM2 6v14c0 1.1.9 2 2 2h14v-2H4V6H2z',
+  place: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 0 1 0-5 2.5 2.5 0 0 1 0 5z',
+  collage: 'M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z',
+  gif: 'M11.5 9H13v6h-1.5zM9 9H6c-.6 0-1 .5-1 1v4c0 .5.4 1 1 1h3c.6 0 1-.5 1-1v-2H8.5v1.5h-2v-3H10V10c0-.5-.4-1-1-1zm10 1.5V9h-4.5v6H16v-2h2v-1.5h-2v-1z',
+  pdf: 'M20 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-8.5 7.5c0 .83-.67 1.5-1.5 1.5H9v2H7.5V7H10c.83 0 1.5.67 1.5 1.5v1zm5 2c0 .83-.67 1.5-1.5 1.5h-2.5V7H15c.83 0 1.5.67 1.5 1.5v3zm4-3H19v1h1.5V11H19v2h-1.5V7h3v1.5zM9 9.5h1v-1H9v1zM4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm10 5.5h1v-3h-1v3z',
+  bolt: 'M11 21h-1l1-7H7.5c-.88 0-.33-.75-.31-.78C8.48 10.94 10.42 7.54 13.01 3h1l-1 7h3.51c.4 0 .62.19.4.66C12.97 17.55 11 21 11 21z',
+  shield: 'M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z',
+  face: 'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z',
+  sparkle: 'M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z',
+  more: 'M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z',
+};
+const ic = (n, size = 24) => `<svg class="ic" viewBox="0 0 24 24" style="width:${size}px;height:${size}px"><path d="${ICON[n]}"/></svg>`;
+
+/* ---------- procedural "photos" (no real captures) ---------- */
+const PAL = [
+  ['#ffb36b', '#ff5f7e', '#40286e', 'sun'], ['#8fd8ff', '#2a78c2', '#ecd6a3', 'sea'],
+  ['#c6ec7a', '#3f8f4a', '#1f4a2a', 'hill'], ['#2a2356', '#7a47b0', '#ffe3a0', 'city'],
+  ['#ffd9a8', '#f08a5d', '#5b3563', 'peak'], ['#bfe8de', '#5aa89a', '#27525b', 'peak'],
+  ['#ffe29a', '#ff9f68', '#a8466a', 'sun'], ['#a9c8ff', '#6f7fe0', '#2e2f6e', 'peak'],
+  ['#ffc9d6', '#e57fa4', '#6d3a73', 'hill'], ['#9fe7ff', '#39a0d6', '#f4dfae', 'sea'],
+];
+function photo(i, forceType) {
+  const r = rng(i * 7919 + 101);
+  let k = PAL[Math.floor(r() * PAL.length)];
+  if (forceType) k = PAL.filter(p => p[3] === forceType)[i % PAL.filter(p => p[3] === forceType).length];
+  const [a, b, c, type] = k; const x = 22 + r() * 56, y = 18 + r() * 30; const L = [];
+  if (type === 'sun') L.push(`radial-gradient(circle at ${x}% ${y + 18}%,#fff6cf 0 9%,rgba(255,240,200,.35) 15%,transparent 32%)`, `linear-gradient(180deg,transparent 64%,${c} 64%)`);
+  if (type === 'sea') L.push(`radial-gradient(circle at ${x}% ${y}%,#fffbe8 0 7%,transparent 8%)`, `linear-gradient(180deg,transparent 52%,${b} 52% 74%,${c} 74%)`);
+  if (type === 'hill') L.push(`radial-gradient(ellipse 95% 42% at ${x}% 102%,${c} 0 60%,transparent 61%)`, `radial-gradient(ellipse 85% 42% at ${100 - x}% 90%,${b} 0 60%,transparent 61%)`);
+  if (type === 'city') L.push(`radial-gradient(circle at ${x}% ${y}%,${c} 0 6%,transparent 7%)`, `linear-gradient(90deg,#15112e 0 18%,transparent 18% 22%,#1b1638 22% 46%,transparent 46% 52%,#120e28 52% 70%,transparent 70% 76%,#1a1535 76%)`);
+  if (type === 'peak') L.push(`conic-gradient(from 150deg at ${x}% ${y + 12}%,${c} 0 60deg,transparent 60deg)`, `conic-gradient(from 140deg at ${100 - x * .6}% ${y + 30}%,${b} 0 80deg,transparent 80deg)`);
+  L.push(`linear-gradient(${150 + r() * 60}deg,${a},${b})`);
+  let bg = L.join(',');
+  if (type === 'city') bg = [L[0], L[2]].join(',');
+  return { bg, city: type === 'city' };
+}
+function tile(parent, i, type) {
+  const t = el('div', 'tile', null, parent); const ph = el('div', 'ph', null, t); const p = photo(i, type);
+  ph.style.background = p.bg;
+  if (p.city) { const s = el('div', 'ph', null, t); s.style.background = 'linear-gradient(90deg,#15112e 0 18%,transparent 18% 22%,#1b1638 22% 46%,transparent 46% 52%,#120e28 52% 70%,transparent 70% 76%,#1a1535 76%)'; s.style.clipPath = 'polygon(0 55%,18% 55%,18% 70%,22% 70%,22% 40%,46% 40%,46% 62%,52% 62%,52% 48%,70% 48%,70% 66%,76% 66%,76% 52%,100% 52%,100% 100%,0 100%)'; }
+  return t;
+}
+
+/* ---------- build: background, captions, floats ---------- */
+const BLOBS = [['#F0A21E', 620], ['#F2607A', 700], ['#7B61F0', 760], ['#C45ED8', 560]];
+BLOBS.forEach(([c, s], i) => css($('b' + i), { width: s + 'px', height: s + 'px', background: c }));
+
+const CAPS = [
+  { a: 3.5, b: 9.1, k: 'Timeline', h: 'Your whole library.<br>Instantly.', s: 'Built for 250,000 photos: fluid scrolling, pinch to zoom, zero waiting.' },
+  { a: 9.3, b: 14.1, k: 'Search', h: 'Search by<br>meaning.', s: 'Type what you remember. Semantic search runs entirely on your phone.' },
+  { a: 14.3, b: 18.6, k: 'People & Places', h: 'Faces and trips,<br>found for you.', s: 'Opt-in face and pet recognition, plus an offline map of everywhere you have been.' },
+  { a: 18.8, b: 23.1, k: 'Private albums', h: 'Private stays<br>private.', s: 'Encrypted albums unlocked with your fingerprint. Keys never leave the device.' },
+  { a: 23.3, b: 27.4, k: 'Create', h: 'Make something<br>new.', s: 'Select a few moments and turn them into collages, GIFs or PDFs in a tap.' },
+  { a: 27.6, b: 31.9, k: 'Photo editor', h: 'Edit without<br>regrets.', s: 'Filters, auto-enhance, crop and straighten. Every edit is saved as a copy.' },
+  { a: 32.1, b: 37.3, k: 'GIF maker', h: 'Loops in<br>seconds.', s: 'Pick 2 to 60 photos, reorder frames, set the frame rate and export a GIF locally.' },
+  { a: 37.5, b: 43.8, k: 'PDF Studio', h: 'A PDF studio<br>in your pocket.', s: 'Paper sizes, grids, margins and print-true layouts. Exports queue up while you keep editing.' },
+  { a: 44.8, b: 52.2, k: 'Open source', h: 'Open all the<br>way down.', s: 'Lightforge Studio is Apache-2.0. Every library, model, font and map it ships is credited in the app.' },
+];
+CAPS.forEach(c => {
+  const blk = el('div', 'capblk', null, $('cap'));
+  const words = c.h.split(/(<br>| )/).filter(w => w && w !== ' ').map(w => w === '<br>' ? '<br>' : `<span class="w">${w}</span>`).join(' ');
+  blk.innerHTML = `<div class="kicker w"><i></i>${c.k}</div><h1>${words}</h1><p class="w">${c.s}</p>`;
+  c.el = blk; c.words = [...blk.querySelectorAll('.w')];
+});
+
+const FLOATS = [
+  { a: 4.6, b: 9.0, x: 890, y: 250, i: 'bolt', t: '250k items', s: 'No ANR, no OOM' },
+  { a: 10.6, b: 14.0, x: 900, y: 690, i: 'sparkle', t: 'On-device AI', s: '0 bytes uploaded' },
+  { a: 15.4, b: 18.5, x: 880, y: 250, i: 'face', t: 'Opt-in only', s: 'Pause or correct anytime' },
+  { a: 20.6, b: 23.0, x: 900, y: 700, i: 'shield', t: 'Android Keystore', s: 'Biometric encryption' },
+  { a: 24.6, b: 27.3, x: 880, y: 250, i: 'collage', t: 'Copy by default', s: 'Originals stay untouched' },
+  { a: 28.6, b: 31.8, x: 890, y: 700, i: 'sparkle', t: 'Enhance · Dynamic', s: 'Automatic, on-device' },
+  { a: 33.4, b: 37.2, x: 880, y: 250, i: 'gif', t: '512 × 512 · 256 colors', s: 'Up to 60 frames' },
+  { a: 38.8, b: 43.7, x: 880, y: 700, i: 'pdf', t: 'Print-true sizes', s: 'A4, Letter or custom, in mm or in' },
+];
+FLOATS.forEach(f => { f.el = el('div', 'float', `<div class="fi">${ic(f.i, 26)}</div><div><div class="ft">${f.t}</div><div class="fs">${f.s}</div></div>`, $('floats')); });
+
+/* ---------- logo ---------- */
+const TRI = [
+  ['M54.00,50.60 L63.50,41.00 L44.50,41.00 Z', '#FFC247'], ['M44.50,41.00 L63.50,41.00 L54.00,26.60 Z', '#F0A21E'],
+  ['M57.23,52.95 L69.30,59.02 L63.43,40.95 Z', '#FF8A4C'], ['M63.43,40.95 L69.30,59.02 L80.06,45.53 Z', '#EB6A2C'],
+  ['M56.00,56.75 L53.96,70.10 L69.33,58.93 Z', '#F2607A'], ['M69.33,58.93 L53.96,70.10 L70.11,76.17 Z', '#D4415C'],
+  ['M52.00,56.75 L38.67,58.93 L54.04,70.10 Z', '#C45ED8'], ['M54.04,70.10 L38.67,58.93 L37.89,76.17 Z', '#A23FBA'],
+  ['M50.77,52.95 L44.57,40.95 L38.70,59.02 Z', '#7B61F0'], ['M38.70,59.02 L44.57,40.95 L27.94,45.53 Z', '#5B43D4'],
+];
+$('logo').innerHTML = `<svg viewBox="18 18 72 72"><g id="lg">${TRI.map(([d, c]) => `<path d="${d}" fill="${c}" stroke="${c}" stroke-width="2.6" stroke-linejoin="round"/>`).join('')}</g></svg>`;
+const triEls = [...$('logo').querySelectorAll('path')];
+const triC = TRI.map(([d]) => { const n = d.match(/[\d.]+/g).map(Number); return [(n[0] + n[2] + n[4]) / 3, (n[1] + n[3] + n[5]) / 3]; });
+const triR = TRI.map((_, i) => { const r = rng(i * 331 + 7); return { a: r() * Math.PI * 2, d: 60 + r() * 50, rot: (r() - .5) * 540 }; });
+const TAG = 'The gallery that never leaves your phone.';
+
+/* ---------- screen: grid ---------- */
+const sGrid = $('sGrid');
+el('div', 'topbar', `<h2>Photos</h2><div class="iconbtn">${ic('search')}</div><div class="iconbtn">${ic('more')}</div>`, sGrid).style.zIndex = 5;
+const gridClip = el('div', 'abs', null, sGrid); css(gridClip, { left: 0, right: 0, top: '104px', bottom: '86px', overflow: 'hidden' });
+const monthHdr = el('div', 'abs label', 'September 2026', gridClip); css(monthHdr, { left: '18px', top: '6px' });
+const GRID_N = 66; const gridTiles = []; for (let i = 0; i < GRID_N; i++) gridTiles.push(tile(gridClip, i));
+function gridLayout(c, i, gap = 3) { const s = (W - (c - 1) * gap) / c; return { x: (i % c) * (s + gap), y: Math.floor(i / c) * (s + gap), s }; }
+
+/* ---------- screen: search ---------- */
+const sSearch = $('sSearch');
+const sb = el('div', 'searchbar', `${ic('search')}<span id="q"></span>`, sSearch);
+const chips = el('div', 'abs', null, sSearch); css(chips, { left: '16px', top: '124px', display: 'flex', gap: '8px' });
+const chipEls = ['Beach', 'Dogs', 'Summer 2025', 'Videos'].map((c, i) => el('span', 'chip' + (i ? ' out' : ''), c, chips));
+const resLbl = el('div', 'abs label', 'Best matches', sSearch); css(resLbl, { left: '18px', top: '184px' });
+const aiBadge = el('div', 'badge', `${ic('sparkle', 16)} On-device`, sSearch); css(aiBadge, { right: '16px', top: '178px' });
+const resTiles = []; for (let i = 0; i < 12; i++) resTiles.push(tile(sSearch, 300 + i, i % 3 === 1 ? 'sun' : 'sea'));
+// a little dog on the beach, drawn with gradients
+resTiles.forEach((t, i) => { if (i % 2 === 0) { const d = el('div', 'ph', null, t); d.style.background = `radial-gradient(ellipse 13% 9% at ${40 + (i * 7) % 25}% 76%,#6b4a2e 0 95%,transparent 100%),radial-gradient(circle at ${50 + (i * 7) % 25}% 70%,#7a5534 0 7%,transparent 7.5%)`; } });
+const QUERY = 'dog playing on the beach';
+
+/* ---------- screen: people & places ---------- */
+const sPeople = $('sPeople');
+el('div', 'topbar', `<h2>People &amp; places</h2>`, sPeople);
+const pplLbl = el('div', 'abs label', 'People and pets · 6', sPeople); css(pplLbl, { left: '20px', top: '112px' });
+const SKIN = ['#f1c7a3', '#c68a5e', '#8d5a3b', '#e9b48a', '#d9a27b'], SHIRT = ['#7B61F0', '#F2607A', '#FFC247', '#5aa89a', '#FF8A4C'], BGS = ['#3b3350', '#2e3a4a', '#4a3440', '#34423a', '#463a2e'];
+const NAMES = ['Ana', 'Leo', 'Mia', 'Tomás', 'Rocky'];
+const avatars = NAMES.map((n, i) => {
+  const a = el('div', 'avatar', null, sPeople);
+  a.style.background = i === 4
+    ? `radial-gradient(circle at 34% 30%,#6b4a2e 0 11%,transparent 12%),radial-gradient(circle at 66% 30%,#6b4a2e 0 11%,transparent 12%),radial-gradient(ellipse 30% 28% at 50% 50%,#b0875c 0 98%,transparent 100%),radial-gradient(ellipse 42% 30% at 50% 100%,#b0875c 0 98%,transparent 100%),${BGS[i]}`
+    : `radial-gradient(ellipse 27% 20% at 50% 26%,${['#2b1d14', '#1a1a1a', '#6b3b1f', '#3a2616'][i]} 0 98%,transparent 100%),radial-gradient(circle at 50% 42%,${SKIN[i]} 0 23%,transparent 24%),radial-gradient(ellipse 42% 34% at 50% 104%,${SHIRT[i]} 0 98%,transparent 100%),${BGS[i]}`;
+  const nm = el('div', 'aname', n, sPeople); return { a, nm };
+});
+const plLbl = el('div', 'abs label', 'Places · offline map', sPeople); css(plLbl, { left: '20px', top: '338px' });
+const map = el('div', 'card', `<svg width="368" height="400" viewBox="0 0 368 400">
+  <path d="M0 290 C80 260 120 330 200 300 S320 250 368 270 L368 400 L0 400Z" fill="#2c3950"/>
+  <g stroke="#4A4458" stroke-width="9" fill="none" stroke-linecap="round"><path d="M-10 90 L380 150"/><path d="M110 -10 L150 420"/><path d="M-10 220 C90 200 240 230 380 190"/><path d="M260 -10 C240 120 290 200 250 420"/></g>
+  <g stroke="#3a3642" stroke-width="4" fill="none"><path d="M-10 40 L380 60"/><path d="M40 -10 L60 420"/><path d="M-10 160 L380 120"/><path d="M200 -10 L190 420"/><path d="M320 -10 L340 420"/></g>
+  <rect x="160" y="160" width="70" height="40" rx="8" fill="#2f4a3a"/><rect x="20" y="100" width="60" height="50" rx="8" fill="#2f4a3a"/></svg>`, sPeople);
+css(map, { left: '16px', top: '366px', width: '368px', height: '400px' });
+const PINS = [[70, 130, 128], [232, 110, 42], [168, 250, 311], [300, 230, 17], [120, 330, 64]];
+const pins = PINS.map(([x, y, n]) => { const p = el('div', 'pin', `<svg viewBox="0 0 24 24" style="width:44px;height:44px;fill:#D0BCFF"><path d="${ICON.place}"/></svg><div class="cnt">${n}</div>`, map); css(p, { left: x + 'px', top: y + 'px' }); return p; });
+
+/* ---------- screen: private ---------- */
+const sPrivate = $('sPrivate');
+const privBar = el('div', 'topbar', `<div class="iconbtn" id="privIc" style="background:#4F378B;color:#EADDFF">${ic('lockOpen', 22)}</div><h2>Private album</h2>`, sPrivate);
+const privGrid = el('div', 'abs', null, sPrivate); css(privGrid, { left: 0, right: 0, top: '110px', bottom: 0 });
+const privTiles = []; for (let i = 0; i < 15; i++) { const t = tile(privGrid, 500 + i); const g = gridLayout(3, i); css(t, { left: g.x + 'px', top: g.y + 'px', width: g.s + 'px', height: g.s + 'px' }); privTiles.push(t); }
+const lockV = el('div', 'abs', null, sPrivate); css(lockV, { inset: 0, background: '#141218', display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '170px' });
+lockV.innerHTML = `<div id="lockIc" style="width:88px;height:88px;border-radius:30px;background:#4F378B;color:#EADDFF;display:flex;align-items:center;justify-content:center">${ic('lock', 44)}</div>
+  <div style="margin-top:26px;font-size:28px;font-weight:700;color:#E6E0E9">Private album</div>
+  <div style="margin-top:10px;font-size:16px;color:#CAC4D0;text-align:center;line-height:1.4">Encrypted with Android Keystore.<br>Touch the sensor to unlock.</div>
+  <div id="fpWrap" style="position:relative;margin-top:120px;width:120px;height:120px">
+    <div id="fpRing" style="position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 3px #D0BCFF"></div>
+    <svg id="fp" viewBox="0 0 120 120" style="position:absolute;inset:0" fill="none" stroke-linecap="round" stroke-width="4.5">
+      ${[14, 22, 30, 38, 46].map((r, i) => `<path class="fpa" d="M ${60 - r} ${60 + (i % 2 ? 6 : 10)} A ${r} ${r} 0 1 1 ${60 + r} ${60 + (i % 2 ? 10 : 6)}"/>`).join('')}
+      <path class="fpa" d="M60 52 L60 84"/>
+    </svg>
+  </div>`;
+const fpArcs = [...lockV.querySelectorAll('.fpa')];
+fpArcs.forEach(a => { const L = a.getTotalLength ? a.getTotalLength() : 200; a.dataset.len = L; a.style.strokeDasharray = L; });
+
+/* ---------- screen: create ---------- */
+const sCreate = $('sCreate');
+const selBar = el('div', 'topbar', `<div class="iconbtn" style="font-size:26px;color:#E6E0E9">✕</div><h2 id="selTxt">Photos</h2><div class="iconbtn">${ic('more')}</div>`, sCreate);
+const crArea = el('div', 'abs', null, sCreate); css(crArea, { left: 0, right: 0, top: '110px', bottom: 0 });
+const CR_SEL = [0, 4, 5, 10]; const crTiles = []; const crChecks = [];
+for (let i = 0; i < 15; i++) {
+  const t = tile(crArea, 700 + i); const g = gridLayout(3, i); css(t, { left: g.x + 'px', top: g.y + 'px', width: g.s + 'px', height: g.s + 'px' });
+  const ring = el('div', 'abs', null, t); css(ring, { left: '8px', top: '8px', width: '26px', height: '26px', borderRadius: '13px', boxShadow: '0 0 0 2px rgba(255,255,255,.9) inset', opacity: 0 });
+  const ch = el('div', 'check', ic('check'), t); crTiles.push({ t, ph: t.firstChild, g, ring }); crChecks.push(ch);
+}
+const scrim = el('div', 'abs', null, sCreate); css(scrim, { inset: 0, background: '#000', opacity: 0, zIndex: 22 });
+const collageCard = el('div', 'abs', null, sCreate); css(collageCard, { left: '30px', top: '170px', width: '340px', height: '340px', borderRadius: '26px', background: '#2B2930', zIndex: 23 });
+const COL_RECT = [[12, 12, 154, 200], [174, 12, 154, 124], [174, 144, 154, 184], [12, 220, 154, 108]];
+const flyers = CR_SEL.map((idx, k) => { const f = el('div', 'tile', null, sCreate); f.innerHTML = crTiles[idx].t.firstChild.outerHTML; f.style.zIndex = 24; return f; });
+const colTitle = el('div', 'abs', `<div style="font-size:22px;font-weight:700;color:#E6E0E9">Summer collage</div><div style="font-size:15px;color:#CAC4D0;margin-top:4px">4 photos · Saved as a copy</div>`, sCreate); css(colTitle, { left: '34px', top: '532px', zIndex: 24 });
+const toolbar = el('div', 'toolbar', `<div class="tb on" id="tbCol">${ic('collage', 22)}Collage</div><div class="tb">${ic('gif', 26)}GIF</div><div class="tb">${ic('pdf', 22)}PDF</div>`, sCreate);
+const snack = el('div', 'snack', `<span>Collage saved to Creations</span><b>View</b>`, sCreate);
+const tbCol = toolbar.querySelector('#tbCol');
+
+/* ---------- screen: photo editor ---------- */
+const sEdit = $('sEdit');
+el('div', 'topbar', `<div class="iconbtn" style="font-size:26px;color:#E6E0E9">✕</div><h2>Edit photo</h2><span class="txtbtn">Save copy</span>`, sEdit);
+const edStage = el('div', 'abs', null, sEdit); css(edStage, { left: '16px', top: '112px', width: '368px', height: '440px', borderRadius: '24px', overflow: 'hidden', background: '#0f0e12' });
+const edImg = tile(edStage, 911, 'peak'); css(edImg, { left: '0', top: '0', width: '368px', height: '440px' });
+const cropBox = el('div', 'abs', null, edStage); css(cropBox, { boxShadow: '0 0 0 2000px rgba(0,0,0,.5), 0 0 0 2px #FFFFFF inset' });
+const cropGrid = el('div', 'abs', null, cropBox); css(cropGrid, { inset: 0, background: 'linear-gradient(90deg,transparent 33%,rgba(255,255,255,.5) 33% calc(33% + 1px),transparent calc(33% + 1px) 66%,rgba(255,255,255,.5) 66% calc(66% + 1px),transparent calc(66% + 1px)),linear-gradient(0deg,transparent 33%,rgba(255,255,255,.5) 33% calc(33% + 1px),transparent calc(33% + 1px) 66%,rgba(255,255,255,.5) 66% calc(66% + 1px),transparent calc(66% + 1px))' });
+const edTabs = el('div', 'tabs', ['Filters', 'Crop', 'Adjust'].map((x, i) => `<div class="tab${i ? '' : ' on'}">${x}</div>`).join(''), sEdit); edTabs.style.top = '566px';
+const edTabEls = [...edTabs.children];
+const FILTERS = [['Original', 'none'], ['Natural', 'saturate(1.15) contrast(1.05)'], ['Vivid', 'saturate(1.7) contrast(1.15)'], ['Mono', 'grayscale(1) contrast(1.2)']];
+const edFilt = el('div', 'abs', null, sEdit); css(edFilt, { left: 0, right: 0, top: '624px', height: '120px' });
+const fthumbs = FILTERS.map(([n, f], i) => { const d = el('div', 'fthumb', `<div class="im"></div>${n}`, edFilt); const im = d.firstChild; im.appendChild(tile(im, 911, 'peak')); css(im.firstChild, { inset: 0, width: '78px', height: '78px', filter: f }); css(d, { left: 20 + i * 92 + 'px', top: 0 }); return d; });
+const edCrop = el('div', 'abs', null, sEdit); css(edCrop, { left: 0, right: 0, top: '624px', height: '160px' });
+const RATIOS = ['Free', 'Square', '4:3', '16:9'];
+const ratioChips = el('div', 'abs', RATIOS.map((r, i) => `<span class="chip${i ? ' out' : ''}">${r}</span>`).join(''), edCrop); css(ratioChips, { left: '20px', top: 0, display: 'flex', gap: '8px' });
+const ratioEls = [...ratioChips.children];
+const strLbl = el('div', 'row', `<span>Straighten</span><span class="v" id="strV">0°</span>`, edCrop); strLbl.style.top = '58px';
+const dial = el('div', 'abs', null, edCrop); css(dial, { left: '20px', right: '20px', top: '94px', height: '30px', overflow: 'hidden' });
+const dialInner = el('div', 'abs', null, dial); css(dialInner, { left: '-400px', width: '1160px', top: 0, height: '30px', background: 'repeating-linear-gradient(90deg,#938F99 0 2px,transparent 2px 16px)', backgroundSize: '16px 14px', backgroundRepeat: 'repeat-x', backgroundPosition: '0 8px' });
+const dialMark = el('div', 'abs', null, dial); css(dialMark, { left: '179px', top: 0, width: '3px', height: '30px', background: '#D0BCFF', borderRadius: '2px' });
+
+/* ---------- screen: GIF maker ---------- */
+const sGif = $('sGif');
+el('div', 'topbar', `<div class="iconbtn" style="font-size:24px;color:#E6E0E9">←</div><h2>Create GIF</h2>`, sGif);
+const gifPrev = el('div', 'abs', null, sGif); css(gifPrev, { left: '50px', top: '112px', width: '300px', height: '300px', borderRadius: '24px', overflow: 'hidden' });
+const GIF_SRC = [0, 1, 2, 3, 4, 5].map(i => 820 + i * 3);
+const gifFrames = GIF_SRC.map((sd, i) => { const t = tile(gifPrev, sd, ['sun', 'sea', 'peak', 'hill', 'sun', 'peak'][i]); css(t, { inset: 0, width: '300px', height: '300px' }); return t; });
+const gifPos = el('div', 'abs label', '', sGif); css(gifPos, { left: '50px', top: '424px' });
+const gifPlay = el('div', 'abs', `<div style="width:44px;height:44px;border-radius:22px;background:#4F378B;color:#EADDFF;display:flex;align-items:center;justify-content:center;font-size:18px">❚❚</div>`, sGif); css(gifPlay, { left: '306px', top: '418px' });
+const gifStrip = el('div', 'abs', null, sGif); css(gifStrip, { left: 0, right: 0, top: '478px', height: '70px' });
+const stripTiles = GIF_SRC.map((sd, i) => { const t = tile(gifStrip, sd, ['sun', 'sea', 'peak', 'hill', 'sun', 'peak'][i]); css(t, { top: '4px', width: '56px', height: '56px', borderRadius: '12px' }); return t; });
+const fpsLbl = el('div', 'row', `<span>Frame rate</span><span class="v" id="fpsV">10 FPS</span>`, sGif); fpsLbl.style.top = '566px';
+const FPS = [5, 10, 15, 24];
+const fpsChips = el('div', 'abs', FPS.map(f => `<span class="chip out">${f} FPS</span>`).join(''), sGif); css(fpsChips, { left: '20px', top: '600px', display: 'flex', gap: '8px' });
+const fpsEls = [...fpsChips.children];
+const gifNote = el('div', 'abs', 'Local GIF: 512 × 512 pixels, 256 colors, silent.', sGif); css(gifNote, { left: '20px', top: '656px', fontSize: '14px', color: '#CAC4D0' });
+const gifBtn = el('div', 'btn', `${ic('gif', 26)} Export GIF`, sGif); css(gifBtn, { left: '20px', right: '20px', top: '700px' });
+const gifBar = el('div', 'slider', '<i></i>', sGif); css(gifBar, { left: '40px', right: '40px', top: '774px' });
+const gifSnack = el('div', 'snack', `<span>GIF saved on this device</span><b>Share</b>`, sGif);
+
+/* ---------- screen: PDF Studio ---------- */
+const sPdf = $('sPdf');
+el('div', 'topbar', `<h2>PDF Studio</h2><div class="iconbtn" style="font-size:22px">↶</div><div class="iconbtn" style="font-size:22px">↷</div>`, sPdf);
+const pdfCanvas = el('div', 'abs', null, sPdf); css(pdfCanvas, { left: 0, right: 0, top: '104px', height: '372px', background: '#0f0e12' });
+const page = el('div', 'page', null, pdfCanvas);
+const snapGrid = el('div', 'abs', null, page); css(snapGrid, { inset: 0, background: 'repeating-linear-gradient(90deg,rgba(103,80,164,.25) 0 1px,transparent 1px 14px),repeating-linear-gradient(0deg,rgba(103,80,164,.25) 0 1px,transparent 1px 14px)' });
+const pdfImgs = [0, 1, 2, 3, 4, 5].map(i => { const t = tile(page, 870 + i * 5); return t; });
+const pdfPaper = el('div', 'abs', ['A4', 'Letter', 'Custom'].map((x, i) => `<span class="chip${i ? ' out' : ''}">${x}</span>`).join('') + `<span class="chip out" id="orient">Portrait</span>`, sPdf); css(pdfPaper, { left: '16px', top: '488px', display: 'flex', gap: '8px' });
+const orientChip = pdfPaper.querySelector('#orient');
+const colRow = el('div', 'row', `<span>Columns</span><span class="v" id="colV">1</span>`, sPdf); colRow.style.top = '542px';
+const colSl = el('div', 'slider', '<i></i><b></b>', sPdf); css(colSl, { left: '20px', right: '20px', top: '574px' });
+const marRow = el('div', 'row', `<span>Margins</span><span class="v" id="marV">12 mm</span>`, sPdf); marRow.style.top = '596px';
+const marSl = el('div', 'slider', '<i></i><b></b>', sPdf); css(marSl, { left: '20px', right: '20px', top: '628px' });
+const snapRow = el('div', 'row', `<span>Snap to 5 mm grid</span><span id="snapSw" style="width:52px;height:32px;border-radius:16px;position:relative;display:inline-block"><b style="position:absolute;top:6px;width:20px;height:20px;border-radius:10px"></b></span>`, sPdf); snapRow.style.top = '648px';
+const snapSw = snapRow.querySelector('#snapSw');
+const pthumbs = [0, 1, 2].map(i => { const d = el('div', 'pthumb' + (i ? '' : ' on'), null, sPdf); css(d, { left: 20 + i * 58 + 'px', top: '700px' }); const im = tile(d, 870 + i * 11); css(im, { left: '6px', top: '8px', width: '34px', height: '28px', borderRadius: '2px' }); return d; });
+const paddEl = el('div', 'pthumb add', '+', sPdf); css(paddEl, { left: 20 + 3 * 58 + 'px', top: '700px' });
+const pdfBtn = el('div', 'btn', `${ic('pdf', 22)} Export PDF`, sPdf); css(pdfBtn, { left: '250px', right: '16px', top: '706px', height: '52px', fontSize: '15px' });
+const pdfSnack = el('div', 'snack', `<span id="pdfSnackT">Export queued. You can keep editing.</span><b id="pdfSnackB"></b>`, sPdf);
+
+/* ---------- licenses (canvas) ---------- */
+const LIC = [
+  { k: 'Apache-2.0', w: '215 AndroidX & Kotlin libraries', n: 'Plus PDFBox, Tink, SFace, pet models' },
+  { k: 'MIT', w: 'ONNX Runtime · TinyCLIP', n: 'CLIP, RIFE, Bouncy Castle' },
+  { k: 'BSD-3-Clause', w: 'ncnn · Protobuf', n: 'SQLCipher community edition' },
+  { k: 'BSD-2-Clause', w: 'MapLibre Native', n: 'Offline map rendering' },
+  { k: 'LGPL-2.1', w: 'LibRaw', n: 'RAW decoding as a shared library' },
+  { k: 'SIL OFL 1.1', w: 'Noto Sans & Serif', n: 'PDF Studio and map glyphs' },
+  { k: 'CC-BY 4.0', w: 'GeoNames', n: 'Offline places gazetteer' },
+  { k: 'ODbL', w: 'OpenStreetMap', n: 'Map data, with Protomaps' },
+  { k: 'In the app', w: 'Settings › Licenses', n: 'Every notice, in every build' },
+];
+const licHero = el('div', 'lcard hero', `<div class="big">Apache-2.0</div><div class="ln"><b style="font-size:24px">Lightforge Studio source code</b><br>Free to read, fork and ship, including commercially. The name and icon stay ours.</div>`, $('lic'));
+css(licHero, { left: 0, top: '120px' });
+const licCards = LIC.slice(1).map((l, i) => { const c = el('div', 'lcard', `<span class="lk">${l.k}</span><div class="lw">${l.w}</div><div class="ln">${l.n}</div>`, $('lic')); css(c, { left: (i % 3) * 282 + 'px', top: 330 + Math.floor(i / 3) * 190 + 'px' }); return c; });
+const licFoot = el('div', 'abs', `<span style="font-size:74px;font-weight:800;color:#F4EFF8" id="licN">0</span><span style="font-size:24px;color:#CAC4D0;margin-left:14px">third-party components credited</span>`, $('lic')); css(licFoot, { left: 0, top: '900px' });
+licCards.unshift(null);
+
+/* ---------- nav ---------- */
+const nav = $('nav');
+const navInd = el('div', 'navind', null, nav);
+const NAV = [['photo', 'Photos'], ['collections', 'Collections'], ['search', 'Search']];
+const navIts = NAV.map(([i, l]) => el('div', 'navit', `<div class="pill">${ic(i)}</div><span>${l}</span>`, nav));
+const navX = k => (W / 3) * k + (W / 3 - 64) / 2;
+
+/* touches */
+const touches = [0, 1].map(() => el('div', 'touch', null, $('touches')));
+
+/* ---------- render(t) ---------- */
+function screenAt(t, a, b, e = .45) { // shared-axis X transition window
+  const i = P(t, a, a + e), o = P(t, b - e, b);
+  const vis = t > a && t < b;
+  const x = (1 - eo(i)) * 70 - eio(o) * 70, op = Math.min(eo(i), 1 - o);
+  return { x, op, vis };
+}
+function applyScreen(e, s) { css(e, { display: s.vis ? 'block' : 'none', opacity: s.op, transform: `translateX(${s.x}px)` }); }
+
+function render(t) {
+  const tt0 = t;
+  // background glows drift
+  const bp = [[300, 120], [1400, -80], [1300, 600], [200, 640]].map(([x, y]) => PORTRAIT ? [x * .5, y * 1.8 + 100] : [x, y]);
+  BLOBS.forEach((_, i) => { const e = $('b' + i); css(e, { left: bp[i][0] + Math.sin(t * .35 + i * 1.7) * 120 + 'px', top: bp[i][1] + Math.cos(t * .28 + i) * 90 + 'px', opacity: .28 + .08 * Math.sin(t * .6 + i) }); });
+
+  // logo: intro 0-3.3, outro 52.4-57 (written against 28.3-32 and shifted)
+  t = t > 10 && t > 44 ? t - SHIFT : t > 10 ? 20 : t;
+  const inA = P(t, 0.2, 1.6), inOut = P(t, 2.5, 3.3), outA = P(t, 28.4, 29.8);
+  const logoVis = t < 3.3 || t > 28.3;
+  $('logo').style.display = logoVis ? 'block' : 'none';
+  const intro = t < 10;
+  triEls.forEach((p, i) => {
+    const r = triR[i]; const c = triC[i];
+    const k = eo5(intro ? P(t, 0.15 + i * .07, 1.25 + i * .07) : P(t, 28.4 + i * .05, 29.4 + i * .05));
+    const dx = Math.cos(r.a) * r.d * (1 - k), dy = Math.sin(r.a) * r.d * (1 - k);
+    const breathe = 1 + .03 * Math.sin(t * 2.2);
+    p.setAttribute('transform', `translate(${dx} ${dy}) rotate(${r.rot * (1 - k)} ${c[0]} ${c[1]})`);
+    p.style.opacity = k;
+  });
+  const lg = $('lg');
+  const spin = intro ? (1 - eo(P(t, 0.2, 2.2))) * -90 : (1 - eo(P(t, 28.4, 30))) * 90;
+  const lscale = intro ? lerp(.6, 1, eo(inA)) * lerp(1, .55, eio(inOut)) : lerp(.6, .78, eo(outA));
+  const lY = intro ? lerp(0, -260, eio(inOut)) : -150;
+  lg.setAttribute('transform', `rotate(${spin} 54 54)`);
+  css($('logo'), { transform: `translateY(${lY}px) scale(${lscale})`, opacity: intro ? 1 - P(t, 2.9, 3.3) : 1, filter: `drop-shadow(0 0 ${40 + 20 * Math.sin(t * 2)}px rgba(242,96,122,.35))` });
+
+  // wordmark + tagline
+  const wIn = intro ? eo(P(t, 1.0, 1.8)) : eo(P(t, 29.2, 30.0)), wOut = intro ? P(t, 2.6, 3.1) : 0;
+  const word = $('word');
+  css(word, { display: logoVis ? 'block' : 'none', opacity: wIn * (1 - wOut), transform: `translateY(${(1 - wIn) * 40 + (intro ? 0 : -70)}px)` });
+  word.querySelector('.name').style.transform = `scale(${intro ? 1 : .8})`;
+  const tagN = intro ? Math.floor(TAG.length * P(t, 1.5, 2.4)) : TAG.length;
+  $('tag').textContent = TAG.slice(0, tagN);
+  const pIn = P(t, 29.8, 30.6);
+  css($('pills'), { display: t > 29 ? 'flex' : 'none' });
+  [...$('pills').children].forEach((s, i) => { const k = back(P(t, 29.8 + i * .15, 30.5 + i * .15)); css(s, { opacity: clamp(k), transform: `translateY(${(1 - k) * 30}px) scale(${.8 + .2 * k})` }); });
+
+  t = tt0;
+  // phone pose
+  const pin = eo5(P(t, 2.8, 4.0)), pout = eio(P(t, 43.9, 44.8));
+  const pw = $('phoneWrap');
+  const rotY = lerp(-38, -10, pin) + Math.sin(t * .5) * 3 + pout * 25;
+  const rotYp = PORTRAIT ? rotY * .5 : rotY;
+  const rotX = 4 + Math.sin(t * .4) * 1.5;
+  css(pw, { display: t > 2.7 && t < 44.9 ? 'block' : 'none', opacity: Math.min(pin * 1.5, 1) * (1 - pout),
+    transform: PORTRAIT
+      ? `translate(0px, ${(1 - pin) * 700 + pout * 160 + Math.sin(t * .7) * 6}px) scale(${1.2 * lerp(.9, 1, pin) * lerp(1, .6, pout)})`
+      : `translate(${(1 - pin) * 500 - pout * 320}px, ${(1 - pin) * 60 + pout * 90 + Math.sin(t * .7) * 6}px) scale(${lerp(.9, 1, pin) * lerp(1, .6, pout)})` });
+  $('phone').style.transform = `rotateY(${rotYp}deg) rotateX(${rotX}deg)`;
+
+  // captions
+  CAPS.forEach(c => {
+    const vis = t > c.a && t < c.b; c.el.style.display = vis ? 'block' : 'none'; if (!vis) return;
+    const out = eio(P(t, c.b - .45, c.b));
+    c.words.forEach((w, i) => { const k = eo5(P(t, c.a + i * .07, c.a + .7 + i * .07)); css(w, { opacity: k * (1 - out), transform: `translateY(${(1 - k) * 60 - out * 30}px)`, filter: `blur(${(1 - k) * 8}px)` }); });
+  });
+  FLOATS.forEach(f => {
+    const vis = t > f.a && t < f.b; f.el.style.display = vis ? 'flex' : 'none'; if (!vis) return;
+    const k = back(P(t, f.a, f.a + .6)), o = P(t, f.b - .35, f.b);
+    const fx = PORTRAIT ? (f.x < 895 ? 40 : 640) : f.x, fy = PORTRAIT ? (f.y < 500 ? 900 : 1380) : f.y;
+    css(f.el, { left: fx + 'px', top: fy + Math.sin(t * 1.3) * 8 + 'px', opacity: clamp(k) * (1 - o), transform: `scale(${(.6 + .4 * k) * (1 - o * .2)}) rotate(${(1 - k) * -8}deg)` });
+  });
+
+  touches.forEach(tc => tc.style.display = 'none');
+  const touch = (i, x, y, s = 1, op = 1) => css(touches[i], { display: 'block', left: x + 'px', top: y + 'px', transform: `scale(${s})`, opacity: op });
+
+  // ---- grid screen 3.0–9.4
+  const sg = screenAt(t, 3.0, 9.4); applyScreen(sGrid, sg);
+  if (sg.vis) {
+    const pinch = eio(P(t, 6.5, 7.7));
+    const scroll = -560 * eio(P(t, 4.9, 6.1)) + 360 * pinch;
+    monthHdr.style.transform = `translateY(${scroll}px)`;
+    const c1 = 3, c2 = 5;
+    gridTiles.forEach((e, i) => {
+      const a = gridLayout(c1, i), b = gridLayout(c2, i);
+      const x = lerp(a.x, b.x, pinch), y = lerp(a.y, b.y, pinch) + 34 + scroll, s = lerp(a.s, b.s, pinch);
+      const k = eo5(P(t, 3.4 + (Math.floor(i / 3) * .06 + (i % 3) * .03), 4.1 + Math.floor(i / 3) * .06 + (i % 3) * .03));
+      const vis = y > -140 && y < 800;
+      css(e, { display: vis ? 'block' : 'none', left: x + 'px', top: y + 'px', width: s + 'px', height: s + 'px', borderRadius: lerp(4, 10, pinch) + 'px', opacity: k, transform: `scale(${lerp(.6, 1, k)})` });
+    });
+    if (t > 6.3 && t < 7.9) { const k = eio(P(t, 6.5, 7.7)), op = Math.min(P(t, 6.3, 6.5), 1 - P(t, 7.7, 7.9)); touch(0, 200 - lerp(30, 120, 1 - k), 420 - lerp(30, 120, 1 - k), 1, op); touch(1, 200 + lerp(30, 120, 1 - k), 420 + lerp(30, 120, 1 - k), 1, op); }
+    if (t > 4.8 && t < 5.5) { const k = eo(P(t, 4.8, 5.4)); touch(0, 300, lerp(650, 250, k), 1, 1 - P(t, 5.3, 5.5)); }
+  }
+
+  // ---- search screen 9.0–14.4
+  const ss = screenAt(t, 9.0, 14.4); applyScreen(sSearch, ss);
+  if (ss.vis) {
+    const n = Math.floor(QUERY.length * P(t, 9.6, 11.0));
+    $('q').innerHTML = (n ? QUERY.slice(0, n) : '<span style="color:#CAC4D0">Search your photos</span>') + (Math.floor(t * 2.5) % 2 || t < 11.2 ? '<span class="caret"></span>' : '');
+    const sbk = eo5(P(t, 9.1, 9.7)); sb.style.transform = `scaleX(${lerp(.4, 1, sbk)})`; sb.style.opacity = sbk;
+    chipEls.forEach((c, i) => { const k = back(P(t, 11.0 + i * .08, 11.5 + i * .08)); css(c, { opacity: clamp(k), transform: `translateY(${(1 - k) * 16}px)` }); });
+    const lk = eo(P(t, 11.2, 11.7)); resLbl.style.opacity = lk;
+    const bk = back(P(t, 11.9, 12.4)); css(aiBadge, { opacity: clamp(bk), transform: `scale(${bk})` });
+    resTiles.forEach((e, i) => {
+      const g = gridLayout(3, i, 4); const col = i % 3, row = Math.floor(i / 3);
+      const k = back(P(t, 11.3 + (row + col) * .09, 11.9 + (row + col) * .09));
+      const big = i === 0 ? 1 : 0;
+      css(e, { left: g.x + 'px', top: 216 + g.y + 'px', width: g.s + 'px', height: g.s + 'px', borderRadius: '14px', opacity: clamp(k * 1.4), transform: `scale(${clamp(k, 0, 1.2)})` });
+    });
+  }
+
+  // ---- people 14.0–18.9
+  const sp = screenAt(t, 14.0, 18.9); applyScreen(sPeople, sp);
+  if (sp.vis) {
+    avatars.forEach(({ a, nm }, i) => {
+      const x = 12 + i * 76, k = back(P(t, 14.4 + i * .1, 15.0 + i * .1));
+      css(a, { left: x + 'px', top: '142px', width: '68px', height: '68px', opacity: clamp(k), transform: `scale(${k}) rotate(${(1 - k) * -30}deg)` });
+      css(nm, { left: x - 16 + 'px', top: '218px', opacity: eo(P(t, 14.8 + i * .1, 15.2 + i * .1)) });
+      // scanning ring on "Mia" while recognition runs
+      a.style.boxShadow = (t > 15.3 && t < 16.4 && i === 2) ? `0 0 0 ${3 + 3 * Math.sin(t * 12)}px #D0BCFF` : 'none';
+    });
+    pplLbl.style.opacity = eo(P(t, 14.3, 14.7)); plLbl.style.opacity = eo(P(t, 15.4, 15.8));
+    const mk = eo5(P(t, 15.4, 16.2)); css(map, { opacity: mk, transform: `translateY(${(1 - mk) * 80}px)` });
+    const svg = map.querySelector('svg'); svg.style.transform = `scale(${lerp(1.25, 1, eo(P(t, 15.4, 18.5)))})`;
+    pins.forEach((p, i) => { const k = back(P(t, 16.2 + i * .15, 16.75 + i * .15)); css(p, { opacity: clamp(k * 2), transform: `translateY(${(1 - clamp(k)) * -60}px) scale(${.5 + .5 * k})` }); });
+  }
+
+  // ---- private 18.5–23.4
+  const sv = screenAt(t, 18.5, 23.4); applyScreen(sPrivate, sv);
+  if (sv.vis) {
+    const scanK = P(t, 19.7, 20.9), unlock = eio(P(t, 21.0, 21.6));
+    const ring = $('fpRing'); const rp = (t * 1.2) % 1;
+    css(ring, { transform: `scale(${1 + rp * .5})`, opacity: t < 21 ? (1 - rp) * .8 : 0 });
+    fpArcs.forEach((a, i) => { const L = +a.dataset.len; a.style.stroke = t > 19.7 ? '#D0BCFF' : '#938F99'; a.style.strokeDashoffset = t < 19.7 ? 0 : L * (1 - clamp(scanK * 1.3 - i * .06)); });
+    if (t > 19.4 && t < 21.1) touch(0, 200, 571, 1 - .15 * Math.sin(P(t, 19.4, 21) * Math.PI), Math.min(P(t, 19.4, 19.6), 1 - P(t, 20.9, 21.1)));
+    $('lockIc').innerHTML = ic(t > 20.9 ? 'lockOpen' : 'lock', 44);
+    css($('lockIc'), { transform: `scale(${1 + .15 * Math.sin(P(t, 20.8, 21.2) * Math.PI)})` });
+    css(lockV, { opacity: 1 - unlock, transform: `scale(${1 + unlock * .15})`, display: unlock >= 1 ? 'none' : 'flex' });
+    const blur = 18 * (1 - eo(P(t, 21.2, 22.2)));
+    privGrid.style.filter = `blur(${blur}px)`;
+    privTiles.forEach((e, i) => { const k = eo5(P(t, 21.1 + i * .04, 21.8 + i * .04)); css(e, { transform: `scale(${lerp(1.2, 1, k)})`, borderRadius: '4px' }); });
+    privBar.style.opacity = eo(P(t, 21.4, 21.9));
+  }
+
+  // ---- create 23.0–28.0
+  const sc = screenAt(t, 23.0, 27.8, .4); applyScreen(sCreate, sc);
+  if (sc.vis) {
+    let nsel = 0;
+    crTiles.forEach(({ t: e, ph, g, ring }, i) => {
+      const si = CR_SEL.indexOf(i); const k = si >= 0 ? back(P(t, 23.7 + si * .28, 24.1 + si * .28)) : 0;
+      if (si >= 0 && t > 23.7 + si * .28) nsel++;
+      const selMode = eo(P(t, 23.6, 23.9));
+      css(ph, { transform: `scale(${1 - .14 * clamp(k)})`, borderRadius: 16 * clamp(k) + 'px' });
+      ring.style.opacity = selMode * (1 - clamp(k * 3));
+      css(crChecks[i], { opacity: clamp(k), transform: `scale(${k})` });
+      css(e, { opacity: si >= 0 && t > 25.9 ? 0 : 1, borderRadius: '4px' });
+    });
+    $('selTxt').textContent = nsel ? `${nsel} selected` : 'Photos';
+    if (t > 23.55 && t < 23.9) touch(0, crTiles[0].g.x + 60, 110 + crTiles[0].g.y + 60, 1 + .3 * P(t, 23.55, 23.9), 1 - P(t, 23.75, 23.9));
+    CR_SEL.slice(1).forEach((idx, k) => { const tt = 23.98 + k * .28; if (t > tt - .12 && t < tt + .2) touch(0, crTiles[idx].g.x + 60, 110 + crTiles[idx].g.y + 60, 1, 1 - P(t, tt + .05, tt + .2)); });
+    const tbk = eo5(P(t, 24.9, 25.4)); css(toolbar, { transform: `translateY(${(1 - tbk) * 130}px)`, opacity: tbk });
+    const press = P(t, 25.5, 25.8);
+    css(tbCol, { background: t > 25.6 ? '#4A4458' : 'transparent', color: t > 25.6 ? '#E8DEF8' : '#E6E0E9', transform: `scale(${1 - .08 * Math.sin(press * Math.PI)})` });
+    if (t > 25.4 && t < 25.9) touch(0, 90, 810, 1, 1 - P(t, 25.75, 25.9));
+    const fly = eio(P(t, 25.9, 26.8));
+    scrim.style.opacity = .55 * eo(P(t, 25.8, 26.3));
+    const cck = eo5(P(t, 25.9, 26.5)); css(collageCard, { opacity: cck, transform: `scale(${lerp(.8, 1, cck)})` });
+    flyers.forEach((f, k) => {
+      const src = crTiles[CR_SEL[k]].g; const [cx, cy, cw, chh] = COL_RECT[k];
+      const d = eio(P(t, 25.9 + k * .08, 26.7 + k * .08));
+      const sx = src.x + src.s * .07, sy = 110 + src.y + src.s * .07, ss2 = src.s * .86;
+      const arc = Math.sin(d * Math.PI) * -50;
+      css(f, { display: t > 25.9 ? 'block' : 'none', left: lerp(sx, 30 + cx, d) + 'px', top: lerp(sy, 170 + cy, d) + arc + 'px', width: lerp(ss2, cw, d) + 'px', height: lerp(ss2, chh, d) + 'px', borderRadius: lerp(16, 14, d) + 'px', transform: `rotate(${Math.sin(d * Math.PI) * (k % 2 ? 8 : -8)}deg)` });
+    });
+    const ctk = eo(P(t, 26.7, 27.1)); css(colTitle, { opacity: ctk, transform: `translateY(${(1 - ctk) * 20}px)` });
+    toolbar.style.opacity = tbk * (1 - P(t, 26.0, 26.3));
+    const snk = eo5(P(t, 26.9, 27.3)); css(snack, { opacity: snk, transform: `translateY(${(1 - snk) * 90}px)` });
+  }
+
+  // ---- photo editor 27.4–32.2
+  const se = screenAt(t, 27.4, 32.2, .4); applyScreen(sEdit, se);
+  if (se.vis) {
+    const fsel = t < 28.2 ? 0 : t < 29.0 ? 2 : t < 29.8 ? 3 : 2;
+    const inCrop = t > 29.9 && t < 31.3;
+    edTabEls.forEach((e, i) => e.className = 'tab' + ((inCrop ? 1 : 0) === i ? ' on' : ''));
+    fthumbs.forEach((d, i) => { d.className = 'fthumb' + (i === fsel ? ' on' : ''); d.firstChild.style.boxShadow = i === fsel ? '0 0 0 3px #D0BCFF' : 'none'; const k = back(P(t, 27.7 + i * .08, 28.1 + i * .08)); css(d, { opacity: clamp(k), transform: `translateY(${(1 - k) * 30}px)` }); });
+    edImg.style.filter = FILTERS[fsel][1];
+    const cropK = eio(P(t, 30.3, 30.8)), strK = eio(P(t, 30.8, 31.3)) - eio(P(t, 31.4, 31.9)) * 0;
+    const cw = lerp(368, 330, cropK), chh = lerp(440, 330, cropK);
+    css(cropBox, { display: t > 29.9 && t < 31.5 ? 'block' : 'none', left: (368 - cw) / 2 + 'px', top: (440 - chh) / 2 + 'px', width: cw + 'px', height: chh + 'px', opacity: Math.min(P(t, 29.9, 30.1), 1 - P(t, 31.3, 31.5)) });
+    const deg = 4 * strK;
+    edImg.style.transform = `rotate(${deg}deg) scale(${1 + deg * .03 + (t > 31.3 ? .1 * eo(P(t, 31.3, 31.6)) : 0)})`;
+    $('strV').textContent = deg.toFixed(1) + '°'; dialInner.style.transform = `translateX(${-deg * 24}px)`;
+    ratioEls.forEach((c, i) => c.className = 'chip' + (i === (t > 30.2 ? 1 : 0) ? '' : ' out'));
+    css(edFilt, { display: inCrop ? 'none' : 'block' }); css(edCrop, { display: inCrop ? 'block' : 'none' });
+    const taps = [[28.2, 20 + 2 * 92 + 39, 663], [29.0, 20 + 3 * 92 + 39, 663], [29.8, 200, 586], [30.2, 110, 642], [31.3, 108, 586], [31.8, 350, 72]];
+    taps.forEach(([tt, x, y]) => { if (t > tt - .2 && t < tt + .15) touch(0, x, y, 1 - .15 * Math.sin(P(t, tt - .2, tt + .15) * Math.PI), 1 - P(t, tt, tt + .15)); });
+    if (t > 30.8 && t < 31.3) touch(0, lerp(200, 104, P(t, 30.8, 31.3)), 733, 1, 1);
+  }
+
+  // ---- GIF maker 32.0–37.6
+  const sgf = screenAt(t, 32.0, 37.6, .4); applyScreen(sGif, sgf);
+  if (sgf.vis) {
+    const fps = t < 33.4 ? 5 : 15;
+    let order = [0, 1, 2, 3, 4, 5]; const sw = eio(P(t, 34.3, 34.9));
+    if (t > 34.9) order = [0, 1, 4, 2, 3, 5];
+    const idx = Math.floor(Math.max(0, t - 32.3) * fps) % 6;
+    const playing = t < 35.6;
+    const cur = playing ? idx : 0;
+    gifFrames.forEach((f, i) => f.style.display = i === order[cur] ? 'block' : 'none');
+    gifPos.textContent = `Frame ${cur + 1} of 6`;
+    $('fpsV').textContent = fps + ' FPS';
+    fpsEls.forEach((c, i) => c.className = 'chip' + (FPS[i] === fps ? '' : ' out'));
+    const pk = eo5(P(t, 32.1, 32.7)); css(gifPrev, { transform: `scale(${lerp(.8, 1, pk)})`, opacity: pk });
+    stripTiles.forEach((e, i) => {
+      let slot = i; if (i === 4) slot = lerp(4, 2, sw); else if (i === 2 || i === 3) slot = i + sw;
+      const lift = i === 4 ? Math.sin(sw * Math.PI) * -18 : 0;
+      const k = back(P(t, 32.4 + i * .07, 32.8 + i * .07));
+      css(e, { left: 20 + slot * 62 + 'px', transform: `translateY(${lift + (1 - k) * 30}px) scale(${i === 4 && sw > 0 && sw < 1 ? 1.12 : 1})`, opacity: clamp(k), boxShadow: order[cur] === i ? '0 0 0 3px #D0BCFF' : 'none', zIndex: i === 4 ? 2 : 1 });
+    });
+    if (t > 33.2 && t < 33.55) touch(0, 20 + 2 * 97 + 40, 618, 1, 1 - P(t, 33.4, 33.55));
+    if (t > 34.1 && t < 35.0) touch(0, 20 + lerp(4, 2, sw) * 62 + 28, 510 + Math.sin(sw * Math.PI) * -18, 1, Math.min(P(t, 34.1, 34.25), 1 - P(t, 34.85, 35)));
+    if (t > 35.4 && t < 35.75) touch(0, 200, 726, 1, 1 - P(t, 35.6, 35.75));
+    gifBtn.style.transform = `scale(${1 - .06 * Math.sin(P(t, 35.5, 35.8) * Math.PI)})`;
+    css(gifBar, { opacity: t > 35.7 && t < 36.8 ? 1 : 0 }); gifBar.firstChild.style.width = 100 * eio(P(t, 35.7, 36.5)) + '%';
+    const gsk = eo5(P(t, 36.5, 36.9)); css(gifSnack, { opacity: gsk, transform: `translateY(${(1 - gsk) * 90}px)` });
+  }
+
+  // ---- PDF Studio 37.4–44.0
+  const spd = screenAt(t, 37.4, 44.4, .4); applyScreen(sPdf, spd);
+  if (spd.vis) {
+    const land = eio(P(t, 40.2, 40.8));
+    const pw2 = lerp(230, 330, land), ph2 = lerp(325, 233, land);
+    css(page, { left: (400 - pw2) / 2 + 'px', top: (372 - ph2) / 2 + 'px', width: pw2 + 'px', height: ph2 + 'px' });
+    orientChip.textContent = land > .5 ? 'Landscape' : 'Portrait'; orientChip.className = 'chip' + (land > .5 ? '' : ' out');
+    const cols = lerp(1, 2, eio(P(t, 38.4, 39.0))) + eio(P(t, 39.3, 39.9));
+    const colsInt = Math.round(cols);
+    const mar = lerp(12, 6, eio(P(t, 41.0, 41.6)));
+    $('colV').textContent = colsInt; $('marV').textContent = Math.round(mar) + ' mm';
+    const cp = (cols - 1) / 3; colSl.firstChild.style.width = cp * 100 + '%'; colSl.lastChild.style.left = cp * 100 + '%';
+    const mp = mar / 20; marSl.firstChild.style.width = mp * 100 + '%'; marSl.lastChild.style.left = mp * 100 + '%';
+    const m = mar * 1.4, gap = 6;
+    pdfImgs.forEach((e, i) => {
+      const lay = c => { const cw = (pw2 - 2 * m - (c - 1) * gap) / c; const rows = Math.ceil(6 / c); const rh = (ph2 - 2 * m - (rows - 1) * gap) / rows; return { x: m + (i % c) * (cw + gap), y: m + Math.floor(i / c) * (rh + gap), w: cw, h: rh }; };
+      const c1 = Math.floor(cols), c2 = Math.min(3, c1 + 1), f = cols - c1; const a = lay(c1), b = lay(c2);
+      const k = back(P(t, 37.8 + i * .08, 38.2 + i * .08));
+      css(e, { left: lerp(a.x, b.x, f) + 'px', top: lerp(a.y, b.y, f) + 'px', width: lerp(a.w, b.w, f) + 'px', height: lerp(a.h, b.h, f) + 'px', borderRadius: '3px', opacity: clamp(k), transform: `scale(${clamp(k, 0, 1.1)})` });
+    });
+    const snap = t > 41.9; snapGrid.style.opacity = snap ? eo(P(t, 41.9, 42.2)) : 0;
+    css(snapSw, { background: snap ? '#D0BCFF' : '#36343B', boxShadow: snap ? 'none' : '0 0 0 2px #938F99 inset' });
+    css(snapSw.firstChild, { left: snap ? '26px' : '6px', background: snap ? '#381E72' : '#938F99' });
+    pthumbs.forEach((d, i) => { const k = back(P(t, 38.0 + i * .1, 38.4 + i * .1)); css(d, { opacity: clamp(k), transform: `scale(${k})` }); });
+    const taps = [[38.4, lerp(20, 380, 1 / 3) , 574, 39.9, lerp(20, 380, 1)], [40.2, 330, 506], [41.0, lerp(20, 380, .6), 628, 41.6, lerp(20, 380, .3)], [41.9, 350, 664], [42.6, 318, 732]];
+    taps.forEach(([tt, x, y, t2, x2]) => {
+      if (t2) { if (t > tt - .2 && t < t2 + .15) touch(0, lerp(x, x2, eio(P(t, tt, t2))), y, 1, Math.min(P(t, tt - .2, tt), 1 - P(t, t2, t2 + .15))); }
+      else if (t > tt - .2 && t < tt + .15) touch(0, x, y, 1 - .15 * Math.sin(P(t, tt - .2, tt + .15) * Math.PI), 1 - P(t, tt, tt + .15));
+    });
+    pdfBtn.style.transform = `scale(${1 - .06 * Math.sin(P(t, 42.5, 42.8) * Math.PI)})`;
+    const psk = eo5(P(t, 42.8, 43.2)); css(pdfSnack, { opacity: psk, transform: `translateY(${(1 - psk) * 90}px)` });
+    $('pdfSnackT').textContent = t < 43.4 ? 'Export queued. You can keep editing.' : 'PDF ready';
+    $('pdfSnackB').textContent = t < 43.4 ? '' : 'Save PDF';
+  }
+
+  // ---- licenses 44.6–52.3 (canvas)
+  const licVis = t > 44.6 && t < 52.4; $('lic').style.display = licVis ? 'block' : 'none';
+  if (licVis) {
+    const out = eio(P(t, 51.9, 52.4));
+    const hk = eo5(P(t, 44.8, 45.5)); css(licHero, { opacity: hk * (1 - out), transform: `translateY(${(1 - hk) * 60}px) scale(${lerp(.9, 1, hk)})` });
+    licCards.forEach((c, i) => { if (!c) return; const k = back(P(t, 45.6 + i * .32, 46.2 + i * .32)); css(c, { opacity: clamp(k) * (1 - out), transform: `translateY(${(1 - k) * 50 - out * 20}px) scale(${.7 + .3 * k}) rotate(${(1 - clamp(k)) * (i % 2 ? 6 : -6)}deg)` }); });
+    const nk = eo(P(t, 45.6, 49.0)); $('licN').textContent = Math.round(225 * nk) + '+';
+    css(licFoot, { opacity: eo(P(t, 45.6, 46.0)) * (1 - out) });
+  }
+
+  // ---- nav (shared across screens)
+  const navHide = Math.max(eio(P(t, 18.5, 18.9)) * (1 - eio(P(t, 23.0, 23.4))), eio(P(t, 24.8, 25.2)));
+  css(nav, { display: t > 3 && t < 28.2 ? 'flex' : 'none', transform: `translateY(${navHide * 100}px)`, opacity: sg.vis ? Math.max(sg.op, ss.op, sp.op, sc.op) : Math.max(ss.op, sp.op, sc.op, 0) });
+  const pos = t < 9.2 ? 0 : t < 14.2 ? lerp(0, 2, eio(P(t, 9.2, 9.6))) : t < 23 ? lerp(2, 1, eio(P(t, 14.2, 14.6))) : lerp(1, 0, eio(P(t, 23.2, 23.6)));
+  navInd.style.left = navX(pos) + 'px';
+  const pulse = 1 + .12 * Math.sin(P(t, 9.2, 9.6) * Math.PI) + .12 * Math.sin(P(t, 14.2, 14.6) * Math.PI) + .12 * Math.sin(P(t, 23.2, 23.6) * Math.PI);
+  navInd.style.transform = `scaleX(${pulse})`;
+  navIts.forEach((n, i) => { const on = Math.abs(pos - i) < .5; n.style.color = on ? '#E6E0E9' : '#CAC4D0'; n.firstChild.style.color = on ? '#E8DEF8' : '#CAC4D0'; });
+}
+
+window.render = render; window.DURATION = DURATION;
+if (location.search.includes('play')) { const t0 = performance.now(); const loop = () => { render(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); }; loop(); }
+else render(+(new URLSearchParams(location.search).get('t') || 0));
+</script>
+</body>
+</html>

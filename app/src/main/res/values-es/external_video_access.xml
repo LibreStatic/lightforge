@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="external_video_access_title">Fuente de vídeo no disponible</string>
-    <string name="external_video_access_body">Antes de retomar la edición, comprobá que sigue siendo el vídeo original y que tenés acceso. Si el permiso caducó, volvé a abrir el vídeo en su aplicación original y confirmá el acceso. Después, volvé aquí.</string>
+    <string name="external_video_access_title">Fuente de video no disponible</string>
+    <string name="external_video_access_body">Antes de retomar la edición, comprobá que sigue siendo el video original y que tenés acceso. Si el permiso caducó, volvé a abrir el video en su aplicación original y confirmá el acceso. Después, volvé aquí.</string>
     <string name="external_video_access_draft">Tu borrador se conserva. Volver aquí o recuperar el permiso no reabre el editor automáticamente. Elegí Comprobar acceso para verificar el archivo original.</string>
     <string name="external_video_access_retry">Comprobar acceso</string>
     <string name="external_video_access_back">Volver</string>
     <string name="external_video_access_checking">Comprobando fuente…</string>
-    <string name="external_video_access_source_changed">Esta URI ahora apunta a otro archivo. Tu borrador se conserva. Restaurá el vídeo original en esta URI y elegí Comprobar acceso, o volvé atrás.</string>
+    <string name="external_video_access_source_changed">Esta URI ahora apunta a otro archivo. Tu borrador se conserva. Restaurá el video original en esta URI y elegí Comprobar acceso, o volvé atrás.</string>
 </resources>

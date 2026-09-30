@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.baselineprofile"
+    namespace = "com.librestatic.lightforge.baselineprofile"
     compileSdk = 37
     targetProjectPath = ":app"
 

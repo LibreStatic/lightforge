@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="people_merge">Unisci a…</string>
+    <string name="people_merge_title">Unisci a un’altra persona</string>
+    <string name="people_merge_body">Tutti i volti di questa persona passano alla persona scelta.</string>
+    <string name="people_split">Separa volti in una nuova persona</string>
+    <string name="people_split_hint">Seleziona i volti che non sono di questa persona.</string>
+    <plurals name="people_split_confirm">
+        <item quantity="one">Sposta %d volto in una nuova persona</item>
+        <item quantity="many">Sposta %d volti in una nuova persona</item>
+        <item quantity="other">Sposta %d volti in una nuova persona</item>
+    </plurals>
+    <string name="people_hidden_title">Persone nascoste</string>
+    <string name="people_unhide">Mostra</string>
+    <string name="people_open_photo">Apri foto</string>
+</resources>

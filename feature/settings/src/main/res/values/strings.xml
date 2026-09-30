@@ -4,7 +4,7 @@
     <string name="settings_group_management">Privacy and management</string>
     <string name="settings_group_intelligence">Smart features</string>
     <string name="settings_group_about">About</string>
-    <string name="settings_about">About UGallery</string>
+    <string name="settings_about">About Lightforge Studio</string>
     <string name="settings_about_summary">Version, contributors, and open-source licenses</string>
     <string name="settings_library">Library</string>
     <string name="settings_library_sort">Sort by</string>
@@ -73,9 +73,9 @@
     <string name="settings_operations">File operations</string>
     <string name="settings_share_sanitized">Share without location by default</string>
     <string name="settings_keep_modified">Preserve modified time when possible</string>
-    <string name="settings_skip_confirmation">Skip UGallery delete confirmation</string>
+    <string name="settings_skip_confirmation">Skip Lightforge Studio delete confirmation</string>
     <string name="settings_security">Security</string>
-    <string name="settings_app_lock">Lock UGallery</string>
+    <string name="settings_app_lock">Lock Lightforge Studio</string>
     <string name="settings_destructive_lock">Authenticate destructive actions</string>
     <string name="settings_relock_timeout">Relock timeout</string>
     <string name="settings_minutes">%1$d min</string>
@@ -87,7 +87,7 @@
     <string name="face_analysis_privacy">Face regions are detected locally after you opt in. Analysis can be paused and all derived data can be deleted.</string>
     <string name="face_analysis_no_identity">Detection does not identify or name people.</string>
     <string name="face_analysis_enable">Enable local face detection</string>
-    <string name="face_analysis_progress">%1$d photos analyzed</string>
+    <plurals name="face_analysis_progress"><item quantity="one">%1$d photo analyzed</item><item quantity="other">%1$d photos analyzed</item></plurals>
     <string name="face_analysis_pause">Pause</string>
     <string name="face_analysis_resume">Analyze now</string>
     <string name="face_analysis_all">Analyze full library</string>
@@ -100,31 +100,36 @@
     <string name="pet_collections_title">Pets</string>
     <string name="pet_collections_no_identity">Dog and cat collections use local labels and never claim to identify an individual pet.</string>
     <string name="pet_collections_enable">Show dog and cat collections</string>
-    <string name="pet_analysis_preparing">Preparing pet analysis… %1$d items processed</string>
-    <string name="pet_analysis_running">Analyzing pets on this device… %1$d items processed</string>
-    <string name="pet_analysis_paused">Pet analysis paused · %1$d items processed</string>
-    <string name="pet_analysis_complete">Pet analysis complete · %1$d items processed</string>
+    <plurals name="pet_analysis_preparing"><item quantity="one">Preparing pet analysis… %1$d item processed</item><item quantity="other">Preparing pet analysis… %1$d items processed</item></plurals>
+    <plurals name="pet_analysis_running"><item quantity="one">Analyzing pets on this device… %1$d item processed</item><item quantity="other">Analyzing pets on this device… %1$d items processed</item></plurals>
+    <plurals name="pet_analysis_paused"><item quantity="one">Pet analysis paused · %1$d item processed</item><item quantity="other">Pet analysis paused · %1$d items processed</item></plurals>
+    <plurals name="pet_analysis_complete"><item quantity="one">Pet analysis complete · %1$d item processed</item><item quantity="other">Pet analysis complete · %1$d items processed</item></plurals>
     <string name="pet_hide_dog">Hide dog results</string>
     <string name="pet_hide_cat">Hide cat results</string>
     <string name="pet_restore">Restore pet labels</string>
     <string name="settings_page_ai">Local analysis</string>
-    <string name="local_analysis_privacy">UGallery can analyze your accessible photos entirely on this device. Nothing is uploaded, and you can stop analysis or delete its results at any time.</string>
+    <string name="local_analysis_privacy">Lightforge Studio can analyze your accessible photos entirely on this device. Nothing is uploaded, and you can stop analysis or delete its results at any time.</string>
     <string name="local_analysis_master">Use local analysis</string>
     <string name="local_analysis_master_summary">Controls people and faces, photo content and text, and pet collections. Known unchanged items are not analyzed again.</string>
     <string name="local_analysis_minimum_battery">Minimum battery for full analysis</string>
     <string name="local_analysis_battery_percent">%1$d%%</string>
-    <string name="local_analysis_minimum_battery_summary">When unplugged, full analysis runs only while UGallery is open and the battery is at or above this level. Charging always allows it.</string>
+    <string name="local_analysis_minimum_battery_summary">When unplugged, full analysis runs only while Lightforge Studio is open and the battery is at or above this level. Charging always allows it.</string>
+    <string name="model_downloads_mobile_data">Download models on mobile data</string>
+    <string name="model_downloads_mobile_data_summary">Off by default: model downloads and updates pause on mobile data and resume on Wi-Fi. They also wait until the device is charging or the battery is at or above the minimum above.</string>
+    <string name="model_download_waiting_network">Paused: waiting for a connection</string>
+    <string name="model_download_waiting_wifi">Paused: waiting for Wi-Fi</string>
+    <string name="model_download_waiting_battery">Paused: battery below the analysis minimum</string>
     <string name="local_analysis_features">Analysis features</string>
     <string name="local_analysis_people">People and faces</string>
     <string name="local_analysis_people_summary">Detects faces and groups photos of the same person locally.</string>
     <string name="local_analysis_content">Photo content and text</string>
     <string name="local_analysis_content_summary">Creates searchable labels and recognizes text. Pet collections share these labels.</string>
     <string name="local_analysis_opt_out_title">Local analysis is ready</string>
-    <string name="local_analysis_opt_out_body">UGallery can organize people, pets, photo content and text entirely on this device. Analysis uses only photos you allowed. Full indexing runs while charging or while UGallery is open with at least 20 percent battery by default. You can change this level, disable analysis, or delete its data in Settings.</string>
+    <string name="local_analysis_opt_out_body">Lightforge Studio can organize people, pets, photo content and text entirely on this device. Analysis uses only photos you allowed. Full indexing runs while charging or while Lightforge Studio is open with at least 20 percent battery by default. You can change this level, disable analysis, or delete its data in Settings.</string>
     <string name="local_analysis_opt_out_accept">Enable local analysis</string>
     <string name="local_analysis_opt_out_decline">Not now</string>
     <string name="settings_back">Back</string>
-    <string name="settings_summary_columns">%1$d columns</string>
+    <string name="settings_grid_columns_auto">Automatic</string><string name="settings_summary_columns_auto">Automatic columns</string><string name="settings_summary_columns">%1$d columns</string>
     <string name="settings_summary_enabled">%1$d of %2$d on</string>
     <string name="settings_summary_on">On</string>
     <string name="settings_summary_off">Off</string>
@@ -150,10 +155,6 @@
     <string name="semantic_model_use">Use</string>
     <string name="semantic_model_delete">Delete</string>
     <string name="semantic_models_delete_all">Delete all downloaded models</string>
-    <string name="semantic_download_title">Download semantic model</string>
-    <string name="semantic_download_body">Choose whether to wait for unmetered Wi-Fi or allow the current network. Gallery data is never uploaded.</string>
-    <string name="semantic_download_wifi">Wi-Fi only</string>
-    <string name="semantic_download_any_network">Use current network</string>
     <string name="semantic_override_title">Use a non-recommended model?</string>
     <string name="semantic_override_body">This model may use more memory, battery, or processing time on this device. You can still continue.</string>
     <string name="semantic_override_confirm">Use anyway</string>
@@ -170,4 +171,17 @@
     <string name="semantic_index_error">The semantic index could not be built. Check available storage and media access, then choose the model again.</string>
     <string name="portable_preferences_field_collection_order">Collection order</string>
     <string name="portable_preferences_field_hidden_collections">Hidden collections</string>
+    <string name="local_analysis_cleanup">Free up space analysis</string>
+    <string name="local_analysis_cleanup_summary">Finds exact duplicates and blurry photos on this device, while charging or while Lightforge Studio is open with enough battery. Nothing is deleted without your confirmation.</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_language_system">System default</string>
+    <string name="settings_language_en" translatable="false">English</string>
+    <string name="settings_language_es" translatable="false">Español</string>
+    <string name="settings_language_fr" translatable="false">Français</string>
+    <string name="settings_language_pt" translatable="false">Português</string>
+    <string name="settings_language_it" translatable="false">Italiano</string>
+    <string name="settings_language_de" translatable="false">Deutsch</string>
+    <string name="settings_card_sorting">Sorting and grouping</string>
+    <string name="settings_card_photo_gestures">Photo gestures</string>
+    <string name="settings_card_video_gestures">Video gestures</string>
 </resources>

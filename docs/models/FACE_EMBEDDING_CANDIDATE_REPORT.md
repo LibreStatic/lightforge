@@ -47,5 +47,5 @@ Primary references:
 
 The accepted artifact may enter the local embedding runtime and benchmark lane. The user-supplied
 DigiFace-derived v3 corpus passed the research false-merge holdout at the conservative `0.47` gate,
-and the user confirmed UGallery is non-commercial. Automatic People/Me surfaces may be enabled for that scope, but the R-UDA corpus cannot support an unrestricted commercial claim unless a production-compatible corpus passes the same gate. The checkpoint's incomplete exact training
+and the user confirmed Lightforge is non-commercial. Automatic People/Me surfaces may be enabled for that scope, but the R-UDA corpus cannot support an unrestricted commercial claim unless a production-compatible corpus passes the same gate. The checkpoint's incomplete exact training
 recipe remains a documented release-review risk rather than being silently presented as known.

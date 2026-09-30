@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="people_merge">Fusionner avec…</string>
+    <string name="people_merge_title">Fusionner avec une autre personne</string>
+    <string name="people_merge_body">Tous les visages de cette personne sont déplacés vers la personne choisie.</string>
+    <string name="people_split">Séparer des visages dans une nouvelle personne</string>
+    <string name="people_split_hint">Sélectionnez les visages qui ne sont pas cette personne.</string>
+    <plurals name="people_split_confirm">
+        <item quantity="one">Déplacer %d visage vers une nouvelle personne</item>
+        <item quantity="many">Déplacer %d visages vers une nouvelle personne</item>
+        <item quantity="other">Déplacer %d visages vers une nouvelle personne</item>
+    </plurals>
+    <string name="people_hidden_title">Personnes masquées</string>
+    <string name="people_unhide">Afficher</string>
+    <string name="people_open_photo">Ouvrir la photo</string>
+</resources>

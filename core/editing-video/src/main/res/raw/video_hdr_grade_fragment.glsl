@@ -10,6 +10,9 @@ uniform float uTint;
 uniform float uContrast;
 uniform float uPivot;
 uniform float uSaturation;
+uniform float uToneShadows;
+uniform float uToneHighlights;
+uniform float uVibrance;
 uniform vec4 uShadows;
 uniform vec4 uMidtones;
 uniform vec4 uHighlights;
@@ -155,6 +158,9 @@ void main() {
     rgb.b *= 1.0 - uTemperature * 0.12;
     rgb.g *= 1.0 + uTint * 0.06;
     rgb = (rgb - uPivot) * exp2(uContrast * 1.5) + uPivot;
+    // Keep the weights and scaling identical to VideoColorGradeEffects.tonalRangeGain.
+    float toneY = clamp(luma(rgb), 0.0, 1.0);
+    rgb *= exp2(uToneShadows * (1.0 - smoothWeight(0.0, 0.35, toneY)) + uToneHighlights * smoothWeight(0.25, 0.9, toneY));
     float y = clamp(luma(rgb), 0.0, 1.0);
     float sw = 1.0 - smoothWeight(0.05, 0.55, y);
     float hw = smoothWeight(0.45, 0.95, y);
@@ -162,6 +168,11 @@ void main() {
     rgb = applyWheel(rgb, uMidtones, clamp(1.0 - sw - hw, 0.0, 1.0));
     rgb = applyWheel(rgb, uHighlights, hw);
     rgb = mix(vec3(luma(rgb)), rgb, 1.0 + uSaturation);
+    // Vibrance: same chroma measure as VideoColorGradeEffects.applyVibrance.
+    vec3 vibrancePixel = clamp(rgb, 0.0, 1.0);
+    float vibranceHigh = max(vibrancePixel.r, max(vibrancePixel.g, vibrancePixel.b));
+    float vibranceChroma = vibranceHigh > 0.0001 ? (vibranceHigh - min(vibrancePixel.r, min(vibrancePixel.g, vibrancePixel.b))) / vibranceHigh : 0.0;
+    rgb = mix(vec3(luma(rgb)), rgb, 1.0 + uVibrance * (1.0 - vibranceChroma));
     rgb = applyHueBands(rgb);
     rgb = mix(rgb, builtInLook(rgb), uLutIntensity);
     if (uHasCustomLut == 1) rgb = mix(rgb, sampleLut(rgb), uLutIntensity);

@@ -6,17 +6,17 @@ import sys
 import xml.etree.ElementTree as ET
 
 root = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path(__file__).resolve().parents[1]
-db = (root / "core/database/src/main/kotlin/com/ugallery/core/database/GalleryDatabase.kt").read_text()
+db = (root / "core/database/src/main/kotlin/com/librestatic/lightforge/core/database/GalleryDatabase.kt").read_text()
 if "DocumentAnnotationEntity::class" not in db or "Migration18To19" not in db:
     sys.exit("FAIL: native document annotations and migration are missing")
 assert "version = 26," in db
-screen = (root / "feature/collections/src/main/kotlin/com/ugallery/feature/collections/DocumentsContent.kt").read_text()
+screen = (root / "feature/collections/src/main/kotlin/com/librestatic/lightforge/feature/collections/DocumentsContent.kt").read_text()
 for token in ("repository.classify", "repository.archive", "repository.undo", "repository.pdfKeys", "repository.clearClassification", "ClipboardManager", "testTagsAsResourceId = true"):
     assert token in screen, token
-app = (root / "app/src/main/kotlin/com/ugallery/app/ProductionGalleryApp.kt").read_text()
+app = (root / "app/src/main/kotlin/com/librestatic/lightforge/ProductionGalleryApp.kt").read_text()
 for token in ("SurfaceRoute.Documents ->", "onDocumentsClick", "organizeSelectedDocuments()", "SearchConcept.Document", "if (pdfReturnToDocuments) SurfaceRoute.Documents"):
     assert token in app, token
-rail = (root / "app/src/main/kotlin/com/ugallery/app/AdaptiveGalleryNavigation.kt").read_text()
+rail = (root / "app/src/main/kotlin/com/librestatic/lightforge/AdaptiveGalleryNavigation.kt").read_text()
 assert "onRoute(SurfaceRoute.Documents)" in rail
 expected = None
 for locale in ("values", "values-es", "values-fr", "values-pt", "values-it", "values-de"):

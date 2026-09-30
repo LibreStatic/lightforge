@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.feature.localsharing"
+    namespace = "com.librestatic.lightforge.feature.localsharing"
     compileSdk = 37
 
     defaultConfig {

@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.core.navigation"
+    namespace = "com.librestatic.lightforge.core.navigation"
     compileSdk = 37
 
     defaultConfig {

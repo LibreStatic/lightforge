@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.feature.settings"
+    namespace = "com.librestatic.lightforge.feature.settings"
     compileSdk = 37
 
     defaultConfig {
@@ -34,6 +34,7 @@ dependencies {
     implementation("androidx.compose.foundation:foundation")
     implementation(libs.androidx.compose.material3)
     testImplementation(libs.junit4)
+    testImplementation("org.json:json:20240303")
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation(libs.androidx.test.ext)

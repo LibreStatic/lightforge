@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cleanup_title">Libérer de l’espace</string>
+    <string name="cleanup_collection_body">Doublons exacts, grandes vidéos et photos floues à vérifier</string>
+    <string name="cleanup_back">Collections</string>
+    <string name="cleanup_analysis_off">La détection des doublons et des photos floues est désactivée. Activez-la pour analyser votre bibliothèque sur cet appareil.</string>
+    <string name="cleanup_analysis_enable">Activer l’analyse</string>
+    <string name="cleanup_analysis_hint">L’analyse s’exécute sur cet appareil pendant la charge, ou quand Lightforge est ouverte avec assez de batterie. Les résultats apparaissent au fur et à mesure.</string>
+    <string name="cleanup_duplicates_title">Doublons exacts</string>
+    <string name="cleanup_keep">Conserver</string>
+    <string name="cleanup_trash_copies">Placer les copies dans la corbeille</string>
+    <string name="cleanup_large_videos_title">Grandes vidéos (100 Mo ou plus)</string>
+    <string name="cleanup_screenshots_title">Captures d’écran</string>
+    <string name="cleanup_blurry_title">Photos floues</string>
+    <string name="cleanup_trash_all">Tout placer dans la corbeille</string>
+    <string name="cleanup_empty">Rien trouvé pour le moment.</string>
+    <string name="cleanup_trash_body">Vous pouvez restaurer les éléments depuis la corbeille jusqu’à leur suppression automatique.</string>
+    <string name="cleanup_trash_confirm">Placer dans la corbeille</string>
+    <string name="cleanup_cancel">Annuler</string>
+    <string name="cleanup_open_item">Ouvrir</string>
+    <plurals name="cleanup_duplicates_summary">
+        <item quantity="one">%1$d groupe · %2$s libérables</item>
+        <item quantity="many">%1$d groupes · %2$s libérables</item>
+        <item quantity="other">%1$d groupes · %2$s libérables</item>
+    </plurals>
+    <plurals name="cleanup_group_summary">
+        <item quantity="one">%1$d copie identique · %2$s libérables</item>
+        <item quantity="many">%1$d copies identiques · %2$s libérables</item>
+        <item quantity="other">%1$d copies identiques · %2$s libérables</item>
+    </plurals>
+    <plurals name="cleanup_large_videos_summary">
+        <item quantity="one">%1$d vidéo · %2$s</item>
+        <item quantity="many">%1$d vidéos · %2$s</item>
+        <item quantity="other">%1$d vidéos · %2$s</item>
+    </plurals>
+    <plurals name="cleanup_screenshots_summary">
+        <item quantity="one">%d capture d’écran</item>
+        <item quantity="many">%d captures d’écran</item>
+        <item quantity="other">%d captures d’écran</item>
+    </plurals>
+    <plurals name="cleanup_blurry_summary">
+        <item quantity="one">%d photo peut être floue</item>
+        <item quantity="many">%d photos peuvent être floues</item>
+        <item quantity="other">%d photos peuvent être floues</item>
+    </plurals>
+    <plurals name="cleanup_trash_title">
+        <item quantity="one">Placer %d élément dans la corbeille ?</item>
+        <item quantity="many">Placer %d éléments dans la corbeille ?</item>
+        <item quantity="other">Placer %d éléments dans la corbeille ?</item>
+    </plurals>
+</resources>

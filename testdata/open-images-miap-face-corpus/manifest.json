@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "dataset": "Open Images V7 validation + MIAP validation",
-  "selectionVersion": "ugallery-m4-v1",
+  "selectionVersion": "lightforge-m4-v1",
   "imageCount": 60,
   "annotationLicense": "https://creativecommons.org/licenses/by/4.0/",
   "imageLicensePolicy": "Images are listed by Open Images as CC BY; retain per-image attribution and upstream disclaimer.",

@@ -4,15 +4,18 @@
   "automaticIdentityAssignment": false,
   "models": [
     {
-      "name": "Open Noodle Pet Recognition SMALL",
+      "name": "Open Noodle Pet Recognition SMALL (LiteRT float16)",
       "publisher": "open-noodle",
       "version": "9dd4c915be29a81b116b3e30eb996c59d0e7ede0",
       "license": "Apache-2.0",
       "licenseAsset": "licenses/Apache-2.0.txt",
       "modelCard": "https://huggingface.co/open-noodle/pet-recognition-small",
-      "download": "https://huggingface.co/open-noodle/pet-recognition-small/resolve/9dd4c915be29a81b116b3e30eb996c59d0e7ede0/recognition/model.onnx",
-      "sha256": "6a5e2373ab348bed588cef4072f3914ca9c8bacde3e8d0651019e8dad86b24ba",
-      "bytes": 89227604,
+      "convertedFrom": "https://huggingface.co/open-noodle/pet-recognition-small/resolve/9dd4c915be29a81b116b3e30eb996c59d0e7ede0/recognition/model.onnx",
+      "convertedFromSha256": "6a5e2373ab348bed588cef4072f3914ca9c8bacde3e8d0651019e8dad86b24ba",
+      "conversion": "onnx2tf with pseudo Erf, TensorFlow Lite converter, float16 weights with float32 input/output; embeddings match the ONNX original (cosine >= 0.9999)",
+      "download": "https://github.com/LibreStatic/lightforge-models/releases/download/pet-recognition-small-tflite-v1/pet-recognition-small-fp16.tflite",
+      "sha256": "63f88741ce15406e90f6ce2194f4fc5018345f03cb408c97405a714ae1cc5759",
+      "bytes": 43832152,
       "purpose": "Individual cat/dog crop embedding; reviewed similarity ranking, not automatic identification"
     },
     {

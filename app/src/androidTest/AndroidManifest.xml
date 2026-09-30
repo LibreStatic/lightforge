@@ -4,7 +4,7 @@
         <!-- This provider exists only in the isolated test APK. The separate process
              remains alive when the acceptance target is force-stopped by the probe. -->
         <provider
-            android:name="com.ugallery.app.GalleryBackupTaskProbeProvider"
+            android:name="com.librestatic.lightforge.GalleryBackupTaskProbeProvider"
             android:authorities="${applicationId}.backuptasks"
             android:exported="true"
             android:grantUriPermissions="true"
@@ -15,15 +15,15 @@
             </intent-filter>
         </provider>
         <receiver
-            android:name="com.ugallery.app.GalleryBackupTaskProbeReceiver"
+            android:name="com.librestatic.lightforge.GalleryBackupTaskProbeReceiver"
             android:exported="true" />
-<provider android:name="com.ugallery.app.SafCopyDocumentsProvider" android:process=":safcopyfixture"
+<provider android:name="com.librestatic.lightforge.SafCopyDocumentsProvider" android:process=":safcopyfixture"
  android:authorities="${applicationId}.safcopyfixture" android:exported="true"
  android:permission="android.permission.MANAGE_DOCUMENTS"
  android:grantUriPermissions="true">
  <intent-filter><action android:name="android.content.action.DOCUMENTS_PROVIDER" /></intent-filter>
 </provider>
 
-        <receiver android:name="com.ugallery.app.SafCopyFixtureGrantReceiver" android:process=":safcopyfixture" android:exported="true" />
+        <receiver android:name="com.librestatic.lightforge.SafCopyFixtureGrantReceiver" android:process=":safcopyfixture" android:exported="true" />
     </application>
 </manifest>

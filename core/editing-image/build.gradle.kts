@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.core.editing.image"
+    namespace = "com.librestatic.lightforge.core.editing.image"
     compileSdk = 37
 
     defaultConfig {

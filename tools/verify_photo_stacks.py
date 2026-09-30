@@ -4,24 +4,24 @@ from pathlib import Path
 import sys,re,xml.etree.ElementTree as ET
 root=Path(sys.argv[1]).resolve() if len(sys.argv)>1 else Path(__file__).resolve().parents[1]
 def read(p):return (root/p).read_text()
-db=read("core/database/src/main/kotlin/com/ugallery/core/database/GalleryDatabase.kt")
+db=read("core/database/src/main/kotlin/com/librestatic/lightforge/core/database/GalleryDatabase.kt")
 if "PhotoStackEntity::class" not in db:sys.exit("FAIL: persistent photo stacks and migration are missing")
 for token in ("version = 26,","Migration21To22","photoStackDao"):
     assert token in db,token
-repo=read("core/data/src/main/kotlin/com/ugallery/core/data/GalleryPhotoStackRepository.kt")
+repo=read("core/data/src/main/kotlin/com/librestatic/lightforge/core/data/GalleryPhotoStackRepository.kt")
 for token in ("database.withTransaction","PhotoStackChanged","signature(current)","normalizeTitle","MaxMembers=500","suspend fun separate","suspend fun dissolve"):
     assert token in repo or token.replace("="," = ") in repo,token
-sql=read("core/database/src/main/kotlin/com/ugallery/core/database/PhotoStackEntities.kt")
+sql=read("core/database/src/main/kotlin/com/librestatic/lightforge/core/database/PhotoStackEntities.kt")
 for token in ("f.generationModified=m.generationModified","photo_stack_exclusions","m.isAccessible=1","m.isTrashed=0","m.mediaType=1","ForeignKey.CASCADE"):
     assert token in sql,token
-ui=read("feature/collections/src/main/kotlin/com/ugallery/feature/collections/PhotoStacksContent.kt")
+ui=read("feature/collections/src/main/kotlin/com/librestatic/lightforge/feature/collections/PhotoStacksContent.kt")
 for token in ("repository.save","repository.setCover","repository.separate","repository.dissolve","stack-compare-zoom","ThumbnailRequest","secondaryContainer","onSecondaryContainer"):
     assert token in ui,token
 assert not any(t in ui for t in (".blur(","RenderEffect","ColorFilter","HttpURLConnection","Color(0x"))
-app=read("app/src/main/kotlin/com/ugallery/app/ProductionGalleryApp.kt")
+app=read("app/src/main/kotlin/com/librestatic/lightforge/ProductionGalleryApp.kt")
 for token in ("SurfaceRoute.Stacks ->","onStacksClick","createSelectedPhotoStack()","stacks_create"):
     assert token in app,token
-assert "onRoute(SurfaceRoute.Stacks)" in read("app/src/main/kotlin/com/ugallery/app/AdaptiveGalleryNavigation.kt")
+assert "onRoute(SurfaceRoute.Stacks)" in read("app/src/main/kotlin/com/librestatic/lightforge/AdaptiveGalleryNavigation.kt")
 expected=None
 for locale in ("values","values-es","values-fr","values-pt","values-it","values-de"):
     strings={n.attrib["name"]:"".join(n.itertext()) for n in ET.parse(root/"feature/collections/src/main/res"/locale/"photo_stacks.xml").getroot()}

@@ -6,8 +6,8 @@
     <string name="places_all_years">Toutes les années</string>
     <string name="places_no_map">Importez une carte régionale pour commencer</string>
     <string name="places_no_photos">Aucune photo GPS autorisée dans cette zone et année</string>
-    <string name="places_overflow">%1$d photos sur %2$d. Zoomez pour voir les autres.</string>
-    <string name="places_group">%1$d photos · %2$.4f, %3$.4f</string>
+    <string name="places_overflow">%1$s sur %2$d. Zoomez pour voir les autres.</string>
+    <plurals name="places_group"><item quantity="one">%1$d photo · %2$.4f, %3$.4f</item><item quantity="many">%1$d photos · %2$.4f, %3$.4f</item><item quantity="other">%1$d photos · %2$.4f, %3$.4f</item></plurals>
     <string name="places_open_photo">Ouvrir la photo</string>
     <string name="places_packages">Paquets de cartes</string>
     <string name="places_import">Importer un paquet régional</string>
@@ -24,7 +24,7 @@
     <string name="places_world_body">Protomaps 2026-09-06, z0–15 : 137 823 988 466 octets. Téléchargement volumineux, sans imagerie satellite ni couverture polaire. OpenGL compatible, 6 Gio de RAM, Wi-Fi, charge et espace libre requis. Aucun téléchargement sans confirmation.</string>
     <string name="places_world_confirm">Je confirme le téléchargement de ce paquet mondial</string>
     <string name="places_download">Planifier le téléchargement</string>
-    <string name="places_capacity">Libre : %1$d octets · RAM : %2$d octets</string>
+    <string name="places_capacity">Libre : %1$s · RAM : %2$s</string>
     <string name="places_tasks">Tâches de paquets</string>
     <string name="places_pause">Pause</string>
     <string name="places_cancel">Annuler</string>
@@ -54,4 +54,9 @@
     <string name="places_location_index_status">Lues localement : %1$d · Échecs : %2$d</string>
     <string name="places_local_map_name">Carte locale</string>
     <string name="places_renderer_unavailable">Cet appareil ne prend pas en charge le rendu cartographique OpenGL ES 3.0. Vous pouvez gérer les paquets locaux et parcourir les groupes de photos.</string>
+    <plurals name="places_overflow_shown">
+        <item quantity="one">%d photo affichée</item>
+        <item quantity="many">%d photos affichées</item>
+        <item quantity="other">%d photos affichées</item>
+    </plurals>
 </resources>

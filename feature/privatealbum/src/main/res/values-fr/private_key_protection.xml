@@ -18,4 +18,6 @@
     <string name="private_key_protection_credentials_required">Configurez un verrouillage de l’écran par code PIN, schéma ou mot de passe dans les paramètres du système. Revenez ensuite ici et appuyez sur Réessayer pour protéger les clés des médias et de l’index.</string>
     <string name="private_key_unlock_body">Déverrouillez avec la biométrie ou le verrouillage de l’écran de votre appareil.</string>
     <string name="private_key_auth_unavailable">L’authentification de l’appareil est indisponible. Configurez un verrouillage de l’écran dans les paramètres du système, puis revenez et réessayez.</string>
+    <string name="private_key_protection_auto_working">Votre album privé est en cours de mise à niveau pour que ses clés exigent le verrouillage de l’écran. Gardez l’application ouverte jusqu’à la fin.</string>
+    <string name="private_key_protection_auto_failed">La mise à niveau n’a pas pu aboutir. Votre album privé fonctionne toujours et elle sera relancée lors du prochain déverrouillage.</string>
 </resources>

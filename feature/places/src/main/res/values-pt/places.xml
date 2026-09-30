@@ -6,8 +6,8 @@
     <string name="places_all_years">Todos os anos</string>
     <string name="places_no_map">Importe um mapa regional para começar</string>
     <string name="places_no_photos">Nenhuma foto com GPS autorizado nesta área e ano</string>
-    <string name="places_overflow">Mostrando %1$d de %2$d fotos. Amplie para ver as demais.</string>
-    <string name="places_group">%1$d fotos · %2$.4f, %3$.4f</string>
+    <string name="places_overflow">%1$s de %2$d. Amplie para ver as demais.</string>
+    <plurals name="places_group"><item quantity="one">%1$d foto · %2$.4f, %3$.4f</item><item quantity="many">%1$d fotos · %2$.4f, %3$.4f</item><item quantity="other">%1$d fotos · %2$.4f, %3$.4f</item></plurals>
     <string name="places_open_photo">Abrir foto</string>
     <string name="places_packages">Pacotes de mapas</string>
     <string name="places_import">Importar pacote regional</string>
@@ -24,7 +24,7 @@
     <string name="places_world_body">Protomaps 2026-09-06, z0–15: 137.823.988.466 bytes. Download grande, sem imagens de satélite ou cobertura polar. Exige OpenGL compatível, 6 GiB de RAM, Wi-Fi, carregamento e espaço livre. Nada é baixado sem confirmação.</string>
     <string name="places_world_confirm">Confirmo o download deste pacote mundial</string>
     <string name="places_download">Agendar download</string>
-    <string name="places_capacity">Livre: %1$d bytes · RAM: %2$d bytes</string>
+    <string name="places_capacity">Livre: %1$s · RAM: %2$s</string>
     <string name="places_tasks">Tarefas de pacotes</string>
     <string name="places_pause">Pausar</string>
     <string name="places_cancel">Cancelar</string>
@@ -54,4 +54,9 @@
     <string name="places_location_index_status">Lidas localmente: %1$d · Falhas: %2$d</string>
     <string name="places_local_map_name">Mapa local</string>
     <string name="places_renderer_unavailable">Este dispositivo não suporta o renderizador de mapas OpenGL ES 3.0. Você pode gerenciar pacotes locais e explorar grupos de fotos.</string>
+    <plurals name="places_overflow_shown">
+        <item quantity="one">Mostrando %d foto</item>
+        <item quantity="many">Mostrando %d fotos</item>
+        <item quantity="other">Mostrando %d fotos</item>
+    </plurals>
 </resources>

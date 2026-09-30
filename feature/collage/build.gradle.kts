@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.feature.collage"
+    namespace = "com.librestatic.lightforge.feature.collage"
     compileSdk = 37
     defaultConfig {
         minSdk = 30

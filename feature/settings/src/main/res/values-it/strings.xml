@@ -67,9 +67,9 @@
     <string name="settings_operations">Operazioni sui file</string>
     <string name="settings_share_sanitized">Condividi senza posizione per impostazione predefinita</string>
     <string name="settings_keep_modified">Mantieni data di modifica quando possibile</string>
-    <string name="settings_skip_confirmation">Salta conferma eliminazione UGallery</string>
+    <string name="settings_skip_confirmation">Salta conferma eliminazione Lightforge Studio</string>
     <string name="settings_security">Sicurezza</string>
-    <string name="settings_app_lock">Blocca UGallery</string>
+    <string name="settings_app_lock">Blocca Lightforge Studio</string>
     <string name="settings_destructive_lock">Autentica azioni distruttive</string>
     <string name="settings_relock_timeout">Tempo di riblocco</string>
     <string name="settings_minutes">%1$d min</string>
@@ -81,7 +81,7 @@
     <string name="face_analysis_privacy">Le aree dei volti vengono rilevate localmente dopo il consenso. Puoi sospendere l’analisi ed eliminare tutti i dati derivati.</string>
     <string name="face_analysis_no_identity">Il rilevamento non identifica né nomina le persone.</string>
     <string name="face_analysis_enable">Attiva rilevamento locale</string>
-    <string name="face_analysis_progress">%1$d foto analizzate</string>
+    <plurals name="face_analysis_progress"><item quantity="one">%1$d foto analizzata</item><item quantity="many">%1$d foto analizzate</item><item quantity="other">%1$d foto analizzate</item></plurals>
     <string name="face_analysis_pause">Pausa</string>
     <string name="face_analysis_resume">Analizza ora</string>
     <string name="face_analysis_all">Analizza l’intera raccolta</string>
@@ -94,16 +94,16 @@
     <string name="pet_collections_title">Animali</string>
     <string name="pet_collections_no_identity">Le raccolte di cani e gatti usano etichette locali e non identificano mai un singolo animale.</string>
     <string name="pet_collections_enable">Mostra raccolte di cani e gatti</string>
-    <string name="pet_analysis_preparing">Preparazione dell’analisi degli animali… %1$d elementi elaborati</string>
-    <string name="pet_analysis_running">Analisi degli animali su questo dispositivo… %1$d elementi elaborati</string>
-    <string name="pet_analysis_paused">Analisi degli animali in pausa · %1$d elementi elaborati</string>
-    <string name="pet_analysis_complete">Analisi degli animali completata · %1$d elementi elaborati</string>
+    <plurals name="pet_analysis_preparing"><item quantity="one">Preparazione dell’analisi degli animali… %1$d elemento elaborato</item><item quantity="many">Preparazione dell’analisi degli animali… %1$d elementi elaborati</item><item quantity="other">Preparazione dell’analisi degli animali… %1$d elementi elaborati</item></plurals>
+    <plurals name="pet_analysis_running"><item quantity="one">Analisi degli animali su questo dispositivo… %1$d elemento elaborato</item><item quantity="many">Analisi degli animali su questo dispositivo… %1$d elementi elaborati</item><item quantity="other">Analisi degli animali su questo dispositivo… %1$d elementi elaborati</item></plurals>
+    <plurals name="pet_analysis_paused"><item quantity="one">Analisi degli animali in pausa · %1$d elemento elaborato</item><item quantity="many">Analisi degli animali in pausa · %1$d elementi elaborati</item><item quantity="other">Analisi degli animali in pausa · %1$d elementi elaborati</item></plurals>
+    <plurals name="pet_analysis_complete"><item quantity="one">Analisi degli animali completata · %1$d elemento elaborato</item><item quantity="many">Analisi degli animali completata · %1$d elementi elaborati</item><item quantity="other">Analisi degli animali completata · %1$d elementi elaborati</item></plurals>
     <string name="pet_hide_dog">Nascondi risultati cani</string>
     <string name="pet_hide_cat">Nascondi risultati gatti</string>
     <string name="pet_restore">Ripristina etichette animali</string>
     <string name="settings_page_ai">Analisi locale</string>
     <string name="settings_back">Indietro</string>
-    <string name="settings_summary_columns">%1$d colonne</string>
+    <string name="settings_grid_columns_auto">Automatico</string><string name="settings_summary_columns_auto">Colonne automatiche</string><string name="settings_summary_columns">%1$d colonne</string>
     <string name="settings_summary_enabled">%1$d su %2$d attivate</string>
     <string name="settings_summary_on">Sì</string>
     <string name="settings_summary_off">No</string>
@@ -114,21 +114,26 @@
     <string name="settings_group_management">Privacy e gestione</string>
     <string name="settings_group_intelligence">Funzioni intelligenti</string>
     <string name="settings_group_about">Informazioni</string>
-    <string name="settings_about">Informazioni su UGallery</string>
+    <string name="settings_about">Informazioni su Lightforge Studio</string>
     <string name="settings_about_summary">Versione, collaboratori e licenze open source</string>
-    <string name="local_analysis_privacy">UGallery può analizzare le foto accessibili interamente su questo dispositivo. Nulla viene caricato e puoi interrompere l’analisi o eliminarne i risultati in qualsiasi momento.</string>
+    <string name="local_analysis_privacy">Lightforge Studio può analizzare le foto accessibili interamente su questo dispositivo. Nulla viene caricato e puoi interrompere l’analisi o eliminarne i risultati in qualsiasi momento.</string>
     <string name="local_analysis_master">Usa analisi locale</string>
     <string name="local_analysis_master_summary">Controlla persone e volti, contenuto e testo delle foto e raccolte di animali. Gli elementi noti e invariati non vengono analizzati di nuovo.</string>
     <string name="local_analysis_minimum_battery">Batteria minima per l’analisi completa</string>
     <string name="local_analysis_battery_percent">%1$d%%</string>
-    <string name="local_analysis_minimum_battery_summary">Senza caricatore, l’analisi completa viene eseguita solo mentre UGallery è aperta e la batteria è a questo livello o superiore. La ricarica la consente sempre.</string>
+    <string name="local_analysis_minimum_battery_summary">Senza caricatore, l’analisi completa viene eseguita solo mentre Lightforge Studio è aperto e la batteria è a questo livello o superiore. La ricarica la consente sempre.</string>
+    <string name="model_downloads_mobile_data">Scarica i modelli con i dati mobili</string>
+    <string name="model_downloads_mobile_data_summary">Disattivato per impostazione predefinita: download e aggiornamenti dei modelli vengono sospesi con i dati mobili e riprendono con il Wi-Fi. Attendono inoltre che il dispositivo sia in carica o che la batteria sia pari o superiore al minimo indicato sopra.</string>
+    <string name="model_download_waiting_network">In pausa: in attesa di connessione</string>
+    <string name="model_download_waiting_wifi">In pausa: in attesa del Wi-Fi</string>
+    <string name="model_download_waiting_battery">In pausa: batteria sotto il minimo per l’analisi</string>
     <string name="local_analysis_features">Funzioni di analisi</string>
     <string name="local_analysis_people">Persone e volti</string>
     <string name="local_analysis_people_summary">Rileva i volti e raggruppa localmente le foto della stessa persona.</string>
     <string name="local_analysis_content">Contenuto e testo delle foto</string>
     <string name="local_analysis_content_summary">Crea etichette ricercabili e riconosce il testo. Le raccolte di animali condividono queste etichette.</string>
     <string name="local_analysis_opt_out_title">L’analisi locale è pronta</string>
-    <string name="local_analysis_opt_out_body">UGallery può organizzare persone, animali, contenuto e testo delle foto interamente su questo dispositivo usando solo le foto autorizzate. L’indicizzazione completa viene eseguita durante la ricarica o mentre UGallery è aperta con almeno il 20 per cento di batteria per impostazione predefinita. Puoi cambiare questo livello, disattivare l’analisi o eliminarne i dati nelle Impostazioni.</string>
+    <string name="local_analysis_opt_out_body">Lightforge Studio può organizzare persone, animali, contenuto e testo delle foto interamente su questo dispositivo usando solo le foto autorizzate. L’indicizzazione completa viene eseguita durante la ricarica o mentre Lightforge Studio è aperto con almeno il 20 per cento di batteria per impostazione predefinita. Puoi cambiare questo livello, disattivare l’analisi o eliminarne i dati nelle Impostazioni.</string>
     <string name="local_analysis_opt_out_accept">Attiva analisi locale</string>
     <string name="local_analysis_opt_out_decline">Non ora</string>
 
@@ -152,10 +157,6 @@
     <string name="semantic_model_use">Usa</string>
     <string name="semantic_model_delete">Elimina</string>
     <string name="semantic_models_delete_all">Elimina tutti i modelli scaricati</string>
-    <string name="semantic_download_title">Scarica modello semantico</string>
-    <string name="semantic_download_body">Attendi un Wi‑Fi non a consumo o consenti la rete attuale. I dati della galleria non vengono mai inviati.</string>
-    <string name="semantic_download_wifi">Solo Wi‑Fi</string>
-    <string name="semantic_download_any_network">Usa rete attuale</string>
     <string name="semantic_override_title">Usare un modello non consigliato?</string>
     <string name="semantic_override_body">Questo modello può usare più memoria, batteria o tempo di elaborazione. Puoi comunque continuare.</string>
     <string name="semantic_override_confirm">Usa comunque</string>
@@ -172,4 +173,11 @@
     <string name="semantic_index_error">Impossibile creare l’indice semantico. Controlla lo spazio disponibile e l’accesso ai contenuti, quindi scegli di nuovo il modello.</string>
     <string name="portable_preferences_field_collection_order">Ordine delle raccolte</string>
     <string name="portable_preferences_field_hidden_collections">Raccolte nascoste</string>
+    <string name="local_analysis_cleanup">Analisi per liberare spazio</string>
+    <string name="local_analysis_cleanup_summary">Trova duplicati esatti e foto sfocate su questo dispositivo, durante la ricarica o con Lightforge Studio aperto e batteria sufficiente. Nulla viene eliminato senza la tua conferma.</string>
+    <string name="settings_language">Lingua</string>
+    <string name="settings_language_system">Predefinita di sistema</string>
+    <string name="settings_card_sorting">Ordinamento e raggruppamento</string>
+    <string name="settings_card_photo_gestures">Gesti sulle foto</string>
+    <string name="settings_card_video_gestures">Gesti sui video</string>
 </resources>

@@ -1,3 +1,7 @@
 <resources>
     <string name="video_duration_description">Video, duración %1$s</string>
+    <string name="media_tile_archived">Archivado</string>
+    <string name="media_tile_favorite_description">Favorito</string>
+    <string name="media_tile_file_type_description">Tipo de archivo %1$s</string>
+    <string name="media_tile_selected_position">Seleccionado, posición %1$d</string>
 </resources>

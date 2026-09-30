@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.feature.objecteraser"
+    namespace = "com.librestatic.lightforge.feature.objecteraser"
     compileSdk = 37
     defaultConfig {
         minSdk = 30

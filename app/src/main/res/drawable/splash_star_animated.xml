@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Splash icon: the launcher star's shards fly in arm by arm and settle. Geometry mirrors ic_launcher_foreground. -->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+    <aapt:attr name="android:drawable">
+        <vector android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+            <group android:name="star" android:pivotX="54.0" android:pivotY="56.0">
+                <group android:name="shard0" android:pivotX="54.00" android:pivotY="44.20"
+                    android:translateX="0.0" android:translateY="-16.0" android:scaleX="0.3" android:scaleY="0.3" android:rotation="-40">
+                    <path android:name="shardPath0" android:fillAlpha="0" android:strokeAlpha="0" android:fillColor="#FFFFC247" android:pathData="M54.00,50.60 L63.50,41.00 L44.50,41.00 Z"
+                        android:strokeColor="#FFFFC247" android:strokeLineJoin="round" android:strokeWidth="2.6" />
+                </group>
+                <group android:name="shard1" android:pivotX="54.00" android:pivotY="36.20"
+                    android:translateX="0.0" android:translateY="-16.0" android:scaleX="0.3" android:scaleY="0.3" android:rotation="-40">
+                    <path android:name="shardPath1" android:fillAlpha="0" android:strokeAlpha="0" android:fillColor="#FFF0A21E" android:pathData="M44.50,41.00 L63.50,41.00 L54.00,26.60 Z"
+                        android:strokeColor="#FFF0A21E" android:strokeLineJoin="round" android:strokeWidth="2.6" />
+                </group>
+                <group android:name="shard2" android:pivotX="63.32" android:pivotY="50.97"
+                    android:translateX="14.08" android:translateY="-7.6" android:scaleX="0.3" android:scaleY="0.3" android:rotation="-40">
+                    <path android:name="shardPath2" android:fillAlpha="0" android:strokeAlpha="0" android:fillColor="#FFFF8A4C" android:pathData="M57.23,52.95 L69.30,59.02 L63.43,40.95 Z"
+                        android:strokeColor="#FFFF8A4C" android:strokeLineJoin="round" android:strokeWidth="2.6" />
+                </group>
+                <group android:name="shard3" android:pivotX="70.93" android:pivotY="48.50"
+                    android:translateX="14.63" android:translateY="-6.48" android:scaleX="0.3" android:scaleY="0.3" android:rotation="-40">
+                    <path android:name="shardPath3" android:fillAlpha="0" android:strokeAlpha="0" android:fillColor="#FFEB6A2C" android:pathData="M63.43,40.95 L69.30,59.02 L80.06,45.53 Z"
+                        android:strokeColor="#FFEB6A2C" android:strokeLineJoin="round" android:strokeWidth="2.6" />
+                </group>
+                <group android:name="shard4" android:pivotX="59.76" android:pivotY="61.93"
+                    android:translateX="11.15" android:translateY="11.47" android:scaleX="0.3" android:scaleY="0.3" android:rotation="-40">
+                    <path android:name="shardPath4" android:fillAlpha="0" android:strokeAlpha="0" android:fillColor="#FFF2607A" android:pathData="M56.00,56.75 L53.96,70.10 L69.33,58.93 Z"
+                        android:strokeColor="#FFF2607A" android:strokeLineJoin="round" android:strokeWidth="2.6" />
+                </group>
+                <group android:name="shard5" android:pivotX="64.47" android:pivotY="68.40"
+                    android:translateX="10.32" android:translateY="12.23" android:scaleX="0.3" android:scaleY="0.3" android:rotation="-40">
+                    <path android:name="shardPath5" android:fillAlpha="0" android:strokeAlpha="0" android:fillColor="#FFD4415C" android:pathData="M69.33,58.93 L53.96,70.10 L70.11,76.17 Z"
+                        android:strokeColor="#FFD4415C" android:strokeLineJoin="round" android:strokeWidth="2.6" />
+                </group>
+                <group android:name="shard6" android:pivotX="48.24" android:pivotY="61.93"
+                    android:translateX="-11.15" android:translateY="11.47" android:scaleX="0.3" android:scaleY="0.3" android:rotation="-40">
+                    <path android:name="shardPath6" android:fillAlpha="0" android:strokeAlpha="0" android:fillColor="#FFC45ED8" android:pathData="M52.00,56.75 L38.67,58.93 L54.04,70.10 Z"
+                        android:strokeColor="#FFC45ED8" android:strokeLineJoin="round" android:strokeWidth="2.6" />
+                </group>
+                <group android:name="shard7" android:pivotX="43.53" android:pivotY="68.40"
+                    android:translateX="-10.32" android:translateY="12.23" android:scaleX="0.3" android:scaleY="0.3" android:rotation="-40">
+                    <path android:name="shardPath7" android:fillAlpha="0" android:strokeAlpha="0" android:fillColor="#FFA23FBA" android:pathData="M54.04,70.10 L38.67,58.93 L37.89,76.17 Z"
+                        android:strokeColor="#FFA23FBA" android:strokeLineJoin="round" android:strokeWidth="2.6" />
+                </group>
+                <group android:name="shard8" android:pivotX="44.68" android:pivotY="50.97"
+                    android:translateX="-14.08" android:translateY="-7.6" android:scaleX="0.3" android:scaleY="0.3" android:rotation="-40">
+                    <path android:name="shardPath8" android:fillAlpha="0" android:strokeAlpha="0" android:fillColor="#FF7B61F0" android:pathData="M50.77,52.95 L44.57,40.95 L38.70,59.02 Z"
+                        android:strokeColor="#FF7B61F0" android:strokeLineJoin="round" android:strokeWidth="2.6" />
+                </group>
+                <group android:name="shard9" android:pivotX="37.07" android:pivotY="48.50"
+                    android:translateX="-14.63" android:translateY="-6.48" android:scaleX="0.3" android:scaleY="0.3" android:rotation="-40">
+                    <path android:name="shardPath9" android:fillAlpha="0" android:strokeAlpha="0" android:fillColor="#FF5B43D4" android:pathData="M38.70,59.02 L44.57,40.95 L27.94,45.53 Z"
+                        android:strokeColor="#FF5B43D4" android:strokeLineJoin="round" android:strokeWidth="2.6" />
+                </group>
+            </group>
+        </vector>
+    </aapt:attr>
+    <target android:name="shard0">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="translateX" android:valueFrom="0.0" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="0" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="translateY" android:valueFrom="-16.0" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="0" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="scaleX" android:valueFrom="0.3" android:valueTo="1" android:valueType="floatType" android:duration="460" android:startOffset="0" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="scaleY" android:valueFrom="0.3" android:valueTo="1" android:valueType="floatType" android:duration="460" android:startOffset="0" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="rotation" android:valueFrom="-40" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="0" android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="shardPath0">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="fillAlpha" android:valueFrom="0" android:valueTo="1" android:valueType="floatType" android:duration="220" android:startOffset="0" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="strokeAlpha" android:valueFrom="0" android:valueTo="1" android:valueType="floatType" android:duration="220" android:startOffset="0" android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="shard1">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="translateX" android:valueFrom="0.0" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="35" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="translateY" android:valueFrom="-16.0" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="35" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="scaleX" android:valueFrom="0.3" android:valueTo="1" android:valueType="floatType" android:duration="460" android:startOffset="35" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="scaleY" android:valueFrom="0.3" android:valueTo="1" android:valueType="floatType" android:duration="460" android:startOffset="35" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="rotation" android:valueFrom="-40" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="35" android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="shardPath1">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="fillAlpha" android:valueFrom="0" android:valueTo="1" android:valueType="floatType" android:duration="220" android:startOffset="35" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="strokeAlpha" android:valueFrom="0" android:valueTo="1" android:valueType="floatType" android:duration="220" android:startOffset="35" android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="shard2">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="translateX" android:valueFrom="14.08" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="70" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="translateY" android:valueFrom="-7.6" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="70" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="scaleX" android:valueFrom="0.3" android:valueTo="1" android:valueType="floatType" android:duration="460" android:startOffset="70" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="scaleY" android:valueFrom="0.3" android:valueTo="1" android:valueType="floatType" android:duration="460" android:startOffset="70" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="rotation" android:valueFrom="-40" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="70" android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="shardPath2">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="fillAlpha" android:valueFrom="0" android:valueTo="1" android:valueType="floatType" android:duration="220" android:startOffset="70" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="strokeAlpha" android:valueFrom="0" android:valueTo="1" android:valueType="floatType" android:duration="220" android:startOffset="70" android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="shard3">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="translateX" android:valueFrom="14.63" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="105" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="translateY" android:valueFrom="-6.48" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="105" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="scaleX" android:valueFrom="0.3" android:valueTo="1" android:valueType="floatType" android:duration="460" android:startOffset="105" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="scaleY" android:valueFrom="0.3" android:valueTo="1" android:valueType="floatType" android:duration="460" android:startOffset="105" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="rotation" android:valueFrom="-40" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="105" android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="shardPath3">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="fillAlpha" android:valueFrom="0" android:valueTo="1" android:valueType="floatType" android:duration="220" android:startOffset="105" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="strokeAlpha" android:valueFrom="0" android:valueTo="1" android:valueType="floatType" android:duration="220" android:startOffset="105" android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="shard4">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="translateX" android:valueFrom="11.15" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="140" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="translateY" android:valueFrom="11.47" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="140" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="scaleX" android:valueFrom="0.3" android:valueTo="1" android:valueType="floatType" android:duration="460" android:startOffset="140" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="scaleY" android:valueFrom="0.3" android:valueTo="1" android:valueType="floatType" android:duration="460" android:startOffset="140" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="rotation" android:valueFrom="-40" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="140" android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="shardPath4">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="fillAlpha" android:valueFrom="0" android:valueTo="1" android:valueType="floatType" android:duration="220" android:startOffset="140" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="strokeAlpha" android:valueFrom="0" android:valueTo="1" android:valueType="floatType" android:duration="220" android:startOffset="140" android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="shard5">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="translateX" android:valueFrom="10.32" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="175" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="translateY" android:valueFrom="12.23" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="175" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="scaleX" android:valueFrom="0.3" android:valueTo="1" android:valueType="floatType" android:duration="460" android:startOffset="175" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="scaleY" android:valueFrom="0.3" android:valueTo="1" android:valueType="floatType" android:duration="460" android:startOffset="175" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="rotation" android:valueFrom="-40" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="175" android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="shardPath5">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="fillAlpha" android:valueFrom="0" android:valueTo="1" android:valueType="floatType" android:duration="220" android:startOffset="175" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="strokeAlpha" android:valueFrom="0" android:valueTo="1" android:valueType="floatType" android:duration="220" android:startOffset="175" android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="shard6">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="translateX" android:valueFrom="-11.15" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="210" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="translateY" android:valueFrom="11.47" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="210" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="scaleX" android:valueFrom="0.3" android:valueTo="1" android:valueType="floatType" android:duration="460" android:startOffset="210" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="scaleY" android:valueFrom="0.3" android:valueTo="1" android:valueType="floatType" android:duration="460" android:startOffset="210" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="rotation" android:valueFrom="-40" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="210" android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="shardPath6">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="fillAlpha" android:valueFrom="0" android:valueTo="1" android:valueType="floatType" android:duration="220" android:startOffset="210" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="strokeAlpha" android:valueFrom="0" android:valueTo="1" android:valueType="floatType" android:duration="220" android:startOffset="210" android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="shard7">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="translateX" android:valueFrom="-10.32" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="245" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="translateY" android:valueFrom="12.23" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="245" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="scaleX" android:valueFrom="0.3" android:valueTo="1" android:valueType="floatType" android:duration="460" android:startOffset="245" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="scaleY" android:valueFrom="0.3" android:valueTo="1" android:valueType="floatType" android:duration="460" android:startOffset="245" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="rotation" android:valueFrom="-40" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="245" android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="shardPath7">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="fillAlpha" android:valueFrom="0" android:valueTo="1" android:valueType="floatType" android:duration="220" android:startOffset="245" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="strokeAlpha" android:valueFrom="0" android:valueTo="1" android:valueType="floatType" android:duration="220" android:startOffset="245" android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="shard8">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="translateX" android:valueFrom="-14.08" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="280" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="translateY" android:valueFrom="-7.6" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="280" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="scaleX" android:valueFrom="0.3" android:valueTo="1" android:valueType="floatType" android:duration="460" android:startOffset="280" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="scaleY" android:valueFrom="0.3" android:valueTo="1" android:valueType="floatType" android:duration="460" android:startOffset="280" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="rotation" android:valueFrom="-40" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="280" android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="shardPath8">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="fillAlpha" android:valueFrom="0" android:valueTo="1" android:valueType="floatType" android:duration="220" android:startOffset="280" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="strokeAlpha" android:valueFrom="0" android:valueTo="1" android:valueType="floatType" android:duration="220" android:startOffset="280" android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="shard9">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="translateX" android:valueFrom="-14.63" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="315" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="translateY" android:valueFrom="-6.48" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="315" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="scaleX" android:valueFrom="0.3" android:valueTo="1" android:valueType="floatType" android:duration="460" android:startOffset="315" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="scaleY" android:valueFrom="0.3" android:valueTo="1" android:valueType="floatType" android:duration="460" android:startOffset="315" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="rotation" android:valueFrom="-40" android:valueTo="0" android:valueType="floatType" android:duration="460" android:startOffset="315" android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="shardPath9">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="fillAlpha" android:valueFrom="0" android:valueTo="1" android:valueType="floatType" android:duration="220" android:startOffset="315" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="strokeAlpha" android:valueFrom="0" android:valueTo="1" android:valueType="floatType" android:duration="220" android:startOffset="315" android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="star">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator android:propertyName="scaleX" android:valueFrom="1" android:valueTo="1.08" android:valueType="floatType" android:duration="160" android:startOffset="760" android:repeatCount="1" android:repeatMode="reverse" android:interpolator="@android:interpolator/fast_out_slow_in" />
+                <objectAnimator android:propertyName="scaleY" android:valueFrom="1" android:valueTo="1.08" android:valueType="floatType" android:duration="160" android:startOffset="760" android:repeatCount="1" android:repeatMode="reverse" android:interpolator="@android:interpolator/fast_out_slow_in" />
+            </set>
+        </aapt:attr>
+    </target>
+</animated-vector>

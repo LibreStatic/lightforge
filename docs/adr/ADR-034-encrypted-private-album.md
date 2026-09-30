@@ -16,7 +16,7 @@ Container format, key-wrapper format and Room schema versions are independent. C
 
 ## Authenticated media-master decision
 
-New UI setup and explicitly confirmed existing-vault migration use a fresh UUID alias under `ugallery.privatealbum.auth.v1.`. AES-GCM keys require actual OS authentication, with a 30-second authorization window and `AUTH_BIOMETRIC_STRONG | AUTH_DEVICE_CREDENTIAL`. StrongBox is requested where advertised; unavailable StrongBox falls back to the Android Keystore provider. No TEE/hardware-backed property is asserted without device `KeyInfo` evidence.
+New UI setup and explicitly confirmed existing-vault migration use a fresh UUID alias under `lightforge.privatealbum.auth.v1.`. AES-GCM keys require actual OS authentication, with a 30-second authorization window and `AUTH_BIOMETRIC_STRONG | AUTH_DEVICE_CREDENTIAL`. StrongBox is requested where advertised; unavailable StrongBox falls back to the Android Keystore provider. No TEE/hardware-backed property is asserted without device `KeyInfo` evidence.
 
 The device-credential-compatible, timed configuration does not promise invalidation on biometric enrollment. Removing/resetting the secure screen lock can invalidate keys; the UI requires an explicit confirmation and recommends an encrypted export beforehand. A successful prompt alone is not proof of key usability: callers perform real cryptographic operations before granting private access, publishing protection success or retiring the old master. Expired authorization leads to an explicit reauthentication path, not key creation.
 

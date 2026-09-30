@@ -2,7 +2,7 @@
 """Stop a confirmed partial source copy; recover from Room, without Activity saved state."""
 import argparse,json,subprocess,time
 parser=argparse.ArgumentParser();parser.add_argument("--serial",required=True);args=parser.parse_args()
-base=["rtk","proxy","adb","-s",args.serial,"shell"];package="com.ugallery.feature.pdfstudio.test";runner=package+"/com.ugallery.feature.pdfstudio.PdfRecoveryProbeRunner"
+base=["rtk","proxy","adb","-s",args.serial,"shell"];package="com.librestatic.lightforge.feature.pdfstudio.test";runner=package+"/com.librestatic.lightforge.feature.pdfstudio.PdfRecoveryProbeRunner"
 phase="gallery"
 with open("/tmp/pdf-gallery-writer-observer.log","w") as log:
     process=subprocess.Popen(base+["am","instrument","-w","-e","phase",phase+"-write",runner],stdout=log,stderr=subprocess.STDOUT)

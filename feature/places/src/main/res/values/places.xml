@@ -6,8 +6,8 @@
     <string name="places_all_years">All years</string>
     <string name="places_no_map">Import a regional map to begin</string>
     <string name="places_no_photos">No authorized GPS photos in this area and year</string>
-    <string name="places_overflow">Showing %1$d of %2$d photos. Zoom in for the remaining photos.</string>
-    <string name="places_group">%1$d photos · %2$.4f, %3$.4f</string>
+    <string name="places_overflow">%1$s of %2$d. Zoom in for the remaining photos.</string>
+    <plurals name="places_group"><item quantity="one">%1$d photo · %2$.4f, %3$.4f</item><item quantity="other">%1$d photos · %2$.4f, %3$.4f</item></plurals>
     <string name="places_open_photo">Open photo</string>
     <string name="places_packages">Map packages</string>
     <string name="places_import">Import regional package</string>
@@ -24,7 +24,7 @@
     <string name="places_world_body">Protomaps 2026-09-06, z0–15: 137,823,988,466 bytes. This is a large download, not satellite imagery or polar coverage. Requires compatible OpenGL, at least 6 GiB RAM, Wi-Fi, charging and sufficient free storage. Nothing downloads until you confirm.</string>
     <string name="places_world_confirm">I confirm this world package download</string>
     <string name="places_download">Queue download</string>
-    <string name="places_capacity">Free: %1$d bytes · RAM: %2$d bytes</string>
+    <string name="places_capacity">Free: %1$s · RAM: %2$s</string>
     <string name="places_tasks">Package tasks</string>
     <string name="places_pause">Pause</string>
     <string name="places_cancel">Cancel</string>
@@ -54,4 +54,8 @@
     <string name="places_location_index_status">Read locally: %1$d · Failed: %2$d</string>
     <string name="places_local_map_name">Local map</string>
     <string name="places_renderer_unavailable">This device does not support the OpenGL ES 3.0 map renderer. You can still manage local packages and browse photo groups.</string>
+    <plurals name="places_overflow_shown">
+        <item quantity="one">Showing %d photo</item>
+        <item quantity="other">Showing %d photos</item>
+    </plurals>
 </resources>

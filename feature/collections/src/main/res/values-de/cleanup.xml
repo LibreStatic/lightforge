@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cleanup_title">Speicher freigeben</string>
+    <string name="cleanup_collection_body">Exakte Duplikate, große Videos und unscharfe Fotos zum Prüfen</string>
+    <string name="cleanup_back">Sammlungen</string>
+    <string name="cleanup_analysis_off">Die Erkennung von Duplikaten und unscharfen Fotos ist aus. Schalte sie ein, um deine Mediathek auf diesem Gerät zu analysieren.</string>
+    <string name="cleanup_analysis_enable">Analyse einschalten</string>
+    <string name="cleanup_analysis_hint">Die Analyse läuft auf diesem Gerät beim Laden oder wenn Lightforge mit genug Akku geöffnet ist. Ergebnisse erscheinen nach und nach.</string>
+    <string name="cleanup_duplicates_title">Exakte Duplikate</string>
+    <string name="cleanup_keep">Behalten</string>
+    <string name="cleanup_trash_copies">Kopien in den Papierkorb verschieben</string>
+    <string name="cleanup_large_videos_title">Große Videos (100 MB oder mehr)</string>
+    <string name="cleanup_screenshots_title">Screenshots</string>
+    <string name="cleanup_blurry_title">Unscharfe Fotos</string>
+    <string name="cleanup_trash_all">Alle in den Papierkorb verschieben</string>
+    <string name="cleanup_empty">Noch nichts gefunden.</string>
+    <string name="cleanup_trash_body">Du kannst Elemente aus dem Papierkorb wiederherstellen, bis sie automatisch gelöscht werden.</string>
+    <string name="cleanup_trash_confirm">In den Papierkorb verschieben</string>
+    <string name="cleanup_cancel">Abbrechen</string>
+    <string name="cleanup_open_item">Öffnen</string>
+    <plurals name="cleanup_duplicates_summary">
+        <item quantity="one">%1$d Gruppe · %2$s freigebbar</item>
+        <item quantity="other">%1$d Gruppen · %2$s freigebbar</item>
+    </plurals>
+    <plurals name="cleanup_group_summary">
+        <item quantity="one">%1$d identische Kopie · %2$s freigebbar</item>
+        <item quantity="other">%1$d identische Kopien · %2$s freigebbar</item>
+    </plurals>
+    <plurals name="cleanup_large_videos_summary">
+        <item quantity="one">%1$d Video · %2$s</item>
+        <item quantity="other">%1$d Videos · %2$s</item>
+    </plurals>
+    <plurals name="cleanup_screenshots_summary">
+        <item quantity="one">%d Screenshot</item>
+        <item quantity="other">%d Screenshots</item>
+    </plurals>
+    <plurals name="cleanup_blurry_summary">
+        <item quantity="one">%d Foto ist möglicherweise unscharf</item>
+        <item quantity="other">%d Fotos sind möglicherweise unscharf</item>
+    </plurals>
+    <plurals name="cleanup_trash_title">
+        <item quantity="one">%d Element in den Papierkorb verschieben?</item>
+        <item quantity="other">%d Elemente in den Papierkorb verschieben?</item>
+    </plurals>
+</resources>

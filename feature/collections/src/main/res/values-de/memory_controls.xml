@@ -3,7 +3,7 @@
     <string name="memory_controls_back">Zurück</string>
     <string name="memory_controls_scope">Wähle Daten und Personen, die in allen Erinnerungen einschließlich gespeicherter Geschichten ausgeblendet werden.</string>
     <string name="memory_controls_originals">Originalfotos, Alben und Analyseeinstellungen bleiben unverändert.</string>
-    <string name="memory_controls_count">%1$d von %2$d Ausschlüssen</string>
+    <string name="memory_controls_count">Ausschlüsse: %1$d / %2$d</string>
     <string name="memory_controls_add_dates">Zeitraum ausblenden</string>
     <string name="memory_controls_add_person">Person ausblenden</string>
     <string name="memory_controls_empty">Noch keine Ausschlüsse. Geeignete Fotos können in Erinnerungen erscheinen.</string>

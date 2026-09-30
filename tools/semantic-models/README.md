@@ -5,8 +5,8 @@
 The private signing key is release infrastructure and must never enter this repository. Generate it with:
 
 ```bash
-openssl ecparam -name prime256v1 -genkey -noout -out ~/.config/ugallery/semantic-model-signing-key.pem
-chmod 600 ~/.config/ugallery/semantic-model-signing-key.pem
+openssl ecparam -name prime256v1 -genkey -noout -out ~/.config/lightforge/semantic-model-signing-key.pem
+chmod 600 ~/.config/lightforge/semantic-model-signing-key.pem
 ```
 
 Build in a disposable Python 3.11 environment using the pinned `requirements.txt` (use the PyTorch CPU wheel index where appropriate), then run:
@@ -14,7 +14,7 @@ Build in a disposable Python 3.11 environment using the pinned `requirements.txt
 ```bash
 python tools/semantic-models/build_packages.py \
   --output build/semantic-models \
-  --private-key ~/.config/ugallery/semantic-model-signing-key.pem
+  --private-key ~/.config/lightforge/semantic-model-signing-key.pem
 ```
 
 Upload immutable archives to the `semantic-models-v1` GitHub release and copy each exact byte count, SHA-256, and Base64 signature into `SemanticModelCatalog`. Never replace an existing asset; increment the package version and release tag.

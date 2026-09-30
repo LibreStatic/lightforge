@@ -37,4 +37,24 @@
     <string name="photo_editor_chromatic_aberration">Correction de l’aberration chromatique</string>
     <string name="photo_editor_lens_correction">Correction de l’objectif</string>
     <string name="photo_editor_tiff_geometry_unsupported">Le recadrage, la rotation, le retournement et le redressement nécessitent une sortie JPEG pour les photos RAW.</string>
+    <string name="photo_editor_warning_png">Copie enregistrée en PNG pour conserver la pleine résolution</string>
+    <string name="photo_editor_warning_hdr_metadata">Les métadonnées HDR et du conteneur n’ont pas été conservées dans la copie</string>
+    <string name="photo_editor_error_decode">Impossible de lire cette photo</string>
+    <string name="photo_editor_error_save">Impossible d’enregistrer la copie</string>
+    <string name="photo_editor_error_raw_too_large">Ce RAW est trop volumineux pour l’exportation JPEG. Choisissez TIFF 16 bits.</string>
+    <string name="photo_editor_error_raw_render">Impossible de développer cette photo RAW</string>
+    <plurals name="photo_editor_error_raw_storage"><item quantity="one">L’exportation RAW nécessite %1$d Mo d’espace temporaire libre</item><item quantity="many">L’exportation RAW nécessite %1$d Mo d’espace temporaire libre</item><item quantity="other">L’exportation RAW nécessite %1$d Mo d’espace temporaire libre</item></plurals>
+    <string name="photo_editor_object_eraser">Gomme d’objets</string>
+    <string name="photo_editor_subject_clip">Détourage du sujet</string>
+    <string name="photo_editor_experimental_tool">%1$s · Expérimental</string>
+    <string name="photo_editor_eraser_fallback">Qualité de secours (%1$s) : remplit la zone peinte avec les couleurs voisines. Le résultat est approximatif.</string>
+    <string name="photo_editor_clip_fallback">Qualité de secours (%1$s) : conserve les pixels de couleur proche du point touché. Le résultat est approximatif.</string>
+    <string name="photo_editor_eraser_hint">Peignez sur l’objet à retirer, puis touchez Appliquer. Enregistrer une copie ne modifie pas l’original.</string>
+    <string name="photo_editor_clip_hint">Touchez le sujet pour prévisualiser le détourage. Il est enregistré comme nouveau PNG à fond transparent.</string>
+    <string name="photo_editor_eraser_apply">Appliquer</string>
+    <string name="photo_editor_eraser_clear">Effacer</string>
+    <string name="photo_editor_clip_save">Enregistrer le détourage</string>
+    <string name="photo_editor_eraser_mask_description">Zones marquées à effacer</string>
+    <string name="photo_editor_experimental_too_large">Cette photo est trop grande pour l’outil expérimental</string>
+    <string name="photo_editor_eraser_reset">Les zones effacées ont été retirées car la géométrie de la photo a changé</string>
 </resources>

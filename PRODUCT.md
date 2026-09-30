@@ -16,7 +16,7 @@ People with large personal photo and video libraries (100,000-250,000 items) who
 
 ## Product Purpose
 
-UGallery is a 100% native Android gallery app that makes managing massive local photo/video libraries fast, private, and reliable. It exists because stock gallery apps and cloud-dependent solutions do not handle 250k-item libraries well, and users increasingly want privacy without sacrificing organization. Success means: the gallery works without connectivity, handles 250k items without ANR/OOM, provides ML-powered organization (faces, places, semantic search) on-device, and never sends user data to any server.
+Lightforge is a 100% native Android gallery app that makes managing massive local photo/video libraries fast, private, and reliable. It exists because stock gallery apps and cloud-dependent solutions do not handle 250k-item libraries well, and users increasingly want privacy without sacrificing organization. Success means: the gallery works without connectivity, handles 250k items without ANR/OOM, provides ML-powered organization (faces, places, semantic search) on-device, and never sends user data to any server.
 
 ## Positioning
 
@@ -43,7 +43,7 @@ A gallery that scales to quarter-million-item libraries on-device, with local ML
 - Full-screen viewer with large image tiling, video playback (Media3 ExoPlayer).
 - Search: keyword (AppSearch), semantic (local embeddings), by person, by place.
 - Face detection (ML Kit) + face recognition (LiteRT embeddings + clustering + manual correction); opt-in.
-- OCR, pet recognition, object eraser, subject clip; local, opt-in where applicable.
+- OCR, pet recognition; local, opt-in where applicable. Object eraser and subject clip are experimental photo editor tools with basic, explicitly labelled fallback quality (no ML model yet).
 - Moments/collections auto-grouping by time and location.
 - Private albums (biometric-encrypted, Android Keystore).
 - Collage, GIF, slideshow, motion photo playback.
@@ -58,8 +58,8 @@ A gallery that scales to quarter-million-item libraries on-device, with local ML
 
 ## Brand Commitments
 
-- App name: UGallery
-- Non-commercial use only
+- App name: Lightforge Studio (launcher label: "Lightforge"; application id `com.librestatic.lightforge`)
+- Open source (Apache-2.0); commercial distribution allowed with one feature set for GitHub and Google Play (ADR-044)
 - No [redacted] trade dress, code, or resources copied; functional parity with own identity
 - Local-first, privacy-first positioning
 - English-first strings with full localization support

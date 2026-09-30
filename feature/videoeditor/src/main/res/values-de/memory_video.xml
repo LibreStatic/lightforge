@@ -28,7 +28,7 @@
     <string name="memory_video_publishing">Geprüftes Video wird gespeichert…</string>
     <string name="memory_video_cancel">Export abbrechen</string>
     <string name="memory_video_export">MP4 erstellen und speichern</string>
-    <string name="memory_video_saved">Video in Movies/UGallery/Memories gespeichert.</string>
+    <string name="memory_video_saved">Video in Movies/Lightforge/Memories gespeichert.</string>
     <string name="memory_video_open">Video öffnen</string>
     <string name="memory_video_share">Video teilen</string>
     <string name="memory_video_cancel_title">Diesen Export abbrechen?</string>

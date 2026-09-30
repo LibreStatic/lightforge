@@ -12,7 +12,7 @@
     <string name="stacks_empty">Nessuna pila qui per ora.</string>
     <string name="stacks_retry">Riprova</string>
     <string name="stacks_default_title">Pila di foto</string>
-    <string name="stacks_available">%1$d foto disponibili su %2$d</string>
+    <string name="stacks_available">Disponibilità: %1$d / %2$d</string>
     <string name="stacks_suggestion_count">Gruppo suggerito · %1$d foto</string>
     <string name="stacks_review">Esamina pila</string>
     <string name="stacks_allow">Consenti suggerimenti di pile</string>

@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.feature.videoeditor"
+    namespace = "com.librestatic.lightforge.feature.videoeditor"
     compileSdk = 37
 
     defaultConfig {

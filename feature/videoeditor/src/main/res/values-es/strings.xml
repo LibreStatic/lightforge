@@ -1,4 +1,4 @@
-<resources><string name="video_editor_title">Editar vídeo</string><string name="video_editor_cancel">Cancelar</string><string name="video_editor_save_copy">Guardar copia</string><string name="video_editor_preview_description">Vista previa de edición de vídeo</string><string name="video_editor_preview_unavailable">Vista previa no disponible</string><string name="video_editor_speed">Velocidad</string><string name="video_editor_audio">Audio</string><string name="video_editor_music">Música</string><string name="video_editor_speed_slow">0,5× Lenta</string><string name="video_editor_speed_normal">1× Normal</string><string name="video_editor_speed_fast">2× Rápida</string><string name="video_editor_original_audio">Audio original</string><string name="video_editor_choose_music">Elegir pista local</string><string name="video_editor_remove_music">Quitar música</string>    <string name="video_editor_trim_description">Recortar de %1$s a %2$s</string>
+<resources><string name="video_editor_title">Editar video</string><string name="video_editor_cancel">Cancelar</string><string name="video_editor_save_copy">Guardar copia</string><string name="video_editor_preview_description">Vista previa de edición de video</string><string name="video_editor_preview_unavailable">Vista previa no disponible</string><string name="video_editor_speed">Velocidad</string><string name="video_editor_audio">Audio</string><string name="video_editor_music">Música</string><string name="video_editor_speed_slow">0,5× Lenta</string><string name="video_editor_speed_normal">1× Normal</string><string name="video_editor_speed_fast">2× Rápida</string><string name="video_editor_original_audio">Audio original</string><string name="video_editor_choose_music">Elegir pista local</string><string name="video_editor_remove_music">Quitar música</string>    <string name="video_editor_trim_description">Recortar de %1$s a %2$s</string>
     <string name="video_editor_audio_description">Volumen del audio original</string>
 
     <string name="video_editor_color">Color</string>
@@ -59,7 +59,7 @@
     <string name="video_editor_copy_saved">Copia guardada</string>
     <string name="video_editor_encoder_fallback">Copia guardada con una alternativa compatible con el codificador</string>
     <string name="video_editor_save_failed">No se pudo guardar la copia</string>
-    <string name="video_editor_bypass_grade">Omitir corrección</string>
+    <string name="video_editor_bypass_grade">Ver original</string>
     <string name="video_editor_reset_grade">Restablecer corrección</string>
     <string name="video_editor_play">Reproducir vista previa</string>
     <string name="video_editor_pause">Pausar vista previa</string>
@@ -67,7 +67,7 @@
     <string name="video_editor_disable_loop">Desactivar vista previa continua</string>
     <string name="video_editor_resize_panels">Redimensionar los paneles de vista previa y edición</string>
     <string name="video_editor_preview_failed">No se pudo reproducir la vista previa del video</string>
-    <string name="video_editor_base_speed">Velocidad base</string>
+    <string name="video_editor_base_speed">Velocidad de reproducción</string>
     <string name="video_editor_mark_in">Marcar entrada</string>
     <string name="video_editor_mark_out">Marcar salida</string>
     <string name="video_editor_marked_in_at">Entrada marcada en %1$s</string>
@@ -79,7 +79,7 @@
     <string name="video_editor_audio_varispeed">Tono ralentizado</string>
     <string name="video_editor_delete_segment">Eliminar tramo</string>
     <string name="video_editor_cancel_export">Cancelar exportación</string>
-    <string name="video_editor_export_in_progress">Exportando vídeo</string>
+    <string name="video_editor_export_in_progress">Exportando video</string>
     <string name="video_editor_export_progress_percent">%1$d%%</string>
     <string name="video_editor_slow_overlap">Los tramos en cámara lenta no pueden superponerse</string>
     <string name="video_editor_slow_invalid_range">La salida debe estar después de la entrada</string>
@@ -120,7 +120,7 @@
     <string name="video_editor_start_tracking">Seguir objeto</string>
     <string name="video_editor_delete_annotation">Eliminar capa</string>
     <string name="video_editor_cancel_tracking">Cancelar seguimiento</string>
-    <string name="video_editor_tracking_needs_correction">El seguimiento perdió el objeto. Reposiciona la capa en el tiempo marcado y continúa.</string>
+    <string name="video_editor_tracking_needs_correction">El seguimiento perdió el objeto. Reposicioná la capa en el tiempo marcado y continuá.</string>
     <string name="video_editor_tracking_failed">Falló el seguimiento del objeto</string>
     <string name="video_editor_annotation_eraser">Borrador</string>
     <string name="video_editor_annotation_horizontal_position">Posición horizontal</string>
@@ -131,9 +131,9 @@
     <string name="video_editor_annotation_move_forward">Mover adelante</string>
 <string name="video_editor_export_preparing">Preparando la exportación…</string>
 <string name="video_editor_export_generating_frames">Generando fotogramas de cámara lenta…</string>
-<string name="video_editor_export_rendering">Procesando el vídeo…</string>
+<string name="video_editor_export_rendering">Procesando el video…</string>
 <string name="video_editor_export_publishing">Guardando en tu galería…</string>
-<string name="video_editor_export_verifying">Verificando el vídeo guardado…</string>
+<string name="video_editor_export_verifying">Verificando el video guardado…</string>
 <string name="video_editor_software_decoder_warning">La decodificación por hardware no está disponible; la vista previa usa software</string>
     <string name="video_editor_profile_standard">Estándar Rec.709</string>
     <string name="video_editor_profile_apple_log">Apple Log</string>
@@ -160,4 +160,33 @@
     <string name="video_editor_annotation_color_black">Negro</string>
     <string name="video_editor_log_curve_only_note">Este ajuste solo linealiza la curva LOG; la conversión del gamut de cámara no se aplica automáticamente.</string>
     <string name="video_editor_lut_unavailable">La LUT seleccionada falta o está dañada. Elegila o importala de nuevo.</string>
+    <string name="video_editor_discard_title">¿Descartar los cambios?</string>
+    <string name="video_editor_discard_message">Tus cambios no se han guardado como copia.</string>
+    <string name="video_editor_discard_confirm">Descartar</string>
+    <string name="video_editor_keep_editing">Seguir editando</string>
+    <string name="video_editor_timeline_time">%1$s / %2$s</string>
+    <string name="video_editor_trim_range">Recorte · %1$s–%2$s</string>
+    <string name="video_editor_trim_start_description">Inicio del recorte, %1$s</string>
+    <string name="video_editor_trim_end_description">Fin del recorte, %1$s</string>
+    <string name="video_editor_undo_edit">Deshacer</string>
+    <string name="video_editor_redo_edit">Rehacer</string>
+    <string name="video_editor_looks">Estilos</string>
+    <string name="video_editor_look_intensity">Intensidad del estilo</string>
+    <string name="video_editor_light">Luz</string>
+    <string name="video_editor_vibrance">Intensidad de color</string>
+    <string name="video_editor_reset">Restablecer</string>
+    <string name="video_editor_advanced_color">Color avanzado</string>
+    <string name="video_editor_advanced_color_summary">Perfil de entrada, ruedas log, bandas de color</string>
+    <string name="video_editor_advanced_profile">Perfil</string>
+    <string name="video_editor_advanced_wheels">Ruedas</string>
+    <string name="video_editor_advanced_bands">Bandas</string>
+    <string name="video_editor_back_to_color">Volver a color</string>
+    <string name="video_editor_speed_result">Nueva duración: %1$s</string>
+    <string name="video_editor_replace_music">Reemplazar</string>
+    <string name="video_editor_hold_compare">Mantén para comparar</string>
+    <string name="video_editor_mute_original">Silenciar audio original</string>
+    <string name="video_editor_unmute_original">Activar audio original</string>
+    <string name="video_editor_export_summary">%1$s · %2$s · %3$s</string>
+    <string name="video_editor_crop">Recortar</string>
+    <string name="video_editor_crop_hint">Arrastra las esquinas o los bordes sobre el video para recortar.</string>
 </resources>

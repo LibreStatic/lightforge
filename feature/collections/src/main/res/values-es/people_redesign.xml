@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="people_more">Más opciones</string>
+    <string name="people_privacy_title">Sobre la privacidad</string>
+    <string name="people_privacy_ok">Entendido</string>
+    <string name="people_privacy_short">En este dispositivo · Tus fotos no salen de aquí</string>
+    <string name="people_enable_title">Agrupa rostros de forma privada</string>
+    <string name="people_enable_body">El análisis se realiza solo en tu dispositivo.</string>
+    <string name="people_how_it_works">Cómo funciona</string>
+    <string name="people_found_title">Personas encontradas</string>
+    <string name="people_choose_me_title">Elegí quién sos</string>
+    <string name="people_choose_me_body">Abrí una persona y tocá Marcar como Yo para encontrar tus fotos.</string>
+    <string name="people_merge_confirm">Combinar</string>
+    <plurals name="people_hidden_count">
+        <item quantity="one">Ocultas (%d)</item>
+        <item quantity="many">Ocultas (%d)</item>
+        <item quantity="other">Ocultas (%d)</item>
+    </plurals>
+    <plurals name="people_split_selected">
+        <item quantity="one">%d seleccionado</item>
+        <item quantity="many">%d seleccionados</item>
+        <item quantity="other">%d seleccionados</item>
+    </plurals>
+</resources>

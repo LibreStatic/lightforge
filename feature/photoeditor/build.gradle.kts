@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.feature.photoeditor"
+    namespace = "com.librestatic.lightforge.feature.photoeditor"
     compileSdk = 37
 
     defaultConfig {
@@ -27,10 +27,13 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:editing-image"))
     implementation(project(":core:navigation"))
+    implementation(project(":feature:objecteraser"))
+    implementation(project(":feature:subjectclip"))
     implementation(platform(libs.compose.bom))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.activity.compose)
     testImplementation(libs.junit4)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")

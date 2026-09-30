@@ -2,7 +2,13 @@
     <string name="pet_title">Animais</string>
     <string name="pet_back">Voltar</string>
     <string name="pet_explanation">Reconheça gatos e cães individualmente no dispositivo. Revise as sugestões de similaridade. As fotos ficam neste dispositivo.</string>
-    <string name="pet_download">Baixar modelos (103 MB)</string>
+    <string name="pet_download">Baixar modelos (58 MB)</string>
+    <string name="pet_download_progress">Baixando modelos: %1$d de %2$d MB</string>
+    <string name="pet_download_queued">Iniciando download…</string>
+    <string name="pet_download_waiting_network">Pausado: aguardando conexão</string>
+    <string name="pet_download_waiting_wifi">Pausado: aguardando Wi-Fi</string>
+    <string name="pet_download_waiting_battery">Pausado: bateria abaixo do mínimo de análise</string>
+    <string name="pet_download_cancel">Cancelar download</string>
     <string name="pet_import">Importar ZIP verificado</string>
     <string name="pet_enable">Ativar reconhecimento</string>
     <string name="pet_remove">Remover dados dos animais</string>
@@ -11,7 +17,17 @@
     <string name="pet_cancel">Cancelar</string>
     <string name="pet_analyze">Analisar fotos locais</string>
     <string name="pet_cancel_analysis">Cancelar análise</string>
-    <string name="pet_progress">%1$d fotos analisadas · %2$d animais</string>
+    <string name="pet_progress">%1$s · %2$s</string>
+    <plurals name="pet_progress_photos">
+        <item quantity="one">%d foto analisada</item>
+        <item quantity="many">%d fotos analisadas</item>
+        <item quantity="other">%d fotos analisadas</item>
+    </plurals>
+    <plurals name="pet_progress_animals">
+        <item quantity="one">%d animal</item>
+        <item quantity="many">%d animais</item>
+        <item quantity="other">%d animais</item>
+    </plurals>
     <string name="pet_error">A operação falhou ou a biblioteca mudou. Atualize e tente novamente.</string>
     <string name="pet_groups">Grupos</string>
     <string name="pet_unassigned">Revisar não atribuídos</string>
@@ -40,4 +56,9 @@
     <string name="pet_open_group">Abrir grupo</string>
     <string name="pet_model_ready">Modelos locais verificados instalados</string>
     <string name="pet_leave">Sair cancela a operação atual. As análises concluídas são preservadas.</string>
+    <plurals name="pet_skipped">
+        <item quantity="one">%d foto não pôde ser lida e foi ignorada</item>
+        <item quantity="many">%d fotos não puderam ser lidas e foram ignoradas</item>
+        <item quantity="other">%d fotos não puderam ser lidas e foram ignoradas</item>
+    </plurals>
 </resources>

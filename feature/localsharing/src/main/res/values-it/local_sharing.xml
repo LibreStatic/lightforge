@@ -29,8 +29,8 @@
     <string name="peer_derivative">La rimozione della posizione ricodifica le copie e può perdere animazione o Motion Photo incorporata. Originali intatti. Un errore interrompe la preparazione. Ricette private di modifica escluse.</string>
     <string name="peer_prepare">Prepara copie persistenti</string>
     <string name="peer_history">Cronologia trasferimenti</string>
-    <string name="peer_progress">%1$d / %2$d byte</string>
-    <string name="peer_count">%1$d file</string>
+    <string name="peer_progress">%1$s / %2$s</string>
+    <plurals name="peer_count"><item quantity="one">%1$d file</item><item quantity="many">%1$d file</item><item quantity="other">%1$d file</item></plurals>
     <string name="peer_review">Rivedi trasferimento</string>
     <string name="peer_open_local">Apri galleria</string>
     <string name="peer_resume">Riprendi</string>

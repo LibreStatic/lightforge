@@ -44,7 +44,7 @@
     <string name="remote_local_task">Abrir restauração local</string>
     <string name="remote_cancel_hint">Parar esta tarefa? Arquivos remotos parciais ou incertos ficam visíveis para revisão. Nenhum original ou arquivo remoto será excluído.</string>
     <string name="remote_residuals">Objetos remotos para revisão: %1$s</string>
-    <string name="remote_archive_summary">Arquivo v%1$d · %2$d arquivos · %3$d bytes</string>
+    <plurals name="remote_archive_summary"><item quantity="one">Arquivo v%1$d · %2$d arquivo · %3$s</item><item quantity="many">Arquivo v%1$d · %2$d arquivos · %3$s</item><item quantity="other">Arquivo v%1$d · %2$d arquivos · %3$s</item></plurals>
     <string name="remote_org_summary">Organização: %1$d/%2$d fontes; referências/estados omitidos: %3$d; não resolvidos: %4$d.</string>
     <string name="remote_partial">Aceito o escopo parcial exibido</string>
     <string name="remote_global">Importar também regras de memórias que afetam a biblioteca existente</string>
@@ -77,6 +77,10 @@
     <string name="remote_error_port_invalid">Informe uma porta entre 1 e 65535.</string>
     <string name="remote_error_user_required">Informe um nome de usuário.</string>
     <string name="remote_error_folder_invalid">Pasta inválida: não pode conter segmentos «..».</string>
+    <string name="remote_error_folder_sftp_absolute">As pastas SFTP devem começar com / e não podem conter barra invertida, por exemplo /backups.</string>
+    <string name="remote_error_invalid_path">O servidor recusou o caminho da pasta. Adicione o servidor novamente com uma pasta absoluta como /backups.</string>
     <string name="remote_error_share_required">Informe um nome de compartilhamento SMB válido.</string>
     <string name="remote_error_key_required">Escolha um arquivo de chave privada SSH.</string>
+    <string name="remote_transfer_progress">%1$s de %2$s</string>
+    <string name="remote_archive_checksum">Soma de verificação (SHA-256): %1$s</string>
 </resources>

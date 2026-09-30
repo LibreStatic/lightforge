@@ -37,4 +37,24 @@
     <string name="photo_editor_chromatic_aberration">Correção de aberração cromática</string>
     <string name="photo_editor_lens_correction">Correção de lente</string>
     <string name="photo_editor_tiff_geometry_unsupported">Recorte, rotação, inversão e alinhamento exigem saída JPEG para fotos RAW.</string>
+    <string name="photo_editor_warning_png">Cópia guardada como PNG para manter a resolução completa</string>
+    <string name="photo_editor_warning_hdr_metadata">Os metadados HDR e do contentor não foram mantidos na cópia</string>
+    <string name="photo_editor_error_decode">Não foi possível ler esta foto</string>
+    <string name="photo_editor_error_save">Não foi possível guardar a cópia</string>
+    <string name="photo_editor_error_raw_too_large">Este RAW é demasiado grande para exportar em JPEG. Escolha TIFF de 16 bits.</string>
+    <string name="photo_editor_error_raw_render">Não foi possível revelar esta foto RAW</string>
+    <plurals name="photo_editor_error_raw_storage"><item quantity="one">A exportação RAW precisa de %1$d MB de armazenamento temporário livre</item><item quantity="many">A exportação RAW precisa de %1$d MB de armazenamento temporário livre</item><item quantity="other">A exportação RAW precisa de %1$d MB de armazenamento temporário livre</item></plurals>
+    <string name="photo_editor_object_eraser">Borracha de objetos</string>
+    <string name="photo_editor_subject_clip">Recorte do assunto</string>
+    <string name="photo_editor_experimental_tool">%1$s · Experimental</string>
+    <string name="photo_editor_eraser_fallback">Qualidade alternativa (%1$s): preenche a área pintada com as cores ao redor. O resultado é aproximado.</string>
+    <string name="photo_editor_clip_fallback">Qualidade alternativa (%1$s): mantém os pixels de cor parecida com o ponto tocado. O resultado é aproximado.</string>
+    <string name="photo_editor_eraser_hint">Pinte sobre o objeto a remover e toque em Aplicar. Salvar cópia não altera o original.</string>
+    <string name="photo_editor_clip_hint">Toque no assunto para pré-visualizar o recorte. Ele é salvo como um novo PNG com fundo transparente.</string>
+    <string name="photo_editor_eraser_apply">Aplicar</string>
+    <string name="photo_editor_eraser_clear">Limpar</string>
+    <string name="photo_editor_clip_save">Salvar recorte</string>
+    <string name="photo_editor_eraser_mask_description">Áreas marcadas para apagar</string>
+    <string name="photo_editor_experimental_too_large">Esta foto é grande demais para a ferramenta experimental</string>
+    <string name="photo_editor_eraser_reset">As áreas apagadas foram removidas porque a geometria da foto mudou</string>
 </resources>

@@ -33,5 +33,5 @@
     <string name="documents_reset">Meine Zuordnung zurücksetzen</string>
     <string name="documents_photo">Foto</string>
     <string name="documents_organize">Zu Dokumenten hinzufügen</string>
-    <string name="documents_collection_count">%1$d Fotos · lokale Kategorien und Text</string>
+    <plurals name="documents_collection_count"><item quantity="one">%1$d Foto · lokale Kategorien und Text</item><item quantity="other">%1$d Fotos · lokale Kategorien und Text</item></plurals>
 </resources>

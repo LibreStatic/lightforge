@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.feature.viewer"
+    namespace = "com.librestatic.lightforge.feature.viewer"
     compileSdk = 37
 
     defaultConfig {
@@ -33,6 +33,7 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.effect)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.activity.compose)
     implementation(libs.kotlinx.coroutines.core)
     implementation(platform(libs.compose.bom))
     implementation("androidx.compose.ui:ui")

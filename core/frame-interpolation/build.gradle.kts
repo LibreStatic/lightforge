@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.core.frameinterpolation"
+    namespace = "com.librestatic.lightforge.core.frameinterpolation"
     compileSdk = 37
     ndkVersion = "27.1.12297006"
 
@@ -13,7 +13,11 @@ android {
         externalNativeBuild {
             cmake { cppFlags += listOf("-std=c++17", "-fexceptions", "-fno-rtti") }
         }
-        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64") }
+        // -Plightforge.abis=x86_64 limits local builds to one ABI; releases keep all three.
+        ndk {
+            abiFilters += providers.gradleProperty("lightforge.abis").orNull?.split(",")?.map(String::trim)
+                ?: listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+        }
     }
     buildTypes { create("benchmark") { initWith(getByName("release")) } }
     externalNativeBuild {

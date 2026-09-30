@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="people_more">Weitere Optionen</string>
+    <string name="people_privacy_title">Zum Datenschutz</string>
+    <string name="people_privacy_ok">Verstanden</string>
+    <string name="people_privacy_short">Auf diesem Gerät · Deine Fotos verlassen es nie</string>
+    <string name="people_enable_title">Gesichter privat gruppieren</string>
+    <string name="people_enable_body">Die Analyse läuft nur auf deinem Gerät.</string>
+    <string name="people_how_it_works">So funktioniert es</string>
+    <string name="people_found_title">Gefundene Personen</string>
+    <string name="people_choose_me_title">Wähle aus, wer du bist</string>
+    <string name="people_choose_me_body">Öffne eine Person und tippe auf Als Ich festlegen, um deine Fotos zu finden.</string>
+    <string name="people_merge_confirm">Zusammenführen</string>
+    <plurals name="people_hidden_count">
+        <item quantity="one">Ausgeblendet (%d)</item>
+        <item quantity="other">Ausgeblendet (%d)</item>
+    </plurals>
+    <plurals name="people_split_selected">
+        <item quantity="one">%d ausgewählt</item>
+        <item quantity="other">%d ausgewählt</item>
+    </plurals>
+</resources>

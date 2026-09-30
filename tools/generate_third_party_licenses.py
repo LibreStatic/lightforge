@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the offline dependency-license catalog shipped in UGallery."""
+"""Generate the offline dependency-license catalog shipped in Lightforge."""
 
 from __future__ import annotations
 
@@ -85,8 +85,6 @@ def license_for(group: str, name: str) -> dict[str, str]:
         return {"licenseId": "BSD-2-Clause", "licenseName": "MapLibre Gestures BSD 2-Clause", "licenseTextAsset": "licenses/MapLibre-Gestures-BSD-2-Clause.txt"}
     if f"{group}:{name}" in {"org.maplibre.gl:android-sdk-geojson", "org.maplibre.gl:android-sdk-turf", "com.google.code.gson:gson", "com.jakewharton.timber:timber"}:
         return APACHE
-    if group == "com.microsoft.onnxruntime" and name == "onnxruntime-android":
-        return {"licenseId": "MIT", "licenseName": "ONNX Runtime MIT and bundled third-party notices", "licenseTextAsset": "licenses/ONNX-Runtime-Notices.txt"}
     if group == "com.google.zxing" and name == "core":
         return {"licenseId": "Apache-2.0", "licenseName": "ZXing Apache License and bundled notices", "licenseTextAsset": "licenses/ZXing-Notices.txt"}
     if group == "com.google.crypto.tink" and name == "tink-android":

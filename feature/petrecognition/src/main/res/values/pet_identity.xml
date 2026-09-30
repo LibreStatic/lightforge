@@ -2,7 +2,13 @@
     <string name="pet_title">Pets</string>
     <string name="pet_back">Back</string>
     <string name="pet_explanation">Recognize individual cats and dogs locally. Similarity suggestions require your review. Photos stay on this device.</string>
-    <string name="pet_download">Download models (103 MB)</string>
+    <string name="pet_download">Download models (58 MB)</string>
+    <string name="pet_download_progress">Downloading models: %1$d of %2$d MB</string>
+    <string name="pet_download_queued">Starting download…</string>
+    <string name="pet_download_waiting_network">Paused: waiting for a connection</string>
+    <string name="pet_download_waiting_wifi">Paused: waiting for Wi-Fi</string>
+    <string name="pet_download_waiting_battery">Paused: battery below the analysis minimum</string>
+    <string name="pet_download_cancel">Cancel download</string>
     <string name="pet_import">Import verified model ZIP</string>
     <string name="pet_enable">Enable pet recognition</string>
     <string name="pet_remove">Remove pet recognition data</string>
@@ -11,7 +17,15 @@
     <string name="pet_cancel">Cancel</string>
     <string name="pet_analyze">Analyze local photos</string>
     <string name="pet_cancel_analysis">Cancel analysis</string>
-    <string name="pet_progress">%1$d photos analyzed · %2$d animals</string>
+    <string name="pet_progress">%1$s · %2$s</string>
+    <plurals name="pet_progress_photos">
+        <item quantity="one">%d photo analyzed</item>
+        <item quantity="other">%d photos analyzed</item>
+    </plurals>
+    <plurals name="pet_progress_animals">
+        <item quantity="one">%d animal</item>
+        <item quantity="other">%d animals</item>
+    </plurals>
     <string name="pet_error">The operation failed or the library changed. Refresh and try again.</string>
     <string name="pet_groups">Groups</string>
     <string name="pet_unassigned">Review unassigned</string>
@@ -40,4 +54,8 @@
     <string name="pet_open_group">Open group</string>
     <string name="pet_model_ready">Verified local models installed</string>
     <string name="pet_leave">Leaving cancels the current operation. Completed photo analysis is preserved.</string>
+    <plurals name="pet_skipped">
+        <item quantity="one">%d photo could not be read and was skipped</item>
+        <item quantity="other">%d photos could not be read and were skipped</item>
+    </plurals>
 </resources>

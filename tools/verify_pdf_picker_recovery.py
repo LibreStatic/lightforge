@@ -13,7 +13,7 @@ parser.add_argument("--resume", action="store_true", help="Continue an existing 
 parser.add_argument("--portable", action="store_true", help="Exercise the portable ZIP project destination contract")
 args = parser.parse_args()
 base = ["rtk", "proxy", "adb", "-s", args.serial]
-package = "com.ugallery.feature.pdfstudio.test"
+package = "com.librestatic.lightforge.feature.pdfstudio.test"
 
 
 def shell(*args):
@@ -72,12 +72,12 @@ def tap_match(predicate):
 
 if not args.resume:
     prepare = "portable-picker-prepare" if args.portable else "picker-prepare"
-    out = shell("am", "instrument", "-w", "-e", "phase", prepare, package + "/com.ugallery.feature.pdfstudio.PdfRecoveryProbeRunner")
+    out = shell("am", "instrument", "-w", "-e", "phase", prepare, package + "/com.librestatic.lightforge.feature.pdfstudio.PdfRecoveryProbeRunner")
     print(out.strip(), flush=True)
     assert "PDF RECOVERY " + prepare.upper() + " PASS" in out
     checkpoint = marker("checkpoint")
     time.sleep(2)
-    shell("am", "start", "-W", "-n", package + "/com.ugallery.feature.pdfstudio.PdfPickerProbeActivity", "--es", "jobId", checkpoint["job"], "--es", "projectId", checkpoint["project"], "--ez", "portable", str(args.portable).lower())
+    shell("am", "start", "-W", "-n", package + "/com.librestatic.lightforge.feature.pdfstudio.PdfPickerProbeActivity", "--es", "jobId", checkpoint["job"], "--es", "projectId", checkpoint["project"], "--ez", "portable", str(args.portable).lower())
 else:
     checkpoint = marker("checkpoint")
 created = await_marker("created", lambda x: True)

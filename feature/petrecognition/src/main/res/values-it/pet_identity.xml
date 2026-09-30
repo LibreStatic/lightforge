@@ -2,7 +2,13 @@
     <string name="pet_title">Animali</string>
     <string name="pet_back">Indietro</string>
     <string name="pet_explanation">Riconosci singoli gatti e cani sul dispositivo. Rivedi i suggerimenti di somiglianza. Le foto restano sul dispositivo.</string>
-    <string name="pet_download">Scarica modelli (103 MB)</string>
+    <string name="pet_download">Scarica modelli (58 MB)</string>
+    <string name="pet_download_progress">Download dei modelli: %1$d di %2$d MB</string>
+    <string name="pet_download_queued">Avvio del download…</string>
+    <string name="pet_download_waiting_network">In pausa: in attesa di connessione</string>
+    <string name="pet_download_waiting_wifi">In pausa: in attesa del Wi-Fi</string>
+    <string name="pet_download_waiting_battery">In pausa: batteria sotto il minimo per l’analisi</string>
+    <string name="pet_download_cancel">Annulla download</string>
     <string name="pet_import">Importa ZIP verificato</string>
     <string name="pet_enable">Attiva riconoscimento</string>
     <string name="pet_remove">Rimuovi dati degli animali</string>
@@ -11,7 +17,17 @@
     <string name="pet_cancel">Annulla</string>
     <string name="pet_analyze">Analizza foto locali</string>
     <string name="pet_cancel_analysis">Annulla analisi</string>
-    <string name="pet_progress">%1$d foto analizzate · %2$d animali</string>
+    <string name="pet_progress">%1$s · %2$s</string>
+    <plurals name="pet_progress_photos">
+        <item quantity="one">%d foto analizzata</item>
+        <item quantity="many">%d foto analizzate</item>
+        <item quantity="other">%d foto analizzate</item>
+    </plurals>
+    <plurals name="pet_progress_animals">
+        <item quantity="one">%d animale</item>
+        <item quantity="many">%d animali</item>
+        <item quantity="other">%d animali</item>
+    </plurals>
     <string name="pet_error">Operazione non riuscita o raccolta modificata. Aggiorna e riprova.</string>
     <string name="pet_groups">Gruppi</string>
     <string name="pet_unassigned">Rivedi non assegnati</string>
@@ -40,4 +56,9 @@
     <string name="pet_open_group">Apri gruppo</string>
     <string name="pet_model_ready">Modelli locali verificati installati</string>
     <string name="pet_leave">Uscire annulla l’operazione attuale. Le analisi completate restano salvate.</string>
+    <plurals name="pet_skipped">
+        <item quantity="one">%d foto non leggibile è stata saltata</item>
+        <item quantity="many">%d foto non leggibili sono state saltate</item>
+        <item quantity="other">%d foto non leggibili sono state saltate</item>
+    </plurals>
 </resources>

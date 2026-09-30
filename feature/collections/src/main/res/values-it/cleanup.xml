@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="cleanup_title">Libera spazio</string>
+    <string name="cleanup_collection_body">Duplicati esatti, video grandi e foto sfocate da controllare</string>
+    <string name="cleanup_back">Raccolte</string>
+    <string name="cleanup_analysis_off">Il rilevamento di duplicati e foto sfocate è disattivato. Attivalo per analizzare la raccolta su questo dispositivo.</string>
+    <string name="cleanup_analysis_enable">Attiva analisi</string>
+    <string name="cleanup_analysis_hint">L’analisi viene eseguita su questo dispositivo durante la ricarica, o con Lightforge aperta e batteria sufficiente. I risultati compaiono man mano.</string>
+    <string name="cleanup_duplicates_title">Duplicati esatti</string>
+    <string name="cleanup_keep">Mantieni</string>
+    <string name="cleanup_trash_copies">Sposta le copie nel cestino</string>
+    <string name="cleanup_large_videos_title">Video grandi (100 MB o più)</string>
+    <string name="cleanup_screenshots_title">Screenshot</string>
+    <string name="cleanup_blurry_title">Foto sfocate</string>
+    <string name="cleanup_trash_all">Sposta tutto nel cestino</string>
+    <string name="cleanup_empty">Ancora nessun risultato.</string>
+    <string name="cleanup_trash_body">Puoi ripristinare gli elementi dal cestino finché non vengono eliminati automaticamente.</string>
+    <string name="cleanup_trash_confirm">Sposta nel cestino</string>
+    <string name="cleanup_cancel">Annulla</string>
+    <string name="cleanup_open_item">Apri</string>
+    <plurals name="cleanup_duplicates_summary">
+        <item quantity="one">%1$d gruppo · %2$s liberabili</item>
+        <item quantity="many">%1$d gruppi · %2$s liberabili</item>
+        <item quantity="other">%1$d gruppi · %2$s liberabili</item>
+    </plurals>
+    <plurals name="cleanup_group_summary">
+        <item quantity="one">%1$d copia identica · %2$s liberabili</item>
+        <item quantity="many">%1$d copie identiche · %2$s liberabili</item>
+        <item quantity="other">%1$d copie identiche · %2$s liberabili</item>
+    </plurals>
+    <plurals name="cleanup_large_videos_summary">
+        <item quantity="one">%1$d video · %2$s</item>
+        <item quantity="many">%1$d video · %2$s</item>
+        <item quantity="other">%1$d video · %2$s</item>
+    </plurals>
+    <plurals name="cleanup_screenshots_summary">
+        <item quantity="one">%d screenshot</item>
+        <item quantity="many">%d screenshot</item>
+        <item quantity="other">%d screenshot</item>
+    </plurals>
+    <plurals name="cleanup_blurry_summary">
+        <item quantity="one">%d foto potrebbe essere sfocata</item>
+        <item quantity="many">%d foto potrebbero essere sfocate</item>
+        <item quantity="other">%d foto potrebbero essere sfocate</item>
+    </plurals>
+    <plurals name="cleanup_trash_title">
+        <item quantity="one">Spostare %d elemento nel cestino?</item>
+        <item quantity="many">Spostare %d elementi nel cestino?</item>
+        <item quantity="other">Spostare %d elementi nel cestino?</item>
+    </plurals>
+</resources>

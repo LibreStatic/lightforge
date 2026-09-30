@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.core.search"
+    namespace = "com.librestatic.lightforge.core.search"
     compileSdk = 37
 
     defaultConfig {

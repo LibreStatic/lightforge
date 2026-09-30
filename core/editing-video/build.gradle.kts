@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.core.editing.video"
+    namespace = "com.librestatic.lightforge.core.editing.video"
     compileSdk = 37
 
     defaultConfig {

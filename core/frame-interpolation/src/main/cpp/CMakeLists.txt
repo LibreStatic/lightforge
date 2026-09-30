@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22.1)
-project(ugallery_frame_interpolation)
+project(lightforge_frame_interpolation)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -34,15 +34,15 @@ foreach(shader
     rife_add_shader(${shader})
 endforeach()
 
-add_library(ugallery_frame_interpolation SHARED
+add_library(lightforge_frame_interpolation SHARED
     frame_interpolation_jni.cpp
     rife/rife.cpp
     rife/warp.cpp
     ${SHADER_HEADERS}
 )
-target_include_directories(ugallery_frame_interpolation PRIVATE
+target_include_directories(lightforge_frame_interpolation PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/rife
 )
-target_compile_definitions(ugallery_frame_interpolation PRIVATE NCNN_VULKAN=1)
-target_link_libraries(ugallery_frame_interpolation ncnn android jnigraphics log vulkan)
+target_compile_definitions(lightforge_frame_interpolation PRIVATE NCNN_VULKAN=1)
+target_link_libraries(lightforge_frame_interpolation ncnn android jnigraphics log vulkan)

@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.ugallery.core.security"
+    namespace = "com.librestatic.lightforge.core.security"
     compileSdk = 37
 
     defaultConfig {

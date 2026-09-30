@@ -44,7 +44,7 @@
     <string name="remote_local_task">Ouvrir la restauration locale</string>
     <string name="remote_cancel_hint">Arrêter cette tâche ? Les fichiers distants partiels ou incertains restent visibles pour vérification. Aucun original ni fichier distant ne sera supprimé.</string>
     <string name="remote_residuals">Objets distants à vérifier : %1$s</string>
-    <string name="remote_archive_summary">Archive v%1$d · %2$d fichiers · %3$d octets</string>
+    <plurals name="remote_archive_summary"><item quantity="one">Archive v%1$d · %2$d fichier · %3$s</item><item quantity="many">Archive v%1$d · %2$d fichiers · %3$s</item><item quantity="other">Archive v%1$d · %2$d fichiers · %3$s</item></plurals>
     <string name="remote_org_summary">Organisation : %1$d/%2$d sources ; références/états omis : %3$d ; non résolus : %4$d.</string>
     <string name="remote_partial">J’accepte la portée partielle affichée</string>
     <string name="remote_global">Importer aussi les règles de souvenirs affectant la photothèque existante</string>
@@ -77,6 +77,10 @@
     <string name="remote_error_port_invalid">Saisissez un port entre 1 et 65535.</string>
     <string name="remote_error_user_required">Saisissez un nom d’utilisateur.</string>
     <string name="remote_error_folder_invalid">Dossier invalide : il ne peut pas contenir de segments « .. ».</string>
+    <string name="remote_error_folder_sftp_absolute">Les dossiers SFTP doivent commencer par / et ne peuvent pas contenir de barre oblique inverse, par exemple /backups.</string>
+    <string name="remote_error_invalid_path">Le serveur a refusé le chemin du dossier. Ajoutez de nouveau le serveur avec un dossier absolu comme /backups.</string>
     <string name="remote_error_share_required">Saisissez un nom de partage SMB valide.</string>
     <string name="remote_error_key_required">Choisissez un fichier de clé privée SSH.</string>
+    <string name="remote_transfer_progress">%1$s sur %2$s</string>
+    <string name="remote_archive_checksum">Somme de contrôle (SHA-256) : %1$s</string>
 </resources>

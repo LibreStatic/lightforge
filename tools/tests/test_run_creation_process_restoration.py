@@ -539,7 +539,7 @@ class CreationProcessHostTest(unittest.TestCase):
         return dict(fixtureUuid="owned", sessionId="00000000-0000-4000-8000-000000000001", token="00000000-0000-4000-8000-000000000002",
             phase="AFTER_MEDIASTORE_COMMIT", pid=100, uid=10123, deadlineElapsedRealtimeMillis=5000, renderSha256="a"*64, renderSizeBytes=128,
             destination=dict(uri="content://media/external/images/media/30", ownerPackage=module.PACKAGE,
-                displayName="UGallery-collage-00000000-0000-4000-8000-000000000003.png", relativePath=module.COLLAGE_OUTPUT_PATH,
+                displayName="Lightforge-collage-00000000-0000-4000-8000-000000000003.png", relativePath=module.COLLAGE_OUTPUT_PATH,
                 mimeType="image/png", generationAdded=10, generationModified=12, sizeBytes=128, pending=False, trashed=False))
 
     def test_publication_gate_requires_exact_owned_published_output_and_process(self):
@@ -593,7 +593,7 @@ class CreationProcessHostTest(unittest.TestCase):
         redacted = "mResumedActivity: ActivityRecord android/.ChooserActivity\nIntent { act=android.intent.action.CHOOSER clip={image/png U(content)} (has extras) }"
         module.require_collage_handoff_chooser(redacted)
         for output in ("ACTIVITY android/.ChooserActivity", redacted.replace("mResumedActivity", "mLastPausedActivity"),
-                       "mResumedActivity: ActivityRecord com.ugallery.app/.MainActivity"):
+                       "mResumedActivity: ActivityRecord com.librestatic.lightforge/.MainActivity"):
             with self.assertRaises(RuntimeError): module.require_collage_handoff_chooser(output)
 
     def test_publication_handoff_requires_absence_then_fresh_receipt_plus_resumed_chooser(self):
@@ -748,7 +748,7 @@ class CreationProcessHostTest(unittest.TestCase):
         return dict(fixtureUuid="owned", sessionId="00000000-0000-4000-8000-000000000001", token="00000000-0000-4000-8000-000000000002",
             phase="AFTER_MEDIASTORE_COMMIT", pid=100, uid=10123, deadlineElapsedRealtimeMillis=5000, renderSha256="a"*64, renderSizeBytes=128,
             destination=dict(uri="content://media/external/images/media/30", ownerPackage=module.PACKAGE,
-                displayName="UGallery-GIF-00000000-0000-4000-8000-000000000002.gif", relativePath=module.GIF_OUTPUT_PATH,
+                displayName="Lightforge-GIF-00000000-0000-4000-8000-000000000002.gif", relativePath=module.GIF_OUTPUT_PATH,
                 mimeType="image/gif", generationAdded=10, generationModified=12, sizeBytes=128, pending=False, trashed=False))
 
     def test_gif_publication_gate_requires_exact_owned_published_output_and_process(self):
@@ -759,7 +759,7 @@ class CreationProcessHostTest(unittest.TestCase):
             with self.subTest(field=field), self.assertRaises(RuntimeError):
                 module.verify_gif_publication_gate(module.json.dumps(dict(gate, **{field:value})), "owned", 100, 10123)
         for field, value in (("ownerPackage", "other"), ("relativePath", "Pictures/other/"), ("pending", True), ("trashed", True),
-                             ("generationAdded", -1), ("generationModified", 9), ("generationModified", 12.0), ("sizeBytes", 129), ("mimeType", "image/jpeg"), ("displayName", "UGallery-GIF-00000000-0000-4000-8000-000000000003.gif")):
+                             ("generationAdded", -1), ("generationModified", 9), ("generationModified", 12.0), ("sizeBytes", 129), ("mimeType", "image/jpeg"), ("displayName", "Lightforge-GIF-00000000-0000-4000-8000-000000000003.gif")):
             changed = dict(gate, destination=dict(gate["destination"], **{field:value}))
             with self.subTest(destination=field), self.assertRaises(RuntimeError):
                 module.verify_gif_publication_gate(module.json.dumps(changed), "owned", 100, 10123)
@@ -802,7 +802,7 @@ class CreationProcessHostTest(unittest.TestCase):
         redacted = "mResumedActivity: ActivityRecord android/.ChooserActivity\nIntent { act=android.intent.action.CHOOSER clip={image/gif U(content)} (has extras) }"
         module.require_gif_handoff_chooser(redacted)
         for output in ("ACTIVITY android/.ChooserActivity", redacted.replace("mResumedActivity", "mLastPausedActivity"),
-                       "mResumedActivity: ActivityRecord com.ugallery.app/.MainActivity"):
+                       "mResumedActivity: ActivityRecord com.librestatic.lightforge/.MainActivity"):
             with self.assertRaises(RuntimeError): module.require_gif_handoff_chooser(output)
 
     def test_gif_publication_handoff_requires_absence_then_fresh_receipt_plus_resumed_chooser(self):
@@ -957,7 +957,7 @@ class CreationProcessHostTest(unittest.TestCase):
         return dict(fixtureUuid="owned", publicationId="00000000-0000-4000-8000-000000000001", token="00000000-0000-4000-8000-000000000002",
             phase="AFTER_MEDIASTORE_COMMIT", pid=100, uid=10123, deadlineElapsedRealtimeMillis=5000, renderSha256="a"*64, renderSizeBytes=128,
             destination=dict(uri="content://media/external/images/media/30", ownerPackage=module.PACKAGE,
-                displayName="UGallery-Motion-00000000-0000-4000-8000-000000000002.jpg", relativePath=module.MOTION_IMAGE_PATH,
+                displayName="Lightforge-Motion-00000000-0000-4000-8000-000000000002.jpg", relativePath=module.MOTION_IMAGE_PATH,
                 mimeType="image/jpeg", generationAdded=10, generationModified=12, sizeBytes=128, pending=False, trashed=False))
 
     def test_motion_publication_gate_requires_exact_owned_published_output_and_process_frame(self):
@@ -968,7 +968,7 @@ class CreationProcessHostTest(unittest.TestCase):
             with self.subTest(field=field), self.assertRaises(RuntimeError):
                 module.verify_motion_publication_gate(module.json.dumps(dict(gate, **{field:value})), "owned", 100, 10123, "Frame")
         for field, value in (("ownerPackage", "other"), ("relativePath", "Pictures/other/"), ("pending", True), ("trashed", True),
-                             ("generationAdded", -1), ("generationModified", 9), ("generationModified", 12.0), ("sizeBytes", 129), ("mimeType", "image/png"), ("displayName", "UGallery-Motion-00000000-0000-4000-8000-000000000003.jpg")):
+                             ("generationAdded", -1), ("generationModified", 9), ("generationModified", 12.0), ("sizeBytes", 129), ("mimeType", "image/png"), ("displayName", "Lightforge-Motion-00000000-0000-4000-8000-000000000003.jpg")):
             changed = dict(gate, destination=dict(gate["destination"], **{field:value}))
             with self.subTest(destination=field), self.assertRaises(RuntimeError):
                 module.verify_motion_publication_gate(module.json.dumps(changed), "owned", 100, 10123, "Frame")
@@ -1011,7 +1011,7 @@ class CreationProcessHostTest(unittest.TestCase):
         redacted = "mResumedActivity: ActivityRecord android/.ChooserActivity\nIntent { act=android.intent.action.CHOOSER clip={image/jpeg U(content)} (has extras) }"
         module.require_motion_handoff_chooser(redacted)
         for output in ("ACTIVITY android/.ChooserActivity", redacted.replace("mResumedActivity", "mLastPausedActivity"),
-                       "mResumedActivity: ActivityRecord com.ugallery.app/.MainActivity"):
+                       "mResumedActivity: ActivityRecord com.librestatic.lightforge/.MainActivity"):
             with self.assertRaises(RuntimeError): module.require_motion_handoff_chooser(output)
 
     def test_motion_publication_handoff_requires_absence_then_fresh_receipt_plus_resumed_chooser_frame(self):
@@ -1164,7 +1164,7 @@ class CreationProcessHostTest(unittest.TestCase):
         return dict(fixtureUuid="owned", publicationId="00000000-0000-4000-8000-000000000001", token="00000000-0000-4000-8000-000000000002",
             phase="AFTER_MEDIASTORE_COMMIT", pid=100, uid=10123, deadlineElapsedRealtimeMillis=5000, renderSha256="a"*64, renderSizeBytes=128,
             destination=dict(uri="content://media/external/video/media/30", ownerPackage=module.PACKAGE,
-                displayName="UGallery-Motion-00000000-0000-4000-8000-000000000002.mp4", relativePath=module.MOTION_VIDEO_PATH,
+                displayName="Lightforge-Motion-00000000-0000-4000-8000-000000000002.mp4", relativePath=module.MOTION_VIDEO_PATH,
                 mimeType="video/mp4", generationAdded=10, generationModified=12, sizeBytes=128, pending=False, trashed=False))
 
     def test_motion_publication_gate_requires_exact_owned_published_output_and_process_clip(self):
@@ -1175,7 +1175,7 @@ class CreationProcessHostTest(unittest.TestCase):
             with self.subTest(field=field), self.assertRaises(RuntimeError):
                 module.verify_motion_publication_gate(module.json.dumps(dict(gate, **{field:value})), "owned", 100, 10123, "Clip")
         for field, value in (("ownerPackage", "other"), ("relativePath", "Pictures/other/"), ("pending", True), ("trashed", True),
-                             ("generationAdded", -1), ("generationModified", 9), ("generationModified", 12.0), ("sizeBytes", 129), ("mimeType", "image/jpeg"), ("displayName", "UGallery-Motion-00000000-0000-4000-8000-000000000003.mp4")):
+                             ("generationAdded", -1), ("generationModified", 9), ("generationModified", 12.0), ("sizeBytes", 129), ("mimeType", "image/jpeg"), ("displayName", "Lightforge-Motion-00000000-0000-4000-8000-000000000003.mp4")):
             changed = dict(gate, destination=dict(gate["destination"], **{field:value}))
             with self.subTest(destination=field), self.assertRaises(RuntimeError):
                 module.verify_motion_publication_gate(module.json.dumps(changed), "owned", 100, 10123, "Clip")
@@ -1218,7 +1218,7 @@ class CreationProcessHostTest(unittest.TestCase):
         redacted = "mResumedActivity: ActivityRecord android/.ChooserActivity\nIntent { act=android.intent.action.CHOOSER clip={video/mp4 U(content)} (has extras) }"
         module.require_motion_handoff_chooser(redacted)
         for output in ("ACTIVITY android/.ChooserActivity", redacted.replace("mResumedActivity", "mLastPausedActivity"),
-                       "mResumedActivity: ActivityRecord com.ugallery.app/.MainActivity"):
+                       "mResumedActivity: ActivityRecord com.librestatic.lightforge/.MainActivity"):
             with self.assertRaises(RuntimeError): module.require_motion_handoff_chooser(output)
 
     def test_motion_publication_handoff_requires_absence_then_fresh_receipt_plus_resumed_chooser_clip(self):
@@ -1416,13 +1416,13 @@ class CreationProcessHostTest(unittest.TestCase):
 
     def test_terminal_observer_requires_valid_remote_status(self):
         probe = self.probe()
-        probe.shell.return_value = "UGALLERY_PROC_STATUS:0\n", 0
+        probe.shell.return_value = "LIGHTFORGE_PROC_STATUS:0\n", 0
         self.assertTrue(probe.proc_exists(4321))
-        probe.shell.return_value = "UGALLERY_PROC_STATUS:1\n", 1
+        probe.shell.return_value = "LIGHTFORGE_PROC_STATUS:1\n", 1
         self.assertFalse(probe.proc_exists(4321))
         for output, code in (("cat: /proc/4321/stat: No such file or directory", 0),
                              ("run-as: Permission denied", 1), ("", 124),
-                             ("UGALLERY_PROC_STATUS:1\n", 0)):
+                             ("LIGHTFORGE_PROC_STATUS:1\n", 0)):
             with self.subTest(output=output):
                 probe.shell.return_value = output, code
                 with self.assertRaises(RuntimeError):
@@ -1976,7 +1976,7 @@ class CreationProcessHostTest(unittest.TestCase):
     def captured_partial_create_sheet(self):
         # Minimal hierarchy derived without changing retained node attributes from actual-api30/last-ui.xml.
         # Original capture SHA256: f0d37cfd935b9d12b23096af8336da8f0bb393fae7c34e699058fd4a2c9109a7
-        xml = '<hierarchy><node package="com.ugallery.app.pdfacceptance" bounds="[0,0][1080,2072]"><node package="com.ugallery.app.pdfacceptance" bounds="[0,1170][1080,2072]"><node index="0" text="" resource-id="" class="android.view.View" package="com.ugallery.app.pdfacceptance" content-desc="Drag handle" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[496,1231][584,1242]" /><node index="3" text="" resource-id="create-memory-video" class="android.view.View" package="com.ugallery.app.pdfacceptance" content-desc="" checkable="false" checked="false" clickable="true" enabled="true" focusable="true" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[55,1589][1025,1721]" /><node index="7" text="" resource-id="create-collage" class="android.view.View" package="com.ugallery.app.pdfacceptance" content-desc="" checkable="false" checked="false" clickable="true" enabled="true" focusable="true" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,0][0,0]" /></node></node></hierarchy>'
+        xml = '<hierarchy><node package="com.librestatic.lightforge.pdfacceptance" bounds="[0,0][1080,2072]"><node package="com.librestatic.lightforge.pdfacceptance" bounds="[0,1170][1080,2072]"><node index="0" text="" resource-id="" class="android.view.View" package="com.librestatic.lightforge.pdfacceptance" content-desc="Drag handle" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[496,1231][584,1242]" /><node index="3" text="" resource-id="create-memory-video" class="android.view.View" package="com.librestatic.lightforge.pdfacceptance" content-desc="" checkable="false" checked="false" clickable="true" enabled="true" focusable="true" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[55,1589][1025,1721]" /><node index="7" text="" resource-id="create-collage" class="android.view.View" package="com.librestatic.lightforge.pdfacceptance" content-desc="" checkable="false" checked="false" clickable="true" enabled="true" focusable="true" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,0][0,0]" /></node></node></hierarchy>'
         return list(module.ET.fromstring(xml).iter("node"))
 
     def test_captured_zero_collage_bounds_expand_handle_once_then_reacquire_before_tap(self):
@@ -2063,7 +2063,7 @@ class CreationProcessHostTest(unittest.TestCase):
     def test_captured_thin_collage_edge_scrolls_without_tapping_hidden_text(self):
         # Exact node from expanded-api30/last-ui.xml, SHA256
         # b20ec2258ac63822ac3ac44ebafdea25f4912b5f45838fae01893bef647f9e3c.
-        xml = '<node index="7" text="" resource-id="create-collage" class="android.view.View" package="com.ugallery.app.pdfacceptance" content-desc="" checkable="false" checked="false" clickable="true" enabled="true" focusable="true" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[55,2054][1025,2072]"><node index="0" text="Collage" resource-id="" class="android.widget.TextView" package="com.ugallery.app.pdfacceptance" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,0][0,0]" /><node index="1" text="" resource-id="" class="android.widget.Button" package="com.ugallery.app.pdfacceptance" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[55,2065][1025,2072]" /></node>'
+        xml = '<node index="7" text="" resource-id="create-collage" class="android.view.View" package="com.librestatic.lightforge.pdfacceptance" content-desc="" checkable="false" checked="false" clickable="true" enabled="true" focusable="true" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[55,2054][1025,2072]"><node index="0" text="Collage" resource-id="" class="android.widget.TextView" package="com.librestatic.lightforge.pdfacceptance" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[0,0][0,0]" /><node index="1" text="" resource-id="" class="android.widget.Button" package="com.librestatic.lightforge.pdfacceptance" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" focusable="false" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[55,2065][1025,2072]" /></node>'
         probe = self.probe()
         probe.manifest = {}
         window = module.ET.Element("node", {"package": module.PACKAGE, "bounds": "[0,0][1080,2072]"})
@@ -2092,7 +2092,7 @@ class CreationProcessHostTest(unittest.TestCase):
     def test_real_display_observer_requires_exact_hash_path_and_assigned_lane(self):
         probe = self.probe()
         probe.args = SimpleNamespace(serial="emulator-5554", observer_sha256="a"*64)
-        expected = "/data/local/tmp/ugallery-ui-observer-" + "a"*64 + ".jar"
+        expected = "/data/local/tmp/lightforge-ui-observer-" + "a"*64 + ".jar"
         probe.shell.return_value = "a"*64 + "  " + expected + "\n", 0
         self.assertEqual(expected, probe.guard_observer())
         probe.shell.assert_called_once_with("sha256sum", expected)
@@ -2146,7 +2146,7 @@ class CreationProcessHostTest(unittest.TestCase):
                     if args[0] == "sha256sum":
                         return "a"*64 + "  " + expected, 0
                     self.assertEqual(("env", "CLASSPATH=/system/framework/uiautomator.jar:" + expected,
-                                      "app_process", "/system/bin", "com.ugallery.tools.RealDisplayDump"), args[:-1])
+                                      "app_process", "/system/bin", "com.librestatic.lightforge.tools.RealDisplayDump"), args[:-1])
                     receipt = self.real_display_receipt(args[-1], nodes=3 if mismatch == "nodes" else 2)
                     if mismatch == "path":
                         receipt["path"] = "/sdcard/stale.xml"
@@ -2181,7 +2181,7 @@ class CreationProcessHostTest(unittest.TestCase):
 
     def test_real_display_terminal_null_root_retries_only_once_with_fresh_path(self):
         known = ("java.lang.IllegalStateException: Null active accessibility root\n"
-                 "\tat com.ugallery.tools.RealDisplayDump.main(RealDisplayDump.java:36)\n"
+                 "\tat com.librestatic.lightforge.tools.RealDisplayDump.main(RealDisplayDump.java:36)\n"
                  "\tat com.android.internal.os.RuntimeInit.nativeFinishInit(Native Method)\n"
                  "\tat com.android.internal.os.RuntimeInit.main(RuntimeInit.java:399)\n")
         for failure in ("transient", "persistent", "other"):
@@ -2282,10 +2282,10 @@ class CreationProcessHostTest(unittest.TestCase):
         probe.require_no_memory_video_export("restored-draft")
         args = probe.shell.call_args.args
         self.assertIn("content://media/external/video/media?includePending=1", args)
-        self.assertIn("owner_package_name='" + module.PACKAGE + "' AND relative_path='Movies/UGallery/Memories/'", args)
+        self.assertIn("owner_package_name='" + module.PACKAGE + "' AND relative_path='Movies/Lightforge/Memories/'", args)
         probe.record.assert_called_once()
         row = self.row()
-        row.update(relative_path=module.MEMORY_VIDEO_OUTPUT_PATH, _display_name="UGallery-Memory-owned.mp4", is_pending=1)
+        row.update(relative_path=module.MEMORY_VIDEO_OUTPUT_PATH, _display_name="Lightforge-Memory-owned.mp4", is_pending=1)
         probe.shell.return_value = "Row: 0 " + ", ".join(field + "=" + str(row[field]) for field in module.FIELDS), 0
         with self.assertRaisesRegex(RuntimeError, "outputs changed"):
             probe.require_no_memory_video_export("back-original-selection")
@@ -2296,7 +2296,7 @@ class CreationProcessHostTest(unittest.TestCase):
 
     def test_gif_output_inventory_reuses_exact_owner_path_pending_guards(self):
         row = self.row()
-        row.update(relative_path=module.GIF_OUTPUT_PATH, _display_name="UGallery-GIF-owned.gif", is_pending=1)
+        row.update(relative_path=module.GIF_OUTPUT_PATH, _display_name="Lightforge-GIF-owned.gif", is_pending=1)
         output = "Row: 0 " + ", ".join(field + "=" + str(row[field]) for field in module.FIELDS)
         snapshot = module.parse_creation_outputs(output, module.GIF_OUTPUT_PATH)
         self.assertEqual("1", snapshot[0][-1])
@@ -2307,7 +2307,7 @@ class CreationProcessHostTest(unittest.TestCase):
         probe = self.probe()
         probe.shell.return_value = output, 0
         self.assertEqual(snapshot, probe.creation_outputs(module.GIF_OUTPUT_PATH))
-        self.assertIn("owner_package_name='" + module.PACKAGE + "' AND relative_path='Pictures/UGallery/GIF/'",
+        self.assertIn("owner_package_name='" + module.PACKAGE + "' AND relative_path='Pictures/Lightforge/GIF/'",
                       probe.shell.call_args.args)
         self.assertIn("content://media/external/images/media?includePending=1", probe.shell.call_args.args)
         probe.gif_output_baseline = snapshot
@@ -2434,7 +2434,7 @@ class CreationProcessHostTest(unittest.TestCase):
         self.assertIn("content://media/external/images/media?includePending=1", probe.shell.call_args.args)
         self.assertEqual((), probe.creation_outputs(module.MOTION_VIDEO_PATH))
         self.assertIn("content://media/external/video/media?includePending=1", probe.shell.call_args.args)
-        self.assertIn("owner_package_name='" + module.PACKAGE + "' AND relative_path='Movies/UGallery/Motion/'", probe.shell.call_args.args)
+        self.assertIn("owner_package_name='" + module.PACKAGE + "' AND relative_path='Movies/Lightforge/Motion/'", probe.shell.call_args.args)
         probe.motion_output_baseline = {module.MOTION_IMAGE_PATH: (), module.MOTION_VIDEO_PATH: ()}
         probe.require_no_motion_export("restored-draft")
         probe.creation_outputs = Mock(side_effect=[(), (("new-video-output",),)])
@@ -2682,7 +2682,7 @@ class CreationProcessHostTest(unittest.TestCase):
         probe.shell.return_value = "No result found.", 0
         self.assertEqual((), probe.creation_outputs(module.VIDEO_EDITOR_OUTPUT_PATH))
         self.assertIn("content://media/external/video/media?includePending=1", probe.shell.call_args.args)
-        self.assertIn("owner_package_name='"+module.PACKAGE+"' AND relative_path='Movies/UGallery/'", probe.shell.call_args.args)
+        self.assertIn("owner_package_name='"+module.PACKAGE+"' AND relative_path='Movies/Lightforge/'", probe.shell.call_args.args)
 
     def test_editor_setup_and_restore_preserve_audio_and_paused_values_without_reselecting_tab(self):
         probe = self.probe()

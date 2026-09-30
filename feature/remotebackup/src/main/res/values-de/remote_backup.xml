@@ -44,7 +44,7 @@
     <string name="remote_local_task">Lokale Wiederherstellung öffnen</string>
     <string name="remote_cancel_hint">Aufgabe stoppen? Unvollständige oder unklare Remote-Dateien bleiben zur Prüfung sichtbar. Keine Remote-Dateien oder Originale werden gelöscht.</string>
     <string name="remote_residuals">Remote-Objekte zur Prüfung: %1$s</string>
-    <string name="remote_archive_summary">Archiv v%1$d · %2$d Dateien · %3$d Bytes</string>
+    <plurals name="remote_archive_summary"><item quantity="one">Archiv v%1$d · %2$d Datei · %3$s</item><item quantity="other">Archiv v%1$d · %2$d Dateien · %3$s</item></plurals>
     <string name="remote_org_summary">Organisation: %1$d/%2$d Quellen; ausgelassene Verweise/Zustände: %3$d; ungelöst: %4$d.</string>
     <string name="remote_partial">Angezeigten Teilumfang der Organisation akzeptieren</string>
     <string name="remote_global">Auch Erinnerungsregeln für die bestehende Bibliothek importieren</string>
@@ -77,6 +77,10 @@
     <string name="remote_error_port_invalid">Gib einen Port zwischen 1 und 65535 ein.</string>
     <string name="remote_error_user_required">Gib einen Benutzernamen ein.</string>
     <string name="remote_error_folder_invalid">Ungültiger Ordner: Er darf keine „..“-Segmente enthalten.</string>
+    <string name="remote_error_folder_sftp_absolute">SFTP-Ordner müssen mit / beginnen und dürfen keinen umgekehrten Schrägstrich enthalten, zum Beispiel /backups.</string>
+    <string name="remote_error_invalid_path">Der Server hat den Ordnerpfad abgelehnt. Füge den Server erneut mit einem absoluten Ordner wie /backups hinzu.</string>
     <string name="remote_error_share_required">Gib einen gültigen SMB-Freigabenamen ein.</string>
     <string name="remote_error_key_required">Wähle eine SSH-Datei mit privatem Schlüssel.</string>
+    <string name="remote_transfer_progress">%1$s von %2$s</string>
+    <string name="remote_archive_checksum">Prüfsumme (SHA-256): %1$s</string>
 </resources>
