@@ -30,4 +30,4 @@ The HTML prototype is a visual fixture, not a production route graph. Production
 
 ## Fixture registry
 
-Every HTML file remains registered by `DESIGN-MANIFEST.json` and `docs/design/HANDOFF_INVENTORY.json`. Compose screenshot fixtures will use stable names derived from `UI_ROUTE_MAP_GALERIA_ANDROID.md`.
+Every HTML file remains registered by `DESIGN-MANIFEST.json` and `docs/design/HANDOFF_INVENTORY.json`. Compose screenshot fixtures will use stable names derived from `docs/prompts/ui-route-map.md`.

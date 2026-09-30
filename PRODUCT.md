@@ -67,9 +67,9 @@ A gallery that scales to quarter-million-item libraries on-device, with local ML
 ## Evidence on Hand
 
 - Complete HTML mockup (32 screens) in docs/mock/; used as visual contract, not architecture
-- Visual handoff files: DESIGN-HANDOFF.md, DESIGN-MANIFEST.json, UI_ROUTE_MAP_GALERIA_ANDROID.md
+- Visual handoff files: DESIGN-HANDOFF.md, DESIGN-MANIFEST.json, docs/prompts/ui-route-map.md
 - 41 ADRs in docs/adr/ covering all architectural decisions
-- Backlog in CODEX_BACKLOG_GALERIA_ANDROID.json with M0-M6 milestones (all complete)
+- Backlog in docs/prompts/codex-backlog.json with M0-M6 milestones (all complete)
 - Physical device testing: reference phone (reference phone, API 36) and Galaxy Tab S9+ (reference tablet, API 36)
 - Macrobenchmark results and Baseline Profiles in baselineprofile/ and benchmark/ modules
 - Missing: styles/gallery-components.css and scripts/gallery-prototype.js from mockup ZIP (registered as visual-fidelity blocker; does not block architecture/implementation work)
