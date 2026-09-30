@@ -61,7 +61,7 @@ class SurfaceStateKeyTest {
                 selectedHighlightId = null,
             ),
         )
-        assertNull(surfaceStateKey(SurfaceRoute.Viewer, RootTab.Photos, selectedAlbum = null))
+        assertEquals(ViewerSurfaceStateKey, surfaceStateKey(SurfaceRoute.Viewer, RootTab.Photos, selectedAlbum = null))
     }
 
     @Test
