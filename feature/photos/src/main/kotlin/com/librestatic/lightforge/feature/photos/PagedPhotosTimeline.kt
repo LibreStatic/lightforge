@@ -71,6 +71,14 @@ import com.librestatic.lightforge.core.thumbnail.ThumbnailRequest
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlinx.coroutines.flow.first
 
 /** One-shot input-focus request. Real TalkBack focus requires separate device acceptance. */
 data class TimelineFocusReturn(val key: MediaKey, val token: Long)
@@ -198,6 +206,7 @@ fun PagedPhotosTimeline(
     PinTimelineToNewestUntilUserScrolls(state, columns, focusReturn, userScrolled) { userScrolled = true }
     // Mid-scrub the scrubber re-places the grid on every page; a second correction would fight it.
     KeepLeadingRowAcrossPrepends(state, entries, enabled = userScrolled && !scrubbing)
+    val entrance = rememberGridEntrance(state, columns, hasItems = { entries.itemCount > 0 })
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
         state = state,
@@ -212,6 +221,11 @@ fun PagedPhotosTimeline(
             state,
             stableKeyAt = { index -> entries.itemSnapshotList.getOrNull(index)?.stableKey },
             haptics = androidx.compose.ui.platform.LocalHapticFeedback.current,
+            onPinchOpen = { index ->
+                val media = (entries.itemSnapshotList.getOrNull(index) as? TimelineEntry.Media)?.value
+                if (media != null) onMediaClick(media)
+                media != null
+            },
         ))
             .lazyGridDragSelection(
                 state = state,
@@ -235,33 +249,35 @@ fun PagedPhotosTimeline(
             },
             contentType = { index -> entries.itemSnapshotList.getOrNull(index)?.javaClass?.simpleName ?: "unloaded" },
         ) { index ->
-            // A previous layout can still request an index after Paging publishes fewer rows.
-            when (val entry = if (index in 0 until entries.itemCount) entries[index] else null) {
-                is TimelineEntry.DayHeader -> TimelineDayHeader(entry.epochDay, entry.granularity)
-                is TimelineEntry.Media -> TimelineThumbnail(
-                    entry = entry,
-                    loader = thumbnailLoader,
-                    sizePx = thumbnailSizePx,
-                    onClick = { onMediaClick(entry.value) },
-                    onLongClick = {
-                        onMediaSelectionChange(entry.value, !isMediaSelected(entry.value))
-                    },
-                    cropToFill = cropThumbnails,
-                    selected = isMediaSelected(entry.value),
-                    selectionOrder = selectionOrder(entry.value),
-                    focusReturn = focusReturn?.takeIf { request ->
-                        !state.isScrollInProgress && request.key == entry.value.key &&
-                            state.layoutInfo.visibleItemsInfo.any { it.index == index }
-                    },
-                    onFocusReturnConsumed = onFocusReturnConsumed,
-                    deferLoad = deferThumbnails,
-                )
-                null -> Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                )
+            Box(Modifier.gridEntrance(entrance, index)) {
+                // A previous layout can still request an index after Paging publishes fewer rows.
+                when (val entry = if (index in 0 until entries.itemCount) entries[index] else null) {
+                    is TimelineEntry.DayHeader -> TimelineDayHeader(entry.epochDay, entry.granularity)
+                    is TimelineEntry.Media -> TimelineThumbnail(
+                        entry = entry,
+                        loader = thumbnailLoader,
+                        sizePx = thumbnailSizePx,
+                        onClick = { onMediaClick(entry.value) },
+                        onLongClick = {
+                            onMediaSelectionChange(entry.value, !isMediaSelected(entry.value))
+                        },
+                        cropToFill = cropThumbnails,
+                        selected = isMediaSelected(entry.value),
+                        selectionOrder = selectionOrder(entry.value),
+                        focusReturn = focusReturn?.takeIf { request ->
+                            !state.isScrollInProgress && request.key == entry.value.key &&
+                                state.layoutInfo.visibleItemsInfo.any { it.index == index }
+                        },
+                        onFocusReturnConsumed = onFocusReturnConsumed,
+                        deferLoad = deferThumbnails,
+                    )
+                    null -> Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1f)
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                    )
+                }
             }
         }
     }
@@ -542,3 +558,55 @@ private fun KeepLeadingRowAcrossPrepends(
 }
 
 private const val PinLogTag = "LightforgeLibrary"
+
+/**
+ * Staggered arrival for the tiles of a grid's first paint. The clock starts once the grid has laid
+ * out items and restarts whenever the grid is composed from scratch; tiles that appear later while
+ * scrolling are already past it and show at once. Skipped when system animations are off.
+ */
+@Stable
+private class GridEntrance(val columns: Int) {
+    /** Milliseconds since the first paint, or null until then. */
+    val elapsed = Animatable(0f)
+    var firstIndex by mutableIntStateOf(0)
+    var started by mutableStateOf(false)
+
+    /** 0..1 arrival of the tile at [index]: diagonal stagger by row and column from the first tile. */
+    fun progress(index: Int): Float {
+        if (!started) return 0f
+        val slot = (index - firstIndex).coerceAtLeast(0)
+        val delay = ((slot / columns + slot % columns) * GridEntranceStepMillis).coerceAtMost(GridEntranceMaxDelayMillis)
+        return ((elapsed.value - delay) / GridEntranceTileMillis).coerceIn(0f, 1f)
+    }
+}
+
+private const val GridEntranceStepMillis = 40f
+private const val GridEntranceMaxDelayMillis = 480f
+private const val GridEntranceTileMillis = 320f
+
+@Composable
+private fun rememberGridEntrance(state: LazyGridState, columns: Int, hasItems: () -> Boolean): GridEntrance? {
+    if (com.librestatic.lightforge.core.designsystem.rememberGalleryReducedMotion()) return null
+    val entrance = remember { GridEntrance(columns) }
+    val currentHasItems by rememberUpdatedState(hasItems)
+    LaunchedEffect(entrance) {
+        snapshotFlow { currentHasItems() && state.layoutInfo.visibleItemsInfo.isNotEmpty() }.first { it }
+        entrance.firstIndex = state.firstVisibleItemIndex
+        entrance.started = true
+        entrance.elapsed.animateTo(
+            GridEntranceMaxDelayMillis + GridEntranceTileMillis,
+            tween(durationMillis = (GridEntranceMaxDelayMillis + GridEntranceTileMillis).toInt(), easing = LinearEasing),
+        )
+    }
+    return entrance
+}
+
+/** Fades and scales a tile in during [entrance]; read in the draw phase, so it never recomposes. */
+private fun Modifier.gridEntrance(entrance: GridEntrance?, index: Int): Modifier =
+    if (entrance == null) this else graphicsLayer {
+        val p = FastOutSlowInEasing.transform(entrance.progress(index))
+        alpha = p
+        val scale = 0.85f + 0.15f * p
+        scaleX = scale
+        scaleY = scale
+    }

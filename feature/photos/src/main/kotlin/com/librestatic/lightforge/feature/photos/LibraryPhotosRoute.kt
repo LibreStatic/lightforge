@@ -214,10 +214,20 @@ fun LibraryPhotosRoute(
             }
             entries.itemCount == 0 && engineState == LibraryUiState.Ready -> EmptyLibrary(Modifier.fillMaxSize())
             else -> {
-                androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().height(4.dp)) {
-                    if (engineState == LibraryUiState.Indexing) {
-                        GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth().semantics { contentDescription = loadingDescription })
-                    }
+                // The wavy indicator needs its full height to show the wave; a clipped strip read as
+                // the old flat bar. It folds away with a fade once indexing ends.
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = engineState == LibraryUiState.Indexing,
+                    enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.expandVertically(),
+                    exit = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(durationMillis = 400)) +
+                        androidx.compose.animation.shrinkVertically(androidx.compose.animation.core.tween(durationMillis = 500, delayMillis = 150)),
+                ) {
+                    GalleryIndeterminateProgressIndicator(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                            .semantics { contentDescription = loadingDescription },
+                    )
                 }
                 AdaptivePagedPhotosTimeline(
                     entries = entries,
