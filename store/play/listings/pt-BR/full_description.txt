@@ -1,0 +1,56 @@
+O Lightforge é uma galeria privada para Android, pensada para funcionar primeiro offline e para grandes bibliotecas de fotos e vídeos. Navegue, pesquise, organize, edite e proteja suas mídias no seu próprio aparelho. Sem conta, sem anúncios, sem rastreamento.
+
+BETA DE ACESSO ANTECIPADO
+O Lightforge está em versão beta. A maioria dos recursos já está pronta para uso, mas alguns ainda estão amadurecendo, e as ferramentas de apagar objetos e recortar objeto estão marcadas como experimentais. Seu feedback molda o que vem a seguir.
+
+FEITO PARA BIBLIOTECAS GRANDES
+• Uma linha do tempo em que você usa o gesto de pinça para ir de anos até um único dia
+• Projetado para bibliotecas com mais de 100.000 fotos e vídeos, inclusive em cartões SD removíveis
+• Funciona com as permissões de fotos do Android: permita tudo ou apenas os itens selecionados
+• Não exige acesso a todos os arquivos
+
+PESQUISA QUE FICA NO SEU APARELHO
+• Pesquise por palavra-chave, data, lugar, pessoas, animais e texto dentro das fotos
+• Pesquisa semântica opcional que entende o que aparece em uma foto (requer baixar um modelo nas Configurações)
+• Toda pesquisa roda no seu aparelho; suas fotos e consultas nunca são enviadas
+
+PESSOAS, ANIMAIS E LUGARES
+• Agrupamento de rostos opcional, só se você ativar, com correções manuais e tudo processado localmente
+• Reconhecimento de animais para gatos e cachorros
+• Um mapa de Lugares offline criado a partir das localizações salvas nas suas fotos
+• Pause ou exclua todos os dados de análise quando quiser
+
+ÁLBUNS PRIVADOS E BLOQUEIO DO APP
+• Guarde fotos e vídeos em um álbum privado criptografado e protegido pela sua biometria
+• Bloqueie o app inteiro com biometria ou com a credencial do aparelho
+
+EDITOR DE FOTOS
+• Filtros, corte, endireitar e ajustes precisos
+• Revelação de RAW com recuperação de realces e correção de lente
+• As edições são salvas como cópias, a menos que você escolha substituir
+
+EDITOR DE VÍDEO
+• Corte, altere a velocidade, adicione música e ajuste a cor
+• Suporte a gravações LOG, importação de LUT e exportação HDR em aparelhos compatíveis
+
+ESTÚDIO PDF
+• Organize fotos e documentos em páginas
+• Retrabalhe PDFs importados e exporte-os localmente
+
+MAIS PARA CRIAR E ORGANIZAR
+• Álbuns, favoritos, lixeira e coleções inteligentes
+• Memórias agrupadas por data e lugar, transformadas em vídeos curtos
+• Criadores de colagens e de GIF
+• Reprodução de fotos em movimento
+• Um widget para a tela inicial
+
+SUA BIBLIOTECA, SUAS REGRAS
+• Envie originais para outro aparelho Android pela sua rede local, com conexão criptografada
+• Espelhe sua biblioteca em uma pasta ou faça backup nos seus próprios servidores
+• Disponível em inglês, espanhol, francês, português, italiano e alemão
+• Cores claras, escuras e dinâmicas do Material You, com suporte a celulares, dobráveis e tablets
+
+PRIVACIDADE
+O Lightforge não coleta seus dados. Suas fotos, vídeos e resultados de análise ficam no seu aparelho. A internet só é usada quando você pede, por exemplo para baixar um modelo de pesquisa ou de reconhecimento de animais, ou para acessar seu próprio servidor ou outro aparelho da sua rede.
+
+O Lightforge é de código aberto sob a Licença Apache 2.0. O código-fonte está disponível no GitHub.

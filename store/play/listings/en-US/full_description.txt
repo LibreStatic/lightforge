@@ -1,0 +1,56 @@
+Lightforge is a private, offline-first gallery for Android, built for big photo and video libraries. Browse, search, organize, edit and protect your media on your own device. No account, no ads, no tracking.
+
+EARLY ACCESS BETA
+Lightforge is in beta. Most features are ready to use, but some are still maturing, and the object eraser and subject cut-out tools are labeled experimental. Your feedback shapes what comes next.
+
+BUILT FOR LARGE LIBRARIES
+• A timeline you pinch to zoom from years down to a single day
+• Designed for libraries of 100,000+ photos and videos, including removable SD cards
+• Works with Android's photo permissions: share everything or only selected items
+• No all-files access required
+
+SEARCH THAT STAYS ON YOUR DEVICE
+• Search by keyword, date, place, people, pets and text inside photos
+• Optional semantic search that understands what a photo shows (requires downloading a model in Settings)
+• Every search runs on your device; your photos and queries are never uploaded
+
+PEOPLE, PETS AND PLACES
+• Optional, opt-in face grouping with manual corrections, all processed locally
+• Pet recognition for cats and dogs
+• An offline Places map built from the locations stored in your photos
+• Pause or delete all analysis data at any time
+
+PRIVATE ALBUMS AND APP LOCK
+• Store photos and videos in an encrypted private album protected by your biometrics
+• Lock the whole app behind biometrics or your device credential
+
+PHOTO EDITOR
+• Filters, crop, straighten and precise adjustments
+• Camera RAW development with highlight recovery and lens correction
+• Edits are saved as copies unless you choose to overwrite
+
+VIDEO EDITOR
+• Trim, change speed, add music and adjust color
+• LOG footage support, LUT import and HDR export on supported devices
+
+PDF STUDIO
+• Lay out photos and documents on pages
+• Rework imported PDFs and export them locally
+
+MORE TO CREATE AND ORGANIZE
+• Albums, favorites, trash and smart collections
+• Memories grouped by time and place, turned into short videos
+• Collage and GIF makers
+• Motion photo playback
+• A home screen widget
+
+YOUR LIBRARY, YOUR TERMS
+• Send originals to another Android device over your local network with an encrypted connection
+• Mirror your library to a folder or back it up to your own servers
+• Available in English, Spanish, French, Portuguese, Italian and German
+• Light, dark and dynamic Material You colors, with support for phones, foldables and tablets
+
+PRIVACY
+Lightforge does not collect your data. Your photos, videos and analysis results stay on your device. The internet is used only when you ask for it, for example to download a search or pet-recognition model, or to reach your own server or another device on your network.
+
+Lightforge is open source under the Apache License 2.0. The source code is available on GitHub.
