@@ -18,7 +18,7 @@ jobs:
       - uses: android-actions/setup-android@v3
         with:
           packages: ''
-      - run: sdkmanager "platforms;android-37" "build-tools;37.0.0"
+      - run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
       - run: ./gradlew :app:assembleOfflineDebug :app:assembleOfflineRelease test lint
       - run: python tools/verify_design_handoff.py
       - run: python tools/verify_offline_release.py
