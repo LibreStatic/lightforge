@@ -52,7 +52,7 @@ Category to choose: **Utility, Productivity, Communication, or Other** (not Soci
 | Gambling or simulated gambling | No | |
 | Horror / fear themes | No | |
 | Discrimination or hate | No | |
-| Users can interact or exchange content with each other | No | No accounts, no feed, no chat. Android-to-Android transfer is a direct, user-initiated file send between two devices on the same network, not a platform. **[CONFIRM]** whether the IARC wording for "share content" should be answered Yes because of this transfer; if Yes, choose "shares only with people the user selects". |
+| Users can interact or exchange content with each other | **Yes** (owner decision) | Android-to-Android transfer: direct, user-initiated, encrypted file send between two devices on the same local network. No accounts, feed, chat or public sharing; shares only with people the user selects. |
 | Shares user's physical location with other users | No | Photo EXIF locations are read locally for the Places map and are not sent anywhere. "Share without location by default" is a setting. |
 | Allows purchases of digital goods | No | Paid upfront; no in-app purchases (no Play Billing in the project) |
 | Unrestricted internet access / web browsing | No | No browser; network is used only for model/map downloads and user-configured servers |
