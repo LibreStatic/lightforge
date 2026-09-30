@@ -97,6 +97,10 @@ val verifyVerbatimLicenseCopies by tasks.registering(Exec::class) {
     group = "verification"
     description = "Verifies that license assets are byte-for-byte copies of their canonical sources."
     inputs.files(verbatimLicenseCopies.flatMap { (source, bundled) -> listOf(source, bundled) })
+    // Stamp output lets Gradle skip the check when no license file changed.
+    val stamp = layout.buildDirectory.file("verification/verbatim-licenses.ok")
+    outputs.file(stamp)
+    doLast { stamp.get().asFile.writeText("ok\n") }
     workingDir(rootProject.projectDir)
     commandLine(
         "bash",
@@ -115,6 +119,9 @@ val verifyThirdPartyLicenses by tasks.registering(Exec::class) {
         rootProject.file("tools/generate_third_party_licenses.py"),
         "src/main/assets/third_party_licenses.json",
     )
+    val stamp = layout.buildDirectory.file("verification/third-party-licenses.ok")
+    outputs.file(stamp)
+    doLast { stamp.get().asFile.writeText("ok\n") }
     workingDir(rootProject.projectDir)
     commandLine(
         "python3",
