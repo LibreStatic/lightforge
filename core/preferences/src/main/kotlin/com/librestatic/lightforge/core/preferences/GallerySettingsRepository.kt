@@ -345,7 +345,8 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     ),
                 analysis =
                     AnalysisSettings(
-                        fullAnalysisMinimumBatteryPercent = p[Keys.FullAnalysisMinimumBattery] ?: 20
+                        fullAnalysisMinimumBatteryPercent = p[Keys.FullAnalysisMinimumBattery] ?: 20,
+                        modelDownloadsOnMobileData = p[Keys.ModelDownloadsOnMobileData] ?: false,
                     ),
             )
             .normalized()
@@ -393,6 +394,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         p[Keys.DestructiveLock] = s.security.destructiveActionLockEnabled
         p[Keys.RelockTimeout] = s.security.relockTimeoutMinutes
         p[Keys.FullAnalysisMinimumBattery] = s.analysis.fullAnalysisMinimumBatteryPercent
+        p[Keys.ModelDownloadsOnMobileData] = s.analysis.modelDownloadsOnMobileData
     }
 
     private fun GallerySettings.toJson() =
@@ -480,6 +482,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                         "fullAnalysisMinimumBatteryPercent",
                         analysis.fullAnalysisMinimumBatteryPercent,
                     )
+                    put("modelDownloadsOnMobileData", analysis.modelDownloadsOnMobileData)
                 },
             )
         }
@@ -567,7 +570,11 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     s.bool("destructiveActionLockEnabled", false),
                     s.optInt("relockTimeoutMinutes", 1),
                 ),
-            analysis = AnalysisSettings(a.optInt("fullAnalysisMinimumBatteryPercent", 20)),
+            analysis =
+                AnalysisSettings(
+                    a.optInt("fullAnalysisMinimumBatteryPercent", 20),
+                    a.bool("modelDownloadsOnMobileData", false),
+                ),
         )
     }
 
@@ -615,6 +622,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         val DestructiveLock = booleanPreferencesKey("security.destructive_lock")
         val RelockTimeout = intPreferencesKey("security.relock_timeout")
         val FullAnalysisMinimumBattery = intPreferencesKey("analysis.full_minimum_battery_percent")
+        val ModelDownloadsOnMobileData = booleanPreferencesKey("analysis.model_downloads_on_mobile_data")
     }
 
     private inline fun <reified T : Enum<T>> String.enumOrDefault(default: T): T =

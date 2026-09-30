@@ -3,6 +3,8 @@ package com.librestatic.lightforge
 import android.app.Application
 import android.content.Context
 import com.librestatic.lightforge.core.ml.DetectedContentRuntime
+import com.librestatic.lightforge.core.ml.ModelDownloads
+import com.librestatic.lightforge.feature.petrecognition.PetModelDownloadWorker
 import com.librestatic.lightforge.feature.settings.LegacyAppLanguage
 import dagger.hilt.android.HiltAndroidApp
 
@@ -18,5 +20,6 @@ class LightforgeApplication : Application() {
         super.onCreate()
         DetectedContentRuntime.install(this)
         DocumentAutoArchiveWorker.install(this)
+        ModelDownloads.install(this, listOf(PetModelDownloadWorker::updateIfNeeded))
     }
 }

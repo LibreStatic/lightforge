@@ -236,6 +236,9 @@ import com.librestatic.lightforge.core.model.ViewerMedia
 
 enum class LibraryEngineState { Starting, Indexing, Ready, PermissionRequired, Error }
 
+/** Post-sync library work that runs while the timeline is already browsable. */
+enum class LibraryMaintenance { SearchIndex, Moments }
+
 data class GallerySearchUiState(
     val query: String = "",
     val hits: List<MediaSearchHit> = emptyList(),
@@ -356,6 +359,9 @@ class GalleryViewModel @Inject constructor(
     private val mutableSearch = MutableStateFlow(GallerySearchUiState())
     val search = mutableSearch.asStateFlow()
     private val mutableSearchIndexReady = MutableStateFlow(false)
+    private val mutableLibraryMaintenance = MutableStateFlow<LibraryMaintenance?>(null)
+    /** Work that follows a sync while the timeline is already browsable; null when idle. */
+    val libraryMaintenance = mutableLibraryMaintenance.asStateFlow()
     val searchIndexReady = mutableSearchIndexReady.asStateFlow()
     private val mlScheduler = MlScheduler(application)
     private val videoExportStore = VideoExportStore.get(application)
@@ -1979,8 +1985,8 @@ class GalleryViewModel @Inject constructor(
         // Turning semantic search on is the user's consent to fetch the recommended model.
         if (enabled) semanticModelManager?.ensureAutomaticDownload(localAnalysisAccepted = true)
     }
-    fun downloadSemanticModel(modelId: String, allowMetered: Boolean) {
-        semanticModelManager?.download(modelId, allowMetered, userInitiated = true)
+    fun downloadSemanticModel(modelId: String) {
+        semanticModelManager?.download(modelId, userInitiated = true)
     }
     fun cancelSemanticModelDownload(modelId: String) { semanticModelManager?.cancelDownload(modelId) }
     fun activateSemanticModel(modelId: String, allowUnsupported: Boolean) {
@@ -2605,6 +2611,7 @@ class GalleryViewModel @Inject constructor(
             requested = states.any { it.requested },
             runMode = active?.runMode,
             activeTask = active?.activeTask,
+            waitReason = states.firstNotNullOfOrNull { it.waitReason },
         )
     }
 
@@ -6028,7 +6035,12 @@ class GalleryViewModel @Inject constructor(
             mutableEngineState.value = LibraryEngineState.PermissionRequired
             return@withLock
         }
-        mutableEngineState.value = LibraryEngineState.Indexing
+        val previousState = mutableEngineState.value
+        // Only a first pass or a state that is not browsable yet announces work. Routine syncs
+        // (foreground, MediaStore changes) must not flip a usable library back to "preparing".
+        if (verifiedRuntime !== active || previousState != LibraryEngineState.Ready) {
+            mutableEngineState.value = LibraryEngineState.Indexing
+        }
         try {
             var requiresSearchRebuild = false
             var changedItems = 0L
@@ -6064,36 +6076,51 @@ class GalleryViewModel @Inject constructor(
                 active.timeline.invalidate()
                 active.albums.invalidateSummaries()
             }
-            if (completed) withContext(Dispatchers.IO) {
+            if (completed) mutableEngineState.value = LibraryEngineState.Ready
+            // The timeline is already usable, so failing maintenance is logged instead of
+            // replacing it with the library error screen; the next refresh retries.
+            if (completed) try { withContext(Dispatchers.IO) {
                 val prefs = getApplication<Application>().getSharedPreferences("search-production", Context.MODE_PRIVATE)
                 val needsInitial = prefs.getLong("schema", 0) != com.librestatic.lightforge.core.search.MediaSearchSchema.Version
                 if (needsInitial || requiresSearchRebuild || changedItems > indexedHintCount) {
+                    mutableLibraryMaintenance.value = LibraryMaintenance.SearchIndex
                     active.searchIndex.rebuild(restart = true)
                     prefs.edit().putLong("schema", com.librestatic.lightforge.core.search.MediaSearchSchema.Version).commit()
                 }
                 // Moment generation is a resumable Room keyset pass, not a MediaStore scan.
                 // Its durable input revision resumes or regenerates after actual candidate
                 // changes, including old-dated imports; identical reindexing is a no-op.
+                mutableLibraryMaintenance.value = LibraryMaintenance.Moments
                 active.moments.generateIfNeeded()
                 mutableSearchIndexReady.value = true
+            } } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (denied: SecurityException) {
+                throw denied
+            } catch (failure: Throwable) {
+                Log.w(LibraryLogTag, "Library maintenance failed", failure)
             }
-            mutableEngineState.value = if (completed) {
-                LibraryEngineState.Ready
-            } else {
+            if (!completed) {
                 permissions.revalidate()
-                LibraryEngineState.PermissionRequired
+                mutableEngineState.value = LibraryEngineState.PermissionRequired
             }
         } catch (cancelled: CancellationException) {
+            // A cancelled pass must not leave the library announced as preparing forever.
+            if (mutableEngineState.value == LibraryEngineState.Indexing) mutableEngineState.value = previousState
             throw cancelled
         } catch (_: SecurityException) {
             permissions.revalidate()
             mutableEngineState.value = LibraryEngineState.PermissionRequired
         } catch (_: Throwable) {
             mutableEngineState.value = LibraryEngineState.Error
+        } finally {
+            mutableLibraryMaintenance.value = null
         }
     }
 
     private suspend fun scanVolume(active: GalleryRuntime, volume: VolumeGeneration, reason: String) {
+        // A scan rewrites the timeline, so even an already-browsable library shows it.
+        mutableEngineState.value = LibraryEngineState.Indexing
         Log.i(LibraryLogTag, "Scan start: ${volume.volumeName} ($reason) generation=${volume.generation}")
         active.scanner.scan(volume)
         Log.i(LibraryLogTag, "Scan complete: ${volume.volumeName} generation=${volume.generation}")

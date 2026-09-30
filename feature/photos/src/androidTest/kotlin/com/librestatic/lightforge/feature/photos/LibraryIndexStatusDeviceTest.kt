@@ -84,18 +84,30 @@ class LibraryIndexStatusDeviceTest {
         for ((next, resource) in steps) {
             compose.runOnIdle { state = next }
             check(contrast >= 4.5) { "Insufficient status contrast: $contrast" }
-            observe(resource, (if (dynamic) "dynamic-" else "static-") + if (dark) "dark" else "light", contrast)
+            observe(
+                resource,
+                (if (dynamic) "dynamic-" else "static-") + if (dark) "dark" else "light",
+                contrast,
+                preparing = next == LibraryUiState.Starting || next == LibraryUiState.Indexing,
+            )
         }
     }
 
-    private fun observe(resource: Int, theme: String, contrast: Double) {
+    private fun observe(resource: Int, theme: String, contrast: Double, preparing: Boolean) {
         compose.waitForIdle()
         val label = context.getString(resource)
         val node = compose.onNodeWithText(label, useUnmergedTree = true).assertIsDisplayed()
         val semantics = node.fetchSemanticsNode()
         check(semantics.config.getOrNull(SemanticsProperties.LiveRegion) == LiveRegionMode.Polite)
         check(semantics.config.getOrNull(SemanticsProperties.StateDescription) == null) { "Invented progress state" }
-        compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo), useUnmergedTree = true).assertCountEquals(0)
+        // Preparing shows one indeterminate bar; it never invents a fraction and is gone once ready.
+        val progress = compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.ProgressBarRangeInfo), useUnmergedTree = true)
+        if (preparing) {
+            progress.assertCountEquals(1)
+            progress[0].assert(SemanticsMatcher.expectValue(SemanticsProperties.ProgressBarRangeInfo, ProgressBarRangeInfo.Indeterminate))
+        } else {
+            progress.assertCountEquals(0)
+        }
         val bounds = semantics.boundsInWindow
         val viewport = compose.onNodeWithTag("status-viewport").fetchSemanticsNode().boundsInWindow
         check(bounds.width > 0f && bounds.height > 0f && bounds.left >= viewport.left - 1f &&

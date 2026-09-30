@@ -252,7 +252,7 @@ fun PagedPhotosTimeline(
             Box(Modifier.gridEntrance(entrance, index)) {
                 // A previous layout can still request an index after Paging publishes fewer rows.
                 when (val entry = if (index in 0 until entries.itemCount) entries[index] else null) {
-                    is TimelineEntry.DayHeader -> TimelineDayHeader(entry.epochDay, entry.granularity)
+                    is TimelineEntry.DayHeader -> TimelineDayHeader(entry.epochDay, entry.granularity, leading = index == 0)
                     is TimelineEntry.Media -> TimelineThumbnail(
                         entry = entry,
                         loader = thumbnailLoader,
@@ -317,7 +317,7 @@ fun PagedPhotosTimeline(
 }
 
 @Composable
-private fun TimelineDayHeader(epochDay: Long, granularity: TimelineGrouping) {
+private fun TimelineDayHeader(epochDay: Long, granularity: TimelineGrouping, leading: Boolean = false) {
     val locale = LocalConfiguration.current.locales[0]
     val date = LocalDate.ofEpochDay(epochDay)
     val text = when (granularity) {
@@ -331,7 +331,8 @@ private fun TimelineDayHeader(epochDay: Long, granularity: TimelineGrouping) {
         modifier = Modifier.padding(
             start = GallerySpacing.Lg,
             end = GallerySpacing.Lg,
-            top = GallerySpacing.Lg,
+            // The chrome above already spaces the grid's first row; extra room here only shows at the top.
+            top = if (leading) 0.dp else GallerySpacing.Lg,
             bottom = GallerySpacing.Sm,
         ),
     )

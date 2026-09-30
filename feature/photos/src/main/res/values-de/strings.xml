@@ -17,4 +17,14 @@
     <string name="scrubber_handle_description">Zeitleisten-Regler</string>
     <string name="scrubber_today">Heute</string>
     <string name="scrubber_yesterday">Gestern</string>
+    <string name="library_background_search">Suche wird im Hintergrund aktualisiert…</string>
+    <string name="library_background_moments">Momente werden im Hintergrund erstellt…</string>
+    <string name="library_background_faces">Gesichter werden im Hintergrund erkannt…</string>
+    <string name="library_background_people">Personen werden im Hintergrund gruppiert…</string>
+    <string name="library_background_pets">Haustiere werden im Hintergrund erkannt…</string>
+    <string name="library_task_faces">Gesichtserkennung</string>
+    <string name="library_task_people">Personengruppierung</string>
+    <string name="library_task_pets">Haustiererkennung</string>
+    <string name="library_paused_battery">%1$s pausiert, um Akku zu sparen</string>
+    <string name="library_paused_heat">%1$s pausiert, bis das Gerät abgekühlt ist</string>
 </resources>

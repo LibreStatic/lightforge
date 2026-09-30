@@ -22,4 +22,14 @@
     <string name="scrubber_handle_description">Timeline scrubber</string>
     <string name="scrubber_today">Today</string>
     <string name="scrubber_yesterday">Yesterday</string>
+    <string name="library_background_search">Updating search in the background…</string>
+    <string name="library_background_moments">Creating moments in the background…</string>
+    <string name="library_background_faces">Detecting faces in the background…</string>
+    <string name="library_background_people">Grouping people in the background…</string>
+    <string name="library_background_pets">Recognizing pets in the background…</string>
+    <string name="library_task_faces">Face detection</string>
+    <string name="library_task_people">People grouping</string>
+    <string name="library_task_pets">Pet recognition</string>
+    <string name="library_paused_battery">%1$s paused to save battery</string>
+    <string name="library_paused_heat">%1$s paused while the device cools down</string>
 </resources>

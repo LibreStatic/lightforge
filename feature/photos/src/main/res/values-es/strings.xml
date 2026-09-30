@@ -17,4 +17,14 @@
     <string name="scrubber_handle_description">Desplazamiento por fecha</string>
     <string name="scrubber_today">Hoy</string>
     <string name="scrubber_yesterday">Ayer</string>
+    <string name="library_background_search">Actualizando la búsqueda en segundo plano…</string>
+    <string name="library_background_moments">Creando momentos en segundo plano…</string>
+    <string name="library_background_faces">Detectando caras en segundo plano…</string>
+    <string name="library_background_people">Agrupando personas en segundo plano…</string>
+    <string name="library_background_pets">Reconociendo mascotas en segundo plano…</string>
+    <string name="library_task_faces">Detección de caras</string>
+    <string name="library_task_people">Agrupación de personas</string>
+    <string name="library_task_pets">Reconocimiento de mascotas</string>
+    <string name="library_paused_battery">%1$s en pausa para ahorrar batería</string>
+    <string name="library_paused_heat">%1$s en pausa hasta que el dispositivo se enfríe</string>
 </resources>

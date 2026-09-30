@@ -34,7 +34,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.paging.LoadState
@@ -43,7 +42,6 @@ import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveButton
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveIconButton
-import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 import com.librestatic.lightforge.core.designsystem.GalleryStateContent
 import com.librestatic.lightforge.core.model.LibraryAccess
 import com.librestatic.lightforge.core.model.TimelineAnchor
@@ -94,6 +92,7 @@ fun LibraryPhotosRoute(
     showNavigationActions: Boolean = true,
     scrubberIndex: TimelineIndex? = null,
     onScrubberJump: (TimelineAnchor?) -> Unit = {},
+    backgroundStatus: LibraryBackgroundStatus? = null,
 ) {
     val densityState = rememberTimelineDensityState()
     val pagingError = entries.loadState.refresh as? LoadState.Error
@@ -105,7 +104,6 @@ fun LibraryPhotosRoute(
             entries.loadState.refresh is LoadState.Loading && entries.itemCount == 0 -> LibraryUiState.Starting
         else -> engineState
     }
-    val loadingDescription = stringResource(R.string.library_loading_title)
     val wideToolbar = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 600
     androidx.compose.runtime.CompositionLocalProvider(
         androidx.compose.material3.LocalContentColor provides MaterialTheme.colorScheme.onBackground,
@@ -129,7 +127,7 @@ fun LibraryPhotosRoute(
                 // Wide windows fold the index status into the toolbar row instead of a second banner.
                 // The Box keeps the weight even while the status is silent, so the actions stay at the end.
                 androidx.compose.foundation.layout.Box(Modifier.weight(1f).padding(horizontal = GallerySpacing.Md)) {
-                    LibraryIndexStatus(state = presentationState)
+                    LibraryIndexStatus(state = presentationState, background = backgroundStatus)
                 }
             } else {
                 androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
@@ -159,6 +157,7 @@ fun LibraryPhotosRoute(
         }
         if (!wideToolbar) LibraryIndexStatus(
             state = presentationState,
+            background = backgroundStatus,
             modifier = Modifier.padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Sm),
         )
         if (highlights.isNotEmpty() && thumbnailLoader != null) {
@@ -204,7 +203,6 @@ fun LibraryPhotosRoute(
             thumbnailLoader == null ||
                 engineState == LibraryUiState.Starting ||
                 entries.loadState.refresh is LoadState.Loading && entries.itemCount == 0 -> {
-                GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth().semantics { contentDescription = loadingDescription })
                 GalleryStateContent(
                     title = stringResource(R.string.library_loading_title),
                     body = stringResource(R.string.library_loading_body),
@@ -214,21 +212,6 @@ fun LibraryPhotosRoute(
             }
             entries.itemCount == 0 && engineState == LibraryUiState.Ready -> EmptyLibrary(Modifier.fillMaxSize())
             else -> {
-                // The wavy indicator needs its full height to show the wave; a clipped strip read as
-                // the old flat bar. It folds away with a fade once indexing ends.
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = engineState == LibraryUiState.Indexing,
-                    enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.expandVertically(),
-                    exit = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(durationMillis = 400)) +
-                        androidx.compose.animation.shrinkVertically(androidx.compose.animation.core.tween(durationMillis = 500, delayMillis = 150)),
-                ) {
-                    GalleryIndeterminateProgressIndicator(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp)
-                            .semantics { contentDescription = loadingDescription },
-                    )
-                }
                 AdaptivePagedPhotosTimeline(
                     entries = entries,
                     focusReturn = focusReturn,

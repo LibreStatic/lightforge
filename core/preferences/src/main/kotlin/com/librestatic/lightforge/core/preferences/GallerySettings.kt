@@ -165,6 +165,8 @@ data class SecuritySettings(
 
 data class AnalysisSettings(
     val fullAnalysisMinimumBatteryPercent: Int = 20,
+    /** Off by default: model downloads and updates wait for unmetered Wi-Fi. */
+    val modelDownloadsOnMobileData: Boolean = false,
 )
 
 

@@ -457,6 +457,7 @@ internal fun ProductionGalleryApp(
     // Settings and the Search sheet read the same persisted master/child switches.
     val localAnalysisSwitches by viewModel.localAnalysisSwitches.collectAsState()
     val petAnalysis by viewModel.petAnalysis.collectAsState()
+    val libraryMaintenance by viewModel.libraryMaintenance.collectAsState()
     val localAnalysisOnboarding by viewModel.localAnalysisOnboarding.collectAsState()
     val gallerySettings by viewModel.gallerySettings.collectAsState()
     val galleryFolderOptions by viewModel.galleryFolderOptions.collectAsState()
@@ -1376,6 +1377,7 @@ internal fun ProductionGalleryApp(
                         selectionMode = selectionCount > 0,
                         scrubberIndex = timelineIndex,
                         onScrubberJump = viewModel::jumpTimeline,
+                        backgroundStatus = libraryBackgroundStatus(libraryMaintenance, peopleAnalysis, petAnalysis),
                         access = access,
                         engineState = engineState.toUiState(),
                         entries = timeline,
@@ -2236,6 +2238,12 @@ internal fun ProductionGalleryApp(
                                 active = model.active,
                                 downloading = model.downloading,
                                 downloadedBytes = model.downloadedBytes,
+                                waiting = when (model.waiting) {
+                                    com.librestatic.lightforge.core.ml.ModelDownloadWait.Network -> com.librestatic.lightforge.feature.settings.ModelDownloadWaitUi.Network
+                                    com.librestatic.lightforge.core.ml.ModelDownloadWait.WiFi -> com.librestatic.lightforge.feature.settings.ModelDownloadWaitUi.WiFi
+                                    com.librestatic.lightforge.core.ml.ModelDownloadWait.Battery -> com.librestatic.lightforge.feature.settings.ModelDownloadWaitUi.Battery
+                                    null -> null
+                                },
                                 error = model.error,
                             )
                         },
