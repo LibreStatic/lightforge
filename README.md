@@ -65,7 +65,8 @@ Milestones M0 through M6 are complete: library engine and timeline, management a
 
 Still open:
 
-- **Object eraser and subject cut-out** use explicit fallback algorithms (neighbor interpolation and color distance) until an ML model is bundled.
+- **Object eraser** is still experimental: it fills with the MI-GAN inpainting model (14 MB, downloaded on demand, GPU when available) and falls back to neighbor interpolation without it.
+- **Subject cut-out** uses an explicit color-distance fallback until an ML model is added.
 - **Physical-device passes** for the latest design, fold-posture and private-album wiring are still pending; emulator evidence covers them for now.
 - **Exact pixel parity** with the design mockup is not claimed.
 
