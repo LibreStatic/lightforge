@@ -447,12 +447,13 @@ fun DocumentsContent(
                                 ?: stringResource(R.string.documents_no_text),
                             modifier = Modifier.fillMaxWidth(),
                         )
+                        val documentsTextLabel = stringResource(R.string.documents_text)
                         OutlinedButton(
                             enabled = !row.ocrText.isNullOrBlank(),
                             onClick = {
                                 val clip =
                                     ClipData.newPlainText(
-                                        context.getString(R.string.documents_text),
+                                        documentsTextLabel,
                                         row.ocrText,
                                     )
                                 clip.description.extras =

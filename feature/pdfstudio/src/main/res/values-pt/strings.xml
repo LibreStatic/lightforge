@@ -123,7 +123,7 @@
     <string name="pdf_duplicateproject">Duplicar projeto</string>
     <string name="pdf_deleteproject_action">Excluir projeto</string>
     <plurals name="pdf_delete_pages_action">
-        <item quantity="one">Excluir página</item>
+        <item quantity="one">Excluir %1$d página</item>
         <item quantity="other">Excluir %1$d páginas</item>
     </plurals>
     <string name="pdf_export_filename">Nome do arquivo</string>

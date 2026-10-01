@@ -86,6 +86,7 @@ fun PlacesContent(
             }
         }
     }
+    val defaultMapName = stringResource(R.string.places_local_map_name)
     val picker =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
             if (uri != null)
@@ -94,7 +95,7 @@ fun PlacesContent(
                         context.contentResolver
                             .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
                             ?.use { if (it.moveToFirst()) it.getString(0) else null }
-                            ?.take(120) ?: context.getString(R.string.places_local_map_name)
+                            ?.take(120) ?: defaultMapName
                     if (regranting != null) controller.regrant(requireNotNull(regranting), uri)
                     else controller.importPackage(uri, name, replacing)
                     replacing = null

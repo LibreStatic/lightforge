@@ -59,8 +59,8 @@ internal class LocalBackupTaskGrants(context: Context) {
                     val uri = Uri.parse(key)
                     val permission = resolver.persistedUriPermissions.singleOrNull { it.uri == uri }
                     val held =
-                        (if (permission?.isReadPermission == true) 1 else 0) or
-                            (if (permission?.isWritePermission == true) 2 else 0)
+                        (if (permission?.isReadPermission == true) Intent.FLAG_GRANT_READ_URI_PERMISSION else 0) or
+                            (if (permission?.isWritePermission == true) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0)
                     val owned = entry.getInt("owned") and held
                     if (owned != 0) resolver.releasePersistableUriPermission(uri, owned)
                     rows.remove(key)

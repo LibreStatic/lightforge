@@ -105,7 +105,7 @@ class MlChunkWorker(
                 .setInputData(input(task, mode))
                 .setConstraints(
                     if (wait == MlBackoffWait.Charging) {
-                        Constraints.Builder(policy.constraints).setRequiresCharging(true).build()
+                        policy.constraints.requiringCharging()
                     } else {
                         policy.constraints
                     },
@@ -138,3 +138,13 @@ internal const val MaxChunkRunAttempts = 5
 
 /** What a backed-off run waits for before it is tried again. */
 enum class MlBackoffWait { Charging, Thermal }
+
+/** Copies these constraints with charging required; the copying Builder constructor is library-restricted. */
+private fun Constraints.requiringCharging(): Constraints =
+    Constraints.Builder()
+        .setRequiredNetworkType(requiredNetworkType)
+        .setRequiresBatteryNotLow(requiresBatteryNotLow())
+        .setRequiresDeviceIdle(requiresDeviceIdle())
+        .setRequiresStorageNotLow(requiresStorageNotLow())
+        .setRequiresCharging(true)
+        .build()
