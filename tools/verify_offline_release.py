@@ -73,6 +73,7 @@ def verify_network_sources() -> list[str]:
             if path.name == "SemanticModelStorage.kt" and "feature/semanticsearch/" in path.as_posix():
                 continue
             if path.relative_to(ROOT).as_posix() in {
+                "core/ml/src/main/kotlin/com/librestatic/lightforge/core/ml/PinnedModelDownload.kt",
                 "feature/petrecognition/src/main/kotlin/com/librestatic/lightforge/feature/petrecognition/PetModelStore.kt",
                 "feature/localsharing/src/main/kotlin/com/librestatic/lightforge/feature/localsharing/LocalSharingTls.kt",
                 "feature/localsharing/src/main/kotlin/com/librestatic/lightforge/feature/localsharing/LocalSharingClient.kt",
