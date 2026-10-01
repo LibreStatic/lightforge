@@ -8,6 +8,18 @@ Lightforge Studio is a native, open-source gallery for Android, built for local 
 - **License:** [Apache-2.0](LICENSE)
 - **Languages:** English, Spanish, French, Portuguese, Italian and German
 
+## Screenshots
+
+| Timeline | Search | People |
+|---|---|---|
+| ![Timeline grid grouped by day](docs/screenshots/timeline.jpg) | ![Keyword search with type filters](docs/screenshots/search.jpg) | ![On-device people grouping](docs/screenshots/people.jpg) |
+| **Photo editor** | **Video editor** | **Collections** |
+| ![Photo editor with automatic looks](docs/screenshots/photo-editor.jpg) | ![Video editor with trim and looks](docs/screenshots/video-editor.jpg) | ![Albums, device folders and smart collections](docs/screenshots/collections.jpg) |
+
+![Tablet timeline with navigation rail](docs/screenshots/tablet-timeline.jpg)
+
+Sample media is CC0 / public domain; see [`store/play/raw/MEDIA_LICENSES.md`](store/play/raw/MEDIA_LICENSES.md).
+
 ## Features
 
 ### Library and browsing
