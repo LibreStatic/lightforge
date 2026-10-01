@@ -19,6 +19,10 @@ concurrency:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      LIGHTFORGE_KEYSTORE_PASSWORD: ${{ secrets.LIGHTFORGE_KEYSTORE_PASSWORD }}
+      LIGHTFORGE_KEY_ALIAS: ${{ secrets.LIGHTFORGE_KEY_ALIAS }}
+      LIGHTFORGE_KEY_PASSWORD: ${{ secrets.LIGHTFORGE_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -57,14 +61,17 @@ jobs:
           echo "LIGHTFORGE_KEYSTORE_PATH=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
 
       - name: Test, lint and build signed artifacts
-        env:
-          LIGHTFORGE_KEYSTORE_PASSWORD: ${{ secrets.LIGHTFORGE_KEYSTORE_PASSWORD }}
-          LIGHTFORGE_KEY_ALIAS: ${{ secrets.LIGHTFORGE_KEY_ALIAS }}
-          LIGHTFORGE_KEY_PASSWORD: ${{ secrets.LIGHTFORGE_KEY_PASSWORD }}
         run: ./gradlew test lint :app:bundleOfflineRelease :app:assembleOfflineRelease
 
       - name: Verify offline release
         run: python tools/verify_offline_release.py
+
+      - name: Verify release signature
+        run: |
+          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -1)
+          "$apksigner" verify --print-certs app/build/outputs/apk/offline/release/*.apk | tee signer.txt
+          grep -qi '1dbd3d04b427de3469e946f3dd87d317fabf6b2ff32ab6925883ed97a9e8ab9c' signer.txt
+          jarsigner -verify app/build/outputs/bundle/offlineRelease/*.aab
 
       - name: Collect artifacts
         run: |

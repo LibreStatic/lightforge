@@ -29,7 +29,8 @@ val releaseKeystore: Map<String, String> = run {
     ).forEach { (key, env) -> System.getenv(env)?.let { values[key] = it } }
     values
 }
-val hasReleaseKeystore = releaseKeystore["storeFile"]?.let { File(it).isFile } == true
+val hasReleaseKeystore = releaseKeystore["storeFile"]?.let { File(it).isFile } == true &&
+    listOf("storePassword", "keyAlias", "keyPassword").all { !releaseKeystore[it].isNullOrEmpty() }
 
 android {
     namespace = "com.librestatic.lightforge"
