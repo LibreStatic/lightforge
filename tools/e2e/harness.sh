@@ -88,7 +88,7 @@ if [ -z "${BASH_VERSION:-}" ]; then
   return 1 2>/dev/null || exit 1
 fi
 
-SHOTS="${SHOTS:-/home/user/ugallery/docs/e2e-screenshots}"
+SHOTS="${SHOTS:-${XDG_CACHE_HOME:-$HOME/.cache}/lightforge/e2e-screenshots}"
 PKG="${PKG:-com.librestatic.lightforge.debug}"
 ACTIVITY="${ACTIVITY:-com.librestatic.lightforge.MainActivity}"
 E2E_TAP_SETTLE="${E2E_TAP_SETTLE:-1.5}"   # seconds to wait after a tap

@@ -2,7 +2,7 @@
 """Stop a confirmed partial source copy; recover from Room, without Activity saved state."""
 import argparse,json,subprocess,time
 parser=argparse.ArgumentParser();parser.add_argument("--serial",required=True);parser.add_argument("--portable",action="store_true");args=parser.parse_args()
-base=["rtk","proxy","adb","-s",args.serial,"shell"];package="com.librestatic.lightforge.feature.pdfstudio.test";runner=package+"/com.librestatic.lightforge.feature.pdfstudio.PdfRecoveryProbeRunner"
+base=["adb","-s",args.serial,"shell"];package="com.librestatic.lightforge.feature.pdfstudio.test";runner=package+"/com.librestatic.lightforge.feature.pdfstudio.PdfRecoveryProbeRunner"
 phase="inbox-portable" if args.portable else "inbox"
 with open("/tmp/pdf-inbox-writer-observer.log","w") as log:
     process=subprocess.Popen(base+["am","instrument","-w","-e","phase",phase+"-write",runner],stdout=log,stderr=subprocess.STDOUT)

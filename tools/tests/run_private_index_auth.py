@@ -139,7 +139,7 @@ class Runner:
         (self.out / "commands.json").write_text(json.dumps(self.events, indent=2) + "\n")
 
     def run(self, command, *, secret=False, check=True, timeout=30, include_stderr=False):
-        cmd = ["rtk", "proxy", *map(str, command)]
+        cmd = [*map(str, command)]
         limit = min(timeout, max(1, self.deadline - time.monotonic()))
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=limit)
@@ -247,7 +247,7 @@ class Runner:
         raise TimeoutError("Authentication checkpoint timed out during " + phase)
 
     def start_instrumentation(self):
-        command = ["rtk", "proxy", "adb", "-s", self.args.serial, "shell", "am", "instrument", "-w", "-r",
+        command = ["adb", "-s", self.args.serial, "shell", "am", "instrument", "-w", "-r",
             "-e", "fixtureUuid", self.id, "-e", "class", CLASS + "#" + METHOD,
             PACKAGE + "/androidx.test.runner.AndroidJUnitRunner"]
         self.process_command = command

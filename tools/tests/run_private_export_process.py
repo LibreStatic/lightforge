@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """One owned uninstrumented Ready→HOME→am kill→same-task recovery; no normal app or credentials."""
-import argparse, hashlib, json, re, shlex, subprocess, sys, time, uuid
+import argparse, hashlib, os, json, re, shlex, subprocess, sys, time, uuid
 from pathlib import Path
 import xml.etree.ElementTree as ET
 import run_creation_process_restoration as shared
@@ -62,7 +62,7 @@ class Run:
     def record(self, **event):
         self.events.append(event); (self.out/'commands.json').write_text(json.dumps(self.events, indent=2))
     def call(self, *args, check=True, timeout=30):
-        command = ['rtk','proxy','adb','-s',self.args.serial,*map(str,args)]
+        command = ['adb','-s',self.args.serial,*map(str,args)]
         result = subprocess.run(command, capture_output=True, timeout=timeout)
         stdout=result.stdout.decode(errors='replace'); stderr=result.stderr.decode(errors='replace')
         self.record(command=command,input=self.id,stdout=stdout,stderr=stderr,exit=result.returncode)
@@ -76,7 +76,7 @@ class Run:
         require(self.shell('getprop','ro.kernel.qemu')[0].strip()=='1', "Emulator required")
         require('Active instrumentation' not in self.shell('dumpsys','activity','processes')[0], "Instrumentation is active")
         apk=Path(self.args.apk).resolve(); require(apk.is_file(), "Test APK missing")
-        badging=subprocess.run(['rtk','proxy','/home/user/Android/Sdk/build-tools/36.0.0/aapt','dump','badging',str(apk)],capture_output=True,text=True)
+        badging=subprocess.run([str(Path(os.environ.get('ANDROID_HOME', Path.home()/'Android/Sdk'))/'build-tools/36.0.0/aapt'),'dump','badging',str(apk)],capture_output=True,text=True)
         self.record(command=badging.args,input=str(apk),stdout=badging.stdout,stderr=badging.stderr,exit=badging.returncode)
         require(badging.returncode==0 and "package: name='"+PACKAGE+"'" in badging.stdout, "Wrong APK package")
         require('Success' in self.call('install','-r','--no-streaming',apk,timeout=120)[0], "Test APK install failed")

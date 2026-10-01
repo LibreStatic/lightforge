@@ -182,7 +182,7 @@ class Runner:
         (self.out / "commands.json").write_text(json.dumps(self.events, indent=2) + "\n")
 
     def run(self, *args, secret=False, timeout=30, check=True):
-        command = ["rtk", "proxy", *map(str, args)]
+        command = [*map(str, args)]
         try:
             result = subprocess.run(command, capture_output=True, text=True,
                                     timeout=min(timeout, max(1, self.deadline - time.monotonic())))
@@ -251,7 +251,7 @@ class Runner:
         return output, passed
 
     def start_test(self):
-        command = ["rtk", "proxy", "adb", "-s", self.args.serial, "shell", "am", "instrument", "-w", "-r",
+        command = ["adb", "-s", self.args.serial, "shell", "am", "instrument", "-w", "-r",
                    "-e", "fixtureUuid", self.fixture, "-e", "scenario", self.scenario, "-e", "class",
                    CLASS + "#" + self.scenario_methods[1], COMPONENT]
         self.process_command = command

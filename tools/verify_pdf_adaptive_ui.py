@@ -4,7 +4,7 @@ import argparse, json, re, subprocess, time, xml.etree.ElementTree as ET
 from pathlib import Path
 p=argparse.ArgumentParser();p.add_argument('--serial',required=True);p.add_argument('--output',required=True);p.add_argument('--dynamic',action='store_true');p.add_argument('--folds',action='store_true');p.add_argument('--media',action='store_true');p.add_argument('--text',action='store_true');p.add_argument('--multi',action='store_true');p.add_argument('--drag',action='store_true');p.add_argument('--panes',action='store_true');args=p.parse_args()
 out=Path(args.output);out.mkdir(parents=True,exist_ok=True)
-b=['rtk','proxy','adb','-s',args.serial];pkg='com.librestatic.lightforge.feature.pdfstudio.test'
+b=['adb','-s',args.serial];pkg='com.librestatic.lightforge.feature.pdfstudio.test'
 def adb(*a): return subprocess.check_output(b+list(a),timeout=45)
 def shell(*a): return adb('shell',*a).decode().strip()
 def state(): return json.loads(subprocess.check_output(b+['shell','run-as',pkg,'cat','files/pdf-ui-state.json'],stderr=subprocess.DEVNULL,timeout=10))

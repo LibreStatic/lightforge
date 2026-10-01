@@ -19,7 +19,7 @@ p.add_argument("--baseline", action="store_true")
 args = p.parse_args()
 args.output.mkdir(parents=True, exist_ok=True)
 pkg = "com.librestatic.lightforge.feature.pdfstudio.test"
-adb = ["rtk", "proxy", "adb", "-s", args.serial]
+adb = ["adb", "-s", args.serial]
 
 
 def shell(*parts):

@@ -102,7 +102,7 @@ Every helper returns non-zero on failure and prints a line starting with
 | --- | --- | --- |
 | `PKG` | `com.librestatic.lightforge.debug` | package under test |
 | `ACTIVITY` | `com.librestatic.lightforge.MainActivity` | launch activity |
-| `SHOTS` | `docs/e2e-screenshots` | screenshot output directory |
+| `SHOTS` | `~/.cache/lightforge/e2e-screenshots` | screenshot output directory |
 | `E2E_TAP_SETTLE` | `1.5` | seconds to wait after a tap |
 | `E2E_SCROLL_STEP` | `260` | px per scroll increment |
 | `E2E_SCROLL_MAX` | `25` | bounded scroll passes |

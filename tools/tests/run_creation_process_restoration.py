@@ -674,7 +674,7 @@ class Probe:
         (self.out / "commands.json").write_text(json.dumps(self.events, indent=2) + "\n")
 
     def call(self, *args, timeout=20, check=True, binary=False, include_stderr=False):
-        command = ["rtk", "proxy", "adb", "-s", self.args.serial, *map(str, args)]
+        command = ["adb", "-s", self.args.serial, *map(str, args)]
         try:
             result = subprocess.run(command, capture_output=True, timeout=timeout)
         except subprocess.TimeoutExpired as error:
@@ -728,7 +728,7 @@ class Probe:
         return value
 
     def start_native(self):
-        command = ["rtk", "proxy", "adb", "-s", self.args.serial, "shell",
+        command = ["adb", "-s", self.args.serial, "shell",
                    shlex.join(["am", "instrument", "-w", "-r", "-e", "fixtureUuid", self.fixture,
                                *(["-e", "armManualCommitGap", "true"] if self.scenario == "manual-memory-commit" else []),
                                *(["-e", "motionPublicationKind", self.motion_publication_kind] if self.scenario in MOTION_PUBLICATION_SCENARIOS else []),

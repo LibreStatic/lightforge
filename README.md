@@ -61,7 +61,7 @@ No location, `MANAGE_EXTERNAL_STORAGE` or `MANAGE_MEDIA` permission, and no OEM 
 
 ## Project status
 
-Milestones M0 through M6 are complete: library engine and timeline, management and viewer, search and similarity, people, pets and moments, editors and private sharing, and the advanced isolated features. Progress and device evidence are tracked in [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md).
+Milestones M0 through M6 are complete: library engine and timeline, management and viewer, search and similarity, people, pets and moments, editors and private sharing, and the advanced isolated features.
 
 Still open:
 
@@ -79,10 +79,10 @@ Still open:
 | `benchmark/`, `baselineprofile/` | Macrobenchmark journeys and Baseline Profile generation. |
 | `testdata/`, `scripts/` | Synthetic 1k–250k library generation and helper scripts. |
 | `tools/` | Release guards, license generation and verification scripts. |
-| `docs/` | ADRs, architecture, design mockup, evidence, legal, privacy and prompts. |
+| `docs/` | ADRs, architecture, design, legal and privacy. |
 | `store/play/` | Google Play listings, images and check scripts. |
 
-Documentation hierarchy: [PRODUCT.md](PRODUCT.md) → [ADRs](docs/adr/) → [architecture](docs/architecture/) → implementation status → code and evidence. The visual contract lives in [DESIGN-HANDOFF.md](DESIGN-HANDOFF.md) and `docs/mock/`.
+Documentation hierarchy: [PRODUCT.md](PRODUCT.md) → [ADRs](docs/adr/) → [architecture](docs/architecture/) → code and tests.
 
 ## Building and testing
 
@@ -95,7 +95,6 @@ Use JDK 17 and the checked-in Gradle wrapper:
 Release guards run in CI after the build:
 
 ```bash
-python tools/verify_design_handoff.py
 python tools/verify_offline_release.py
 ```
 

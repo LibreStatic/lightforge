@@ -126,13 +126,13 @@ class RealDisplayRootWaitTest(unittest.TestCase):
             destination = cls.root / name
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_text(text)
-        result = subprocess.run(["rtk", "proxy", "javac", "-d", str(cls.root / "classes"), *[str(cls.root / name) for name in files]],
+        result = subprocess.run(["javac", "-d", str(cls.root / "classes"), *[str(cls.root / name) for name in files]],
                                 text=True, capture_output=True, timeout=30)
         if result.returncode:
             raise AssertionError(result.stdout + result.stderr)
 
     def run_case(self, name):
-        result = subprocess.run(["rtk", "proxy", "java", "-cp", str(self.root / "classes"), "com.librestatic.lightforge.tools.RootWaitHarness", name],
+        result = subprocess.run(["java", "-cp", str(self.root / "classes"), "com.librestatic.lightforge.tools.RootWaitHarness", name],
                                 text=True, capture_output=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn(name + ": PASS", result.stdout)

@@ -5,7 +5,7 @@ const http = require('http');
 const { createReadStream, existsSync, statSync } = require('fs');
 
 const MOCK_DIR = path.resolve(__dirname, '..', 'docs', 'mock');
-const OUT_DIR = path.resolve(__dirname, '..', 'docs', 'design-analysis', 'mockup-screenshots');
+const OUT_DIR = path.resolve(process.env.MOCKUP_OUT || path.join(require('os').homedir(), '.cache', 'lightforge', 'mockup-screenshots'));
 
 // Viewports matching Android device classes
 const VIEWPORTS = [

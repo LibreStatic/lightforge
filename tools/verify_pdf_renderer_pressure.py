@@ -2,7 +2,7 @@
 """Crash a confirmed renderer during a write-through syscall; verify host survival and rebound."""
 import argparse,json,subprocess,time
 parser=argparse.ArgumentParser();parser.add_argument("--serial",required=True);args=parser.parse_args()
-b=["rtk","proxy","adb","-s",args.serial,"shell"];package="com.librestatic.lightforge.feature.pdfstudio.test";runner=package+"/com.librestatic.lightforge.feature.pdfstudio.PdfRecoveryProbeRunner"
+b=["adb","-s",args.serial,"shell"];package="com.librestatic.lightforge.feature.pdfstudio.test";runner=package+"/com.librestatic.lightforge.feature.pdfstudio.PdfRecoveryProbeRunner"
 def shell(*args): return subprocess.check_output(b+list(args),text=True,timeout=30)
 def observe(stage, process):
     deadline=time.monotonic()+50

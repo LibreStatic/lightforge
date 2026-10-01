@@ -25,14 +25,14 @@ def main():
     args = parser.parse_args()
     target = "com.librestatic.lightforge.pdfacceptance"
     test = target + ".test"
-    adb = ["rtk", "proxy", "adb", "-s", args.serial]
+    adb = ["adb", "-s", args.serial]
     args.output.mkdir(parents=True, exist_ok=True)
 
     def command(*parts):
         return subprocess.check_output(list(parts), timeout=60)
 
     for apk, expected in ((args.app_apk, target), (args.test_apk, test)):
-        badging = command("rtk", "proxy", str(args.aapt), "dump", "badging", str(apk)).decode()
+        badging = command(str(args.aapt), "dump", "badging", str(apk)).decode()
         assert re.search(r"package: name='([^']+)'", badging)[1] == expected
     hashes = {}
     for apk in (args.app_apk, args.test_apk):
@@ -43,7 +43,7 @@ def main():
         "apks": hashes,
         "target": target,
     }, indent=2) + "\n")
-    manifest = command("rtk", "proxy", str(args.aapt), "dump", "xmltree",
+    manifest = command(str(args.aapt), "dump", "xmltree",
                        str(args.test_apk), "--file", "AndroidManifest.xml").decode()
     assert re.search(r'targetPackage[^\n]*="' + re.escape(target) + '"', manifest)
     packages = command(*adb, "shell", "pm", "list", "packages").decode().splitlines()

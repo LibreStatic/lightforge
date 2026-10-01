@@ -12,7 +12,7 @@ parser.add_argument("--serial", required=True)
 parser.add_argument("--resume", action="store_true", help="Continue an existing fixture host after an observation failure")
 parser.add_argument("--portable", action="store_true", help="Exercise the portable ZIP project source contract")
 args = parser.parse_args()
-base = ["rtk", "proxy", "adb", "-s", args.serial]
+base = ["adb", "-s", args.serial]
 package = "com.librestatic.lightforge.feature.pdfstudio.test"
 
 

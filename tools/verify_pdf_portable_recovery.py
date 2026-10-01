@@ -4,7 +4,7 @@ import argparse
 import subprocess
 import time
 parser=argparse.ArgumentParser();parser.add_argument("--serial",required=True);args=parser.parse_args()
-prefix=["rtk","proxy","adb","-s",args.serial,"shell"]
+prefix=["adb","-s",args.serial,"shell"]
 package="com.librestatic.lightforge.feature.pdfstudio.test"
 runner=package+"/com.librestatic.lightforge.feature.pdfstudio.PdfRecoveryProbeRunner"
 def phase(name):

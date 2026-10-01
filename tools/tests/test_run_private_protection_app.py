@@ -410,7 +410,7 @@ class PrivateProtectionLaneTest(unittest.TestCase):
         with patch.object(module.subprocess,"Popen") as popen, patch.object(module.threading,"Thread"):
             runner.start_test()
         command=popen.call_args.args[0]
-        self.assertEqual(command[4],"127.0.0.1:5563")
+        self.assertEqual(command[2],"127.0.0.1:5563")
         self.assertIn(module.CLASS+"#emptyVaultConfiguresImportsAndReopens",command)
         self.assertEqual(command[-1],"com.librestatic.lightforge.demo.pdfacceptance.test/androidx.test.runner.AndroidJUnitRunner")
 

@@ -18,7 +18,7 @@ p.add_argument("--output", required=True, type=Path)
 a = p.parse_args()
 a.output.mkdir(parents=True, exist_ok=True)
 pkg = "com.librestatic.lightforge.pdfacceptance"
-adb = ["rtk", "proxy", "adb", "-s", a.serial]
+adb = ["adb", "-s", a.serial]
 
 def shell(*args):
     return subprocess.check_output(adb + ["shell", *args], text=True, timeout=30, stderr=subprocess.PIPE)

@@ -2,7 +2,7 @@
 """Exercise Android URI revocation from an independently installed provider UID."""
 import argparse,json,subprocess,time,uuid
 p=argparse.ArgumentParser();p.add_argument('--serial',required=True);p.add_argument('--baseline',action='store_true');args=p.parse_args()
-b=['rtk','proxy','adb','-s',args.serial,'shell'];consumer='com.librestatic.lightforge.feature.pdfstudio.test';owner='com.librestatic.lightforge.pdfprovider.fixture'
+b=['adb','-s',args.serial,'shell'];consumer='com.librestatic.lightforge.feature.pdfstudio.test';owner='com.librestatic.lightforge.pdfprovider.fixture'
 def shell(*a):return subprocess.check_output(b+list(a),text=True,timeout=90).strip()
 def control(action,doc='two'):
     nonce=str(uuid.uuid4())
