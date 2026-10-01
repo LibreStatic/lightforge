@@ -6,10 +6,14 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -19,14 +23,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -36,9 +44,17 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.librestatic.lightforge.core.designsystem.GalleryIconAutoAwesome
+import com.librestatic.lightforge.core.designsystem.GalleryIconCheckCircle
+import com.librestatic.lightforge.core.designsystem.GalleryIconDownload
+import com.librestatic.lightforge.core.designsystem.GalleryIconError
+import com.librestatic.lightforge.core.designsystem.GalleryIconLightbulb
+import com.librestatic.lightforge.core.designsystem.GalleryIconWifi
+import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import com.librestatic.lightforge.core.ml.ModelDownloadWait
+import com.librestatic.lightforge.core.ml.ModelDownloads
 import com.librestatic.lightforge.core.model.EditOperation
 import com.librestatic.lightforge.feature.objecteraser.InpaintModelDownloadWorker
 import com.librestatic.lightforge.feature.objecteraser.InpaintModelStatus
@@ -274,12 +290,56 @@ internal fun ObjectEraserControls(state: PhotoEditorContentState, actions: Exper
         ObjectEraser.EraseMethod.NEIGHBOR_INTERPOLATION_FALLBACK -> false
         null -> status == InpaintModelStatus.Installed
     }
-    if (ai) ExperimentalFallbackNotice(stringResource(R.string.photo_editor_eraser_ai))
-    else ExperimentalFallbackNotice(
-        stringResource(R.string.photo_editor_eraser_fallback, ObjectEraser.EraseMethod.NEIGHBOR_INTERPOLATION_FALLBACK.name),
-    )
+    if (!ai) {
+        EraserCard(
+            icon = GalleryIconAutoAwesome,
+            title = stringResource(R.string.photo_editor_eraser_quality_basic),
+            body = stringResource(R.string.photo_editor_eraser_quality_basic_body),
+            modifier = Modifier.testTag("photo-editor-eraser-quality-basic"),
+        )
+    }
     status?.let { EraserModelPanel(it) }
-    Text(stringResource(R.string.photo_editor_eraser_hint), style = MaterialTheme.typography.bodyMedium)
+    if (actions.eraseStrokes.isEmpty()) {
+        EraserCard(icon = GalleryIconLightbulb, title = stringResource(R.string.photo_editor_eraser_hint))
+    } else {
+        EraserCard(
+            icon = GalleryIconCheckCircle,
+            title = stringResource(R.string.photo_editor_eraser_marked),
+            container = MaterialTheme.colorScheme.secondaryContainer,
+            content = MaterialTheme.colorScheme.onSecondaryContainer,
+            modifier = Modifier.testTag("photo-editor-eraser-marked"),
+        )
+    }
+}
+
+/**
+ * Icon, title and optional body on a tonal card. [content] must be the on-color of [container]; the body
+ * uses it too, since secondary text on a container has no validated variant role.
+ */
+@Composable
+private fun EraserCard(
+    icon: ImageVector,
+    title: String,
+    modifier: Modifier = Modifier,
+    body: String? = null,
+    container: Color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    content: Color = MaterialTheme.colorScheme.onSurface,
+    trailing: @Composable (() -> Unit)? = null,
+    footer: @Composable (ColumnScope.() -> Unit)? = null,
+) {
+    Surface(color = container, contentColor = content, shape = MaterialTheme.shapes.large, modifier = modifier.fillMaxWidth()) {
+        Column(Modifier.padding(GallerySpacing.Sm), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(title, style = if (body == null) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.titleSmall)
+                    body?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                }
+                trailing?.invoke()
+            }
+            footer?.invoke(this)
+        }
+    }
 }
 
 /** Offers, tracks and removes the downloaded inpainting model; the download outlives the editor. */
@@ -289,34 +349,67 @@ private fun EraserModelPanel(status: InpaintModelStatus) {
     val scope = rememberCoroutineScope()
     val totalMegabytes = (InpaintModelStore.PackageBytes / MegaByte).toInt()
     val download = { scope.launch { InpaintModelDownloadWorker.enqueue(context) } }
+    // Assume the default Wi-Fi-only policy until the setting loads.
+    val mobileData by produceState(false, context) {
+        value = runCatching { ModelDownloads.mobileDataAllowed(context) }.getOrDefault(false)
+    }
     Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs), modifier = Modifier.testTag("photo-editor-eraser-model")) {
         when (status) {
             InpaintModelStatus.NotInstalled, InpaintModelStatus.Failed -> {
                 if (status == InpaintModelStatus.Failed) {
-                    Text(stringResource(R.string.photo_editor_eraser_model_failed), style = MaterialTheme.typography.bodyMedium)
-                }
-                Text(stringResource(R.string.photo_editor_eraser_model_offer, totalMegabytes), style = MaterialTheme.typography.bodyMedium)
-                Button(onClick = { download() }, modifier = Modifier.testTag("photo-editor-eraser-model-download")) {
-                    Text(
-                        stringResource(
-                            if (status == InpaintModelStatus.Failed) R.string.photo_editor_eraser_model_retry
-                            else R.string.photo_editor_eraser_model_download,
-                        ),
+                    EraserCard(
+                        icon = GalleryIconError,
+                        title = stringResource(R.string.photo_editor_eraser_model_failed),
+                        container = MaterialTheme.colorScheme.errorContainer,
+                        content = MaterialTheme.colorScheme.onErrorContainer,
                     )
+                }
+                EraserCard(
+                    icon = GalleryIconDownload,
+                    title = stringResource(R.string.photo_editor_eraser_model_offer_title),
+                    body = stringResource(R.string.photo_editor_eraser_model_offer, totalMegabytes),
+                    container = MaterialTheme.colorScheme.secondaryContainer,
+                    content = MaterialTheme.colorScheme.onSecondaryContainer,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+                        Row(
+                            Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
+                        ) {
+                            Icon(GalleryIconWifi, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Text(
+                                stringResource(
+                                    if (mobileData) R.string.photo_editor_eraser_model_any_network
+                                    else R.string.photo_editor_eraser_model_wifi_only,
+                                ),
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        }
+                        Button(onClick = { download() }, modifier = Modifier.testTag("photo-editor-eraser-model-download")) {
+                            Icon(GalleryIconDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Text(
+                                stringResource(
+                                    if (status == InpaintModelStatus.Failed) R.string.photo_editor_eraser_model_retry
+                                    else R.string.photo_editor_eraser_model_download,
+                                ),
+                                maxLines = 1,
+                                modifier = Modifier.padding(start = GallerySpacing.Xs),
+                            )
+                        }
+                    }
                 }
             }
-            is InpaintModelStatus.Queued, is InpaintModelStatus.Downloading -> {
-                if (status is InpaintModelStatus.Downloading) {
-                    GalleryProgressIndicator(progress = { status.bytes.toFloat() / status.total })
-                    Text(
-                        stringResource(
-                            R.string.photo_editor_eraser_model_progress,
-                            (status.bytes / MegaByte).toInt(),
-                            (status.total / MegaByte).toInt(),
-                        ),
-                        style = MaterialTheme.typography.bodyMedium,
+            is InpaintModelStatus.Queued, is InpaintModelStatus.Downloading -> EraserCard(
+                icon = GalleryIconDownload,
+                title = stringResource(R.string.photo_editor_eraser_model_downloading),
+                body = if (status is InpaintModelStatus.Downloading) {
+                    stringResource(
+                        R.string.photo_editor_eraser_model_progress,
+                        (status.bytes / MegaByte).toInt(),
+                        (status.total / MegaByte).toInt(),
                     )
-                } else Text(
+                } else {
                     stringResource(
                         when ((status as InpaintModelStatus.Queued).wait) {
                             ModelDownloadWait.Network -> R.string.photo_editor_eraser_model_waiting_network
@@ -324,18 +417,41 @@ private fun EraserModelPanel(status: InpaintModelStatus) {
                             ModelDownloadWait.Battery -> R.string.photo_editor_eraser_model_waiting_battery
                             null -> R.string.photo_editor_eraser_model_queued
                         },
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                OutlinedButton(
-                    onClick = { InpaintModelDownloadWorker.cancel(context) },
-                    modifier = Modifier.testTag("photo-editor-eraser-model-cancel"),
-                ) { Text(stringResource(R.string.photo_editor_eraser_model_cancel)) }
+                    )
+                },
+            ) {
+                if (status is InpaintModelStatus.Downloading) {
+                    GalleryProgressIndicator(progress = { status.bytes.toFloat() / status.total })
+                } else {
+                    GalleryIndeterminateProgressIndicator()
+                }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+                    Text(
+                        stringResource(R.string.photo_editor_eraser_model_keep_editing),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    OutlinedButton(
+                        onClick = { InpaintModelDownloadWorker.cancel(context) },
+                        modifier = Modifier.testTag("photo-editor-eraser-model-cancel"),
+                    ) { Text(stringResource(R.string.photo_editor_eraser_model_cancel), maxLines = 1) }
+                }
             }
-            InpaintModelStatus.Installed -> TextButton(
-                onClick = { scope.launch(Dispatchers.IO) { InpaintModelStore(context).delete() } },
-                modifier = Modifier.testTag("photo-editor-eraser-model-remove"),
-            ) { Text(stringResource(R.string.photo_editor_eraser_model_remove)) }
+            InpaintModelStatus.Installed -> EraserCard(
+                icon = GalleryIconCheckCircle,
+                title = stringResource(R.string.photo_editor_eraser_model_ready),
+                body = stringResource(R.string.photo_editor_eraser_model_ready_body),
+                container = MaterialTheme.colorScheme.tertiaryContainer,
+                content = MaterialTheme.colorScheme.onTertiaryContainer,
+                trailing = {
+                    TextButton(
+                        onClick = { scope.launch(Dispatchers.IO) { InpaintModelStore(context).delete() } },
+                        // The default TextButton text uses primary, which is not validated on tertiaryContainer.
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onTertiaryContainer),
+                        modifier = Modifier.testTag("photo-editor-eraser-model-remove"),
+                    ) { Text(stringResource(R.string.photo_editor_eraser_model_remove), maxLines = 1) }
+                },
+            )
         }
     }
 }
@@ -346,7 +462,7 @@ private const val MegaByte = 1_000_000L
 @Composable
 internal fun ObjectEraserActions(state: PhotoEditorContentState, actions: ExperimentalToolActions) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
-        TextButton(
+        OutlinedButton(
             onClick = actions.onClearErase,
             enabled = actions.eraseStrokes.isNotEmpty() || state.erasePreview != null,
             modifier = Modifier.weight(1f).testTag("photo-editor-eraser-clear"),

@@ -24,6 +24,7 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.GridOn
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MoreVert
@@ -43,6 +44,7 @@ import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material.icons.rounded.Warning
+import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Folder
@@ -174,6 +176,8 @@ val GalleryIconLink: ImageVector get() = Icons.Rounded.Link
 val GalleryIconLinkOff: ImageVector get() = Icons.Rounded.LinkOff
 val GalleryIconSwapHoriz: ImageVector get() = Icons.Rounded.SwapHoriz
 val GalleryIconSwapVert: ImageVector get() = Icons.Rounded.SwapVert
+val GalleryIconWifi: ImageVector get() = Icons.Rounded.Wifi
+val GalleryIconLightbulb: ImageVector get() = Icons.Rounded.Lightbulb
 
 // Fix-round item 5: material-icons-core (the only icon set this project allows — no material-
 // icons-extended) has no dedicated "distribute spacing" glyph, and SwapHoriz/SwapVert's crossed-
