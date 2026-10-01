@@ -68,3 +68,4 @@ include(
 )
 
 include(":feature:localsharing")
+include(":feature:picker")

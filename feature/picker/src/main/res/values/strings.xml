@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="picker_title_photo">Select a photo</string>
+    <string name="picker_title_photos">Select photos</string>
+    <string name="picker_title_video">Select a video</string>
+    <string name="picker_title_videos">Select videos</string>
+    <string name="picker_title_item">Select an item</string>
+    <string name="picker_title_items">Select items</string>
+    <string name="picker_cancel">Cancel</string>
+    <string name="picker_all">All</string>
+    <string name="picker_clear">Clear selection</string>
+    <string name="picker_permission_title">Allow access to your photos and videos</string>
+    <string name="picker_permission_body">Lightforge needs access to your library to hand photos and videos to the app that asked for them.</string>
+    <string name="picker_permission_allow">Allow access</string>
+    <string name="picker_permission_settings">Open settings</string>
+    <string name="picker_limited_body">Lightforge can only see some of your photos and videos.</string>
+    <string name="picker_limited_manage">Manage</string>
+    <string name="picker_empty_title">Nothing here</string>
+    <string name="picker_empty_body">There are no photos or videos here that this app can use.</string>
+    <string name="picker_unsupported_title">Nothing to pick</string>
+    <string name="picker_unsupported_body">The app asked for a kind of file that Lightforge doesn\'t keep.</string>
+    <string name="picker_locked_title">Lightforge is locked</string>
+    <string name="picker_locked_body">Unlock to choose photos and videos for another app.</string>
+    <string name="picker_unlock">Unlock</string>
+    <string name="picker_lock_unavailable">Set up a screen lock or biometrics to unlock Lightforge.</string>
+    <string name="picker_error_title">Couldn\'t load your library</string>
+    <string name="picker_error_body">Something went wrong while reading your photos and videos.</string>
+    <string name="picker_retry">Try again</string>
+    <string name="picker_photo">Photo</string>
+    <string name="picker_video">Video</string>
+    <string name="picker_storage_root">Device storage</string>
+    <string name="picker_library">Photo library</string>
+    <string name="picker_documents_root" translatable="false">Lightforge</string>
+    <string name="picker_documents_summary">Photos and videos</string>
+    <plurals name="picker_selected_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <plurals name="picker_add_count">
+        <item quantity="one">Add %d item</item>
+        <item quantity="other">Add %d items</item>
+    </plurals>
+</resources>

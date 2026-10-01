@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="picker_title_photo">Escolher uma foto</string>
+    <string name="picker_title_photos">Escolher fotos</string>
+    <string name="picker_title_video">Escolher um vídeo</string>
+    <string name="picker_title_videos">Escolher vídeos</string>
+    <string name="picker_title_item">Escolher um item</string>
+    <string name="picker_title_items">Escolher itens</string>
+    <string name="picker_cancel">Cancelar</string>
+    <string name="picker_all">Tudo</string>
+    <string name="picker_clear">Limpar seleção</string>
+    <string name="picker_permission_title">Permitir acesso às suas fotos e vídeos</string>
+    <string name="picker_permission_body">O Lightforge precisa de acesso à sua biblioteca para entregar fotos e vídeos ao app que os pediu.</string>
+    <string name="picker_permission_allow">Permitir acesso</string>
+    <string name="picker_permission_settings">Abrir configurações</string>
+    <string name="picker_limited_body">O Lightforge só consegue ver algumas das suas fotos e vídeos.</string>
+    <string name="picker_limited_manage">Gerenciar</string>
+    <string name="picker_empty_title">Nada aqui</string>
+    <string name="picker_empty_body">Não há fotos nem vídeos aqui que este app possa usar.</string>
+    <string name="picker_unsupported_title">Nada para escolher</string>
+    <string name="picker_unsupported_body">O app pediu um tipo de arquivo que o Lightforge não guarda.</string>
+    <string name="picker_locked_title">O Lightforge está bloqueado</string>
+    <string name="picker_locked_body">Desbloqueie para escolher fotos e vídeos para outro app.</string>
+    <string name="picker_unlock">Desbloquear</string>
+    <string name="picker_lock_unavailable">Configure um bloqueio de tela ou biometria para desbloquear o Lightforge.</string>
+    <string name="picker_error_title">Não foi possível carregar sua biblioteca</string>
+    <string name="picker_error_body">Algo deu errado ao ler suas fotos e vídeos.</string>
+    <string name="picker_retry">Tentar novamente</string>
+    <string name="picker_photo">Foto</string>
+    <string name="picker_video">Vídeo</string>
+    <string name="picker_storage_root">Armazenamento do dispositivo</string>
+    <string name="picker_library">Biblioteca de fotos</string>
+    <string name="picker_documents_summary">Fotos e vídeos</string>
+    <plurals name="picker_selected_count">
+        <item quantity="one">%d selecionado</item>
+        <item quantity="many">%d selecionados</item>
+        <item quantity="other">%d selecionados</item>
+    </plurals>
+    <plurals name="picker_add_count">
+        <item quantity="one">Adicionar %d item</item>
+        <item quantity="many">Adicionar %d itens</item>
+        <item quantity="other">Adicionar %d itens</item>
+    </plurals>
+</resources>

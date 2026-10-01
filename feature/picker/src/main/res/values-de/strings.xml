@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="picker_title_photo">Foto auswählen</string>
+    <string name="picker_title_photos">Fotos auswählen</string>
+    <string name="picker_title_video">Video auswählen</string>
+    <string name="picker_title_videos">Videos auswählen</string>
+    <string name="picker_title_item">Element auswählen</string>
+    <string name="picker_title_items">Elemente auswählen</string>
+    <string name="picker_cancel">Abbrechen</string>
+    <string name="picker_all">Alle</string>
+    <string name="picker_clear">Auswahl aufheben</string>
+    <string name="picker_permission_title">Zugriff auf Fotos und Videos erlauben</string>
+    <string name="picker_permission_body">Lightforge benötigt Zugriff auf deine Mediathek, um Fotos und Videos an die anfragende App zu übergeben.</string>
+    <string name="picker_permission_allow">Zugriff erlauben</string>
+    <string name="picker_permission_settings">Einstellungen öffnen</string>
+    <string name="picker_limited_body">Lightforge kann nur einige deiner Fotos und Videos sehen.</string>
+    <string name="picker_limited_manage">Verwalten</string>
+    <string name="picker_empty_title">Hier ist nichts</string>
+    <string name="picker_empty_body">Hier gibt es keine Fotos oder Videos, die diese App verwenden kann.</string>
+    <string name="picker_unsupported_title">Nichts zum Auswählen</string>
+    <string name="picker_unsupported_body">Die App hat einen Dateityp angefordert, den Lightforge nicht speichert.</string>
+    <string name="picker_locked_title">Lightforge ist gesperrt</string>
+    <string name="picker_locked_body">Entsperre die App, um Fotos und Videos für eine andere App auszuwählen.</string>
+    <string name="picker_unlock">Entsperren</string>
+    <string name="picker_lock_unavailable">Richte eine Displaysperre oder Biometrie ein, um Lightforge zu entsperren.</string>
+    <string name="picker_error_title">Mediathek konnte nicht geladen werden</string>
+    <string name="picker_error_body">Beim Lesen deiner Fotos und Videos ist ein Fehler aufgetreten.</string>
+    <string name="picker_retry">Erneut versuchen</string>
+    <string name="picker_photo">Foto</string>
+    <string name="picker_video">Video</string>
+    <string name="picker_storage_root">Gerätespeicher</string>
+    <string name="picker_library">Fotomediathek</string>
+    <string name="picker_documents_summary">Fotos und Videos</string>
+    <plurals name="picker_selected_count">
+        <item quantity="one">%d ausgewählt</item>
+        <item quantity="other">%d ausgewählt</item>
+    </plurals>
+    <plurals name="picker_add_count">
+        <item quantity="one">%d Element hinzufügen</item>
+        <item quantity="other">%d Elemente hinzufügen</item>
+    </plurals>
+</resources>

@@ -230,6 +230,7 @@ dependencies {
     implementation(project(":feature:places"))
     implementation(project(":feature:semanticsearch"))
     implementation(project(":feature:petrecognition"))
+    implementation(project(":feature:picker"))
 
     implementation(platform(libs.compose.bom))
     implementation("androidx.compose.ui:ui")

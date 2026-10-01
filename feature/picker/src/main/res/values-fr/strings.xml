@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="picker_title_photo">Choisir une photo</string>
+    <string name="picker_title_photos">Choisir des photos</string>
+    <string name="picker_title_video">Choisir une vidéo</string>
+    <string name="picker_title_videos">Choisir des vidéos</string>
+    <string name="picker_title_item">Choisir un élément</string>
+    <string name="picker_title_items">Choisir des éléments</string>
+    <string name="picker_cancel">Annuler</string>
+    <string name="picker_all">Tout</string>
+    <string name="picker_clear">Effacer la sélection</string>
+    <string name="picker_permission_title">Autoriser l’accès à vos photos et vidéos</string>
+    <string name="picker_permission_body">Lightforge a besoin d’accéder à votre bibliothèque pour transmettre des photos et des vidéos à l’application qui les demande.</string>
+    <string name="picker_permission_allow">Autoriser l’accès</string>
+    <string name="picker_permission_settings">Ouvrir les paramètres</string>
+    <string name="picker_limited_body">Lightforge ne voit qu’une partie de vos photos et vidéos.</string>
+    <string name="picker_limited_manage">Gérer</string>
+    <string name="picker_empty_title">Rien ici</string>
+    <string name="picker_empty_body">Aucune photo ni vidéo ici n’est utilisable par cette application.</string>
+    <string name="picker_unsupported_title">Rien à choisir</string>
+    <string name="picker_unsupported_body">L’application a demandé un type de fichier que Lightforge ne conserve pas.</string>
+    <string name="picker_locked_title">Lightforge est verrouillé</string>
+    <string name="picker_locked_body">Déverrouillez pour choisir des photos et des vidéos pour une autre application.</string>
+    <string name="picker_unlock">Déverrouiller</string>
+    <string name="picker_lock_unavailable">Configurez un verrouillage de l’écran ou la biométrie pour déverrouiller Lightforge.</string>
+    <string name="picker_error_title">Impossible de charger votre bibliothèque</string>
+    <string name="picker_error_body">Un problème est survenu lors de la lecture de vos photos et vidéos.</string>
+    <string name="picker_retry">Réessayer</string>
+    <string name="picker_photo">Photo</string>
+    <string name="picker_video">Vidéo</string>
+    <string name="picker_storage_root">Stockage de l\'appareil</string>
+    <string name="picker_library">Photothèque</string>
+    <string name="picker_documents_summary">Photos et vidéos</string>
+    <plurals name="picker_selected_count">
+        <item quantity="one">%d sélectionné</item>
+        <item quantity="many">%d sélectionnés</item>
+        <item quantity="other">%d sélectionnés</item>
+    </plurals>
+    <plurals name="picker_add_count">
+        <item quantity="one">Ajouter %d élément</item>
+        <item quantity="many">Ajouter %d éléments</item>
+        <item quantity="other">Ajouter %d éléments</item>
+    </plurals>
+</resources>
