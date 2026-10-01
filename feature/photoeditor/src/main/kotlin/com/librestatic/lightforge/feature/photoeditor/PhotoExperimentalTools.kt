@@ -5,18 +5,22 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -25,18 +29,27 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
+import com.librestatic.lightforge.core.ml.ModelDownloadWait
 import com.librestatic.lightforge.core.model.EditOperation
+import com.librestatic.lightforge.feature.objecteraser.InpaintModelDownloadWorker
+import com.librestatic.lightforge.feature.objecteraser.InpaintModelStatus
+import com.librestatic.lightforge.feature.objecteraser.InpaintModelStore
 import com.librestatic.lightforge.feature.objecteraser.ObjectEraser
 import com.librestatic.lightforge.feature.subjectclip.SubjectClipper
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 
 /** A point on the edited image, as fractions (0..1) of its width and height. */
 data class PhotoPoint(val x: Float, val y: Float)
@@ -252,10 +265,82 @@ private fun ExperimentalFallbackNotice(text: String) {
 
 @Composable
 internal fun ObjectEraserControls(state: PhotoEditorContentState, actions: ExperimentalToolActions) {
-    val method = state.eraseMethod ?: ObjectEraser.EraseMethod.NEIGHBOR_INTERPOLATION_FALLBACK
-    ExperimentalFallbackNotice(stringResource(R.string.photo_editor_eraser_fallback, method.name))
+    val context = LocalContext.current
+    // Null where WorkManager is not initialized (isolated UI tests); the eraser then offers no model.
+    val statusFlow = remember(context) { runCatching { InpaintModelDownloadWorker.status(context) }.getOrNull() }
+    val status by (statusFlow ?: flowOf(null)).collectAsState(initial = null)
+    val ai = when (state.eraseMethod) {
+        ObjectEraser.EraseMethod.ML_INPAINTING -> true
+        ObjectEraser.EraseMethod.NEIGHBOR_INTERPOLATION_FALLBACK -> false
+        null -> status == InpaintModelStatus.Installed
+    }
+    if (ai) ExperimentalFallbackNotice(stringResource(R.string.photo_editor_eraser_ai))
+    else ExperimentalFallbackNotice(
+        stringResource(R.string.photo_editor_eraser_fallback, ObjectEraser.EraseMethod.NEIGHBOR_INTERPOLATION_FALLBACK.name),
+    )
+    status?.let { EraserModelPanel(it) }
     Text(stringResource(R.string.photo_editor_eraser_hint), style = MaterialTheme.typography.bodyMedium)
 }
+
+/** Offers, tracks and removes the downloaded inpainting model; the download outlives the editor. */
+@Composable
+private fun EraserModelPanel(status: InpaintModelStatus) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val totalMegabytes = (InpaintModelStore.PackageBytes / MegaByte).toInt()
+    val download = { scope.launch { InpaintModelDownloadWorker.enqueue(context) } }
+    Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs), modifier = Modifier.testTag("photo-editor-eraser-model")) {
+        when (status) {
+            InpaintModelStatus.NotInstalled, InpaintModelStatus.Failed -> {
+                if (status == InpaintModelStatus.Failed) {
+                    Text(stringResource(R.string.photo_editor_eraser_model_failed), style = MaterialTheme.typography.bodyMedium)
+                }
+                Text(stringResource(R.string.photo_editor_eraser_model_offer, totalMegabytes), style = MaterialTheme.typography.bodyMedium)
+                Button(onClick = { download() }, modifier = Modifier.testTag("photo-editor-eraser-model-download")) {
+                    Text(
+                        stringResource(
+                            if (status == InpaintModelStatus.Failed) R.string.photo_editor_eraser_model_retry
+                            else R.string.photo_editor_eraser_model_download,
+                        ),
+                    )
+                }
+            }
+            is InpaintModelStatus.Queued, is InpaintModelStatus.Downloading -> {
+                if (status is InpaintModelStatus.Downloading) {
+                    GalleryProgressIndicator(progress = { status.bytes.toFloat() / status.total })
+                    Text(
+                        stringResource(
+                            R.string.photo_editor_eraser_model_progress,
+                            (status.bytes / MegaByte).toInt(),
+                            (status.total / MegaByte).toInt(),
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                } else Text(
+                    stringResource(
+                        when ((status as InpaintModelStatus.Queued).wait) {
+                            ModelDownloadWait.Network -> R.string.photo_editor_eraser_model_waiting_network
+                            ModelDownloadWait.WiFi -> R.string.photo_editor_eraser_model_waiting_wifi
+                            ModelDownloadWait.Battery -> R.string.photo_editor_eraser_model_waiting_battery
+                            null -> R.string.photo_editor_eraser_model_queued
+                        },
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                OutlinedButton(
+                    onClick = { InpaintModelDownloadWorker.cancel(context) },
+                    modifier = Modifier.testTag("photo-editor-eraser-model-cancel"),
+                ) { Text(stringResource(R.string.photo_editor_eraser_model_cancel)) }
+            }
+            InpaintModelStatus.Installed -> TextButton(
+                onClick = { scope.launch(Dispatchers.IO) { InpaintModelStore(context).delete() } },
+                modifier = Modifier.testTag("photo-editor-eraser-model-remove"),
+            ) { Text(stringResource(R.string.photo_editor_eraser_model_remove)) }
+        }
+    }
+}
+
+private const val MegaByte = 1_000_000L
 
 /** Apply/Clear for the eraser; pinned below the scrolling tool panel. */
 @Composable
