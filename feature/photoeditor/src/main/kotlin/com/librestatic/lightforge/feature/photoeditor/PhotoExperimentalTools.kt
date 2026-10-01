@@ -7,6 +7,8 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -344,6 +346,7 @@ private fun EraserCard(
 
 /** Offers, tracks and removes the downloaded inpainting model; the download outlives the editor. */
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun EraserModelPanel(status: InpaintModelStatus) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -371,7 +374,12 @@ private fun EraserModelPanel(status: InpaintModelStatus) {
                     container = MaterialTheme.colorScheme.secondaryContainer,
                     content = MaterialTheme.colorScheme.onSecondaryContainer,
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+                    // Wraps the button under the label when large fonts or long translations do not fit one line.
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+                        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
+                        itemVerticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Row(
                             Modifier.weight(1f),
                             verticalAlignment = Alignment.CenterVertically,
@@ -402,7 +410,10 @@ private fun EraserModelPanel(status: InpaintModelStatus) {
             }
             is InpaintModelStatus.Queued, is InpaintModelStatus.Downloading -> EraserCard(
                 icon = GalleryIconDownload,
-                title = stringResource(R.string.photo_editor_eraser_model_downloading),
+                title = stringResource(
+                    if ((status as? InpaintModelStatus.Queued)?.wait != null) R.string.photo_editor_eraser_model_paused
+                    else R.string.photo_editor_eraser_model_downloading,
+                ),
                 body = if (status is InpaintModelStatus.Downloading) {
                     stringResource(
                         R.string.photo_editor_eraser_model_progress,
@@ -420,10 +431,11 @@ private fun EraserModelPanel(status: InpaintModelStatus) {
                     )
                 },
             ) {
-                if (status is InpaintModelStatus.Downloading) {
-                    GalleryProgressIndicator(progress = { status.bytes.toFloat() / status.total })
-                } else {
-                    GalleryIndeterminateProgressIndicator()
+                // A paused download shows no bar: an animated one would suggest it is still moving.
+                when {
+                    status is InpaintModelStatus.Downloading ->
+                        GalleryProgressIndicator(progress = { status.bytes.toFloat() / status.total })
+                    (status as InpaintModelStatus.Queued).wait == null -> GalleryIndeterminateProgressIndicator()
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
                     Text(

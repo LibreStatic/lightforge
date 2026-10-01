@@ -71,6 +71,7 @@
     <string name="photo_editor_eraser_model_wifi_only">Wi-Fi only</string>
     <string name="photo_editor_eraser_model_any_network">Wi-Fi or mobile data</string>
     <string name="photo_editor_eraser_model_downloading">Downloading AI model</string>
+    <string name="photo_editor_eraser_model_paused">Download paused</string>
     <string name="photo_editor_eraser_model_keep_editing">You can keep editing meanwhile.</string>
     <string name="photo_editor_eraser_model_ready">AI model ready</string>
     <string name="photo_editor_eraser_model_ready_body">Runs on this device; photos never leave it.</string>
@@ -79,9 +80,9 @@
     <string name="photo_editor_eraser_model_retry">Try again</string>
     <string name="photo_editor_eraser_model_progress">%1$d of %2$d MB</string>
     <string name="photo_editor_eraser_model_queued">Starting download…</string>
-    <string name="photo_editor_eraser_model_waiting_network">Paused: waiting for a connection</string>
-    <string name="photo_editor_eraser_model_waiting_wifi">Paused: waiting for Wi-Fi</string>
-    <string name="photo_editor_eraser_model_waiting_battery">Paused: battery below the analysis minimum</string>
+    <string name="photo_editor_eraser_model_waiting_network">Waiting for a connection</string>
+    <string name="photo_editor_eraser_model_waiting_wifi">Waiting for Wi-Fi</string>
+    <string name="photo_editor_eraser_model_waiting_battery">Battery below the analysis minimum</string>
     <string name="photo_editor_eraser_model_cancel">Cancel</string>
     <string name="photo_editor_eraser_model_remove">Remove</string>
     <string name="photo_editor_clip_fallback">Fallback quality (%1$s): keeps pixels close in color to the tapped point. Results are approximate.</string>

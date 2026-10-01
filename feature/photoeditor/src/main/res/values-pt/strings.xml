@@ -55,6 +55,7 @@
     <string name="photo_editor_eraser_model_wifi_only">Somente Wi-Fi</string>
     <string name="photo_editor_eraser_model_any_network">Wi-Fi ou dados móveis</string>
     <string name="photo_editor_eraser_model_downloading">Baixando modelo de IA</string>
+    <string name="photo_editor_eraser_model_paused">Download pausado</string>
     <string name="photo_editor_eraser_model_keep_editing">Você pode continuar editando enquanto isso.</string>
     <string name="photo_editor_eraser_model_ready">Modelo de IA pronto</string>
     <string name="photo_editor_eraser_model_ready_body">Funciona neste dispositivo; as fotos nunca saem dele.</string>
@@ -63,9 +64,9 @@
     <string name="photo_editor_eraser_model_retry">Tentar novamente</string>
     <string name="photo_editor_eraser_model_progress">%1$d de %2$d MB</string>
     <string name="photo_editor_eraser_model_queued">Iniciando download…</string>
-    <string name="photo_editor_eraser_model_waiting_network">Pausado: aguardando conexão</string>
-    <string name="photo_editor_eraser_model_waiting_wifi">Pausado: aguardando Wi-Fi</string>
-    <string name="photo_editor_eraser_model_waiting_battery">Pausado: bateria abaixo do mínimo de análise</string>
+    <string name="photo_editor_eraser_model_waiting_network">Aguardando conexão</string>
+    <string name="photo_editor_eraser_model_waiting_wifi">Aguardando Wi-Fi</string>
+    <string name="photo_editor_eraser_model_waiting_battery">Bateria abaixo do mínimo de análise</string>
     <string name="photo_editor_eraser_model_cancel">Cancelar</string>
     <string name="photo_editor_eraser_model_remove">Remover</string>
     <string name="photo_editor_clip_fallback">Qualidade alternativa (%1$s): mantém os pixels de cor parecida com o ponto tocado. O resultado é aproximado.</string>

@@ -55,6 +55,7 @@
     <string name="photo_editor_eraser_model_wifi_only">Nur WLAN</string>
     <string name="photo_editor_eraser_model_any_network">WLAN oder mobile Daten</string>
     <string name="photo_editor_eraser_model_downloading">KI-Modell wird geladen</string>
+    <string name="photo_editor_eraser_model_paused">Download pausiert</string>
     <string name="photo_editor_eraser_model_keep_editing">Du kannst währenddessen weiter bearbeiten.</string>
     <string name="photo_editor_eraser_model_ready">KI-Modell bereit</string>
     <string name="photo_editor_eraser_model_ready_body">Läuft auf diesem Gerät; Fotos verlassen es nie.</string>
@@ -63,9 +64,9 @@
     <string name="photo_editor_eraser_model_retry">Erneut versuchen</string>
     <string name="photo_editor_eraser_model_progress">%1$d von %2$d MB</string>
     <string name="photo_editor_eraser_model_queued">Download wird gestartet…</string>
-    <string name="photo_editor_eraser_model_waiting_network">Pausiert: Warten auf Verbindung</string>
-    <string name="photo_editor_eraser_model_waiting_wifi">Pausiert: Warten auf WLAN</string>
-    <string name="photo_editor_eraser_model_waiting_battery">Pausiert: Akku unter dem Analyse-Minimum</string>
+    <string name="photo_editor_eraser_model_waiting_network">Warten auf Verbindung</string>
+    <string name="photo_editor_eraser_model_waiting_wifi">Warten auf WLAN</string>
+    <string name="photo_editor_eraser_model_waiting_battery">Akku unter dem Analyse-Minimum</string>
     <string name="photo_editor_eraser_model_cancel">Abbrechen</string>
     <string name="photo_editor_eraser_model_remove">Entfernen</string>
     <string name="photo_editor_clip_fallback">Ersatzqualität (%1$s): behält Pixel mit ähnlicher Farbe wie der angetippte Punkt. Das Ergebnis ist eine Näherung.</string>
