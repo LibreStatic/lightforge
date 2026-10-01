@@ -174,7 +174,7 @@ import com.librestatic.lightforge.feature.photoeditor.photoGeometryOperations
 import com.librestatic.lightforge.feature.photoeditor.photoGeometryProjectable
 import com.librestatic.lightforge.feature.photoeditor.projectToEdited
 import com.librestatic.lightforge.feature.photoeditor.projectToSource
-import com.librestatic.lightforge.feature.objecteraser.ObjectEraser
+import com.librestatic.lightforge.feature.objecteraser.InpaintingSession
 import com.librestatic.lightforge.feature.subjectclip.SubjectClipper
 import com.librestatic.lightforge.feature.videoeditor.VideoEditorContentState
 import com.librestatic.lightforge.feature.videoeditor.labelResource
@@ -782,6 +782,8 @@ class GalleryViewModel @Inject constructor(
     private var adjacentPhotoJob: Job? = null
     private var photoEditorJob: Job? = null
     private var photoExperimentalJob: Job? = null
+    /** Keeps the downloaded inpainting model compiled while a photo editor is open. */
+    private var photoInpainting: InpaintingSession? = null
     private var photoEditorOpenGeneration = 0L
     private var photoAutoEnhancementJob: Job? = null
     private var photoAutoEnhancementGeneration = 0L
@@ -3859,9 +3861,7 @@ class GalleryViewModel @Inject constructor(
         photoExperimentalJob?.cancel()
         photoExperimentalJob = viewModelScope.launch {
             val erased = try {
-                withContext(Dispatchers.Default) {
-                    ObjectEraser().eraseRegions(preview, eraseRegionsFor(marks, preview.width, preview.height))
-                }
+                photoInpaintingSession().erase(preview, eraseRegionsFor(marks, preview.width, preview.height))
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Throwable) {
@@ -3895,6 +3895,14 @@ class GalleryViewModel @Inject constructor(
                 ),
             )
         }
+    }
+
+    private fun photoInpaintingSession(): InpaintingSession =
+        photoInpainting ?: InpaintingSession(getApplication()).also { photoInpainting = it }
+
+    private fun releasePhotoInpainting() {
+        photoInpainting?.close()
+        photoInpainting = null
     }
 
     /** The session's eraser marks in the coordinates of its current edited image. */
@@ -4046,12 +4054,10 @@ class GalleryViewModel @Inject constructor(
                 }
                 if (session.eraseMarks.isEmpty()) return decoded
                 try {
-                    withContext(Dispatchers.Default) {
-                        ObjectEraser().eraseRegions(
-                            decoded,
-                            eraseRegionsFor(editedEraseMarks(session), decoded.width, decoded.height),
-                        ).bitmap
-                    }
+                    photoInpaintingSession().erase(
+                        decoded,
+                        eraseRegionsFor(editedEraseMarks(session), decoded.width, decoded.height),
+                    ).bitmap
                 } finally {
                     decoded.recycle()
                 }
@@ -4187,6 +4193,7 @@ class GalleryViewModel @Inject constructor(
         pendingRecipeWrite?.cancel()
         closeRawPreviewSession()
         photoExperimentalJob?.cancel()
+        releasePhotoInpainting()
         recycleExperimentalPreviews(session?.content)
         if (session?.source?.libraryMedia != null) {
             val previousDiscard = photoRecipeDiscardJob
@@ -5609,6 +5616,7 @@ class GalleryViewModel @Inject constructor(
             ?.takeIf { it !== photoSession.content.preview && it !== photoSession.content.originalPreview }
             ?.recycle()
         photoExperimentalJob?.cancel()
+        releasePhotoInpainting()
         recycleExperimentalPreviews(photoSession?.content)
         mutablePhotoEditor.value = null
         mutableVideoEditor.value = null
@@ -6135,6 +6143,7 @@ class GalleryViewModel @Inject constructor(
         userHardwareLease?.let(UserHardwareWorkloadGate::release)
         semanticSearchEngine?.close()
         semanticModelManager?.close()
+        releasePhotoInpainting()
         runtime.value?.let {
             it.monitor?.close()
             it.thumbnails.close()

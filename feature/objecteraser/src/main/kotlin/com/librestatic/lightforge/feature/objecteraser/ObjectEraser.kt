@@ -1,14 +1,18 @@
 package com.librestatic.lightforge.feature.objecteraser
 
 import android.graphics.Bitmap
-import android.graphics.Color
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Rect
+import kotlin.math.ceil
+import kotlin.math.floor
 
 /**
  * Object eraser using local inpainting.
  *
- * This implementation uses a simple texture-synthesis inpainting approach
- * as a fallback. The erased region is filled by sampling neighboring pixels
- * and applying a simple blur/interpolation.
+ * With the downloaded MI-GAN model ([inpaintRegions]) each group of brush dabs is filled by the model from a
+ * crop around it. Without it, [eraseRegions] is an explicit fallback that interpolates the colors around each
+ * brushed square.
  *
  * No cloud, no network - all processing is local.
  * The original bitmap is never modified; a copy is returned.
@@ -56,6 +60,93 @@ class ObjectEraser {
 
         return EraseResult(result, regions.size, EraseMethod.NEIGHBOR_INTERPOLATION_FALLBACK)
     }
+
+    /**
+     * Fills the round dabs inscribed in [regions] with [inpainter]. Each pass scales a crop around one group of
+     * dabs to the model input, and the output is blended back at full resolution in row bands, so memory stays
+     * bounded on large photos. [ensureActive] is called between passes and bands so callers can cancel.
+     */
+    fun inpaintRegions(
+        bitmap: Bitmap,
+        regions: List<EraseRegion>,
+        inpainter: MiganInpainter,
+        ensureActive: () -> Unit = {},
+    ): EraseResult {
+        require(regions.isNotEmpty()) { "At least one region required" }
+        val result = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+        try {
+            val size = InpaintPlan.ModelSize
+            val modelInput = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            val pixels = IntArray(size * size)
+            try {
+                for (pass in InpaintPlan.passes(regions, result.width, result.height)) {
+                    ensureActive()
+                    modelInput.eraseColor(0)
+                    Canvas(modelInput).drawBitmap(
+                        result,
+                        Rect(pass.crop.left, pass.crop.top, pass.crop.right, pass.crop.bottom),
+                        Rect(0, 0, size, size),
+                        Paint(Paint.FILTER_BITMAP_FLAG),
+                    )
+                    modelInput.getPixels(pixels, 0, size, 0, 0, size, size)
+                    val filled = inpainter.inpaint(pixels, InpaintPlan.keepMask(pass))
+                    blend(result, pass, filled, ensureActive)
+                }
+            } finally {
+                modelInput.recycle()
+            }
+            return EraseResult(result, regions.size, EraseMethod.ML_INPAINTING)
+        } catch (failure: Throwable) {
+            result.recycle()
+            throw failure
+        }
+    }
+
+    /** Blends the model output [filled] (the pass crop at model size) into [target] around the pass dabs. */
+    private fun blend(target: Bitmap, pass: InpaintPass, filled: IntArray, ensureActive: () -> Unit) {
+        val feather = InpaintPlan.feather(pass)
+        val grow = ceil(feather).toInt()
+        val area = PixelRect(
+            (pass.holes.left - grow).coerceAtLeast(pass.crop.left),
+            (pass.holes.top - grow).coerceAtLeast(pass.crop.top),
+            (pass.holes.right + grow).coerceAtMost(pass.crop.right),
+            (pass.holes.bottom + grow).coerceAtMost(pass.crop.bottom),
+        )
+        if (area.width <= 0 || area.height <= 0) return
+        val size = InpaintPlan.ModelSize
+        val scaleX = size.toFloat() / pass.crop.width
+        val scaleY = size.toFloat() / pass.crop.height
+        val band = IntArray(area.width * BandRows)
+        var top = area.top
+        while (top < area.bottom) {
+            ensureActive()
+            val rows = minOf(BandRows, area.bottom - top)
+            val bandArea = PixelRect(area.left, top, area.right, top + rows)
+            val weights = InpaintPlan.coverage(pass.dabs, bandArea, feather)
+            target.getPixels(band, 0, area.width, area.left, top, area.width, rows)
+            for (row in 0 until rows) {
+                // Bilinear sample of the model output at this pixel's center.
+                val my = ((top + row + 0.5f - pass.crop.top) * scaleY - 0.5f).coerceIn(0f, size - 1f)
+                val y0 = floor(my).toInt(); val y1 = minOf(y0 + 1, size - 1); val fy = my - y0
+                for (column in 0 until area.width) {
+                    val index = row * area.width + column
+                    val weight = weights[index]
+                    if (weight <= 0f) continue
+                    val mx = ((area.left + column + 0.5f - pass.crop.left) * scaleX - 0.5f).coerceIn(0f, size - 1f)
+                    val x0 = floor(mx).toInt(); val x1 = minOf(x0 + 1, size - 1); val fx = mx - x0
+                    val sampled = bilinear(
+                        filled[y0 * size + x0], filled[y0 * size + x1], filled[y1 * size + x0], filled[y1 * size + x1], fx, fy,
+                    )
+                    band[index] = if (weight >= 1f) sampled else blendColor(band[index], sampled, weight)
+                }
+            }
+            target.setPixels(band, 0, area.width, area.left, top, area.width, rows)
+            top += rows
+        }
+    }
+
+    private fun bilinear(c00: Int, c10: Int, c01: Int, c11: Int, fx: Float, fy: Float): Int =
+        blendColor(blendColor(c00, c10, fx), blendColor(c01, c11, fx), fy)
 
     /**
      * Erases a single region by interpolating from border pixels.
@@ -127,5 +218,10 @@ class ObjectEraser {
         val g = ((c1 shr 8) and 0xFF) * (1 - t) + ((c2 shr 8) and 0xFF) * t
         val b = (c1 and 0xFF) * (1 - t) + (c2 and 0xFF) * t
         return (0xFF shl 24) or (r.toInt() shl 16) or (g.toInt() shl 8) or b.toInt()
+    }
+
+    private companion object {
+        /** Rows blended per band; bounds the pixel buffers on full-resolution photos. */
+        const val BandRows = 128
     }
 }

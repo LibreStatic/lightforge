@@ -25,6 +25,12 @@ dependencies {
     implementation(project(":core:thumbnail"))
     implementation(project(":core:designsystem"))
     implementation(project(":feature:subjectclip"))
+    implementation(project(":core:ml"))
+    implementation(libs.litert.api) {
+        // The model is downloaded from the pinned release asset, never through Play AI delivery.
+        exclude(group = "com.google.android.play", module = "ai-delivery")
+    }
+    implementation(libs.androidx.work.runtime)
     implementation(libs.kotlinx.coroutines.core)
     implementation(platform(libs.compose.bom))
     implementation("androidx.compose.ui:ui")
