@@ -328,7 +328,10 @@ data class VideoOutputPlan(
                 output.audio,
                 source,
                 hasMusic = recipe.musicUri != null,
-                copyable = remuxVideo && recipe.originalAudioVolume == 1f,
+                // The source audio is independent from the video: a re-encoded video keeps the
+                // original AAC stream untouched as long as volume, speed and slow motion leave it alone.
+                copyable = recipe.originalAudioVolume == 1f && recipe.speed == 1f &&
+                    recipe.slowMotionSegments.isEmpty(),
             )
 
             return VideoOutputPlan(

@@ -260,7 +260,17 @@ class VideoOutputPlanTest {
 
         assertFalse(plan.remuxVideo)
         assertEquals(VideoOutputCodec.H264, plan.codec)
-        assertEquals(VideoAudioPlan.Encode(VideoOutputPlan.DefaultAudioBitrate, requested = false), plan.audio)
+        // The AAC track is not touched by the video re-encode, so it is copied, not re-encoded.
+        assertEquals(VideoAudioPlan.Copy, plan.audio)
+        assertTrue(plan.remuxAudio)
+    }
+
+    @Test
+    fun speedOrVolumeStillReencodeTheAudio() {
+        val speed = plan(VideoOutputSettings(), recipe = VideoEditRecipe(speed = 2f))
+        assertEquals(VideoAudioPlan.Encode(VideoOutputPlan.DefaultAudioBitrate, requested = false), speed.audio)
+        val volume = plan(VideoOutputSettings(), recipe = VideoEditRecipe(originalAudioVolume = 0.5f))
+        assertFalse(volume.remuxAudio)
     }
 
     @Test
