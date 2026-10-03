@@ -78,7 +78,8 @@ Current previews: `PhotoEditorPreview`, `PhotoEditorLoadingPreview`, `EraserMode
 `CleanupLoadingPreview` (`feature/collections`), `PhotosTimelinePreview`, `PhotosSelectionPreview`,
 `PhotosFilterEmptyPreview` (`feature/photos`), `PickerGridPreview`, `PickerSingleGridPreview`
 (`feature/picker`), `DesignSystemCataloguePreview`, `DesignSystemStatesPreview`, `SelectionBarPreview`
-(`core/designsystem`).
+(`core/designsystem`), `VideoEditorPreview`, `VideoFilmstripLoadingPreview` (`feature/videoeditor`),
+`CollageEditorPreview`, `GifEditorPreview` (`feature/collage`).
 
 ## Screenshot matrix
 
@@ -104,8 +105,6 @@ scripts/compose-driver.sh shot photos-tablet-dark
 
 Shared grid and selection components (`AdaptiveMediaGrid`, `GallerySelectionBar`) are covered by
 `SelectionBarPreview`; screens that adopt them should add their own preview rather than relying on it.
-`CleanupLoadingPreview` (`feature/collections`), `VideoEditorPreview`, `VideoFilmstripLoadingPreview`
-(`feature/videoeditor`), `CollageEditorPreview`, `GifEditorPreview` (`feature/collage`).
 
 ## Behavior worth knowing
 
