@@ -1,8 +1,8 @@
 package com.librestatic.lightforge.feature.videoeditor
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -59,7 +59,8 @@ internal fun SpeedControls(
         verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
     ) {
         Text(stringResource(R.string.video_editor_base_speed), style = MaterialTheme.typography.titleSmall)
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+        // Every speed stays visible: the chips wrap instead of scrolling off the panel (bug 6).
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
             BasePlaybackSpeeds.forEach { speed ->
                 FilterChip(
                     selected = state.speed == speed,
@@ -82,7 +83,7 @@ internal fun SpeedControls(
         }
 
         Text(stringResource(R.string.video_editor_slow_segments), style = MaterialTheme.typography.titleSmall)
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
             GalleryExpressiveButton(
                 onClick = { onMarkIn(currentMillis) },
                 modifier = Modifier.widthIn(min = 104.dp).heightIn(min = 48.dp),
@@ -97,7 +98,7 @@ internal fun SpeedControls(
             Text(stringResource(R.string.video_editor_marked_in_at, formatMillis(it)))
         }
         if (state.slowMotionSegments.isNotEmpty()) {
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
                 state.slowMotionSegments.forEachIndexed { index, segment ->
                     FilterChip(
                         selected = segment.id == state.selectedSlowMotionSegmentId,
@@ -110,7 +111,7 @@ internal fun SpeedControls(
         }
         selected?.let { segment ->
             Text(stringResource(R.string.video_editor_segment_speed), style = MaterialTheme.typography.titleSmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
                 listOf(0.5f, 0.25f, 0.125f).forEach { speed ->
                     FilterChip(
                         selected = segment.speed == speed,
@@ -121,7 +122,7 @@ internal fun SpeedControls(
                 }
             }
             Text(stringResource(R.string.video_editor_segment_audio), style = MaterialTheme.typography.titleSmall)
-            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
                 listOf(
                     SlowMotionAudioMode.PreservePitch to R.string.video_editor_audio_preserve_pitch,
                     SlowMotionAudioMode.Muted to R.string.video_editor_audio_muted,
