@@ -100,6 +100,8 @@ import com.librestatic.lightforge.core.designsystem.MediaEditorHistory
 import com.librestatic.lightforge.core.designsystem.EditorAdjustmentSlider
 import com.librestatic.lightforge.core.designsystem.EditorAdjustmentSliderRules
 import com.librestatic.lightforge.core.designsystem.MediaEditorScaffold
+import com.librestatic.lightforge.core.designsystem.MediaEditorShortcut
+import com.librestatic.lightforge.core.designsystem.mediaEditorShortcuts
 import com.librestatic.lightforge.core.designsystem.MediaEditorToolChip
 import com.librestatic.lightforge.core.designsystem.MediaEditorToolChips
 import com.librestatic.lightforge.core.designsystem.MediaEditorTopBar
@@ -130,6 +132,10 @@ import kotlinx.coroutines.withContext
 
 private const val PreviewCubeSize = 17
 internal const val FilmstripFrameCount = 8
+
+/** Arrow keys step about one frame at 30 fps; Shift+arrows and J jump a second. */
+private const val ShortcutFrameMillis = 33L
+private const val ShortcutJumpMillis = 1_000L
 private const val GeometryPreviewDebounceMillis = 50L
 internal val EditorChipModifier = Modifier.widthIn(min = 80.dp).heightIn(min = 48.dp)
 
@@ -505,8 +511,36 @@ fun VideoEditorContent(
         checkpoint(previewPositionMillis)
         onSeek(previewPositionMillis)
     }
+    fun seekBy(deltaMillis: Long, pause: Boolean) {
+        if (pause) controller?.pause()
+        val target = (previewPositionMillis + deltaMillis).coerceIn(0L, state.durationMillis.coerceAtLeast(0L))
+        onTimelineSeek(target)
+        controller?.seekTo(previewPositionMillis)
+    }
+    val isPlaying = (controller?.state?.collectAsState()?.value as? VideoViewerState.Ready)?.isPlaying == true
+    val shortcuts: (MediaEditorShortcut) -> Boolean = { command ->
+        when (command) {
+            MediaEditorShortcut.PlayPause -> controller?.run { if (isPlaying) pause() else play() } != null
+            MediaEditorShortcut.ShuttleForward -> controller?.play() != null
+            MediaEditorShortcut.ShuttleStop -> controller?.pause() != null
+            // Media3 cannot play backwards, so J shuttles back in one-second jumps.
+            MediaEditorShortcut.ShuttleBack -> { seekBy(-ShortcutJumpMillis, pause = false); true }
+            MediaEditorShortcut.StepBack -> { seekBy(-ShortcutFrameMillis, pause = true); true }
+            MediaEditorShortcut.StepForward -> { seekBy(ShortcutFrameMillis, pause = true); true }
+            MediaEditorShortcut.JumpBack -> { seekBy(-ShortcutJumpMillis, pause = false); true }
+            MediaEditorShortcut.JumpForward -> { seekBy(ShortcutJumpMillis, pause = false); true }
+            MediaEditorShortcut.MarkIn -> { onMarkSlowMotionIn(previewPositionMillis); true }
+            MediaEditorShortcut.MarkOut -> state.slowMotionMarkInMillis?.let { onMarkSlowMotionOut(previewPositionMillis); true } ?: false
+            MediaEditorShortcut.Undo -> state.canUndo.also { if (it) annotationActions.undo() }
+            MediaEditorShortcut.Redo -> state.canRedo.also { if (it) annotationActions.redo() }
+            MediaEditorShortcut.Cancel -> { requestBack(); true }
+        }
+    }
     MediaEditorScaffold(
-        modifier = modifier.testTag("video-editor-screen").semantics { testTagsAsResourceId = true },
+        modifier = modifier
+            .mediaEditorShortcuts(shortcuts)
+            .testTag("video-editor-screen")
+            .semantics { testTagsAsResourceId = true },
         foldInfo = foldInfo,
         resizeDescription = stringResource(R.string.video_editor_resize_panels),
         stackedMediaWeight = 0.55f,

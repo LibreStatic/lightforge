@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.librestatic.lightforge.core.designsystem.EditorAdjustmentSlider
 import com.librestatic.lightforge.core.designsystem.MediaEditorScaffold
+import com.librestatic.lightforge.core.designsystem.MediaEditorShortcut
+import com.librestatic.lightforge.core.designsystem.mediaEditorShortcuts
 import com.librestatic.lightforge.core.designsystem.MediaEditorTopBar
 import kotlinx.coroutines.launch
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
@@ -161,7 +163,10 @@ internal fun CreationCollageEditorLayout(
 ) {
     val layout = state.layout
     MediaEditorScaffold(
-        modifier = modifier.testTag("creation-collage-screen").semantics { testTagsAsResourceId = true },
+        modifier = modifier
+            .mediaEditorShortcuts { command -> (command == MediaEditorShortcut.Cancel).also { if (it) actions.onBack() } }
+            .testTag("creation-collage-screen")
+            .semantics { testTagsAsResourceId = true },
         topBar = {
             MediaEditorTopBar(
                 title = stringResource(R.string.creation_collage_title),

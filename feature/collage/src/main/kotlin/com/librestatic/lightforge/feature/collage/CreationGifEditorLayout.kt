@@ -39,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
 import com.librestatic.lightforge.core.designsystem.MediaEditorScaffold
+import com.librestatic.lightforge.core.designsystem.MediaEditorShortcut
+import com.librestatic.lightforge.core.designsystem.mediaEditorShortcuts
 import com.librestatic.lightforge.core.designsystem.MediaEditorTopBar
 
 /** Everything the GIF editor shows, already resolved from the draft, playback and export state. */
@@ -94,7 +96,18 @@ internal fun CreationGifEditorLayout(
     modifier: Modifier = Modifier,
 ) {
     MediaEditorScaffold(
-        modifier = modifier.testTag("creation-gif-screen").semantics { testTagsAsResourceId = true },
+        modifier = modifier
+            .mediaEditorShortcuts { command ->
+                when (command) {
+                    MediaEditorShortcut.PlayPause -> (ui.editable && ui.preview != null).also { if (it) actions.onTogglePlay() }
+                    MediaEditorShortcut.StepBack -> ui.editable.also { if (it) actions.onPrevious() }
+                    MediaEditorShortcut.StepForward -> ui.editable.also { if (it) actions.onNext() }
+                    MediaEditorShortcut.Cancel -> { actions.onBack(); true }
+                    else -> false
+                }
+            }
+            .testTag("creation-gif-screen")
+            .semantics { testTagsAsResourceId = true },
         topBar = {
             MediaEditorTopBar(
                 title = ui.title,

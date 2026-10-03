@@ -65,6 +65,8 @@ import com.librestatic.lightforge.core.designsystem.MediaEditorHistory
 import com.librestatic.lightforge.core.designsystem.EditorAdjustmentSlider
 import com.librestatic.lightforge.core.designsystem.EditorAdjustmentSliderRules
 import com.librestatic.lightforge.core.designsystem.MediaEditorScaffold
+import com.librestatic.lightforge.core.designsystem.MediaEditorShortcut
+import com.librestatic.lightforge.core.designsystem.mediaEditorShortcuts
 import com.librestatic.lightforge.core.designsystem.MediaEditorToolChip
 import com.librestatic.lightforge.core.designsystem.MediaEditorToolChips
 import com.librestatic.lightforge.core.designsystem.MediaEditorTopBar
@@ -191,7 +193,15 @@ fun PhotoEditorContent(
     BackHandler(enabled = cropDraft != null, onBack = ::backFromCropDraft)
     val experimentalPanel = selectedTool.isExperimentalTool()
     MediaEditorScaffold(
-        modifier = modifier,
+        // Ctrl+Z / Ctrl+Shift+Z walk the history and Esc leaves the crop draft or the editor.
+        modifier = modifier.mediaEditorShortcuts { command ->
+            when (command) {
+                MediaEditorShortcut.Undo -> state.canUndo.also { if (it) onUndo() }
+                MediaEditorShortcut.Redo -> state.canRedo.also { if (it) onRedo() }
+                MediaEditorShortcut.Cancel -> { if (cropDraft != null) backFromCropDraft() else onBack(); true }
+                else -> false
+            }
+        },
         topBar = {
             MediaEditorTopBar(
                 title = stringResource(R.string.photo_editor_title),
