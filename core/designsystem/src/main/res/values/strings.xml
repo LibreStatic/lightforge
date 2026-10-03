@@ -4,4 +4,13 @@
     <string name="media_tile_favorite_description">Favorite</string>
     <string name="media_tile_file_type_description">File type %1$s</string>
     <string name="media_tile_selected_position">Selected, position %1$d</string>
+    <string name="gallery_selection_clear">Clear selection</string>
+    <string name="gallery_selection_more">More options</string>
+    <plurals name="gallery_selection_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <string name="media_tile_action_select">Select</string>
+    <string name="media_tile_action_deselect">Deselect</string>
+    <string name="media_tile_action_open">Open</string>
 </resources>

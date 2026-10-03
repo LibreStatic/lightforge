@@ -278,6 +278,7 @@ fun LightforgeTheme(
         MaterialExpressiveTheme(
             colorScheme = colors,
             motionScheme = MotionScheme.expressive(),
+            typography = GalleryTypographyScale,
             content = content,
         )
     }

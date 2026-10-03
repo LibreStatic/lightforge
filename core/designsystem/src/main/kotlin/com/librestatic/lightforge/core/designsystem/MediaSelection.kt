@@ -23,7 +23,10 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -48,9 +51,17 @@ import kotlinx.coroutines.launch
  * selection order matters (e.g. "Create PDF" from the gallery, where tap order becomes page
  * order). Passing null (the default, and every existing caller) keeps the plain checkmark; this
  * never changes behavior for a caller that does not opt in.
+ *
+ * [shape] must match the tile's own clip (e.g. [GalleryShapes.Thumbnail]) so the frame follows
+ * rounded corners instead of drawing square corners over them.
  */
 @Composable
-fun MediaSelectionOverlay(selected: Boolean, modifier: Modifier = Modifier, order: Int? = null) {
+fun MediaSelectionOverlay(
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    order: Int? = null,
+    shape: Shape = RectangleShape,
+) {
     if (!selected) return
     val orderedDescription =
         order?.let { stringResource(R.string.media_tile_selected_position, it) }
@@ -62,10 +73,11 @@ fun MediaSelectionOverlay(selected: Boolean, modifier: Modifier = Modifier, orde
     Box(
         modifier
             .fillMaxSize()
+            .clip(shape)
             .background(primary.copy(alpha = 0.26f))
-            .border(4.dp, primary)
+            .border(4.dp, primary, shape)
             .padding(4.dp)
-            .border(1.5.dp, onPrimary)
+            .border(1.5.dp, onPrimary, shape)
             .testTag("media_selection_indicator")
     ) {
         Surface(
