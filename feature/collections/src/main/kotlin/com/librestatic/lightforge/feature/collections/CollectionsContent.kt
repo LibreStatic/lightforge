@@ -337,8 +337,11 @@ fun CollectionsContent(
                             }
                             "memories" -> {
                                 flushTiles()
-                                item(key = "auto-header") { CollectionSectionHeader(labels.getValue(id)) }
-                                collectionTileRows(momentCards, columns, thumbnailLoader, CollectionTileGap, dense = false)
+                                // Like the album sections, no moments means no section: never an orphan title.
+                                if (momentCards.isNotEmpty()) {
+                                    item(key = "auto-header") { CollectionSectionHeader(labels.getValue(id)) }
+                                    collectionTileRows(momentCards, columns, thumbnailLoader, CollectionTileGap, dense = false)
+                                }
                             }
                             else -> {
                                 val card = cards.getValue(id)
