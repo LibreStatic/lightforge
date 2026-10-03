@@ -16,7 +16,7 @@ class AdaptiveMediaGridTest {
         assertEquals(4, columns(577.dp)) // fold pane next to a rail
         assertEquals(5, columns(673.dp)) // unfolded portrait
         assertEquals(5, columns(756.dp)) // phone landscape pane
-        assertEquals(7, columns(1184.dp)) // tablet pane
+        assertEquals(6, columns(1184.dp)) // tablet pane
         assertEquals(10, columns(1824.dp)) // desktop pane
     }
 
@@ -44,8 +44,9 @@ class AdaptiveMediaGridTest {
     @Test
     fun edgeMarginsGrowWithWindowClass() {
         assertEquals(GallerySpacing.Xs, mediaGridLayout(393.dp).startPadding)
-        assertEquals(GallerySpacing.Lg, mediaGridLayout(700.dp).startPadding)
-        assertEquals(GallerySpacing.Xxl, mediaGridLayout(1280.dp).startPadding)
+        // Wider grids share the shell gutter of their window class.
+        assertEquals(galleryAdaptiveLayoutInfo(700.dp).gutter, mediaGridLayout(700.dp).startPadding)
+        assertEquals(galleryAdaptiveLayoutInfo(1280.dp).gutter, mediaGridLayout(1280.dp).startPadding)
     }
 
     @Test
@@ -65,7 +66,7 @@ class AdaptiveMediaGridTest {
         val layout = mediaGridLayout(1184.dp, itemCount = 2)
         assertEquals(2, layout.columns)
         assertEquals(AdaptiveMediaGridDefaults.MaxSparseCell, layout.cellSize)
-        assertEquals(GallerySpacing.Xxl, layout.startPadding)
+        assertEquals(galleryAdaptiveLayoutInfo(1184.dp).gutter, layout.startPadding)
         val total = layout.startPadding + layout.contentWidth + layout.endPadding
         assertEquals(1184f, total.value, 0.01f)
     }

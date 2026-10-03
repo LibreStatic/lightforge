@@ -464,21 +464,23 @@ private fun TimelineDayHeader(
             .heightIn(min = 48.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.titleMedium,
-            maxLines = 1,
-            modifier = Modifier.weight(1f, fill = false).semantics { heading() },
-        )
-        if (count != null) {
+        // Date and count take the line; the group toggle stays pinned at the end.
+        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = " · " + pluralStringResource(R.plurals.timeline_group_count, count, count),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                text = text,
+                style = MaterialTheme.typography.titleMedium,
                 maxLines = 1,
+                modifier = Modifier.weight(1f, fill = false).semantics { heading() },
             )
+            if (count != null) {
+                Text(
+                    text = " · " + pluralStringResource(R.plurals.timeline_group_count, count, count),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
         }
-        Spacer(Modifier.weight(1f))
         if (onToggleGroup != null) {
             val description = stringResource(
                 if (groupSelected) R.string.timeline_deselect_group else R.string.timeline_select_group,

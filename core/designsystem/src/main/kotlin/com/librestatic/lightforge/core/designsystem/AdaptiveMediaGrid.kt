@@ -72,12 +72,14 @@ object AdaptiveMediaGridDefaults {
         else -> 112.dp + 48.dp * ((width - 600.dp) / 600.dp)
     }
 
-    /** Edge margin for a grid whose own width is [width]. Phones run the grid nearly edge to edge. */
-    fun edgePadding(width: Dp): Dp = when {
-        width < 600.dp -> GallerySpacing.Xs
-        width < 840.dp -> GallerySpacing.Lg
-        else -> GallerySpacing.Xxl
-    }
+    /**
+     * Edge margin for a grid whose own width is [width]. Compact grids run nearly edge to edge,
+     * like every photo grid on a phone; wider ones share the shell gutter, so the grid lines up
+     * with headers and other content of the same window class.
+     */
+    fun edgePadding(width: Dp): Dp =
+        if (galleryWindowClass(width) == GalleryWindowClass.Compact) GallerySpacing.Xs
+        else galleryAdaptiveLayoutInfo(width).gutter
 }
 
 /**

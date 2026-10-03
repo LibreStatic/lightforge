@@ -126,6 +126,7 @@ fun LibraryPhotosRoute(
     // The route's own width, not the window's: a rail or a side panel narrows it.
     BoxWithConstraints(modifier.fillMaxSize()) {
     val wideToolbar = maxWidth >= 600.dp
+    val gridEdge = com.librestatic.lightforge.core.designsystem.AdaptiveMediaGridDefaults.edgePadding(maxWidth)
     val page = GalleryColorRoles.current.page
     androidx.compose.runtime.CompositionLocalProvider(
         androidx.compose.material3.LocalContentColor provides page.content,
@@ -232,9 +233,10 @@ fun LibraryPhotosRoute(
                 onSortChange = onSortChange,
                 totalCount = scrubberIndex?.total,
                 wide = wideToolbar,
+                // Wide windows line the row up with the grid's edge (the shell gutter).
                 modifier = Modifier.padding(
-                    start = GallerySpacing.Lg,
-                    end = if (wideToolbar) GallerySpacing.Lg else GallerySpacing.Xs,
+                    start = if (wideToolbar) gridEdge else GallerySpacing.Lg,
+                    end = if (wideToolbar) gridEdge else GallerySpacing.Xs,
                     bottom = GallerySpacing.Xs,
                 ),
             )
