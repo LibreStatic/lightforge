@@ -43,3 +43,26 @@ internal fun surfaceOwnsTopBar(route: SurfaceRoute): Boolean = when (route) {
  */
 internal fun surfaceControlsNeedTopInset(route: SurfaceRoute): Boolean =
     surfaceIsFullBleed(route) || surfaceOwnsTopBar(route)
+
+/**
+ * Routes that keep the navigation rail beside them when the window has one. Every library and
+ * collection screen keeps it, so opening Places, Memories, People, PDF Studio, Cleanup or Smart
+ * albums never drops the rail; focal tasks (viewer, editors, creation flows, the private album)
+ * take the whole window instead.
+ */
+internal fun surfaceShowsNavigationRail(route: SurfaceRoute): Boolean = when (route) {
+    SurfaceRoute.Viewer,
+    SurfaceRoute.PhotoEditor,
+    SurfaceRoute.VideoEditor,
+    SurfaceRoute.MotionPhoto,
+    SurfaceRoute.ManualMoment,
+    SurfaceRoute.MemoryVideo,
+    SurfaceRoute.CreationGif,
+    SurfaceRoute.Collage,
+    SurfaceRoute.Moment,
+    SurfaceRoute.MomentParticipants,
+    SurfaceRoute.PrivateAlbum,
+    SurfaceRoute.PrivateAlbumPicker,
+    -> false
+    else -> true
+}
