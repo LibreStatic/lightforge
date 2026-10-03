@@ -89,6 +89,7 @@ import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.media3.effect.Presentation
 import com.librestatic.lightforge.feature.viewer.VideoViewerController
 import com.librestatic.lightforge.core.designsystem.GalleryFoldInfo
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
@@ -117,6 +118,8 @@ import com.librestatic.lightforge.core.editing.video.LogInputProfile
 import com.librestatic.lightforge.core.editing.video.LogWheel
 import com.librestatic.lightforge.core.editing.video.LutReference
 import com.librestatic.lightforge.core.editing.video.RealtimeColorLut
+import com.librestatic.lightforge.core.editing.video.VideoAspectMode
+import com.librestatic.lightforge.core.editing.video.VideoAspectOverride
 import com.librestatic.lightforge.core.editing.video.VideoColorGrade
 import com.librestatic.lightforge.core.editing.video.VideoColorGradeEffects
 import com.librestatic.lightforge.core.editing.video.VideoEncoderCapabilities
@@ -409,15 +412,23 @@ fun VideoEditorContent(
     }
     val realtimeAnnotations = remember(controller) { controller?.let { VideoAnnotationEffect(emptyList()) } }
     var lastAppliedGeometry by remember(controller) { mutableStateOf<VideoGeometry?>(null) }
-    LaunchedEffect(controller, realtimeColorLut, realtimeAnnotations, previewGeometry) {
+    // The effects pipeline letterboxes frames into the surface, so a forced Stretch has to resample
+    // the preview frames too; Crop and Pad are drawn as overlays around the untouched frame.
+    val previewStretchRatio = (state.output.aspect as? VideoAspectOverride.Forced)
+        ?.takeIf { it.mode == VideoAspectMode.Stretch && !cropActive }
+        ?.ratio
+    LaunchedEffect(controller, realtimeColorLut, realtimeAnnotations, previewGeometry, previewStretchRatio) {
         if (controller != null && realtimeColorLut != null && realtimeAnnotations != null) {
             // Installing Media3 effects rebuilds the preview chain. Apply the initial geometry
             // immediately, then conflate rapid straighten/crop drags through coroutine cancellation.
             if (lastAppliedGeometry != null && lastAppliedGeometry != previewGeometry) {
                 delay(GeometryPreviewDebounceMillis)
             }
+            val stretch = previewStretchRatio?.let {
+                listOf(Presentation.createForAspectRatio(it, Presentation.LAYOUT_STRETCH_TO_FIT))
+            }.orEmpty()
             controller.setVideoEffects(
-                VideoColorGradeEffects.geometryEffects(previewGeometry) + realtimeColorLut + realtimeAnnotations,
+                VideoColorGradeEffects.geometryEffects(previewGeometry) + stretch + realtimeColorLut + realtimeAnnotations,
             )
             lastAppliedGeometry = previewGeometry
         }
