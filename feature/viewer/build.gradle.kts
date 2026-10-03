@@ -39,6 +39,7 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.material.icons.extended)
     // Driver previews (src/debug) render the real viewer with the real Details content.
     debugImplementation(project(":feature:details"))
     debugImplementation("androidx.compose.ui:ui-tooling-preview")

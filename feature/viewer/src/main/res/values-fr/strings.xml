@@ -19,4 +19,5 @@
     <string name="viewer_text_none_found">Aucun texte trouvé ici</string>
     <string name="viewer_text_recognizing">Lecture du texte…</string>
     <string name="viewer_close_details">Fermer les détails</string>
+    <string name="viewer_shortcut_hint">%1$s (%2$s)</string>
 </resources>

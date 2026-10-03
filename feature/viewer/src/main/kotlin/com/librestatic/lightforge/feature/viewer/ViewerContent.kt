@@ -705,12 +705,16 @@ fun ViewerContent(
         ) {
             Row(
                 Modifier.fillMaxWidth()
+                    .viewerTopScrim()
                     .windowInsetsPadding(viewerTopInsets())
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                    .padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 20.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                GalleryExpressiveIconButton(onClick = onBack) {
-                    Icon(GalleryIcons.Back, contentDescription = stringResource(R.string.viewer_back), tint = GalleryOverlayTokens.Content)
+                val backLabel = stringResource(R.string.viewer_back)
+                ViewerTooltip(backLabel, ViewerShortcutKeys.Back) {
+                    GalleryExpressiveIconButton(onClick = onBack) {
+                        Icon(GalleryIcons.Back, contentDescription = backLabel, tint = GalleryOverlayTokens.Content)
+                    }
                 }
                 if (onMotionPhoto != null && motionPhotoLabel != null) {
                     androidx.compose.material3.FilledTonalButton(onClick = onMotionPhoto) {
@@ -718,7 +722,23 @@ fun ViewerContent(
                         Text(motionPhotoLabel)
                     }
                 }
-                Text(dateLabel, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium, color = GalleryOverlayTokens.Content, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                Text(
+                    dateLabel,
+                    Modifier.weight(1f).padding(horizontal = 4.dp),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = GalleryOverlayTokens.Content,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                onDetails?.let { openDetails ->
+                    val detailsLabel = stringResource(R.string.viewer_details)
+                    ViewerTooltip(detailsLabel, ViewerShortcutKeys.Details) {
+                        GalleryExpressiveIconButton(onClick = openDetails) {
+                            Icon(GalleryIcons.Info, contentDescription = detailsLabel, tint = GalleryOverlayTokens.Content)
+                        }
+                    }
+                }
                 Box {
                     GalleryExpressiveIconButton(onClick = { menuExpanded = true }) {
                         Icon(GalleryIcons.More, contentDescription = stringResource(R.string.viewer_more), tint = GalleryOverlayTokens.Content)
@@ -783,8 +803,10 @@ fun ViewerContent(
             Column(
                 Modifier.fillMaxWidth()
                     .onSizeChanged { bottomChromeHeightPx = it.height }
-                    .background(GalleryOverlayTokens.ControlSurface)
+                    .viewerBottomScrim()
                     .windowInsetsPadding(viewerBottomInsets())
+                    .padding(top = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 if (
                     media.kind == MediaKind.Video &&
@@ -812,42 +834,14 @@ fun ViewerContent(
                         { filmstripExpanded = true }
                     } else null,
                 )
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    onShare?.let { ViewerAction(onClick = it, icon = GalleryIcons.Share, label = stringResource(R.string.viewer_share), modifier = Modifier.weight(1f)) }
-                    onEdit?.let { ViewerAction(onClick = it, icon = GalleryIcons.Edit, label = stringResource(R.string.viewer_edit), modifier = Modifier.weight(1f)) }
-                    onToggleFavorite?.let { ViewerAction(onClick = it, icon = GalleryIcons.Heart, label = stringResource(if (isFavorite) R.string.viewer_unfavorite else R.string.viewer_favorite), modifier = Modifier.weight(1f)) }
-                    onDetails?.let { ViewerAction(onClick = it, icon = GalleryIcons.Info, label = stringResource(R.string.viewer_details), modifier = Modifier.weight(1f)) }
-                }
+                ViewerActionPill(
+                    onShare = onShare,
+                    onEdit = onEdit,
+                    onToggleFavorite = onToggleFavorite,
+                    isFavorite = isFavorite,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                )
             }
-        }
-    }
-}
-
-@Composable
-private fun ViewerAction(onClick: () -> Unit, icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, modifier: Modifier = Modifier) {
-    androidx.compose.material3.TextButton(
-        onClick = onClick,
-        modifier = modifier.heightIn(min = 72.dp)
-            .semantics {
-                contentDescription = label
-                text = androidx.compose.ui.text.AnnotatedString(label)
-            },
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(icon, contentDescription = null, tint = GalleryOverlayTokens.Content)
-            Text(
-                label,
-                style = MaterialTheme.typography.labelSmall,
-                color = GalleryOverlayTokens.Content,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                modifier = Modifier.clearAndSetSemantics {},
-            )
         }
     }
 }
