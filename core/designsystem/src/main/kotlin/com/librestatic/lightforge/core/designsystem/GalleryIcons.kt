@@ -89,6 +89,7 @@ import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Photo
 import androidx.compose.material.icons.rounded.Keyboard
 import androidx.compose.material.icons.rounded.Straighten
+import androidx.compose.material.icons.rounded.PhotoAlbum
 import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material.icons.rounded.AddPhotoAlternate
 import androidx.compose.material.icons.rounded.TextFields
@@ -127,7 +128,7 @@ val GalleryIconMic: ImageVector get() = Icons.Rounded.Mic
 val GalleryIconClose: ImageVector get() = Icons.Rounded.Close
 val GalleryIconCheck: ImageVector get() = Icons.Rounded.Check
 val GalleryIconShare: ImageVector get() = Icons.Rounded.Share
-val GalleryIconAlbum: ImageVector get() = Icons.Rounded.Collections
+val GalleryIconAlbum: ImageVector get() = Icons.Rounded.PhotoAlbum
 val GalleryIconEdit: ImageVector get() = Icons.Rounded.Edit
 val GalleryIconAnalyze: ImageVector get() = Icons.Rounded.ImageSearch
 val GalleryIconPlace: ImageVector get() = Icons.Rounded.Place
