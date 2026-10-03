@@ -4331,6 +4331,7 @@ private fun ViewerRoute(
             else -> Unit
         }
     }
+    val viewerDetailsState = com.librestatic.lightforge.feature.viewer.rememberViewerDetailsState()
     val viewer: @Composable () -> Unit = {
         ViewerContent(
             media = media,
@@ -4412,65 +4413,37 @@ private fun ViewerRoute(
             onMuteToggle = { muted -> onSessionVideoMutedChange(muted) },
             videoScrubbingMode = gallerySettings.playback.videoScrubbingMode,
             textRecognizer = rememberViewerTextRecognizer(),
+            detailsState = viewerDetailsState,
             modifier = Modifier.fillMaxSize(),
         )
     }
-    if (adaptiveInfo.supportsTwoPane && showDetails && cheap != null) {
-        val verticalFold = adaptiveInfo.foldInfo?.takeIf { it.enablesSideBySide }
-        BoxWithConstraints(Modifier.fillMaxSize()) {
-            val containerWidth = maxWidth
-            Row(Modifier.fillMaxSize()) {
-                Column(
-                    if (verticalFold == null) Modifier.weight(0.62f)
-                    else Modifier.width(verticalFold.left.coerceIn(0.dp, containerWidth)),
-                ) { viewer() }
-                if (verticalFold != null) {
-                    androidx.compose.foundation.layout.Spacer(Modifier.width(verticalFold.hingeWidth))
-                }
-                GalleryAnimatedVisibility(
-                    visible = true,
-                    edge = GalleryMotionEdge.End,
-                    modifier = if (verticalFold == null) Modifier.weight(0.38f)
-                    else Modifier.width((containerWidth - verticalFold.right).coerceAtLeast(0.dp)),
-                ) {
-                    Surface(Modifier.fillMaxSize()) {
-                        Column {
-                            TextButton(onClick = onHideDetails) { Text(stringResource(R.string.details_close)) }
-                            DetailsContent(
-                                requireNotNull(cheap),
-                                exif,
-                                false,
-                                viewModel::loadDetails,
-                                detectedText,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    } else {
-        viewer()
-        if (showDetails && cheap != null) ModalBottomSheet(onDismissRequest = onHideDetails) {
-            Column(Modifier.verticalScroll(rememberScrollState())) {
+    com.librestatic.lightforge.feature.viewer.ViewerDetailsScaffold(
+        open = showDetails,
+        onOpen = onShowDetails,
+        onClose = onHideDetails,
+        sidePanel = adaptiveInfo.supportsTwoPane,
+        state = viewerDetailsState,
+        foldInfo = adaptiveInfo.foldInfo,
+        viewer = viewer,
+        details = { padding ->
+            val details = cheap
+            if (details == null) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { GalleryLoadingIndicator() }
+            } else {
                 DetailsContent(
-                    requireNotNull(cheap),
+                    details,
                     exif,
                     false,
                     viewModel::loadDetails,
                     detectedText,
-                    scrollable = false,
+                    modifier = Modifier.fillMaxSize(),
+                    placeName = placeName,
+                    showTitle = false,
+                    contentPadding = padding,
                 )
-                placeName?.let { name ->
-                    Text(
-                        stringResource(R.string.m6_places_nearby, name),
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-                    )
-                }
             }
-        }
-    }
+        },
+    )
     if (renameDialogVisible) AlertDialog(
         onDismissRequest = { renameDialogVisible = false },
         title = { Text(stringResource(R.string.viewer_rename)) },

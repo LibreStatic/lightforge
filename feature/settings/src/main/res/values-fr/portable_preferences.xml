@@ -78,4 +78,5 @@
     <string name="portable_preferences_value_none">Aucun</string>
     <string name="portable_preferences_value_legacyseekbar">Barre de lecture</string>
     <string name="portable_preferences_value_filmstrip">Bande de vignettes</string>
+    <string name="portable_preferences_field_swipeup">Balayer vers le haut pour les détails</string>
 </resources>

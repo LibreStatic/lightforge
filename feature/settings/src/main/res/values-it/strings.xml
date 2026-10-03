@@ -180,4 +180,5 @@
     <string name="settings_card_sorting">Ordinamento e raggruppamento</string>
     <string name="settings_card_photo_gestures">Gesti sulle foto</string>
     <string name="settings_card_video_gestures">Gesti sui video</string>
+    <string name="settings_swipe_up_details">Scorri in alto per i dettagli</string>
 </resources>

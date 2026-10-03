@@ -78,4 +78,5 @@
     <string name="portable_preferences_value_none">Nenhum</string>
     <string name="portable_preferences_value_legacyseekbar">Barra de navegação</string>
     <string name="portable_preferences_value_filmstrip">Faixa de quadros</string>
+    <string name="portable_preferences_field_swipeup">Deslizar para cima para ver detalhes</string>
 </resources>

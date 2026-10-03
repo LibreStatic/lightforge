@@ -52,7 +52,8 @@ enum class PortablePreferenceField(
     Rotate(PortablePreferenceGroup.Gestures, "gestures", "rotatePhotos"),
     PhotoZoom(PortablePreferenceGroup.Gestures, "gestures", "photoMaxZoom"),
     VideoZoom(PortablePreferenceGroup.Gestures, "gestures", "videoMaxZoom"),
-    SkipSeconds(PortablePreferenceGroup.Gestures, "gestures", "videoSkipSeconds");
+    SkipSeconds(PortablePreferenceGroup.Gestures, "gestures", "videoSkipSeconds"),
+    SwipeUp(PortablePreferenceGroup.Gestures, "gestures", "swipeUpForDetails");
 
     internal fun validate(value: Any): String {
         if (this == CollectionOrder || this == HiddenCollections) {

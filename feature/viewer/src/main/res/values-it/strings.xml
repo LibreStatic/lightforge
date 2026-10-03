@@ -18,4 +18,5 @@
     <string name="viewer_text_search_web">Cerca sul web</string>
     <string name="viewer_text_none_found">Nessun testo trovato qui</string>
     <string name="viewer_text_recognizing">Lettura del testo…</string>
+    <string name="viewer_close_details">Chiudi dettagli</string>
 </resources>

@@ -98,6 +98,28 @@ class PortablePreferencesRepositoryTest {
     }
 
     @Test
+    fun swipeUpForDetailsPersistsAndImportsWhileOlderExportsKeepIt() = test { repo, _ ->
+        assertTrue(repo.settings.first().gestures.swipeUpForDetails)
+        repo.update { it.copy(gestures = it.gestures.copy(swipeUpForDetails = false)) }
+        assertFalse(repo.settings.first().gestures.swipeUpForDetails)
+
+        // An export without the field leaves the current choice alone.
+        val older = payload("""{"gestures":{"pinchZoom":false}}""")
+        val olderReview = repo.review(older, UUID.randomUUID().toString())
+        assertTrue(olderReview.differences.none { it.field == PortablePreferenceField.SwipeUp })
+        repo.apply(older, olderReview, olderReview.availableGroups)
+        assertFalse(repo.settings.first().gestures.swipeUpForDetails)
+
+        val bytes = payload("""{"gestures":{"swipeUpForDetails":true}}""")
+        val review = repo.review(bytes, UUID.randomUUID().toString())
+        val difference = review.differences.single { it.field == PortablePreferenceField.SwipeUp }
+        assertEquals("false", difference.currentValue)
+        assertEquals("true", difference.importedValue)
+        repo.apply(bytes, review, review.availableGroups)
+        assertTrue(repo.settings.first().gestures.swipeUpForDetails)
+    }
+
+    @Test
     fun concurrentReviewsOnlyOneCommitsAndForgedDiffRejected() = test { repo, _ ->
         val bytes = payload("""{"thumbnails":{"gridColumns":6}}""")
         val a = repo.review(bytes, UUID.randomUUID().toString())

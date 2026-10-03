@@ -78,4 +78,5 @@
     <string name="portable_preferences_value_none">Ninguna</string>
     <string name="portable_preferences_value_legacyseekbar">Barra de búsqueda</string>
     <string name="portable_preferences_value_filmstrip">Tira de fotogramas</string>
+    <string name="portable_preferences_field_swipeup">Deslizar arriba para ver detalles</string>
 </resources>

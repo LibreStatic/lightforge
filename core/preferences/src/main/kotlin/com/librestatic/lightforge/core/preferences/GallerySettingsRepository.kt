@@ -321,6 +321,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                         photoMaxZoom = p[Keys.PhotoMaxZoom] ?: 8f,
                         videoMaxZoom = p[Keys.VideoMaxZoom] ?: 4f,
                         videoSkipSeconds = p[Keys.VideoSkipSeconds] ?: 10,
+                        swipeUpForDetails = p[Keys.SwipeUpDetails] ?: true,
                     ),
                 thumbnails =
                     ThumbnailSettings(
@@ -381,6 +382,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         p[Keys.PhotoMaxZoom] = s.gestures.photoMaxZoom
         p[Keys.VideoMaxZoom] = s.gestures.videoMaxZoom
         p[Keys.VideoSkipSeconds] = s.gestures.videoSkipSeconds
+        p[Keys.SwipeUpDetails] = s.gestures.swipeUpForDetails
         p[Keys.CropThumbnails] = s.thumbnails.cropToFill
         p[Keys.AnimateMedia] = s.thumbnails.animateMedia
         p[Keys.ShowDuration] = s.thumbnails.showVideoDuration
@@ -446,6 +448,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     put("photoMaxZoom", gestures.photoMaxZoom)
                     put("videoMaxZoom", gestures.videoMaxZoom)
                     put("videoSkipSeconds", gestures.videoSkipSeconds)
+                    put("swipeUpForDetails", gestures.swipeUpForDetails)
                 },
             )
             put(
@@ -548,6 +551,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     g.optDouble("photoMaxZoom", 8.0).toFloat(),
                     g.optDouble("videoMaxZoom", 4.0).toFloat(),
                     g.optInt("videoSkipSeconds", 10),
+                    g.bool("swipeUpForDetails", true),
                 ),
             thumbnails =
                 ThumbnailSettings(
@@ -607,6 +611,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         val PhotoMaxZoom = floatPreferencesKey("gestures.photo_max_zoom")
         val VideoMaxZoom = floatPreferencesKey("gestures.video_max_zoom")
         val VideoSkipSeconds = intPreferencesKey("gestures.video_skip_seconds")
+        val SwipeUpDetails = booleanPreferencesKey("gestures.swipe_up_details")
         val CropThumbnails = booleanPreferencesKey("thumbnails.crop")
         val AnimateMedia = booleanPreferencesKey("thumbnails.animate")
         val ShowDuration = booleanPreferencesKey("thumbnails.duration")

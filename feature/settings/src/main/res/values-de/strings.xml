@@ -179,4 +179,5 @@
     <string name="settings_card_sorting">Sortierung und Gruppierung</string>
     <string name="settings_card_photo_gestures">Fotogesten</string>
     <string name="settings_card_video_gestures">Videogesten</string>
+    <string name="settings_swipe_up_details">Nach oben wischen für Details</string>
 </resources>

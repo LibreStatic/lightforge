@@ -184,4 +184,5 @@
     <string name="settings_card_sorting">Sorting and grouping</string>
     <string name="settings_card_photo_gestures">Photo gestures</string>
     <string name="settings_card_video_gestures">Video gestures</string>
+    <string name="settings_swipe_up_details">Swipe up to open details</string>
 </resources>

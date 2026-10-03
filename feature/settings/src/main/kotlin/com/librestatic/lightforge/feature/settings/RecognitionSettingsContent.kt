@@ -408,6 +408,7 @@ private fun SettingsCategoryList(
         settings.gestures.doubleTapZoom,
         settings.gestures.pinchZoom,
         settings.gestures.swipeDownToClose,
+        settings.gestures.swipeUpForDetails,
         settings.gestures.photoBrightness,
         settings.gestures.videoBrightness,
         settings.gestures.videoVolume,
@@ -456,7 +457,7 @@ private fun SettingsCategoryList(
                 selected = selected(SettingsPage.Playback),
                 chevron = !twoPane,
             ) { onOpen(SettingsPage.Playback) }
-            SettingsCategoryRow(GalleryIcons.Tune, stringResource(R.string.settings_gestures), enabledPattern.format(gestureCount, 8), 2, 4, selected = selected(SettingsPage.Gestures), chevron = !twoPane) { onOpen(SettingsPage.Gestures) }
+            SettingsCategoryRow(GalleryIcons.Tune, stringResource(R.string.settings_gestures), enabledPattern.format(gestureCount, 9), 2, 4, selected = selected(SettingsPage.Gestures), chevron = !twoPane) { onOpen(SettingsPage.Gestures) }
             SettingsCategoryRow(GalleryIcons.Image, stringResource(R.string.settings_thumbnails), "$columnsSummary · " + enabledPattern.format(thumbnailCount, 5), 3, 4, selected = selected(SettingsPage.Thumbnails), chevron = !twoPane) { onOpen(SettingsPage.Thumbnails) }
         }
         SettingsCategoryGroup(stringResource(R.string.settings_group_management)) {
@@ -1295,6 +1296,9 @@ private fun GesturesSection(
         }
         SettingsSwitchRow(stringResource(R.string.settings_swipe_down), settings.gestures.swipeDownToClose) {
             onSettingsChange { current -> current.copy(gestures = current.gestures.copy(swipeDownToClose = it)) }
+        }
+        SettingsSwitchRow(stringResource(R.string.settings_swipe_up_details), settings.gestures.swipeUpForDetails) {
+            onSettingsChange { current -> current.copy(gestures = current.gestures.copy(swipeUpForDetails = it)) }
         }
         SettingsSwitchRow(stringResource(R.string.settings_photo_brightness), settings.gestures.photoBrightness) {
             onSettingsChange { current -> current.copy(gestures = current.gestures.copy(photoBrightness = it)) }

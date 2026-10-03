@@ -368,6 +368,7 @@ private fun fieldLabel(field: PortablePreferenceField): Int =
         PortablePreferenceField.PhotoZoom -> R.string.portable_preferences_field_photozoom
         PortablePreferenceField.VideoZoom -> R.string.portable_preferences_field_videozoom
         PortablePreferenceField.SkipSeconds -> R.string.portable_preferences_field_skipseconds
+        PortablePreferenceField.SwipeUp -> R.string.portable_preferences_field_swipeup
     }
 
 private fun valueLabel(value: String): Int? =

@@ -136,6 +136,8 @@ data class GestureSettings(
     val photoMaxZoom: Float = 8f,
     val videoMaxZoom: Float = 4f,
     val videoSkipSeconds: Int = 10,
+    /** Swipe up from the middle of the viewer to open Details. */
+    val swipeUpForDetails: Boolean = true,
 )
 
 data class ThumbnailSettings(

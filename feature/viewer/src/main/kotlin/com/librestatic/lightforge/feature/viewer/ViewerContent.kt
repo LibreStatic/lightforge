@@ -196,6 +196,8 @@ fun ViewerContent(
     onMuteToggle: (Boolean) -> Unit = {},
     videoScrubbingMode: VideoScrubbingMode = VideoScrubbingMode.LegacySeekBar,
     textRecognizer: ViewerTextRecognizer? = null,
+    /** Details surface driven by the swipe-up gesture; null opens Details through [onDetails]. */
+    detailsState: ViewerDetailsState? = null,
     modifier: Modifier = Modifier,
 ) {
     var textSelectionActive by remember(media.viewerId) { mutableStateOf(false) }
@@ -219,7 +221,7 @@ fun ViewerContent(
     var gestureFeedback by remember(media.viewerId) { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val view = LocalView.current
-    val activity = context.findActivity()
+    val activity = context.findViewerActivity()
     val audioManager = remember(context) { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val videoState = videoController?.state?.collectAsStateWithLifecycle()?.value
     val videoIsPlaying = (videoState as? VideoViewerState.Ready)?.isPlaying == true
@@ -405,6 +407,20 @@ fun ViewerContent(
     val dateLabel = remember(media.timelineSortMillis) {
         DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(media.timelineSortMillis))
     }
+    // The bottom chrome (scrubber, strip, actions) keeps its own drags: a swipe that starts on it
+    // never opens Details or closes the viewer.
+    var bottomChromeHeightPx by remember { mutableIntStateOf(0) }
+    val latestBottomExcludedPx by rememberUpdatedState(if (chromeVisible) bottomChromeHeightPx.toFloat() else 0f)
+    val latestDetailsState by rememberUpdatedState(detailsState)
+    val latestOnDetails by rememberUpdatedState(onDetails)
+    val latestOnBack by rememberUpdatedState(onBack)
+    // Lift the media by half the compact sheet so it stays centred in the space left above it.
+    val mediaLiftPx by remember(detailsState) {
+        androidx.compose.runtime.derivedStateOf {
+            val state = detailsState ?: return@derivedStateOf 0f
+            if (state.isSidePanel) 0f else min(state.visiblePx, state.halfPx) / 2f
+        }
+    }
     Box(
         modifier.fillMaxSize().background(Color.Black),
     ) {
@@ -414,6 +430,10 @@ fun ViewerContent(
                 .pointerInput(media.viewerId, gestureSettings, contentZoomed, textSelectionActive) {
                     var start = Offset.Zero
                     var totalY = 0f
+                    var mode = ViewerDragMode.None
+                    var modeChosen = false
+                    var sheetFollowing = false
+                    val velocityTracker = VelocityTracker()
                     var initialBrightness = 0.5f
                     var initialVolume = 0
                     val maximumVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
@@ -421,16 +441,50 @@ fun ViewerContent(
                         onDragStart = { position ->
                             start = position
                             totalY = 0f
+                            mode = ViewerDragMode.None
+                            modeChosen = false
+                            sheetFollowing = false
+                            velocityTracker.resetTracking()
                             initialBrightness = activity?.window?.attributes?.screenBrightness
                                 ?.takeIf { it >= 0f } ?: 0.5f
                             initialVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
                         },
                         onVerticalDrag = { change, amount ->
                             totalY += amount
+                            velocityTracker.addPosition(change.uptimeMillis, change.position)
+                            if (!modeChosen && amount != 0f) {
+                                modeChosen = true
+                                val sheet = latestDetailsState
+                                val eligible = isViewerSwipeStart(
+                                    startX = start.x,
+                                    startY = start.y,
+                                    width = size.width.toFloat(),
+                                    height = size.height.toFloat(),
+                                    bottomExcludedPx = latestBottomExcludedPx,
+                                    zoomed = contentZoomed,
+                                    textSelecting = textSelectionActive,
+                                )
+                                mode = viewerDragMode(
+                                    eligible = eligible,
+                                    firstDeltaY = amount,
+                                    detailsOpen = sheet?.isOpen == true,
+                                    swipeUpForDetails = gestureSettings.swipeUpForDetails && (sheet != null || latestOnDetails != null),
+                                    swipeDownToClose = gestureSettings.swipeDownToClose,
+                                )
+                                if (mode == ViewerDragMode.Details && sheet != null && sheet.followsFinger) {
+                                    sheetFollowing = true
+                                    sheet.beginDrag()
+                                }
+                            }
                             val fraction = (-totalY / size.height.coerceAtLeast(1)).coerceIn(-1f, 1f)
                             val leftSide = start.x < size.width / 3f
                             val rightSide = start.x > size.width * 2f / 3f
                             when {
+                                sheetFollowing -> {
+                                    latestDetailsState?.dragBy(-amount)
+                                    change.consume()
+                                }
+                                mode != ViewerDragMode.None -> change.consume()
                                 leftSide && ((media.kind == MediaKind.Video && gestureSettings.videoBrightness) || (media.kind != MediaKind.Video && gestureSettings.photoBrightness)) -> {
                                     val value = (initialBrightness + fraction).coerceIn(0.01f, 1f)
                                     activity?.window?.attributes = activity?.window?.attributes?.apply { screenBrightness = value }
@@ -447,11 +501,27 @@ fun ViewerContent(
                             }
                         },
                         onDragEnd = {
-                            val center = start.x in (size.width / 3f)..(size.width * 2f / 3f)
-                            if (center && !contentZoomed && !textSelectionActive && gestureSettings.swipeDownToClose && totalY > size.height * 0.16f) onBack()
+                            val velocityY = velocityTracker.calculateVelocity().y
+                            val sheet = latestDetailsState
+                            if (sheetFollowing) {
+                                sheet?.endDrag(-velocityY)
+                            } else {
+                                val result = viewerSwipeResult(mode, totalY, velocityY, size.height.toFloat(), sheet?.isOpen == true)
+                                when (result) {
+                                    ViewerSwipeResult.OpenDetails -> if (sheet != null) sheet.open() else latestOnDetails?.invoke()
+                                    ViewerSwipeResult.CloseDetails -> sheet?.close()
+                                    ViewerSwipeResult.CloseViewer -> latestOnBack()
+                                    ViewerSwipeResult.None -> Unit
+                                }
+                            }
+                            sheetFollowing = false
                             gestureFeedback = null
                         },
-                        onDragCancel = { gestureFeedback = null },
+                        onDragCancel = {
+                            if (sheetFollowing) latestDetailsState?.endDrag(0f)
+                            sheetFollowing = false
+                            gestureFeedback = null
+                        },
                     )
                 }
                 .pointerInput(onContentTap, slowMotionSession, videoController, media.viewerId, gestureSettings) {
@@ -505,7 +575,7 @@ fun ViewerContent(
                 beyondViewportPageCount = 1,
                 userScrollEnabled = !contentZoomed && !textSelectionActive,
                 key = { displayedItems[it].viewerId },
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().graphicsLayer { translationY = -mediaLiftPx },
             ) { page ->
                 val pageMedia = displayedItems[page]
                 if (pageMedia.viewerId == media.viewerId) {
@@ -712,6 +782,7 @@ fun ViewerContent(
         ) {
             Column(
                 Modifier.fillMaxWidth()
+                    .onSizeChanged { bottomChromeHeightPx = it.height }
                     .background(GalleryOverlayTokens.ControlSurface)
                     .windowInsetsPadding(viewerBottomInsets())
             ) {
@@ -1655,9 +1726,9 @@ private fun viewerBottomInsets() = WindowInsets.navigationBarsIgnoringVisibility
     .union(WindowInsets.displayCutout)
     .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)
 
-private tailrec fun Context.findActivity(): Activity? = when (this) {
+internal tailrec fun Context.findViewerActivity(): Activity? = when (this) {
     is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
+    is ContextWrapper -> baseContext.findViewerActivity()
     else -> null
 }
 

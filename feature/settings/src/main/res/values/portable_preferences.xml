@@ -76,4 +76,5 @@
     <string name="portable_preferences_value_none">None</string>
     <string name="portable_preferences_value_legacyseekbar">Seek bar</string>
     <string name="portable_preferences_value_filmstrip">Filmstrip</string>
+    <string name="portable_preferences_field_swipeup">Swipe up to open details</string>
 </resources>
