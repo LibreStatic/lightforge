@@ -1464,7 +1464,8 @@ private fun TransformControls(
                 val rotated = normalizeVideoRotation(geometry.rotationDegrees + 90f)
                 onChange(geometry.copy(rotationDegrees = rotated))
             }, modifier = Modifier.heightIn(min = 48.dp)) {
-                Icon(GalleryIcons.RotateRight, contentDescription = null)
+                // The preview and the export turn the frame counter-clockwise for +90°.
+                Icon(GalleryIcons.RotateLeft, contentDescription = null)
                 Text(stringResource(R.string.video_editor_rotate_90), modifier = Modifier.padding(start = GallerySpacing.Xs))
             }
             FilterChip(

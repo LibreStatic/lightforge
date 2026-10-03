@@ -63,6 +63,7 @@ import androidx.compose.material.icons.rounded.Error
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.material.icons.automirrored.rounded.RotateRight
+import androidx.compose.material.icons.automirrored.rounded.RotateLeft
 import androidx.compose.material.icons.rounded.AlignHorizontalCenter
 import androidx.compose.material.icons.automirrored.rounded.AlignHorizontalLeft
 import androidx.compose.material.icons.automirrored.rounded.AlignHorizontalRight
@@ -169,6 +170,7 @@ val GalleryIconError: ImageVector get() = Icons.Rounded.Error
 val GalleryIconHistory: ImageVector get() = Icons.Rounded.History
 val GalleryIconDragIndicator: ImageVector get() = Icons.Rounded.DragIndicator
 val GalleryIconRotateRight: ImageVector get() = Icons.AutoMirrored.Rounded.RotateRight
+val GalleryIconRotateLeft: ImageVector get() = Icons.AutoMirrored.Rounded.RotateLeft
 val GalleryIconAlignHorizontalLeft: ImageVector get() = Icons.AutoMirrored.Rounded.AlignHorizontalLeft
 val GalleryIconAlignHorizontalCenter: ImageVector get() = Icons.Rounded.AlignHorizontalCenter
 val GalleryIconAlignHorizontalRight: ImageVector get() = Icons.AutoMirrored.Rounded.AlignHorizontalRight
@@ -366,6 +368,7 @@ object GalleryIcons {
     val History get() = GalleryIconHistory
     val DragIndicator get() = GalleryIconDragIndicator
     val RotateRight get() = GalleryIconRotateRight
+    val RotateLeft get() = GalleryIconRotateLeft
     val AlignHorizontalLeft get() = GalleryIconAlignHorizontalLeft
     val AlignHorizontalCenter get() = GalleryIconAlignHorizontalCenter
     val AlignHorizontalRight get() = GalleryIconAlignHorizontalRight
