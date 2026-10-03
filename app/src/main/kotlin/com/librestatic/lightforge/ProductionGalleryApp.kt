@@ -55,7 +55,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SnackbarHost
@@ -1399,6 +1398,16 @@ internal fun ProductionGalleryApp(
                         selectionMode = selectionCount > 0,
                         scrubberIndex = timelineIndex,
                         onScrubberJump = viewModel::jumpTimeline,
+                        filter = gallerySettings.library.photosFilter(),
+                        onFilterChange = { value ->
+                            viewModel.updateGallerySettings { it.copy(library = it.library.withPhotosFilter(value)) }
+                        },
+                        sort = gallerySettings.library.photosSort(),
+                        onSortChange = { value ->
+                            viewModel.updateGallerySettings { it.copy(library = it.library.withPhotosSort(value)) }
+                        },
+                        onSelectAll = viewModel::selectAllTimeline,
+                        onClearSelection = viewModel::clearSelection,
                         backgroundStatus = libraryBackgroundStatus(libraryMaintenance, peopleAnalysis, petAnalysis),
                         access = access,
                         engineState = engineState.toUiState(),
@@ -3783,30 +3792,21 @@ private fun ContextSelectionActions(
     onSelectAll: () -> Unit,
     onClear: () -> Unit,
 ) {
-    HorizontalFloatingToolbar(
-        expanded = true,
-        modifier = Modifier.padding(horizontal = 12.dp).padding(bottom = 12.dp),
-        leadingContent = {
-            GalleryExpressiveIconButton(onClick = onClear) {
-                Icon(GalleryIcons.Close, contentDescription = stringResource(R.string.selection_clear))
-            }
-            Text(
-                stringResource(R.string.selection_count, count),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-            )
-        },
-        trailingContent = {
-            TextButton(onClick = onSelectAll) { Text(stringResource(R.string.selection_select_all)) }
-        },
-    ) {
-        GalleryExpressiveIconButton(onClick = onPrimary) {
-            Icon(primaryIcon, contentDescription = primaryLabel)
-        }
-        GalleryExpressiveIconButton(onClick = onSecondary) {
-            Icon(secondaryIcon, contentDescription = secondaryLabel)
-        }
-    }
+    // The shared contextual bar: centred in the content pane, close + count, then the actions.
+    com.librestatic.lightforge.core.designsystem.GallerySelectionBar(
+        count = count,
+        onClear = onClear,
+        countLabel = stringResource(R.string.selection_count, count),
+        clearLabel = stringResource(R.string.selection_clear),
+        clearTestTag = "selection-count-clear",
+        actions = listOf(
+            com.librestatic.lightforge.core.designsystem.GallerySelectionAction(primaryLabel, primaryIcon, onPrimary),
+            com.librestatic.lightforge.core.designsystem.GallerySelectionAction(secondaryLabel, secondaryIcon, onSecondary),
+            com.librestatic.lightforge.core.designsystem.GallerySelectionAction(
+                stringResource(R.string.selection_select_all), GalleryIcons.Check, onSelectAll, inline = false,
+            ),
+        ),
+    )
 }
 
 @Composable
@@ -3835,156 +3835,89 @@ private fun SelectionActions(
     pendingCreation: PendingCreation? = null,
     onCancelPendingCreation: () -> Unit = {},
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
     Column(
-        Modifier.fillMaxWidth().padding(horizontal = 12.dp).padding(bottom = 12.dp),
+        Modifier.fillMaxWidth(),
         horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        // The count and the creation the user came to make sit together above the toolbar, so
-        // the toolbar keeps its full width for the five everyday actions on compact phones.
-        androidx.compose.foundation.layout.FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp, androidx.compose.ui.Alignment.CenterHorizontally),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Surface(
-                onClick = onClear,
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                shape = androidx.compose.foundation.shape.CircleShape,
-                modifier = Modifier.heightIn(min = 48.dp)
-                    .semantics { testTagsAsResourceId = true }.testTag("selection-count-clear"),
+        // The creation the user came to make sits above the bar, so the bar keeps its width
+        // for the everyday actions on compact phones.
+        pendingCreation?.let { creation ->
+            val enabled = when (creation) {
+                PendingCreation.Memory, PendingCreation.MemoryVideo -> canCreateMemory
+                PendingCreation.Gif -> canCreateGif
+                PendingCreation.Collage -> true
+            }
+            GalleryExpressiveButton(
+                onClick = when (creation) {
+                    PendingCreation.Memory -> onCreateMemory
+                    PendingCreation.MemoryVideo -> onCreateMemoryVideo
+                    PendingCreation.Gif -> onCreateGif
+                    PendingCreation.Collage -> onCreateCollage
+                },
+                enabled = enabled,
+                modifier = Modifier.padding(top = 12.dp).heightIn(min = 48.dp)
+                    .semantics { testTagsAsResourceId = true }.testTag("selection-pending-create"),
             ) {
-                Row(
-                    Modifier.padding(start = 12.dp, end = 16.dp),
-                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Icon(GalleryIcons.Close, contentDescription = stringResource(R.string.selection_clear))
-                    Text(
-                        stringResource(R.string.selection_count, count),
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.padding(vertical = 12.dp)
-                            .semantics { liveRegion = LiveRegionMode.Polite },
-                    )
-                }
-            }
-            pendingCreation?.let { creation ->
-                val enabled = when (creation) {
-                    PendingCreation.Memory, PendingCreation.MemoryVideo -> canCreateMemory
-                    PendingCreation.Gif -> canCreateGif
-                    PendingCreation.Collage -> true
-                }
-                GalleryExpressiveButton(
-                    onClick = when (creation) {
-                        PendingCreation.Memory -> onCreateMemory
-                        PendingCreation.MemoryVideo -> onCreateMemoryVideo
-                        PendingCreation.Gif -> onCreateGif
-                        PendingCreation.Collage -> onCreateCollage
-                    },
-                    enabled = enabled,
-                    modifier = Modifier.heightIn(min = 48.dp)
-                        .semantics { testTagsAsResourceId = true }.testTag("selection-pending-create"),
-                ) {
-                    Icon(pendingCreationIcon(creation), contentDescription = null)
-                    androidx.compose.foundation.layout.Spacer(Modifier.width(8.dp))
-                    Text(pendingCreationTitle(creation))
-                }
+                Icon(pendingCreationIcon(creation), contentDescription = null)
+                androidx.compose.foundation.layout.Spacer(Modifier.width(8.dp))
+                Text(pendingCreationTitle(creation))
             }
         }
-        HorizontalFloatingToolbar(
-            expanded = true,
-            trailingContent = {
-            Box {
-                GalleryExpressiveIconButton(onClick = { menuExpanded = true }) {
-                    Icon(GalleryIcons.More, contentDescription = stringResource(com.librestatic.lightforge.feature.viewer.R.string.viewer_more))
-                }
-                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(com.librestatic.lightforge.feature.collections.R.string.manual_moment_title)) },
-                        onClick = { menuExpanded = false; onCreateMemory() }, enabled = canCreateMemory,
-                        leadingIcon = { Icon(GalleryIcons.PhotoLibrary, contentDescription = null) },
-                        modifier = Modifier.semantics { testTagsAsResourceId = true }.testTag("selection-create-memory"),
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(com.librestatic.lightforge.feature.videoeditor.R.string.memory_video_title)) },
-                        onClick = { menuExpanded = false; onCreateMemoryVideo() }, enabled = canCreateMemory,
-                        leadingIcon = { Icon(GalleryIcons.Video, contentDescription = null) },
-                        modifier = Modifier.semantics { testTagsAsResourceId = true }.testTag("selection-create-memory-video"),
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(com.librestatic.lightforge.feature.collections.R.string.stacks_create)) },
-                        onClick = { menuExpanded = false; onStack() },
-                        enabled = canCreatePdf && count >= 2,
-                        leadingIcon = { Icon(GalleryIcons.Collections, contentDescription = null) },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(com.librestatic.lightforge.feature.collections.R.string.documents_organize)) },
-                        onClick = { menuExpanded = false; onDocuments() },
-                        enabled = canCreatePdf,
-                        leadingIcon = { Icon(GalleryIcons.Collections, contentDescription = null) },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(com.librestatic.lightforge.feature.collage.R.string.creation_gif_title)) },
-                        onClick = { menuExpanded = false; onCreateGif() },
-                        enabled = canCreateGif,
-                        leadingIcon = { Icon(GalleryIcons.Repeat, contentDescription = null) },
-                        modifier = Modifier.semantics { testTagsAsResourceId = true }.testTag("selection-create-gif"),
-                    )
-                    // Always enabled: preparation explains a count or media-type mismatch in a snackbar.
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.m6_collage)) },
-                        onClick = { menuExpanded = false; onCreateCollage() },
-                        leadingIcon = { Icon(GalleryIcons.GridView, contentDescription = null) },
-                        modifier = Modifier.semantics { testTagsAsResourceId = true }.testTag("selection-create-collage"),
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.archive_move)) },
-                        onClick = { menuExpanded = false; onArchive() },
-                        leadingIcon = { Icon(GalleryIcons.Archive, contentDescription = null) },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.selection_select_all)) },
-                        onClick = { menuExpanded = false; onSelectAll() },
-                        leadingIcon = { Icon(GalleryIcons.Check, contentDescription = null) },
-                    )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.selection_delete)) },
-                        onClick = { menuExpanded = false; onDelete() },
-                        leadingIcon = { Icon(GalleryIcons.Trash, contentDescription = null) },
-                    )
-                }
-            }
-            },
-        ) {
-            GalleryExpressiveIconButton(onClick = onAddToAlbum) {
-                Icon(GalleryIcons.Album, contentDescription = stringResource(R.string.selection_add_album))
-            }
-            // Promoted from the overflow menu (Phase E): "Create PDF" is common enough from a
-            // photo/receipt/document selection that it deserves a clear, always-visible action
-            // rather than living one tap deeper.
-            if (canCreatePdf) GalleryExpressiveIconButton(onClick = onPdfStudio) {
-                Icon(
-                    com.librestatic.lightforge.core.designsystem.GalleryIcons.PictureAsPdf,
-                    contentDescription = stringResource(com.librestatic.lightforge.feature.pdfstudio.R.string.pdf_selection_create_pdf),
-                )
-            }
-            GalleryExpressiveIconButton(onClick = onShare, enabled = canShare) {
-                Icon(GalleryIcons.Share, contentDescription = stringResource(R.string.selection_share))
-            }
-            GalleryExpressiveIconButton(onClick = onFavorite) {
-                Icon(GalleryIcons.Heart, contentDescription = stringResource(R.string.selection_favorite))
-            }
-            GalleryExpressiveIconButton(onClick = onTrash) {
-                Icon(GalleryIcons.Trash, contentDescription = stringResource(R.string.selection_trash))
-            }
+        val action = { label: String, icon: ImageVector, onClick: () -> Unit, enabled: Boolean, inline: Boolean, tag: String? ->
+            com.librestatic.lightforge.core.designsystem.GallerySelectionAction(label, icon, onClick, enabled, inline, tag)
         }
+        com.librestatic.lightforge.core.designsystem.GallerySelectionBar(
+            count = count,
+            onClear = onClear,
+            countLabel = stringResource(R.string.selection_count, count),
+            clearLabel = stringResource(R.string.selection_clear),
+            clearTestTag = "selection-count-clear",
+            actions = listOfNotNull(
+                // Everyday actions, inline while they fit (in this order), then in the overflow.
+                action(stringResource(R.string.selection_add_album), GalleryIcons.Album, onAddToAlbum, true, true, null),
+                // "Create PDF" is common enough from a receipt or document selection to stay one tap away.
+                if (canCreatePdf) action(
+                    stringResource(com.librestatic.lightforge.feature.pdfstudio.R.string.pdf_selection_create_pdf),
+                    GalleryIcons.PictureAsPdf, onPdfStudio, true, true, null,
+                ) else null,
+                action(stringResource(R.string.selection_share), GalleryIcons.Share, onShare, canShare, true, null),
+                action(stringResource(R.string.selection_favorite), GalleryIcons.Heart, onFavorite, true, true, null),
+                action(stringResource(R.string.selection_trash), GalleryIcons.Trash, onTrash, true, true, null),
+                // Overflow only.
+                action(
+                    stringResource(com.librestatic.lightforge.feature.collections.R.string.manual_moment_title),
+                    GalleryIcons.PhotoLibrary, onCreateMemory, canCreateMemory, false, "selection-create-memory",
+                ),
+                action(
+                    stringResource(com.librestatic.lightforge.feature.videoeditor.R.string.memory_video_title),
+                    GalleryIcons.Video, onCreateMemoryVideo, canCreateMemory, false, "selection-create-memory-video",
+                ),
+                action(
+                    stringResource(com.librestatic.lightforge.feature.collections.R.string.stacks_create),
+                    GalleryIcons.Collections, onStack, canCreatePdf && count >= 2, false, null,
+                ),
+                action(
+                    stringResource(com.librestatic.lightforge.feature.collections.R.string.documents_organize),
+                    GalleryIcons.Collections, onDocuments, canCreatePdf, false, null,
+                ),
+                action(
+                    stringResource(com.librestatic.lightforge.feature.collage.R.string.creation_gif_title),
+                    GalleryIcons.Repeat, onCreateGif, canCreateGif, false, "selection-create-gif",
+                ),
+                // Always enabled: preparation explains a count or media-type mismatch in a snackbar.
+                action(stringResource(R.string.m6_collage), GalleryIcons.GridView, onCreateCollage, true, false, "selection-create-collage"),
+                action(stringResource(R.string.archive_move), GalleryIcons.Archive, onArchive, true, false, null),
+                action(stringResource(R.string.selection_select_all), GalleryIcons.Check, onSelectAll, true, false, null),
+                action(stringResource(R.string.selection_delete), GalleryIcons.Trash, onDelete, true, false, null),
+            ),
+        )
         if (showShareLimitNote) {
             // Floats over media, so it needs its own container pair to stay legible.
             Surface(
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 contentColor = MaterialTheme.colorScheme.onSurface,
                 shape = MaterialTheme.shapes.large,
+                modifier = Modifier.padding(bottom = 12.dp),
             ) {
                 Text(
                     stringResource(R.string.selection_share_limit),
