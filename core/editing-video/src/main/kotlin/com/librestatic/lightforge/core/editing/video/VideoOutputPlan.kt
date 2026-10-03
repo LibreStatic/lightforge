@@ -8,6 +8,19 @@ import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 import kotlin.math.sin
 
+/** Edited output length for a clip ending at [clipEndMillis]: speed and slow-motion ranges applied. */
+fun VideoEditRecipe.outputDurationMillis(clipEndMillis: Long): Long {
+    var cursor = startMillis
+    var duration = 0.0
+    slowMotionSegments.forEach { segment ->
+        duration += (segment.startMillis - cursor).coerceAtLeast(0) / speed.toDouble()
+        duration += (segment.endMillis - segment.startMillis) / segment.speed.toDouble()
+        cursor = segment.endMillis
+    }
+    duration += (clipEndMillis - cursor).coerceAtLeast(0) / speed.toDouble()
+    return duration.toLong().coerceAtLeast(0)
+}
+
 /** What an encoder on this device can produce for one codec. Sizes are in pixels, bitrate in bits/s. */
 data class VideoEncoderSupport(
     val widthAlignment: Int = 2,
@@ -15,6 +28,8 @@ data class VideoEncoderSupport(
     val maxWidth: Int = 8192,
     val maxHeight: Int = 8192,
     val maxBitrate: Int? = null,
+    /** False when only a software encoder exists (AV1 on most phones): it works, slowly. */
+    val hardwareAccelerated: Boolean = true,
 )
 
 /** Video encoders available for the output codec choice; a null entry means no encoder for that codec. */
@@ -48,7 +63,10 @@ sealed interface VideoAudioPlan {
     /** The source has no audio track and no music is mixed in. */
     data object None : VideoAudioPlan
 
-    /** [VideoOutputAudio.Remove]: the output has no audio track at all, music included. */
+    /**
+     * [VideoOutputAudio.Remove] without added music: the output has no audio track. With music,
+     * Remove drops only the source audio and the music track is encoded ([Encode]).
+     */
     data object Removed : VideoAudioPlan
 
     /** The source audio stream is copied without decoding. */
@@ -306,15 +324,12 @@ data class VideoOutputPlan(
             }
 
             // Audio.
-            val audio = when {
-                output.audio == VideoOutputAudio.Remove -> VideoAudioPlan.Removed
-                !source.hasAudio && recipe.musicUri == null -> VideoAudioPlan.None
-                output.audio is VideoOutputAudio.Aac ->
-                    VideoAudioPlan.Encode(output.audio.bitsPerSecond, requested = true)
-                remuxVideo && recipe.originalAudioVolume == 1f && source.hasAudio &&
-                    source.audioMimeType == MimeAac -> VideoAudioPlan.Copy
-                else -> VideoAudioPlan.Encode(DefaultAudioBitrate, requested = false)
-            }
+            val audio = audioPlan(
+                output.audio,
+                source,
+                hasMusic = recipe.musicUri != null,
+                copyable = remuxVideo && recipe.originalAudioVolume == 1f,
+            )
 
             return VideoOutputPlan(
                 codec = codec,
@@ -335,6 +350,23 @@ data class VideoOutputPlan(
             )
         }
 
+        /**
+         * Audio decision. Remove drops the source audio only: with added music the track stays and
+         * is mixed and encoded. [copyable] is true when nothing touches the source audio stream.
+         */
+        internal fun audioPlan(
+            requested: VideoOutputAudio,
+            source: VideoSourceInfo,
+            hasMusic: Boolean,
+            copyable: Boolean,
+        ): VideoAudioPlan = when {
+            requested == VideoOutputAudio.Remove && !hasMusic -> VideoAudioPlan.Removed
+            !source.hasAudio && !hasMusic -> VideoAudioPlan.None
+            requested is VideoOutputAudio.Aac -> VideoAudioPlan.Encode(requested.bitsPerSecond, requested = true)
+            copyable && !hasMusic && source.hasAudio && source.audioMimeType == MimeAac -> VideoAudioPlan.Copy
+            else -> VideoAudioPlan.Encode(DefaultAudioBitrate, requested = false)
+        }
+
         fun mimeFor(codec: VideoOutputCodec): String = when (codec) {
             VideoOutputCodec.Auto, VideoOutputCodec.H264 -> MimeH264
             VideoOutputCodec.Hevc -> MimeHevc
@@ -350,7 +382,7 @@ data class VideoOutputPlan(
         }
 
         /** Width and height after the recipe's crop and rotation, in displayed source pixels. */
-        internal fun editedSize(source: VideoSourceInfo, geometry: VideoGeometry): Pair<Double, Double> {
+        fun editedSize(source: VideoSourceInfo, geometry: VideoGeometry): Pair<Double, Double> {
             val cropWidth = source.displayWidth * (geometry.right - geometry.left).toDouble()
             val cropHeight = source.displayHeight * (geometry.bottom - geometry.top).toDouble()
             val radians = Math.toRadians(geometry.rotationDegrees.toDouble())

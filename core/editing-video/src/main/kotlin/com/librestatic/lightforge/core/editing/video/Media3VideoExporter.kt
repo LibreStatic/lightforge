@@ -159,7 +159,9 @@ class Media3VideoExporter(private val context: Context) {
             .setUri(request.input)
             .setClippingConfiguration(clipping)
             .build()
+        // Removed: the output has no audio track. Remove with added music drops only the source audio.
         val removeAudio = plan?.audio == VideoAudioPlan.Removed
+        val removeSourceAudio = removeAudio || request.recipe.output.audio == VideoOutputAudio.Remove
         // A copied stream must see no processor at all, or Media3 decodes and re-encodes it.
         val audioProcessors = if (plan?.remuxAudio == true) {
             emptyList()
@@ -179,7 +181,7 @@ class Media3VideoExporter(private val context: Context) {
             // Output size last: grading and annotations work on the edited frame, and Pad bars stay black.
             plan?.resizes?.forEach { add(it.toPresentation()) }
         }
-        val editedBuilder = EditedMediaItem.Builder(mediaItem).setRemoveAudio(removeAudio)
+        val editedBuilder = EditedMediaItem.Builder(mediaItem).setRemoveAudio(removeSourceAudio)
         if (request.recipe.speed != 1f) {
             editedBuilder.setSpeed(
                 SpeedParameters(
@@ -201,7 +203,7 @@ class Media3VideoExporter(private val context: Context) {
                 generatedSlowSegments,
                 outputDurationMillis,
                 videoEffects,
-                removeAudio,
+                removeSourceAudio,
             )
         } else request.recipe.musicUri?.takeUnless { removeAudio }?.let { musicUri ->
             val musicItem = EditedMediaItem.Builder(
@@ -218,7 +220,9 @@ class Media3VideoExporter(private val context: Context) {
                 .build()
             Composition.Builder(
                 listOf(
-                    EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_AUDIO, C.TRACK_TYPE_VIDEO))
+                    EditedMediaItemSequence.Builder(
+                        if (removeSourceAudio) setOf(C.TRACK_TYPE_VIDEO) else setOf(C.TRACK_TYPE_AUDIO, C.TRACK_TYPE_VIDEO),
+                    )
                         .addItem(edited)
                         .build(),
                     EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_AUDIO))
@@ -415,10 +419,10 @@ class Media3VideoExporter(private val context: Context) {
         generated: List<GeneratedSlowSegment>,
         outputDurationMillis: Long,
         videoEffects: List<androidx.media3.common.Effect>,
-        removeAudio: Boolean,
+        removeSourceAudio: Boolean,
     ): Composition {
         val video = EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_VIDEO))
-        val audio = if (!removeAudio && sourceHasAudio(request.input)) {
+        val audio = if (!removeSourceAudio && sourceHasAudio(request.input)) {
             EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_AUDIO))
         } else null
         var cursor = request.recipe.startMillis
@@ -461,7 +465,8 @@ class Media3VideoExporter(private val context: Context) {
         }
         val sequences = mutableListOf(video.build())
         audio?.let { sequences += it.build() }
-        request.recipe.musicUri?.takeUnless { removeAudio }?.let { musicUri ->
+        // Added music stays even when the source audio is removed.
+        request.recipe.musicUri?.let { musicUri ->
             val musicItem = EditedMediaItem.Builder(MediaItem.Builder().setUri(musicUri).build())
                 .setRemoveVideo(true)
                 .setDurationUs(outputDurationMillis * 1_000L)
@@ -525,17 +530,8 @@ class Media3VideoExporter(private val context: Context) {
             )
             .build()
 
-    private fun outputDurationMillis(recipe: VideoEditRecipe, clipEndMillis: Long): Long {
-        var cursor = recipe.startMillis
-        var duration = 0.0
-        recipe.slowMotionSegments.forEach { segment ->
-            duration += (segment.startMillis - cursor).coerceAtLeast(0) / recipe.speed.toDouble()
-            duration += (segment.endMillis - segment.startMillis) / segment.speed.toDouble()
-            cursor = segment.endMillis
-        }
-        duration += (clipEndMillis - cursor).coerceAtLeast(0) / recipe.speed.toDouble()
-        return duration.toLong().coerceAtLeast(0)
-    }
+    private fun outputDurationMillis(recipe: VideoEditRecipe, clipEndMillis: Long): Long =
+        recipe.outputDurationMillis(clipEndMillis)
 
     private fun sourceHasAudio(uri: Uri): Boolean = runCatching {
         MediaMetadataRetriever().use { retriever ->

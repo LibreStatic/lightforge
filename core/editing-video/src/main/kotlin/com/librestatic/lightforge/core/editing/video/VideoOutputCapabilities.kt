@@ -21,13 +21,16 @@ object VideoOutputCapabilities {
                 .filter { codec -> codec.supportedTypes.any { it.equals(mimeType, ignoreCase = true) } }
                 .sortedByDescending { it.isHardwareAccelerated }
                 .firstOrNull() ?: return null
-            val video = codec.getCapabilitiesForType(mimeType).videoCapabilities ?: return VideoEncoderSupport()
+            val hardware = codec.isHardwareAccelerated
+            val video = codec.getCapabilitiesForType(mimeType).videoCapabilities
+                ?: return VideoEncoderSupport(hardwareAccelerated = hardware)
             return VideoEncoderSupport(
                 widthAlignment = video.widthAlignment,
                 heightAlignment = video.heightAlignment,
                 maxWidth = video.supportedWidths.upper,
                 maxHeight = video.supportedHeights.upper,
                 maxBitrate = video.bitrateRange.upper,
+                hardwareAccelerated = hardware,
             )
         }
         VideoEncoderCapabilities(

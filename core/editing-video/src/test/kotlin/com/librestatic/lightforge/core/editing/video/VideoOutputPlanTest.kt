@@ -221,6 +221,20 @@ class VideoOutputPlanTest {
     }
 
     @Test
+    fun removeAudioKeepsAddedMusic() {
+        // Only the source audio goes: the music track is mixed and encoded.
+        val encoded = VideoAudioPlan.Encode(VideoOutputPlan.DefaultAudioBitrate, requested = false)
+        val remove = VideoOutputAudio.Remove
+        assertEquals(encoded, VideoOutputPlan.audioPlan(remove, hikVision, hasMusic = true, copyable = true))
+        assertEquals(encoded, VideoOutputPlan.audioPlan(remove, hikVision.copy(hasAudio = false), hasMusic = true, copyable = false))
+        assertEquals(VideoAudioPlan.Removed, VideoOutputPlan.audioPlan(remove, hikVision, hasMusic = false, copyable = true))
+        assertEquals(
+            VideoAudioPlan.Encode(96_000, requested = true),
+            VideoOutputPlan.audioPlan(VideoOutputAudio.Aac(96_000), hikVision, hasMusic = true, copyable = false),
+        )
+    }
+
+    @Test
     fun aacBitrateReencodesOnlyTheAudio() {
         val plan = plan(VideoOutputSettings(audio = VideoOutputAudio.Aac(64_000)))
 
