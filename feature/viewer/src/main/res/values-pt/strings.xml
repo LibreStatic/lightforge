@@ -20,4 +20,6 @@
     <string name="viewer_text_recognizing">Lendo o texto…</string>
     <string name="viewer_close_details">Fechar detalhes</string>
     <string name="viewer_shortcut_hint">%1$s (%2$s)</string>
+    <string name="viewer_show_more_thumbnails">Mostrar mais miniaturas</string>
+    <string name="viewer_show_fewer_thumbnails">Mostrar menos miniaturas</string>
 </resources>

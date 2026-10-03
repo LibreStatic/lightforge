@@ -33,6 +33,10 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.UnfoldLess
+import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -110,6 +114,7 @@ import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
 import com.librestatic.lightforge.core.thumbnail.ThumbnailRequest
 import com.librestatic.lightforge.core.preferences.GestureSettings
 import com.librestatic.lightforge.core.preferences.VideoScrubbingMode
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
@@ -234,6 +239,8 @@ fun ViewerContent(
         mutableStateOf(videoScrubbingMode == VideoScrubbingMode.Filmstrip)
     }
     var filmstripUnavailable by remember(media.viewerId, media.generationModified) { mutableStateOf(false) }
+    // Video keeps the media unobstructed: its strip starts collapsed and the choice sticks while browsing.
+    var videoStripCollapsed by rememberSaveable { mutableStateOf(true) }
     val filmstripFrameRequest = (videoState as? VideoViewerState.Ready)?.takeIf {
         videoScrubbingMode == VideoScrubbingMode.Filmstrip && it.durationMillis > 0L
     }
@@ -841,6 +848,8 @@ fun ViewerContent(
                     ) {
                         { filmstripExpanded = true }
                     } else null,
+                    collapsed = media.kind == MediaKind.Video && videoStripCollapsed,
+                    onToggleCollapsed = if (media.kind == MediaKind.Video) ({ videoStripCollapsed = !videoStripCollapsed }) else null,
                 )
                 ViewerActionPill(
                     onShare = onShare,
@@ -943,20 +952,42 @@ private fun ViewerFilmstrip(
     onSelectMedia: (ViewerMedia) -> Unit,
     expandedVideo: VideoFilmstripConfig? = null,
     onSelectedVideoTap: (() -> Unit)? = null,
+    collapsed: Boolean = false,
+    onToggleCollapsed: (() -> Unit)? = null,
 ) {
     if (items.size <= 1 && expandedVideo == null && onSelectedVideoTap == null) return
     if (thumbnailLoader == null && expandedVideo == null) return
-    val listState = rememberLazyListState(initialFirstVisibleItemIndex = (selectedIndex - 2).coerceAtLeast(0))
-    LaunchedEffect(selectedIndex) {
-        listState.animateScrollToItem((selectedIndex - 2).coerceAtLeast(0))
+    // Only a window around the selection is composed, so a scope of thousands of items costs the
+    // same as a short one; a collapsed (video) strip keeps just the neighbours.
+    val window = stripWindow(items.size, selectedIndex, if (collapsed) 1 else VIEWER_STRIP_RADIUS)
+    val windowItems = if (window.isEmpty()) emptyList() else items.subList(window.first, window.last + 1)
+    val localSelected = (selectedIndex - window.first).coerceIn(0, (windowItems.size - 1).coerceAtLeast(0))
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = (localSelected - 2).coerceAtLeast(0))
+    val density = LocalDensity.current
+    var stripCentered by remember { mutableStateOf(false) }
+    LaunchedEffect(selectedIndex, window.first, collapsed) {
+        // Wait for the first layout so the selection can be centred in the real viewport.
+        val viewport = snapshotFlow { listState.layoutInfo.viewportSize.width }.first { it > 0 }
+        val offset = -((viewport - with(density) { 66.dp.roundToPx() }) / 2)
+        if (stripCentered) {
+            listState.animateScrollToItem(localSelected, offset)
+        } else {
+            listState.scrollToItem(localSelected, offset)
+            stripCentered = true
+        }
     }
+    Row(
+        Modifier.widthIn(max = VIEWER_STRIP_MAX_WIDTH).fillMaxWidth().padding(top = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
     LazyRow(
         state = listState,
-        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        modifier = Modifier.weight(1f),
         contentPadding = PaddingValues(horizontal = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp, if (collapsed) Alignment.CenterHorizontally else Alignment.Start),
     ) {
-        itemsIndexed(items, key = { _, item -> item.viewerId }) { index, item ->
+        itemsIndexed(windowItems, key = { _, item -> item.viewerId }) { localIndex, item ->
+            val index = window.first + localIndex
             val selected = index == selectedIndex
             // The filmstrip only holds a paged window of the scope, so an "N of M" total would be
             // misleading (R-05); announce the kind and date, plus selected state, instead.
@@ -1029,7 +1060,27 @@ private fun ViewerFilmstrip(
             }
         }
     }
+    onToggleCollapsed?.let { toggle ->
+        val label = stringResource(if (collapsed) R.string.viewer_show_more_thumbnails else R.string.viewer_show_fewer_thumbnails)
+        ViewerTooltip(label, shortcut = null, above = true) {
+            GalleryExpressiveIconButton(onClick = toggle, modifier = Modifier.padding(end = 4.dp)) {
+                Icon(
+                    if (collapsed) Icons.Filled.UnfoldMore else Icons.Filled.UnfoldLess,
+                    contentDescription = label,
+                    tint = GalleryOverlayTokens.Content,
+                    modifier = Modifier.graphicsLayer { rotationZ = 90f },
+                )
+            }
+        }
+    }
+    }
 }
+
+/** Thumbnails composed on each side of the selected one. */
+private const val VIEWER_STRIP_RADIUS = 30
+
+/** Keeps the strip next to the media on wide windows instead of stretching edge to edge. */
+private val VIEWER_STRIP_MAX_WIDTH = 840.dp
 
 private sealed interface VideoFramesState {
     data object Loading : VideoFramesState
