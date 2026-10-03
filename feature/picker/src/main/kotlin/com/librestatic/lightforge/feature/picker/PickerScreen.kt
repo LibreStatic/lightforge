@@ -15,10 +15,10 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
+import androidx.paging.compose.LazyPagingItems
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -54,7 +54,9 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveButton
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveIconButton
-import com.librestatic.lightforge.core.designsystem.GalleryGridMetrics
+import com.librestatic.lightforge.core.designsystem.AdaptiveMediaGrid
+import com.librestatic.lightforge.core.designsystem.GalleryShapes
+import com.librestatic.lightforge.core.designsystem.MediaSelectionAffordance
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryLoadingIndicator
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
@@ -182,10 +184,12 @@ internal fun PickerScreen(
                     if (state.catalog.albums.size > 1) {
                         AlbumChips(state.catalog.albums, album, viewModel::selectAlbum)
                     }
-                    PickerGrid(
-                        viewModel = viewModel,
+                    PickerMediaGrid(
+                        pages = viewModel.media.collectAsLazyPagingItems(),
+                        loader = viewModel.thumbnails,
                         selection = selection.keys.toList(),
                         multiple = multiple,
+                        onToggle = viewModel::toggle,
                         onPick = onPick,
                     )
                 }
@@ -200,14 +204,19 @@ private fun PickRequest.titleRes(): Int = when {
     else -> if (allowMultiple) R.string.picker_title_items else R.string.picker_title_item
 }
 
+/**
+ * The pickable media, in the shared adaptive grid: edge margins, no clipped trailing column and
+ * the same cell sizes as the gallery itself. Stateless so debug previews can feed it fake pages.
+ */
 @Composable
-private fun PickerGrid(
-    viewModel: PickerViewModel,
+internal fun PickerMediaGrid(
+    pages: LazyPagingItems<PickerMedia>,
+    loader: ThumbnailLoader,
     selection: List<MediaKey>,
     multiple: Boolean,
+    onToggle: (PickerMedia) -> Unit,
     onPick: (List<PickerMedia>) -> Unit,
 ) {
-    val pages = viewModel.media.collectAsLazyPagingItems()
     val refresh = pages.loadState.refresh
     when {
         pages.itemCount == 0 && refresh is LoadState.Loading -> PickerLoading(Modifier.fillMaxSize())
@@ -223,24 +232,27 @@ private fun PickerGrid(
             body = stringResource(R.string.picker_empty_body),
             modifier = Modifier.fillMaxSize(),
         )
-        else -> LazyVerticalGrid(
-            columns = GridCells.Adaptive(PickerCellSize),
-            state = rememberLazyGridState(),
-            modifier = Modifier.fillMaxSize().testTag("picker_grid"),
-            horizontalArrangement = Arrangement.spacedBy(GalleryGridMetrics.Gap),
-            verticalArrangement = Arrangement.spacedBy(GalleryGridMetrics.Gap),
-            contentPadding = PaddingValues(bottom = GallerySpacing.Lg),
-        ) {
-            items(pages.itemCount, key = pages.itemKey { "${it.key.volumeName}:${it.key.mediaStoreId}" }) { index ->
-                val media = pages[index] ?: return@items
-                val order = if (multiple) selection.indexOf(media.key).takeIf { it >= 0 }?.plus(1) else null
-                PickerTile(
-                    media = media,
-                    loader = viewModel.thumbnails,
-                    selected = order != null,
-                    order = order,
-                    onClick = { if (multiple) viewModel.toggle(media) else onPick(listOf(media)) },
-                )
+        else -> {
+            val density = LocalDensity.current.density
+            AdaptiveMediaGrid(
+                modifier = Modifier.fillMaxSize(),
+                bottomPadding = GallerySpacing.Lg,
+                gridModifier = Modifier.testTag("picker_grid"),
+            ) { layout ->
+                val sizePx = layout.cellSizePx(density)
+                items(pages.itemCount, key = pages.itemKey { "${it.key.volumeName}:${it.key.mediaStoreId}" }) { index ->
+                    val media = pages[index] ?: return@items
+                    val order = if (multiple) selection.indexOf(media.key).takeIf { it >= 0 }?.plus(1) else null
+                    PickerTile(
+                        media = media,
+                        loader = loader,
+                        sizePx = sizePx,
+                        multiple = multiple,
+                        selected = order != null,
+                        order = order,
+                        onClick = { if (multiple) onToggle(media) else onPick(listOf(media)) },
+                    )
+                }
             }
         }
     }
@@ -250,11 +262,13 @@ private fun PickerGrid(
 private fun PickerTile(
     media: PickerMedia,
     loader: ThumbnailLoader,
+    sizePx: Int,
+    multiple: Boolean,
     selected: Boolean,
     order: Int?,
     onClick: () -> Unit,
 ) {
-    val request = ThumbnailRequest(media.key, media.generationModified, ThumbnailSizePx, ThumbnailSizePx)
+    val request = ThumbnailRequest(media.key, media.generationModified, sizePx, sizePx)
     val bitmap by produceState(loader.cached(request), request, loader) {
         if (value == null) value = runCatching { loader.load(request) }.getOrNull()
     }
@@ -266,10 +280,12 @@ private fun PickerTile(
     )
     Box(
         Modifier.fillMaxWidth().aspectRatio(1f)
+            .clip(GalleryShapes.Thumbnail)
             .testTag("picker_media_${media.key.volumeName}_${media.key.mediaStoreId}")
             .clearAndSetSemantics {
                 contentDescription = description
-                this.selected = selected
+                // Multiple selection is a set of toggles; a single pick is a plain button.
+                if (multiple) this.selected = selected
                 onClick { onClick(); true }
             }
             .clickable(onClick = onClick),
@@ -286,7 +302,9 @@ private fun PickerTile(
         if (media.isVideo) {
             VideoDurationBadge(media.durationMillis, Modifier.align(Alignment.BottomEnd).padding(6.dp))
         }
-        MediaSelectionOverlay(selected, order = order)
+        // Multiple selection shows an empty check on every tile, so it reads as a checklist.
+        MediaSelectionAffordance(visible = multiple && !selected)
+        MediaSelectionOverlay(selected, order = order, shape = GalleryShapes.Thumbnail)
     }
 }
 
@@ -367,5 +385,3 @@ private fun PickerMessage(
     )
 }
 
-private val PickerCellSize = 96.dp
-private const val ThumbnailSizePx = 256
