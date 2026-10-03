@@ -6,6 +6,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import android.view.SurfaceView
+import android.view.TextureView
 import androidx.annotation.MainThread
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Effect
@@ -34,6 +35,12 @@ sealed interface VideoViewerState {
         val usedSoftwareDecoder: Boolean = false,
         /** True once a decoded frame reached the surface; until then a poster stands in. */
         val firstFrameRendered: Boolean = false,
+        /**
+         * True while frames go through the effects passed to [VideoViewerController.setVideoEffects].
+         * False for viewer controllers, and for editor controllers that fell back to plain playback
+         * after the effects graph failed; their UI must then preview edits some other way.
+         */
+        val videoEffectsActive: Boolean = false,
     ) : VideoViewerState
     data class Failure(val uri: Uri, val unsupported: Boolean, val errorCode: Int) : VideoViewerState
     data object Released : VideoViewerState
@@ -59,25 +66,35 @@ internal interface VideoEngine {
     fun stopAndClear()
     fun release()
     fun attachSurface(surfaceView: SurfaceView?)
+    /** Renders into [textureView], which (unlike a SurfaceView) honours view transforms. */
+    fun attachTextureView(textureView: TextureView?) = Unit
     fun setVolume(volume: Float)
     fun setPlaybackSpeed(speed: Float) = Unit
     fun setRepeatEnabled(enabled: Boolean)
     fun setVideoEffects(effects: List<Effect>)
     fun currentPositionMillis(): Long
+
+    /**
+     * Replaces the player with one running [pipeline], keeping the attached view, volume, speed and
+     * repeat mode; media must be set and prepared again. Returns false when the engine cannot.
+     */
+    fun rebuild(pipeline: VideoPipeline): Boolean = false
 }
 
 /** Owns exactly one player/decoder chain for the entire viewer surface. */
 class VideoViewerController internal constructor(
     private val engine: VideoEngine,
     initialLooping: Boolean = false,
+    private val videoEffectsRequested: Boolean = false,
 ) : AutoCloseable {
     constructor(
         context: Context,
         enableVideoEffects: Boolean = false,
         initialLooping: Boolean = false,
     ) : this(
-        Media3VideoEngine(context.applicationContext, enableVideoEffects),
+        Media3VideoEngine(context.applicationContext, VideoPipeline(videoEffects = enableVideoEffects)),
         initialLooping,
+        enableVideoEffects,
     )
 
     private val mutableState = MutableStateFlow<VideoViewerState>(VideoViewerState.Idle)
@@ -95,6 +112,9 @@ class VideoViewerController internal constructor(
     private var usedSoftwareDecoder = false
     private var firstFrameRendered = false
     private var scrubbing = false
+    private var pipeline = VideoPipeline(videoEffects = videoEffectsRequested)
+    private var recoveries = 0
+    private var videoEffects: List<Effect>? = null
 
     init {
         engine.setRepeatEnabled(looping)
@@ -116,6 +136,7 @@ class VideoViewerController internal constructor(
             }
             override fun onFailure(errorCode: Int, unsupported: Boolean) {
                 val uri = activeUri ?: return
+                if (recover(uri, errorCode)) return
                 mutableState.value = VideoViewerState.Failure(uri, unsupported, errorCode)
             }
             override fun onFirstFrameRendered() {
@@ -151,11 +172,39 @@ class VideoViewerController internal constructor(
         videoDecoderName = null
         usedSoftwareDecoder = false
         firstFrameRendered = false
+        recoveries = 0
         mutableState.value = VideoViewerState.Loading(uri, poster)
         engine.setVolume(if (muted) 0f else 1f)
         engine.setMedia(uri)
         engine.prepare()
         if (autoplay) engine.play()
+    }
+
+    /**
+     * Retries [uri] on a more conservative pipeline after [errorCode], resuming where playback
+     * stopped. Returns false when there is nothing left to try and the failure should be shown.
+     */
+    private fun recover(uri: Uri, errorCode: Int): Boolean {
+        if (released || recoveries >= VideoPlaybackRecovery.MaxRecoveries) return false
+        val next = VideoPlaybackRecovery.next(pipeline, errorCode) ?: return false
+        val position = engine.currentPositionMillis()
+        val wasPlaying = playbackIsPlaying
+        if (!engine.rebuild(next)) return false
+        recoveries++
+        pipeline = next
+        playbackReady = false
+        playbackIsPlaying = false
+        videoDecoderName = null
+        usedSoftwareDecoder = false
+        firstFrameRendered = false
+        mutableState.value = VideoViewerState.Loading(uri, activePoster)
+        engine.setRepeatEnabled(looping)
+        if (next.videoEffects) videoEffects?.let(engine::setVideoEffects)
+        engine.setMedia(uri)
+        engine.prepare()
+        engine.seekTo(position)
+        if (wasPlaying) engine.play()
+        return true
     }
 
     @MainThread fun play() { check(!released); engine.play() }
@@ -225,8 +274,19 @@ class VideoViewerController internal constructor(
         engine.attachSurface(surfaceView)
     }
     @MainThread
+    fun attachTextureView(textureView: TextureView?) {
+        if (released) {
+            check(textureView == null)
+            return
+        }
+        engine.attachTextureView(textureView)
+    }
+    @MainThread
     fun setVideoEffects(effects: List<Effect>) {
         check(!released)
+        videoEffects = effects
+        // A player that fell back to plain playback has no effects graph to update.
+        if (videoEffectsRequested && !pipeline.videoEffects) return
         engine.setVideoEffects(effects)
         refreshVideoFrame()
     }
@@ -276,32 +336,60 @@ class VideoViewerController internal constructor(
             videoDecoderName,
             usedSoftwareDecoder,
             firstFrameRendered,
+            videoEffectsActive = videoEffectsRequested && pipeline.videoEffects,
         )
     }
 }
 
-private class Media3VideoEngine(context: Context, enableVideoEffects: Boolean) : VideoEngine {
+private class Media3VideoEngine(
+    private val context: Context,
+    private var pipeline: VideoPipeline,
+) : VideoEngine {
     private val decoderSelector = MediaCodecSelector { mimeType, secure, tunneling ->
+        val hardwareFirst = compareByDescending<androidx.media3.exoplayer.mediacodec.MediaCodecInfo> {
+            it.hardwareAccelerated
+        }.thenBy { it.softwareOnly }
         MediaCodecSelector.DEFAULT.getDecoderInfos(mimeType, secure, tunneling)
             .sortedWith(
-                compareByDescending<androidx.media3.exoplayer.mediacodec.MediaCodecInfo> {
-                    it.hardwareAccelerated
-                }.thenBy { it.softwareOnly }.thenBy { it.name },
+                (if (pipeline.preferSoftwareDecoder) hardwareFirst.reversed() else hardwareFirst)
+                    .thenBy { it.name },
             )
     }
-    private val player = ExoPlayer.Builder(
+    override var listener: VideoEngine.Listener? = null
+    private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var surfaceView: SurfaceView? = null
+    private var textureView: TextureView? = null
+    private var volume = 1f
+    private var speed = 1f
+    private var repeat = false
+    private var player = createPlayer()
+
+    private fun createPlayer(): ExoPlayer = ExoPlayer.Builder(
         context,
         DefaultRenderersFactory(context)
             .setMediaCodecSelector(decoderSelector)
             .setEnableDecoderFallback(true),
-    ).build()
-    override var listener: VideoEngine.Listener? = null
+    ).build().also(::configure)
 
-    init {
+    override fun rebuild(pipeline: VideoPipeline): Boolean {
+        val previous = player
+        previous.stop()
+        previous.clearVideoSurface()
+        previous.release()
+        this.pipeline = pipeline
+        player = createPlayer()
+        player.volume = volume
+        player.setPlaybackSpeed(speed)
+        player.repeatMode = if (repeat) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+        textureView?.let(player::setVideoTextureView) ?: surfaceView?.let(player::setVideoSurfaceView)
+        return true
+    }
+
+    private fun configure(player: ExoPlayer) {
         // Media3 only creates its GL video graph when effects are registered before the
         // renderer is enabled. Register an empty chain up front so later editor changes
         // can be applied live without recreating playback.
-        if (enableVideoEffects) player.setVideoEffects(emptyList())
+        if (pipeline.videoEffects) player.setVideoEffects(emptyList())
         player.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_READY) {
@@ -327,7 +415,12 @@ private class Media3VideoEngine(context: Context, enableVideoEffects: Boolean) :
             }
 
             override fun onPlayerError(error: PlaybackException) {
-                listener?.onFailure(error.errorCode, error.errorCode in UnsupportedErrorCodes)
+                // Posted: recovery may release this very player, which must not happen while it
+                // is still dispatching its own listener callbacks.
+                val unsupported = error.errorCode in UnsupportedErrorCodes
+                mainHandler.post {
+                    if (this@Media3VideoEngine.player === player) listener?.onFailure(error.errorCode, unsupported)
+                }
             }
         })
         player.addAnalyticsListener(object : AnalyticsListener {
@@ -364,14 +457,39 @@ private class Media3VideoEngine(context: Context, enableVideoEffects: Boolean) :
     override fun release() = player.release()
     override fun attachSurface(surfaceView: SurfaceView?) {
         player.clearVideoSurface()
-        if (surfaceView != null) player.setVideoSurfaceView(surfaceView)
+        this.surfaceView = surfaceView
+        if (surfaceView != null) {
+            textureView = null
+            player.setVideoSurfaceView(surfaceView)
+        } else {
+            textureView?.let(player::setVideoTextureView)
+        }
     }
-    override fun setVolume(volume: Float) { player.volume = volume.coerceIn(0f, 1f) }
-    override fun setPlaybackSpeed(speed: Float) { player.setPlaybackSpeed(speed) }
+    override fun attachTextureView(textureView: TextureView?) {
+        player.clearVideoSurface()
+        this.textureView = textureView
+        if (textureView != null) {
+            surfaceView = null
+            player.setVideoTextureView(textureView)
+        } else {
+            surfaceView?.let(player::setVideoSurfaceView)
+        }
+    }
+    override fun setVolume(volume: Float) {
+        this.volume = volume.coerceIn(0f, 1f)
+        player.volume = this.volume
+    }
+    override fun setPlaybackSpeed(speed: Float) {
+        this.speed = speed
+        player.setPlaybackSpeed(speed)
+    }
     override fun setRepeatEnabled(enabled: Boolean) {
+        repeat = enabled
         player.repeatMode = if (enabled) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
     }
-    override fun setVideoEffects(effects: List<Effect>) = player.setVideoEffects(effects)
+    override fun setVideoEffects(effects: List<Effect>) {
+        if (pipeline.videoEffects) player.setVideoEffects(effects)
+    }
     override fun currentPositionMillis(): Long = player.currentPosition.coerceAtLeast(0)
 
     private companion object {
