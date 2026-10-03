@@ -51,6 +51,7 @@ data class VideoEditRecipe(
     val dynamicRange: VideoDynamicRange = VideoDynamicRange.SdrRec709,
     val slowMotionSegments: List<SlowMotionSegment> = emptyList(),
     val annotations: List<VideoAnnotationLayer> = emptyList(),
+    val output: VideoOutputSettings = VideoOutputSettings(),
 ) {
     init {
         require(startMillis >= 0)
@@ -76,6 +77,7 @@ data class VideoEditRecipe(
             || !geometry.isIdentity
             || slowMotionSegments.isNotEmpty()
             || annotations.isNotEmpty()
+            || !output.isDefault
 }
 
 data class VideoExportResult(
