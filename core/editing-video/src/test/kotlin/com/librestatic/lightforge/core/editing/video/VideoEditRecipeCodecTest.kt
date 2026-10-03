@@ -96,6 +96,64 @@ class VideoEditRecipeCodecTest {
         assertEquals(false, encoded.contains("vibrance"))
     }
 
+    @Test
+    fun roundTripsOutputSettings() {
+        val variants = listOf(
+            VideoOutputSettings(
+                codec = VideoOutputCodec.Av1,
+                quality = VideoOutputBitrate.Target(2_500_000),
+                resolution = VideoOutputResolution.Custom(1280, 720),
+                frameRate = VideoOutputFrameRate.Max(15),
+                aspect = VideoAspectOverride.Forced(16, 9, VideoAspectMode.Stretch),
+                audio = VideoOutputAudio.Aac(96_000),
+            ),
+            VideoOutputSettings(
+                codec = VideoOutputCodec.Hevc,
+                quality = VideoOutputBitrate.Preset(VideoQualityPreset.Low),
+                resolution = VideoOutputResolution.ShortSide(720),
+                aspect = VideoAspectOverride.Forced(4, 3, VideoAspectMode.Pad),
+                audio = VideoOutputAudio.Remove,
+            ),
+            VideoOutputSettings(aspect = VideoAspectOverride.Forced(21, 9, VideoAspectMode.Crop)),
+        )
+        variants.forEach { output ->
+            val recipe = VideoEditRecipe(startMillis = 250L, output = output)
+            assertEquals(recipe, VideoEditRecipeCodec.decode(VideoEditRecipeCodec.encode(recipe)))
+        }
+    }
+
+    @Test
+    fun recipesWithoutOutputSettingsDecodeToDefaultsAndDoNotWriteThem() {
+        val decoded = VideoEditRecipeCodec.decode("version=5\nquality=HevcMain10\n")
+        assertEquals(VideoOutputSettings(), decoded.output)
+
+        val encoded = VideoEditRecipeCodec.encode(decoded)
+        assertEquals(false, Regex("(?m)^out").containsMatchIn(encoded))
+    }
+
+    @Test
+    fun unreadableOutputFieldsFallBackOneByOne() {
+        val decoded = VideoEditRecipeCodec.decode(
+            """
+            version=5
+            outCodec=Vp9
+            outQuality=target:5
+            outResolution=short:720
+            outFrameRate=max:abc
+            outAspect=forced:16:9:Squash
+            outAudio=aac:64000
+            """.trimIndent(),
+        )
+
+        assertEquals(
+            VideoOutputSettings(
+                resolution = VideoOutputResolution.ShortSide(720),
+                audio = VideoOutputAudio.Aac(64_000),
+            ),
+            decoded.output,
+        )
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsUnknownRecipeVersion() {
         VideoEditRecipeCodec.decode("version=99")

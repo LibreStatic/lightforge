@@ -56,6 +56,9 @@ object VideoEditRecipeCodec {
             if (recipe.annotations.isNotEmpty()) {
                 setProperty("annotations", VideoAnnotationCodec.encode(recipe.annotations))
             }
+            // Output settings are written per field and only when changed, like the tonal ranges,
+            // so older recipes and snapshots keep their canonical encoding.
+            encodeOutput(recipe.output).forEach { (key, value) -> setProperty(key, value) }
         }.let { properties ->
             StringWriter().also { properties.store(it, null) }.toString()
         }
@@ -150,6 +153,81 @@ object VideoEditRecipeCodec {
             } else VideoDynamicRange.SdrRec709,
             slowMotionSegments = slowSegments,
             annotations = annotations,
+            output = decodeOutput(properties),
+        )
+    }
+
+    private fun encodeOutput(output: VideoOutputSettings): Map<String, String> = buildMap {
+        val defaults = VideoOutputSettings()
+        if (output.codec != defaults.codec) put("outCodec", output.codec.name)
+        if (output.quality != defaults.quality) put("outQuality", when (val quality = output.quality) {
+            is VideoOutputBitrate.Preset -> "preset:${quality.preset.name}"
+            is VideoOutputBitrate.Target -> "target:${quality.bitsPerSecond}"
+        })
+        if (output.resolution != defaults.resolution) put("outResolution", when (val resolution = output.resolution) {
+            VideoOutputResolution.Original -> "original"
+            is VideoOutputResolution.ShortSide -> "short:${resolution.shortSide}"
+            is VideoOutputResolution.Custom -> "custom:${resolution.width}x${resolution.height}"
+        })
+        if (output.frameRate != defaults.frameRate) put("outFrameRate", when (val rate = output.frameRate) {
+            VideoOutputFrameRate.Original -> "original"
+            is VideoOutputFrameRate.Max -> "max:${rate.fps}"
+        })
+        if (output.aspect != defaults.aspect) put("outAspect", when (val aspect = output.aspect) {
+            VideoAspectOverride.Original -> "original"
+            is VideoAspectOverride.Forced -> "forced:${aspect.width}:${aspect.height}:${aspect.mode.name}"
+        })
+        if (output.audio != defaults.audio) put("outAudio", when (val audio = output.audio) {
+            VideoOutputAudio.Keep -> "keep"
+            VideoOutputAudio.Remove -> "remove"
+            is VideoOutputAudio.Aac -> "aac:${audio.bitsPerSecond}"
+        })
+    }
+
+    /** Missing or unreadable fields fall back to their defaults, one by one. */
+    private fun decodeOutput(properties: Properties): VideoOutputSettings {
+        val defaults = VideoOutputSettings()
+        fun <T> field(key: String, default: T, parse: (List<String>) -> T?): T =
+            properties.getProperty(key)?.let { value -> runCatching { parse(value.split(':')) }.getOrNull() } ?: default
+        return VideoOutputSettings(
+            codec = enumValue(properties, "outCodec", defaults.codec),
+            quality = field("outQuality", defaults.quality) { parts ->
+                when (parts[0]) {
+                    "preset" -> VideoOutputBitrate.Preset(enumValueOf(parts[1]))
+                    "target" -> VideoOutputBitrate.Target(parts[1].toInt())
+                    else -> null
+                }
+            },
+            resolution = field("outResolution", defaults.resolution) { parts ->
+                when (parts[0]) {
+                    "original" -> VideoOutputResolution.Original
+                    "short" -> VideoOutputResolution.ShortSide(parts[1].toInt())
+                    "custom" -> parts[1].split('x').let { VideoOutputResolution.Custom(it[0].toInt(), it[1].toInt()) }
+                    else -> null
+                }
+            },
+            frameRate = field("outFrameRate", defaults.frameRate) { parts ->
+                when (parts[0]) {
+                    "original" -> VideoOutputFrameRate.Original
+                    "max" -> VideoOutputFrameRate.Max(parts[1].toInt())
+                    else -> null
+                }
+            },
+            aspect = field("outAspect", defaults.aspect) { parts ->
+                when (parts[0]) {
+                    "original" -> VideoAspectOverride.Original
+                    "forced" -> VideoAspectOverride.Forced(parts[1].toInt(), parts[2].toInt(), enumValueOf(parts[3]))
+                    else -> null
+                }
+            },
+            audio = field("outAudio", defaults.audio) { parts ->
+                when (parts[0]) {
+                    "keep" -> VideoOutputAudio.Keep
+                    "remove" -> VideoOutputAudio.Remove
+                    "aac" -> VideoOutputAudio.Aac(parts[1].toInt())
+                    else -> null
+                }
+            },
         )
     }
 
