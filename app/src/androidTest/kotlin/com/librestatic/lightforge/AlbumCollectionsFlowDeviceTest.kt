@@ -156,6 +156,8 @@ class AlbumCollectionsFlowDeviceTest {
             collections()
             compose.waitUntil(10_000) { compose.onAllNodesWithText(expectedName).fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithText(expectedName).performTouchInput { click() }
+            // Rename lives in the album's overflow menu.
+            tap("album-more")
             tap("album-rename")
             compose.onNodeWithTag("album-rename-name").performTextReplacement("Renamed-$uuid")
             tap("album-rename-save")
@@ -182,6 +184,8 @@ class AlbumCollectionsFlowDeviceTest {
             check(sizeA.top < sizeB.top || (kotlin.math.abs(sizeA.top - sizeB.top) <= 1f &&
                 if (originalConfiguration.layoutDirection == android.view.View.LAYOUT_DIRECTION_RTL) sizeA.left > sizeB.left else sizeA.left < sizeB.left))
             record.put("sizeDescending", JSONArray(sizeRows.map { JSONObject().put("id", it.mediaStoreId).put("size", it.sizeBytes) }))
+            // Wide panes show Choose cover as a button; compact ones keep it in the overflow menu.
+            if (compose.onAllNodesWithTag("album-cover-choose").fetchSemanticsNodes().isEmpty()) tap("album-more")
             tap("album-cover-choose")
             tap(second)
             tap("album-cover-save")

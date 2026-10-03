@@ -33,7 +33,8 @@ class AlbumSidePanelDeviceTest {
     @get:Rule val compose = createComposeRule()
 
     private val trip = AlbumSummary(AlbumKey.Virtual(1), "Trip", 3, null, null, AlbumAvailability.Available)
-    private val camera = AlbumSummary(AlbumKey.Physical("external_primary", 10), "Camera", 14, null, null, AlbumAvailability.Available)
+    private val camera = AlbumSummary(AlbumKey.Virtual(2), "Camera", 14, null, null, AlbumAvailability.Available)
+    private val folder = AlbumSummary(AlbumKey.Physical("external_primary", 10), "DCIM", 20, null, null, AlbumAvailability.Available)
     private val loader = ThumbnailLoader({ _, _ -> Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888) }, 1_000_000)
 
     private var selected by mutableStateOf(trip)
@@ -43,8 +44,8 @@ class AlbumSidePanelDeviceTest {
     private fun launch(windowClass: GalleryWindowClass = GalleryWindowClass.Compact) {
         compose.setContent {
             LightforgeTheme(darkTheme = false, dynamicColor = false) {
-                val virtual = remember { flowOf(PagingData.from(listOf(trip))) }.collectAsLazyPagingItems()
-                val physical = remember { flowOf(PagingData.from(listOf(camera))) }.collectAsLazyPagingItems()
+                val virtual = remember { flowOf(PagingData.from(listOf(trip, camera))) }.collectAsLazyPagingItems()
+                val physical = remember { flowOf(PagingData.from(listOf(folder))) }.collectAsLazyPagingItems()
                 AlbumWithSidePanel(
                     selectedKey = selected.key,
                     virtualAlbums = virtual,
@@ -84,6 +85,17 @@ class AlbumSidePanelDeviceTest {
         compose.onNodeWithTag("album-side-panel-item-${camera.key}").assertIsSelected()
         compose.onNodeWithTag("album-side-panel-item-${trip.key}").assertIsNotSelected()
         compose.onNodeWithTag("album-side-panel").assertIsDisplayed()
+    }
+
+    @Test fun albumsAndFoldersAreNeverListedTogether() {
+        open = true
+        launch(GalleryWindowClass.Expanded)
+        compose.onNodeWithTag("album-side-panel-item-${trip.key}").assertIsDisplayed()
+        compose.onNodeWithTag("album-side-panel-item-${folder.key}").assertDoesNotExist()
+        compose.runOnIdle { selected = folder }
+        compose.waitForIdle()
+        compose.onNodeWithTag("album-side-panel-item-${folder.key}").assertIsSelected()
+        compose.onNodeWithTag("album-side-panel-item-${trip.key}").assertDoesNotExist()
     }
 
     @Test fun externalToggleHidesThePanelOnLargeScreens() {

@@ -28,4 +28,7 @@
         <item quantity="one">%1$d ausgewählt</item>
         <item quantity="other">%1$d ausgewählt</item>
     </plurals>
+    <string name="album_side_panel_folders_label">Ordner</string>
+    <string name="album_more_options">Weitere Optionen</string>
+    <string name="album_cover_action">Cover auswählen</string>
 </resources>

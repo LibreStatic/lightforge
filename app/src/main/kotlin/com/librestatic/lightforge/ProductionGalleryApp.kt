@@ -2938,6 +2938,9 @@ internal fun ProductionGalleryApp(
                     SurfaceRoute.Root -> Unit
                     SurfaceRoute.Album -> GalleryTopAppBar(
                         title = selectedAlbum?.name ?: stringResource(com.librestatic.lightforge.feature.album.R.string.album_untitled),
+                        subtitle = selectedAlbum?.takeIf { it.availability != com.librestatic.lightforge.core.model.AlbumAvailability.VolumeUnavailable }?.let {
+                            pluralStringResource(com.librestatic.lightforge.feature.album.R.plurals.album_item_count, it.itemCount.toInt(), it.itemCount)
+                        },
                         onBack = { route = SurfaceRoute.Root },
                         navigationContentDescription = stringResource(R.string.nav_back),
                         actions = {

@@ -29,4 +29,7 @@
         <item quantity="many">%1$d selezionati</item>
         <item quantity="other">%1$d selezionati</item>
     </plurals>
+    <string name="album_side_panel_folders_label">Cartelle</string>
+    <string name="album_more_options">Altre opzioni</string>
+    <string name="album_cover_action">Scegli copertina</string>
 </resources>

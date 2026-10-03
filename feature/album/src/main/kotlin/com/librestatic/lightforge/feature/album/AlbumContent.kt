@@ -20,6 +20,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -29,6 +33,8 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -59,6 +65,7 @@ import com.librestatic.lightforge.core.database.AlbumSort
 import com.librestatic.lightforge.core.designsystem.GalleryStateContent
 import com.librestatic.lightforge.core.designsystem.GalleryGridMetrics
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import com.librestatic.lightforge.core.designsystem.MediaSelectionOverlay
 import com.librestatic.lightforge.core.designsystem.RetainGridThumbnailViewport
 import com.librestatic.lightforge.core.designsystem.VideoDurationBadge
@@ -98,8 +105,6 @@ fun AlbumContent(
     coverFailed: Boolean = false,
     coverRevision: Int = 0,
 ) {
-    val wide = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 600
-    var sortExpanded by remember(album.key) { mutableStateOf(false) }
     var choosingCover by remember(album.key, coverRevision) { mutableStateOf(false) }
     var reviewedCover by remember(album.key, coverRevision) { mutableStateOf<TimelineMedia?>(null) }
     var confirmCover by remember(album.key, coverRevision) { mutableStateOf(false) }
@@ -135,171 +140,278 @@ fun AlbumContent(
             }
         },
     )
-    Column(modifier.fillMaxSize()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (showHeader && wide) WideAlbumHeader(album, thumbnails)
-            else if (showHeader) Text(
-                album.name ?: stringResource(R.string.album_untitled),
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.semantics { heading() },
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        // The pane's own width, not the window's: beside the albums panel the grid is narrower.
+        val wide = maxWidth >= 600.dp
+        val count = runCatching { SelectionReducer.count(selection, selectionQueryCount) }.getOrDefault(0)
+        val header: @Composable () -> Unit = {
+            AlbumHeader(
+                album = album,
+                thumbnails = thumbnails,
+                showTitle = showHeader,
+                wide = wide,
+                filter = filter,
+                sort = sort,
+                picking = picking,
+                coverWorking = coverWorking,
+                selectedCount = if (picking) 0L else count,
+                onFilterChange = onFilterChange,
+                onSortChange = onSortChange,
+                onRenameAlbum = onRenameAlbum.takeIf { album.key is AlbumKey.Virtual },
+                onDeleteAlbum = onDeleteAlbum.takeIf { album.key is AlbumKey.Virtual && deleteAlbumLabel != null },
+                deleteAlbumLabel = deleteAlbumLabel,
+                onChooseCover = if (canSetCover) { { choosingCover = true } } else null,
+                onAutomaticCover = { reviewedCover = null; confirmCover = true },
+                onCancelCover = { if (!coverWorking) { choosingCover = false; reviewedCover = null; confirmCover = false } },
             )
-            if (album.key is AlbumKey.Virtual && onRenameAlbum != null) {
-                TextButton(onClick = onRenameAlbum, enabled = !picking && !coverWorking, modifier = Modifier.testTag("album-rename")) {
-                    Text(stringResource(R.string.album_rename))
-                }
-            }
-            // Device folders are filesystem directories: only AlbumKey.Virtual albums may be deleted.
-            if (album.key is AlbumKey.Virtual && onDeleteAlbum != null && deleteAlbumLabel != null) {
-                TextButton(onClick = onDeleteAlbum, enabled = !picking && !coverWorking,
-                    modifier = Modifier.testTag("album-delete")) {
-                    Text(deleteAlbumLabel)
-                }
-            }
-            if (canSetCover) {
-                if (!picking) TextButton(onClick = { choosingCover = true }, enabled = !coverWorking,
-                    modifier = Modifier.testTag("album-cover-choose")) {
-                    Text(stringResource(R.string.album_cover_title))
-                } else {
-                    Text(stringResource(R.string.album_cover_hint), Modifier.testTag("album-cover-hint"))
-                    TextButton(onClick = { reviewedCover = null; confirmCover = true }, enabled = !coverWorking,
-                        modifier = Modifier.testTag("album-cover-automatic")) {
-                        Text(stringResource(R.string.album_cover_automatic))
-                    }
-                    TextButton(onClick = { if (!coverWorking) { choosingCover = false; reviewedCover = null; confirmCover = false } },
-                        enabled = !coverWorking, modifier = Modifier.testTag("album-cover-cancel")) {
-                        Text(stringResource(R.string.album_rename_cancel))
-                    }
-                }
-            }
-            if (album.availability == AlbumAvailability.VolumeUnavailable) {
-                Text(stringResource(R.string.album_volume_unavailable), color = MaterialTheme.colorScheme.error)
-            }
-            val filterChips: @Composable (Modifier) -> Unit = { chipsModifier ->
-                LazyRow(chipsModifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(AlbumMediaFilter.entries) { value ->
-                        FilterChip(
-                            selected = filter == value,
-                            enabled = !coverWorking,
-                            onClick = { onFilterChange(value) },
-                            label = { Text(stringResource(value.label())) },
-                        )
-                    }
-                }
-            }
-            val sortButton: @Composable (Modifier) -> Unit = { sortModifier ->
-                Box(sortModifier) {
-                    TextButton(
-                        onClick = { sortExpanded = true },
-                        enabled = !coverWorking,
-                        modifier = Modifier.then(if (wide) Modifier else Modifier.fillMaxWidth()).testTag("album-sort"),
-                    ) {
-                        Text(stringResource(R.string.album_sort_current, stringResource(sort.label())))
-                    }
-                    DropdownMenu(expanded = sortExpanded, onDismissRequest = { sortExpanded = false }) {
-                        AlbumSort.entries.forEach { option ->
-                            DropdownMenuItem(
-                                text = { Text(stringResource(option.label())) },
-                                onClick = {
-                                    sortExpanded = false
-                                    if (option != sort) onSortChange(option)
-                                },
-                                leadingIcon = {
-                                    if (option == sort) Icon(GalleryIcons.Check, contentDescription = null)
-                                },
-                                modifier = Modifier.testTag("album-sort-${option.name}")
-                                    .semantics { selected = option == sort },
-                            )
-                        }
-                    }
-                }
-            }
-            if (wide) {
-                // Filters and sort share one toolbar row; the sort button no longer spans the width.
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    filterChips(Modifier.weight(1f))
-                    sortButton(Modifier)
-                }
-            } else {
-                filterChips(Modifier)
-                sortButton(Modifier.fillMaxWidth())
-            }
-            val count = runCatching { SelectionReducer.count(selection, selectionQueryCount) }.getOrDefault(0)
-            if (count > 0 && !picking) Text(pluralStringResource(R.plurals.album_selected_count, count.toInt(), count))
         }
-        when {
-            album.availability == AlbumAvailability.VolumeUnavailable -> GalleryStateContent(
-                stringResource(R.string.album_volume_unavailable),
-                stringResource(R.string.album_volume_unavailable_body),
-                stringResource(R.string.album_volume_unavailable),
-                Modifier.fillMaxSize(),
+        val state = when {
+            album.availability == AlbumAvailability.VolumeUnavailable -> Triple(
+                R.string.album_volume_unavailable, R.string.album_volume_unavailable_body, R.string.album_volume_unavailable,
             )
-            items.itemCount == 0 -> GalleryStateContent(
-                stringResource(R.string.album_empty),
-                stringResource(R.string.album_empty_body),
-                stringResource(R.string.album_empty),
-                Modifier.fillMaxSize(),
-            )
-            else -> BoxWithConstraints(Modifier.fillMaxSize()) {
-                val gridState = rememberLazyGridState()
-                val gap = 4.dp
-                val columns = GalleryGridMetrics.adaptiveColumns(maxWidth)
-                val thumbnailSizePx = with(LocalDensity.current) {
-                    ((maxWidth - gap * (columns - 1)) / columns).roundToPx()
-                }.coerceAtLeast(1)
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(columns),
-                    state = gridState,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = if (picking || coverWorking) Modifier else Modifier.lazyGridDragSelection(
+            items.itemCount == 0 -> Triple(R.string.album_empty, R.string.album_empty_body, R.string.album_empty)
+            else -> null
+        }
+        if (state != null) {
+            // The toolbar scrolls with the message, so nothing is cut off in a short landscape window.
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                header()
+                GalleryStateContent(
+                    stringResource(state.first),
+                    stringResource(state.second),
+                    stringResource(state.third),
+                    Modifier.fillMaxWidth().heightIn(min = (maxHeight - 160.dp).coerceAtLeast(0.dp)),
+                )
+            }
+        } else {
+            val gridState = rememberLazyGridState()
+            val gap = GalleryGridMetrics.Gap
+            val columns = GalleryGridMetrics.adaptiveColumns(maxWidth)
+            val thumbnailSizePx = with(LocalDensity.current) {
+                ((maxWidth - gap * (columns - 1)) / columns).roundToPx()
+            }.coerceAtLeast(1)
+            // The header is the grid's first, full-width item: it scrolls away with the photos
+            // instead of pinning them below a tall block (landscape phones showed a single row).
+            val headerItems = 1
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(columns),
+                state = gridState,
+                horizontalArrangement = Arrangement.spacedBy(gap),
+                verticalArrangement = Arrangement.spacedBy(gap),
+                modifier = Modifier.fillMaxSize().testTag("album-grid").then(
+                    if (picking || coverWorking) Modifier else Modifier.lazyGridDragSelection(
                         state = gridState,
-                        itemAtIndex = { index -> items.itemSnapshotList.getOrNull(index) },
+                        itemAtIndex = { index -> items.itemSnapshotList.getOrNull(index - headerItems) },
                         itemKey = { it.key },
                         isSelected = { SelectionReducer.isSelected(selection, it.key) },
                         onSelectionChange = onMediaSelectionChange,
                     ),
-                ) {
-                    items(items.itemCount, key = { index ->
-                        items.itemSnapshotList.getOrNull(index)?.key?.let { "${it.volumeName}:${it.mediaStoreId}" } ?: "pending:$index"
-                    }) { index ->
-                        items[index]?.let { media ->
-                            AlbumCell(
-                                media,
-                                thumbnails,
-                                thumbnailSizePx,
-                                selected = if (picking) reviewedCover?.key == media.key else SelectionReducer.isSelected(selection, media.key),
-                                enabled = !coverWorking,
-                                onClick = {
-                                    if (!coverWorking) {
-                                        if (picking) { reviewedCover = media; confirmCover = true }
-                                        else onMediaClick(media)
-                                    }
-                                },
-                                onLongClick = if (picking || coverWorking) null else { {
-                                    onMediaSelectionChange(
-                                        media,
-                                        !SelectionReducer.isSelected(selection, media.key),
-                                    )
-                                } },
-                            )
-                        } ?: Box(Modifier.fillMaxWidth().aspectRatio(1f))
-                    }
-                }
-                RetainGridThumbnailViewport(
-                    state = gridState,
-                    loader = thumbnails,
-                    columns = columns,
-                    itemCount = items.itemCount,
-                    contentKey = items.itemSnapshotList,
-                    itemAtIndex = { index ->
-                        val media = items.itemSnapshotList.getOrNull(index) ?: return@RetainGridThumbnailViewport null
-                        ThumbnailPrefetchCandidate(
-                            request = media.thumbnailRequest(thumbnailSizePx),
-                            sourceWidth = media.width,
-                            sourceHeight = media.height,
-                            distanceFromViewportCenter = 0,
+                ),
+            ) {
+                item(key = "album-header", span = { GridItemSpan(maxLineSpan) }, contentType = "header") { header() }
+                items(items.itemCount, key = { index ->
+                    items.itemSnapshotList.getOrNull(index)?.key?.let { "${it.volumeName}:${it.mediaStoreId}" } ?: "pending:$index"
+                }, contentType = { "media" }) { index ->
+                    items[index]?.let { media ->
+                        AlbumCell(
+                            media,
+                            thumbnails,
+                            thumbnailSizePx,
+                            selected = if (picking) reviewedCover?.key == media.key else SelectionReducer.isSelected(selection, media.key),
+                            enabled = !coverWorking,
+                            onClick = {
+                                if (!coverWorking) {
+                                    if (picking) { reviewedCover = media; confirmCover = true }
+                                    else onMediaClick(media)
+                                }
+                            },
+                            onLongClick = if (picking || coverWorking) null else { {
+                                onMediaSelectionChange(
+                                    media,
+                                    !SelectionReducer.isSelected(selection, media.key),
+                                )
+                            } },
                         )
-                    },
+                    } ?: Box(Modifier.fillMaxWidth().aspectRatio(1f))
+                }
+            }
+            RetainGridThumbnailViewport(
+                state = gridState,
+                loader = thumbnails,
+                columns = columns,
+                itemCount = items.itemCount + headerItems,
+                contentKey = items.itemSnapshotList,
+                itemAtIndex = { index ->
+                    val media = items.itemSnapshotList.getOrNull(index - headerItems) ?: return@RetainGridThumbnailViewport null
+                    ThumbnailPrefetchCandidate(
+                        request = media.thumbnailRequest(thumbnailSizePx),
+                        sourceWidth = media.width,
+                        sourceHeight = media.height,
+                        distanceFromViewportCenter = 0,
+                    )
+                },
+            )
+        }
+    }
+}
+
+/**
+ * Everything above the photos: one toolbar with the media filter on the start side and sort plus
+ * album actions on the end side. Rename and Delete live in the overflow menu so the destructive
+ * action is never one stray tap away; on wide panes Choose cover is a tonal button.
+ */
+@Composable
+private fun AlbumHeader(
+    album: AlbumSummary,
+    thumbnails: ThumbnailLoader,
+    showTitle: Boolean,
+    wide: Boolean,
+    filter: AlbumMediaFilter,
+    sort: AlbumSort,
+    picking: Boolean,
+    coverWorking: Boolean,
+    selectedCount: Long,
+    onFilterChange: (AlbumMediaFilter) -> Unit,
+    onSortChange: (AlbumSort) -> Unit,
+    onRenameAlbum: (() -> Unit)?,
+    onDeleteAlbum: (() -> Unit)?,
+    deleteAlbumLabel: String?,
+    onChooseCover: (() -> Unit)?,
+    onAutomaticCover: () -> Unit,
+    onCancelCover: () -> Unit,
+) {
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Sm),
+        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+    ) {
+        if (showTitle && wide) WideAlbumHeader(album, thumbnails)
+        else if (showTitle) Text(
+            album.name ?: stringResource(R.string.album_untitled),
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.semantics { heading() },
+        )
+        if (album.availability == AlbumAvailability.VolumeUnavailable) {
+            Text(stringResource(R.string.album_volume_unavailable), color = MaterialTheme.colorScheme.error)
+        }
+        if (picking) {
+            Text(stringResource(R.string.album_cover_hint), Modifier.testTag("album-cover-hint"))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm, Alignment.End)) {
+                TextButton(onClick = onCancelCover, enabled = !coverWorking, modifier = Modifier.testTag("album-cover-cancel")) {
+                    Text(stringResource(R.string.album_rename_cancel))
+                }
+                FilledTonalButton(onClick = onAutomaticCover, enabled = !coverWorking, modifier = Modifier.testTag("album-cover-automatic")) {
+                    Text(stringResource(R.string.album_cover_automatic))
+                }
+            }
+        } else {
+            AlbumToolbar(
+                wide = wide,
+                filter = filter,
+                sort = sort,
+                enabled = !coverWorking,
+                onFilterChange = onFilterChange,
+                onSortChange = onSortChange,
+                onRenameAlbum = onRenameAlbum,
+                onDeleteAlbum = onDeleteAlbum,
+                deleteAlbumLabel = deleteAlbumLabel,
+                onChooseCover = onChooseCover,
+            )
+        }
+        if (selectedCount > 0) Text(
+            pluralStringResource(R.plurals.album_selected_count, selectedCount.toInt(), selectedCount),
+            style = MaterialTheme.typography.labelLarge,
+        )
+    }
+}
+
+@Composable
+private fun AlbumToolbar(
+    wide: Boolean,
+    filter: AlbumMediaFilter,
+    sort: AlbumSort,
+    enabled: Boolean,
+    onFilterChange: (AlbumMediaFilter) -> Unit,
+    onSortChange: (AlbumSort) -> Unit,
+    onRenameAlbum: (() -> Unit)?,
+    onDeleteAlbum: (() -> Unit)?,
+    deleteAlbumLabel: String?,
+    onChooseCover: (() -> Unit)?,
+) {
+    var sortExpanded by remember { mutableStateOf(false) }
+    var moreExpanded by remember { mutableStateOf(false) }
+    val coverInMenu = onChooseCover != null && !wide
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        LazyRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+            items(AlbumMediaFilter.entries) { value ->
+                FilterChip(
+                    selected = filter == value,
+                    enabled = enabled,
+                    onClick = { onFilterChange(value) },
+                    label = { Text(stringResource(value.label())) },
+                )
+            }
+        }
+        if (wide && onChooseCover != null) {
+            FilledTonalButton(
+                onClick = onChooseCover,
+                enabled = enabled,
+                modifier = Modifier.padding(start = GallerySpacing.Sm).testTag("album-cover-choose"),
+            ) {
+                Text(stringResource(R.string.album_cover_action), maxLines = 1)
+            }
+        }
+        val sortDescription = stringResource(R.string.album_sort_current, stringResource(sort.label()))
+        Box {
+            if (wide) {
+                TextButton(onClick = { sortExpanded = true }, enabled = enabled, modifier = Modifier.testTag("album-sort")) {
+                    Icon(GalleryIcons.Sort, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Text(stringResource(sort.label()), maxLines = 1, modifier = Modifier.padding(start = GallerySpacing.Sm)
+                        .semantics { contentDescription = sortDescription })
+                }
+            } else {
+                IconButton(onClick = { sortExpanded = true }, enabled = enabled, modifier = Modifier.testTag("album-sort")) {
+                    Icon(GalleryIcons.Sort, contentDescription = sortDescription)
+                }
+            }
+            DropdownMenu(expanded = sortExpanded, onDismissRequest = { sortExpanded = false }) {
+                AlbumSort.entries.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(stringResource(option.label())) },
+                        onClick = {
+                            sortExpanded = false
+                            if (option != sort) onSortChange(option)
+                        },
+                        leadingIcon = {
+                            if (option == sort) Icon(GalleryIcons.Check, contentDescription = null)
+                        },
+                        modifier = Modifier.testTag("album-sort-${option.name}")
+                            .semantics { selected = option == sort },
+                    )
+                }
+            }
+        }
+        if (coverInMenu || onRenameAlbum != null || onDeleteAlbum != null) Box {
+            IconButton(onClick = { moreExpanded = true }, enabled = enabled, modifier = Modifier.testTag("album-more")) {
+                Icon(GalleryIcons.More, contentDescription = stringResource(R.string.album_more_options))
+            }
+            DropdownMenu(expanded = moreExpanded, onDismissRequest = { moreExpanded = false }) {
+                if (coverInMenu) DropdownMenuItem(
+                    text = { Text(stringResource(R.string.album_cover_action)) },
+                    onClick = { moreExpanded = false; onChooseCover?.invoke() },
+                    modifier = Modifier.testTag("album-cover-choose"),
+                )
+                onRenameAlbum?.let { rename ->
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.album_rename)) },
+                        onClick = { moreExpanded = false; rename() },
+                        modifier = Modifier.testTag("album-rename"),
+                    )
+                }
+                // Device folders are filesystem directories: only AlbumKey.Virtual albums may be deleted.
+                if (onDeleteAlbum != null && deleteAlbumLabel != null) DropdownMenuItem(
+                    text = { Text(deleteAlbumLabel) },
+                    onClick = { moreExpanded = false; onDeleteAlbum() },
+                    modifier = Modifier.testTag("album-delete"),
                 )
             }
         }

@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -61,7 +60,9 @@ import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
 import com.librestatic.lightforge.core.thumbnail.ThumbnailRequest
 
 /**
- * Album grid with a swipeable start-edge panel listing the other albums. The panel pushes the
+ * Album grid with a swipeable start-edge panel listing the sibling albums: the user's albums when
+ * an album is open, device folders when a folder is open. The two are different objects with
+ * different operations, so they never share one list. The panel pushes the
  * grid rather than covering it, so the grid reflows to fewer columns while it is shown. It can
  * always be hidden, including on large screens.
  */
@@ -118,17 +119,13 @@ private fun AlbumSidePanel(
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
-    val label = stringResource(R.string.album_side_panel_label)
-    // Virtual albums come first, as in Collections; a divider row separates the two groups.
-    val dividerRows = if (virtualAlbums.itemCount > 0 && physicalAlbums.itemCount > 0) 1 else 0
+    val siblings = if (selectedKey is AlbumKey.Virtual) virtualAlbums else physicalAlbums
+    val group = if (selectedKey is AlbumKey.Virtual) "virtual" else "physical"
+    val label = stringResource(
+        if (selectedKey is AlbumKey.Virtual) R.string.album_side_panel_label else R.string.album_side_panel_folders_label,
+    )
     LaunchedEffect(Unit) {
-        val virtualIndex = virtualAlbums.itemSnapshotList.indexOfFirst { it?.key == selectedKey }
-        val physicalIndex = physicalAlbums.itemSnapshotList.indexOfFirst { it?.key == selectedKey }
-        val index = when {
-            virtualIndex >= 0 -> virtualIndex
-            physicalIndex >= 0 -> virtualAlbums.itemCount + dividerRows + physicalIndex
-            else -> -1
-        }
+        val index = siblings.itemSnapshotList.indexOfFirst { it?.key == selectedKey }
         if (index > 0) listState.scrollToItem(index)
     }
     Surface(
@@ -140,12 +137,8 @@ private fun AlbumSidePanel(
             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            items(virtualAlbums.itemCount, key = { "virtual:${virtualAlbums.itemSnapshotList.getOrNull(it)?.key ?: it}" }) { index ->
-                virtualAlbums[index]?.let { SidePanelAlbum(it, it.key == selectedKey, thumbnails, onAlbumSelect) }
-            }
-            if (dividerRows > 0) item(key = "divider") { HorizontalDivider() }
-            items(physicalAlbums.itemCount, key = { "physical:${physicalAlbums.itemSnapshotList.getOrNull(it)?.key ?: it}" }) { index ->
-                physicalAlbums[index]?.let { SidePanelAlbum(it, it.key == selectedKey, thumbnails, onAlbumSelect) }
+            items(siblings.itemCount, key = { "$group:${siblings.itemSnapshotList.getOrNull(it)?.key ?: it}" }) { index ->
+                siblings[index]?.let { SidePanelAlbum(it, it.key == selectedKey, thumbnails, onAlbumSelect) }
             }
         }
     }
