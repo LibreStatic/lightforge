@@ -41,6 +41,15 @@ object SearchTextNormalizer {
         .joinToString(" ")
 }
 
+/**
+ * Words that turn a query into the favorites filter, in every app language, so the localized
+ * "Favorites" label can be searched as typed (en, es, pt, fr, de, it).
+ */
+private val FavoriteTokens = setOf(
+    "favorite", "favorites", "favorito", "favoritos", "favori", "favoris",
+    "favorit", "favoriten", "preferito", "preferiti",
+)
+
 class SearchQueryParser(
     private val zoneId: ZoneId = ZoneId.systemDefault(),
 ) {
@@ -74,7 +83,7 @@ class SearchQueryParser(
                     SearchConcept.Image -> kind = MediaKind.Image
                     SearchConcept.Video -> kind = MediaKind.Video
                     null -> when (token) {
-                        "favorito", "favoritos", "favorite", "favorites" -> favoriteOnly = true
+                        in FavoriteTokens -> favoriteOnly = true
                         else -> terms += token
                     }
                     else -> terms += concept.canonicalTerm ?: token

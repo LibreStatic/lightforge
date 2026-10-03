@@ -280,8 +280,6 @@ private val ViewerReturnDestinationSaver = listSaver<ViewerReturnDestination?, S
     },
 )
 
-private const val FavoritesSearchQuery = "favorites"
-
 private fun rootStateKey(tab: RootTab) = when (tab) {
     RootTab.Photos -> "root:photos"
     RootTab.Search -> "root:search"
@@ -1469,7 +1467,9 @@ internal fun ProductionGalleryApp(
                             }
                         },
                     )
-                    RootTab.Collections -> CollectionsContent(
+                    RootTab.Collections -> {
+                    val favoritesSearchQuery = stringResource(com.librestatic.lightforge.feature.collections.R.string.collections_favorites)
+                    CollectionsContent(
                         physicalAlbums,
                         virtualAlbums,
                         trashCount,
@@ -1518,15 +1518,17 @@ internal fun ProductionGalleryApp(
                         onPdfStudioClick = { pdfReturnToDocuments = false; route = SurfaceRoute.PdfStudio },
                         collageLabel = stringResource(R.string.m6_collage),
                         onCollageClick = ::openCreationCollage,
-                        // Reuses the Search favorites filter ("favorites" sets favoriteOnly).
                         onCleanupClick = { route = SurfaceRoute.Cleanup },
+                        // Reuses the Search favorites filter: the parser maps the localized label
+                        // ("Favoritos", "Favoris"…) to favoriteOnly, so the field shows a real word.
                         onFavoritesClick = {
-                            viewModel.setSearchQuery(FavoritesSearchQuery)
-                            viewModel.search(FavoritesSearchQuery)
+                            viewModel.setSearchQuery(favoritesSearchQuery)
+                            viewModel.search(favoritesSearchQuery)
                             rootTab = RootTab.Search
                         },
                         momentPlaceLabels = momentPlaceLabels,
                     )
+                    }
                     RootTab.Search -> {
                         val archivedKeys by viewModel.archivedMediaKeys.collectAsState()
                         SearchContent(

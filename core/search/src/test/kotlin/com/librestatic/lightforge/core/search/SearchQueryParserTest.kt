@@ -29,6 +29,14 @@ class SearchQueryParserTest {
         )
     }
 
+    @Test fun `localized favorites labels select the favorites filter`() {
+        listOf("Favorites", "Favoritos", "Favoris", "Favoriten", "Preferiti").forEach { label ->
+            val parsed = parser.parse(label)
+            assertTrue(label, parsed.favoriteOnly)
+            assertEquals(label, emptyList<String>(), parsed.normalizedTerms)
+        }
+    }
+
     @Test fun `date bounds and video filter remain composable`() {
         val parsed = parser.parse("tipo:vídeo desde:2024-01-02 hasta:2024-01-05 documento")
 
