@@ -42,7 +42,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
-import com.librestatic.lightforge.core.designsystem.GalleryContentWidths
+import com.librestatic.lightforge.core.designsystem.ReadableContentMaxWidth
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import org.json.JSONObject
 
@@ -124,7 +124,7 @@ private fun AboutOverview(
         Column(
             Modifier
                 .fillMaxSize()
-                .widthIn(max = GalleryContentWidths.Reading)
+                .widthIn(max = ReadableContentMaxWidth)
                 .align(Alignment.CenterHorizontally)
                 .verticalScroll(rememberScrollState())
                 .padding(GallerySpacing.Xl),
@@ -329,7 +329,7 @@ private fun LicenseCatalog(
             onSuccess = { catalog ->
                 androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
                 // Cards stay in a readable column; the list still scrolls from the whole width.
-                val side = maxOf(GallerySpacing.Xl, (maxWidth - GalleryContentWidths.Reading) / 2)
+                val side = maxOf(GallerySpacing.Xl, (maxWidth - ReadableContentMaxWidth) / 2)
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(
@@ -389,7 +389,7 @@ private fun ReadableScrollColumn(content: @Composable () -> Unit) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         contentAlignment = Alignment.TopCenter,
     ) {
-        Box(Modifier.widthIn(max = GalleryContentWidths.Reading).fillMaxWidth()) { content() }
+        Box(Modifier.widthIn(max = ReadableContentMaxWidth).fillMaxWidth()) { content() }
     }
 }
 

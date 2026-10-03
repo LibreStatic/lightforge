@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.librestatic.lightforge.core.designsystem.GalleryContentWidths
+import com.librestatic.lightforge.core.designsystem.ReadableContentMaxWidth
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import com.librestatic.lightforge.feature.remotebackup.RemoteBackupContent
 import com.librestatic.lightforge.feature.remotebackup.RemoteBackupController
@@ -64,7 +64,7 @@ internal fun OwnStorageNetworkGate(onBack: () -> Unit, content: @Composable () -
             Column(
                 Modifier.fillMaxWidth()
                     .wrapContentWidth(Alignment.CenterHorizontally)
-                    .widthIn(max = GalleryContentWidths.Reading)
+                    .widthIn(max = ReadableContentMaxWidth)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 24.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
