@@ -36,6 +36,7 @@ dependencies {
     testImplementation(project(":feature:trash"))
     testImplementation(project(":feature:album"))
     testImplementation(project(":feature:onboarding"))
+    testImplementation(project(":feature:settings"))
 
     testImplementation(libs.compose.driver)
     testImplementation(libs.robolectric)

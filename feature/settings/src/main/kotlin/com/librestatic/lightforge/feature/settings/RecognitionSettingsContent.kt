@@ -92,6 +92,18 @@ import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveButton
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
+import androidx.compose.ui.text.style.Hyphens
+import androidx.compose.ui.text.style.LineBreak
+import com.librestatic.lightforge.core.designsystem.GalleryPaneMetrics
+import com.librestatic.lightforge.core.designsystem.ReadableContentMaxWidth
+import com.librestatic.lightforge.core.designsystem.galleryBottomContentPadding
+import com.librestatic.lightforge.core.designsystem.galleryMasterPaneWidth
 
 data class GalleryFolderOption(
     val volumeName: String,
@@ -200,7 +212,10 @@ fun RecognitionSettingsContent(
     adaptiveInfo: GalleryAdaptiveLayoutInfo? = null,
     modifier: Modifier = Modifier,
 ) {
-    val twoPane = adaptiveInfo != null && adaptiveInfo.windowClass != GalleryWindowClass.Compact
+    // The master grows from 300 to 360 dp out of the detail's spare room; below 660 dp of content
+    // the two panes do not fit and settings shows one page at a time.
+    val masterWidth = adaptiveInfo?.let { galleryMasterPaneWidth(it.contentWidth) }
+    val twoPane = adaptiveInfo != null && adaptiveInfo.windowClass != GalleryWindowClass.Compact && masterWidth != null
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     var page by rememberSaveable { mutableStateOf(SettingsPage.Root) }
     var folderVolume by rememberSaveable { mutableStateOf<String?>(null) }
@@ -328,24 +343,23 @@ fun RecognitionSettingsContent(
             // when the navigation rail sits to its left.
             var originX by remember { mutableStateOf(0.dp) }
             val hinge = adaptiveInfo?.foldInfo?.takeIf { it.enablesSideBySide }
-            val hingeListWidth = hinge?.let { it.left - originX }?.takeIf { it >= 240.dp }
-            val listWidth = hingeListWidth
-                ?: if (adaptiveInfo?.windowClass == GalleryWindowClass.Expanded) 360.dp else 248.dp
+            val hingeListWidth = hinge?.let { it.left - originX }?.takeIf { it >= GalleryPaneMetrics.MasterMinWidth }
+            val listWidth = hingeListWidth ?: masterWidth ?: GalleryPaneMetrics.MasterMinWidth
             Row(
                 Modifier.fillMaxSize().onGloballyPositioned { originX = with(density) { it.positionInWindow().x.toDp() } },
             ) {
                 SettingsRootPage(onBack, Modifier.width(listWidth).fillMaxHeight()) { categoryList(Modifier) }
                 if (hingeListWidth != null && hinge != null) Spacer(Modifier.width(hinge.hingeWidth))
                 Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.TopCenter) {
-                    Column(Modifier.fillMaxSize().widthIn(max = 720.dp)) {
+                    Column(Modifier.fillMaxSize().widthIn(max = ReadableContentMaxWidth)) {
                         CompositionLocalProvider(LocalSettingsCards provides true) { detail() }
                     }
                 }
             }
         } else {
-            Column(Modifier.fillMaxSize().widthIn(max = 720.dp)) {
+            Column(Modifier.fillMaxSize().widthIn(max = ReadableContentMaxWidth)) {
                 if (visiblePage == SettingsPage.Root) {
-                    SettingsRootPage(onBack) { categoryList(Modifier.widthIn(max = 720.dp)) }
+                    SettingsRootPage(onBack) { categoryList(Modifier.widthIn(max = ReadableContentMaxWidth)) }
                 } else {
                     detail()
                 }
@@ -481,7 +495,18 @@ private fun SettingsCategoryList(
                 onClick = onOpenAbout,
             )
         }
+        SettingsListEnd()
     }
+}
+
+/**
+ * Last item of a settings scroll column: the content scrolls under a launcher taskbar or gesture
+ * bar, and its last row can still be scrolled clear of it and of any floating bottom controls.
+ */
+@Composable
+private fun SettingsListEnd() {
+    Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+    Spacer(Modifier.height(galleryBottomContentPadding()))
 }
 
 private fun enabledCount(vararg flags: Boolean) = flags.count { it }
@@ -592,7 +617,9 @@ private fun SettingsCategoryRow(
             )
         }
     } else null
-    val supporting: (@Composable () -> Unit)? = summary?.let { value -> { Text(value) } }
+    val supporting: (@Composable () -> Unit)? = summary?.let { value ->
+        { Text(value, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+    }
     if (selected) {
         SegmentedListItem(
             selected = true,
@@ -607,7 +634,7 @@ private fun SettingsCategoryRow(
             leadingContent = leading,
             supportingContent = supporting,
             trailingContent = trailing,
-        ) { Text(title) }
+        ) { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
     } else {
         SegmentedListItem(
             onClick = onClick,
@@ -616,9 +643,12 @@ private fun SettingsCategoryRow(
             leadingContent = leading,
             supportingContent = supporting,
             trailingContent = trailing,
-        ) { Text(title) }
+        ) { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
     }
 }
+
+/** Detail width from which the embedded title gets the display style and its illustration. */
+private val EmbeddedTitleRoomyWidth = 440.dp
 
 /** True inside the detail pane of a two-pane layout, where sections are grouped into cards. */
 private val LocalSettingsCards = compositionLocalOf { false }
@@ -639,22 +669,31 @@ private fun SettingsSubPage(
         // title instead of a top bar with a back arrow.
         if (!embedded) SettingsHeader(title, onBack)
         Column(
-            Modifier.fillMaxSize().then(if (embedded) Modifier else Modifier.widthIn(max = 720.dp))
+            Modifier.fillMaxSize().then(if (embedded) Modifier else Modifier.widthIn(max = ReadableContentMaxWidth))
                 .verticalScroll(rememberScrollState()).padding(if (embedded) GallerySpacing.Xxl else GallerySpacing.Xl),
             verticalArrangement = Arrangement.spacedBy(if (embedded) GallerySpacing.Xl else GallerySpacing.Lg),
         ) {
             if (embedded) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        title,
-                        style = MaterialTheme.typography.displaySmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.weight(1f).padding(horizontal = GallerySpacing.Md),
-                    )
-                    if (illustration != null) GalleryShapeIllustration(illustration, size = 96.dp)
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    // A narrow detail pane drops the decorative shape and uses a smaller title, so
+                    // long words ("Reproducción", "Miniaturansicht") wrap between words or not at all.
+                    val roomy = maxWidth >= EmbeddedTitleRoomyWidth
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            title,
+                            style = (if (roomy) MaterialTheme.typography.displaySmall else MaterialTheme.typography.headlineMedium)
+                                .copy(hyphens = Hyphens.None, lineBreak = LineBreak.Heading),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f).padding(horizontal = GallerySpacing.Md).semantics { heading() },
+                        )
+                        if (illustration != null && roomy) GalleryShapeIllustration(illustration, size = 96.dp)
+                    }
                 }
             }
             content()
+            SettingsListEnd()
         }
     }
 }
@@ -842,10 +881,13 @@ private fun FolderSelectionPage(
         SettingsHeader(title, onBack)
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             LazyColumn(
-                modifier = Modifier.fillMaxSize().widthIn(max = 720.dp),
+                modifier = Modifier.fillMaxSize().widthIn(max = ReadableContentMaxWidth),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                    horizontal = GallerySpacing.Xl,
-                    vertical = GallerySpacing.Lg,
+                    start = GallerySpacing.Xl,
+                    end = GallerySpacing.Xl,
+                    top = GallerySpacing.Lg,
+                    bottom = GallerySpacing.Lg + galleryBottomContentPadding() +
+                        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
                 ),
                 verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
             ) {
@@ -1849,6 +1891,8 @@ private fun SettingsSwitchRow(
             // neutral surface avoids mixing unrelated dynamic primary and
             // secondary container palettes on the same control.
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            selectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            selectedContentColor = MaterialTheme.colorScheme.onSurface,
         ),
         checked = checked,
         onCheckedChange = onCheckedChange,
