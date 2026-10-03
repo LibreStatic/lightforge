@@ -17,6 +17,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.librestatic.lightforge.core.designsystem.LightforgeTheme
 import com.librestatic.lightforge.core.editing.video.SlowMotionSegment
+import com.librestatic.lightforge.core.editing.video.VideoAspectMode
+import com.librestatic.lightforge.core.editing.video.VideoAspectOverride
+import com.librestatic.lightforge.core.editing.video.VideoOutputCodec
+import com.librestatic.lightforge.core.editing.video.VideoOutputSettings
 
 // Debug-only, zero-argument entry points for tools/compose-driver and Android Studio previews.
 // Each one feeds fake state into the real production composable. There is no player in the
@@ -72,6 +76,59 @@ fun VideoFilmstripLoadingPreview() = DriverFrame {
         onSeek = { position = it.toInt() },
         onTrimChange = { _, _ -> },
         slowMotionSegments = emptyList(),
+    )
+}
+
+/** A HikVision-like CCTV clip: a 16:9 scene squeezed into 960×1088 HEVC at 25 fps. */
+private val CctvSource = VideoOutputSource(
+    width = 960,
+    height = 1088,
+    videoMimeType = "video/hevc",
+    frameRate = 25f,
+    totalBitrate = 995_000,
+    audioBitrate = 15_500,
+    hasAudio = true,
+)
+
+private val CctvState = VideoEditorContentState(
+    durationMillis = 73_000,
+    trimEndMillis = 73_000,
+    output = VideoOutputSettings(aspect = VideoAspectOverride.Forced(16, 9, VideoAspectMode.Stretch)),
+    outputSource = CctvSource,
+    supportedOutputCodecs = setOf(VideoOutputCodec.H264, VideoOutputCodec.Hevc),
+    isDirty = true,
+)
+
+/** Output tool on its own, CCTV source with Forced 16:9 Stretch. Driver: `VideoOutputSettingsPreview`. */
+@Preview
+@Composable
+fun VideoOutputSettingsPreview() = DriverFrame {
+    var state by remember { mutableStateOf(CctvState) }
+    VideoOutputControls(state = state, onChange = { state = state.copy(output = it) })
+}
+
+/**
+ * Whole editor for the CCTV clip with a forced 16:9 aspect: the preview frame is reshaped (open the
+ * Output tool with `click tag=video-editor-tool-bar` + text selectors to change it live).
+ * Driver: `VideoEditorForcedAspectPreview`.
+ */
+@Preview
+@Composable
+fun VideoEditorForcedAspectPreview() = DriverFrame {
+    var state by remember { mutableStateOf(CctvState) }
+    VideoEditorContent(
+        sessionId = "driver-video-editor-forced-aspect",
+        state = state,
+        controller = null,
+        onBack = {},
+        onSaveCopy = {},
+        onSpeedChange = { state = state.copy(speed = it) },
+        onOriginalVolumeChange = { state = state.copy(originalAudioVolume = it) },
+        onChooseMusic = {},
+        onRemoveMusic = {},
+        onSeek = {},
+        onTrimChange = { start, end -> state = state.copy(trimStartMillis = start, trimEndMillis = end) },
+        onOutputSettingsChange = { state = state.copy(output = it) },
     )
 }
 

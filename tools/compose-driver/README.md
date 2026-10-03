@@ -78,7 +78,8 @@ Current previews: `PhotoEditorPreview`, `PhotoEditorLoadingPreview`, `EraserMode
 `CleanupLoadingPreview` (`feature/collections`), `PhotosTimelinePreview`, `PhotosSelectionPreview`,
 `PhotosFilterEmptyPreview` (`feature/photos`), `PickerGridPreview`, `PickerSingleGridPreview`
 (`feature/picker`), `DesignSystemCataloguePreview`, `DesignSystemStatesPreview`, `SelectionBarPreview`
-(`core/designsystem`), `VideoEditorPreview`, `VideoFilmstripLoadingPreview` (`feature/videoeditor`),
+(`core/designsystem`), `VideoEditorPreview`, `VideoFilmstripLoadingPreview`, `VideoOutputSettingsPreview`,
+`VideoEditorForcedAspectPreview` (`feature/videoeditor`),
 `CollageEditorPreview`, `GifEditorPreview` (`feature/collage`).
 
 ## Screenshot matrix
