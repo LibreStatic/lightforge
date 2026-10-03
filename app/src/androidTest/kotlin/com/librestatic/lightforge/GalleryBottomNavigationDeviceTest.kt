@@ -4,7 +4,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -21,20 +23,25 @@ class GalleryBottomNavigationDeviceTest {
     val compose = createComposeRule()
 
     @Test
-    fun compactNavigationUsesThreeEqualDestinations() {
+    fun compactNavigationFloatsDestinationsCreateAndSearch() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         var selected by mutableStateOf(RootTab.Photos)
 
         compose.setContent {
             LightforgeTheme(darkTheme = false, dynamicColor = false) {
-                GalleryBottomDock(selected = selected, onSelect = { selected = it })
+                GalleryShellFloatingNavigation(
+                    selectedRoot = selected,
+                    onRoot = { selected = it },
+                    onCreate = {},
+                )
             }
         }
 
         compose.onNodeWithText(context.getString(R.string.nav_photos)).assertIsDisplayed().assertIsSelected()
         compose.onNodeWithText(context.getString(R.string.nav_collections)).assertIsDisplayed()
-        compose.onNodeWithText(context.getString(R.string.nav_search)).assertIsDisplayed().performClick().assertIsSelected()
-        compose.onNodeWithText(context.getString(R.string.nav_create)).assertDoesNotExist()
+        compose.onNodeWithText(context.getString(R.string.nav_create)).assertIsDisplayed()
+        compose.onNodeWithContentDescription(context.getString(R.string.nav_search)).performClick().assertIsSelected()
+        compose.onNodeWithText(context.getString(R.string.nav_photos)).assertIsNotSelected()
         compose.onNodeWithText(context.getString(R.string.nav_ask)).assertDoesNotExist()
     }
 }

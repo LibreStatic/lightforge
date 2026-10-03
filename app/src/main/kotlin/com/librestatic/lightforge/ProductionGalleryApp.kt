@@ -132,6 +132,21 @@ import com.librestatic.lightforge.core.designsystem.GalleryMotionEdge
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import com.librestatic.lightforge.core.designsystem.GalleryStateContent
 import com.librestatic.lightforge.core.designsystem.galleryAdaptiveLayoutInfo
+import com.librestatic.lightforge.core.designsystem.GalleryActionMenuContent
+import com.librestatic.lightforge.core.designsystem.GalleryActionMenuEntry
+import com.librestatic.lightforge.core.designsystem.GalleryActionMenuPopover
+import com.librestatic.lightforge.core.designsystem.GalleryActionMenuSection
+import com.librestatic.lightforge.core.designsystem.GalleryFloatingNavigationDefaults
+import com.librestatic.lightforge.core.designsystem.GalleryNavigationRailWidth
+import com.librestatic.lightforge.core.designsystem.GalleryNavigationThresholds
+import com.librestatic.lightforge.core.designsystem.LocalGalleryAdaptiveLayoutInfo
+import com.librestatic.lightforge.core.designsystem.galleryBottomContentPadding
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.tappableElement
+import androidx.compose.foundation.layout.union
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import com.librestatic.lightforge.core.model.MediaKind
 import com.librestatic.lightforge.core.model.GrantLevel
 import com.librestatic.lightforge.core.model.TimelineMedia
@@ -1355,8 +1370,15 @@ internal fun ProductionGalleryApp(
         permissionLauncher.launch(plan.permissions.toTypedArray())
     }
 
+    // The navigation the window showed last, for the rail hysteresis; saved so a fold, unfold or
+    // resize decides from where the window came from instead of flapping at the threshold.
+    var lastNavigationType by rememberSaveable { mutableStateOf<GalleryNavigationType?>(null) }
+    var floatingNavHeight by remember { mutableStateOf(GalleryFloatingNavigationDefaults.MinHeight) }
+    var shellBottomOverlay by remember { mutableStateOf(0.dp) }
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val adaptiveInfo = galleryAdaptiveLayoutInfo(maxWidth, foldInfo)
+        val adaptiveInfo = galleryAdaptiveLayoutInfo(maxWidth, foldInfo, maxHeight, lastNavigationType)
+        SideEffect { lastNavigationType = adaptiveInfo.navigationType }
+        val windowHeight = maxHeight
         val albumSidePanelOpen = GallerySidePanelMetrics.initiallyOpen(
             adaptiveInfo.windowClass,
             gallerySettings.library.albumSidePanelOpen,
@@ -2789,21 +2811,57 @@ internal fun ProductionGalleryApp(
         val settingsBesideRail = scaffoldRoute == SurfaceRoute.Settings &&
             adaptiveInfo.navigationType == GalleryNavigationType.Rail
         val internalTopBarRoute = surfaceOwnsTopBar(scaffoldRoute) && !settingsBesideRail
+        // One shell inset for every screen: system bars plus the launcher taskbar (tappable
+        // element), so no screen ends under the taskbar on tablets and desktop windows.
+        val shellInsets = ScaffoldDefaults.contentWindowInsets.union(WindowInsets.tappableElement)
         val contentInsets = when {
             surfaceIsFullBleed(scaffoldRoute) -> WindowInsets(0, 0, 0, 0)
-            internalTopBarRoute -> ScaffoldDefaults.contentWindowInsets.only(
-                WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal,
-            )
-            else -> ScaffoldDefaults.contentWindowInsets
+            internalTopBarRoute -> shellInsets.only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)
+            else -> shellInsets
         }
-        val showsLibraryNavigation = scaffoldRoute == SurfaceRoute.Root ||
-            scaffoldRoute == SurfaceRoute.Updates ||
-            scaffoldRoute == SurfaceRoute.DeviceFolders ||
-            scaffoldRoute == SurfaceRoute.Archive ||
-            scaffoldRoute == SurfaceRoute.Trash ||
-            scaffoldRoute == SurfaceRoute.Album ||
-            scaffoldRoute == SurfaceRoute.HighlightCollection ||
-            settingsBesideRail
+        // The rail stays beside every library and collection screen; focal tasks hide it.
+        val showsLibraryNavigation = surfaceShowsNavigationRail(scaffoldRoute)
+        val showsRail = adaptiveInfo.navigationType == GalleryNavigationType.Rail && showsLibraryNavigation
+        // Compact windows float the navigation over root screens only. It stays put while the
+        // content scrolls, and steps aside for selection (its own bar) and the keyboard.
+        val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+        val floatingNavVisible = adaptiveInfo.navigationType == GalleryNavigationType.Floating &&
+            scaffoldRoute == SurfaceRoute.Root && selectionCount == 0L && !imeVisible
+        val floatingNavChrome = if (floatingNavVisible) {
+            GalleryFloatingNavigationDefaults.BottomGap + floatingNavHeight
+        } else 0.dp
+        // Create opens as a popover anchored to its entry on the rail and in short windows, and as
+        // a bottom sheet on compact windows tall enough for one.
+        val createAsPopover = adaptiveInfo.navigationType == GalleryNavigationType.Rail ||
+            windowHeight < GalleryNavigationThresholds.RailMinHeight
+        val createAnchorVisible = if (adaptiveInfo.navigationType == GalleryNavigationType.Rail) showsRail
+        else floatingNavVisible
+        LaunchedEffect(createAsPopover, createAnchorVisible) {
+            if (createAsPopover && !createAnchorVisible) showCreateMenu = false
+        }
+        val createMenuTitle = stringResource(R.string.create_sheet_title)
+        val createSections = createMenuSections(
+            onDone = { showCreateMenu = false },
+            onAlbum = { showCreateAlbum = true },
+            onMemory = { openManualMoment() },
+            onMemoryVideo = { openSelectionVideo() },
+            onGif = { openCreationGif() },
+            onCollage = { openCreationCollage() },
+            onPdf = { pdfReturnToDocuments = false; route = SurfaceRoute.PdfStudio },
+            onRecoveries = { route = SurfaceRoute.PublicationRecoveries },
+        )
+        val createPopover: @Composable () -> Unit = {
+            GalleryActionMenuPopover(
+                expanded = showCreateMenu && createAsPopover,
+                onDismissRequest = { showCreateMenu = false },
+                title = createMenuTitle,
+                sections = createSections,
+                // Beside the rail the menu opens next to Create rather than over the rail.
+                offset = if (adaptiveInfo.navigationType == GalleryNavigationType.Rail) {
+                    DpOffset(GalleryNavigationRailWidth, (-64).dp)
+                } else DpOffset(0.dp, 0.dp),
+            )
+        }
         fun selectRoot(destination: RootTab) {
             viewModel.clearSelection()
             archiveSelectionMode = false
@@ -2974,31 +3032,34 @@ internal fun ProductionGalleryApp(
                     else -> Unit
                 }
         }
+        androidx.compose.runtime.CompositionLocalProvider(LocalGalleryAdaptiveLayoutInfo provides adaptiveInfo) {
         Scaffold(
-            snackbarHost = { if (!accessibleViewerWindow) globalStatus() },
+            snackbarHost = {
+                if (!accessibleViewerWindow) {
+                    Box(Modifier.padding(bottom = floatingNavChrome + shellBottomOverlay)) { globalStatus() }
+                }
+            },
             contentWindowInsets = contentInsets,
             containerColor = if (scaffoldRoute == SurfaceRoute.Viewer) Color.Black
             else MaterialTheme.colorScheme.background,
             // In rail layouts the route's bar is drawn inside the content pane (see below) so the
             // rail never shifts down when a route with a top bar opens.
             topBar = { if (!routeBarInPane) routeTopBar() },
-            bottomBar = {
-                if (adaptiveInfo.navigationType == GalleryNavigationType.BottomBar && scaffoldRoute == SurfaceRoute.Root) {
-                    GalleryBottomDock(
-                        selected = rootTab,
-                        onSelect = ::selectRoot,
-                    )
-                }
-            },
         ) { padding ->
             if (adaptiveInfo.navigationType == GalleryNavigationType.Rail) {
                 Row(Modifier.fillMaxSize().padding(padding)) {
-                    if (showsLibraryNavigation) {
+                    if (showsRail) {
                         GalleryExpandedRail(
                             route = scaffoldRoute,
                             selectedRoot = rootTab,
                             onRoot = ::selectRoot,
                             onCreate = { showCreateMenu = true },
+                            createMenu = createPopover,
+                            // Routes that draw their own top bar leave the status bar inset to it;
+                            // the rail beside them applies it itself.
+                            modifier = if (internalTopBarRoute) {
+                                Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
+                            } else Modifier,
                             activeExportCount = activeVideoExports.size,
                             activeExportProgress = globalExportProgress,
                             activeExportDescription = activeExportDescription,
@@ -3031,6 +3092,7 @@ internal fun ProductionGalleryApp(
                             stateHolder = surfaceStateHolder,
                             controls = { activeRoute -> if (!accessibleViewerWindow) controls(activeRoute) },
                             bottomControls = { activeRoute -> if (!accessibleViewerWindow) bottomControls(activeRoute) },
+                            onBottomOverlayHeight = { shellBottomOverlay = it },
                             content = if (settingsBesideRail) { activeRoute ->
                                 androidx.compose.runtime.CompositionLocalProvider(
                                     com.librestatic.lightforge.core.designsystem.LocalGalleryTopBarWindowInsets provides WindowInsets(0, 0, 0, 0),
@@ -3040,21 +3102,59 @@ internal fun ProductionGalleryApp(
                     }
                 }
             } else {
-                AnimatedSurfaceBody(
-                    key = ScreenMotionKey(
-                        scaffoldRoute,
-                        rootTab,
-                        surfaceStateKey(scaffoldRoute, rootTab, selectedAlbum, selectedHighlight?.id, creationGifSessionId, creationCollageSessionId, memoryVideoSessionId, manualMomentSessionId, viewerRestoreSnapshot?.identity, videoEditorSessionId),
-                    ),
-                    modifier = Modifier.fillMaxSize().padding(padding).then(
-                        if (scaffoldRoute == SurfaceRoute.Root) Modifier.rootTabSwipe(rootTab, ::selectRoot)
-                        else Modifier,
-                    ),
-                    stateHolder = surfaceStateHolder,
-                    controls = { activeRoute -> if (!accessibleViewerWindow) controls(activeRoute) },
-                    bottomControls = { activeRoute -> if (!accessibleViewerWindow) bottomControls(activeRoute) },
-                    content = content,
-                )
+                Box(Modifier.fillMaxSize().padding(padding)) {
+                    AnimatedSurfaceBody(
+                        key = ScreenMotionKey(
+                            scaffoldRoute,
+                            rootTab,
+                            surfaceStateKey(scaffoldRoute, rootTab, selectedAlbum, selectedHighlight?.id, creationGifSessionId, creationCollageSessionId, memoryVideoSessionId, manualMomentSessionId, viewerRestoreSnapshot?.identity, videoEditorSessionId),
+                        ),
+                        modifier = Modifier.fillMaxSize().then(
+                            if (scaffoldRoute == SurfaceRoute.Root) Modifier.rootTabSwipe(rootTab, ::selectRoot)
+                            else Modifier,
+                        ),
+                        stateHolder = surfaceStateHolder,
+                        controls = { activeRoute -> if (!accessibleViewerWindow) controls(activeRoute) },
+                        bottomControls = { activeRoute -> if (!accessibleViewerWindow) bottomControls(activeRoute) },
+                        bottomChromeHeight = floatingNavChrome,
+                        onBottomOverlayHeight = { shellBottomOverlay = it },
+                        content = { activeKey ->
+                            // Photos pads its own grid; the other root tabs end above the navigation.
+                            if (activeKey.route == SurfaceRoute.Root && activeKey.rootTab != RootTab.Photos) {
+                                Box(Modifier.padding(bottom = galleryBottomContentPadding())) { content(activeKey) }
+                            } else content(activeKey)
+                        },
+                    )
+                    val density = LocalDensity.current
+                    GalleryAnimatedVisibility(
+                        visible = floatingNavVisible,
+                        edge = GalleryMotionEdge.Bottom,
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                    ) {
+                        GalleryShellFloatingNavigation(
+                            selectedRoot = rootTab,
+                            onRoot = ::selectRoot,
+                            onCreate = { showCreateMenu = true },
+                            createMenu = createPopover,
+                            modifier = Modifier
+                                .padding(bottom = GalleryFloatingNavigationDefaults.BottomGap)
+                                .onSizeChanged { floatingNavHeight = with(density) { it.height.toDp() } },
+                        )
+                    }
+                }
+            }
+        }
+        }
+        if (showCreateMenu && !createAsPopover) {
+            ModalBottomSheet(
+                onDismissRequest = { showCreateMenu = false },
+                sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                // Keep the last entry above the gesture bar and the launcher taskbar.
+                contentWindowInsets = {
+                    WindowInsets.safeDrawing.union(WindowInsets.tappableElement).only(WindowInsetsSides.Vertical)
+                },
+            ) {
+                GalleryActionMenuContent(title = createMenuTitle, sections = createSections)
             }
         }
         if (accessibleViewerWindow) {
@@ -3103,72 +3203,6 @@ internal fun ProductionGalleryApp(
         )
     }
 
-    if (showCreateMenu) {
-        ModalBottomSheet(
-            onDismissRequest = { showCreateMenu = false },
-            sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        ) {
-            Column(
-                Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    stringResource(R.string.create_sheet_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp),
-                )
-                CreateSheetRow(
-                    icon = GalleryIcons.PhotoLibrary,
-                    title = stringResource(com.librestatic.lightforge.feature.collections.R.string.manual_moment_title),
-                    description = stringResource(R.string.create_memory_desc),
-                    testTag = "create-memory",
-                ) { showCreateMenu = false; openManualMoment() }
-                CreateSheetRow(
-                    icon = GalleryIcons.Video,
-                    title = stringResource(com.librestatic.lightforge.feature.videoeditor.R.string.memory_video_title),
-                    description = stringResource(R.string.create_memory_video_desc),
-                    testTag = "create-memory-video",
-                ) { showCreateMenu = false; openSelectionVideo() }
-                CreateSheetRow(
-                    icon = GalleryIcons.Repeat,
-                    title = stringResource(com.librestatic.lightforge.feature.collage.R.string.creation_gif_title),
-                    description = stringResource(R.string.create_gif_desc),
-                    testTag = "create-gif",
-                ) { showCreateMenu = false; openCreationGif() }
-                CreateSheetRow(
-                    icon = GalleryIcons.GridView,
-                    title = stringResource(R.string.m6_collage),
-                    description = stringResource(R.string.create_collage_desc),
-                    testTag = "create-collage",
-                ) { showCreateMenu = false; openCreationCollage() }
-                CreateSheetRow(
-                    icon = GalleryIcons.PictureAsPdf,
-                    title = stringResource(com.librestatic.lightforge.feature.pdfstudio.R.string.pdf_studio),
-                    description = stringResource(R.string.create_pdf_desc),
-                    testTag = "create-pdf",
-                ) { showCreateMenu = false; pdfReturnToDocuments = false; route = SurfaceRoute.PdfStudio }
-                CreateSheetRow(
-                    icon = GalleryIcons.Album,
-                    title = stringResource(R.string.album_create_title),
-                    description = stringResource(R.string.create_album_desc),
-                    testTag = "create-album",
-                ) { showCreateMenu = false; showCreateAlbum = true }
-                androidx.compose.material3.HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                Text(
-                    stringResource(R.string.create_section_more),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(start = 4.dp),
-                )
-                CreateSheetRow(
-                    icon = GalleryIcons.History,
-                    title = stringResource(R.string.publication_recoveries_title),
-                    description = stringResource(R.string.create_recoveries_desc),
-                    testTag = "publication-recoveries-entry",
-                ) { showCreateMenu = false; route = SurfaceRoute.PublicationRecoveries }
-            }
-        }
-    }
     BackHandler(enabled = albumCoverWorking) { /* The pending write owns its album until completion. */ }
     albumRename?.let { rename ->
         com.librestatic.lightforge.feature.album.RenameAlbumDialog(
@@ -3683,6 +3717,8 @@ internal fun AnimatedSurfaceBody(
     stateHolder: SaveableStateHolder,
     controls: @Composable (SurfaceRoute) -> Unit,
     bottomControls: @Composable (SurfaceRoute) -> Unit = {},
+    bottomChromeHeight: Dp = 0.dp,
+    onBottomOverlayHeight: (Dp) -> Unit = {},
     content: @Composable (ScreenMotionKey) -> Unit,
 ) {
     GalleryAnimatedContent(
@@ -3698,11 +3734,16 @@ internal fun AnimatedSurfaceBody(
         ) {
         var bottomOverlayHeight by remember { mutableStateOf(0.dp) }
         val density = LocalDensity.current
+        // Content clears the screen's bottom controls and, over a root screen, the floating
+        // navigation by ContentClearance (inset + cluster + 24 dp).
+        val contentBottomPadding = if (bottomChromeHeight > 0.dp) {
+            bottomOverlayHeight + bottomChromeHeight + GalleryFloatingNavigationDefaults.ContentClearance
+        } else bottomOverlayHeight
         Box(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize()) {
                 controls(activeKey.route)
                 androidx.compose.runtime.CompositionLocalProvider(
-                    com.librestatic.lightforge.core.designsystem.LocalGalleryBottomOverlayPadding provides bottomOverlayHeight,
+                    com.librestatic.lightforge.core.designsystem.LocalGalleryBottomOverlayPadding provides contentBottomPadding,
                 ) {
                     if (activeKey.saveableStateKey != null) {
                         stateHolder.SaveableStateProvider(activeKey.saveableStateKey) {
@@ -3715,8 +3756,12 @@ internal fun AnimatedSurfaceBody(
             }
             Box(
                 Modifier.align(androidx.compose.ui.Alignment.BottomCenter)
+                    .padding(bottom = bottomChromeHeight)
                     .fillMaxWidth()
-                    .onSizeChanged { bottomOverlayHeight = with(density) { it.height.toDp() } },
+                    .onSizeChanged {
+                        bottomOverlayHeight = with(density) { it.height.toDp() }
+                        onBottomOverlayHeight(bottomOverlayHeight)
+                    },
                 contentAlignment = androidx.compose.ui.Alignment.BottomCenter,
             ) {
                 bottomControls(activeKey.route)
@@ -4465,44 +4510,59 @@ private fun AlbumNameDialog(value: String, onValue: (String) -> Unit, onDismiss:
 }
 
 /**
- * One entry of the Create sheet: a tonal icon badge (secondaryContainer/onSecondaryContainer),
- * a title and a one-line description, left-aligned and tappable as a whole (≥ 64dp tall).
+ * The Create menu, grouped so the sheet and the popover show every entry: things that organize
+ * the library, things made from photos, and the rarely needed recoveries last.
  */
 @Composable
-private fun CreateSheetRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    description: String,
-    testTag: String,
-    onClick: () -> Unit,
-) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp))
-            .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
-            .semantics { testTagsAsResourceId = true }
-            .testTag(testTag)
-            .heightIn(min = 64.dp)
-            .padding(horizontal = 8.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        androidx.compose.material3.Surface(
-            shape = androidx.compose.foundation.shape.CircleShape,
-            color = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            modifier = Modifier.size(44.dp),
-        ) {
-            Box(contentAlignment = Alignment.Center) { Icon(icon, contentDescription = null) }
-        }
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-            Text(
-                description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
+private fun createMenuSections(
+    onDone: () -> Unit,
+    onAlbum: () -> Unit,
+    onMemory: () -> Unit,
+    onMemoryVideo: () -> Unit,
+    onGif: () -> Unit,
+    onCollage: () -> Unit,
+    onPdf: () -> Unit,
+    onRecoveries: () -> Unit,
+): List<GalleryActionMenuSection> {
+    fun entry(title: String, description: String, icon: ImageVector, tag: String, action: () -> Unit) =
+        GalleryActionMenuEntry(title, description, icon, tag) { onDone(); action() }
+    return listOf(
+        GalleryActionMenuSection(
+            stringResource(R.string.create_section_organize),
+            listOf(
+                entry(stringResource(R.string.album_create_title), stringResource(R.string.create_album_desc), GalleryIcons.Album, "create-album", onAlbum),
+                entry(
+                    stringResource(com.librestatic.lightforge.feature.collections.R.string.manual_moment_title),
+                    stringResource(R.string.create_memory_desc), GalleryIcons.PhotoLibrary, "create-memory", onMemory,
+                ),
+            ),
+        ),
+        GalleryActionMenuSection(
+            stringResource(R.string.create_section_from_photos),
+            listOf(
+                entry(
+                    stringResource(com.librestatic.lightforge.feature.videoeditor.R.string.memory_video_title),
+                    stringResource(R.string.create_memory_video_desc), GalleryIcons.Video, "create-memory-video", onMemoryVideo,
+                ),
+                entry(
+                    stringResource(com.librestatic.lightforge.feature.collage.R.string.creation_gif_title),
+                    stringResource(R.string.create_gif_desc), GalleryIcons.Repeat, "create-gif", onGif,
+                ),
+                entry(stringResource(R.string.m6_collage), stringResource(R.string.create_collage_desc), GalleryIcons.GridView, "create-collage", onCollage),
+                entry(
+                    stringResource(com.librestatic.lightforge.feature.pdfstudio.R.string.pdf_studio),
+                    stringResource(R.string.create_pdf_desc), GalleryIcons.PictureAsPdf, "create-pdf", onPdf,
+                ),
+            ),
+        ),
+        GalleryActionMenuSection(
+            stringResource(R.string.create_section_more),
+            listOf(
+                entry(
+                    stringResource(R.string.publication_recoveries_title),
+                    stringResource(R.string.create_recoveries_desc), GalleryIcons.History, "publication-recoveries-entry", onRecoveries,
+                ),
+            ),
+        ),
+    )
 }
