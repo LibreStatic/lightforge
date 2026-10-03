@@ -212,6 +212,14 @@ internal fun retainsPhotosViewerWindow(
 private data class PrivateImportProgress(val completed: Int, val total: Int)
 private data class PrivateImportOutcome(val successful: List<TimelineMedia>, val total: Int)
 internal const val ViewerSurfaceStateKey = "viewer"
+internal const val SettingsSurfaceStateKey = "settings"
+
+/** Screens opened from inside Settings: returning from them must land on the section that opened them. */
+internal val SettingsChildRoutes = setOf(
+    SurfaceRoute.LocalBackup, SurfaceRoute.LocalBackupTasks, SurfaceRoute.RemoteBackup,
+    SurfaceRoute.LocalSharing, SurfaceRoute.OwnSync, SurfaceRoute.PetIdentity,
+    SurfaceRoute.OfflinePlaces, SurfaceRoute.About,
+)
 
 internal data class ScreenMotionKey(
     val route: SurfaceRoute,
@@ -326,6 +334,7 @@ internal fun surfaceStateKey(
     SurfaceRoute.LocalSharing -> "local-sharing"
     SurfaceRoute.PetIdentity -> "pet-identity"
     SurfaceRoute.OwnSync -> "own-sync"
+    SurfaceRoute.Settings -> SettingsSurfaceStateKey
     SurfaceRoute.OfflinePlaces -> "offline-places"
     SurfaceRoute.HighlightCollection -> selectedHighlightId?.let { "highlight:$it" }
     else -> null
@@ -674,6 +683,13 @@ internal fun ProductionGalleryApp(
         }
     }
     val surfaceStateHolder = rememberSaveableStateHolder()
+    // Settings keeps its open section (e.g. Backup & restore) while one of its sub-screens is
+    // open, so Back returns to that section; leaving Settings for anything else starts it fresh.
+    LaunchedEffect(route) {
+        if (route != SurfaceRoute.Settings && route !in SettingsChildRoutes) {
+            surfaceStateHolder.removeState(SettingsSurfaceStateKey)
+        }
+    }
     var viewerReturnDestination by rememberSaveable(stateSaver = ViewerReturnDestinationSaver) {
         mutableStateOf<ViewerReturnDestination?>(null)
     }
