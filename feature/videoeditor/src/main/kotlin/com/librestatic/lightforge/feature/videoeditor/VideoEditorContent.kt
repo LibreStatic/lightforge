@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -116,7 +117,9 @@ import com.librestatic.lightforge.core.editing.video.LutReference
 import com.librestatic.lightforge.core.editing.video.RealtimeColorLut
 import com.librestatic.lightforge.core.editing.video.VideoColorGrade
 import com.librestatic.lightforge.core.editing.video.VideoColorGradeEffects
+import com.librestatic.lightforge.core.editing.video.VideoOutputCodec
 import com.librestatic.lightforge.core.editing.video.VideoOutputQuality
+import com.librestatic.lightforge.core.editing.video.VideoOutputSettings
 import com.librestatic.lightforge.core.editing.video.VideoDynamicRange
 import com.librestatic.lightforge.core.editing.video.VideoGeometry
 import com.librestatic.lightforge.core.editing.video.SlowMotionAudioMode
@@ -179,6 +182,12 @@ data class VideoEditorContentState(
     val annotationTrackingCorrectionMillis: Long? = null,
     val canUndo: Boolean = false,
     val canRedo: Boolean = false,
+    /** Converter-style export options (`VideoEditRecipe.output`). */
+    val output: VideoOutputSettings = VideoOutputSettings(),
+    /** Source facts for the output summary; null until known. */
+    val outputSource: VideoOutputSource? = null,
+    /** Codecs this device can encode; null when unknown (every codec is offered). */
+    val supportedOutputCodecs: Set<VideoOutputCodec>? = null,
 )
 
 private data class VideoAnnotationActions(
@@ -235,6 +244,7 @@ fun VideoEditorContent(
     onCancelAnnotationTracking: () -> Unit = {},
     onCancelExport: () -> Unit = {},
     onPositionCheckpoint: (Long) -> Unit = {},
+    onOutputSettingsChange: (VideoOutputSettings) -> Unit = {},
     foldInfo: GalleryFoldInfo? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -498,6 +508,10 @@ fun VideoEditorContent(
             onDismiss = { showExportSheet = false },
             onOutputQualityChange = onOutputQualityChange,
             onDynamicRangeChange = onDynamicRangeChange,
+            onEditOutput = {
+                showExportSheet = false
+                selectedTab = VideoEditorTool.Output.index
+            },
             onSaveCopy = {
                 showExportSheet = false
                 onSaveCopy()
@@ -631,6 +645,7 @@ fun VideoEditorContent(
                     onUpdateSlowMotionSegment = onUpdateSlowMotionSegment,
                     onDeleteSlowMotionSegment = onDeleteSlowMotionSegment,
                     onCancelExport = onCancelExport,
+                    onOutputSettingsChange = onOutputSettingsChange,
                     selectedTab = selectedTab,
                     onTabChange = { selectedTab = it },
                     annotationTool = annotationTool,
@@ -720,6 +735,7 @@ private fun VideoEditingPanel(
     onUpdateSlowMotionSegment: (SlowMotionSegment) -> Unit,
     onDeleteSlowMotionSegment: (String) -> Unit,
     onCancelExport: () -> Unit,
+    onOutputSettingsChange: (VideoOutputSettings) -> Unit,
     selectedTab: Int,
     onTabChange: (Int) -> Unit,
     annotationTool: VideoAnnotationToolState,
@@ -767,6 +783,7 @@ private fun VideoEditingPanel(
             onUpdateSlowMotionSegment = onUpdateSlowMotionSegment,
             onDeleteSlowMotionSegment = onDeleteSlowMotionSegment,
             onCancelExport = onCancelExport,
+            onOutputSettingsChange = onOutputSettingsChange,
             selectedTab = selectedTab,
             annotationTool = annotationTool,
             onAnnotationToolChange = onAnnotationToolChange,
@@ -808,6 +825,7 @@ private fun VideoPreview(
         contentAlignment = Alignment.Center,
     ) {
         if (controller == null) {
+            VideoOutputPreviewPlaceholder(state)
             Text(
                 stringResource(R.string.video_editor_preview_unavailable),
                 color = MaterialTheme.colorScheme.onSurface,
@@ -819,7 +837,11 @@ private fun VideoPreview(
         key(controller) {
             BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 val videoAspectRatio = (viewerState as? VideoViewerState.Ready)?.aspectRatio
-                val baseSurfaceModifier = if (videoAspectRatio != null && videoAspectRatio > 0f) {
+                // A forced output aspect reshapes the frame; crop editing keeps the untouched one.
+                val outputBoxes = if (cropActive) null else videoOutputPreviewBoxes(state, videoAspectRatio, maxWidth, maxHeight)
+                val baseSurfaceModifier = if (outputBoxes != null) {
+                    Modifier.size(outputBoxes.videoWidth.dp, outputBoxes.videoHeight.dp)
+                } else if (videoAspectRatio != null && videoAspectRatio > 0f) {
                     val containerAspectRatio = maxWidth.value / maxHeight.value.coerceAtLeast(1f)
                     if (videoAspectRatio >= containerAspectRatio) {
                         Modifier.fillMaxWidth().aspectRatio(videoAspectRatio)
@@ -839,6 +861,7 @@ private fun VideoPreview(
                 } else {
                     baseSurfaceModifier
                 }
+                outputBoxes?.let { VideoOutputPadBars(it, state.output.aspect) }
                 AndroidView(
                     factory = { context -> SurfaceView(context).also(controller::attachSurface) },
                     modifier = surfaceModifier.semantics { contentDescription = description },
@@ -858,6 +881,7 @@ private fun VideoPreview(
                     onErase = onEraseAnnotations,
                     modifier = surfaceModifier,
                 )
+                outputBoxes?.let { VideoOutputCropMask(it, state.output.aspect) }
                 if (cropActive) {
                     VideoCropOverlay(
                         geometry = state.geometry,
@@ -990,6 +1014,7 @@ private fun VideoControls(
     onUpdateSlowMotionSegment: (SlowMotionSegment) -> Unit,
     onDeleteSlowMotionSegment: (String) -> Unit,
     onCancelExport: () -> Unit,
+    onOutputSettingsChange: (VideoOutputSettings) -> Unit,
     selectedTab: Int,
     annotationTool: VideoAnnotationToolState,
     onAnnotationToolChange: (VideoAnnotationToolState) -> Unit,
@@ -1037,6 +1062,7 @@ private fun VideoControls(
                     onCancelTracking = annotationActions.cancelTracking,
                     modifier = Modifier.fillMaxSize(),
                 )
+                VideoEditorTool.Output -> VideoOutputControls(state, onOutputSettingsChange, Modifier.fillMaxSize())
             }
         }
         state.statusMessage?.let {
@@ -1213,6 +1239,7 @@ private fun VideoExportSheet(
     onDismiss: () -> Unit,
     onOutputQualityChange: (VideoOutputQuality) -> Unit,
     onDynamicRangeChange: (VideoDynamicRange) -> Unit,
+    onEditOutput: () -> Unit,
     onSaveCopy: () -> Unit,
 ) {
     ModalBottomSheet(
@@ -1226,6 +1253,7 @@ private fun VideoExportSheet(
                 state = state,
                 onQualitySelected = onOutputQualityChange,
                 onDynamicRangeSelected = onDynamicRangeChange,
+                onEditOutput = onEditOutput,
                 modifier = Modifier.weight(1f, fill = false),
             )
             Button(
@@ -1248,6 +1276,7 @@ private fun ExportControls(
     state: VideoEditorContentState,
     onQualitySelected: (VideoOutputQuality) -> Unit,
     onDynamicRangeSelected: (VideoDynamicRange) -> Unit,
+    onEditOutput: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val qualityLabel: (VideoOutputQuality) -> Int = { quality ->
@@ -1333,6 +1362,35 @@ private fun ExportControls(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        VideoOutputExportRow(state, onEditOutput)
+    }
+}
+
+/** The Output tool's result in the export sheet, with a shortcut to change it. */
+@Composable
+private fun VideoOutputExportRow(state: VideoEditorContentState, onEditOutput: () -> Unit) {
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = GallerySpacing.Md, end = GallerySpacing.Xs, top = GallerySpacing.Xs, bottom = GallerySpacing.Xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f).padding(vertical = GallerySpacing.Xs)) {
+                Text(stringResource(R.string.video_editor_output_settings), style = MaterialTheme.typography.titleSmall)
+                Text(
+                    videoOutputResultSummary(state.output, state.outputEstimate()),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            TextButton(
+                onClick = onEditOutput,
+                modifier = Modifier.heightIn(min = 48.dp).testTag("video-export-edit-output"),
+            ) { Text(stringResource(R.string.video_editor_output_change)) }
+        }
     }
 }
 

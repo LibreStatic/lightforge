@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -22,8 +23,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
@@ -43,6 +44,7 @@ internal enum class VideoEditorTool(
     Color(3, R.string.video_editor_color, GalleryIcons.Palette),
     Transform(4, R.string.video_editor_transform, GalleryIcons.Transform),
     Draw(5, R.string.video_editor_draw, GalleryIcons.Edit),
+    Output(6, R.string.video_editor_output, GalleryIcons.FitScreen),
     ;
 
     companion object {
@@ -122,7 +124,12 @@ private fun VideoEditorToolItem(
             style = MaterialTheme.typography.labelSmall,
             color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            softWrap = false,
+            // Seven tools share a phone's width: shrink a long label ("Transform") rather than cut it.
+            autoSize = TextAutoSize.StepBased(
+                minFontSize = 8.sp,
+                maxFontSize = MaterialTheme.typography.labelSmall.fontSize,
+            ),
             modifier = Modifier.padding(top = 2.dp),
         )
     }
