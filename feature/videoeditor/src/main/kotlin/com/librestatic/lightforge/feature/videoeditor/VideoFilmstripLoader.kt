@@ -67,16 +67,42 @@ internal object VideoFilmstripLoader {
                 ?: return@flow
             for (slot in progressiveOrder(count)) {
                 currentCoroutineContext().ensureActive()
-                val frame = retriever.getScaledFrameAtTime(
-                    slotTimeMicros(slot, count, duration),
-                    MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
-                    FrameWidthPx,
-                    FrameHeightPx,
-                ) ?: continue
+                val frame = frameAt(retriever, slotTimeMicros(slot, count, duration)) ?: continue
                 emit(slot to frame)
             }
         } finally {
             retriever.release()
         }
     }.flowOn(Dispatchers.IO)
+
+    /**
+     * Some decoders refuse the scaled path for streams such as HikVision HEVC (`getScaledFrameAtTime`
+     * returns null or throws), so a full-size sync frame scaled here is the fallback. One bad slot
+     * is skipped rather than ending the strip.
+     */
+    private fun frameAt(retriever: MediaMetadataRetriever, timeUs: Long): Bitmap? {
+        runCatching {
+            retriever.getScaledFrameAtTime(
+                timeUs,
+                MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
+                FrameWidthPx,
+                FrameHeightPx,
+            )
+        }.getOrNull()?.let { return it }
+        val full = runCatching {
+            retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_PREVIOUS_SYNC)
+        }.getOrNull() ?: return null
+        val (width, height) = fitWithin(full.width, full.height, FrameWidthPx, FrameHeightPx)
+        if (width == full.width && height == full.height) return full
+        return Bitmap.createScaledBitmap(full, width, height, true).also {
+            if (it !== full) full.recycle()
+        }
+    }
+
+    /** The largest size with the source's aspect ratio inside `maxWidth x maxHeight`, never upscaled. */
+    fun fitWithin(width: Int, height: Int, maxWidth: Int, maxHeight: Int): Pair<Int, Int> {
+        if (width <= 0 || height <= 0) return maxWidth.coerceAtLeast(1) to maxHeight.coerceAtLeast(1)
+        val scale = minOf(maxWidth.toFloat() / width, maxHeight.toFloat() / height, 1f)
+        return Math.round(width * scale).coerceIn(1, maxWidth) to Math.round(height * scale).coerceIn(1, maxHeight)
+    }
 }

@@ -21,4 +21,12 @@ class VideoFilmstripLoaderTest {
         assertEquals(15_000_000L, VideoFilmstripLoader.slotTimeMicros(7, 8, 16_000))
         assertEquals(0L, VideoFilmstripLoader.slotTimeMicros(0, 1, 1))
     }
+
+    @Test
+    fun fullFramesAreFittedInsideTheSlotWithoutDistortionOrUpscaling() {
+        assertEquals(85 to 96, VideoFilmstripLoader.fitWithin(960, 1088, 160, 96))
+        assertEquals(160 to 90, VideoFilmstripLoader.fitWithin(1920, 1080, 160, 96))
+        assertEquals(100 to 50, VideoFilmstripLoader.fitWithin(100, 50, 160, 96))
+        assertEquals(160 to 96, VideoFilmstripLoader.fitWithin(0, 0, 160, 96))
+    }
 }

@@ -452,10 +452,12 @@ fun VideoEditorContent(
             }
         }
     }
+    // The filmstrip decodes on its own, so a preview failure must not clear (and cancel) it.
     val sourceUri = (controller?.state?.collectAsState()?.value).let { viewerState ->
         when (viewerState) {
             is VideoViewerState.Ready -> viewerState.uri
             is VideoViewerState.Loading -> viewerState.uri
+            is VideoViewerState.Failure -> viewerState.uri
             else -> null
         }
     }
