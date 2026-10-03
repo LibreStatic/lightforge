@@ -22,4 +22,7 @@
     <string name="viewer_shortcut_hint">%1$s (%2$s)</string>
     <string name="viewer_show_more_thumbnails">Afficher plus de miniatures</string>
     <string name="viewer_show_fewer_thumbnails">Afficher moins de miniatures</string>
+    <string name="viewer_trash_confirm_title">Placer cet élément dans la corbeille ?</string>
+    <string name="viewer_delete_confirm_title">Supprimer définitivement cet élément ?</string>
+    <string name="viewer_cancel">Annuler</string>
 </resources>

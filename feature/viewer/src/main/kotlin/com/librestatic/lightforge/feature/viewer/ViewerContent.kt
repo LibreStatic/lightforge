@@ -67,6 +67,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
@@ -429,8 +436,88 @@ fun ViewerContent(
             if (state.isSidePanel) 0f else min(state.visiblePx, state.halfPx) / 2f
         }
     }
+    // Keyboard: ←/→ page, Esc closes Details then the viewer, I toggles Details, Space plays or
+    // pauses, +/- zoom, Delete asks before trashing, F favourites.
+    val keyboardFocus = remember { FocusRequester() }
+    val coroutineScope = rememberCoroutineScope()
+    val layoutDirection = LocalLayoutDirection.current
+    var viewerSize by remember { mutableStateOf(IntSize.Zero) }
+    var deleteKeyConfirmVisible by remember(media.viewerId) { mutableStateOf(false) }
+    val deleteKeyLabel = when {
+        onDelete != null && deleteActionLabel != null -> deleteActionLabel
+        onTrash != null && trashActionLabel == null -> stringResource(R.string.viewer_trash)
+        else -> null
+    }
+    val deleteKeyAction = when {
+        onDelete != null && deleteActionLabel != null -> onDelete
+        onTrash != null && trashActionLabel == null -> onTrash
+        else -> null
+    }
+    LaunchedEffect(media.viewerId) { runCatching { keyboardFocus.requestFocus() } }
+    fun runShortcut(shortcut: ViewerShortcut): Boolean {
+        when (shortcut) {
+            ViewerShortcut.Previous, ViewerShortcut.Next -> {
+                if (contentZoomed || textSelectionActive) return false
+                val forward = (shortcut == ViewerShortcut.Next) != (layoutDirection == androidx.compose.ui.unit.LayoutDirection.Rtl)
+                val target = pagerState.currentPage + if (forward) 1 else -1
+                if (target !in displayedItems.indices) return false
+                coroutineScope.launch { pagerState.animateScrollToPage(target) }
+            }
+            ViewerShortcut.Close -> if (detailsState?.isOpen == true) detailsState.close() else onBack()
+            ViewerShortcut.Details -> when {
+                detailsState?.isOpen == true -> detailsState.close()
+                detailsState != null -> detailsState.open()
+                onDetails != null -> onDetails()
+                else -> return false
+            }
+            ViewerShortcut.PlayPause -> {
+                val controller = videoController?.takeIf { media.kind == MediaKind.Video } ?: return false
+                if (videoIsPlaying) controller.pause() else controller.play()
+                chromeInteractionGeneration++
+            }
+            ViewerShortcut.ZoomIn, ViewerShortcut.ZoomOut -> {
+                if ((shortcut == ViewerShortcut.ZoomIn) == contentZoomed) return false
+                zoomTapPosition = Offset(viewerSize.width / 2f, viewerSize.height / 2f)
+                zoomTapGeneration++
+            }
+            ViewerShortcut.Trash -> {
+                if (deleteKeyAction == null) return false
+                deleteKeyConfirmVisible = true
+            }
+            ViewerShortcut.Favorite -> onToggleFavorite?.invoke() ?: return false
+        }
+        return true
+    }
+    if (deleteKeyConfirmVisible && deleteKeyAction != null && deleteKeyLabel != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { deleteKeyConfirmVisible = false },
+            title = {
+                Text(stringResource(if (onDelete != null) R.string.viewer_delete_confirm_title else R.string.viewer_trash_confirm_title))
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { deleteKeyConfirmVisible = false; deleteKeyAction() },
+                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                ) { Text(deleteKeyLabel) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { deleteKeyConfirmVisible = false }) {
+                    Text(stringResource(R.string.viewer_cancel))
+                }
+            },
+        )
+    }
     Box(
-        modifier.fillMaxSize().background(Color.Black),
+        modifier.fillMaxSize().background(Color.Black)
+            .onSizeChanged { viewerSize = it }
+            .focusRequester(keyboardFocus)
+            .onKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+                val key = event.nativeKeyEvent
+                val shortcut = viewerShortcutFor(key.keyCode, key.isCtrlPressed, key.isAltPressed, key.isMetaPressed)
+                shortcut != null && runShortcut(shortcut)
+            }
+            .focusable(),
     ) {
         Box(
             Modifier
