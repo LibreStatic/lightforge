@@ -180,7 +180,7 @@ data class VideoOutputPlan(
          * Resolves [recipe]'s output settings against [source] and the device [capabilities].
          *
          * Size pipeline: displayed source size (rotation and pixel aspect applied) -> crop and
-         * rotation of [VideoEditRecipe.geometry] (rotation takes the bounding box, like Media3's
+         * rotation of [VideoEditRecipe.geometry] (quarter turns swap the sides; straightening keeps them, like Media3's
          * `ScaleAndRotateTransformation`) -> forced aspect -> resolution -> encoder limits ->
          * even and encoder-aligned sizes.
          *
@@ -385,7 +385,8 @@ data class VideoOutputPlan(
         fun editedSize(source: VideoSourceInfo, geometry: VideoGeometry): Pair<Double, Double> {
             val cropWidth = source.displayWidth * (geometry.right - geometry.left).toDouble()
             val cropHeight = source.displayHeight * (geometry.bottom - geometry.top).toDouble()
-            val radians = Math.toRadians(geometry.rotationDegrees.toDouble())
+            // Straightening zooms within the frame, so only the quarter turns change its shape.
+            val radians = Math.toRadians(VideoStraighten.quarterTurnDegrees(geometry.rotationDegrees).toDouble())
             val c = abs(cos(radians)).let { if (it < 1e-9) 0.0 else it }
             val s = abs(sin(radians)).let { if (it < 1e-9) 0.0 else it }
             return (cropWidth * c + cropHeight * s) to (cropWidth * s + cropHeight * c)

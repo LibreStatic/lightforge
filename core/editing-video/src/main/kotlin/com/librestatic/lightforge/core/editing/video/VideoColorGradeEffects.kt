@@ -35,12 +35,15 @@ object VideoColorGradeEffects {
                 1f - geometry.top * 2f,
             ))
         }
-        if (geometry.rotationDegrees != 0f || geometry.flipHorizontal) {
+        val quarterTurns = VideoStraighten.quarterTurnDegrees(geometry.rotationDegrees)
+        if (quarterTurns != 0f || geometry.flipHorizontal) {
             add(ScaleAndRotateTransformation.Builder()
                 .setScale(if (geometry.flipHorizontal) -1f else 1f, 1f)
-                .setRotationDegrees(geometry.rotationDegrees)
+                .setRotationDegrees(quarterTurns)
                 .build())
         }
+        val straighten = VideoStraighten.fineDegrees(geometry.rotationDegrees)
+        if (straighten != 0f) add(StraightenTransformation(straighten))
     }
 
     fun buildCube(

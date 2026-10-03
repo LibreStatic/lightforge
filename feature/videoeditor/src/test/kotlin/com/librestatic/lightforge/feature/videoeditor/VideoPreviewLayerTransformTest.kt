@@ -8,7 +8,7 @@ class VideoPreviewLayerTransformTest {
     @Test
     fun identityGeometryKeepsTheFittedFrame() {
         assertEquals(
-            PreviewLayerTransform(0f, 1f, 1f),
+            PreviewLayerTransform(0f, 1f, 1f, 400f, 300f),
             fallbackPreviewTransform(VideoGeometry(), 400f, 300f, 400f, 300f),
         )
     }
@@ -36,20 +36,33 @@ class VideoPreviewLayerTransformTest {
     }
 
     @Test
-    fun straightenedFramesFitTheirRotatedBounds() {
+    fun straightenedFramesZoomToCoverTheirUnrotatedBox() {
         val transform = fallbackPreviewTransform(
             VideoGeometry(rotationDegrees = 10f), 400f, 300f, 400f, 300f,
         )
         val radians = Math.toRadians(10.0)
-        val boundsHeight = 400 * kotlin.math.sin(radians) + 300 * kotlin.math.cos(radians)
+        val cover = kotlin.math.cos(radians) + 400.0 / 300.0 * kotlin.math.sin(radians)
 
-        assertEquals((300 / boundsHeight).toFloat(), transform.scaleY, 0.001f)
+        assertEquals(-10f, transform.rotationZ, 0.001f)
+        assertEquals(cover.toFloat(), transform.scaleY, 0.001f)
+        assertEquals(400f, transform.clipWidth, 0.001f)
+        assertEquals(300f, transform.clipHeight, 0.001f)
+    }
+
+    @Test
+    fun straighteningAfterAQuarterTurnFitsTheTurnedFrame() {
+        val transform = fallbackPreviewTransform(
+            VideoGeometry(rotationDegrees = 95f), 400f, 300f, 400f, 300f,
+        )
+
+        assertEquals(225f, transform.clipWidth, 0.001f)
+        assertEquals(300f, transform.clipHeight, 0.001f)
     }
 
     @Test
     fun unmeasuredLayoutsAreLeftUntransformed() {
         assertEquals(
-            PreviewLayerTransform(0f, 1f, 1f),
+            PreviewLayerTransform(0f, 1f, 1f, 0f, 0f),
             fallbackPreviewTransform(VideoGeometry(rotationDegrees = 90f), 0f, 0f, 400f, 300f),
         )
     }
