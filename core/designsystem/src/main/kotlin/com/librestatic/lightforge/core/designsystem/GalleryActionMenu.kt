@@ -25,6 +25,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
@@ -53,6 +55,9 @@ object GalleryActionMenuDefaults {
     /** Width of the anchored popover used on rail (tablet, desktop) and short windows. */
     val PopoverWidth: Dp = 360.dp
     val EntryMinHeight: Dp = 64.dp
+
+    /** Room kept above and below the popover; matches the menu's own placement margin. */
+    val PopoverWindowMargin: Dp = 48.dp
 }
 
 /**
@@ -151,8 +156,22 @@ fun GalleryActionMenuPopover(
         offset = offset,
         shape = RoundedCornerShape(24.dp),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = modifier.width(GalleryActionMenuDefaults.PopoverWidth).testTag("action-menu-popover"),
+        modifier = modifier
+            .width(GalleryActionMenuDefaults.PopoverWidth)
+            .heightIn(max = popoverMaxHeight())
+            .testTag("action-menu-popover"),
     ) {
         GalleryActionMenuContent(title = title, sections = sections, scrollable = false)
     }
+}
+
+/**
+ * Keeps the popover inside the window with a margin above and below. Without it a tall menu in a
+ * short window (phone landscape) fills the whole height, runs under the status bar and loses its
+ * rounded corners; with it the menu scrolls instead.
+ */
+@Composable
+private fun popoverMaxHeight(): Dp {
+    val windowHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
+    return (windowHeight - GalleryActionMenuDefaults.PopoverWindowMargin * 2).coerceAtLeast(GalleryActionMenuDefaults.EntryMinHeight * 2)
 }
