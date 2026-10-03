@@ -3,10 +3,11 @@ package com.librestatic.lightforge.feature.viewer
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.media.MediaMetadataRetriever
 import android.net.Uri
+import com.librestatic.lightforge.core.frameinterpolation.DecodedVideoFrame
 import com.librestatic.lightforge.core.frameinterpolation.FrameInterpolationBackend
 import com.librestatic.lightforge.core.frameinterpolation.RifeFrameInterpolator
+import com.librestatic.lightforge.core.frameinterpolation.VideoFrameReader
 import com.librestatic.lightforge.core.frameinterpolation.interpolateFactor
 import java.io.Closeable
 import java.io.File
@@ -26,7 +27,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.coroutineContext
-import kotlin.math.roundToInt
 
 data class SlowMotionClip(
     val uri: Uri,
@@ -182,7 +182,13 @@ class HoldSlowMotionSession(
                 HoldSlowMotionState.Playing(frame, sourcePositionMillis, prefetchBackend),
             )
             cursor += 1
-            delay(OutputFrameMillis)
+            // Pace by source timestamps so 15 fps CCTV and 60 fps phone footage both play at [Speed].
+            val following = synchronized(bufferLock) { bufferedFrames.getOrNull(cursor) }
+            delay(
+                following?.let { ((it.sourcePositionMillis - next.sourcePositionMillis) / Speed).toLong() }
+                    ?.coerceIn(MinimumOutputFrameMillis, MaximumOutputFrameMillis)
+                    ?: OutputFrameMillis,
+            )
         }
     }
 
@@ -236,42 +242,50 @@ class HoldSlowMotionSession(
             bufferFailure = null
         }
         trimOldCache(directory)
-        val retriever = MediaMetadataRetriever()
-        val interpolator = RifeFrameInterpolator(appContext)
-        var left: Bitmap? = null
+        val reader = VideoFrameReader(appContext, uri, maxLongEdge = PreviewLongEdge)
+        val interpolator = try {
+            RifeFrameInterpolator(appContext)
+        } catch (failure: Throwable) {
+            reader.close()
+            throw failure
+        }
+        var left: DecodedVideoFrame? = null
         try {
-            retriever.setDataSource(appContext, uri)
-            val durationMillis = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-                ?.toLongOrNull()?.coerceAtLeast(1L) ?: error("Video duration is unavailable")
+            val durationMillis = reader.durationMillis
             if (windowStart >= durationMillis) {
                 markWindowComplete(directory, windowStart, durationMillis)
                 return
             }
-            val fps = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CAPTURE_FRAMERATE)
-                ?.toFloatOrNull()?.coerceIn(15f, 60f) ?: 30f
-            val stepMillis = (1_000f / fps).roundToInt().coerceAtLeast(16)
             val windowEnd = (windowStart + PrefetchWindowSourceMillis).coerceAtMost(durationMillis)
-            var leftTime = windowStart
-            left = frameAt(retriever, leftTime) ?: error("Could not decode the preview buffer")
+            reader.seekTo(windowStart)
+            left = reader.next() ?: error("Could not decode the preview buffer")
             var frameIndex = 0
             prefetchBackend = interpolator.capability.backend
             FileOutputStream(File(directory, IndexFileName), false).bufferedWriter().use { writer ->
-                while (coroutineContext.isActive && leftTime < windowEnd) {
+                while (coroutineContext.isActive) {
                     val currentLeft = left ?: break
-                    val rightTime = (leftTime + stepMillis).coerceAtMost(windowEnd)
-                    if (rightTime <= leftTime) break
-                    val right = frameAt(retriever, rightTime) ?: break
+                    if (currentLeft.timeMillis >= windowEnd) break
+                    val right = reader.next() ?: break
+                    val gapMillis = right.timeMillis - currentLeft.timeMillis
+                    if (gapMillis <= 0 || right.bitmap.width != currentLeft.bitmap.width ||
+                        right.bitmap.height != currentLeft.bitmap.height
+                    ) {
+                        right.bitmap.recycle()
+                        continue
+                    }
+                    val factor = interpolationFactor(gapMillis)
                     val generated = try {
-                        interpolator.interpolateFactor(currentLeft, right, Factor)
+                        if (factor == 1) emptyList()
+                        else interpolator.interpolateFactor(currentLeft.bitmap, right.bitmap, factor)
                     } catch (failure: Throwable) {
-                        if (!right.isRecycled) right.recycle()
+                        right.bitmap.recycle()
                         throw failure
                     }
-                    val frames = listOf(currentLeft) + generated
+                    val frames = listOf(currentLeft.bitmap) + generated
                     try {
                         frames.forEachIndexed { interpolationIndex, frame ->
                             coroutineContext.ensureActive()
-                            val position = leftTime + ((rightTime - leftTime) * interpolationIndex / Factor)
+                            val position = currentLeft.timeMillis + gapMillis * interpolationIndex / factor
                             val name = "frame-" + frameIndex.toString().padStart(6, '0') + ".jpg"
                             val file = File(directory, name)
                             FileOutputStream(file).use { output ->
@@ -287,23 +301,22 @@ class HoldSlowMotionSession(
                             frameIndex += 1
                         }
                     } catch (failure: Throwable) {
-                        if (!right.isRecycled) right.recycle()
+                        right.bitmap.recycle()
                         throw failure
                     } finally {
                         generated.forEach { if (!it.isRecycled) it.recycle() }
                     }
-                    if (!currentLeft.isRecycled) currentLeft.recycle()
+                    currentLeft.bitmap.recycle()
                     left = right
-                    leftTime = rightTime
                 }
             }
             coroutineContext.ensureActive()
             markWindowComplete(directory, windowStart, windowEnd)
             trimOldCache(directory)
         } finally {
-            left?.takeIf { !it.isRecycled }?.recycle()
+            left?.bitmap?.takeIf { !it.isRecycled }?.recycle()
+            reader.close()
             interpolator.close()
-            retriever.release()
         }
     }
 
@@ -312,24 +325,6 @@ class HoldSlowMotionSession(
         synchronized(bufferLock) {
             if (bufferedWindowStart == windowStart) bufferComplete = true
         }
-    }
-
-    private fun frameAt(retriever: MediaMetadataRetriever, timeMillis: Long): Bitmap? {
-        val frame = retriever.getFrameAtTime(
-            timeMillis * 1_000,
-            MediaMetadataRetriever.OPTION_CLOSEST,
-        ) ?: return null
-        val longEdge = maxOf(frame.width, frame.height)
-        if (longEdge <= PreviewLongEdge) return frame.asArgb8888()
-        val scale = PreviewLongEdge.toFloat() / longEdge
-        val scaled = Bitmap.createScaledBitmap(
-            frame,
-            (frame.width * scale).roundToInt().coerceAtLeast(2),
-            (frame.height * scale).roundToInt().coerceAtLeast(2),
-            true,
-        )
-        if (scaled !== frame) frame.recycle()
-        return scaled.asArgb8888()
     }
 
     private fun windowDirectory(windowStart: Long) = File(cacheRoot, "window-" + windowStart)
@@ -359,11 +354,12 @@ class HoldSlowMotionSession(
 
     companion object {
         const val Speed = 0.25f
-        private const val Factor = 4
         private const val PreviewLongEdge = 256
         private const val PreviewJpegQuality = 82
         private const val PrefetchWindowSourceMillis = 6_000L
         private const val OutputFrameMillis = 33L
+        private const val MinimumOutputFrameMillis = 16L
+        private const val MaximumOutputFrameMillis = 100L
         private const val BufferPollMillis = 40L
         private const val MinimumStartFrames = 24
         private const val MaximumCacheBytes = 96L * 1024L * 1024L
@@ -380,18 +376,22 @@ private data class InitialBufferStatus(
     val failure: String?,
 )
 
+/**
+ * Intermediate frames per source pair so output frames land roughly every 33 ms at
+ * [HoldSlowMotionSession.Speed]: 4 for 30 fps, 8 for 15 fps CCTV, 2 for 60 fps.
+ */
+internal fun interpolationFactor(sourceGapMillis: Long): Int = when {
+    sourceGapMillis <= 12L -> 1
+    sourceGapMillis <= 24L -> 2
+    sourceGapMillis <= 48L -> 4
+    else -> 8
+}
+
 private fun Long.windowStart(): Long = this / 4_000L * 4_000L
 
 private fun Uri.cacheKey(): String {
     val digest = MessageDigest.getInstance("SHA-256").digest(toString().toByteArray())
     return digest.take(12).joinToString("") { "%02x".format(it) }
-}
-
-private fun Bitmap.asArgb8888(): Bitmap {
-    if (config == Bitmap.Config.ARGB_8888) return this
-    val converted = copy(Bitmap.Config.ARGB_8888, false)
-    recycle()
-    return converted
 }
 
 private fun MutableStateFlow<HoldSlowMotionState>.replaceFrame(next: HoldSlowMotionState) {
