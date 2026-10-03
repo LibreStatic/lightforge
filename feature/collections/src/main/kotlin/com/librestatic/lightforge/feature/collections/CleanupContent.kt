@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -128,6 +129,9 @@ fun CleanupContent(
             title = stringResource(R.string.cleanup_title),
             onBack = onBack,
             navigationContentDescription = stringResource(R.string.cleanup_back),
+            // The shell scaffold already pads this route below the status bar; applying the
+            // inset again pushed the bar ~one status bar lower than every other screen.
+            windowInsets = WindowInsets(0, 0, 0, 0),
         )
         LazyColumn(
             Modifier.fillMaxWidth().weight(1f).testTag("cleanup-screen"),
