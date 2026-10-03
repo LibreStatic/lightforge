@@ -1,8 +1,8 @@
 package com.librestatic.lightforge.core.designsystem
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -85,7 +85,8 @@ fun <T, R : Any> selectionRange(from: Int, to: Int, itemAt: (Int) -> T?, pick: (
 }
 
 /**
- * Pointer input for a media tile: hover feedback through [interactionSource], a click that
+ * Pointer input for a media tile: hover and press feedback through [interactionSource] (the
+ * clickable reports hover itself), a click that
  * reports the keyboard modifiers held at press time, and a secondary (right) click that opens a
  * context menu at the pointer instead of activating the tile. Long-press stays with the grid's
  * drag-selection brush, so it is not handled here.
@@ -117,8 +118,7 @@ fun Modifier.mediaTileInput(
                 }
             }
         }
-        .hoverable(interactionSource)
-        .clickable(interactionSource = interactionSource, indication = null) {
+        .clickable(interactionSource = interactionSource, indication = LocalIndication.current) {
             val modifiers = held.value
             held.value = MediaClickModifiers()
             click(modifiers)

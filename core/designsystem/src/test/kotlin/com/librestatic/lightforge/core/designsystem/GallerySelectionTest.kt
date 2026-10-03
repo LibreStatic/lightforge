@@ -34,6 +34,29 @@ class GallerySelectionTest {
     }
 
     @Test
+    fun wideBarsStayOnOneLine() {
+        assertEquals(
+            SelectionBarArrangement(stacked = false, inlineCount = 5),
+            selectionBarArrangement(696.dp, inlineCandidates = 5, hasMenuOnlyActions = true),
+        )
+    }
+
+    @Test
+    fun compactBarsStackTheCountSoEveryEverydayActionStaysVisible() {
+        // 360 dp phone minus 12 dp margins: one line would keep two actions; stacked keeps five.
+        assertEquals(2, selectionBarInlineCount(336.dp, inlineCandidates = 5, hasMenuOnlyActions = true))
+        assertEquals(
+            SelectionBarArrangement(stacked = true, inlineCount = 5),
+            selectionBarArrangement(336.dp, inlineCandidates = 5, hasMenuOnlyActions = true),
+        )
+        // Very narrow: still stacked, and the overflow takes what does not fit.
+        assertEquals(
+            SelectionBarArrangement(stacked = true, inlineCount = 3),
+            selectionBarArrangement(220.dp, inlineCandidates = 5, hasMenuOnlyActions = true),
+        )
+    }
+
+    @Test
     fun clickRulesFollowDesktopConventions() {
         val plain = MediaClickModifiers()
         assertEquals(MediaTileClick.Open, mediaTileClick(selectionMode = false, plain))

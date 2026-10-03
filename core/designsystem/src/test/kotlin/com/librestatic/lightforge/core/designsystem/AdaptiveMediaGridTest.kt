@@ -14,10 +14,20 @@ class AdaptiveMediaGridTest {
         assertEquals(3, columns(360.dp)) // small phone
         assertEquals(3, columns(393.dp)) // phone portrait
         assertEquals(4, columns(577.dp)) // fold pane next to a rail
-        assertEquals(4, columns(673.dp)) // unfolded portrait
+        assertEquals(5, columns(673.dp)) // unfolded portrait
         assertEquals(5, columns(756.dp)) // phone landscape pane
-        assertEquals(6, columns(1184.dp)) // tablet pane
+        assertEquals(7, columns(1184.dp)) // tablet pane
         assertEquals(10, columns(1824.dp)) // desktop pane
+    }
+
+    @Test
+    fun resizingNeverDropsMoreThanOneColumnAtOnce() {
+        var previous = columns(300.dp)
+        for (w in 301..2400) {
+            val current = columns(w.dp)
+            assertTrue("width $w: $previous -> $current", current >= previous - 1)
+            previous = current
+        }
     }
 
     @Test

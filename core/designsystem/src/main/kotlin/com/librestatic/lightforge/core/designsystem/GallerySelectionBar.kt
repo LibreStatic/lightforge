@@ -1,8 +1,11 @@
 package com.librestatic.lightforge.core.designsystem
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -64,6 +67,37 @@ object GallerySelectionBarDefaults {
 
     /** Close button, a typical count label ("12 selected"), divider and paddings. */
     val FixedWidth: Dp = 48.dp + 96.dp + 13.dp + 16.dp
+
+    /** The action pill alone (stacked layout): just its paddings. */
+    val StackedFixedWidth: Dp = 16.dp
+}
+
+/** How [GallerySelectionBar] arranges itself in a given width. */
+data class SelectionBarArrangement(
+    /** True puts close + count in their own pill above the actions, freeing the bar for them. */
+    val stacked: Boolean,
+    val inlineCount: Int,
+)
+
+/**
+ * One pill when every inline action fits next to close + count; otherwise close + count move to
+ * a pill of their own above the actions, which is what keeps the everyday actions visible on a
+ * 360 dp phone at large font scales.
+ */
+fun selectionBarArrangement(
+    availableWidth: Dp,
+    inlineCandidates: Int,
+    hasMenuOnlyActions: Boolean,
+): SelectionBarArrangement {
+    val single = selectionBarInlineCount(availableWidth, inlineCandidates, hasMenuOnlyActions)
+    if (single >= inlineCandidates) return SelectionBarArrangement(stacked = false, inlineCount = single)
+    val stacked = selectionBarInlineCount(
+        availableWidth,
+        inlineCandidates,
+        hasMenuOnlyActions,
+        fixedWidth = GallerySelectionBarDefaults.StackedFixedWidth,
+    )
+    return SelectionBarArrangement(stacked = true, inlineCount = stacked)
 }
 
 /**
@@ -108,59 +142,79 @@ fun GallerySelectionBar(
         count.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
         count,
     ),
+    clearLabel: String = stringResource(R.string.gallery_selection_clear),
+    clearTestTag: String = "gallery_selection_clear",
 ) {
     BoxWithConstraints(modifier.fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
         val inlineActions = actions.filter { it.inline }
         val menuOnly = actions.filterNot { it.inline }
-        val inlineCount = selectionBarInlineCount(maxWidth - GallerySpacing.Md * 2, inlineActions.size, menuOnly.isNotEmpty())
-        val shown = inlineActions.take(inlineCount)
-        val overflow = inlineActions.drop(inlineCount) + menuOnly
-        val roles = GalleryColorRoles.current.raised
-        Surface(
-            color = roles.container,
-            contentColor = roles.content,
-            shape = GalleryShapes.Pill,
-            shadowElevation = 6.dp,
-            modifier = Modifier
-                .padding(horizontal = GallerySpacing.Md, vertical = GallerySpacing.Md)
+        val arrangement = selectionBarArrangement(maxWidth - GallerySpacing.Md * 2, inlineActions.size, menuOnly.isNotEmpty())
+        val shown = inlineActions.take(arrangement.inlineCount)
+        val overflow = inlineActions.drop(arrangement.inlineCount) + menuOnly
+        val clear: @Composable RowScope.() -> Unit = {
+            SelectionBarIcon(
+                GallerySelectionAction(label = clearLabel, icon = GalleryIcons.Close, onClick = onClear, testTag = clearTestTag),
+            )
+            Text(
+                countLabel,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                // Shrinks (and ellipsizes) before any action is squeezed out of the bar.
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .padding(start = GallerySpacing.Xs, end = GallerySpacing.Md)
+                    .semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
+        val tools: @Composable RowScope.() -> Unit = {
+            shown.forEach { action -> SelectionBarIcon(action) }
+            if (overflow.isNotEmpty()) SelectionBarOverflow(overflow)
+        }
+        Column(
+            Modifier
+                .padding(GallerySpacing.Md)
                 .widthIn(max = GallerySelectionBarDefaults.MaxWidth)
-                .heightIn(min = GalleryHeights.FloatingBar)
                 .semantics { testTagsAsResourceId = true }
                 .testTag("gallery_selection_bar"),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
         ) {
-            Row(
-                Modifier.height(GalleryHeights.FloatingBar).padding(horizontal = GallerySpacing.Sm),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                SelectionBarIcon(
-                    GallerySelectionAction(
-                        label = stringResource(R.string.gallery_selection_clear),
-                        icon = GalleryIcons.Close,
-                        onClick = onClear,
-                        testTag = "gallery_selection_clear",
-                    ),
-                )
-                Text(
-                    countLabel,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    // Shrinks (and ellipsizes) before any action is squeezed out of the bar.
-                    modifier = Modifier
-                        .weight(1f, fill = false)
-                        .padding(start = GallerySpacing.Xs, end = GallerySpacing.Md)
-                        .semantics { liveRegion = LiveRegionMode.Polite },
-                )
-                if (shown.isNotEmpty() || overflow.isNotEmpty()) {
-                    VerticalDivider(
-                        Modifier.height(GallerySpacing.Xxl).padding(end = GallerySpacing.Xs),
-                        color = MaterialTheme.colorScheme.outlineVariant,
-                    )
+            if (arrangement.stacked) {
+                SelectionBarPill { clear() }
+                if (shown.isNotEmpty() || overflow.isNotEmpty()) SelectionBarPill { tools() }
+            } else {
+                SelectionBarPill {
+                    clear()
+                    if (shown.isNotEmpty() || overflow.isNotEmpty()) {
+                        VerticalDivider(
+                            Modifier.height(GallerySpacing.Xxl).padding(end = GallerySpacing.Xs),
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                        )
+                    }
+                    tools()
                 }
-                shown.forEach { action -> SelectionBarIcon(action) }
-                if (overflow.isNotEmpty()) SelectionBarOverflow(overflow)
             }
         }
+    }
+}
+
+/** One floating pill of the bar, in the "raised" color role. */
+@Composable
+private fun SelectionBarPill(content: @Composable RowScope.() -> Unit) {
+    val roles = GalleryColorRoles.current.raised
+    Surface(
+        color = roles.container,
+        contentColor = roles.content,
+        shape = GalleryShapes.Pill,
+        shadowElevation = 6.dp,
+        modifier = Modifier.heightIn(min = GalleryHeights.FloatingBar),
+    ) {
+        Row(
+            Modifier.height(GalleryHeights.FloatingBar).padding(horizontal = GallerySpacing.Sm),
+            verticalAlignment = Alignment.CenterVertically,
+            content = content,
+        )
     }
 }
 
@@ -201,7 +255,9 @@ private fun SelectionBarOverflow(actions: List<GallerySelectionAction>) {
                     onClick = { expanded = false; action.onClick() },
                     enabled = action.enabled,
                     leadingIcon = { Icon(action.icon, contentDescription = null) },
-                    modifier = action.testTag?.let { Modifier.testTag(it) } ?: Modifier,
+                    modifier = action.testTag?.let {
+                        Modifier.semantics { testTagsAsResourceId = true }.testTag(it)
+                    } ?: Modifier,
                 )
             }
         }

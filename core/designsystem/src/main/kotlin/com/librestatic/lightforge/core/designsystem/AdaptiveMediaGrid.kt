@@ -61,13 +61,15 @@ object AdaptiveMediaGridDefaults {
     const val MaxColumns: Int = 16
 
     /**
-     * Minimum cell size for a grid whose own width is [width]: about three columns on a phone,
-     * four to five on a fold, six to seven on a tablet and nine to eleven on a desktop window.
+     * Minimum cell size for a grid whose own width is [width]: 112 dp on phones, growing linearly
+     * to 160 dp at 1200 dp. About three columns on a phone, four to five on a fold, seven on a
+     * tablet and ten on a desktop window. The ramp is continuous so resizing a window never drops
+     * several columns at a breakpoint.
      */
     fun minCellSize(width: Dp): Dp = when {
         width < 600.dp -> 112.dp
-        width < 840.dp -> 128.dp
-        else -> 160.dp
+        width >= 1200.dp -> 160.dp
+        else -> 112.dp + 48.dp * ((width - 600.dp) / 600.dp)
     }
 
     /** Edge margin for a grid whose own width is [width]. Phones run the grid nearly edge to edge. */
