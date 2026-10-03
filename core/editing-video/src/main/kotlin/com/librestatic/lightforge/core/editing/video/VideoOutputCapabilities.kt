@@ -10,6 +10,34 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.transformer.EncoderUtil
 
 object VideoOutputCapabilities {
+    /**
+     * Encoders for the output codec choice, preferring hardware ones (the exporter's selector does
+     * too). Blocking but cheap: callers may cache it for the session.
+     */
+    fun encoders(): VideoEncoderCapabilities = runCatching {
+        val encoders = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.filter { it.isEncoder }
+        fun support(mimeType: String): VideoEncoderSupport? {
+            val codec = encoders
+                .filter { codec -> codec.supportedTypes.any { it.equals(mimeType, ignoreCase = true) } }
+                .sortedByDescending { it.isHardwareAccelerated }
+                .firstOrNull() ?: return null
+            val video = codec.getCapabilitiesForType(mimeType).videoCapabilities ?: return VideoEncoderSupport()
+            return VideoEncoderSupport(
+                widthAlignment = video.widthAlignment,
+                heightAlignment = video.heightAlignment,
+                maxWidth = video.supportedWidths.upper,
+                maxHeight = video.supportedHeights.upper,
+                maxBitrate = video.bitrateRange.upper,
+            )
+        }
+        VideoEncoderCapabilities(
+            h264 = support(MimeTypes.VIDEO_H264),
+            hevc = support(MimeTypes.VIDEO_H265),
+            av1 = support(MimeTypes.VIDEO_AV1),
+            hevcMain10 = supportsHevcMain10(),
+        )
+    }.getOrDefault(VideoEncoderCapabilities(h264 = VideoEncoderSupport(), hevc = null, av1 = null))
+
     fun supportsHevcMain10(): Boolean = runCatching {
         MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.any { codec ->
             codec.isEncoder && codec.supportedTypes.any { it.equals(MimeTypes.VIDEO_H265, ignoreCase = true) } &&
