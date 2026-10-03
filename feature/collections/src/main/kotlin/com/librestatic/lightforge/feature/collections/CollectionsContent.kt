@@ -68,6 +68,7 @@ import com.librestatic.lightforge.core.designsystem.GalleryGridMetrics
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryShapeIllustration
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
+import com.librestatic.lightforge.core.designsystem.galleryBottomContentPadding
 import com.librestatic.lightforge.core.model.AlbumAvailability
 import com.librestatic.lightforge.core.model.AlbumSummary
 import com.librestatic.lightforge.core.model.MediaKey
@@ -307,7 +308,8 @@ fun CollectionsContent(
                 val shortcuts = visibleIds.mapNotNull { id -> cards[id]?.takeIf { it.isShortcut() } }
                 val denseColumns = GalleryGridMetrics.adaptiveColumns(maxWidth)
                 val wideShortcuts = maxWidth >= WideCollectionsWidth
-                LazyColumn(contentPadding = PaddingValues(bottom = GallerySpacing.Lg)) {
+                // Collections scroll under the floating navigation; the last row still clears it.
+                LazyColumn(contentPadding = PaddingValues(bottom = galleryBottomContentPadding(GallerySpacing.Lg))) {
                     if (shortcuts.isNotEmpty()) item(key = "shortcuts") {
                         Box(Modifier.padding(bottom = CollectionTileGap)) { CollectionShortcuts(shortcuts, wrap = wideShortcuts) }
                     }

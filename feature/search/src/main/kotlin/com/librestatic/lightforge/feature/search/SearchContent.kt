@@ -79,6 +79,7 @@ import com.librestatic.lightforge.core.designsystem.MediaTileBadges
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveIconButton
 import com.librestatic.lightforge.core.designsystem.GalleryLoadingIndicator
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
+import com.librestatic.lightforge.core.designsystem.galleryBottomContentPadding
 import com.librestatic.lightforge.core.designsystem.RetainGridThumbnailViewport
 import com.librestatic.lightforge.core.designsystem.VideoDurationBadge
 import com.librestatic.lightforge.core.designsystem.galleryAdaptiveLayoutInfo
@@ -339,7 +340,8 @@ private fun SearchResultsGrid(
             columns = GridCells.Fixed(columns),
             state = gridState,
             modifier = Modifier.fillMaxSize().testTag(SEARCH_RESULTS_GRID_TEST_TAG),
-            contentPadding = PaddingValues(bottom = 16.dp),
+            // Results scroll under the floating navigation; the last row still clears it.
+            contentPadding = PaddingValues(bottom = galleryBottomContentPadding(GallerySpacing.Lg)),
             horizontalArrangement = Arrangement.spacedBy(gap),
             verticalArrangement = Arrangement.spacedBy(gap),
         ) {
@@ -408,7 +410,7 @@ private fun SearchDiscovery(
     onPresetSearch: (String) -> Unit,
     onOpenPlaces: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
-    contentPadding: PaddingValues = PaddingValues(),
+    contentPadding: PaddingValues = PaddingValues(bottom = galleryBottomContentPadding(GallerySpacing.Lg)),
     headingModifier: Modifier = Modifier,
     wide: Boolean = false,
 ) {
