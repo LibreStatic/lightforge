@@ -35,4 +35,29 @@
     <string name="photos_more_options">More options</string>
     <string name="photos_menu_settings">Settings</string>
     <string name="photos_menu_device_folders">On device</string>
+    <string name="photos_filter_all">All</string>
+    <string name="photos_filter_photos">Photos</string>
+    <string name="photos_filter_videos">Videos</string>
+    <string name="photos_filter_animated">Animated</string>
+    <string name="photos_filter_raw">RAW</string>
+    <string name="photos_sort_current">Sort: %1$s</string>
+    <string name="photos_sort_newest">Newest first</string>
+    <string name="photos_sort_oldest">Oldest first</string>
+    <string name="photos_sort_modified">Recently modified</string>
+    <string name="photos_sort_name">Name</string>
+    <string name="photos_sort_largest">Largest first</string>
+    <string name="photos_filter_empty_title">Nothing matches this filter</string>
+    <string name="photos_filter_empty_body">Try another filter or show everything.</string>
+    <string name="photos_filter_empty_action">Show everything</string>
+    <string name="timeline_select_group">Select all from %1$s</string>
+    <string name="timeline_deselect_group">Deselect all from %1$s</string>
+    <string name="timeline_menu_select_all">Select all</string>
+    <plurals name="library_summary">
+        <item quantity="one">%d item on this device</item>
+        <item quantity="other">%d items on this device</item>
+    </plurals>
+    <plurals name="timeline_group_count">
+        <item quantity="one">%d item</item>
+        <item quantity="other">%d items</item>
+    </plurals>
 </resources>

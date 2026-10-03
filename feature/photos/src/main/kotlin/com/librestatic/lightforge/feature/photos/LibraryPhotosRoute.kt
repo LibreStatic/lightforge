@@ -14,7 +14,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Badge
 import androidx.compose.material3.Card
@@ -27,8 +26,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
@@ -52,6 +49,17 @@ import com.librestatic.lightforge.core.model.TimelineMedia
 import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
 import com.librestatic.lightforge.core.thumbnail.ThumbnailRequest
 import com.librestatic.lightforge.core.designsystem.GalleryCircularProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryColorRoles
+import com.librestatic.lightforge.core.designsystem.GalleryEmptyState
+import com.librestatic.lightforge.core.designsystem.GalleryScrims
+import com.librestatic.lightforge.core.designsystem.GalleryShapes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 
 data class PhotoHighlightUi(
     val id: String,
@@ -94,6 +102,16 @@ fun LibraryPhotosRoute(
     scrubberIndex: TimelineIndex? = null,
     onScrubberJump: (TimelineAnchor?) -> Unit = {},
     backgroundStatus: LibraryBackgroundStatus? = null,
+    filter: PhotosFilter = PhotosFilter.All,
+    /** Null hides the filter row. */
+    onFilterChange: ((PhotosFilter) -> Unit)? = null,
+    sort: PhotosSort = PhotosSort.Newest,
+    /** Null hides the sort menu. */
+    onSortChange: ((PhotosSort) -> Unit)? = null,
+    /** Ctrl+A and the tile context menu's "Select all"; null hides both. */
+    onSelectAll: (() -> Unit)? = null,
+    /** Esc while selecting. */
+    onClearSelection: (() -> Unit)? = null,
 ) {
     val densityState = rememberTimelineDensityState()
     val pagingError = entries.loadState.refresh as? LoadState.Error
@@ -105,14 +123,17 @@ fun LibraryPhotosRoute(
             entries.loadState.refresh is LoadState.Loading && entries.itemCount == 0 -> LibraryUiState.Starting
         else -> engineState
     }
-    val wideToolbar = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp >= 600
+    // The route's own width, not the window's: a rail or a side panel narrows it.
+    BoxWithConstraints(modifier.fillMaxSize()) {
+    val wideToolbar = maxWidth >= 600.dp
+    val page = GalleryColorRoles.current.page
     androidx.compose.runtime.CompositionLocalProvider(
-        androidx.compose.material3.LocalContentColor provides MaterialTheme.colorScheme.onBackground,
+        androidx.compose.material3.LocalContentColor provides page.content,
     ) {
     Column(
-        modifier
+        Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(page.container),
     ) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Md),
@@ -175,16 +196,48 @@ fun LibraryPhotosRoute(
             }
         }
 
-        if (selectionMode) {
+        // The stack hint shows once per session when a selection starts, then gets out of the way.
+        var selectionHintShown by rememberSaveable { mutableStateOf(false) }
+        var selectionHintVisible by remember { mutableStateOf(false) }
+        LaunchedEffect(selectionMode) {
+            if (selectionMode && !selectionHintShown) {
+                selectionHintShown = true
+                selectionHintVisible = true
+                delay(SelectionHintMillis)
+            }
+            selectionHintVisible = false
+        }
+        AnimatedVisibility(selectionHintVisible) {
+            val active = GalleryColorRoles.current.active
             androidx.compose.material3.Surface(
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier = Modifier.fillMaxWidth(),
+                color = active.container,
+                contentColor = active.content,
+                shape = GalleryShapes.Plate,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Xs),
             ) {
                 Text(stringResource(R.string.timeline_stack_selection_hint),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Sm))
             }
+        }
+        val showFilterBar = onFilterChange != null && thumbnailLoader != null &&
+            presentationState != LibraryUiState.PermissionRequired &&
+            presentationState != LibraryUiState.Error &&
+            presentationState != LibraryUiState.Starting
+        if (showFilterBar) {
+            PhotosFilterBar(
+                filter = filter,
+                onFilterChange = requireNotNull(onFilterChange),
+                sort = sort,
+                onSortChange = onSortChange,
+                totalCount = scrubberIndex?.total,
+                wide = wideToolbar,
+                modifier = Modifier.padding(
+                    start = GallerySpacing.Lg,
+                    end = if (wideToolbar) GallerySpacing.Lg else GallerySpacing.Xs,
+                    bottom = GallerySpacing.Xs,
+                ),
+            )
         }
         when {
             engineState == LibraryUiState.PermissionRequired -> PermissionRequired(onRequestAccess)
@@ -204,6 +257,14 @@ fun LibraryPhotosRoute(
                     modifier = Modifier.fillMaxSize(),
                 )
             }
+            entries.itemCount == 0 && engineState == LibraryUiState.Ready && filter != PhotosFilter.All &&
+                onFilterChange != null -> GalleryEmptyState(
+                title = stringResource(R.string.photos_filter_empty_title),
+                body = stringResource(R.string.photos_filter_empty_body),
+                actionLabel = stringResource(R.string.photos_filter_empty_action),
+                onAction = { onFilterChange(PhotosFilter.All) },
+                modifier = Modifier.fillMaxSize(),
+            )
             entries.itemCount == 0 && engineState == LibraryUiState.Ready -> EmptyLibrary(Modifier.fillMaxSize())
             else -> {
                 AdaptivePagedPhotosTimeline(
@@ -222,12 +283,18 @@ fun LibraryPhotosRoute(
                     onDensityChange = onDensityChange,
                     scrubberIndex = scrubberIndex,
                     onScrubberJump = onScrubberJump,
+                    selectionMode = selectionMode,
+                    onSelectAll = onSelectAll,
+                    onClearSelection = onClearSelection,
                 )
             }
         }
     }
     }
+    }
 }
+
+private const val SelectionHintMillis = 5_000L
 
 @Composable
 private fun UpdatesAction(
@@ -304,21 +371,19 @@ private fun HighlightCard(highlight: PhotoHighlightUi, loader: ThumbnailLoader) 
     }
     Card(
         Modifier.width(156.dp).height(176.dp).clickable(onClick = highlight.onClick),
-        shape = RoundedCornerShape(20.dp),
+        shape = GalleryShapes.Card,
     ) {
-        androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp))) {
+        androidx.compose.foundation.layout.Box(Modifier.fillMaxSize().clip(GalleryShapes.Card)) {
             bitmap?.let {
                 Image(it.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             }
             androidx.compose.foundation.layout.Box(
-                Modifier.fillMaxSize().background(
-                    Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.72f))),
-                ),
+                Modifier.fillMaxSize().background(GalleryScrims.bottom()),
             )
             Text(
                 highlight.title,
                 style = MaterialTheme.typography.titleMedium,
-                color = Color.White,
+                color = GalleryScrims.Content,
                 modifier = Modifier.align(Alignment.BottomStart).padding(12.dp),
             )
         }

@@ -38,6 +38,8 @@ import com.librestatic.lightforge.core.designsystem.GalleryGridMetrics
 import com.librestatic.lightforge.core.designsystem.MediaSelectionOverlay
 import com.librestatic.lightforge.core.designsystem.RetainGridThumbnailViewport
 import com.librestatic.lightforge.core.designsystem.VideoDurationBadge
+import com.librestatic.lightforge.core.designsystem.GalleryShapes
+import androidx.compose.ui.draw.clip
 import com.librestatic.lightforge.core.designsystem.lazyGridDragSelection
 import com.librestatic.lightforge.core.model.MediaKind
 import com.librestatic.lightforge.core.model.TimelineMedia
@@ -59,16 +61,15 @@ fun MediaCollectionGrid(
 ) {
     BoxWithConstraints(modifier.fillMaxSize()) {
         val state = rememberLazyGridState()
-        val columns = GalleryGridMetrics.adaptiveColumns(maxWidth)
-        val sizePx = with(LocalDensity.current) {
-            ((maxWidth - GalleryGridMetrics.Gap * (columns - 1)) / columns).roundToPx()
-        }.coerceAtLeast(1)
+        val layout = com.librestatic.lightforge.core.designsystem.mediaGridLayout(maxWidth)
+        val columns = layout.columns
+        val sizePx = layout.cellSizePx(LocalDensity.current.density)
         LazyVerticalGrid(
             columns = GridCells.Fixed(columns),
             state = state,
             horizontalArrangement = Arrangement.spacedBy(GalleryGridMetrics.Gap),
             verticalArrangement = Arrangement.spacedBy(GalleryGridMetrics.Gap),
-            contentPadding = PaddingValues(
+            contentPadding = layout.contentPadding(
                 bottom = com.librestatic.lightforge.core.designsystem.galleryBottomContentPadding(96.dp),
             ),
             modifier = Modifier.fillMaxSize().lazyGridDragSelection(
@@ -102,7 +103,7 @@ fun MediaCollectionGrid(
                         isVideo = isVideo,
                     )
                     Box(
-                        Modifier.fillMaxWidth().aspectRatio(1f).clearAndSetSemantics {
+                        Modifier.fillMaxWidth().aspectRatio(1f).clip(GalleryShapes.Thumbnail).clearAndSetSemantics {
                             contentDescription = description
                             selected = isSelected(media)
                             onClick {
@@ -141,11 +142,17 @@ fun MediaCollectionGrid(
                             modifier = Modifier.align(Alignment.TopStart).padding(6.dp),
                         )
                         if (media.kind == MediaKind.Video) {
-                            VideoDurationBadge(media.durationMillis, Modifier.align(Alignment.TopEnd).padding(6.dp))
+                            VideoDurationBadge(media.durationMillis, Modifier.align(Alignment.BottomEnd).padding(6.dp))
                         }
-                        MediaSelectionOverlay(isSelected(media))
+                        MediaSelectionOverlay(isSelected(media), shape = GalleryShapes.Thumbnail)
+                        com.librestatic.lightforge.core.designsystem.MediaSelectionAffordance(
+                            visible = selectionMode && !isSelected(media),
+                        )
                     }
-                } ?: Box(Modifier.fillMaxWidth().aspectRatio(1f).background(MaterialTheme.colorScheme.surfaceVariant))
+                } ?: Box(
+                    Modifier.fillMaxWidth().aspectRatio(1f).clip(GalleryShapes.Thumbnail)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                )
             }
         }
         RetainGridThumbnailViewport(

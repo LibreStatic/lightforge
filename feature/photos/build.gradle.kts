@@ -41,4 +41,6 @@ dependencies {
     androidTestImplementation(libs.androidx.test.ext)
     androidTestImplementation(libs.androidx.test.runner)
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+    // Driver previews in src/debug (tools/compose-driver); never part of release builds.
+    debugImplementation("androidx.compose.ui:ui-tooling-preview")
 }

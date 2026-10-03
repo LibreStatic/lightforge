@@ -7,10 +7,17 @@ import org.junit.Test
 
 class TimelineDensityStateTest {
     @Test
-    fun adaptiveColumnsCoverCompactMediumAndExpanded() {
-        assertEquals(listOf(2, 3, 4, 5, 7), adaptiveDensityColumns(599).toList())
-        assertEquals(listOf(3, 5, 6, 7, 9), adaptiveDensityColumns(600).toList())
-        assertEquals(listOf(5, 7, 9, 11, 13), adaptiveDensityColumns(840).toList())
+    fun pinchLevelsCenterOnTheSharedGridDefault() {
+        assertEquals(listOf(2, 3, 4, 5, 7), adaptiveDensityColumns(393).toList())
+        listOf(360, 577, 673, 756, 1000, 1184, 1824).forEach { width ->
+            val levels = adaptiveDensityColumns(width).toList()
+            val default = com.librestatic.lightforge.core.designsystem.mediaGridLayout(
+                androidx.compose.ui.unit.Dp(width.toFloat()),
+            ).columns
+            assertEquals("width $width", default, levels[1])
+            assertEquals("width $width", levels.sorted().distinct(), levels)
+            assertTrue("width $width", levels.first() >= 2)
+        }
     }
 
     @Test
@@ -37,16 +44,16 @@ class TimelineDensityStateTest {
         val state = TimelineDensityState(0, 0, 0)
         state.seedFromPreferredColumns(columns = null, widthDp = 411)
         assertEquals(3, state.columns(411))
-        // Unfolded inner display next to the rail (~730 dp) targets ~128 dp tiles.
+        // Unfolded inner display next to the rail (~730 dp) gets ~140 dp tiles.
         state.seedFromPreferredColumns(columns = null, widthDp = 730)
         assertEquals(5, state.columns(730))
         state.seedFromPreferredColumns(columns = null, widthDp = 1000)
-        assertEquals(7, state.columns(1000))
+        assertEquals(6, state.columns(1000))
         assertFalse(state.userAdjusted)
         assertTrue(state.changeDensity(delta = 1, anchorIndex = 0))
         assertTrue(state.userAdjusted)
         state.seedFromPreferredColumns(columns = null, widthDp = 1000)
-        assertEquals(9, state.columns(1000))
+        assertEquals(8, state.columns(1000))
     }
 
     @Test

@@ -30,4 +30,31 @@
     <string name="photos_more_options">Altre opzioni</string>
     <string name="photos_menu_settings">Impostazioni</string>
     <string name="photos_menu_device_folders">Sul dispositivo</string>
+    <string name="photos_filter_all">Tutto</string>
+    <string name="photos_filter_photos">Foto</string>
+    <string name="photos_filter_videos">Video</string>
+    <string name="photos_filter_animated">Animate</string>
+    <string name="photos_filter_raw">RAW</string>
+    <string name="photos_sort_current">Ordine: %1$s</string>
+    <string name="photos_sort_newest">Più recenti</string>
+    <string name="photos_sort_oldest">Meno recenti</string>
+    <string name="photos_sort_modified">Modificate di recente</string>
+    <string name="photos_sort_name">Nome</string>
+    <string name="photos_sort_largest">Più grandi</string>
+    <string name="photos_filter_empty_title">Nessun elemento corrisponde al filtro</string>
+    <string name="photos_filter_empty_body">Prova un altro filtro o mostra tutto.</string>
+    <string name="photos_filter_empty_action">Mostra tutto</string>
+    <string name="timeline_select_group">Seleziona tutto del %1$s</string>
+    <string name="timeline_deselect_group">Deseleziona tutto del %1$s</string>
+    <string name="timeline_menu_select_all">Seleziona tutto</string>
+    <plurals name="library_summary">
+        <item quantity="one">%d elemento su questo dispositivo</item>
+        <item quantity="many">%d elementi su questo dispositivo</item>
+        <item quantity="other">%d elementi su questo dispositivo</item>
+    </plurals>
+    <plurals name="timeline_group_count">
+        <item quantity="one">%d elemento</item>
+        <item quantity="many">%d elementi</item>
+        <item quantity="other">%d elementi</item>
+    </plurals>
 </resources>

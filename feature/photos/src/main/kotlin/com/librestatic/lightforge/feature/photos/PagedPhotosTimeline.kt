@@ -2,7 +2,6 @@ package com.librestatic.lightforge.feature.photos
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
@@ -44,12 +43,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.testTagsAsResourceId
-import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.unit.dp
 import androidx.paging.compose.LazyPagingItems
 import com.librestatic.lightforge.core.designsystem.GalleryGridMetrics
@@ -79,6 +73,39 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.graphics.graphicsLayer
 import kotlinx.coroutines.flow.first
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
+import com.librestatic.lightforge.core.designsystem.GalleryExpressiveIconButton
+import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.designsystem.GallerySelectionAction
+import com.librestatic.lightforge.core.designsystem.GalleryShapes
+import com.librestatic.lightforge.core.designsystem.MediaClickModifiers
+import com.librestatic.lightforge.core.designsystem.MediaSelectionAffordance
+import com.librestatic.lightforge.core.designsystem.MediaTileContextMenu
+import com.librestatic.lightforge.core.designsystem.mediaGridLayout
+import com.librestatic.lightforge.core.designsystem.mediaTileDate
+import com.librestatic.lightforge.core.designsystem.mediaTileInput
+import com.librestatic.lightforge.core.designsystem.mediaTileSemantics
+import com.librestatic.lightforge.core.designsystem.rememberMediaTileMenuState
+import com.librestatic.lightforge.core.designsystem.selectionRange
 
 /** One-shot input-focus request. Real TalkBack focus requires separate device acceptance. */
 data class TimelineFocusReturn(val key: MediaKey, val token: Long)
@@ -104,6 +131,12 @@ fun AdaptivePagedPhotosTimeline(
     /** Day histogram of the whole timeline; null (the default) hides the date scrubber. */
     scrubberIndex: TimelineIndex? = null,
     onScrubberJump: (TimelineAnchor?) -> Unit = {},
+    /** True while any media is selected: taps toggle and every tile shows its check circle. */
+    selectionMode: Boolean = false,
+    /** Ctrl+A and the tile context menu; null hides "Select all". */
+    onSelectAll: (() -> Unit)? = null,
+    /** Esc while selecting; null leaves Esc to the window. */
+    onClearSelection: (() -> Unit)? = null,
 ) {
     var scrubbing by remember { mutableStateOf(false) }
     var fastScrub by remember { mutableStateOf(false) }
@@ -131,9 +164,12 @@ fun AdaptivePagedPhotosTimeline(
                 null
             },
         )
+        // The same edge margins as every other media grid; the pinch level only picks the columns.
+        val edge = mediaGridLayout(maxWidth).startPadding
         val sizePx = with(LocalDensity.current) {
-            ((maxWidth - GalleryGridMetrics.Gap * (columns - 1)) / columns).roundToPx()
+            ((maxWidth - edge * 2 - GalleryGridMetrics.Gap * (columns - 1)) / columns).roundToPx()
         }.coerceAtLeast(1)
+        val groupCounts = remember(scrubberIndex) { scrubberIndex?.let(::TimelineGroupCounts) }
         PagedPhotosTimeline(
             entries = entries,
             thumbnailLoader = thumbnailLoader,
@@ -151,6 +187,11 @@ fun AdaptivePagedPhotosTimeline(
             onFocusReturnConsumed = onFocusReturnConsumed,
             scrubbing = scrubbing,
             deferThumbnails = fastScrub,
+            horizontalPadding = edge,
+            selectionMode = selectionMode,
+            groupCounts = groupCounts,
+            onSelectAll = onSelectAll,
+            onClearSelection = onClearSelection,
         )
         if (scrubberIndex != null && !scrubberIndex.isEmpty) {
             TimelineScrubber(
@@ -188,8 +229,43 @@ fun PagedPhotosTimeline(
     scrubbing: Boolean = false,
     /** True while the scrubber moves fast: tiles keep their placeholders and nothing is decoded. */
     deferThumbnails: Boolean = false,
+    /** Edge margin on both sides of the grid; headers align their text with it. */
+    horizontalPadding: Dp = 0.dp,
+    selectionMode: Boolean = false,
+    /** Item counts for the date headers; null hides the counts. */
+    groupCounts: TimelineGroupCounts? = null,
+    onSelectAll: (() -> Unit)? = null,
+    onClearSelection: (() -> Unit)? = null,
 ) {
     require(columns > 0 && thumbnailSizePx > 0)
+    // Shift-click extends from the last tile the user clicked or toggled, by stable key so the
+    // anchor survives paging.
+    var rangeAnchorKey by remember { mutableStateOf<String?>(null) }
+    fun mediaAt(index: Int) = (entries.itemSnapshotList.getOrNull(index) as? TimelineEntry.Media)?.value
+    fun extendSelectionTo(index: Int, media: TimelineMedia) {
+        val snapshot = entries.itemSnapshotList
+        val anchor = rangeAnchorKey?.let { key -> snapshot.indexOfFirst { it?.stableKey == key } } ?: -1
+        if (anchor < 0) {
+            onMediaSelectionChange(media, !isMediaSelected(media))
+        } else {
+            selectionRange(anchor, index, snapshot::getOrNull) { (it as? TimelineEntry.Media)?.value }
+                .forEach { if (!isMediaSelected(it)) onMediaSelectionChange(it, true) }
+        }
+        rangeAnchorKey = snapshot.getOrNull(index)?.stableKey
+    }
+    /** Loaded media of the group whose header sits at [headerIndex]. */
+    fun groupMedia(headerIndex: Int): List<TimelineMedia> {
+        val snapshot = entries.itemSnapshotList
+        val result = mutableListOf<TimelineMedia>()
+        var index = headerIndex + 1
+        while (index < snapshot.size) {
+            val entry = snapshot[index] ?: break
+            if (entry !is TimelineEntry.Media) break
+            result += entry.value
+            index++
+        }
+        return result
+    }
     val focusSnapshot = entries.itemSnapshotList
     LaunchedEffect(focusReturn, state.isScrollInProgress, focusSnapshot, entries.loadState) {
         val request = focusReturn ?: return@LaunchedEffect
@@ -210,7 +286,9 @@ fun PagedPhotosTimeline(
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
         state = state,
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+        contentPadding = PaddingValues(
+            start = horizontalPadding,
+            end = horizontalPadding,
             bottom = com.librestatic.lightforge.core.designsystem.galleryBottomContentPadding(),
         ),
         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(GalleryGridMetrics.Gap),
@@ -237,6 +315,18 @@ fun PagedPhotosTimeline(
                     onMediaSelectionChange(media, selected)
                 },
             )
+            .onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                when {
+                    event.key == Key.A && (event.isCtrlPressed || event.isMetaPressed) && onSelectAll != null -> {
+                        onSelectAll(); true
+                    }
+                    event.key == Key.Escape && selectionMode && onClearSelection != null -> {
+                        onClearSelection(); true
+                    }
+                    else -> false
+                }
+            }
             .testTag("timeline_grid")
             .semantics { testTagsAsResourceId = true },
     ) {
@@ -252,15 +342,48 @@ fun PagedPhotosTimeline(
             Box(Modifier.gridEntrance(entrance, index)) {
                 // A previous layout can still request an index after Paging publishes fewer rows.
                 when (val entry = if (index in 0 until entries.itemCount) entries[index] else null) {
-                    is TimelineEntry.DayHeader -> TimelineDayHeader(entry.epochDay, entry.granularity, leading = index == 0)
+                    is TimelineEntry.DayHeader -> {
+                        val group = if (selectionMode) groupMedia(index) else emptyList()
+                        val groupSelected = group.isNotEmpty() && group.all(isMediaSelected)
+                        TimelineDayHeader(
+                            epochDay = entry.epochDay,
+                            granularity = entry.granularity,
+                            leading = index == 0,
+                            count = groupCounts?.count(entry.epochDay, entry.granularity),
+                            inset = (GallerySpacing.Md - horizontalPadding).coerceAtLeast(0.dp),
+                            groupSelected = groupSelected,
+                            onToggleGroup = if (selectionMode && group.isNotEmpty()) {
+                                { group.forEach { if (isMediaSelected(it) == groupSelected) onMediaSelectionChange(it, !groupSelected) } }
+                            } else null,
+                        )
+                    }
                     is TimelineEntry.Media -> TimelineThumbnail(
                         entry = entry,
                         loader = thumbnailLoader,
                         sizePx = thumbnailSizePx,
-                        onClick = { onMediaClick(entry.value) },
+                        onClick = {
+                            rangeAnchorKey = entry.stableKey
+                            onMediaClick(entry.value)
+                        },
                         onLongClick = {
+                            rangeAnchorKey = entry.stableKey
                             onMediaSelectionChange(entry.value, !isMediaSelected(entry.value))
                         },
+                        onPointerClick = { modifiers ->
+                            when {
+                                modifiers.extend -> extendSelectionTo(index, entry.value)
+                                modifiers.toggle -> {
+                                    rangeAnchorKey = entry.stableKey
+                                    onMediaSelectionChange(entry.value, !isMediaSelected(entry.value))
+                                }
+                                else -> {
+                                    rangeAnchorKey = entry.stableKey
+                                    onMediaClick(entry.value)
+                                }
+                            }
+                        },
+                        selectionMode = selectionMode,
+                        onSelectAll = onSelectAll,
                         cropToFill = cropThumbnails,
                         selected = isMediaSelected(entry.value),
                         selectionOrder = selectionOrder(entry.value),
@@ -317,7 +440,15 @@ fun PagedPhotosTimeline(
 }
 
 @Composable
-private fun TimelineDayHeader(epochDay: Long, granularity: TimelineGrouping, leading: Boolean = false) {
+private fun TimelineDayHeader(
+    epochDay: Long,
+    granularity: TimelineGrouping,
+    leading: Boolean = false,
+    count: Int? = null,
+    inset: Dp = GallerySpacing.Lg,
+    groupSelected: Boolean = false,
+    onToggleGroup: (() -> Unit)? = null,
+) {
     val locale = LocalConfiguration.current.locales[0]
     val date = LocalDate.ofEpochDay(epochDay)
     val text = when (granularity) {
@@ -325,17 +456,43 @@ private fun TimelineDayHeader(epochDay: Long, granularity: TimelineGrouping, lea
         TimelineGrouping.Month -> date.format(DateTimeFormatter.ofPattern("LLLL yyyy", locale))
         TimelineGrouping.Year -> date.year.toString()
     }
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.padding(
-            start = GallerySpacing.Lg,
-            end = GallerySpacing.Lg,
+    Row(
+        Modifier
+            .fillMaxWidth()
             // The chrome above already spaces the grid's first row; extra room here only shows at the top.
-            top = if (leading) 0.dp else GallerySpacing.Lg,
-            bottom = GallerySpacing.Sm,
-        ),
-    )
+            .padding(start = inset, end = if (onToggleGroup != null) 0.dp else inset, top = if (leading) 0.dp else GallerySpacing.Sm)
+            .heightIn(min = 48.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleMedium,
+            maxLines = 1,
+            modifier = Modifier.weight(1f, fill = false).semantics { heading() },
+        )
+        if (count != null) {
+            Text(
+                text = " · " + pluralStringResource(R.plurals.timeline_group_count, count, count),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
+        }
+        Spacer(Modifier.weight(1f))
+        if (onToggleGroup != null) {
+            val description = stringResource(
+                if (groupSelected) R.string.timeline_deselect_group else R.string.timeline_select_group,
+                text,
+            )
+            GalleryExpressiveIconButton(onClick = onToggleGroup) {
+                Icon(
+                    if (groupSelected) GalleryIcons.CheckCircle else GalleryIcons.Unchecked,
+                    contentDescription = description,
+                    tint = if (groupSelected) MaterialTheme.colorScheme.primary else androidx.compose.material3.LocalContentColor.current,
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -346,6 +503,9 @@ private fun TimelineThumbnail(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    onPointerClick: (MediaClickModifiers) -> Unit = { onClick() },
+    selectionMode: Boolean = false,
+    onSelectAll: (() -> Unit)? = null,
     cropToFill: Boolean = true,
     selected: Boolean = false,
     selectionOrder: Int? = null,
@@ -376,7 +536,14 @@ private fun TimelineThumbnail(
         com.librestatic.lightforge.core.designsystem.mediaTileDescription(
             base, entry.value.isFavorite, entry.value.displayName, isVideo,
         )
+    }.let { label ->
+        // The date tells otherwise identical "Photo" tiles apart while swiping through a day.
+        mediaTileDate(entry.value.timelineSortMillis)?.let { "$label, $it" } ?: label
     }
+    val interactionSource = remember { MutableInteractionSource() }
+    val hovered by interactionSource.collectIsHoveredAsState()
+    val menu = rememberMediaTileMenuState()
+    val density = LocalDensity.current
     val request = entry.value.thumbnailRequest(sizePx)
     val bitmap by key(request, loader) { produceState(loader.cached(request), deferLoad) {
         // A stack keeps its stable grid key when its cover changes; key() above starts a fresh
@@ -394,17 +561,17 @@ private fun TimelineThumbnail(
     val cellModifier = modifier
         .fillMaxWidth()
         .aspectRatio(1f)
+        .clip(GalleryShapes.Thumbnail)
         .testTag("media_${entry.value.key.volumeName}_${entry.value.key.mediaStoreId}")
-        .clearAndSetSemantics {
-            // Clearing also drops the clickable's actions, so they are restated here.
-            this.contentDescription = contentDescription
-            this.selected = selected
-            this.onClick { onClick(); true }
-            onLongClick(label = longPressLabel) {
-                onLongClick()
-                true
-            }
-        }
+        // One node: label, selected state, open/select actions named for TalkBack.
+        .mediaTileSemantics(
+            description = contentDescription,
+            selected = selected,
+            selectionMode = selectionMode,
+            onOpen = onClick,
+            onToggleSelection = onLongClick,
+            longPressLabel = longPressLabel,
+        )
         // Only a pending focus return needs placement; the callback runs every scrolled frame.
         .then(
             if (focusReturn == null) Modifier else Modifier.onGloballyPositioned { coordinates ->
@@ -412,7 +579,13 @@ private fun TimelineThumbnail(
             },
         )
         .focusRequester(inputFocusRequester)
-        .clickable(onClick = onClick)
+        .mediaTileInput(
+            interactionSource = interactionSource,
+            onClick = onPointerClick,
+            onSecondaryClick = { position ->
+                menu.open(with(density) { DpOffset(position.x.toDp(), position.y.toDp() - sizePx.toDp()) })
+            },
+        )
     Box(cellModifier) {
         if (loaded == null) {
             Box(
@@ -454,7 +627,7 @@ private fun TimelineThumbnail(
             androidx.compose.material3.Surface(
                 color = MaterialTheme.colorScheme.secondaryContainer,
                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                shape = GalleryShapes.Badge,
                 modifier = Modifier.align(Alignment.BottomStart).padding(6.dp)
                     .testTag("timeline-stack-${stack.id}"),
             ) {
@@ -469,7 +642,31 @@ private fun TimelineThumbnail(
                 }
             }
         }
-        MediaSelectionOverlay(selected, order = selectionOrder)
+        MediaSelectionOverlay(selected, order = selectionOrder, shape = GalleryShapes.Thumbnail)
+        // Hollow circle on every tile while selecting, and on hover so a mouse can start a selection.
+        MediaSelectionAffordance(
+            visible = !selected && (selectionMode || hovered),
+            onToggle = if (selectionMode) null else onLongClick,
+        )
+        if (menu.expanded) {
+            val open = stringResource(com.librestatic.lightforge.core.designsystem.R.string.media_tile_action_open)
+            val toggle = stringResource(
+                if (selected) com.librestatic.lightforge.core.designsystem.R.string.media_tile_action_deselect
+                else com.librestatic.lightforge.core.designsystem.R.string.media_tile_action_select,
+            )
+            val selectAll = stringResource(R.string.timeline_menu_select_all)
+            MediaTileContextMenu(
+                expanded = true,
+                onDismiss = menu::dismiss,
+                offset = menu.offset,
+                actions = buildList {
+                    // While selecting, a plain tap toggles, so "Open" would not do what it says.
+                    if (!selectionMode) add(GallerySelectionAction(open, GalleryIcons.OpenInNew, onClick, testTag = "tile_menu_open"))
+                    add(GallerySelectionAction(toggle, GalleryIcons.CheckCircle, onLongClick, testTag = "tile_menu_select"))
+                    if (onSelectAll != null) add(GallerySelectionAction(selectAll, GalleryIcons.SelectAll, onSelectAll))
+                },
+            )
+        }
     }
 }
 

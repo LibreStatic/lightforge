@@ -33,7 +33,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.unit.dp
-import com.librestatic.lightforge.core.designsystem.GalleryGridMetrics
+import com.librestatic.lightforge.core.designsystem.mediaGridLayout
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.collectLatest
@@ -42,11 +42,23 @@ import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
-internal fun adaptiveDensityColumns(widthDp: Int): IntArray = when {
-    widthDp < 600 -> intArrayOf(2, 3, 4, 5, 7)
-    widthDp < 840 -> intArrayOf(3, 5, 6, 7, 9)
-    else -> intArrayOf(5, 7, 9, 11, 13)
+/**
+ * The five pinch levels for a grid [widthDp] wide. Level 1 is the width's default column count
+ * from [mediaGridLayout], so the automatic grid always matches every other media grid; the other
+ * levels scale the cell size around it (larger cells to the left, smaller to the right). On a
+ * phone this is 2, 3, 4, 5, 7 columns.
+ */
+internal fun adaptiveDensityColumns(widthDp: Int): IntArray {
+    val default = mediaGridLayout(widthDp.coerceAtLeast(1).dp).columns
+    var previous = 1
+    return IntArray(DensityScale.size) { level ->
+        val target = (default * DensityScale[level]).roundToInt().coerceAtLeast(2)
+        maxOf(target, previous + 1).also { previous = it }
+    }
 }
+
+/** Column multipliers of the pinch levels relative to the default (level 1). */
+private val DensityScale = floatArrayOf(2f / 3f, 1f, 4f / 3f, 5f / 3f, 7f / 3f)
 
 @Stable
 class TimelineDensityState internal constructor(
@@ -94,7 +106,7 @@ class TimelineDensityState internal constructor(
     fun seedFromPreferredColumns(columns: Int?, widthDp: Int) {
         if (seededFromPreferredColumns || userAdjusted) return
         if (columns != null) seededFromPreferredColumns = true
-        val target = columns ?: GalleryGridMetrics.adaptiveColumns(widthDp.dp)
+        val target = columns ?: mediaGridLayout(widthDp.coerceAtLeast(1).dp).columns
         val options = adaptiveDensityColumns(widthDp)
         var bestIndex = 0
         var bestDistance = Int.MAX_VALUE
