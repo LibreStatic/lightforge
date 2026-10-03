@@ -31,5 +31,8 @@ dependencies {
     implementation("androidx.compose.foundation:foundation")
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.material.icons.extended)
+    // Driver previews in src/debug (tools/compose-driver); never part of release builds.
+    debugImplementation("androidx.compose.ui:ui-tooling-preview")
     testImplementation(libs.junit4)
 }

@@ -7,4 +7,20 @@
     <string name="details_location">Ubicación</string><string name="details_location_missing">Sin ubicación</string><string name="details_location_permission">Se requiere permiso de ubicación</string>
     <string name="details_metadata_not_image">Los metadatos de cámara no están disponibles para videos.</string><string name="details_metadata_unavailable">Los metadatos están dañados o no son compatibles.</string><string name="details_media_unavailable">Este elemento no está disponible.</string>
     <string name="details_detected_text">Texto detectado</string><string name="details_copy_text">Copiar texto</string>
+    <string name="details_section_captured">Captura</string>
+    <string name="details_section_file">Archivo</string>
+    <string name="details_section_camera">Cámara</string>
+    <string name="details_time">Hora</string>
+    <string name="details_format">Formato</string>
+    <string name="details_duration">Duración</string>
+    <string name="details_aperture">Apertura</string>
+    <string name="details_shutter">Velocidad de obturación</string>
+    <string name="details_focal_length">Distancia focal</string>
+    <string name="details_camera_empty">Este archivo no tiene información de la cámara.</string>
+    <string name="details_location_empty_body">Este archivo no registra dónde se tomó.</string>
+    <string name="details_place">Lugar</string>
+    <string name="details_place_near">Cerca de %1$s</string>
+    <string name="details_coordinates">Coordenadas</string>
+    <string name="details_expand_section">Expandir %1$s</string>
+    <string name="details_collapse_section">Contraer %1$s</string>
 </resources>

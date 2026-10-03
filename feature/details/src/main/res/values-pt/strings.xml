@@ -1,4 +1,20 @@
 <resources>
     <string name="details_title">Detalhes</string><string name="details_name">Nome</string><string name="details_type">Tipo</string><string name="details_size">Tamanho</string><string name="details_dimensions">Dimensões</string><string name="details_date">Data</string><string name="details_folder">Pasta</string><string name="details_unknown">Desconhecido</string><string name="details_load_metadata">Carregar metadados</string><string name="details_camera_make">Fabricante</string><string name="details_camera_model">Modelo</string><string name="details_lens">Lente</string><string name="details_iso">ISO</string><string name="details_exposure">Exposição</string><string name="details_original_time">Hora original</string><string name="details_location">Localização</string><string name="details_location_missing">Sem localização</string><string name="details_location_permission">Permissão de localização necessária</string><string name="details_metadata_not_image">Metadados indisponíveis para vídeos.</string><string name="details_metadata_unavailable">Metadados corrompidos ou não suportados.</string><string name="details_media_unavailable">Esta mídia está indisponível.</string>
     <string name="details_detected_text">Texto detectado</string><string name="details_copy_text">Copiar texto</string>
+    <string name="details_section_captured">Captura</string>
+    <string name="details_section_file">Arquivo</string>
+    <string name="details_section_camera">Câmera</string>
+    <string name="details_time">Hora</string>
+    <string name="details_format">Formato</string>
+    <string name="details_duration">Duração</string>
+    <string name="details_aperture">Abertura</string>
+    <string name="details_shutter">Velocidade do obturador</string>
+    <string name="details_focal_length">Distância focal</string>
+    <string name="details_camera_empty">Este arquivo não tem informações da câmera.</string>
+    <string name="details_location_empty_body">Este arquivo não registra onde foi feito.</string>
+    <string name="details_place">Local</string>
+    <string name="details_place_near">Perto de %1$s</string>
+    <string name="details_coordinates">Coordenadas</string>
+    <string name="details_expand_section">Expandir %1$s</string>
+    <string name="details_collapse_section">Recolher %1$s</string>
 </resources>

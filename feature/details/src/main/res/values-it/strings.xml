@@ -1,4 +1,20 @@
 <resources>
     <string name="details_title">Dettagli</string><string name="details_name">Nome</string><string name="details_type">Tipo</string><string name="details_size">Dimensione</string><string name="details_dimensions">Dimensioni</string><string name="details_date">Data</string><string name="details_folder">Cartella</string><string name="details_unknown">Sconosciuto</string><string name="details_load_metadata">Carica metadati</string><string name="details_camera_make">Produttore</string><string name="details_camera_model">Modello</string><string name="details_lens">Obiettivo</string><string name="details_iso">ISO</string><string name="details_exposure">Esposizione</string><string name="details_original_time">Ora originale</string><string name="details_location">Posizione</string><string name="details_location_missing">Nessuna posizione</string><string name="details_location_permission">Autorizzazione posizione richiesta</string><string name="details_metadata_not_image">Metadati non disponibili per i video.</string><string name="details_metadata_unavailable">Metadati danneggiati o non supportati.</string><string name="details_media_unavailable">Questo contenuto non è disponibile.</string>
     <string name="details_detected_text">Testo rilevato</string><string name="details_copy_text">Copia testo</string>
+    <string name="details_section_captured">Scatto</string>
+    <string name="details_section_file">File</string>
+    <string name="details_section_camera">Fotocamera</string>
+    <string name="details_time">Ora</string>
+    <string name="details_format">Formato</string>
+    <string name="details_duration">Durata</string>
+    <string name="details_aperture">Apertura</string>
+    <string name="details_shutter">Tempo di scatto</string>
+    <string name="details_focal_length">Lunghezza focale</string>
+    <string name="details_camera_empty">Questo file non contiene dati della fotocamera.</string>
+    <string name="details_location_empty_body">Questo file non indica dove è stato scattato.</string>
+    <string name="details_place">Luogo</string>
+    <string name="details_place_near">Vicino a %1$s</string>
+    <string name="details_coordinates">Coordinate</string>
+    <string name="details_expand_section">Espandi %1$s</string>
+    <string name="details_collapse_section">Comprimi %1$s</string>
 </resources>

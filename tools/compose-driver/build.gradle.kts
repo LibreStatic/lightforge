@@ -29,6 +29,7 @@ dependencies {
     testImplementation(project(":feature:photoeditor"))
     testImplementation(project(":feature:collections"))
     testImplementation(project(":core:designsystem"))
+    testImplementation(project(":feature:details"))
 
     testImplementation(libs.compose.driver)
     testImplementation(libs.robolectric)

@@ -1,4 +1,20 @@
 <resources>
     <string name="details_title">Détails</string><string name="details_name">Nom</string><string name="details_type">Type</string><string name="details_size">Taille</string><string name="details_dimensions">Dimensions</string><string name="details_date">Date</string><string name="details_folder">Dossier</string><string name="details_unknown">Inconnu</string><string name="details_load_metadata">Charger les métadonnées</string><string name="details_camera_make">Fabricant</string><string name="details_camera_model">Modèle</string><string name="details_lens">Objectif</string><string name="details_iso">ISO</string><string name="details_exposure">Exposition</string><string name="details_original_time">Heure d’origine</string><string name="details_location">Lieu</string><string name="details_location_missing">Aucun lieu</string><string name="details_location_permission">Autorisation de localisation requise</string><string name="details_metadata_not_image">Métadonnées indisponibles pour les vidéos.</string><string name="details_metadata_unavailable">Métadonnées corrompues ou non prises en charge.</string><string name="details_media_unavailable">Ce média est indisponible.</string>
     <string name="details_detected_text">Texte détecté</string><string name="details_copy_text">Copier le texte</string>
+    <string name="details_section_captured">Prise de vue</string>
+    <string name="details_section_file">Fichier</string>
+    <string name="details_section_camera">Appareil photo</string>
+    <string name="details_time">Heure</string>
+    <string name="details_format">Format</string>
+    <string name="details_duration">Durée</string>
+    <string name="details_aperture">Ouverture</string>
+    <string name="details_shutter">Vitesse d\'obturation</string>
+    <string name="details_focal_length">Focale</string>
+    <string name="details_camera_empty">Ce fichier ne contient aucune information sur l\'appareil.</string>
+    <string name="details_location_empty_body">Ce fichier n\'indique pas où il a été pris.</string>
+    <string name="details_place">Lieu</string>
+    <string name="details_place_near">Près de %1$s</string>
+    <string name="details_coordinates">Coordonnées</string>
+    <string name="details_expand_section">Développer %1$s</string>
+    <string name="details_collapse_section">Réduire %1$s</string>
 </resources>

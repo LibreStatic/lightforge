@@ -14,4 +14,20 @@
     <string name="details_media_unavailable">This media is currently unavailable.</string>
     <string name="details_detected_text">Detected text</string>
     <string name="details_copy_text">Copy text</string>
+    <string name="details_section_captured">Captured</string>
+    <string name="details_section_file">File</string>
+    <string name="details_section_camera">Camera</string>
+    <string name="details_time">Time</string>
+    <string name="details_format">Format</string>
+    <string name="details_duration">Duration</string>
+    <string name="details_aperture">Aperture</string>
+    <string name="details_shutter">Shutter speed</string>
+    <string name="details_focal_length">Focal length</string>
+    <string name="details_camera_empty">This file has no camera information.</string>
+    <string name="details_location_empty_body">This file doesn\'t record where it was taken.</string>
+    <string name="details_place">Place</string>
+    <string name="details_place_near">Near %1$s</string>
+    <string name="details_coordinates">Coordinates</string>
+    <string name="details_expand_section">Expand %1$s</string>
+    <string name="details_collapse_section">Collapse %1$s</string>
 </resources>
