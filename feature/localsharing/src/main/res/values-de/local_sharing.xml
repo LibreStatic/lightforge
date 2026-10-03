@@ -24,7 +24,6 @@
     <string name="peer_revoked">Widerrufen</string>
     <string name="peer_revoke">Gerät widerrufen</string>
     <string name="peer_originals">Ausgewählte Originale senden</string>
-    <string name="peer_select">Dateien auswählen · %1$d ausgewählt</string>
     <string name="peer_strip">Standort aus Übertragungskopien entfernen</string>
     <string name="peer_derivative">Standortentfernung kodiert Kopien neu; Animationen oder eingebettete Motion Photos können verloren gehen. Originale bleiben unverändert. Fehler stoppen die Vorbereitung. Private Bearbeitungsrezepte sind nicht enthalten.</string>
     <string name="peer_prepare">Dauerhafte Kopien vorbereiten</string>
@@ -59,4 +58,8 @@
     <string name="peer_status_completed">Übertragung geprüft</string>
     <string name="peer_status_cancelled">Abgebrochen · Originale erhalten</string>
     <string name="peer_status_error">Prüfung erforderlich · Kopien erhalten</string>
+    <plurals name="peer_select">
+        <item quantity="one">Dateien auswählen · %1$d ausgewählt</item>
+        <item quantity="other">Dateien auswählen · %1$d ausgewählt</item>
+    </plurals>
 </resources>

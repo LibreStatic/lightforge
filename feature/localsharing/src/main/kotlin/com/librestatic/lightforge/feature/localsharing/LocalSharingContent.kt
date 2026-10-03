@@ -283,7 +283,7 @@ fun LocalSharingContent(
                         onClick = { sources.launch(arrayOf("image/*", "video/*")) },
                         modifier = Modifier.testTag("peer-select-sources"),
                     ) {
-                        Text(stringResource(R.string.peer_select, selected.size))
+                        Text(pluralStringResource(R.plurals.peer_select, selected.size, selected.size))
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(

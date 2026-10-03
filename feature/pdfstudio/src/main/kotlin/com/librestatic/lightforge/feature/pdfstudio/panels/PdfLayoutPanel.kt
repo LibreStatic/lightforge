@@ -12,6 +12,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -375,7 +376,7 @@ internal fun PdfTemplateTile(
         if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer
     val content =
         if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
-    val label = stringResource(R.string.pdf_template_photos, template)
+    val label = pluralStringResource(R.plurals.pdf_template_photos, template, template)
     val rows = (template + columns - 1) / columns
     val fontScale = LocalDensity.current.fontScale.coerceIn(1f, 1.6f)
     Surface(

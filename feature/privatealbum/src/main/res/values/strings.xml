@@ -24,7 +24,6 @@
     <string name="private_originals_note">After they’re added, you’ll choose whether to keep the originals.</string>
     <string name="private_picker_title">Add to private album</string>
     <string name="private_picker_add">Add</string>
-    <string name="private_picker_count">%1$d selected</string>
     <string name="private_picker_limit">You can add up to 500 items at a time.</string>
     <string name="private_importing">Encrypting %1$d of %2$d…</string>
     <string name="private_import_result_title">Private copies added</string>
@@ -42,4 +41,8 @@
 <string name="private_open_security_settings">Open settings</string>
     <string name="private_import_confirm_body">Confirm it’s you to keep adding items to the private album.</string>
     <string name="private_import_interrupted">Adding to the private album stopped before it finished. Originals that were not added are unchanged.</string>
+    <plurals name="private_picker_count">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
 </resources>

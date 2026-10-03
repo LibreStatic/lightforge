@@ -8,7 +8,6 @@
     <string name="moment_participants_unavailable">This memory or its people are unavailable. Reload before applying.</string>
     <string name="moment_participants_changed">People or saved choices changed while editing. Review the current choices before applying.</string>
     <string name="moment_participants_review">Review current choices</string>
-    <string name="moment_participants_count">%1$d selected</string>
     <string name="moment_participants_clear">Clear selection</string>
     <string name="moment_participants_search">Search people</string>
     <string name="moment_participants_no_matches">No matching people.</string>
@@ -18,4 +17,8 @@
     <string name="moment_participants_error">Changes were not saved. Try again.</string>
     <string name="moment_participants_retry">Retry</string>
     <string name="moment_participants_apply">Apply</string>
+    <plurals name="moment_participants_count">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
 </resources>

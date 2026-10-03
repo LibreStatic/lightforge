@@ -33,7 +33,7 @@ class AboutContentDeviceTest {
         compose.onNode(hasTestTag("about_licenses")).performClick()
         compose.onNode(hasTestTag("about_license_catalog")).assertIsDisplayed()
         compose.onNode(hasText(context.getString(R.string.about_licenses_title))).assertIsDisplayed()
-        compose.onNode(hasText(context.getString(R.string.about_dependencies_count, 225))).assertIsDisplayed()
+        compose.onNode(hasText(context.resources.getQuantityString(R.plurals.about_dependencies_count, 225, 225))).assertIsDisplayed()
         compose.onNode(hasTestTag("dependency_androidx.activity:activity")).performClick()
         compose.onNode(hasTestTag("dependency_license_text")).assertIsDisplayed()
         compose.onNode(hasTestTag("dependency_license_body")).assertIsDisplayed()

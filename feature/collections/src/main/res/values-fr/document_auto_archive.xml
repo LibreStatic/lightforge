@@ -4,10 +4,8 @@
     <string name="document_auto_explanation">Les documents correspondants quittent Photos, mais restent dans Documents et les albums. Les originaux restent sur cet appareil. Favoris et photos exclues sont ignorés. Conserver et annuler concernent la version actuelle.</string>
     <string name="document_auto_enabled">Archivage automatique actif</string>
     <string name="document_auto_paused">Archivage automatique en pause</string>
-    <string name="document_auto_last_run">Dernier lot : %1$d archivés</string>
     <string name="document_auto_age">Ancienneté de la photo</string>
     <string name="document_auto_any_age">Toute ancienneté</string>
-    <string name="document_auto_days">Au moins %1$d jours</string>
     <string name="document_auto_review">Examiner les correspondances</string>
     <string name="document_auto_pause">Suspendre l’archivage automatique</string>
     <string name="document_auto_undo">Annuler le dernier lot et suspendre</string>
@@ -22,4 +20,14 @@
     <string name="document_auto_active_rule">Règle enregistrée : %1$s · %2$d jours</string>
     <string name="document_auto_keep_named">Conserver dans Photos : %1$s</string>
     <string name="document_auto_preview_rule">Règle à activer : %1$s · %2$d jours</string>
+    <plurals name="document_auto_last_run">
+        <item quantity="one">Dernier lot : %1$d archivé</item>
+        <item quantity="many">Dernier lot : %1$d archivés</item>
+        <item quantity="other">Dernier lot : %1$d archivés</item>
+    </plurals>
+    <plurals name="document_auto_days">
+        <item quantity="one">Au moins %1$d jour</item>
+        <item quantity="many">Au moins %1$d jours</item>
+        <item quantity="other">Au moins %1$d jours</item>
+    </plurals>
 </resources>

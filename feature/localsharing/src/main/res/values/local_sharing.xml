@@ -24,7 +24,6 @@
     <string name="peer_revoked">Revoked</string>
     <string name="peer_revoke">Revoke device</string>
     <string name="peer_originals">Send selected originals</string>
-    <string name="peer_select">Select files · %1$d selected</string>
     <string name="peer_strip">Remove location from transfer copies</string>
     <string name="peer_derivative">Location removal re-encodes copies and can lose animation or embedded Motion Photo content. Originals stay unchanged. A failed sanitization stops preparation. Private editing recipes are not included.</string>
     <string name="peer_prepare">Prepare durable copies</string>
@@ -59,4 +58,8 @@
     <string name="peer_status_completed">Transfer verified</string>
     <string name="peer_status_cancelled">Cancelled · originals preserved</string>
     <string name="peer_status_error">Needs review · copies retained</string>
+    <plurals name="peer_select">
+        <item quantity="one">Select files · %1$d selected</item>
+        <item quantity="other">Select files · %1$d selected</item>
+    </plurals>
 </resources>

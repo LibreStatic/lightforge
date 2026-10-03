@@ -32,7 +32,6 @@
         <item quantity="one">%d Original</item>
         <item quantity="other">%d Originale</item>
     </plurals>
-    <string name="local_backup_more">Und %1$d weitere Dateien</string>
     <string name="local_backup_restore_hint">Stellt Kopien in einem neuen Lightforge-restored-Ordner wieder her. Vorhandene Dateien werden weder überschrieben noch gelöscht. Organisation und Einstellungen bleiben unverändert.</string>
     <string name="local_backup_restore">Kopien wiederherstellen</string>
     <string name="local_backup_choose_folder">Zielordner auswählen</string>
@@ -46,7 +45,6 @@
     <string name="local_backup_organization_review">Organisation prüfen</string>
     <string name="local_backup_organization_sources">Verknüpfte Originale: %1$d / %2$d · ausgelassene Verweise: %3$d · ungeklärte Identitäten: %4$d</string>
     <string name="local_backup_organization_count">%1$s: %2$d</string>
-    <string name="local_backup_global_impact">%1$d globale Regeln können die bestehende Mediathek beeinflussen. Sie bleiben ohne ausdrückliche Zustimmung deaktiviert.</string>
     <string name="local_backup_settings_review_only">Einstellungen und automatische Archivregeln werden nur zur Prüfung erfasst. Vorhandene Einstellungen werden weder ersetzt noch aktiviert.</string>
     <string name="local_backup_gallery_hint">Erstellt neue Kopien in Galerie und neue Organisation. Vorhandene Dateien und Entscheidungen bleiben unverändert. Identische Dateien bleiben getrennt. Ungeklärte Personen werden nicht bestehenden Identitäten zugeordnet.</string>
     <string name="local_backup_gallery_restore">Mit Organisation in Galerie wiederherstellen</string>
@@ -74,4 +72,12 @@
     <string name="local_backup_recovery_failed">Die Prüfung wurde nicht abgeschlossen. Kopien mit ungeklärtem Status wurden behalten.</string>
     <string name="local_backup_recovery_retry">Prüfung wiederholen</string>
     <string name="local_backup_kind_photo_edits">Fotobearbeitungsrezepte</string>
+    <plurals name="local_backup_more">
+        <item quantity="one">Und %1$d weitere Datei</item>
+        <item quantity="other">Und %1$d weitere Dateien</item>
+    </plurals>
+    <plurals name="local_backup_global_impact">
+        <item quantity="one">%1$d globale Regel kann die bestehende Mediathek beeinflussen. Sie bleibt ohne ausdrückliche Zustimmung deaktiviert.</item>
+        <item quantity="other">%1$d globale Regeln können die bestehende Mediathek beeinflussen. Sie bleiben ohne ausdrückliche Zustimmung deaktiviert.</item>
+    </plurals>
 </resources>

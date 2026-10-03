@@ -17,14 +17,13 @@
 <string name="about_licenses_title">Licenze di terze parti</string>
 <string name="about_back">Indietro</string>
 <string name="about_app_icon">Icona dell’app Lightforge Studio</string>
-    <string name="about_dependencies_count">%1$d dipendenze di runtime</string>
     <string name="about_license_load_error">Impossibile caricare le informazioni sulle licenze incluse.</string>
     <string name="about_license_template_note">I campi tra parentesi quadre nell’appendice fanno parte del modello di esempio di Apache e vengono intenzionalmente lasciati invariati. L’avviso di copyright compilato di Lightforge Studio appare sopra.</string>
     <string name="nav_settings">Impostazioni</string><string name="nav_create">Crea</string><string name="nav_ask">Chiedi</string><string name="nav_updates">Aggiornamenti</string><string name="nav_on_device">Sul dispositivo</string><string name="nav_archive">Archivio</string><string name="nav_trash">Cestino</string>
     <string name="updates_title">Aggiornamenti</string><string name="updates_empty">Nessuna attività locale recente</string><string name="updates_local_body">Indicizzazione, analisi e azioni restano su questo dispositivo.</string><string name="device_folders_title">Sul dispositivo</string><string name="device_folders_empty">Nessuna cartella del dispositivo</string>
     <string name="archive_title">Archivio</string><string name="archive_empty">L’Archivio è vuoto</string><string name="archive_empty_body">Gli elementi archiviati spariscono da Foto ma restano negli album e nella ricerca.</string><string name="archive_unarchive">Rimuovi dall’archivio</string><string name="archive_move">Sposta nell’archivio</string>
     <string name="create_sheet_title">Crea</string><string name="highlight_selfies">Selfie</string>
-    <string name="activity_archived">%1$d archiviati</string><string name="activity_unarchived">%1$d rimossi dall’archivio</string><string name="activity_trashed">%1$d spostati nel cestino</string><string name="activity_restored">%1$d ripristinati</string><string name="activity_deleted">%1$d eliminati definitivamente</string><string name="activity_exported">%1$d esportati</string><string name="activity_imported">%1$d importati</string><string name="activity_analysis_complete">Analisi locale completata</string><string name="activity_analysis_failed">L’analisi locale richiede attenzione</string>
+<string name="activity_analysis_complete">Analisi locale completata</string><string name="activity_analysis_failed">L’analisi locale richiede attenzione</string>
     <plurals name="highlight_years_ago"><item quantity="one">%d anno fa</item><item quantity="many">%d anni fa</item><item quantity="other">%d anni fa</item></plurals>
 <string name="video_export_channel">Esportazioni video</string>
 <string name="video_export_title">Esportazione del video</string>
@@ -84,4 +83,45 @@
     <string name="move_copy_discard">Elimina copia registrata</string>
     <string name="move_copy_review_body">Riprova sostituisce la copia esaminata dal file originale invariato. Elimina rimuove solo la copia esaminata. Entrambe le azioni ricontrollano i file e conservano il file originale.</string>
     <string name="move_copy_forget_body">Terminare il monitoraggio senza eliminare file? Una copia incompleta o non registrata può rimanere nella cartella scelta.</string>
-<string name="creation_collage_needs_two_images">Hai selezionato solo %1$d foto. Scegline da 2 a 4.</string><string name="creation_collage_too_many">Hai selezionato %1$d foto. Non sceglierne più di 4.</string><string name="creation_collage_images_only">I collage usano solo foto. Togli i video dalla selezione.</string><string name="creation_collage_draft_pending">È ancora in ripristino una bozza di collage. Aprila o eliminala prima.</string><string name="creation_collage_sources_missing">Le foto selezionate non sono più disponibili. Scegline altre e riprova.</string><string name="album_delete">Elimina album</string><string name="album_delete_title">Eliminare «%1$s»?</string><string name="album_delete_body">Questa operazione elimina solo l’album. Le tue foto non vengono eliminate: restano su questo dispositivo e rimangono in Foto e nelle loro cartelle.</string><string name="album_delete_confirm">Elimina album</string><string name="album_delete_cancel">Annulla</string><string name="album_delete_failed">Impossibile eliminare l’album. Riprova.</string><string name="album_delete_deleting">Eliminazione…</string><string name="move_verified_complete_body">Il file è nella cartella scelta. L’originale è stato rimosso solo dopo la verifica di entrambe le copie.</string><string name="move_verified_attention">Lo spostamento richiede attenzione</string><string name="move_verified_done">Fatto</string><string name="share_sanitized_failed">Impossibile preparare una copia senza posizione</string><string name="media_change_mismatch">L\'elemento approvato non corrisponde alla modifica in sospeso</string><string name="media_change_failed">Impossibile applicare la modifica a questo elemento</string><string name="about_no_link_handler">Nessuna app può aprire questo link</string><string name="video_export_complete_fallback">Video salvato con impostazioni del codificatore adattate a questo dispositivo</string><string name="create_memory_desc">Raggruppa le foto in un ricordo</string><string name="create_memory_video_desc">Trasforma un ricordo in un breve video</string><string name="create_gif_desc">Anima una serie di foto</string><string name="create_pdf_desc">Foto, ricevute e documenti in PDF</string><string name="create_album_desc">Organizza le foto in un nuovo album</string><string name="create_collage_desc">Combina le foto in un unico layout</string><string name="create_recoveries_desc">Completa i salvataggi interrotti</string><string name="create_section_more">Altro</string><string name="create_section_organize">Organizza</string><string name="create_section_from_photos">Dalle tue foto</string></resources>
+<string name="creation_collage_needs_two_images">Hai selezionato solo %1$d foto. Scegline da 2 a 4.</string><string name="creation_collage_too_many">Hai selezionato %1$d foto. Non sceglierne più di 4.</string><string name="creation_collage_images_only">I collage usano solo foto. Togli i video dalla selezione.</string><string name="creation_collage_draft_pending">È ancora in ripristino una bozza di collage. Aprila o eliminala prima.</string><string name="creation_collage_sources_missing">Le foto selezionate non sono più disponibili. Scegline altre e riprova.</string><string name="album_delete">Elimina album</string><string name="album_delete_title">Eliminare «%1$s»?</string><string name="album_delete_body">Questa operazione elimina solo l’album. Le tue foto non vengono eliminate: restano su questo dispositivo e rimangono in Foto e nelle loro cartelle.</string><string name="album_delete_confirm">Elimina album</string><string name="album_delete_cancel">Annulla</string><string name="album_delete_failed">Impossibile eliminare l’album. Riprova.</string><string name="album_delete_deleting">Eliminazione…</string><string name="move_verified_complete_body">Il file è nella cartella scelta. L’originale è stato rimosso solo dopo la verifica di entrambe le copie.</string><string name="move_verified_attention">Lo spostamento richiede attenzione</string><string name="move_verified_done">Fatto</string><string name="share_sanitized_failed">Impossibile preparare una copia senza posizione</string><string name="media_change_mismatch">L\'elemento approvato non corrisponde alla modifica in sospeso</string><string name="media_change_failed">Impossibile applicare la modifica a questo elemento</string><string name="about_no_link_handler">Nessuna app può aprire questo link</string><string name="video_export_complete_fallback">Video salvato con impostazioni del codificatore adattate a questo dispositivo</string><string name="create_memory_desc">Raggruppa le foto in un ricordo</string><string name="create_memory_video_desc">Trasforma un ricordo in un breve video</string><string name="create_gif_desc">Anima una serie di foto</string><string name="create_pdf_desc">Foto, ricevute e documenti in PDF</string><string name="create_album_desc">Organizza le foto in un nuovo album</string><string name="create_collage_desc">Combina le foto in un unico layout</string><string name="create_recoveries_desc">Completa i salvataggi interrotti</string><string name="create_section_more">Altro</string><string name="create_section_organize">Organizza</string><string name="create_section_from_photos">Dalle tue foto</string>
+    <plurals name="activity_archived">
+        <item quantity="one">%1$d archiviato</item>
+        <item quantity="many">%1$d archiviati</item>
+        <item quantity="other">%1$d archiviati</item>
+    </plurals>
+    <plurals name="activity_unarchived">
+        <item quantity="one">%1$d rimosso dall’archivio</item>
+        <item quantity="many">%1$d rimossi dall’archivio</item>
+        <item quantity="other">%1$d rimossi dall’archivio</item>
+    </plurals>
+    <plurals name="activity_trashed">
+        <item quantity="one">%1$d spostato nel cestino</item>
+        <item quantity="many">%1$d spostati nel cestino</item>
+        <item quantity="other">%1$d spostati nel cestino</item>
+    </plurals>
+    <plurals name="activity_restored">
+        <item quantity="one">%1$d ripristinato</item>
+        <item quantity="many">%1$d ripristinati</item>
+        <item quantity="other">%1$d ripristinati</item>
+    </plurals>
+    <plurals name="activity_deleted">
+        <item quantity="one">%1$d eliminato definitivamente</item>
+        <item quantity="many">%1$d eliminati definitivamente</item>
+        <item quantity="other">%1$d eliminati definitivamente</item>
+    </plurals>
+    <plurals name="activity_exported">
+        <item quantity="one">%1$d esportato</item>
+        <item quantity="many">%1$d esportati</item>
+        <item quantity="other">%1$d esportati</item>
+    </plurals>
+    <plurals name="activity_imported">
+        <item quantity="one">%1$d importato</item>
+        <item quantity="many">%1$d importati</item>
+        <item quantity="other">%1$d importati</item>
+    </plurals>
+    <plurals name="about_dependencies_count">
+        <item quantity="one">%1$d dipendenza di runtime</item>
+        <item quantity="many">%1$d dipendenze di runtime</item>
+        <item quantity="other">%1$d dipendenze di runtime</item>
+    </plurals>
+</resources>

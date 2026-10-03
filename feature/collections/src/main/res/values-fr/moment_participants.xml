@@ -8,7 +8,6 @@
     <string name="moment_participants_unavailable">Ce souvenir ou ses personnes sont indisponibles. Rechargez avant d’appliquer.</string>
     <string name="moment_participants_changed">Les personnes ou les choix enregistrés ont changé pendant la modification. Vérifiez les choix actuels avant d’appliquer.</string>
     <string name="moment_participants_review">Vérifier les choix actuels</string>
-    <string name="moment_participants_count">%1$d sélectionnés</string>
     <string name="moment_participants_clear">Vider la sélection</string>
     <string name="moment_participants_search">Rechercher des personnes</string>
     <string name="moment_participants_no_matches">Aucune personne correspondante.</string>
@@ -18,4 +17,9 @@
     <string name="moment_participants_error">Les modifications n’ont pas été enregistrées. Réessayez.</string>
     <string name="moment_participants_retry">Réessayer</string>
     <string name="moment_participants_apply">Appliquer</string>
+    <plurals name="moment_participants_count">
+        <item quantity="one">%1$d sélectionné</item>
+        <item quantity="many">%1$d sélectionnés</item>
+        <item quantity="other">%1$d sélectionnés</item>
+    </plurals>
 </resources>

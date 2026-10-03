@@ -9,5 +9,9 @@
     <string name="trash_empty_title">Trash is empty</string>
     <string name="trash_empty_description">Deleted items illustration</string>
     <string name="trash_unnamed_item">Untitled item</string>
-    <string name="trash_select">Select</string><string name="trash_selected">%1$d selected</string><string name="trash_retention_info">Items remain in Android’s trash until the system-provided expiration date. Restore anything you want to keep before then.</string><string name="trash_photo_description">Deleted photo</string><string name="trash_video_description">Deleted video</string>
+    <string name="trash_select">Select</string><string name="trash_retention_info">Items remain in Android’s trash until the system-provided expiration date. Restore anything you want to keep before then.</string><string name="trash_photo_description">Deleted photo</string><string name="trash_video_description">Deleted video</string>
+    <plurals name="trash_selected">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
 </resources>

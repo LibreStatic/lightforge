@@ -8,7 +8,6 @@
     <string name="moment_participants_unavailable">Questo ricordo o le sue persone non sono disponibili. Ricarica prima di applicare.</string>
     <string name="moment_participants_changed">Le persone o le scelte salvate sono cambiate durante la modifica. Rivedi le scelte attuali prima di applicare.</string>
     <string name="moment_participants_review">Rivedi le scelte attuali</string>
-    <string name="moment_participants_count">%1$d selezionati</string>
     <string name="moment_participants_clear">Svuota selezione</string>
     <string name="moment_participants_search">Cerca persone</string>
     <string name="moment_participants_no_matches">Nessuna persona corrispondente.</string>
@@ -18,4 +17,9 @@
     <string name="moment_participants_error">Le modifiche non sono state salvate. Riprova.</string>
     <string name="moment_participants_retry">Riprova</string>
     <string name="moment_participants_apply">Applica</string>
+    <plurals name="moment_participants_count">
+        <item quantity="one">%1$d selezionato</item>
+        <item quantity="many">%1$d selezionati</item>
+        <item quantity="other">%1$d selezionati</item>
+    </plurals>
 </resources>

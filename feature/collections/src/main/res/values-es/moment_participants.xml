@@ -8,7 +8,6 @@
     <string name="moment_participants_unavailable">Este recuerdo o sus personas no están disponibles. Recargá antes de aplicar.</string>
     <string name="moment_participants_changed">Las personas o las opciones guardadas cambiaron durante la edición. Revisá las opciones actuales antes de aplicar.</string>
     <string name="moment_participants_review">Revisar opciones actuales</string>
-    <string name="moment_participants_count">%1$d seleccionados</string>
     <string name="moment_participants_clear">Limpiar selección</string>
     <string name="moment_participants_search">Buscar personas</string>
     <string name="moment_participants_no_matches">No hay personas coincidentes.</string>
@@ -18,4 +17,9 @@
     <string name="moment_participants_error">Los cambios no se guardaron. Intentá de nuevo.</string>
     <string name="moment_participants_retry">Reintentar</string>
     <string name="moment_participants_apply">Aplicar</string>
+    <plurals name="moment_participants_count">
+        <item quantity="one">%1$d seleccionado</item>
+        <item quantity="many">%1$d seleccionados</item>
+        <item quantity="other">%1$d seleccionados</item>
+    </plurals>
 </resources>

@@ -150,7 +150,7 @@ class MomentParticipantsAppDeviceTest {
             click("moment-participants-edit")
             val manual = find(By.res("moment-participants-manual"))
             assertTrue("Manual mode retained", manual.isSelected || manual.isChecked)
-            find(By.text(context.getString(com.librestatic.lightforge.feature.collections.R.string.moment_participants_count, 0)))
+            find(By.text(context.resources.getQuantityString(com.librestatic.lightforge.feature.collections.R.plurals.moment_participants_count, 0, 0)))
             click("moment-participants-cancel")
             find(By.res("moment-participants-edit"))
             assertEquals("Cancel performs no participant write", "MANUAL" to 1L, state())

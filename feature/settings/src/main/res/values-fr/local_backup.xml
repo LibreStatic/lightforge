@@ -35,7 +35,6 @@
         <item quantity="many">%d originaux</item>
         <item quantity="other">%d originaux</item>
     </plurals>
-    <string name="local_backup_more">Et %1$d autres fichiers</string>
     <string name="local_backup_restore_hint">Restaure des copies dans un nouveau dossier Lightforge-restored. Aucun fichier existant n’est remplacé ou supprimé. L’organisation et les préférences restent inchangées.</string>
     <string name="local_backup_restore">Restaurer des copies</string>
     <string name="local_backup_choose_folder">Choisir le dossier de restauration</string>
@@ -49,7 +48,6 @@
     <string name="local_backup_organization_review">Organisation à vérifier</string>
     <string name="local_backup_organization_sources">Originaux liés : %1$d / %2$d · références omises : %3$d · identités non résolues : %4$d</string>
     <string name="local_backup_organization_count">%1$s : %2$d</string>
-    <string name="local_backup_global_impact">%1$d règles globales peuvent affecter la bibliothèque existante. Elles restent désactivées sans votre accord explicite.</string>
     <string name="local_backup_settings_review_only">Les préférences et règles d’archivage automatique sont incluses pour vérification uniquement. Aucun réglage existant ne sera remplacé ni activé.</string>
     <string name="local_backup_gallery_hint">Crée de nouvelles copies dans Galerie et une nouvelle organisation. Les fichiers et choix existants restent inchangés. Les fichiers identiques restent séparés. Les personnes non résolues ne sont pas associées à des identités existantes.</string>
     <string name="local_backup_gallery_restore">Restaurer dans Galerie avec l’organisation</string>
@@ -77,4 +75,14 @@
     <string name="local_backup_recovery_failed">La récupération n’est pas terminée. Les copies dont l’état n’a pas été vérifié ont été conservées.</string>
     <string name="local_backup_recovery_retry">Réessayer la vérification</string>
     <string name="local_backup_kind_photo_edits">Recettes de retouche photo</string>
+    <plurals name="local_backup_more">
+        <item quantity="one">Et %1$d autre fichier</item>
+        <item quantity="many">Et %1$d autres fichiers</item>
+        <item quantity="other">Et %1$d autres fichiers</item>
+    </plurals>
+    <plurals name="local_backup_global_impact">
+        <item quantity="one">%1$d règle globale peut affecter la bibliothèque existante. Elle reste désactivée sans votre accord explicite.</item>
+        <item quantity="many">%1$d règles globales peuvent affecter la bibliothèque existante. Elles restent désactivées sans votre accord explicite.</item>
+        <item quantity="other">%1$d règles globales peuvent affecter la bibliothèque existante. Elles restent désactivées sans votre accord explicite.</item>
+    </plurals>
 </resources>

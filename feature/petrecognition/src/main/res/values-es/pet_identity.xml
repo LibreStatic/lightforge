@@ -52,7 +52,6 @@
     <string name="pet_accept">Asignar a este grupo</string>
     <string name="pet_similarity">Similitud %1$.3f · requiere revisión</string>
     <string name="pet_no_items">No hay elementos en esta página</string>
-    <string name="pet_selected">%1$d seleccionados</string>
     <string name="pet_open_group">Abrir grupo</string>
     <string name="pet_model_ready">Modelos locales verificados instalados</string>
     <string name="pet_leave">Salir cancela la operación actual. Conserva el análisis de fotos ya completado.</string>
@@ -60,5 +59,10 @@
         <item quantity="one">%d foto no se pudo leer y se omitió</item>
         <item quantity="many">%d fotos no se pudieron leer y se omitieron</item>
         <item quantity="other">%d fotos no se pudieron leer y se omitieron</item>
+    </plurals>
+    <plurals name="pet_selected">
+        <item quantity="one">%1$d seleccionado</item>
+        <item quantity="many">%1$d seleccionados</item>
+        <item quantity="other">%1$d seleccionados</item>
     </plurals>
 </resources>

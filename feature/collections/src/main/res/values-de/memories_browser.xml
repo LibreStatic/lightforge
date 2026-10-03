@@ -11,6 +11,9 @@
     <string name="memories_browser_empty_body">Versuche einen anderen Filter. Geschichten entstehen, wenn genügend lokale Fotos zum selben Ereignis gehören.</string>
     <string name="memories_browser_error">Erinnerungen konnten nicht geladen werden.</string>
     <string name="memories_browser_retry">Erneut versuchen</string>
-    <string name="memories_browser_photo_count">%1$d sichtbare Fotos</string>
     <string name="memories_browser_hidden">Keine sichtbaren Fotos. Die gespeicherte Geschichte und ihre Anordnung bleiben erhalten.</string>
+    <plurals name="memories_browser_photo_count">
+        <item quantity="one">%1$d sichtbares Foto</item>
+        <item quantity="other">%1$d sichtbare Fotos</item>
+    </plurals>
 </resources>

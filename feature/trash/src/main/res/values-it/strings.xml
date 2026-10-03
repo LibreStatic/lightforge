@@ -1,5 +1,10 @@
 <resources><string name="trash_title">Cestino</string><string name="trash_empty">Svuota cestino</string><string name="trash_empty_state">Gli elementi spostati nel cestino appariranno qui fino all’eliminazione.</string><string name="trash_restore">Ripristina</string><string name="trash_delete_permanently">Elimina definitivamente</string><string name="trash_expires_on">Eliminazione automatica il %1$s</string><string name="trash_expiry_unknown">Data di eliminazione non disponibile</string>    <string name="trash_empty_title">Il cestino è vuoto</string>
     <string name="trash_empty_description">Illustrazione degli elementi eliminati</string>
     <string name="trash_unnamed_item">Elemento senza titolo</string>
-    <string name="trash_select">Seleziona</string><string name="trash_selected">%1$d selezionati</string><string name="trash_retention_info">Gli elementi restano nel cestino di Android fino alla data di scadenza indicata dal sistema. Ripristina prima ciò che vuoi conservare.</string><string name="trash_photo_description">Foto eliminata</string><string name="trash_video_description">Video eliminato</string>
+    <string name="trash_select">Seleziona</string><string name="trash_retention_info">Gli elementi restano nel cestino di Android fino alla data di scadenza indicata dal sistema. Ripristina prima ciò che vuoi conservare.</string><string name="trash_photo_description">Foto eliminata</string><string name="trash_video_description">Video eliminato</string>
+    <plurals name="trash_selected">
+        <item quantity="one">%1$d selezionato</item>
+        <item quantity="many">%1$d selezionati</item>
+        <item quantity="other">%1$d selezionati</item>
+    </plurals>
 </resources>

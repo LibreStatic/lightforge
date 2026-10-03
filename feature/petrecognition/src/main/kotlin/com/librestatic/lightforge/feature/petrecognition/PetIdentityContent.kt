@@ -209,7 +209,7 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
                 }
                 item { Button(enabled = !working && selectedGroups.size >= 2, onClick = { edit(PetEdit.Merge(selectedGroups.first(), selectedGroups.drop(1).toSet())) }, modifier = Modifier.testTag("pet-merge")) { Text(stringResource(R.string.pet_merge)) } }
             } else {
-                item { Text(stringResource(R.string.pet_selected, selected.size)) }
+                item { Text(pluralStringResource(R.plurals.pet_selected, selected.size, selected.size)) }
                 if (observations.items.isEmpty()) item { Text(stringResource(R.string.pet_no_items)) }
                 items(observations.items, key = { it.id }) { observation ->
                     Card(Modifier.fillMaxWidth().testTag("pet-observation-${observation.id}")) {

@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -333,7 +334,7 @@ private fun LicenseCatalog(
                 ) {
                     item {
                         Text(
-                            text = stringResource(R.string.about_dependencies_count, catalog.size),
+                            text = pluralStringResource(R.plurals.about_dependencies_count, catalog.size, catalog.size),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )

@@ -4,10 +4,8 @@
     <string name="document_auto_explanation">Passende Dokumente verlassen Fotos, bleiben aber in Dokumente und Alben. Originale bleiben auf diesem Gerät. Favoriten und ausgeschlossene Fotos werden übersprungen. Behalten und Rückgängig gelten für die aktuelle Fotoversion.</string>
     <string name="document_auto_enabled">Automatische Archivierung aktiv</string>
     <string name="document_auto_paused">Automatische Archivierung pausiert</string>
-    <string name="document_auto_last_run">Letzter Stapel: %1$d archiviert</string>
     <string name="document_auto_age">Alter des Fotos</string>
     <string name="document_auto_any_age">Beliebiges Alter</string>
-    <string name="document_auto_days">Mindestens %1$d Tage</string>
     <string name="document_auto_review">Treffer prüfen</string>
     <string name="document_auto_pause">Automatische Archivierung pausieren</string>
     <string name="document_auto_undo">Letzten Stapel rückgängig machen und pausieren</string>
@@ -22,4 +20,12 @@
     <string name="document_auto_active_rule">Gespeicherte Regel: %1$s · %2$d Tage</string>
     <string name="document_auto_keep_named">In Fotos behalten: %1$s</string>
     <string name="document_auto_preview_rule">Zu aktivierende Regel: %1$s · %2$d Tage</string>
+    <plurals name="document_auto_last_run">
+        <item quantity="one">Letzter Stapel: %1$d archiviert</item>
+        <item quantity="other">Letzter Stapel: %1$d archiviert</item>
+    </plurals>
+    <plurals name="document_auto_days">
+        <item quantity="one">Mindestens %1$d Tag</item>
+        <item quantity="other">Mindestens %1$d Tage</item>
+    </plurals>
 </resources>

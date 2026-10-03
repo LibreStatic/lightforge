@@ -11,6 +11,10 @@
     <string name="memories_browser_empty_body">Prova un altro filtro. Le storie appaiono quando ci sono abbastanza foto locali dello stesso evento.</string>
     <string name="memories_browser_error">Caricamento dei ricordi non riuscito.</string>
     <string name="memories_browser_retry">Riprova</string>
-    <string name="memories_browser_photo_count">%1$d foto visibili</string>
     <string name="memories_browser_hidden">Nessuna foto visibile. La storia salvata e la sua organizzazione vengono conservate.</string>
+    <plurals name="memories_browser_photo_count">
+        <item quantity="one">%1$d foto visibile</item>
+        <item quantity="many">%1$d foto visibili</item>
+        <item quantity="other">%1$d foto visibili</item>
+    </plurals>
 </resources>

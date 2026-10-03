@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.style.TextOverflow
@@ -197,7 +198,7 @@ private fun MemoryBrowserCard(
                     style = MaterialTheme.typography.labelLarge,
                 )
                 Text(
-                    stringResource(R.string.memories_browser_photo_count, row.memberCount),
+                    pluralStringResource(R.plurals.memories_browser_photo_count, row.memberCount.toInt(), row.memberCount),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 if (row.memberCount == 0L)

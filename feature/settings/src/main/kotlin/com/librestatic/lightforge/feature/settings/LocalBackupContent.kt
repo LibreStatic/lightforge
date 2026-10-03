@@ -430,7 +430,7 @@ fun LocalBackupContent(
                     )
                     manifest.entries.take(20).forEach { Text(it.name) }
                     if (manifest.entries.size > 20)
-                        Text(stringResource(R.string.local_backup_more, manifest.entries.size - 20))
+                        Text(pluralStringResource(R.plurals.local_backup_more, (manifest.entries.size - 20).toInt(), manifest.entries.size - 20))
                     if (manifest.organization != null) {
                         val review = organizationReview
                         if (review == null)
@@ -460,10 +460,7 @@ fun LocalBackupContent(
                             }
                             if (review.globalRuleCount > 0)
                                 Text(
-                                    stringResource(
-                                        R.string.local_backup_global_impact,
-                                        review.globalRuleCount,
-                                    )
+                                    pluralStringResource(R.plurals.local_backup_global_impact, review.globalRuleCount.toInt(), review.globalRuleCount)
                                 )
                             if (preferencesPort == null && (review.hasPreferences || review.hasAutomaticRules))
                                 Text(stringResource(R.string.local_backup_settings_review_only))
@@ -556,10 +553,7 @@ fun LocalBackupContent(
                         }
                     if ((organizationReview?.globalRuleCount ?: 0) > 0) {
                         Text(
-                            stringResource(
-                                R.string.local_backup_global_impact,
-                                organizationReview?.globalRuleCount ?: 0,
-                            )
+                            pluralStringResource(R.plurals.local_backup_global_impact, (organizationReview?.globalRuleCount ?: 0).toInt(), organizationReview?.globalRuleCount ?: 0)
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Checkbox(

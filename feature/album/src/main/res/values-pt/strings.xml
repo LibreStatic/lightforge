@@ -1,4 +1,4 @@
-<resources><string name="album_untitled">Álbum sem título</string><string name="album_volume_unavailable">Armazenamento indisponível</string><string name="album_volume_unavailable_body">Reconecte o armazenamento para ver o álbum.</string><string name="album_all">Todos</string><string name="album_photos">Fotos</string><string name="album_videos">Vídeos</string><string name="album_newest">Mais recentes</string><string name="album_oldest">Mais antigos</string><string name="album_selected_count">%1$d selecionados</string><string name="album_empty">Álbum vazio</string><string name="album_empty_body">Mídias adicionadas aparecerão aqui.</string><string name="album_photo">Foto</string><string name="album_video">Vídeo</string>
+<resources><string name="album_untitled">Álbum sem título</string><string name="album_volume_unavailable">Armazenamento indisponível</string><string name="album_volume_unavailable_body">Reconecte o armazenamento para ver o álbum.</string><string name="album_all">Todos</string><string name="album_photos">Fotos</string><string name="album_videos">Vídeos</string><string name="album_newest">Mais recentes</string><string name="album_oldest">Mais antigos</string><string name="album_empty">Álbum vazio</string><string name="album_empty_body">Mídias adicionadas aparecerão aqui.</string><string name="album_photo">Foto</string><string name="album_video">Vídeo</string>
     <string name="album_rename">Renomear álbum</string>
     <string name="album_rename_title">Renomear álbum</string>
     <string name="album_rename_body">Somente o nome do álbum muda. Suas fotos e vídeos permanecem no mesmo local.</string>
@@ -24,4 +24,9 @@
     <string name="album_side_panel_hide">Ocultar painel de álbuns</string>
     <string name="album_side_panel_label">Álbuns</string>
     <plurals name="album_item_count"><item quantity="one">%1$d item</item><item quantity="many">%1$d itens</item><item quantity="other">%1$d itens</item></plurals>
+    <plurals name="album_selected_count">
+        <item quantity="one">%1$d selecionado</item>
+        <item quantity="many">%1$d selecionados</item>
+        <item quantity="other">%1$d selecionados</item>
+    </plurals>
 </resources>

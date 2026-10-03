@@ -55,7 +55,6 @@
     <string name="settings_photo_zoom_limit">Foto-Zoomgrenze</string>
     <string name="settings_video_zoom_limit">Video-Zoomgrenze</string>
     <string name="settings_skip_seconds">Sprung bei Doppeltippen</string>
-    <string name="settings_seconds">%1$d Sekunden</string>
     <string name="settings_thumbnails">Vorschaubilder</string>
     <string name="settings_crop_thumbnails">Vorschaubilder füllend zuschneiden</string>
     <string name="settings_animate_media">GIF und WebP animieren</string>
@@ -180,4 +179,8 @@
     <string name="settings_card_photo_gestures">Fotogesten</string>
     <string name="settings_card_video_gestures">Videogesten</string>
     <string name="settings_swipe_up_details">Nach oben wischen für Details</string>
+    <plurals name="settings_seconds">
+        <item quantity="one">%1$d Sekunde</item>
+        <item quantity="other">%1$d Sekunden</item>
+    </plurals>
 </resources>

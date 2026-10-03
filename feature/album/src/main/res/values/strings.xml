@@ -1,4 +1,4 @@
-<resources><string name="album_untitled">Untitled album</string><string name="album_volume_unavailable">Storage unavailable</string><string name="album_volume_unavailable_body">Reconnect the storage device to view this album.</string><string name="album_all">All</string><string name="album_photos">Photos</string><string name="album_videos">Videos</string><string name="album_newest">Newest first</string><string name="album_oldest">Oldest first</string><string name="album_selected_count">%1$d selected</string><string name="album_empty">This album is empty</string><string name="album_empty_body">Media added to this album will appear here.</string><string name="album_photo">Photo</string><string name="album_video">Video</string>
+<resources><string name="album_untitled">Untitled album</string><string name="album_volume_unavailable">Storage unavailable</string><string name="album_volume_unavailable_body">Reconnect the storage device to view this album.</string><string name="album_all">All</string><string name="album_photos">Photos</string><string name="album_videos">Videos</string><string name="album_newest">Newest first</string><string name="album_oldest">Oldest first</string><string name="album_empty">This album is empty</string><string name="album_empty_body">Media added to this album will appear here.</string><string name="album_photo">Photo</string><string name="album_video">Video</string>
     <string name="album_rename">Rename album</string>
     <string name="album_rename_title">Rename album</string>
     <string name="album_rename_body">This changes only the album name. Your photos and videos stay where they are.</string>
@@ -24,4 +24,8 @@
     <string name="album_side_panel_hide">Hide albums panel</string>
     <string name="album_side_panel_label">Albums</string>
     <plurals name="album_item_count"><item quantity="one">%1$d item</item><item quantity="other">%1$d items</item></plurals>
+    <plurals name="album_selected_count">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
 </resources>

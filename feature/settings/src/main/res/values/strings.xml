@@ -62,7 +62,6 @@
     <string name="settings_photo_zoom_limit">Photo zoom limit</string>
     <string name="settings_video_zoom_limit">Video zoom limit</string>
     <string name="settings_skip_seconds">Double-tap skip</string>
-    <string name="settings_seconds">%1$d seconds</string>
     <string name="settings_thumbnails">Thumbnails</string>
     <string name="settings_crop_thumbnails">Crop thumbnails to fill</string>
     <string name="settings_animate_media">Animate GIF and WebP</string>
@@ -185,4 +184,8 @@
     <string name="settings_card_photo_gestures">Photo gestures</string>
     <string name="settings_card_video_gestures">Video gestures</string>
     <string name="settings_swipe_up_details">Swipe up to open details</string>
+    <plurals name="settings_seconds">
+        <item quantity="one">%1$d second</item>
+        <item quantity="other">%1$d seconds</item>
+    </plurals>
 </resources>

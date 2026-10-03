@@ -392,7 +392,7 @@ class PrivateProtectionAppDeviceTest {
         click(label(com.librestatic.lightforge.feature.privatealbum.R.string.private_choose_media))
         find(label(com.librestatic.lightforge.feature.privatealbum.R.string.private_picker_title))
         click(tag("media_external_primary_${ContentUris.parseId(sourceUri)}"), scroll = true)
-        find(By.text(context.getString(com.librestatic.lightforge.feature.privatealbum.R.string.private_picker_count, 1)))
+        find(By.text(context.resources.getQuantityString(com.librestatic.lightforge.feature.privatealbum.R.plurals.private_picker_count, 1, 1)))
         click(label(com.librestatic.lightforge.feature.privatealbum.R.string.private_picker_add))
         find(label(com.librestatic.lightforge.feature.privatealbum.R.string.private_import_result_title), 60_000)
         click(label(com.librestatic.lightforge.feature.privatealbum.R.string.private_keep_originals))

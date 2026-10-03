@@ -50,12 +50,15 @@
     <string name="pet_accept">Assign to this group</string>
     <string name="pet_similarity">Similarity %1$.3f · review required</string>
     <string name="pet_no_items">No items on this page</string>
-    <string name="pet_selected">%1$d selected</string>
     <string name="pet_open_group">Open group</string>
     <string name="pet_model_ready">Verified local models installed</string>
     <string name="pet_leave">Leaving cancels the current operation. Completed photo analysis is preserved.</string>
     <plurals name="pet_skipped">
         <item quantity="one">%d photo could not be read and was skipped</item>
         <item quantity="other">%d photos could not be read and were skipped</item>
+    </plurals>
+    <plurals name="pet_selected">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
     </plurals>
 </resources>

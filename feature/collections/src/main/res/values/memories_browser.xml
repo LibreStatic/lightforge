@@ -11,6 +11,9 @@
     <string name="memories_browser_empty_body">Try another filter. Stories appear when enough local photos belong to the same event.</string>
     <string name="memories_browser_error">Memories could not be loaded.</string>
     <string name="memories_browser_retry">Retry</string>
-    <string name="memories_browser_photo_count">%1$d visible photos</string>
     <string name="memories_browser_hidden">No visible photos. Your saved story and its organization are preserved.</string>
+    <plurals name="memories_browser_photo_count">
+        <item quantity="one">%1$d visible photo</item>
+        <item quantity="other">%1$d visible photos</item>
+    </plurals>
 </resources>

@@ -224,7 +224,7 @@ fun AlbumContent(
                 sortButton(Modifier.fillMaxWidth())
             }
             val count = runCatching { SelectionReducer.count(selection, selectionQueryCount) }.getOrDefault(0)
-            if (count > 0 && !picking) Text(stringResource(R.string.album_selected_count, count))
+            if (count > 0 && !picking) Text(pluralStringResource(R.plurals.album_selected_count, count.toInt(), count))
         }
         when {
             album.availability == AlbumAvailability.VolumeUnavailable -> GalleryStateContent(

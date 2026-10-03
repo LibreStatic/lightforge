@@ -1325,7 +1325,7 @@ private fun GesturesSection(
             val next = when (settings.gestures.videoMaxZoom.toInt()) { 2 -> 4f; 4 -> 8f; else -> 2f }
             onSettingsChange { current -> current.copy(gestures = current.gestures.copy(videoMaxZoom = next)) }
         }
-        SettingsValueRow(stringResource(R.string.settings_skip_seconds), stringResource(R.string.settings_seconds, settings.gestures.videoSkipSeconds)) {
+        SettingsValueRow(stringResource(R.string.settings_skip_seconds), pluralStringResource(R.plurals.settings_seconds, settings.gestures.videoSkipSeconds.toInt(), settings.gestures.videoSkipSeconds)) {
             val next = when (settings.gestures.videoSkipSeconds) { 5 -> 10; 10 -> 15; 15 -> 30; else -> 5 }
             onSettingsChange { current -> current.copy(gestures = current.gestures.copy(videoSkipSeconds = next)) }
         }

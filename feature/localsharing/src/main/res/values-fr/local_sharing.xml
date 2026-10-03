@@ -24,7 +24,6 @@
     <string name="peer_revoked">Révoqué</string>
     <string name="peer_revoke">Révoquer l’appareil</string>
     <string name="peer_originals">Envoyer les originaux sélectionnés</string>
-    <string name="peer_select">Choisir les fichiers · %1$d sélectionnés</string>
     <string name="peer_strip">Retirer la localisation des copies</string>
     <string name="peer_derivative">Le retrait de localisation réencode les copies et peut perdre animation ou Motion Photo intégré. Les originaux restent intacts. Un échec arrête la préparation. Sans recettes privées de retouche.</string>
     <string name="peer_prepare">Préparer les copies durables</string>
@@ -59,4 +58,9 @@
     <string name="peer_status_completed">Transfert vérifié</string>
     <string name="peer_status_cancelled">Annulé · originaux conservés</string>
     <string name="peer_status_error">Vérification requise · copies conservées</string>
+    <plurals name="peer_select">
+        <item quantity="one">Choisir les fichiers · %1$d sélectionné</item>
+        <item quantity="many">Choisir les fichiers · %1$d sélectionnés</item>
+        <item quantity="other">Choisir les fichiers · %1$d sélectionnés</item>
+    </plurals>
 </resources>

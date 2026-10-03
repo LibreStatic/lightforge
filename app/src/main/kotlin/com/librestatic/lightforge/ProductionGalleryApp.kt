@@ -2383,10 +2383,7 @@ internal fun ProductionGalleryApp(
                     }
                     Column(Modifier.fillMaxSize()) {
                     Text(
-                        stringResource(
-                            com.librestatic.lightforge.feature.privatealbum.R.string.private_picker_count,
-                            privateImportSelection.size,
-                        ),
+                        pluralStringResource(com.librestatic.lightforge.feature.privatealbum.R.plurals.private_picker_count, privateImportSelection.size, privateImportSelection.size),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),

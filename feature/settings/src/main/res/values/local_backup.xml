@@ -32,7 +32,6 @@
         <item quantity="one">%d original</item>
         <item quantity="other">%d originals</item>
     </plurals>
-    <string name="local_backup_more">And %1$d more files</string>
     <string name="local_backup_restore_hint">Restore copies into a new Lightforge-restored folder. Existing files are not overwritten or deleted. Organization and preferences will not be changed.</string>
     <string name="local_backup_restore">Restore copies</string>
     <string name="local_backup_choose_folder">Choose restore folder</string>
@@ -46,7 +45,6 @@
     <string name="local_backup_organization_review">Organization to review</string>
     <string name="local_backup_organization_sources">Linked originals: %1$d / %2$d · omitted references: %3$d · unresolved identities: %4$d</string>
     <string name="local_backup_organization_count">%1$s: %2$d</string>
-    <string name="local_backup_global_impact">%1$d global rules may affect the existing library. They stay off unless you explicitly opt in.</string>
     <string name="local_backup_settings_review_only">Preferences and automatic archive rules are recorded for review only. Existing settings will not be overwritten or enabled.</string>
     <string name="local_backup_gallery_hint">Create new copies in Gallery and new organization. Existing files and decisions stay unchanged. Duplicate bytes remain separate files. Unresolved people are not matched to existing identities.</string>
     <string name="local_backup_gallery_restore">Restore to Gallery with organization</string>
@@ -74,4 +72,12 @@
     <string name="local_backup_recovery_failed">Recovery did not finish. Existing copies were preserved when their status could not be verified.</string>
     <string name="local_backup_recovery_retry">Retry verification</string>
     <string name="local_backup_kind_photo_edits">Photo edit recipes</string>
+    <plurals name="local_backup_more">
+        <item quantity="one">And %1$d more file</item>
+        <item quantity="other">And %1$d more files</item>
+    </plurals>
+    <plurals name="local_backup_global_impact">
+        <item quantity="one">%1$d global rule may affect the existing library. It stays off unless you explicitly opt in.</item>
+        <item quantity="other">%1$d global rules may affect the existing library. They stay off unless you explicitly opt in.</item>
+    </plurals>
 </resources>

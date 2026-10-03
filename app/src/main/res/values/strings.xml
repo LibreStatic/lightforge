@@ -38,7 +38,6 @@
 <string name="about_licenses_title">Third-party licenses</string>
 <string name="about_back">Back</string>
 <string name="about_app_icon">Lightforge Studio app icon</string>
-    <string name="about_dependencies_count">%1$d runtime dependencies</string>
     <string name="about_license_load_error">The bundled license information could not be loaded.</string>
     <string name="about_license_template_note">The bracketed fields in the appendix are part of Apache’s example template and are intentionally left unchanged. Lightforge Studio’s completed copyright notice appears above.</string>
     <string name="nav_settings">Settings</string><string name="nav_create">Create</string><string name="nav_ask">Ask</string><string name="nav_updates">Updates</string><string name="nav_on_device">On device</string><string name="nav_archive">Archive</string><string name="nav_trash">Trash</string>
@@ -46,7 +45,7 @@
     <string name="device_folders_title">On device</string><string name="device_folders_empty">No device folders</string>
     <string name="archive_title">Archive</string><string name="archive_empty">Archive is empty</string><string name="archive_empty_body">Archived items disappear from Photos but remain in albums and search.</string><string name="archive_unarchive">Unarchive</string><string name="archive_move">Move to archive</string>
     <string name="create_sheet_title">Create</string><string name="highlight_selfies">Selfies</string>
-    <string name="activity_archived">%1$d archived</string><string name="activity_unarchived">%1$d unarchived</string><string name="activity_trashed">%1$d moved to trash</string><string name="activity_restored">%1$d restored</string><string name="activity_deleted">%1$d permanently deleted</string><string name="activity_exported">%1$d exported</string><string name="activity_imported">%1$d imported</string><string name="activity_analysis_complete">Local analysis completed</string><string name="activity_analysis_failed">Local analysis needs attention</string>
+<string name="activity_analysis_complete">Local analysis completed</string><string name="activity_analysis_failed">Local analysis needs attention</string>
     <plurals name="highlight_years_ago"><item quantity="one">%d year ago</item><item quantity="other">%d years ago</item></plurals>
 <string name="video_export_channel">Video exports</string>
 <string name="video_export_title">Exporting video</string>
@@ -105,4 +104,37 @@
     <string name="move_copy_discard">Delete recorded copy</string>
     <string name="move_copy_review_body">Retry replaces the reviewed copy from the unchanged original. Delete removes only the reviewed copy. Both actions recheck the files; neither deletes the original.</string>
     <string name="move_copy_forget_body">End tracking without deleting any file? An incomplete or unrecorded copy may remain in the selected folder.</string>
-<string name="creation_collage_needs_two_images">Only %1$d photo selected. Choose 2 to 4 photos.</string><string name="creation_collage_too_many">%1$d photos selected. Choose no more than 4.</string><string name="creation_collage_images_only">Collages only use photos. Remove the videos from the selection.</string><string name="creation_collage_draft_pending">A collage draft is still being restored. Open it or discard it first.</string><string name="creation_collage_sources_missing">The selected photos are no longer available. Pick other photos and try again.</string><string name="album_delete">Delete album</string><string name="album_delete_title">Delete “%1$s”?</string><string name="album_delete_body">This removes only the album. Your photos are not deleted: they stay on this device and remain in Photos and in their folders.</string><string name="album_delete_confirm">Delete album</string><string name="album_delete_cancel">Cancel</string><string name="album_delete_failed">The album could not be deleted. Try again.</string><string name="album_delete_deleting">Deleting…</string><string name="move_verified_complete_body">The file is in the folder you chose. The original was removed only after both copies were verified.</string><string name="move_verified_attention">Move needs attention</string><string name="move_verified_done">Done</string><string name="share_sanitized_failed">Could not prepare a copy without location</string><string name="media_change_mismatch">The approved item did not match the pending change</string><string name="media_change_failed">The change could not be applied to this item</string><string name="about_no_link_handler">No app can open this link</string><string name="video_export_complete_fallback">Video saved with encoder settings adjusted for this device</string><string name="create_memory_desc">Group photos into a memory</string><string name="create_memory_video_desc">Turn a memory into a short video</string><string name="create_gif_desc">Animate a series of photos</string><string name="create_pdf_desc">Photos, receipts and documents as a PDF</string><string name="create_album_desc">Organize photos in a new album</string><string name="create_collage_desc">Combine photos in a single layout</string><string name="create_recoveries_desc">Finish saves that were interrupted</string><string name="create_section_more">More</string><string name="create_section_organize">Organize</string><string name="create_section_from_photos">From your photos</string></resources>
+<string name="creation_collage_needs_two_images">Only %1$d photo selected. Choose 2 to 4 photos.</string><string name="creation_collage_too_many">%1$d photos selected. Choose no more than 4.</string><string name="creation_collage_images_only">Collages only use photos. Remove the videos from the selection.</string><string name="creation_collage_draft_pending">A collage draft is still being restored. Open it or discard it first.</string><string name="creation_collage_sources_missing">The selected photos are no longer available. Pick other photos and try again.</string><string name="album_delete">Delete album</string><string name="album_delete_title">Delete “%1$s”?</string><string name="album_delete_body">This removes only the album. Your photos are not deleted: they stay on this device and remain in Photos and in their folders.</string><string name="album_delete_confirm">Delete album</string><string name="album_delete_cancel">Cancel</string><string name="album_delete_failed">The album could not be deleted. Try again.</string><string name="album_delete_deleting">Deleting…</string><string name="move_verified_complete_body">The file is in the folder you chose. The original was removed only after both copies were verified.</string><string name="move_verified_attention">Move needs attention</string><string name="move_verified_done">Done</string><string name="share_sanitized_failed">Could not prepare a copy without location</string><string name="media_change_mismatch">The approved item did not match the pending change</string><string name="media_change_failed">The change could not be applied to this item</string><string name="about_no_link_handler">No app can open this link</string><string name="video_export_complete_fallback">Video saved with encoder settings adjusted for this device</string><string name="create_memory_desc">Group photos into a memory</string><string name="create_memory_video_desc">Turn a memory into a short video</string><string name="create_gif_desc">Animate a series of photos</string><string name="create_pdf_desc">Photos, receipts and documents as a PDF</string><string name="create_album_desc">Organize photos in a new album</string><string name="create_collage_desc">Combine photos in a single layout</string><string name="create_recoveries_desc">Finish saves that were interrupted</string><string name="create_section_more">More</string><string name="create_section_organize">Organize</string><string name="create_section_from_photos">From your photos</string>
+    <plurals name="activity_archived">
+        <item quantity="one">%1$d archived</item>
+        <item quantity="other">%1$d archived</item>
+    </plurals>
+    <plurals name="activity_unarchived">
+        <item quantity="one">%1$d unarchived</item>
+        <item quantity="other">%1$d unarchived</item>
+    </plurals>
+    <plurals name="activity_trashed">
+        <item quantity="one">%1$d moved to trash</item>
+        <item quantity="other">%1$d moved to trash</item>
+    </plurals>
+    <plurals name="activity_restored">
+        <item quantity="one">%1$d restored</item>
+        <item quantity="other">%1$d restored</item>
+    </plurals>
+    <plurals name="activity_deleted">
+        <item quantity="one">%1$d permanently deleted</item>
+        <item quantity="other">%1$d permanently deleted</item>
+    </plurals>
+    <plurals name="activity_exported">
+        <item quantity="one">%1$d exported</item>
+        <item quantity="other">%1$d exported</item>
+    </plurals>
+    <plurals name="activity_imported">
+        <item quantity="one">%1$d imported</item>
+        <item quantity="other">%1$d imported</item>
+    </plurals>
+    <plurals name="about_dependencies_count">
+        <item quantity="one">%1$d runtime dependency</item>
+        <item quantity="other">%1$d runtime dependencies</item>
+    </plurals>
+</resources>

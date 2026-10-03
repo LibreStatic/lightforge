@@ -8,7 +8,6 @@
     <string name="moment_participants_unavailable">Diese Erinnerung oder ihre Personen sind nicht verfügbar. Lade vor dem Anwenden neu.</string>
     <string name="moment_participants_changed">Personen oder gespeicherte Optionen wurden während der Bearbeitung geändert. Prüfe vor dem Anwenden die aktuelle Auswahl.</string>
     <string name="moment_participants_review">Aktuelle Auswahl prüfen</string>
-    <string name="moment_participants_count">%1$d ausgewählt</string>
     <string name="moment_participants_clear">Auswahl leeren</string>
     <string name="moment_participants_search">Personen suchen</string>
     <string name="moment_participants_no_matches">Keine passenden Personen.</string>
@@ -18,4 +17,8 @@
     <string name="moment_participants_error">Die Änderungen wurden nicht gespeichert. Versuche es erneut.</string>
     <string name="moment_participants_retry">Erneut versuchen</string>
     <string name="moment_participants_apply">Anwenden</string>
+    <plurals name="moment_participants_count">
+        <item quantity="one">%1$d ausgewählt</item>
+        <item quantity="other">%1$d ausgewählt</item>
+    </plurals>
 </resources>

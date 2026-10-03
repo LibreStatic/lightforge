@@ -4,10 +4,8 @@
     <string name="document_auto_explanation">Os documentos correspondentes saem de Fotos, mas ficam em Documentos e álbuns. Os originais permanecem neste dispositivo. Favoritos e fotos excluídas da seleção são ignorados. Manter e desfazer se aplicam à versão atual.</string>
     <string name="document_auto_enabled">Arquivamento automático ativo</string>
     <string name="document_auto_paused">Arquivamento automático pausado</string>
-    <string name="document_auto_last_run">Último lote: %1$d arquivados</string>
     <string name="document_auto_age">Idade da foto</string>
     <string name="document_auto_any_age">Qualquer idade</string>
-    <string name="document_auto_days">Pelo menos %1$d dias</string>
     <string name="document_auto_review">Revisar correspondências</string>
     <string name="document_auto_pause">Pausar arquivamento automático</string>
     <string name="document_auto_undo">Desfazer último lote e pausar</string>
@@ -22,4 +20,14 @@
     <string name="document_auto_active_rule">Regra salva: %1$s · %2$d dias</string>
     <string name="document_auto_keep_named">Manter em Fotos: %1$s</string>
     <string name="document_auto_preview_rule">Regra a ativar: %1$s · %2$d dias</string>
+    <plurals name="document_auto_last_run">
+        <item quantity="one">Último lote: %1$d arquivado</item>
+        <item quantity="many">Último lote: %1$d arquivados</item>
+        <item quantity="other">Último lote: %1$d arquivados</item>
+    </plurals>
+    <plurals name="document_auto_days">
+        <item quantity="one">Pelo menos %1$d dia</item>
+        <item quantity="many">Pelo menos %1$d dias</item>
+        <item quantity="other">Pelo menos %1$d dias</item>
+    </plurals>
 </resources>

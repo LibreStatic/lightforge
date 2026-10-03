@@ -56,7 +56,6 @@
     <string name="settings_photo_zoom_limit">Límite de zoom en fotos</string>
     <string name="settings_video_zoom_limit">Límite de zoom en videos</string>
     <string name="settings_skip_seconds">Salto con doble toque</string>
-    <string name="settings_seconds">%1$d segundos</string>
     <string name="settings_thumbnails">Miniaturas</string>
     <string name="settings_crop_thumbnails">Recortar miniaturas para llenar</string>
     <string name="settings_animate_media">Animar GIF y WebP</string>
@@ -181,4 +180,9 @@
     <string name="settings_card_photo_gestures">Gestos en fotos</string>
     <string name="settings_card_video_gestures">Gestos en videos</string>
     <string name="settings_swipe_up_details">Deslizar arriba para ver detalles</string>
+    <plurals name="settings_seconds">
+        <item quantity="one">%1$d segundo</item>
+        <item quantity="many">%1$d segundos</item>
+        <item quantity="other">%1$d segundos</item>
+    </plurals>
 </resources>

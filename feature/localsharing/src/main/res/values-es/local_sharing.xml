@@ -24,7 +24,6 @@
     <string name="peer_revoked">Revocado</string>
     <string name="peer_revoke">Revocar dispositivo</string>
     <string name="peer_originals">Enviar originales seleccionados</string>
-    <string name="peer_select">Seleccionar archivos · %1$d seleccionados</string>
     <string name="peer_strip">Quitar ubicación de las copias</string>
     <string name="peer_derivative">Quitar ubicación recodifica copias y puede perder animación o Motion Photo incrustado. Los originales quedan intactos. Un error detiene la preparación. No incluye recetas privadas de edición.</string>
     <string name="peer_prepare">Preparar copias durables</string>
@@ -59,4 +58,9 @@
     <string name="peer_status_completed">Transferencia verificada</string>
     <string name="peer_status_cancelled">Cancelado · originales conservados</string>
     <string name="peer_status_error">Requiere revisión · copias conservadas</string>
+    <plurals name="peer_select">
+        <item quantity="one">Seleccionar archivos · %1$d seleccionado</item>
+        <item quantity="many">Seleccionar archivos · %1$d seleccionados</item>
+        <item quantity="other">Seleccionar archivos · %1$d seleccionados</item>
+    </plurals>
 </resources>

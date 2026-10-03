@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
@@ -204,13 +205,13 @@ private fun ActivityCard(event: GalleryActivityEvent) {
 
 @Composable
 private fun activityLabel(event: GalleryActivityEvent): String = when (event.type) {
-    GalleryActivityType.Archived -> stringResource(R.string.activity_archived, event.itemCount)
-    GalleryActivityType.Unarchived -> stringResource(R.string.activity_unarchived, event.itemCount)
-    GalleryActivityType.Trashed -> stringResource(R.string.activity_trashed, event.itemCount)
-    GalleryActivityType.Restored -> stringResource(R.string.activity_restored, event.itemCount)
-    GalleryActivityType.Deleted -> stringResource(R.string.activity_deleted, event.itemCount)
-    GalleryActivityType.Exported -> stringResource(R.string.activity_exported, event.itemCount)
-    GalleryActivityType.Imported -> stringResource(R.string.activity_imported, event.itemCount)
+    GalleryActivityType.Archived -> pluralStringResource(R.plurals.activity_archived, event.itemCount.toInt(), event.itemCount)
+    GalleryActivityType.Unarchived -> pluralStringResource(R.plurals.activity_unarchived, event.itemCount.toInt(), event.itemCount)
+    GalleryActivityType.Trashed -> pluralStringResource(R.plurals.activity_trashed, event.itemCount.toInt(), event.itemCount)
+    GalleryActivityType.Restored -> pluralStringResource(R.plurals.activity_restored, event.itemCount.toInt(), event.itemCount)
+    GalleryActivityType.Deleted -> pluralStringResource(R.plurals.activity_deleted, event.itemCount.toInt(), event.itemCount)
+    GalleryActivityType.Exported -> pluralStringResource(R.plurals.activity_exported, event.itemCount.toInt(), event.itemCount)
+    GalleryActivityType.Imported -> pluralStringResource(R.plurals.activity_imported, event.itemCount.toInt(), event.itemCount)
     GalleryActivityType.AnalysisCompleted -> stringResource(R.string.activity_analysis_complete)
     GalleryActivityType.AnalysisFailed -> stringResource(R.string.activity_analysis_failed)
 }

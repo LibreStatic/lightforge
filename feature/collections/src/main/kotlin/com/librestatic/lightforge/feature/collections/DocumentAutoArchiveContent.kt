@@ -10,6 +10,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
@@ -113,10 +114,7 @@ fun DocumentAutoArchiveContent(
                             )
                             if (state!!.lastRunId != null)
                                 Text(
-                                    stringResource(
-                                        R.string.document_auto_last_run,
-                                        state!!.lastRunCount,
-                                    )
+                                    pluralStringResource(R.plurals.document_auto_last_run, state!!.lastRunCount.toInt(), state!!.lastRunCount)
                                 )
                         }
                     }
@@ -153,7 +151,7 @@ fun DocumentAutoArchiveContent(
                                         Text(
                                             if (days == 0)
                                                 stringResource(R.string.document_auto_any_age)
-                                            else stringResource(R.string.document_auto_days, days)
+                                            else pluralStringResource(R.plurals.document_auto_days, days.toInt(), days)
                                         )
                                     },
                                 )

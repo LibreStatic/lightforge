@@ -182,7 +182,7 @@ fun MomentParticipantsContent(
                     if (loadFailed) TextButton(onClick = onReload, enabled = !saving) { Text(stringResource(R.string.moment_participants_retry)) }
                 }
                 item {
-                    Text(stringResource(R.string.moment_participants_count, current.selectedIds.size), Modifier.testTag("moment-participants-count"))
+                    Text(pluralStringResource(R.plurals.moment_participants_count, current.selectedIds.size, current.selectedIds.size), Modifier.testTag("moment-participants-count"))
                     if (current.mode == MomentParticipantsMode.Manual) TextButton(onClick = { draft = current.copy(selectedIds = emptySet()) }, enabled = !saving,
                         modifier = Modifier.testTag("moment-participants-clear")) { Text(stringResource(R.string.moment_participants_clear)) }
                     OutlinedTextField(query, { query = it }, label = { Text(stringResource(R.string.moment_participants_search)) },

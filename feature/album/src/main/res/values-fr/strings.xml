@@ -1,4 +1,4 @@
-<resources><string name="album_untitled">Album sans titre</string><string name="album_volume_unavailable">Stockage indisponible</string><string name="album_volume_unavailable_body">Reconnectez le stockage pour afficher cet album.</string><string name="album_all">Tout</string><string name="album_photos">Photos</string><string name="album_videos">Vidéos</string><string name="album_newest">Plus récent</string><string name="album_oldest">Plus ancien</string><string name="album_selected_count">%1$d sélectionnés</string><string name="album_empty">Album vide</string><string name="album_empty_body">Les médias ajoutés apparaîtront ici.</string><string name="album_photo">Photo</string><string name="album_video">Vidéo</string>
+<resources><string name="album_untitled">Album sans titre</string><string name="album_volume_unavailable">Stockage indisponible</string><string name="album_volume_unavailable_body">Reconnectez le stockage pour afficher cet album.</string><string name="album_all">Tout</string><string name="album_photos">Photos</string><string name="album_videos">Vidéos</string><string name="album_newest">Plus récent</string><string name="album_oldest">Plus ancien</string><string name="album_empty">Album vide</string><string name="album_empty_body">Les médias ajoutés apparaîtront ici.</string><string name="album_photo">Photo</string><string name="album_video">Vidéo</string>
     <string name="album_rename">Renommer l’album</string>
     <string name="album_rename_title">Renommer l’album</string>
     <string name="album_rename_body">Seul le nom de l’album change. Vos photos et vidéos restent à leur emplacement.</string>
@@ -24,4 +24,9 @@
     <string name="album_side_panel_hide">Masquer le panneau des albums</string>
     <string name="album_side_panel_label">Albums</string>
     <plurals name="album_item_count"><item quantity="one">%1$d élément</item><item quantity="many">%1$d éléments</item><item quantity="other">%1$d éléments</item></plurals>
+    <plurals name="album_selected_count">
+        <item quantity="one">%1$d sélectionné</item>
+        <item quantity="many">%1$d sélectionnés</item>
+        <item quantity="other">%1$d sélectionnés</item>
+    </plurals>
 </resources>

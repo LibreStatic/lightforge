@@ -209,7 +209,6 @@
     <string name="pdf_paper_custom">Personnalisé</string>
     <string name="pdf_orientation">Orientation</string>
     <string name="pdf_grid_template">Photos par page</string>
-    <string name="pdf_template_photos">%1$d photos</string>
     <string name="pdf_apply_to">Appliquer à</string>
     <string name="pdf_apply_scope_page">Cette page</string>
     <string name="pdf_apply_scope_all">Toutes les pages</string>
@@ -358,4 +357,9 @@
     <string name="pdf_ink_red">Rouge</string>
     <string name="pdf_ink_blue">Bleu</string>
     <string name="pdf_ink_green">Vert</string>
+    <plurals name="pdf_template_photos">
+        <item quantity="one">%1$d photo</item>
+        <item quantity="many">%1$d photos</item>
+        <item quantity="other">%1$d photos</item>
+    </plurals>
 </resources>

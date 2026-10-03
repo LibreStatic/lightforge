@@ -273,7 +273,7 @@ fun RemoteBackupContent(
                     ) {
                         Text(stringResource(R.string.remote_sources))
                     }
-                    Text(stringResource(R.string.remote_selected, sources.size))
+                    Text(pluralStringResource(R.plurals.remote_selected, sources.size, sources.size))
                     if (controller.organizationAvailable)
                         LabelledCheck(
                             organization,

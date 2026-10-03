@@ -26,7 +26,6 @@
     <string name="remote_cancel">Cancel</string>
     <string name="remote_stop">Stop connection attempt</string>
     <string name="remote_sources">Select originals</string>
-    <string name="remote_selected">%1$d selected</string>
     <string name="remote_organization">Include supported organization</string>
     <string name="remote_prepare">Prepare backup for review</string>
     <string name="remote_list">Browse remote backups</string>
@@ -83,4 +82,8 @@
     <string name="remote_error_key_required">Choose an SSH private key file.</string>
     <string name="remote_transfer_progress">%1$s of %2$s</string>
     <string name="remote_archive_checksum">Checksum (SHA-256): %1$s</string>
+    <plurals name="remote_selected">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
 </resources>

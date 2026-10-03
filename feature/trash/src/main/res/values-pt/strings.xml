@@ -1,5 +1,10 @@
 <resources><string name="trash_title">Lixeira</string><string name="trash_empty">Esvaziar lixeira</string><string name="trash_empty_state">Os itens movidos para a lixeira aparecerão aqui até serem excluídos.</string><string name="trash_restore">Restaurar</string><string name="trash_delete_permanently">Excluir permanentemente</string><string name="trash_expires_on">Exclusão automática em %1$s</string><string name="trash_expiry_unknown">Data de exclusão indisponível</string>    <string name="trash_empty_title">A lixeira está vazia</string>
     <string name="trash_empty_description">Ilustração de itens excluídos</string>
     <string name="trash_unnamed_item">Item sem título</string>
-    <string name="trash_select">Selecionar</string><string name="trash_selected">%1$d selecionados</string><string name="trash_retention_info">Os itens permanecem na lixeira do Android até a data de expiração informada pelo sistema. Restaure antes o que deseja manter.</string><string name="trash_photo_description">Foto excluída</string><string name="trash_video_description">Vídeo excluído</string>
+    <string name="trash_select">Selecionar</string><string name="trash_retention_info">Os itens permanecem na lixeira do Android até a data de expiração informada pelo sistema. Restaure antes o que deseja manter.</string><string name="trash_photo_description">Foto excluída</string><string name="trash_video_description">Vídeo excluído</string>
+    <plurals name="trash_selected">
+        <item quantity="one">%1$d selecionado</item>
+        <item quantity="many">%1$d selecionados</item>
+        <item quantity="other">%1$d selecionados</item>
+    </plurals>
 </resources>

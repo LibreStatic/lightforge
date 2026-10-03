@@ -52,7 +52,6 @@
     <string name="pet_accept">Atribuir a este grupo</string>
     <string name="pet_similarity">Similaridade %1$.3f · revisão necessária</string>
     <string name="pet_no_items">Nenhum item nesta página</string>
-    <string name="pet_selected">%1$d selecionados</string>
     <string name="pet_open_group">Abrir grupo</string>
     <string name="pet_model_ready">Modelos locais verificados instalados</string>
     <string name="pet_leave">Sair cancela a operação atual. As análises concluídas são preservadas.</string>
@@ -60,5 +59,10 @@
         <item quantity="one">%d foto não pôde ser lida e foi ignorada</item>
         <item quantity="many">%d fotos não puderam ser lidas e foram ignoradas</item>
         <item quantity="other">%d fotos não puderam ser lidas e foram ignoradas</item>
+    </plurals>
+    <plurals name="pet_selected">
+        <item quantity="one">%1$d selecionado</item>
+        <item quantity="many">%1$d selecionados</item>
+        <item quantity="other">%1$d selecionados</item>
     </plurals>
 </resources>
