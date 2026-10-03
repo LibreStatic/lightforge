@@ -256,11 +256,13 @@ class CreationGifPlaybackLifecycleDeviceTest {
     private fun text(tag: String) = compose.onNodeWithTag(tag).fetchSemanticsNode().config[SemanticsProperties.Text].joinToString(" ") { it.text }
     private fun positionPreview() {
         report("preview-position begin")
-        // Preview is the first child of this exact scroll container. One action, not performScrollTo's
-        // retry-until-visible loop; awaitColor must never scroll on each capture attempt.
-        val container = compose.onNode(hasScrollAction() and hasAnyDescendant(hasTestTag("creation-gif-preview")))
-        val axis = container.fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange]
-        val offset = axis.value()
+        // The preview sits in its own media pane, outside the scrolling properties panel. Should a
+        // layout ever scroll it, undo that with one action, not performScrollTo's retry-until-visible
+        // loop; awaitColor must never scroll on each capture attempt.
+        val matcher = hasScrollAction() and hasAnyDescendant(hasTestTag("creation-gif-preview"))
+        val scrolls = compose.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty()
+        val container = compose.onNode(matcher)
+        val offset = if (scrolls) container.fetchSemanticsNode().config[SemanticsProperties.VerticalScrollAxisRange].value() else 0f
         check(offset.isFinite() && offset >= 0f)
         if (offset > 0f) {
             report("preview-position scrollBy=${-offset}")

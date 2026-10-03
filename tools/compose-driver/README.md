@@ -105,7 +105,7 @@ scripts/compose-driver.sh shot photos-tablet-dark
 Shared grid and selection components (`AdaptiveMediaGrid`, `GallerySelectionBar`) are covered by
 `SelectionBarPreview`; screens that adopt them should add their own preview rather than relying on it.
 `CleanupLoadingPreview` (`feature/collections`), `VideoEditorPreview`, `VideoFilmstripLoadingPreview`
-(`feature/videoeditor`).
+(`feature/videoeditor`), `CollageEditorPreview`, `GifEditorPreview` (`feature/collage`).
 
 ## Behavior worth knowing
 

@@ -6,6 +6,8 @@ import android.content.ContextWrapper
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -23,12 +25,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
+import com.librestatic.lightforge.core.designsystem.MediaEditorScaffold
+import com.librestatic.lightforge.core.designsystem.MediaEditorTopBar
 import kotlinx.coroutines.launch
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 
 /** Caller supplies a fresh session ID per selection and public URI callbacks for app navigation. */
-@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun CreationCollageContent(
     sessionId: String,
@@ -78,7 +80,6 @@ fun CreationCollageContent(
     }
     fun back() { if (state.busy) exitConfirmation = true else closeDraft() }
     BackHandler { back() }
-    val layout = state.layout
     val editingEnabled = supported && !state.busy &&
         collageAllowsNewRender(state.publication, state.sourcesAvailable)
     val contentScroll = rememberScrollState()
@@ -89,161 +90,233 @@ fun CreationCollageContent(
         if (!revealsOutcome) return@LaunchedEffect
         snapshotFlow { contentScroll.maxValue }.collect { maximum -> contentScroll.animateScrollTo(maximum) }
     }
-        val previewBlock: @Composable () -> Unit = {
-                Text(stringResource(R.string.creation_collage_originals))
-                Surface(color = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface,
-                    shape = MaterialTheme.shapes.large) {
-                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        // Bound width before deriving height: a wide viewport must not clip a square
-                        // preview or leave contradictory pending measurements in Compose.
-                        Box(Modifier.widthIn(max = 480.dp).fillMaxWidth().aspectRatio(1f), contentAlignment = Alignment.Center) {
-                            state.preview?.let { image -> Image(image.asImageBitmap(), stringResource(R.string.creation_collage_preview),
-                                Modifier.fillMaxSize().testTag("creation-collage-preview"), contentScale = ContentScale.Fit) }
-                            if (state.busy && !state.publishing) GalleryIndeterminateProgressIndicator(Modifier.width(160.dp).testTag("creation-collage-loading"))
-                        }
-                    }
-                }
+    fun handoff(target: (Uri) -> Unit) {
+        scope.launch {
+            controller.verifyResultForHandoff()?.let { uri ->
+                try { target(uri) } catch (_: Exception) { callbackError = true }
+            }
         }
-        val controlsBlock: @Composable () -> Unit = {
-                Text(stringResource(R.string.creation_collage_template), style = MaterialTheme.typography.titleMedium)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CreationCollageTemplate.forCount(sources.size).forEach { template ->
-                        FilterChip(selected = layout?.template == template, onClick = { controller.chooseTemplate(template) },
-                            enabled = editingEnabled, label = { Text(stringResource(template.label())) },
-                            modifier = Modifier.testTag("creation-collage-template-${template.name}"))
+    }
+    CreationCollageEditorLayout(
+        state = state,
+        templates = CreationCollageTemplate.forCount(sources.size),
+        supported = supported,
+        editingEnabled = editingEnabled,
+        callbackError = callbackError,
+        contentScroll = contentScroll,
+        actions = CreationCollageEditorActions(
+            onBack = ::back,
+            onTemplate = controller::chooseTemplate,
+            onSelect = controller::select,
+            onMove = controller::move,
+            onCrop = controller::crop,
+            onAcknowledgeInterruption = controller::acknowledgeInterruptedPublication,
+            onRetry = { callbackError = false; controller.retry() },
+            onExport = controller::export,
+            onCancelExport = { scope.launch { controller.cancelAndWait() } },
+            onOpen = { handoff(onOpen) },
+            onShare = { handoff(onShare) },
+        ),
+        modifier = modifier,
+    )
+    if (exitConfirmation) AlertDialog(onDismissRequest = { exitConfirmation = false },
+        title = { Text(stringResource(R.string.creation_collage_leave)) },
+        text = { Text(stringResource(R.string.creation_collage_leave_hint)) },
+        confirmButton = { TextButton(onClick = { exitConfirmation = false; closeDraft() }) {
+            Text(stringResource(R.string.creation_collage_cancel)) } },
+        dismissButton = { TextButton(onClick = { exitConfirmation = false }) { Text(stringResource(R.string.creation_collage_keep)) } })
+}
+
+internal class CreationCollageEditorActions(
+    val onBack: () -> Unit = {},
+    val onTemplate: (CreationCollageTemplate) -> Unit = {},
+    val onSelect: (Int) -> Unit = {},
+    val onMove: (Int) -> Unit = {},
+    val onCrop: (CreationCollageCrop) -> Unit = {},
+    val onAcknowledgeInterruption: () -> Unit = {},
+    val onRetry: () -> Unit = {},
+    val onExport: () -> Unit = {},
+    val onCancelExport: () -> Unit = {},
+    val onOpen: () -> Unit = {},
+    val onShare: () -> Unit = {},
+)
+
+/**
+ * Stateless collage editor on [MediaEditorScaffold]: the preview fills the media pane, the
+ * properties scroll in their own panel (beside the preview on wide windows) and Export sits in the
+ * top bar, clear of the system bars.
+ */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class, ExperimentalLayoutApi::class)
+@Composable
+internal fun CreationCollageEditorLayout(
+    state: CreationCollageUiState,
+    templates: List<CreationCollageTemplate>,
+    supported: Boolean,
+    editingEnabled: Boolean,
+    callbackError: Boolean,
+    contentScroll: ScrollState,
+    actions: CreationCollageEditorActions,
+    modifier: Modifier = Modifier,
+) {
+    val layout = state.layout
+    MediaEditorScaffold(
+        modifier = modifier.testTag("creation-collage-screen").semantics { testTagsAsResourceId = true },
+        topBar = {
+            MediaEditorTopBar(
+                title = stringResource(R.string.creation_collage_title),
+                onCancel = actions.onBack,
+                cancelLabel = stringResource(R.string.creation_collage_back),
+                actionLabel = stringResource(R.string.creation_collage_export),
+                onAction = actions.onExport,
+                actionEnabled = editingEnabled && state.preview != null && !state.failed &&
+                    !state.publicationUncertain && state.result == null && !state.publishing,
+                actionTestTag = "creation-collage-export",
+            )
+        },
+        media = { mediaModifier ->
+            Box(mediaModifier.background(MaterialTheme.colorScheme.surfaceContainerLowest), contentAlignment = Alignment.Center) {
+                // Bound the square to the pane so a wide or short pane never clips it.
+                Box(Modifier.padding(16.dp).aspectRatio(1f, matchHeightConstraintsFirst = true), contentAlignment = Alignment.Center) {
+                    state.preview?.takeIf { !it.isRecycled }?.let { image ->
+                        Image(image.asImageBitmap(), stringResource(R.string.creation_collage_preview),
+                            Modifier.fillMaxSize().testTag("creation-collage-preview"), contentScale = ContentScale.Fit)
                     }
+                    if (state.busy && !state.publishing) GalleryIndeterminateProgressIndicator(Modifier.width(160.dp).testTag("creation-collage-loading"))
                 }
-                if (layout != null) {
-                    Text(stringResource(R.string.creation_collage_order), style = MaterialTheme.typography.titleMedium)
+            }
+        },
+        inspector = { inspectorModifier, _ ->
+            Surface(inspectorModifier, color = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface) {
+                Column(
+                    Modifier.fillMaxSize().verticalScroll(contentScroll).padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(stringResource(R.string.creation_collage_originals), style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.creation_collage_template), style = MaterialTheme.typography.titleSmall)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        layout.order.forEachIndexed { slot, source ->
-                            FilterChip(selected = state.selectedSlot == slot, onClick = { controller.select(slot) },
-                                enabled = editingEnabled, label = { Text(stringResource(R.string.creation_collage_photo, source + 1)) },
-                                modifier = Modifier.testTag("creation-collage-slot-$slot"))
+                        templates.forEach { template ->
+                            FilterChip(selected = layout?.template == template, onClick = { actions.onTemplate(template) },
+                                enabled = editingEnabled, label = { Text(stringResource(template.label())) },
+                                modifier = Modifier.testTag("creation-collage-template-${template.name}"))
                         }
                     }
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { controller.move(-1) }, enabled = editingEnabled && state.selectedSlot > 0,
-                            modifier = Modifier.testTag("creation-collage-earlier")) { Text(stringResource(R.string.creation_collage_earlier)) }
-                        OutlinedButton(onClick = { controller.move(1) }, enabled = editingEnabled && state.selectedSlot < layout.order.lastIndex,
-                            modifier = Modifier.testTag("creation-collage-later")) { Text(stringResource(R.string.creation_collage_later)) }
-                    }
-                    val crop = layout.crops[layout.order[state.selectedSlot]]
-                    var zoom by remember(layout, state.selectedSlot) { mutableFloatStateOf(crop.zoom) }
-                    var horizontal by remember(layout, state.selectedSlot) { mutableFloatStateOf(crop.horizontal) }
-                    var vertical by remember(layout, state.selectedSlot) { mutableFloatStateOf(crop.vertical) }
-                    fun commitCrop() = controller.crop(CreationCollageCrop(zoom, horizontal, vertical))
-                    Text(stringResource(R.string.creation_collage_crop, layout.order[state.selectedSlot] + 1), style = MaterialTheme.typography.titleMedium)
-                    val zoomLabel = stringResource(R.string.creation_collage_zoom)
-                    val horizontalLabel = stringResource(R.string.creation_collage_horizontal)
-                    val verticalLabel = stringResource(R.string.creation_collage_vertical)
-                    Text("${zoomLabel}: ${java.text.NumberFormat.getNumberInstance().format(zoom)}", Modifier.testTag("creation-collage-zoom-value"))
-                    Slider(zoom, { zoom = it }, enabled = editingEnabled, valueRange = 1f..3f,
-                        onValueChangeFinished = ::commitCrop, modifier = Modifier.testTag("creation-collage-zoom").semantics { contentDescription = "${zoomLabel}: ${java.text.NumberFormat.getNumberInstance().format(zoom)}" })
-                    Text("${horizontalLabel}: ${java.text.NumberFormat.getNumberInstance().format(horizontal)}", Modifier.testTag("creation-collage-horizontal-value"))
-                    Slider(horizontal, { horizontal = it }, enabled = editingEnabled, valueRange = -1f..1f,
-                        onValueChangeFinished = ::commitCrop, modifier = Modifier.testTag("creation-collage-horizontal").semantics { contentDescription = "${horizontalLabel}: ${java.text.NumberFormat.getNumberInstance().format(horizontal)}" })
-                    Text("${verticalLabel}: ${java.text.NumberFormat.getNumberInstance().format(vertical)}", Modifier.testTag("creation-collage-vertical-value"))
-                    Slider(vertical, { vertical = it }, enabled = editingEnabled, valueRange = -1f..1f,
-                        onValueChangeFinished = ::commitCrop, modifier = Modifier.testTag("creation-collage-vertical").semantics { contentDescription = "${verticalLabel}: ${java.text.NumberFormat.getNumberInstance().format(vertical)}" })
-                    TextButton(onClick = { controller.crop(CreationCollageCrop()) }, enabled = editingEnabled,
-                        modifier = Modifier.testTag("creation-collage-reset")) { Text(stringResource(R.string.creation_collage_reset)) }
+                    if (layout != null) CollageSlotControls(state, layout, editingEnabled, actions)
+                    CollageStatus(state, supported, callbackError, actions)
                 }
-                val recoveryIssue = collageKeepsRecovery(state.publication) && !state.busy
-                if (recoveryIssue) {
-                    Surface(color = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer) {
-                        Column(Modifier.padding(12.dp)) {
-                            val message = when (state.publication) {
-                                CreationCollagePublicationUi.RetryableMissing -> R.string.creation_collage_publication_not_started
-                                CreationCollagePublicationUi.Incomplete -> R.string.creation_collage_publication_uncertain
-                                CreationCollagePublicationUi.Conflict -> R.string.creation_collage_publication_conflict
-                                else -> R.string.creation_collage_publication_unreadable
-                            }
-                            Text(stringResource(message), Modifier.testTag("creation-collage-publication-uncertain"))
-                            TextButton(onClick = controller::acknowledgeInterruptedPublication,
-                                colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
-                                modifier = Modifier.testTag("creation-collage-acknowledge-interruption")) {
-                                Text(stringResource(if (state.publication == CreationCollagePublicationUi.RetryableMissing)
-                                    R.string.creation_collage_keep_editing else R.string.creation_collage_check_export))
-                            }
-                        }
-                    }
-                } else if (!supported || state.failed || callbackError) {
-                    Surface(color = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer) {
-                        Column(Modifier.padding(12.dp)) {
-                            Text(stringResource(if (!state.sourcesAvailable && state.publication == CreationCollagePublicationUi.None)
-                                R.string.creation_collage_sources_unavailable else R.string.creation_collage_error),
-                                Modifier.testTag("creation-collage-error"))
-                            TextButton(onClick = { callbackError = false; controller.retry() }, enabled = supported && !state.busy,
-                                colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
-                                modifier = Modifier.testTag("creation-collage-retry")) { Text(stringResource(R.string.creation_collage_retry)) }
-                        }
-                    }
-                }
-                if (state.cancelled) Text(stringResource(R.string.creation_collage_cancelled))
-                if (state.publishing) {
-                    GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
-                    Text(stringResource(R.string.creation_collage_publishing))
-                    TextButton(onClick = { scope.launch { controller.cancelAndWait() } }, modifier = Modifier.testTag("creation-collage-cancel")) {
-                        Text(stringResource(R.string.creation_collage_cancel))
-                    }
-                } else Button(onClick = controller::export,
-                    enabled = editingEnabled && state.preview != null && !state.failed && !state.publicationUncertain && state.result == null,
-                    modifier = Modifier.fillMaxWidth().testTag("creation-collage-export")) { Text(stringResource(R.string.creation_collage_export)) }
-                state.result?.let {
-                    Surface(color = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                        shape = MaterialTheme.shapes.large) {
-                        Column(Modifier.padding(12.dp)) {
-                            Text(stringResource(R.string.creation_collage_saved), Modifier.testTag("creation-collage-saved"))
-                            Text(stringResource(R.string.creation_collage_published_new_draft))
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                TextButton(onClick = { scope.launch {
-                                    controller.verifyResultForHandoff()?.let { uri ->
-                                        try { onOpen(uri) } catch (_: Exception) { callbackError = true }
-                                    }
-                                } }, enabled = !state.busy,
-                                    colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
-                                    modifier = Modifier.testTag("creation-collage-open")) { Text(stringResource(R.string.creation_collage_open)) }
-                                TextButton(onClick = { scope.launch {
-                                    controller.verifyResultForHandoff()?.let { uri ->
-                                        try { onShare(uri) } catch (_: Exception) { callbackError = true }
-                                    }
-                                } }, enabled = !state.busy,
-                                    colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
-                                    modifier = Modifier.testTag("creation-collage-share")) { Text(stringResource(R.string.creation_collage_share)) }
-                            }
-                        }
-                    }
-                }
+            }
+        },
+        stackedMediaWeight = 1f,
+        stackedInspectorWeight = 1f,
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CollageSlotControls(
+    state: CreationCollageUiState,
+    layout: CreationCollageLayout,
+    editingEnabled: Boolean,
+    actions: CreationCollageEditorActions,
+) {
+    Text(stringResource(R.string.creation_collage_order), style = MaterialTheme.typography.titleSmall)
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        layout.order.forEachIndexed { slot, source ->
+            FilterChip(selected = state.selectedSlot == slot, onClick = { actions.onSelect(slot) },
+                enabled = editingEnabled, label = { Text(stringResource(R.string.creation_collage_photo, source + 1)) },
+                modifier = Modifier.testTag("creation-collage-slot-$slot"))
         }
-        val wide = com.librestatic.lightforge.core.designsystem.galleryWindowClass(
-            androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp,
-        ) != com.librestatic.lightforge.core.designsystem.GalleryWindowClass.Compact
-    Surface(modifier.fillMaxSize().testTag("creation-collage-screen").semantics { testTagsAsResourceId = true },
-        color = MaterialTheme.colorScheme.background, contentColor = MaterialTheme.colorScheme.onBackground) {
-        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-            GalleryTopAppBar(title = stringResource(R.string.creation_collage_title), onBack = ::back,
-                navigationContentDescription = stringResource(R.string.creation_collage_back))
-            if (wide) {
-                // Wide windows keep the preview in view while the controls scroll beside it.
-                Row(Modifier.weight(1f).widthIn(max = 1_200.dp).fillMaxWidth()) {
-                    Column(Modifier.weight(1f).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) { previewBlock() }
-                    Column(Modifier.weight(1f).verticalScroll(contentScroll).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) { controlsBlock() }
+    }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(onClick = { actions.onMove(-1) }, enabled = editingEnabled && state.selectedSlot > 0,
+            modifier = Modifier.testTag("creation-collage-earlier")) { Text(stringResource(R.string.creation_collage_earlier)) }
+        OutlinedButton(onClick = { actions.onMove(1) }, enabled = editingEnabled && state.selectedSlot < layout.order.lastIndex,
+            modifier = Modifier.testTag("creation-collage-later")) { Text(stringResource(R.string.creation_collage_later)) }
+    }
+    val crop = layout.crops[layout.order[state.selectedSlot]]
+    var zoom by remember(layout, state.selectedSlot) { mutableFloatStateOf(crop.zoom) }
+    var horizontal by remember(layout, state.selectedSlot) { mutableFloatStateOf(crop.horizontal) }
+    var vertical by remember(layout, state.selectedSlot) { mutableFloatStateOf(crop.vertical) }
+    fun commitCrop() = actions.onCrop(CreationCollageCrop(zoom, horizontal, vertical))
+    Text(stringResource(R.string.creation_collage_crop, layout.order[state.selectedSlot] + 1), style = MaterialTheme.typography.titleSmall)
+    val zoomLabel = stringResource(R.string.creation_collage_zoom)
+    val horizontalLabel = stringResource(R.string.creation_collage_horizontal)
+    val verticalLabel = stringResource(R.string.creation_collage_vertical)
+    Text("${zoomLabel}: ${java.text.NumberFormat.getNumberInstance().format(zoom)}", Modifier.testTag("creation-collage-zoom-value"))
+    Slider(zoom, { zoom = it }, enabled = editingEnabled, valueRange = 1f..3f,
+        onValueChangeFinished = ::commitCrop, modifier = Modifier.testTag("creation-collage-zoom").semantics { contentDescription = "${zoomLabel}: ${java.text.NumberFormat.getNumberInstance().format(zoom)}" })
+    Text("${horizontalLabel}: ${java.text.NumberFormat.getNumberInstance().format(horizontal)}", Modifier.testTag("creation-collage-horizontal-value"))
+    Slider(horizontal, { horizontal = it }, enabled = editingEnabled, valueRange = -1f..1f,
+        onValueChangeFinished = ::commitCrop, modifier = Modifier.testTag("creation-collage-horizontal").semantics { contentDescription = "${horizontalLabel}: ${java.text.NumberFormat.getNumberInstance().format(horizontal)}" })
+    Text("${verticalLabel}: ${java.text.NumberFormat.getNumberInstance().format(vertical)}", Modifier.testTag("creation-collage-vertical-value"))
+    Slider(vertical, { vertical = it }, enabled = editingEnabled, valueRange = -1f..1f,
+        onValueChangeFinished = ::commitCrop, modifier = Modifier.testTag("creation-collage-vertical").semantics { contentDescription = "${verticalLabel}: ${java.text.NumberFormat.getNumberInstance().format(vertical)}" })
+    TextButton(onClick = { actions.onCrop(CreationCollageCrop()) }, enabled = editingEnabled,
+        modifier = Modifier.testTag("creation-collage-reset")) { Text(stringResource(R.string.creation_collage_reset)) }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun CollageStatus(
+    state: CreationCollageUiState,
+    supported: Boolean,
+    callbackError: Boolean,
+    actions: CreationCollageEditorActions,
+) {
+    val recoveryIssue = collageKeepsRecovery(state.publication) && !state.busy
+    if (recoveryIssue) {
+        Surface(color = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer, shape = MaterialTheme.shapes.medium) {
+            Column(Modifier.padding(12.dp)) {
+                val message = when (state.publication) {
+                    CreationCollagePublicationUi.RetryableMissing -> R.string.creation_collage_publication_not_started
+                    CreationCollagePublicationUi.Incomplete -> R.string.creation_collage_publication_uncertain
+                    CreationCollagePublicationUi.Conflict -> R.string.creation_collage_publication_conflict
+                    else -> R.string.creation_collage_publication_unreadable
                 }
-            } else {
-                Column(Modifier.weight(1f).widthIn(max = 840.dp).fillMaxWidth().verticalScroll(contentScroll).padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    previewBlock()
-                    controlsBlock()
+                Text(stringResource(message), Modifier.testTag("creation-collage-publication-uncertain"))
+                TextButton(onClick = actions.onAcknowledgeInterruption,
+                    colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
+                    modifier = Modifier.testTag("creation-collage-acknowledge-interruption")) {
+                    Text(stringResource(if (state.publication == CreationCollagePublicationUi.RetryableMissing)
+                        R.string.creation_collage_keep_editing else R.string.creation_collage_check_export))
                 }
             }
         }
-        if (exitConfirmation) AlertDialog(onDismissRequest = { exitConfirmation = false },
-            title = { Text(stringResource(R.string.creation_collage_leave)) },
-            text = { Text(stringResource(R.string.creation_collage_leave_hint)) },
-            confirmButton = { TextButton(onClick = { exitConfirmation = false; closeDraft() }) {
-                Text(stringResource(R.string.creation_collage_cancel)) } },
-            dismissButton = { TextButton(onClick = { exitConfirmation = false }) { Text(stringResource(R.string.creation_collage_keep)) } })
+    } else if (!supported || state.failed || callbackError) {
+        Surface(color = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer, shape = MaterialTheme.shapes.medium) {
+            Column(Modifier.padding(12.dp)) {
+                Text(stringResource(if (!state.sourcesAvailable && state.publication == CreationCollagePublicationUi.None)
+                    R.string.creation_collage_sources_unavailable else R.string.creation_collage_error),
+                    Modifier.testTag("creation-collage-error"))
+                TextButton(onClick = actions.onRetry, enabled = supported && !state.busy,
+                    colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
+                    modifier = Modifier.testTag("creation-collage-retry")) { Text(stringResource(R.string.creation_collage_retry)) }
+            }
+        }
+    }
+    if (state.cancelled) Text(stringResource(R.string.creation_collage_cancelled))
+    if (state.publishing) {
+        GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
+        Text(stringResource(R.string.creation_collage_publishing))
+        TextButton(onClick = actions.onCancelExport, modifier = Modifier.testTag("creation-collage-cancel")) {
+            Text(stringResource(R.string.creation_collage_cancel))
+        }
+    }
+    state.result?.let {
+        Surface(color = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            shape = MaterialTheme.shapes.large) {
+            Column(Modifier.padding(12.dp)) {
+                Text(stringResource(R.string.creation_collage_saved), Modifier.testTag("creation-collage-saved"))
+                Text(stringResource(R.string.creation_collage_published_new_draft))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = actions.onOpen, enabled = !state.busy,
+                        colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
+                        modifier = Modifier.testTag("creation-collage-open")) { Text(stringResource(R.string.creation_collage_open)) }
+                    TextButton(onClick = actions.onShare, enabled = !state.busy,
+                        colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
+                        modifier = Modifier.testTag("creation-collage-share")) { Text(stringResource(R.string.creation_collage_share)) }
+                }
+            }
+        }
     }
 }
 

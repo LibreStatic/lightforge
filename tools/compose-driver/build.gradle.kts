@@ -38,6 +38,7 @@ dependencies {
     testImplementation(project(":feature:onboarding"))
     testImplementation(project(":feature:settings"))
     testImplementation(project(":feature:videoeditor"))
+    testImplementation(project(":feature:collage"))
 
     testImplementation(libs.compose.driver)
     testImplementation(libs.robolectric)
