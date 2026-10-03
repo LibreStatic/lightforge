@@ -40,7 +40,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -59,7 +58,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.listSaver
@@ -87,23 +85,22 @@ import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.feature.viewer.VideoViewerController
 import com.librestatic.lightforge.core.designsystem.GalleryFoldInfo
-import com.librestatic.lightforge.core.designsystem.GalleryFoldOrientation
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
-import com.librestatic.lightforge.core.designsystem.GalleryWindowClass
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveChoiceGroup
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveButton
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 import com.librestatic.lightforge.core.designsystem.GalleryLoadingIndicator
 import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
 import com.librestatic.lightforge.core.designsystem.GalleryMonoTypography
-import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
-import com.librestatic.lightforge.core.designsystem.galleryWindowClass
-import com.librestatic.lightforge.feature.viewer.VideoFrameExtractor
+import com.librestatic.lightforge.core.designsystem.MediaEditorHistory
+import com.librestatic.lightforge.core.designsystem.MediaEditorScaffold
+import com.librestatic.lightforge.core.designsystem.MediaEditorToolChip
+import com.librestatic.lightforge.core.designsystem.MediaEditorToolChips
+import com.librestatic.lightforge.core.designsystem.MediaEditorTopBar
 import com.librestatic.lightforge.feature.viewer.VideoViewerState
 import com.librestatic.lightforge.core.editing.video.BuiltInLook
 import com.librestatic.lightforge.core.editing.video.CubeLut
@@ -130,7 +127,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 private const val PreviewCubeSize = 17
-private const val FilmstripFrameCount = 8
+internal const val FilmstripFrameCount = 8
 private const val GeometryPreviewDebounceMillis = 50L
 internal val EditorChipModifier = Modifier.widthIn(min = 80.dp).heightIn(min = 48.dp)
 
@@ -444,27 +441,29 @@ fun VideoEditorContent(
             else -> null
         }
     }
-    val filmstripFrames by produceState<List<android.graphics.Bitmap>?>(
-        initialValue = null,
-        sourceUri,
-        state.durationMillis,
-    ) {
-        val uri = sourceUri
-        if (uri == null) {
-            value = null
-            return@produceState
-        }
-        value = try {
-            VideoFrameExtractor.extract(context, uri, state.durationMillis, FilmstripFrameCount)
-                .takeIf { it.isNotEmpty() }
+    // Frames arrive one by one into fixed slots; empty slots render as placeholders (bug 6).
+    val filmstripSlots = remember(sourceUri, state.durationMillis) {
+        arrayOfNulls<android.graphics.Bitmap>(FilmstripFrameCount)
+    }
+    var filmstripFrames by remember(filmstripSlots) {
+        mutableStateOf<List<android.graphics.Bitmap?>>(filmstripSlots.toList())
+    }
+    LaunchedEffect(filmstripSlots) {
+        val uri = sourceUri ?: return@LaunchedEffect
+        try {
+            VideoFilmstripLoader.frames(context, uri, state.durationMillis, FilmstripFrameCount)
+                .collect { (slot, frame) ->
+                    filmstripSlots[slot]?.takeIf { it !== frame && !it.isRecycled }?.recycle()
+                    filmstripSlots[slot] = frame
+                    filmstripFrames = filmstripSlots.toList()
+                }
         } catch (failure: Throwable) {
+            // Missing frames stay placeholders; the editor works without them.
             if (failure is kotlinx.coroutines.CancellationException) throw failure
-            null
         }
     }
-    DisposableEffect(filmstripFrames) {
-        val loaded = filmstripFrames
-        onDispose { loaded?.forEach { if (!it.isRecycled) it.recycle() } }
+    DisposableEffect(filmstripSlots) {
+        onDispose { filmstripSlots.forEach { if (it != null && !it.isRecycled) it.recycle() } }
     }
     val requestBack: () -> Unit = { if (state.isDirty) showDiscardDialog = true else onBack() }
     BackHandler(enabled = state.isDirty && !showExportSheet) { showDiscardDialog = true }
@@ -497,290 +496,117 @@ fun VideoEditorContent(
             },
         )
     }
-    Scaffold(
+    val onTimelineSeek: (Long) -> Unit = { position ->
+        previewPositionMillis = videoEditorDraftPosition(
+            position, state.trimStartMillis, state.trimEndMillis, state.durationMillis,
+        )
+        checkpoint(previewPositionMillis)
+        onSeek(previewPositionMillis)
+    }
+    MediaEditorScaffold(
         modifier = modifier.testTag("video-editor-screen").semantics { testTagsAsResourceId = true },
+        foldInfo = foldInfo,
+        resizeDescription = stringResource(R.string.video_editor_resize_panels),
+        stackedMediaWeight = 0.55f,
+        stackedInspectorWeight = 1f,
         topBar = {
-            VideoEditorTopBar(
-                foldInfo = foldInfo,
-                isExporting = state.isExporting,
-                onBack = requestBack,
-                onExport = { showExportSheet = true },
+            MediaEditorTopBar(
+                title = stringResource(R.string.video_editor_title),
+                onCancel = requestBack,
+                cancelLabel = stringResource(R.string.video_editor_cancel),
+                actionLabel = stringResource(R.string.video_editor_export),
+                onAction = { showExportSheet = true },
+                actionEnabled = !state.isExporting,
+                history = MediaEditorHistory(
+                    canUndo = state.canUndo,
+                    canRedo = state.canRedo,
+                    onUndo = annotationActions.undo,
+                    onRedo = annotationActions.redo,
+                    undoLabel = stringResource(R.string.video_editor_undo_edit),
+                    redoLabel = stringResource(R.string.video_editor_redo_edit),
+                    undoTestTag = "video-editor-undo",
+                    redoTestTag = "video-editor-redo",
+                ),
+                actionTestTag = "video-editor-export",
             )
         },
-    ) { padding ->
-        BoxWithConstraints(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .background(MaterialTheme.colorScheme.background),
-        ) {
-            val leftInset = padding.calculateLeftPadding(LayoutDirection.Ltr)
-            val topInset = padding.calculateTopPadding()
-            val localFoldInfo = foldInfo?.takeIf(GalleryFoldInfo::isSeparating)?.let { fold ->
-                val localLeft = (fold.left - leftInset).coerceIn(0.dp, maxWidth)
-                val localRight = (fold.right - leftInset).coerceIn(localLeft, maxWidth)
-                val localTop = (fold.top - topInset).coerceIn(0.dp, maxHeight)
-                val localBottom = (fold.bottom - topInset).coerceIn(localTop, maxHeight)
-                fold.copy(
-                    left = localLeft,
-                    right = localRight,
-                    top = localTop,
-                    bottom = localBottom,
+        media = { previewModifier ->
+            VideoPreview(
+                controller = controller,
+                annotationsActive = VideoEditorTool.fromIndex(selectedTab) == VideoEditorTool.Draw,
+                annotationTool = annotationTool,
+                state = state,
+                currentMillis = previewPositionMillis,
+                compareEnabled = VideoEditorTool.fromIndex(selectedTab) == VideoEditorTool.Color &&
+                    state.colorGrade.hasChanges,
+                onCompareChange = { comparingOriginal = it },
+                cropActive = cropActive,
+                onGeometryChange = onGeometryChange,
+                onAddAnnotation = annotationActions.add,
+                onEraseAnnotations = { points ->
+                    annotationActions.erase(points, previewPositionMillis)
+                },
+                modifier = previewModifier,
+            )
+        },
+        // Beside the inspector the timeline stays under the preview, in the media pane.
+        mediaSupport = { timelineModifier, _ ->
+            Surface(
+                modifier = timelineModifier,
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            ) {
+                VideoFilmstripTimeline(
+                    frames = filmstripFrames,
+                    durationMillis = state.durationMillis,
+                    trimStartMillis = state.trimStartMillis,
+                    trimEndMillis = state.trimEndMillis,
+                    positionMillis = previewPositionMillis,
+                    onSeek = onTimelineSeek,
+                    onTrimChange = onTrimChange,
+                    slowMotionSegments = state.slowMotionSegments,
                 )
             }
-            val preview: @Composable (Modifier) -> Unit = { previewModifier ->
-                VideoPreview(
-                    controller = controller,
-                    annotationsActive = VideoEditorTool.fromIndex(selectedTab) == VideoEditorTool.Draw,
-                    annotationTool = annotationTool,
+        },
+        inspector = { panelModifier, layout ->
+            Surface(
+                modifier = panelModifier.testTag(VideoEditorPanelTag),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            ) {
+                VideoEditingPanel(
                     state = state,
+                    sideBySide = layout.isSideBySide,
+                    cropEditing = cropEditing,
+                    onCropEditingChange = { cropEditing = it },
+                    thumbnailFrame = filmstripFrames.middleFrame(),
                     currentMillis = previewPositionMillis,
-                    compareEnabled = VideoEditorTool.fromIndex(selectedTab) == VideoEditorTool.Color &&
-                        state.colorGrade.hasChanges,
-                    onCompareChange = { comparingOriginal = it },
-                    cropActive = cropActive,
+                    onSpeedChange = onSpeedChange,
+                    onOriginalVolumeChange = onOriginalVolumeChange,
+                    onChooseMusic = onChooseMusic,
+                    onRemoveMusic = onRemoveMusic,
+                    onMusicVolumeChange = onMusicVolumeChange,
+                    onColorGradeChange = onColorGradeChange,
                     onGeometryChange = onGeometryChange,
-                    onAddAnnotation = annotationActions.add,
-                    onEraseAnnotations = { points ->
-                        annotationActions.erase(points, previewPositionMillis)
-                    },
-                    modifier = previewModifier,
+                    onImportLut = onImportLut,
+                    onMarkSlowMotionIn = onMarkSlowMotionIn,
+                    onMarkSlowMotionOut = onMarkSlowMotionOut,
+                    onSelectSlowMotionSegment = onSelectSlowMotionSegment,
+                    onUpdateSlowMotionSegment = onUpdateSlowMotionSegment,
+                    onDeleteSlowMotionSegment = onDeleteSlowMotionSegment,
+                    onCancelExport = onCancelExport,
+                    selectedTab = selectedTab,
+                    onTabChange = { selectedTab = it },
+                    annotationTool = annotationTool,
+                    onAnnotationToolChange = { annotationTool = it },
+                    annotationActions = annotationActions,
+                    modifier = Modifier.fillMaxSize(),
                 )
             }
-            val editingPanel: @Composable (Modifier) -> Unit = { panelModifier ->
-                Surface(
-                    modifier = panelModifier
-                        .testTag(VideoEditorPanelTag)
-                        .semantics {
-                            isTraversalGroup = true
-                            traversalIndex = 1f
-                        },
-                    color = MaterialTheme.colorScheme.surfaceContainer,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                ) {
-                    VideoEditingPanel(
-                        state = state,
-                        cropEditing = cropEditing,
-                        onCropEditingChange = { cropEditing = it },
-                        frames = filmstripFrames,
-                        currentMillis = previewPositionMillis,
-                        onSeek = { position ->
-                            previewPositionMillis = videoEditorDraftPosition(
-                                position, state.trimStartMillis, state.trimEndMillis, state.durationMillis,
-                            )
-                            checkpoint(previewPositionMillis)
-                            onSeek(previewPositionMillis)
-                        },
-                        onTrimChange = onTrimChange,
-                        onSpeedChange = onSpeedChange,
-                        onOriginalVolumeChange = onOriginalVolumeChange,
-                        onChooseMusic = onChooseMusic,
-                        onRemoveMusic = onRemoveMusic,
-                        onMusicVolumeChange = onMusicVolumeChange,
-                        onColorGradeChange = onColorGradeChange,
-                        onGeometryChange = onGeometryChange,
-                        onImportLut = onImportLut,
-                        onMarkSlowMotionIn = onMarkSlowMotionIn,
-                        onMarkSlowMotionOut = onMarkSlowMotionOut,
-                        onSelectSlowMotionSegment = onSelectSlowMotionSegment,
-                        onUpdateSlowMotionSegment = onUpdateSlowMotionSegment,
-                        onDeleteSlowMotionSegment = onDeleteSlowMotionSegment,
-                        onCancelExport = onCancelExport,
-                        selectedTab = selectedTab,
-                        onTabChange = { selectedTab = it },
-                        annotationTool = annotationTool,
-                        onAnnotationToolChange = { annotationTool = it },
-                        annotationActions = annotationActions,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-            }
-            var stackedPreviewFraction by rememberSaveable {
-                mutableFloatStateOf(DefaultLandscapePreviewFraction)
-            }
-            var sidePreviewFraction by rememberSaveable {
-                mutableFloatStateOf(DefaultExpandedPreviewFraction)
-            }
-            val density = LocalDensity.current
-            val availableHeight = maxHeight
-            when (videoEditorLayoutMode(maxWidth, maxHeight, localFoldInfo)) {
-                VideoEditorLayoutMode.ExpandedSideBySide -> {
-                    val resizableWidth = (maxWidth - ResizeHandleThickness).coerceAtLeast(1.dp)
-                    val resizableWidthPx = with(density) { resizableWidth.toPx() }
-                    Row(Modifier.fillMaxSize()) {
-                        preview(
-                            Modifier
-                                .width(resizableWidth * sidePreviewFraction)
-                                .fillMaxHeight(),
-                        )
-                        VideoPanelResizeHandle(
-                            fraction = sidePreviewFraction,
-                            orientation = Orientation.Horizontal,
-                            valueRange = MinExpandedPreviewFraction..MaxExpandedPreviewFraction,
-                            onDragDelta = { deltaPx ->
-                                sidePreviewFraction = (
-                                    sidePreviewFraction +
-                                        deltaPx / resizableWidthPx.coerceAtLeast(1f)
-                                    ).coerceIn(
-                                    MinExpandedPreviewFraction,
-                                    MaxExpandedPreviewFraction,
-                                )
-                            },
-                            onFractionChange = { sidePreviewFraction = it },
-                            modifier = Modifier.width(ResizeHandleThickness).fillMaxHeight(),
-                        )
-                        editingPanel(
-                            Modifier
-                                .width(resizableWidth * (1f - sidePreviewFraction))
-                                .fillMaxHeight(),
-                        )
-                    }
-                }
-
-                VideoEditorLayoutMode.SeparatingHorizontalFold -> {
-                    val fold = requireNotNull(localFoldInfo)
-                    Column(Modifier.fillMaxSize()) {
-                        preview(Modifier.fillMaxWidth().height(fold.top))
-                        Spacer(Modifier.fillMaxWidth().height(fold.hingeHeight))
-                        editingPanel(
-                            Modifier
-                                .fillMaxWidth()
-                                .height((availableHeight - fold.bottom).coerceAtLeast(0.dp)),
-                        )
-                    }
-                }
-
-                VideoEditorLayoutMode.SeparatingVerticalFold -> {
-                    val fold = requireNotNull(localFoldInfo)
-                    val pane = widestVerticalFoldPane(maxWidth, fold)
-                    Box(Modifier.fillMaxSize()) {
-                        Column(
-                            Modifier
-                                .width(pane.width)
-                                .fillMaxHeight()
-                                .align(if (pane.useStart) Alignment.CenterStart else Alignment.CenterEnd),
-                        ) {
-                            val resizableHeight = (availableHeight - ResizeHandleThickness).coerceAtLeast(1.dp)
-                            val resizableHeightPx = with(density) { resizableHeight.toPx() }
-                            preview(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(resizableHeight * stackedPreviewFraction),
-                            )
-                            VideoPanelResizeHandle(
-                                fraction = stackedPreviewFraction,
-                                orientation = Orientation.Vertical,
-                                valueRange = MinLandscapePreviewFraction..MaxLandscapePreviewFraction,
-                                onDragDelta = { deltaPx ->
-                                    stackedPreviewFraction = (
-                                        stackedPreviewFraction +
-                                            deltaPx / resizableHeightPx.coerceAtLeast(1f)
-                                        ).coerceIn(
-                                        MinLandscapePreviewFraction,
-                                        MaxLandscapePreviewFraction,
-                                    )
-                                },
-                                onFractionChange = { stackedPreviewFraction = it },
-                                modifier = Modifier.fillMaxWidth().height(ResizeHandleThickness),
-                            )
-                            editingPanel(Modifier.fillMaxWidth().weight(1f))
-                        }
-                    }
-                }
-
-                VideoEditorLayoutMode.StackedResizable -> {
-                    val resizableHeight = (maxHeight - ResizeHandleThickness).coerceAtLeast(1.dp)
-                    val resizableHeightPx = with(density) { resizableHeight.toPx() }
-                    Column(Modifier.fillMaxSize()) {
-                        preview(
-                            Modifier
-                                .fillMaxWidth()
-                                .height(resizableHeight * stackedPreviewFraction),
-                        )
-                        VideoPanelResizeHandle(
-                            fraction = stackedPreviewFraction,
-                            orientation = Orientation.Vertical,
-                            valueRange = MinLandscapePreviewFraction..MaxLandscapePreviewFraction,
-                            onDragDelta = { deltaPx ->
-                                stackedPreviewFraction = (
-                                    stackedPreviewFraction +
-                                        deltaPx / resizableHeightPx.coerceAtLeast(1f)
-                                    ).coerceIn(
-                                    MinLandscapePreviewFraction,
-                                    MaxLandscapePreviewFraction,
-                                )
-                            },
-                            onFractionChange = { stackedPreviewFraction = it },
-                            modifier = Modifier.fillMaxWidth().height(ResizeHandleThickness),
-                        )
-                        editingPanel(Modifier.fillMaxWidth().weight(1f))
-                    }
-                }
-
-                VideoEditorLayoutMode.Stacked -> {
-                    val previewWeight = if (maxWidth >= 600.dp) 1.1f else 0.55f
-                    Column(Modifier.fillMaxSize()) {
-                        preview(Modifier.fillMaxWidth().weight(previewWeight))
-                        editingPanel(Modifier.fillMaxWidth().weight(1f))
-                    }
-                }
-            }
-        }
-    }
+        },
+    )
 }
 }
-
-@Composable
-private fun VideoEditorTopBar(
-    foldInfo: GalleryFoldInfo?,
-    isExporting: Boolean,
-    onBack: () -> Unit,
-    onExport: () -> Unit,
-) {
-    val topBar: @Composable (Modifier) -> Unit = { barModifier ->
-        GalleryTopAppBar(
-            title = stringResource(R.string.video_editor_title),
-            modifier = barModifier,
-            onBack = onBack,
-            navigationContentDescription = stringResource(R.string.video_editor_cancel),
-            actions = {
-                TextButton(onClick = onExport, enabled = !isExporting) {
-                    Text(stringResource(R.string.video_editor_export))
-                }
-            },
-        )
-    }
-    val verticalFold = foldInfo?.takeIf {
-        it.isSeparating && it.orientation == GalleryFoldOrientation.Vertical
-    }
-    if (verticalFold == null) {
-        topBar(Modifier.fillMaxWidth())
-    } else {
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val pane = widestVerticalFoldPane(maxWidth, verticalFold)
-            Box(Modifier.fillMaxWidth()) {
-                topBar(
-                    Modifier
-                        .width(pane.width)
-                        .align(if (pane.useStart) Alignment.CenterStart else Alignment.CenterEnd),
-                )
-            }
-        }
-    }
-}
-
-private enum class VideoEditorLayoutMode {
-    ExpandedSideBySide,
-    SeparatingHorizontalFold,
-    SeparatingVerticalFold,
-    StackedResizable,
-    Stacked,
-}
-
-private data class VerticalFoldPane(
-    val width: androidx.compose.ui.unit.Dp,
-    val useStart: Boolean,
-)
 
 private val VideoAnnotationToolStateSaver = listSaver(
     save = { tool: VideoAnnotationToolState ->
@@ -809,42 +635,9 @@ private val VideoAnnotationToolStateSaver = listSaver(
     },
 )
 
-private fun videoEditorLayoutMode(
-    width: androidx.compose.ui.unit.Dp,
-    height: androidx.compose.ui.unit.Dp,
-    foldInfo: GalleryFoldInfo?,
-): VideoEditorLayoutMode {
-    if (foldInfo?.isSeparating == true) {
-        return when (foldInfo.orientation) {
-            GalleryFoldOrientation.Horizontal -> VideoEditorLayoutMode.SeparatingHorizontalFold
-            GalleryFoldOrientation.Vertical -> VideoEditorLayoutMode.SeparatingVerticalFold
-        }
-    }
-    if (
-        galleryWindowClass(width) == GalleryWindowClass.Expanded &&
-        width >= height * ExpandedSidePanelAspectRatio
-    ) {
-        return VideoEditorLayoutMode.ExpandedSideBySide
-    }
-    return if (width > height) {
-        VideoEditorLayoutMode.StackedResizable
-    } else {
-        VideoEditorLayoutMode.Stacked
-    }
-}
-
-private fun widestVerticalFoldPane(
-    width: androidx.compose.ui.unit.Dp,
-    foldInfo: GalleryFoldInfo,
-): VerticalFoldPane {
-    val leftWidth = foldInfo.left.coerceIn(0.dp, width)
-    val rightWidth = (width - foldInfo.right.coerceIn(0.dp, width)).coerceAtLeast(0.dp)
-    return if (leftWidth >= rightWidth) {
-        VerticalFoldPane(width = leftWidth, useStart = true)
-    } else {
-        VerticalFoldPane(width = rightWidth, useStart = false)
-    }
-}
+/** The frame from the middle of the strip (or any loaded one) for thumbnails such as LUT previews. */
+private fun List<android.graphics.Bitmap?>.middleFrame(): android.graphics.Bitmap? =
+    getOrNull(size / 2) ?: firstOrNull { it != null }
 
 private fun editedTimelinePosition(
     sourcePositionMillis: Long,
@@ -870,56 +663,13 @@ private fun editedTimelinePosition(
 }
 
 @Composable
-private fun VideoPanelResizeHandle(
-    fraction: Float,
-    orientation: Orientation,
-    valueRange: ClosedFloatingPointRange<Float>,
-    onDragDelta: (Float) -> Unit,
-    onFractionChange: (Float) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val description = stringResource(R.string.video_editor_resize_panels)
-    val dragState = rememberDraggableState(onDelta = onDragDelta)
-    Box(
-        modifier
-            .background(MaterialTheme.colorScheme.surfaceContainer)
-            .draggable(dragState, orientation)
-            .semantics {
-                contentDescription = description
-                progressBarRangeInfo = ProgressBarRangeInfo(
-                    fraction,
-                    valueRange,
-                )
-                setProgress { requested ->
-                    onFractionChange(requested.coerceIn(valueRange))
-                    true
-                }
-            },
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            (if (orientation == Orientation.Vertical) {
-                Modifier.width(52.dp).height(4.dp)
-            } else {
-                Modifier.width(4.dp).height(52.dp)
-            })
-                .background(
-                    MaterialTheme.colorScheme.onSurfaceVariant,
-                    MaterialTheme.shapes.extraSmall,
-                ),
-        )
-    }
-}
-
-@Composable
 private fun VideoEditingPanel(
     state: VideoEditorContentState,
+    sideBySide: Boolean,
     cropEditing: Boolean,
     onCropEditingChange: (Boolean) -> Unit,
-    frames: List<android.graphics.Bitmap>?,
+    thumbnailFrame: android.graphics.Bitmap?,
     currentMillis: Long,
-    onSeek: (Long) -> Unit,
-    onTrimChange: (Long, Long) -> Unit,
     onSpeedChange: (Float) -> Unit,
     onOriginalVolumeChange: (Float) -> Unit,
     onChooseMusic: () -> Unit,
@@ -942,23 +692,28 @@ private fun VideoEditingPanel(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.fillMaxWidth()) {
-        VideoFilmstripTimeline(
-            frames = frames,
-            durationMillis = state.durationMillis,
-            trimStartMillis = state.trimStartMillis,
-            trimEndMillis = state.trimEndMillis,
-            positionMillis = currentMillis,
-            onSeek = onSeek,
-            onTrimChange = onTrimChange,
-            slowMotionSegments = state.slowMotionSegments,
-            canUndo = state.canUndo,
-            canRedo = state.canRedo,
-            onUndo = annotationActions.undo,
-            onRedo = annotationActions.redo,
-        )
+        // Beside the media the tools wrap at the top of the inspector; stacked, they are the bottom
+        // bar. Either way every tool stays reachable, also in short landscape windows (bug 5).
+        if (sideBySide) {
+            MediaEditorToolChips(
+                tools = VideoEditorTool.entries.map { tool ->
+                    MediaEditorToolChip(
+                        key = tool.name,
+                        label = stringResource(tool.label),
+                        icon = tool.icon,
+                        testTag = "video-editor-tool-${tool.name.lowercase()}",
+                    )
+                },
+                selectedKey = VideoEditorTool.fromIndex(selectedTab).name,
+                onSelect = { key -> onTabChange(VideoEditorTool.valueOf(key).index) },
+                wrap = true,
+                modifier = Modifier.padding(top = GallerySpacing.Md).testTag(VideoEditorToolBarTag),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = GallerySpacing.Lg),
+            )
+        }
         VideoControls(
             state = state,
-            thumbnailFrame = frames?.let { it.getOrNull(it.size / 2) },
+            thumbnailFrame = thumbnailFrame,
             cropEditing = cropEditing,
             onCropEditingChange = onCropEditingChange,
             currentMillis = currentMillis,
@@ -982,10 +737,12 @@ private fun VideoEditingPanel(
             annotationActions = annotationActions,
             modifier = Modifier.weight(1f),
         )
-        VideoEditorToolBar(
-            selected = VideoEditorTool.fromIndex(selectedTab),
-            onSelect = { onTabChange(it.index) },
-        )
+        if (!sideBySide) {
+            VideoEditorToolBar(
+                selected = VideoEditorTool.fromIndex(selectedTab),
+                onSelect = { onTabChange(it.index) },
+            )
+        }
     }
 }
 
@@ -1011,11 +768,14 @@ private fun VideoPreview(
                 isTraversalGroup = true
                 traversalIndex = 0f
             }
-            .background(Color.Black),
+            .background(MaterialTheme.colorScheme.surfaceContainerLowest),
         contentAlignment = Alignment.Center,
     ) {
         if (controller == null) {
-            Text(stringResource(R.string.video_editor_preview_unavailable), color = Color.White)
+            Text(
+                stringResource(R.string.video_editor_preview_unavailable),
+                color = MaterialTheme.colorScheme.onSurface,
+            )
             return
         }
         val description = stringResource(R.string.video_editor_preview_description)
@@ -1164,14 +924,6 @@ private fun CompareOriginalButton(onCompareChange: (Boolean) -> Unit, modifier: 
     }
 }
 
-private const val DefaultLandscapePreviewFraction = 0.45f
-private const val DefaultExpandedPreviewFraction = 0.5f
-private const val MinLandscapePreviewFraction = 0.2f
-private const val MaxLandscapePreviewFraction = 0.7f
-private const val MinExpandedPreviewFraction = 0.42f
-private const val MaxExpandedPreviewFraction = 0.68f
-private const val ExpandedSidePanelAspectRatio = 1.2f
-private val ResizeHandleThickness = 48.dp
 internal val WideColorControlsBreakpoint = 480.dp
 internal val WideLogWheelsBreakpoint = 600.dp
 private const val VideoEditorPreviewTag = "video-editor-preview"

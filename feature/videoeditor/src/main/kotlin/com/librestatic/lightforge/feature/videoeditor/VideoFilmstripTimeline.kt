@@ -1,6 +1,8 @@
 package com.librestatic.lightforge.feature.videoeditor
 
 import android.graphics.Bitmap
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -18,8 +20,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.systemGestureExclusion
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -50,7 +50,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import com.librestatic.lightforge.core.editing.video.SlowMotionSegment
 import kotlin.math.abs
@@ -70,12 +69,13 @@ private enum class TimelineTarget { Seek, TrimStart, TrimEnd }
  * playhead, and draggable trim handles. Touching the strip seeks; dragging near either end moves
  * that trim handle. Every gesture also has a semantics action so TalkBack users are not left out.
  *
- * [frames] are evenly spaced samples of the source video, or null while they load / when the
- * source cannot be sampled (the strip then shows a plain tonal track).
+ * [frames] holds one slot per evenly spaced sample of the source video. Slots fill in as frames
+ * decode; an empty slot (still loading, or a source that cannot be sampled) shows a tonal
+ * placeholder tile so the strip has its shape from the first frame (bug 6).
  */
 @Composable
 internal fun VideoFilmstripTimeline(
-    frames: List<Bitmap>?,
+    frames: List<Bitmap?>,
     durationMillis: Long,
     trimStartMillis: Long,
     trimEndMillis: Long,
@@ -83,10 +83,6 @@ internal fun VideoFilmstripTimeline(
     onSeek: (Long) -> Unit,
     onTrimChange: (Long, Long) -> Unit,
     slowMotionSegments: List<SlowMotionSegment>,
-    canUndo: Boolean,
-    canRedo: Boolean,
-    onUndo: () -> Unit,
-    onRedo: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val duration = durationMillis.coerceAtLeast(1)
@@ -140,12 +136,6 @@ internal fun VideoFilmstripTimeline(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.testTag("video-editor-trim-value"),
             )
-            IconButton(onClick = onUndo, enabled = canUndo, modifier = Modifier.testTag("video-editor-undo")) {
-                Icon(GalleryIcons.Undo, stringResource(R.string.video_editor_undo_edit))
-            }
-            IconButton(onClick = onRedo, enabled = canRedo, modifier = Modifier.testTag("video-editor-redo")) {
-                Icon(GalleryIcons.Redo, stringResource(R.string.video_editor_redo_edit))
-            }
         }
         Box(
             Modifier
@@ -260,23 +250,37 @@ private data class TimelineSnapshot(
 )
 
 @Composable
-private fun FilmstripFrames(frames: List<Bitmap>?, modifier: Modifier) {
-    if (frames.isNullOrEmpty()) {
-        Box(modifier)
-        return
-    }
-    val images = remember(frames) { frames.map { it.asImageBitmap() } }
-    Row(modifier) {
-        images.forEach { image ->
-            Image(
-                bitmap = image,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.weight(1f).fillMaxSize(),
-            )
+private fun FilmstripFrames(frames: List<Bitmap?>, modifier: Modifier) {
+    val placeholder = MaterialTheme.colorScheme.surfaceContainerHigh
+    Row(modifier.testTag("video-editor-filmstrip")) {
+        frames.forEachIndexed { index, frame ->
+            Box(
+                Modifier
+                    .weight(1f)
+                    .fillMaxSize()
+                    .padding(horizontal = 0.5.dp)
+                    .background(placeholder)
+                    .testTag(if (frame == null) "video-editor-filmstrip-placeholder-$index" else "video-editor-filmstrip-frame-$index"),
+            ) {
+                Crossfade(targetState = frame, animationSpec = tween(FrameFadeMillis), label = "filmstrip-frame") { bitmap ->
+                    if (bitmap != null && !bitmap.isRecycled) {
+                        val image = remember(bitmap) { bitmap.asImageBitmap() }
+                        Image(
+                            bitmap = image,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        Box(Modifier.fillMaxSize())
+                    }
+                }
+            }
         }
     }
 }
+
+private const val FrameFadeMillis = 180
 
 @Composable
 private fun TimelineOverlay(

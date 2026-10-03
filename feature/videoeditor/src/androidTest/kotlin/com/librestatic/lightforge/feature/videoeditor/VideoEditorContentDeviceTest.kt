@@ -345,7 +345,7 @@ class VideoEditorContentDeviceTest {
     }
 
     @Test
-    fun verticalFoldKeepsStackInsideTheWiderUsablePane() {
+    fun verticalFoldSplitsMediaAndInspectorAroundTheHinge() {
         compose.setContent {
             LightforgeTheme {
                 VideoEditorContent(
@@ -377,10 +377,11 @@ class VideoEditorContentDeviceTest {
             .fetchSemanticsNode().boundsInRoot
         val panelBounds = compose.onNode(hasTestTag("video-editor-panel"))
             .fetchSemanticsNode().boundsInRoot
-        assertTrue("The wider right pane must start after the hinge", previewBounds.left > 0f)
-        assertEquals(previewBounds.left, panelBounds.left, 1f)
-        assertEquals(previewBounds.right, panelBounds.right, 1f)
-        assertTrue("Foldable tools remain below the preview", panelBounds.top >= previewBounds.bottom)
+        val hingeLeft = with(compose.density) { 360.dp.toPx() }
+        val hingeRight = with(compose.density) { 380.dp.toPx() }
+        // Book posture: media in the start pane, inspector in the end pane, hinge left empty.
+        assertTrue("Media must stay before the hinge", previewBounds.right <= hingeLeft + 1f)
+        assertTrue("Inspector must start after the hinge", panelBounds.left >= hingeRight - 1f)
     }
 
     @Test
