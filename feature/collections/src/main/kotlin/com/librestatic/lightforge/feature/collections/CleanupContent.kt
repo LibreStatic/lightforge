@@ -216,6 +216,7 @@ fun CleanupContent(
     request?.let { pending ->
         AlertDialog(
             onDismissRequest = { request = null },
+            modifier = Modifier.testTag("cleanup-trash-dialog"),
             title = {
                 Text(pluralStringResource(R.plurals.cleanup_trash_title, pending.count.toInt(), pending.count))
             },

@@ -69,3 +69,13 @@ include(
 
 include(":feature:localsharing")
 include(":feature:picker")
+
+// Development-only Compose Driver harness for agent UI inspection (see tools/compose-driver/README.md).
+// Configured only when one of its tasks is requested, or with -Plightforge.composeDriver for IDE sync,
+// so regular builds and test runs never resolve or compile it.
+if (
+    gradle.startParameter.taskNames.any { it.startsWith(":tools:compose-driver") } ||
+    providers.gradleProperty("lightforge.composeDriver").isPresent
+) {
+    include(":tools:compose-driver")
+}

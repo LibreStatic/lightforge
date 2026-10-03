@@ -347,7 +347,7 @@ private fun EraserCard(
 /** Offers, tracks and removes the downloaded inpainting model; the download outlives the editor. */
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
-private fun EraserModelPanel(status: InpaintModelStatus) {
+internal fun EraserModelPanel(status: InpaintModelStatus) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val totalMegabytes = (InpaintModelStore.PackageBytes / MegaByte).toInt()

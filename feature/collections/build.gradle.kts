@@ -36,6 +36,8 @@ dependencies {
     implementation("androidx.compose.foundation:foundation")
     implementation(libs.androidx.compose.material3)
     testImplementation(libs.junit4)
+    // Driver previews in src/debug (tools/compose-driver); never part of release builds.
+    debugImplementation("androidx.compose.ui:ui-tooling-preview")
     androidTestImplementation(libs.androidx.room.runtime)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")

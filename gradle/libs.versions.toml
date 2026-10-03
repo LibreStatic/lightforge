@@ -30,6 +30,9 @@ uiautomator = "2.4.0"
 coroutines = "1.9.0"
 litert = "2.2.0"
 window = "1.5.0"
+# Development-only Compose Driver harness (tools/compose-driver); never on an app classpath.
+compose-driver = "0.5.0"
+robolectric = "4.17"
 
 [libraries]
 sqlcipher-android = { module = "net.zetetic:sqlcipher-android", version.ref = "sqlcipher" }
@@ -76,6 +79,8 @@ kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-t
 litert = { module = "com.google.ai.edge.litert:litert", version.ref = "litert" }
 litert-api = { module = "com.google.ai.edge.litert:litert-api", version.ref = "litert" }
 androidx-window = { module = "androidx.window:window", version.ref = "window" }
+compose-driver = { module = "io.github.jdemeulenaere:compose-driver", version.ref = "compose-driver" }
+robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 
 androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
 
