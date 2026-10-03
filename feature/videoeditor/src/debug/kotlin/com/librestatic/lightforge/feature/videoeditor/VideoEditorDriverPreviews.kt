@@ -19,8 +19,11 @@ import com.librestatic.lightforge.core.designsystem.LightforgeTheme
 import com.librestatic.lightforge.core.editing.video.SlowMotionSegment
 import com.librestatic.lightforge.core.editing.video.VideoAspectMode
 import com.librestatic.lightforge.core.editing.video.VideoAspectOverride
+import com.librestatic.lightforge.core.editing.video.VideoEncoderCapabilities
+import com.librestatic.lightforge.core.editing.video.VideoEncoderSupport
 import com.librestatic.lightforge.core.editing.video.VideoOutputCodec
 import com.librestatic.lightforge.core.editing.video.VideoOutputSettings
+import com.librestatic.lightforge.core.editing.video.VideoSourceInfo
 
 // Debug-only, zero-argument entry points for tools/compose-driver and Android Studio previews.
 // Each one feeds fake state into the real production composable. There is no player in the
@@ -79,15 +82,30 @@ fun VideoFilmstripLoadingPreview() = DriverFrame {
     )
 }
 
-/** A HikVision-like CCTV clip: a 16:9 scene squeezed into 960×1088 HEVC at 25 fps. */
-private val CctvSource = VideoOutputSource(
+/**
+ * The HikVision CCTV clip from the bug report: a 16:9 scene squeezed into 960×1088 HEVC that
+ * claims 25 fps but delivers about 15.
+ */
+private val CctvSource = VideoSourceInfo(
     width = 960,
     height = 1088,
-    videoMimeType = "video/hevc",
-    frameRate = 25f,
-    totalBitrate = 995_000,
+    frameRate = 15f,
+    nominalFrameRate = 25f,
+    videoBitrate = 979_000,
     audioBitrate = 15_500,
+    videoMimeType = "video/hevc",
+    audioMimeType = "audio/mp4a-latm",
+    durationMs = 73_000,
     hasAudio = true,
+    sizeBytes = 8_700_000,
+)
+
+/** A typical phone: hardware H.264 and HEVC, AV1 only in software. */
+private val PhoneEncoders = VideoEncoderCapabilities(
+    h264 = VideoEncoderSupport(maxWidth = 4096, maxHeight = 2304),
+    hevc = VideoEncoderSupport(maxWidth = 4096, maxHeight = 2304),
+    av1 = VideoEncoderSupport(maxWidth = 2048, maxHeight = 2048, hardwareAccelerated = false),
+    hevcMain10 = true,
 )
 
 private val CctvState = VideoEditorContentState(
@@ -95,7 +113,9 @@ private val CctvState = VideoEditorContentState(
     trimEndMillis = 73_000,
     output = VideoOutputSettings(aspect = VideoAspectOverride.Forced(16, 9, VideoAspectMode.Stretch)),
     outputSource = CctvSource,
-    supportedOutputCodecs = setOf(VideoOutputCodec.H264, VideoOutputCodec.Hevc),
+    outputEncoders = PhoneEncoders,
+    supportedOutputCodecs = VideoOutputCodec.entries.filter(PhoneEncoders::supports).toSet(),
+    isHevcMain10Available = true,
     isDirty = true,
 )
 

@@ -231,4 +231,16 @@
     <string name="video_editor_output_no_audio">Sans audio</string>
     <string name="video_editor_output_lossless">Copie sans perte : aucun réencodage, la qualité d’origine est conservée.</string>
     <string name="video_editor_output_reset">Rétablir l’original</string>
+    <string name="video_editor_output_reason_fallback_hevc">Cet appareil ne peut pas encoder en %1$s : HEVC est utilisé.</string>
+    <string name="video_editor_output_reason_fallback_h264">Cet appareil ne peut pas encoder en %1$s : H.264 est utilisé.</string>
+    <string name="video_editor_output_reason_hdr_hevc">La HDR est enregistrée en HEVC, pas en %1$s.</string>
+    <string name="video_editor_output_reason_clamped">La taille a été réduite au maximum que cet appareil peut encoder.</string>
+    <string name="video_editor_output_reason_frame_rate">La limite d’images par seconde est égale ou supérieure à celle de la vidéo : aucune image n’est supprimée.</string>
+    <string name="video_editor_output_reason_short_side">La vidéo est plus petite que la taille choisie et n’est pas agrandie.</string>
+    <string name="video_editor_output_codec_slow">%1$s (lent)</string>
+    <string name="video_editor_output_codec_software">Cet appareil encode le %1$s de manière logicielle : l’enregistrement est beaucoup plus long.</string>
+    <string name="video_editor_output_music_only">Musique seule</string>
+    <string name="video_editor_output_audio_remove_music">Supprime le son d’origine ; la musique ajoutée est conservée.</string>
+    <string name="video_editor_hevc_8bit">HEVC · 8 bits</string>
+    <string name="video_editor_output_codec_set">Codec : %1$s, choisi dans les réglages de sortie.</string>
 </resources>

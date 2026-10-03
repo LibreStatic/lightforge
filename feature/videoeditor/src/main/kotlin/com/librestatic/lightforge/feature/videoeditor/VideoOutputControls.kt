@@ -44,12 +44,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import com.librestatic.lightforge.core.editing.video.VideoAspectMode
 import com.librestatic.lightforge.core.editing.video.VideoAspectOverride
+import com.librestatic.lightforge.core.editing.video.VideoAudioPlan
+import com.librestatic.lightforge.core.editing.video.VideoOutputAdjustment
 import com.librestatic.lightforge.core.editing.video.VideoOutputAudio
 import com.librestatic.lightforge.core.editing.video.VideoOutputBitrate
 import com.librestatic.lightforge.core.editing.video.VideoOutputCodec
@@ -57,6 +58,7 @@ import com.librestatic.lightforge.core.editing.video.VideoOutputFrameRate
 import com.librestatic.lightforge.core.editing.video.VideoOutputResolution
 import com.librestatic.lightforge.core.editing.video.VideoOutputSettings
 import com.librestatic.lightforge.core.editing.video.VideoQualityPreset
+import com.librestatic.lightforge.core.editing.video.VideoSourceInfo
 
 internal const val VideoOutputPanelTag = "video-output-panel"
 private val AacBitrates = listOf(64_000, 96_000, 128_000, 192_000, 256_000)
@@ -77,8 +79,10 @@ internal fun VideoOutputControls(
     val settings = state.output
     val estimate = state.outputEstimate()
     val source = state.outputSource
-    val editedBase = source?.takeIf { it.width > 0 && it.height > 0 }?.let { editedSourceSize(it, state.geometry) }
-    val aspectBase = editedBase?.let { aspectAdjustedSize(it, settings.aspect) }
+    // The frame the resolution chips scale: the plan at the original resolution (crop, rotation
+    // and forced aspect applied).
+    val aspectBaseShortSide = state.copy(output = settings.copy(resolution = VideoOutputResolution.Original))
+        .outputEstimate()?.plan?.let { minOf(it.width, it.height) }
     Column(
         modifier
             .fillMaxWidth()
@@ -98,8 +102,14 @@ internal fun VideoOutputControls(
                 OutputChip(
                     selected = settings.codec == codec,
                     enabled = codec !in unsupported,
-                    label = if (codec == VideoOutputCodec.Auto) stringResource(R.string.video_editor_output_auto) else codec.displayName(),
+                    label = when {
+                        codec == VideoOutputCodec.Auto -> stringResource(R.string.video_editor_output_auto)
+                        // A software-only encoder works but is far slower: say so on the chip.
+                        state.isSoftwareOnly(codec) -> stringResource(R.string.video_editor_output_codec_slow, codec.displayName())
+                        else -> codec.displayName()
+                    },
                     onClick = { onChange(settings.copy(codec = codec)) },
+                    testTag = "video-output-codec-${codec.name.lowercase()}",
                 )
             }
         }
@@ -107,6 +117,9 @@ internal fun VideoOutputControls(
             Hint(stringResource(R.string.video_editor_output_codec_unsupported, unsupported.joinToString { it.displayName() }))
         }
         if (settings.codec == VideoOutputCodec.Auto) Hint(stringResource(R.string.video_editor_output_codec_auto_hint))
+        if (settings.codec != VideoOutputCodec.Auto && state.isSoftwareOnly(settings.codec)) {
+            Hint(stringResource(R.string.video_editor_output_codec_software, settings.codec.displayName()))
+        }
 
         SectionTitle(R.string.video_editor_output_quality_section)
         val customQuality = settings.quality is VideoOutputBitrate.Target
@@ -123,7 +136,7 @@ internal fun VideoOutputControls(
                 label = stringResource(R.string.video_editor_output_custom),
                 onClick = {
                     if (!customQuality) {
-                        val start = (estimate.videoBitrate ?: DefaultTargetBitrate).coerceIn(100_000, 200_000_000)
+                        val start = (estimate?.plan?.videoBitrate ?: DefaultTargetBitrate).coerceIn(100_000, 200_000_000)
                         onChange(settings.copy(quality = VideoOutputBitrate.Target(start)))
                     }
                 },
@@ -135,7 +148,7 @@ internal fun VideoOutputControls(
 
         SectionTitle(R.string.video_editor_output_resolution)
         val customSize = settings.resolution is VideoOutputResolution.Custom
-        val anyLargerSize = aspectBase != null && VideoOutputResolution.Common.any { it.shortSide > aspectBase.shortSide }
+        val anyLargerSize = aspectBaseShortSide != null && VideoOutputResolution.Common.any { it.shortSide > aspectBaseShortSide }
         ChipRow {
             OutputChip(
                 selected = settings.resolution == VideoOutputResolution.Original,
@@ -144,7 +157,7 @@ internal fun VideoOutputControls(
             )
             VideoOutputResolution.Common.forEach { option ->
                 // Scaling never upscales, so sizes above the (aspect-adjusted) source do nothing.
-                val reachable = aspectBase == null || option.shortSide <= aspectBase.shortSide
+                val reachable = aspectBaseShortSide == null || option.shortSide <= aspectBaseShortSide
                 OutputChip(
                     selected = settings.resolution == option,
                     enabled = reachable,
@@ -157,8 +170,8 @@ internal fun VideoOutputControls(
                 label = stringResource(R.string.video_editor_output_custom),
                 onClick = {
                     if (!customSize) {
-                        val start = estimate.size ?: VideoPixelSize(1920, 1080)
-                        onChange(settings.copy(resolution = VideoOutputResolution.Custom(start.width, start.height)))
+                        val plan = estimate?.plan
+                        onChange(settings.copy(resolution = VideoOutputResolution.Custom(plan?.width ?: 1920, plan?.height ?: 1080)))
                     }
                 },
             )
@@ -267,6 +280,9 @@ internal fun VideoOutputControls(
                 onClick = { if (aac == null) onChange(settings.copy(audio = VideoOutputAudio.Aac(DefaultAacBitrate))) },
             )
         }
+        if (settings.audio == VideoOutputAudio.Remove && state.selectedMusicUri != null) {
+            Hint(stringResource(R.string.video_editor_output_audio_remove_music))
+        }
         if (aac != null) {
             ChipRow {
                 AacBitrates.forEach { bps ->
@@ -284,9 +300,10 @@ internal fun VideoOutputControls(
 @Composable
 private fun VideoOutputSummaryCard(
     state: VideoEditorContentState,
-    estimate: VideoOutputEstimate,
+    estimate: VideoOutputEstimate?,
     onReset: () -> Unit,
 ) {
+    val plan = estimate?.plan
     Surface(
         shape = MaterialTheme.shapes.large,
         color = MaterialTheme.colorScheme.secondaryContainer,
@@ -300,10 +317,20 @@ private fun VideoOutputSummaryCard(
                 SummaryLine(R.string.video_editor_output_source, videoOutputSourceSummary(source))
             }
             SummaryLine(R.string.video_editor_output_result, videoOutputResultSummary(state.output, estimate))
-            if (estimate.isLosslessCopy) {
+            if (plan?.remuxOnly == true) {
                 Row(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs), verticalAlignment = Alignment.CenterVertically) {
                     Icon(GalleryIcons.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
                     Text(stringResource(R.string.video_editor_output_lossless), style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            // Why the result differs from what was asked (codec fallback, encoder limits…).
+            plan?.adjustments?.forEach { adjustment ->
+                Row(
+                    Modifier.testTag("video-output-reason-${adjustment.name}"),
+                    horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
+                ) {
+                    Icon(GalleryIcons.Info, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Text(videoOutputReason(adjustment, state.output.codec), style = MaterialTheme.typography.bodySmall)
                 }
             }
             // The size estimate and Reset share the last line so the card stays compact.
@@ -313,7 +340,7 @@ private fun VideoOutputSummaryCard(
                 itemVerticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    estimate.sizeBytes?.takeIf { it > 0 }?.let { bytes ->
+                    estimate?.sizeBytes?.takeIf { it > 0 }?.let { bytes ->
                         stringResource(
                             R.string.video_editor_output_estimated_size,
                             Formatter.formatShortFileSize(LocalContext.current, bytes),
@@ -341,28 +368,65 @@ private fun SummaryLine(@StringRes label: Int, value: String) {
 
 /** "960×1088 · HEVC · 25 fps · 0.98 Mbps"; unknown parts are left out. */
 @Composable
-internal fun videoOutputSourceSummary(source: VideoOutputSource): String = listOfNotNull(
-    "${source.width}×${source.height}".takeIf { source.width > 0 && source.height > 0 },
-    source.videoMimeType?.let(::videoCodecDisplayName),
-    source.frameRate?.takeIf { it > 0f }?.let { stringResource(R.string.video_editor_output_fps, formatFrameRate(it)) },
-    (source.totalBitrate ?: source.videoBitrate)?.let { stringResource(R.string.video_editor_output_mbps, formatMbps(it)) },
-).joinToString(" · ", transform = ::keepTogether)
+internal fun videoOutputSourceSummary(source: VideoSourceInfo): String {
+    val fileBitrate = source.sizeBytes?.takeIf { it > 0 && source.durationMs > 0 }
+        ?.let { bytes -> (bytes * 8_000L / source.durationMs).takeIf { it in 1L..Int.MAX_VALUE }?.toInt() }
+    val bitrate = source.videoBitrate?.let { it + (source.audioBitrate ?: 0) } ?: fileBitrate
+    return listOfNotNull(
+        "${source.displayWidth}×${source.displayHeight}",
+        source.videoMimeType?.let(::videoCodecDisplayName),
+        source.frameRate.takeIf { it > 0f }?.let { stringResource(R.string.video_editor_output_fps, formatFrameRate(it)) },
+        bitrate?.let { stringResource(R.string.video_editor_output_mbps, formatMbps(it)) },
+    ).joinToString(" · ", transform = ::keepTogether)
+}
 
 /** Non-breaking spaces inside one summary part, so "≈ 1.97 Mbps" never wraps between value and unit. */
 private fun keepTogether(part: String): String = part.replace(' ', ' ')
 
 @Composable
-internal fun videoOutputResultSummary(settings: VideoOutputSettings, estimate: VideoOutputEstimate): String = listOfNotNull(
-    estimate.size?.let { "${it.width}×${it.height}" },
-    estimate.codec?.displayName(),
-    estimate.frameRate?.let { stringResource(R.string.video_editor_output_fps, formatFrameRate(it)) },
-    estimate.videoBitrate?.let { "≈ " + stringResource(R.string.video_editor_output_mbps, formatMbps(it)) },
-    when (val audio = settings.audio) {
-        VideoOutputAudio.Keep -> null
-        VideoOutputAudio.Remove -> stringResource(R.string.video_editor_output_no_audio)
-        is VideoOutputAudio.Aac -> "AAC " + stringResource(R.string.video_editor_output_kbps, audio.bitsPerSecond / 1_000)
-    },
-).joinToString(" · ", transform = ::keepTogether).ifEmpty { stringResource(R.string.video_editor_output_original) }
+internal fun videoOutputResultSummary(settings: VideoOutputSettings, estimate: VideoOutputEstimate?): String {
+    val plan = estimate?.plan
+    val audio = when {
+        plan?.audio == VideoAudioPlan.Removed || plan?.audio == VideoAudioPlan.None ->
+            stringResource(R.string.video_editor_output_no_audio)
+        settings.audio == VideoOutputAudio.Remove ->
+            stringResource(if (plan == null) R.string.video_editor_output_no_audio else R.string.video_editor_output_music_only)
+        else -> (settings.audio as? VideoOutputAudio.Aac)?.let {
+            "AAC " + stringResource(R.string.video_editor_output_kbps, it.bitsPerSecond / 1_000)
+        }
+    }
+    // Until the source is probed only the explicit choices are known.
+    val parts = if (plan == null) listOfNotNull(
+        settings.codec.takeIf { it != VideoOutputCodec.Auto }?.displayName(),
+        (settings.frameRate as? VideoOutputFrameRate.Max)?.let {
+            stringResource(R.string.video_editor_output_fps, it.fps.toString())
+        },
+        audio,
+    ) else listOfNotNull(
+        "${plan.width}×${plan.height}",
+        plan.codec.displayName(),
+        stringResource(R.string.video_editor_output_fps, formatFrameRate(plan.frameRate)),
+        "≈ " + stringResource(R.string.video_editor_output_mbps, formatMbps(plan.videoBitrate)),
+        audio,
+    )
+    return parts.joinToString(" · ", transform = ::keepTogether).ifEmpty { stringResource(R.string.video_editor_output_original) }
+}
+
+/** One localized line for a plan adjustment; [requested] names the codec that was replaced. */
+@Composable
+internal fun videoOutputReason(adjustment: VideoOutputAdjustment, requested: VideoOutputCodec): String = when (adjustment) {
+    // Auto wanted the codec that is now missing: H.264 when it fell back to HEVC, and vice versa.
+    VideoOutputAdjustment.CodecUnavailableFellBackToHevc -> stringResource(
+        adjustment.reason(),
+        (if (requested == VideoOutputCodec.Auto) VideoOutputCodec.H264 else requested).displayName(),
+    )
+    VideoOutputAdjustment.CodecUnavailableFellBackToH264 -> stringResource(
+        adjustment.reason(),
+        (if (requested == VideoOutputCodec.Auto) VideoOutputCodec.Hevc else requested).displayName(),
+    )
+    VideoOutputAdjustment.HdrRequiresHevc -> stringResource(adjustment.reason(), requested.displayName())
+    else -> stringResource(adjustment.reason())
+}
 
 @Composable
 private fun SectionTitle(@StringRes title: Int) {
@@ -488,29 +552,13 @@ private fun VideoAspectMode.description(): Int = when (this) {
     VideoAspectMode.Pad -> R.string.video_editor_output_mode_pad_description
 }
 
-// ---- Preview frame for a forced aspect ratio -------------------------------------------------
-
-/**
- * Preview boxes for the current output aspect, or null to keep the plain video fit. [playerAspect]
- * is what the player reports; before it is ready the source size (after crop and rotation) is used.
- */
-internal fun videoOutputPreviewBoxes(
-    state: VideoEditorContentState,
-    playerAspect: Float?,
-    maxWidth: Dp,
-    maxHeight: Dp,
-): VideoPreviewBoxes? {
-    val forced = state.output.aspect as? VideoAspectOverride.Forced ?: return null
-    val sourceAspect = playerAspect?.takeIf { it > 0f }
-        ?: state.outputSource?.takeIf { it.width > 0 && it.height > 0 }?.let { editedSourceSize(it, state.geometry).aspect }
-        ?: forced.ratio
-    return videoPreviewBoxes(maxWidth.value, maxHeight.value.coerceAtLeast(1f), sourceAspect, forced)
-}
+// ---- Preview frame for the output shape (videoOutputPreviewBoxes) -----------------------------
 
 /** The padded output frame: bars around the video, drawn behind the video surface. */
 @Composable
-internal fun VideoOutputPadBars(boxes: VideoPreviewBoxes, aspect: VideoAspectOverride) {
-    if ((aspect as? VideoAspectOverride.Forced)?.mode != VideoAspectMode.Pad) return
+internal fun VideoOutputPadBars(boxes: VideoPreviewBoxes) {
+    val padded = boxes.frameWidth > boxes.videoWidth + 0.5f || boxes.frameHeight > boxes.videoHeight + 0.5f
+    if (boxes.crop || !padded) return
     Box(
         Modifier
             .size(boxes.frameWidth.dp, boxes.frameHeight.dp)
@@ -521,8 +569,8 @@ internal fun VideoOutputPadBars(boxes: VideoPreviewBoxes, aspect: VideoAspectOve
 
 /** Dims the parts of the frame a Crop will cut, drawn over the video. */
 @Composable
-internal fun VideoOutputCropMask(boxes: VideoPreviewBoxes, aspect: VideoAspectOverride) {
-    if ((aspect as? VideoAspectOverride.Forced)?.mode != VideoAspectMode.Crop) return
+internal fun VideoOutputCropMask(boxes: VideoPreviewBoxes) {
+    if (!boxes.crop) return
     val scrim = MaterialTheme.colorScheme.scrim.copy(alpha = 0.6f)
     Canvas(Modifier.size(boxes.videoWidth.dp, boxes.videoHeight.dp).testTag("video-output-crop-mask")) {
         val frameW = size.width * boxes.frameWidth / boxes.videoWidth
@@ -542,25 +590,21 @@ internal fun VideoOutputCropMask(boxes: VideoPreviewBoxes, aspect: VideoAspectOv
 
 /**
  * Stand-in for the video when there is no player (previews, tests): a box with the edited shape,
- * framed like the real surface would be for a forced aspect.
+ * framed like the real surface would be for the output shape.
  */
 @Composable
 internal fun VideoOutputPreviewPlaceholder(state: VideoEditorContentState) {
-    val source = state.outputSource?.takeIf { it.width > 0 && it.height > 0 } ?: return
+    val aspect = state.editedSourceAspect() ?: return
     BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        val boxes = videoOutputPreviewBoxes(state, null, maxWidth, maxHeight) ?: run {
-            val aspect = editedSourceSize(source, state.geometry).aspect
-            val container = maxWidth.value / maxHeight.value.coerceAtLeast(1f)
-            val (w, h) = if (aspect >= container) maxWidth.value to maxWidth.value / aspect else maxHeight.value * aspect to maxHeight.value
-            VideoPreviewBoxes(w, h, w, h)
-        }
-        VideoOutputPadBars(boxes, state.output.aspect)
+        val boxes = videoOutputPreviewBoxes(state, null, maxWidth.value, maxHeight.value)
+            ?: videoPreviewBoxes(maxWidth.value, maxHeight.value.coerceAtLeast(1f), aspect, aspect, crop = false)
+        VideoOutputPadBars(boxes)
         Box(
             Modifier
                 .size(boxes.videoWidth.dp, boxes.videoHeight.dp)
                 .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                 .testTag("video-output-preview-frame"),
         )
-        VideoOutputCropMask(boxes, state.output.aspect)
+        VideoOutputCropMask(boxes)
     }
 }

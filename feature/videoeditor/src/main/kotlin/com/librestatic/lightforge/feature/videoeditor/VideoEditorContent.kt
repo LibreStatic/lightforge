@@ -119,8 +119,10 @@ import com.librestatic.lightforge.core.editing.video.LutReference
 import com.librestatic.lightforge.core.editing.video.RealtimeColorLut
 import com.librestatic.lightforge.core.editing.video.VideoColorGrade
 import com.librestatic.lightforge.core.editing.video.VideoColorGradeEffects
+import com.librestatic.lightforge.core.editing.video.VideoEncoderCapabilities
 import com.librestatic.lightforge.core.editing.video.VideoOutputCodec
 import com.librestatic.lightforge.core.editing.video.VideoOutputQuality
+import com.librestatic.lightforge.core.editing.video.VideoSourceInfo
 import com.librestatic.lightforge.core.editing.video.VideoOutputSettings
 import com.librestatic.lightforge.core.editing.video.VideoDynamicRange
 import com.librestatic.lightforge.core.editing.video.VideoGeometry
@@ -186,8 +188,10 @@ data class VideoEditorContentState(
     val canRedo: Boolean = false,
     /** Converter-style export options (`VideoEditRecipe.output`). */
     val output: VideoOutputSettings = VideoOutputSettings(),
-    /** Source facts for the output summary; null until known. */
-    val outputSource: VideoOutputSource? = null,
+    /** The probed source for the output plan and summary; null until read (or unreadable). */
+    val outputSource: VideoSourceInfo? = null,
+    /** This device's video encoders; null until known (the plan then assumes every codec works). */
+    val outputEncoders: VideoEncoderCapabilities? = null,
     /** Codecs this device can encode; null when unknown (every codec is offered). */
     val supportedOutputCodecs: Set<VideoOutputCodec>? = null,
 )
@@ -850,7 +854,7 @@ private fun VideoPreview(
                 val videoAspectRatio = (viewerState as? VideoViewerState.Ready)?.aspectRatio
                 val containerAspectRatio = maxWidth.value / maxHeight.value.coerceAtLeast(1f)
                 // A forced output aspect reshapes the frame; crop editing keeps the untouched one.
-                val outputBoxes = if (cropActive) null else videoOutputPreviewBoxes(state, videoAspectRatio, maxWidth, maxHeight)
+                val outputBoxes = if (cropActive) null else videoOutputPreviewBoxes(state, videoAspectRatio, maxWidth.value, maxHeight.value)
                 val baseSurfaceModifier = if (outputBoxes != null) {
                     Modifier.size(outputBoxes.videoWidth.dp, outputBoxes.videoHeight.dp)
                 } else if (videoAspectRatio != null && videoAspectRatio > 0f) {
@@ -872,7 +876,7 @@ private fun VideoPreview(
                 } else {
                     baseSurfaceModifier
                 }
-                outputBoxes?.let { VideoOutputPadBars(it, state.output.aspect) }
+                outputBoxes?.let { VideoOutputPadBars(it) }
                 if (plainPlayback) {
                     // A TextureView, unlike a SurfaceView, follows the layer's rotation and mirror.
                     val geometry = if (cropActive) VideoGeometry() else state.geometry
@@ -913,7 +917,7 @@ private fun VideoPreview(
                     onErase = onEraseAnnotations,
                     modifier = surfaceModifier,
                 )
-                outputBoxes?.let { VideoOutputCropMask(it, state.output.aspect) }
+                outputBoxes?.let { VideoOutputCropMask(it) }
                 if (cropActive) {
                     VideoCropOverlay(
                         geometry = state.geometry,
@@ -1316,8 +1320,20 @@ private fun ExportControls(
     onEditOutput: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // The Output tool's codec wins: with HEVC this toggle only picks the bit depth, and with H.264
+    // or AV1 it does not apply, so it is replaced by a note instead of showing a contradiction.
+    val codec = state.output.codec
     val qualityLabel: (VideoOutputQuality) -> Int = { quality ->
-        if (quality == VideoOutputQuality.HevcMain10) R.string.video_editor_hevc_10bit else R.string.video_editor_h264
+        when {
+            quality == VideoOutputQuality.HevcMain10 -> R.string.video_editor_hevc_10bit
+            codec == VideoOutputCodec.Hevc -> R.string.video_editor_hevc_8bit
+            else -> R.string.video_editor_h264
+        }
+    }
+    val estimate = state.outputEstimate()
+    val codecLabel = when (codec) {
+        VideoOutputCodec.Auto, VideoOutputCodec.Hevc -> stringResource(qualityLabel(state.outputQuality))
+        else -> (estimate?.plan?.codec ?: codec).displayName()
     }
     val rangeLabel: (VideoDynamicRange) -> Int = { dynamicRange ->
         when (dynamicRange) {
@@ -1331,23 +1347,32 @@ private fun ExportControls(
         verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
     ) {
         Text(stringResource(R.string.video_editor_output_quality), style = MaterialTheme.typography.titleSmall)
-        val qualities = VideoOutputQuality.entries
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            qualities.forEachIndexed { index, quality ->
-                SegmentedButton(
-                    selected = state.outputQuality == quality,
-                    onClick = { onQualitySelected(quality) },
-                    enabled = quality != VideoOutputQuality.HevcMain10 || state.isHevcMain10Available,
-                    shape = SegmentedButtonDefaults.itemShape(index, qualities.size),
-                    label = { Text(stringResource(qualityLabel(quality)), maxLines = 2, textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium) },
-                )
+        if (codec == VideoOutputCodec.Auto || codec == VideoOutputCodec.Hevc) {
+            val qualities = VideoOutputQuality.entries
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                qualities.forEachIndexed { index, quality ->
+                    SegmentedButton(
+                        selected = state.outputQuality == quality,
+                        onClick = { onQualitySelected(quality) },
+                        enabled = quality != VideoOutputQuality.HevcMain10 || state.isHevcMain10Available,
+                        shape = SegmentedButtonDefaults.itemShape(index, qualities.size),
+                        label = { Text(stringResource(qualityLabel(quality)), maxLines = 2, textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium) },
+                    )
+                }
             }
+            if (!state.isHevcMain10Available) Text(
+                stringResource(R.string.video_editor_hevc_unavailable),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            Text(
+                stringResource(R.string.video_editor_output_codec_set, codecLabel),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.testTag("video-export-codec-from-output"),
+            )
         }
-        if (!state.isHevcMain10Available) Text(
-            stringResource(R.string.video_editor_hevc_unavailable),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
         Text(stringResource(R.string.video_editor_dynamic_range), style = MaterialTheme.typography.titleSmall)
         val ranges = VideoDynamicRange.entries
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
@@ -1377,7 +1402,7 @@ private fun ExportControls(
                     stringResource(
                         R.string.video_editor_export_summary,
                         formatVideoEditorShortTime(length),
-                        stringResource(qualityLabel(state.outputQuality)),
+                        codecLabel,
                         stringResource(rangeLabel(state.dynamicRange)),
                     ),
                     style = MaterialTheme.typography.titleSmall,
@@ -1399,13 +1424,17 @@ private fun ExportControls(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        VideoOutputExportRow(state, onEditOutput)
+        VideoOutputExportRow(state, estimate, onEditOutput)
     }
 }
 
 /** The Output tool's result in the export sheet, with a shortcut to change it. */
 @Composable
-private fun VideoOutputExportRow(state: VideoEditorContentState, onEditOutput: () -> Unit) {
+private fun VideoOutputExportRow(
+    state: VideoEditorContentState,
+    estimate: VideoOutputEstimate?,
+    onEditOutput: () -> Unit,
+) {
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -1418,10 +1447,17 @@ private fun VideoOutputExportRow(state: VideoEditorContentState, onEditOutput: (
             Column(Modifier.weight(1f).padding(vertical = GallerySpacing.Xs)) {
                 Text(stringResource(R.string.video_editor_output_settings), style = MaterialTheme.typography.titleSmall)
                 Text(
-                    videoOutputResultSummary(state.output, state.outputEstimate()),
+                    videoOutputResultSummary(state.output, estimate),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                estimate?.plan?.adjustments?.forEach { adjustment ->
+                    Text(
+                        videoOutputReason(adjustment, state.output.codec),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             TextButton(
                 onClick = onEditOutput,
