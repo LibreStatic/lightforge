@@ -9,7 +9,6 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,7 +25,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -43,7 +41,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.asImageBitmap
@@ -63,9 +60,12 @@ import com.librestatic.lightforge.core.model.RawMetadata
 import com.librestatic.lightforge.core.model.RawOutputFormat
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
-import com.librestatic.lightforge.core.designsystem.GalleryExpressiveIconButton
 import com.librestatic.lightforge.core.designsystem.GalleryLoadingIndicator
-import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
+import com.librestatic.lightforge.core.designsystem.MediaEditorHistory
+import com.librestatic.lightforge.core.designsystem.MediaEditorScaffold
+import com.librestatic.lightforge.core.designsystem.MediaEditorToolChip
+import com.librestatic.lightforge.core.designsystem.MediaEditorToolChips
+import com.librestatic.lightforge.core.designsystem.MediaEditorTopBar
 import com.librestatic.lightforge.feature.objecteraser.ObjectEraser
 import com.librestatic.lightforge.feature.subjectclip.SubjectClipper
 import kotlin.math.abs
@@ -187,64 +187,60 @@ fun PhotoEditorContent(
         selectedTool = defaultTool
     }
     BackHandler(enabled = cropDraft != null, onBack = ::backFromCropDraft)
-    Scaffold(modifier = modifier, topBar = {
-        GalleryTopAppBar(
-            title = stringResource(R.string.photo_editor_title),
-            onBack = { if (cropDraft != null) backFromCropDraft() else onBack() },
-            navigationContentDescription = stringResource(R.string.photo_editor_cancel),
-            actions = {
-                TextButton(onClick = {
+    val experimentalPanel = selectedTool.isExperimentalTool()
+    MediaEditorScaffold(
+        modifier = modifier,
+        topBar = {
+            MediaEditorTopBar(
+                title = stringResource(R.string.photo_editor_title),
+                onCancel = { if (cropDraft != null) backFromCropDraft() else onBack() },
+                cancelLabel = stringResource(R.string.photo_editor_cancel),
+                actionLabel = stringResource(R.string.photo_editor_save_copy),
+                onAction = {
                     commitCropDraft()
                     onSaveCopy()
-                }, enabled = !state.isExporting) {
-                    Text(stringResource(R.string.photo_editor_save_copy))
-                }
-            },
-        )
-    }) { padding ->
-        BoxWithConstraints(
-            Modifier.fillMaxSize().padding(padding).background(MaterialTheme.colorScheme.background),
-        ) {
-            // Landscape phones are too short for preview, tabs and tool rows stacked vertically.
-            val useSidePanel = maxWidth >= 600.dp && maxWidth >= maxHeight * 1.2f
-            val panelMaxHeight = maxHeight * 0.5f
-            if (useSidePanel) {
-                Row(Modifier.fillMaxSize()) {
-                    PreviewStage(state, cropDraft, compareOriginal, { compareOriginal = it }, { cropDraft = it }, selectedTool, experimental, Modifier.weight(1f).fillMaxSize())
-                    PhotoTools(state, selectedTool, ::selectTool, cropDraft, { cropDraft = it }, onApply, onUndo, onRedo, onRawSettingsChange, onRawSettingsChangeFinished, onTonePreview, onToneChangeFinished, onApplyAutoSuggestion, onRawOutputFormatChange, experimental, Modifier.weight(0.42f).padding(16.dp))
-                }
-            } else {
-                Column(Modifier.fillMaxSize()) {
-                    PreviewStage(state, cropDraft, compareOriginal, { compareOriginal = it }, { cropDraft = it }, selectedTool, experimental, Modifier.weight(1f).fillMaxWidth())
-                    PhotoTools(
-                        state,
-                        selectedTool,
-                        ::selectTool,
-                        cropDraft,
-                        { cropDraft = it },
-                        onApply,
-                        onUndo,
-                        onRedo,
-                        onRawSettingsChange,
-                        onRawSettingsChangeFinished,
-                        onTonePreview,
-                        onToneChangeFinished,
-                        onApplyAutoSuggestion,
-                        onRawOutputFormatChange,
-                        experimental,
-                        // Eraser and cut-out panels hold prose (fallback notice + hint) that a 0.42 weight
-                        // squeezed into a sliver; let them wrap up to a cap so the text reads in full (Z-05).
-                        if (selectedTool.isExperimentalTool()) {
-                            Modifier.fillMaxWidth().heightIn(max = panelMaxHeight)
-                        } else {
-                            Modifier.weight(0.42f).fillMaxWidth()
-                        },
-                        wrapPanel = selectedTool.isExperimentalTool(),
-                    )
-                }
-            }
-        }
-    }
+                },
+                actionEnabled = !state.isExporting,
+                history = MediaEditorHistory(
+                    canUndo = state.canUndo,
+                    canRedo = state.canRedo,
+                    onUndo = onUndo,
+                    onRedo = onRedo,
+                    undoLabel = stringResource(R.string.photo_editor_undo),
+                    redoLabel = stringResource(R.string.photo_editor_redo),
+                ),
+                actionTestTag = "photo-editor-save-copy",
+            )
+        },
+        media = { mediaModifier ->
+            PreviewStage(state, cropDraft, compareOriginal, { compareOriginal = it }, { cropDraft = it }, selectedTool, experimental, mediaModifier)
+        },
+        inspector = { inspectorModifier, layout ->
+            PhotoTools(
+                state,
+                selectedTool,
+                ::selectTool,
+                cropDraft,
+                { cropDraft = it },
+                onApply,
+                onRawSettingsChange,
+                onRawSettingsChangeFinished,
+                onTonePreview,
+                onToneChangeFinished,
+                onApplyAutoSuggestion,
+                onRawOutputFormatChange,
+                experimental,
+                inspectorModifier,
+                sideBySide = layout.isSideBySide,
+                // Eraser and cut-out panels hold prose (fallback notice + hint) that a 0.42 weight
+                // squeezed into a sliver; let them wrap up to a cap so the text reads in full (Z-05).
+                wrapPanel = experimentalPanel && !layout.isSideBySide,
+            )
+        },
+        stackedMediaWeight = 1f,
+        stackedInspectorWeight = if (experimentalPanel) null else 0.42f,
+        stackedInspectorMaxFraction = 0.5f,
+    )
 }
 
 @Composable
@@ -258,7 +254,12 @@ private fun PreviewStage(
     experimental: ExperimentalToolActions,
     modifier: Modifier,
 ) {
-    Box(modifier.background(Color.Black), contentAlignment = Alignment.Center) {
+    Box(
+        modifier
+            .testTag("photo-editor-preview")
+            .background(MaterialTheme.colorScheme.surfaceContainerLowest),
+        contentAlignment = Alignment.Center,
+    ) {
         val erasing = selectedTool == PhotoEditorTool.ObjectEraser && cropDraft == null
         val clipping = selectedTool == PhotoEditorTool.SubjectClip && cropDraft == null
         val preview = when {
@@ -322,15 +323,25 @@ private fun PreviewStage(
         } else if (state.isRendering) {
             GalleryLoadingIndicator()
         } else {
-            Text(stringResource(R.string.photo_editor_preview_unavailable), color = Color.White)
+            Text(
+                stringResource(R.string.photo_editor_preview_unavailable),
+                color = MaterialTheme.colorScheme.onSurface,
+            )
         }
         state.statusMessage?.let { message ->
-            Text(
-                message,
-                Modifier.align(Alignment.BottomCenter).padding(12.dp),
-                color = Color.White,
-                style = MaterialTheme.typography.labelLarge,
-            )
+            // Drawn over the photo, so it carries its own container instead of bare text.
+            Surface(
+                modifier = Modifier.align(Alignment.BottomCenter).padding(12.dp),
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.inverseSurface,
+                contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+            ) {
+                Text(
+                    message,
+                    Modifier.padding(horizontal = GallerySpacing.Md, vertical = GallerySpacing.Sm),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
         }
     }
 }
@@ -343,8 +354,6 @@ private fun PhotoTools(
     cropDraft: PhotoCropDraft?,
     onCropDraftChange: (PhotoCropDraft?) -> Unit,
     onApply: (EditOperation) -> Unit,
-    onUndo: () -> Unit,
-    onRedo: () -> Unit,
     onRawSettingsChange: (RawDevelopmentSettings) -> Unit,
     onRawSettingsChangeFinished: () -> Unit,
     onTonePreview: (EditOperation.Tone) -> Unit,
@@ -353,13 +362,21 @@ private fun PhotoTools(
     onRawOutputFormatChange: (RawOutputFormat) -> Unit,
     experimental: ExperimentalToolActions,
     modifier: Modifier,
+    sideBySide: Boolean,
     wrapPanel: Boolean = false,
 ) {
+    Surface(
+        modifier = modifier,
+        color = if (sideBySide) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.surface,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) {
     Column(
-        modifier.padding(GallerySpacing.Md),
+        Modifier.padding(vertical = GallerySpacing.Md),
         verticalArrangement = Arrangement.spacedBy(GallerySpacing.Md),
     ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        // Beside the media the tools wrap at the top of the inspector, so none is ever clipped (bug 35).
+        if (sideBySide) PhotoToolNavigation(state.isRaw, selectedTool, onSelectTool, wrap = true)
+        Row(Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg)) {
             Text(
                 when {
                     selectedTool == PhotoEditorTool.Automatic -> stringResource(R.string.photo_editor_automatic)
@@ -373,17 +390,12 @@ private fun PhotoTools(
                 },
                 style = MaterialTheme.typography.titleMedium,
             )
-            Row {
-                GalleryExpressiveIconButton(onClick = onUndo, enabled = state.canUndo) {
-                    Icon(GalleryIcons.Undo, contentDescription = stringResource(R.string.photo_editor_undo))
-                }
-                GalleryExpressiveIconButton(onClick = onRedo, enabled = state.canRedo) {
-                    Icon(GalleryIcons.Redo, contentDescription = stringResource(R.string.photo_editor_redo))
-                }
-            }
         }
         Column(
-            Modifier.weight(1f, fill = !wrapPanel).verticalScroll(rememberScrollState()),
+            Modifier
+                .weight(1f, fill = !wrapPanel)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = GallerySpacing.Lg),
             verticalArrangement = Arrangement.spacedBy(GallerySpacing.Md),
         ) {
             when (selectedTool) {
@@ -455,13 +467,16 @@ private fun PhotoTools(
             )
         }
         // Outside the scrolling panel so Apply/Clear and Save cut-out stay on screen (Z-03).
-        when (selectedTool) {
-            PhotoEditorTool.ObjectEraser -> ObjectEraserActions(state, experimental)
-            PhotoEditorTool.SubjectClip -> SubjectClipActions(state, experimental)
-            else -> Unit
+        Box(Modifier.padding(horizontal = GallerySpacing.Lg)) {
+            when (selectedTool) {
+                PhotoEditorTool.ObjectEraser -> ObjectEraserActions(state, experimental)
+                PhotoEditorTool.SubjectClip -> SubjectClipActions(state, experimental)
+                else -> Unit
+            }
         }
 
-        PhotoToolNavigation(state.isRaw, selectedTool, onSelectTool)
+        if (!sideBySide) PhotoToolNavigation(state.isRaw, selectedTool, onSelectTool, wrap = false)
+    }
     }
 }
 
@@ -470,6 +485,7 @@ private fun PhotoToolNavigation(
     isRaw: Boolean,
     selectedTool: PhotoEditorTool,
     onSelectTool: (PhotoEditorTool) -> Unit,
+    wrap: Boolean,
 ) {
     val tools = if (isRaw) {
         listOf(PhotoEditorTool.Raw, PhotoEditorTool.Crop, PhotoEditorTool.Export)
@@ -483,22 +499,25 @@ private fun PhotoToolNavigation(
             PhotoEditorTool.SubjectClip,
         )
     }
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
-        items(tools) { tool ->
-            FilterChip(
-                modifier = Modifier.testTag("photo-editor-tool-${tool.name.lowercase()}"),
-                selected = selectedTool == tool,
-                onClick = { onSelectTool(tool) },
-                label = { Text(toolLabel(tool)) },
-                leadingIcon = when (tool) {
-                    PhotoEditorTool.Crop -> ({ Icon(GalleryIcons.Crop, contentDescription = null) })
-                    PhotoEditorTool.Adjust, PhotoEditorTool.Raw -> ({ Icon(GalleryIcons.Tune, contentDescription = null) })
-                    PhotoEditorTool.Filters, PhotoEditorTool.Automatic -> ({ Icon(GalleryIcons.Palette, contentDescription = null) })
+    MediaEditorToolChips(
+        tools = tools.map { tool ->
+            MediaEditorToolChip(
+                key = tool.name,
+                label = toolLabel(tool),
+                icon = when (tool) {
+                    PhotoEditorTool.Crop -> GalleryIcons.Crop
+                    PhotoEditorTool.Adjust, PhotoEditorTool.Raw -> GalleryIcons.Tune
+                    PhotoEditorTool.Filters, PhotoEditorTool.Automatic -> GalleryIcons.Palette
                     PhotoEditorTool.Export, PhotoEditorTool.ObjectEraser, PhotoEditorTool.SubjectClip -> null
                 },
+                testTag = "photo-editor-tool-${tool.name.lowercase()}",
             )
-        }
-    }
+        },
+        selectedKey = selectedTool.name,
+        onSelect = { key -> onSelectTool(PhotoEditorTool.valueOf(key)) },
+        wrap = wrap,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = GallerySpacing.Lg),
+    )
 }
 
 @Composable

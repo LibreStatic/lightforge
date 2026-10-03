@@ -199,7 +199,7 @@ class PhotoEditorContentDeviceTest {
     }
 
     @Test
-    fun foldablePortraitPlacesToolsBelowPreview() {
+    fun squareFoldablePlacesToolsBesidePreviewInEitherOrientation() {
         val preview = Bitmap.createBitmap(16, 16, Bitmap.Config.ARGB_8888)
         compose.setContent {
             LightforgeTheme {
@@ -222,7 +222,8 @@ class PhotoEditorContentDeviceTest {
         val toolsBounds = compose.onNode(hasTestTag("photo-editor-tool-crop"))
             .fetchSemanticsNode().boundsInRoot
 
-        assertTrue("Foldable portrait tools must be below the preview", toolsBounds.top >= previewBounds.bottom)
+        // A near-square window gets media | inspector whichever way it is held (bug 23).
+        assertTrue("Square foldable tools must sit beside the preview", toolsBounds.left >= previewBounds.right)
     }
 
     @Test
