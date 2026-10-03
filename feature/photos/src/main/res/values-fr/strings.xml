@@ -27,4 +27,7 @@
     <string name="library_task_pets">Reconnaissance des animaux</string>
     <string name="library_paused_battery">%1$s en pause pour économiser la batterie</string>
     <string name="library_paused_heat">%1$s en pause le temps que l\'appareil refroidisse</string>
+    <string name="photos_more_options">Plus d\'options</string>
+    <string name="photos_menu_settings">Paramètres</string>
+    <string name="photos_menu_device_folders">Sur l’appareil</string>
 </resources>

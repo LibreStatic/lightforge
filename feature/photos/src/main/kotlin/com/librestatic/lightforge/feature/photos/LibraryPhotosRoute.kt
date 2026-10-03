@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -70,7 +71,7 @@ fun LibraryPhotosRoute(
     onRequestAccess: () -> Unit,
     onOpenSettings: () -> Unit = {},
     onOpenDeviceFolders: () -> Unit = {},
-    onCreate: () -> Unit = {},
+    @Suppress("UNUSED_PARAMETER") onCreate: () -> Unit = {},
     onOpenUpdates: () -> Unit = {},
     activeExportCount: Int = 0,
     activeExportProgress: Float? = null,
@@ -88,7 +89,7 @@ fun LibraryPhotosRoute(
     selectionMode: Boolean = false,
     focusReturn: TimelineFocusReturn? = null,
     onFocusReturnConsumed: (TimelineFocusReturn) -> Unit = {},
-    /** False when a navigation rail already offers Create, Updates and Settings. */
+    /** False when a navigation rail already offers Updates and Settings. */
     showNavigationActions: Boolean = true,
     scrubberIndex: TimelineIndex? = null,
     onScrubberJump: (TimelineAnchor?) -> Unit = {},
@@ -133,9 +134,7 @@ fun LibraryPhotosRoute(
                 androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
             }
             if (showNavigationActions) {
-                GalleryExpressiveIconButton(onClick = onCreate) {
-                    Icon(GalleryIcons.Plus, contentDescription = stringResource(R.string.photos_create))
-                }
+                // Create lives in the navigation, so the header keeps only Updates and an overflow.
                 UpdatesAction(
                     onClick = if (activeExportCount > 0) onOpenExportQueue else onOpenUpdates,
                     activeExportCount = activeExportCount,
@@ -143,12 +142,7 @@ fun LibraryPhotosRoute(
                     contentDescription = activeExportDescription
                         ?: stringResource(R.string.photos_updates),
                 )
-                GalleryExpressiveIconButton(onClick = onOpenSettings) {
-                    Icon(
-                        GalleryIcons.User,
-                        contentDescription = stringResource(R.string.open_settings),
-                    )
-                }
+                PhotosOverflowMenu(onOpenSettings = onOpenSettings, onOpenDeviceFolders = onOpenDeviceFolders)
             }
             if (access.isLimited) Text(
                 stringResource(R.string.limited_access_label),
@@ -344,5 +338,27 @@ private fun PermissionRequired(onRequestAccess: () -> Unit) {
             onClick = onRequestAccess,
             modifier = Modifier.padding(GallerySpacing.Xl),
         ) { Text(stringResource(R.string.grant_access_action)) }
+    }
+}
+
+@Composable
+private fun PhotosOverflowMenu(onOpenSettings: () -> Unit, onOpenDeviceFolders: () -> Unit) {
+    var expanded by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    androidx.compose.foundation.layout.Box {
+        GalleryExpressiveIconButton(onClick = { expanded = true }) {
+            Icon(GalleryIcons.More, contentDescription = stringResource(R.string.photos_more_options))
+        }
+        androidx.compose.material3.DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            androidx.compose.material3.DropdownMenuItem(
+                text = { Text(stringResource(R.string.photos_menu_device_folders)) },
+                leadingIcon = { Icon(GalleryIcons.Folder, contentDescription = null) },
+                onClick = { expanded = false; onOpenDeviceFolders() },
+            )
+            androidx.compose.material3.DropdownMenuItem(
+                text = { Text(stringResource(R.string.photos_menu_settings)) },
+                leadingIcon = { Icon(GalleryIcons.Settings, contentDescription = null) },
+                onClick = { expanded = false; onOpenSettings() },
+            )
+        }
     }
 }

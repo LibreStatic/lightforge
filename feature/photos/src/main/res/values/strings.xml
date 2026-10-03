@@ -32,4 +32,7 @@
     <string name="library_task_pets">Pet recognition</string>
     <string name="library_paused_battery">%1$s paused to save battery</string>
     <string name="library_paused_heat">%1$s paused while the device cools down</string>
+    <string name="photos_more_options">More options</string>
+    <string name="photos_menu_settings">Settings</string>
+    <string name="photos_menu_device_folders">On device</string>
 </resources>

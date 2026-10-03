@@ -27,4 +27,7 @@
     <string name="library_task_pets">Haustiererkennung</string>
     <string name="library_paused_battery">%1$s pausiert, um Akku zu sparen</string>
     <string name="library_paused_heat">%1$s pausiert, bis das Gerät abgekühlt ist</string>
+    <string name="photos_more_options">Weitere Optionen</string>
+    <string name="photos_menu_settings">Einstellungen</string>
+    <string name="photos_menu_device_folders">Auf dem Gerät</string>
 </resources>
