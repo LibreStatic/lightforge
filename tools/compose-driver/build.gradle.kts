@@ -28,6 +28,7 @@ dependencies {
     // previews to it; keep the list short so the server compiles and starts quickly.
     testImplementation(project(":feature:photoeditor"))
     testImplementation(project(":feature:collections"))
+    testImplementation(project(":core:designsystem"))
 
     testImplementation(libs.compose.driver)
     testImplementation(libs.robolectric)
