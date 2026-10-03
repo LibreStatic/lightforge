@@ -36,5 +36,11 @@ class VideoEditorDraftPolicyTest {
         assertEquals("1:00.000", formatVideoEditorDraftTime(60_000))
         assertEquals("60:00.007", formatVideoEditorDraftTime(3_600_007))
     }
-
+    @Test fun lengthShowsTenthsOnlyUnderTenSeconds() {
+        assertEquals("0:00.2", formatVideoEditorLengthTime(200))
+        assertEquals("0:02.7", formatVideoEditorLengthTime(2_700))
+        assertEquals("0:09.9", formatVideoEditorLengthTime(9_999))
+        assertEquals("0:10", formatVideoEditorLengthTime(10_000))
+        assertEquals("1:05", formatVideoEditorLengthTime(65_400))
+    }
 }

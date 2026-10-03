@@ -42,3 +42,10 @@ internal fun formatVideoEditorShortTime(millis: Long): String {
     val totalSeconds = millis / 1_000
     return "${totalSeconds / 60}:${(totalSeconds % 60).toString().padStart(2, '0')}"
 }
+
+/** Length of a result: `m:ss`, with tenths under ten seconds so a sub-second clip never reads as `0:00`. */
+internal fun formatVideoEditorLengthTime(millis: Long): String {
+    require(millis >= 0)
+    if (millis >= 10_000) return formatVideoEditorShortTime(millis)
+    return "0:0${millis / 1_000}.${(millis % 1_000) / 100}"
+}

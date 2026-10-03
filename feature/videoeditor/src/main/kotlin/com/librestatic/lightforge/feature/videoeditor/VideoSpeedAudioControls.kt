@@ -72,7 +72,7 @@ internal fun SpeedControls(
             }
         }
         Text(
-            stringResource(R.string.video_editor_speed_result, formatVideoEditorShortTime(state.outputLengthMillis())),
+            stringResource(R.string.video_editor_speed_result, formatVideoEditorLengthTime(state.outputLengthMillis())),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
