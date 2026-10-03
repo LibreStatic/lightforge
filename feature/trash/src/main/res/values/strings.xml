@@ -14,4 +14,9 @@
         <item quantity="one">%1$d selected</item>
         <item quantity="other">%1$d selected</item>
     </plurals>
+    <string name="trash_expires_today">Expires today</string>
+    <plurals name="trash_days_left">
+        <item quantity="one">%1$d day left</item>
+        <item quantity="other">%1$d days left</item>
+    </plurals>
 </resources>

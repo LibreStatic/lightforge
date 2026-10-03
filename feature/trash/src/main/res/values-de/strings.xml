@@ -6,4 +6,9 @@
         <item quantity="one">%1$d ausgewählt</item>
         <item quantity="other">%1$d ausgewählt</item>
     </plurals>
+    <string name="trash_expires_today">Läuft heute ab</string>
+    <plurals name="trash_days_left">
+        <item quantity="one">Noch %1$d Tag</item>
+        <item quantity="other">Noch %1$d Tage</item>
+    </plurals>
 </resources>

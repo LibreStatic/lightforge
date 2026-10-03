@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
@@ -33,6 +35,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -40,12 +43,16 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import com.librestatic.lightforge.core.designsystem.GalleryGridMetrics
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryLoadingIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryOverlayTokens
+import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import com.librestatic.lightforge.core.designsystem.GalleryStateContent
 import com.librestatic.lightforge.core.designsystem.MediaSelectionOverlay
 import com.librestatic.lightforge.core.designsystem.RetainGridThumbnailViewport
@@ -84,16 +91,19 @@ fun TrashContent(
         }
         else -> BoxWithConstraints(modifier.fillMaxSize()) {
             val gridState = rememberLazyGridState()
-            val columns = GalleryGridMetrics.adaptiveColumns(maxWidth)
+            // One left edge for the notice and the tiles, inset from the window edge.
+            val gutter = GallerySpacing.Lg
+            val gridWidth = maxWidth - gutter * 2
+            val columns = trashColumns(gridWidth, items.itemCount)
             val thumbnailSizePx = with(LocalDensity.current) {
-                ((maxWidth - GalleryGridMetrics.Gap * (columns - 1)) / columns).roundToPx()
+                ((gridWidth - GalleryGridMetrics.Gap * (columns - 1)) / columns).roundToPx()
             }.coerceAtLeast(1)
             LazyVerticalGrid(
                 columns = GridCells.Fixed(columns),
                 state = gridState,
                 horizontalArrangement = Arrangement.spacedBy(GalleryGridMetrics.Gap),
                 verticalArrangement = Arrangement.spacedBy(GalleryGridMetrics.Gap),
-                contentPadding = PaddingValues(bottom = 96.dp),
+                contentPadding = PaddingValues(start = gutter, end = gutter, bottom = 96.dp),
                 modifier = Modifier.fillMaxSize().testTag("trash_grid").lazyGridDragSelection(
                     state = gridState,
                     itemAtIndex = { index -> if (index <= 0) null else items.itemSnapshotList.getOrNull(index - 1) },
@@ -106,7 +116,7 @@ fun TrashContent(
                 ),
             ) {
                 item(key = "trash-info", span = { GridItemSpan(maxLineSpan) }) {
-                    TrashInfoBanner(Modifier.padding(horizontal = 20.dp, vertical = 12.dp))
+                    TrashInfoBanner(Modifier.padding(vertical = GallerySpacing.Md))
                 }
                 items(
                     count = items.itemCount,
@@ -209,9 +219,49 @@ private fun TrashCell(
         if (media.kind == MediaKind.Video) {
             VideoDurationBadge(media.durationMillis, Modifier.align(Alignment.TopEnd).padding(6.dp))
         }
+        media.dateExpiresMillis?.let { expires ->
+            TrashExpiryBadge(expires, Modifier.align(Alignment.BottomStart).padding(6.dp))
+        }
         MediaSelectionOverlay(selected)
     }
 }
+
+/**
+ * Adaptive columns, except that a nearly empty trash uses larger tiles: one small tile alone in a
+ * wide window reads as a failed load.
+ */
+private fun trashColumns(gridWidth: Dp, itemCount: Int): Int {
+    val adaptive = GalleryGridMetrics.adaptiveColumns(gridWidth)
+    if (itemCount !in 1..SparseTrashItems) return adaptive
+    return (gridWidth / SparseTrashTileWidth).toInt().coerceIn(2, adaptive.coerceAtLeast(2))
+}
+
+private const val SparseTrashItems = 3
+private val SparseTrashTileWidth = 220.dp
+
+/** "3 days left" on the tile, so the retention deadline is visible without opening each item. */
+@Composable
+private fun TrashExpiryBadge(expiresMillis: Long, modifier: Modifier = Modifier) {
+    val days = remember(expiresMillis) {
+        val left = expiresMillis - System.currentTimeMillis()
+        if (left <= 0L) 0 else ((left + DayMillis - 1) / DayMillis).toInt()
+    }
+    Text(
+        text = if (days <= 0) stringResource(R.string.trash_expires_today)
+        else pluralStringResource(R.plurals.trash_days_left, days, days),
+        color = GalleryOverlayTokens.Content,
+        style = MaterialTheme.typography.labelSmall,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        // The tile's own description already announces the exact expiry date.
+        modifier = modifier
+            .clearAndSetSemantics { }
+            .background(GalleryOverlayTokens.DurationSurface, CircleShape)
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+    )
+}
+
+private const val DayMillis = 24L * 60 * 60 * 1000
 
 private fun TimelineMedia.thumbnailRequest(sizePx: Int) = ThumbnailRequest(
     mediaKey = key,

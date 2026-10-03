@@ -7,4 +7,10 @@
         <item quantity="many">%1$d sélectionnés</item>
         <item quantity="other">%1$d sélectionnés</item>
     </plurals>
+    <string name="trash_expires_today">Expire aujourd’hui</string>
+    <plurals name="trash_days_left">
+        <item quantity="one">%1$d jour restant</item>
+        <item quantity="many">%1$d jours restants</item>
+        <item quantity="other">%1$d jours restants</item>
+    </plurals>
 </resources>

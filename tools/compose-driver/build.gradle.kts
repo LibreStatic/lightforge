@@ -33,6 +33,7 @@ dependencies {
     testImplementation(project(":feature:viewer"))
     testImplementation(project(":feature:photos"))
     testImplementation(project(":feature:picker"))
+    testImplementation(project(":feature:trash"))
 
     testImplementation(libs.compose.driver)
     testImplementation(libs.robolectric)
