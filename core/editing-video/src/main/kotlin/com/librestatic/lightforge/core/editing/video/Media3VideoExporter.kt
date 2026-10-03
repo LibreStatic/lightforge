@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.SpeedParameters
@@ -30,6 +31,9 @@ import androidx.media3.transformer.DefaultDecoderFactory
 import androidx.media3.transformer.ProgressHolder
 import androidx.media3.transformer.InAppMp4Muxer
 import androidx.media3.transformer.VideoEncoderSettings
+import androidx.media3.transformer.AudioEncoderSettings
+import androidx.media3.effect.FrameDropEffect
+import androidx.media3.effect.Presentation
 import androidx.media3.transformer.TransformationRequest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -88,9 +92,10 @@ class Media3VideoExporter(private val context: Context) {
                 retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong()
             }
         } ?: throw IllegalArgumentException("Video duration is unavailable")
+        val plan = outputPlan(request)
         if (request.recipe.slowMotionSegments.isEmpty()) {
             return withContext(Dispatchers.Main.immediate) {
-                exportOnMain(request, clipEndMillis, emptyList())
+                exportOnMain(request, clipEndMillis, emptyList(), plan)
             }.also { request.onProgress(VideoExportProgress(VideoExportPhase.Completed, 1f)) }
         }
         val frameRoot = File(context.cacheDir, "rife-export-${System.nanoTime()}")
@@ -111,7 +116,7 @@ class Media3VideoExporter(private val context: Context) {
                 )
             }
             withContext(Dispatchers.Main.immediate) {
-                exportOnMain(request, clipEndMillis, segments)
+                exportOnMain(request, clipEndMillis, segments, plan)
             }.also { request.onProgress(VideoExportProgress(VideoExportPhase.Completed, 1f)) }
         } finally {
             // NonCancellable: a cancelled export must still drop its full-size RIFE frames.
@@ -119,10 +124,30 @@ class Media3VideoExporter(private val context: Context) {
         }
     }
 
+    /**
+     * Resolves the output settings for this device and source. Null when the source cannot be
+     * probed; the export then keeps the pre-output-settings behaviour (H.264/HEVC by quality,
+     * encoder-default bitrate, source size and frame rate, audio re-encoded).
+     */
+    private suspend fun outputPlan(request: VideoExportRequest): VideoOutputPlan? {
+        val source = VideoSourceInfoReader.read(context, request.input) ?: return null
+        val capabilities = withContext(Dispatchers.IO) { VideoOutputCapabilities.encoders() }
+        val plan = VideoOutputPlan.resolve(source, request.recipe, capabilities)
+        Log.d(
+            Tag,
+            "Output plan: ${plan.videoMimeType} ${plan.width}x${plan.height} ${plan.videoBitrate} bps " +
+                "${plan.frameRate} fps cap=${plan.frameRateCap} audio=${plan.audio} remuxVideo=${plan.remuxVideo} " +
+                "remuxAudio=${plan.remuxAudio} toneMap=${plan.toneMapToSdr} resizes=${plan.resizes} " +
+                "adjustments=${plan.adjustments}",
+        )
+        return plan
+    }
+
     private suspend fun exportOnMain(
         request: VideoExportRequest,
         clipEndMillis: Long,
         generatedSlowSegments: List<GeneratedSlowSegment>,
+        plan: VideoOutputPlan?,
     ): VideoExportResult {
         request.output.parentFile?.mkdirs()
         request.output.delete()
@@ -134,7 +159,14 @@ class Media3VideoExporter(private val context: Context) {
             .setUri(request.input)
             .setClippingConfiguration(clipping)
             .build()
-        val videoEffects = buildList {
+        val removeAudio = plan?.audio == VideoAudioPlan.Removed
+        // A copied stream must see no processor at all, or Media3 decodes and re-encodes it.
+        val audioProcessors = if (plan?.remuxAudio == true) {
+            emptyList()
+        } else listOf<AudioProcessor>(VolumeAudioProcessor(request.recipe.originalAudioVolume))
+        val videoEffects = if (plan?.remuxVideo == true) emptyList() else buildList {
+            // Dropping first spares the rest of the chain the frames that are discarded anyway.
+            plan?.frameRateCap?.let { add(FrameDropEffect.createDefaultFrameDropEffect(it.toFloat())) }
             addAll(VideoColorGradeEffects.geometryEffects(request.recipe.geometry))
             if (request.recipe.dynamicRange == VideoDynamicRange.SdrRec709) {
                 addAll(VideoColorGradeEffects.create(request.recipe.colorGrade, request.customLut))
@@ -144,8 +176,10 @@ class Media3VideoExporter(private val context: Context) {
             if (request.recipe.annotations.isNotEmpty()) {
                 add(VideoAnnotationEffect(request.recipe.annotations))
             }
+            // Output size last: grading and annotations work on the edited frame, and Pad bars stay black.
+            plan?.resizes?.forEach { add(it.toPresentation()) }
         }
-        val editedBuilder = EditedMediaItem.Builder(mediaItem)
+        val editedBuilder = EditedMediaItem.Builder(mediaItem).setRemoveAudio(removeAudio)
         if (request.recipe.speed != 1f) {
             editedBuilder.setSpeed(
                 SpeedParameters(
@@ -155,10 +189,7 @@ class Media3VideoExporter(private val context: Context) {
             )
         }
         val edited = editedBuilder.setEffects(
-                androidx.media3.transformer.Effects(
-                    listOf(VolumeAudioProcessor(request.recipe.originalAudioVolume)),
-                    videoEffects,
-                ),
+                androidx.media3.transformer.Effects(audioProcessors, videoEffects),
             )
             .build()
         val clipDurationMillis = (clipEndMillis - request.recipe.startMillis).coerceAtLeast(0L)
@@ -170,8 +201,9 @@ class Media3VideoExporter(private val context: Context) {
                 generatedSlowSegments,
                 outputDurationMillis,
                 videoEffects,
+                removeAudio,
             )
-        } else request.recipe.musicUri?.let { musicUri ->
+        } else request.recipe.musicUri?.takeUnless { removeAudio }?.let { musicUri ->
             val musicItem = EditedMediaItem.Builder(
                 MediaItem.Builder().setUri(musicUri).build(),
             )
@@ -216,28 +248,37 @@ class Media3VideoExporter(private val context: Context) {
                 }
             }
             val transformerBuilder = Transformer.Builder(context.applicationContext)
-                .setVideoMimeType(
-                    if (request.recipe.outputQuality == VideoOutputQuality.HevcMain10 ||
-                        request.recipe.dynamicRange != VideoDynamicRange.SdrRec709
-                    ) {
-                        MimeTypes.VIDEO_H265
-                    } else request.videoMimeType,
-                )
-                .setAudioMimeType(request.audioMimeType)
                 .setMuxerFactory(InAppMp4Muxer.Factory(freshExportMetadataProvider()))
+            // Leaving a MIME type unset lets Media3 copy that stream when nothing else changes it.
+            if (plan?.remuxVideo != true) transformerBuilder.setVideoMimeType(requestedVideoMimeType(request, plan))
+            if (plan?.remuxAudio != true) transformerBuilder.setAudioMimeType(request.audioMimeType)
+            if (plan?.remuxVideo == true && isTrimmed(request.recipe, clipEndMillis)) {
+                // Keeps a stream-copied trim frame accurate: the copy starts at the previous sync
+                // sample and an MP4 edit list hides the frames before the trim point.
+                transformerBuilder.experimentalSetMp4EditListTrimEnabled(true)
+            }
             val encoderBuilder = DefaultEncoderFactory.Builder(context.applicationContext)
                 .setVideoEncoderSelector(HardwareCodecSelectors.encoder)
                 .setEnableFallback(true)
-            if (request.recipe.outputQuality == VideoOutputQuality.HevcMain10 &&
-                request.recipe.dynamicRange == VideoDynamicRange.SdrRec709
-            ) {
-                encoderBuilder.setRequestedVideoEncoderSettings(
-                    VideoEncoderSettings.Builder()
-                        .setEncodingProfileLevel(
-                            MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10,
-                            MediaCodecInfo.CodecProfileLevel.HEVCMainTierLevel5,
-                        )
-                        .build(),
+            val hevcMain10 = plan?.hevcMain10 ?: (
+                request.recipe.outputQuality == VideoOutputQuality.HevcMain10 &&
+                    request.recipe.dynamicRange == VideoDynamicRange.SdrRec709
+                )
+            // Any requested setting makes Media3 re-encode, so a copied stream gets none.
+            if (plan?.remuxVideo != true && (hevcMain10 || plan != null)) {
+                val videoSettings = VideoEncoderSettings.Builder()
+                plan?.let { videoSettings.setBitrate(it.videoBitrate) }
+                if (hevcMain10) {
+                    videoSettings.setEncodingProfileLevel(
+                        MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10,
+                        MediaCodecInfo.CodecProfileLevel.HEVCMainTierLevel5,
+                    )
+                }
+                encoderBuilder.setRequestedVideoEncoderSettings(videoSettings.build())
+            }
+            (plan?.audio as? VideoAudioPlan.Encode)?.takeIf { it.requested }?.let { audio ->
+                encoderBuilder.setRequestedAudioEncoderSettings(
+                    AudioEncoderSettings.Builder().setBitrate(audio.bitsPerSecond).build(),
                 )
             }
             val encoderFactory = encoderBuilder.build()
@@ -281,12 +322,9 @@ class Media3VideoExporter(private val context: Context) {
                                 // Media3 reports what it actually encoded, which differs from the
                                 // request once encoder fallback applies.
                                 videoMimeType = exportResult.videoMimeType
-                                    ?: if (request.recipe.outputQuality == VideoOutputQuality.HevcMain10 ||
-                                        request.recipe.dynamicRange != VideoDynamicRange.SdrRec709
-                                    ) {
-                                        MimeTypes.VIDEO_H265
-                                    } else request.videoMimeType,
-                                audioMimeType = exportResult.audioMimeType ?: request.audioMimeType,
+                                    ?: plan?.videoMimeType ?: requestedVideoMimeType(request, null),
+                                audioMimeType = exportResult.audioMimeType
+                                    ?: if (removeAudio) null else request.audioMimeType,
                                 fallbackWarning = fallbackWarning,
                                 videoEncoderName = exportResult.videoEncoderName,
                                 videoDecoderName = decoderName,
@@ -325,7 +363,7 @@ class Media3VideoExporter(private val context: Context) {
             }
             try {
                 val exportComposition = composition ?: if (
-                    request.recipe.dynamicRange != VideoDynamicRange.SdrRec709
+                    request.recipe.dynamicRange != VideoDynamicRange.SdrRec709 || plan?.toneMapToSdr == true
                 ) {
                     Composition.Builder(
                         listOf(
@@ -333,7 +371,13 @@ class Media3VideoExporter(private val context: Context) {
                                 .addItem(edited)
                                 .build(),
                         ),
-                    ).setHdrMode(Composition.HDR_MODE_KEEP_HDR).build()
+                    ).setHdrMode(
+                        // An explicit H.264 choice for an HDR source: tone-map instead of letting
+                        // Media3 fall back to HEVC to keep the HDR.
+                        if (plan?.toneMapToSdr == true && request.recipe.dynamicRange == VideoDynamicRange.SdrRec709) {
+                            Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_OPEN_GL
+                        } else Composition.HDR_MODE_KEEP_HDR,
+                    ).build()
                 } else null
                 if (exportComposition != null) {
                     transformer.start(exportComposition, request.output.absolutePath)
@@ -350,7 +394,20 @@ class Media3VideoExporter(private val context: Context) {
         }
     }
 
-    private companion object { const val ProgressPollMillis = 250L }
+    private companion object {
+        const val ProgressPollMillis = 250L
+        const val Tag = "Media3VideoExporter"
+    }
+
+    private fun requestedVideoMimeType(request: VideoExportRequest, plan: VideoOutputPlan?): String =
+        plan?.videoMimeType ?: if (request.recipe.outputQuality == VideoOutputQuality.HevcMain10 ||
+            request.recipe.dynamicRange != VideoDynamicRange.SdrRec709
+        ) {
+            MimeTypes.VIDEO_H265
+        } else request.videoMimeType
+
+    private fun isTrimmed(recipe: VideoEditRecipe, clipEndMillis: Long): Boolean =
+        recipe.startMillis > 0 || recipe.endMillis != null
 
     private fun buildSlowMotionComposition(
         request: VideoExportRequest,
@@ -358,9 +415,10 @@ class Media3VideoExporter(private val context: Context) {
         generated: List<GeneratedSlowSegment>,
         outputDurationMillis: Long,
         videoEffects: List<androidx.media3.common.Effect>,
+        removeAudio: Boolean,
     ): Composition {
         val video = EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_VIDEO))
-        val audio = if (sourceHasAudio(request.input)) {
+        val audio = if (!removeAudio && sourceHasAudio(request.input)) {
             EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_AUDIO))
         } else null
         var cursor = request.recipe.startMillis
@@ -403,7 +461,7 @@ class Media3VideoExporter(private val context: Context) {
         }
         val sequences = mutableListOf(video.build())
         audio?.let { sequences += it.build() }
-        request.recipe.musicUri?.let { musicUri ->
+        request.recipe.musicUri?.takeUnless { removeAudio }?.let { musicUri ->
             val musicItem = EditedMediaItem.Builder(MediaItem.Builder().setUri(musicUri).build())
                 .setRemoveVideo(true)
                 .setDurationUs(outputDurationMillis * 1_000L)
@@ -487,6 +545,16 @@ class Media3VideoExporter(private val context: Context) {
     }.getOrDefault(false)
 
 }
+
+private fun VideoFrameResize.toPresentation(): Presentation = Presentation.createForWidthAndHeight(
+    width,
+    height,
+    when (mode) {
+        VideoAspectMode.Stretch -> Presentation.LAYOUT_STRETCH_TO_FIT
+        VideoAspectMode.Crop -> Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP
+        VideoAspectMode.Pad -> Presentation.LAYOUT_SCALE_TO_FIT
+    },
+)
 
 class HdrVideoExportUnsupportedException(
     val dynamicRange: VideoDynamicRange,
