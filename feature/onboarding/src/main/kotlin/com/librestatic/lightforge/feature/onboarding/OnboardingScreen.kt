@@ -38,6 +38,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -60,6 +61,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
@@ -68,6 +70,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -222,6 +226,8 @@ fun OnboardingScreen(
             dispersed = last || finishing != null,
             onDispersed = { finishing?.let { onFinish(it.analysis) } },
         )
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+        CompositionLocalProvider(LocalOnboardingShortWindow provides (maxHeight < ShortWindowHeight)) {
         Column(
             Modifier.fillMaxSize().graphicsLayer {
                 val arrival = FastOutSlowInEasing.transform(((intro.value - 0.65f) / 0.35f).coerceIn(0f, 1f))
@@ -234,7 +240,8 @@ fun OnboardingScreen(
             OnboardingTopBar(
                 step = step,
                 stepLabel = stepLabel,
-                onSkip = { finish(null) },
+                // Nothing is left to skip on the last step: its only action is the primary button.
+                onSkip = if (last) null else { { finish(null) } },
             )
             AnimatedContent(
                 targetState = step,
@@ -285,22 +292,31 @@ fun OnboardingScreen(
                 onPrimary = ::next,
             )
         }
+        }
+        }
     }
 }
 
 /**
- * Widest the progress, Skip and navigation controls spread. On desktop-sized windows they stay
- * near the 560dp page column instead of drifting to the far edges.
+ * Width of the page column. The progress, Skip and navigation controls use the same column, so on
+ * large windows content and controls share one pair of edges instead of three alignments.
  */
-private val ControlsMaxWidth = 720.dp
+private val PageMaxWidth = 560.dp
+
+/** Below this height (landscape phones) heroes get lower so the copy fits above the footer. */
+private val ShortWindowHeight = 480.dp
+
+/** True in short windows; read by heroes and samples to lower themselves. */
+internal val LocalOnboardingShortWindow = staticCompositionLocalOf { false }
 
 /** Wraps the finish result so "skipped" (null analysis) is distinct from "not finishing yet". */
 private class FinishRequest(val analysis: Set<OnboardingAnalysisOption>?)
 
 @Composable
-private fun OnboardingTopBar(step: OnboardingStep, stepLabel: String, onSkip: () -> Unit) {
+private fun OnboardingTopBar(step: OnboardingStep, stepLabel: String, onSkip: (() -> Unit)?) {
     Row(
-        Modifier.widthIn(max = ControlsMaxWidth).fillMaxWidth()
+        // The text button's own inset brings "Skip" to the page column's text edge.
+        Modifier.widthIn(max = PageMaxWidth).fillMaxWidth().heightIn(min = 56.dp)
             .padding(start = GallerySpacing.Xl, end = GallerySpacing.Sm, top = GallerySpacing.Sm),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -323,7 +339,7 @@ private fun OnboardingTopBar(step: OnboardingStep, stepLabel: String, onSkip: ()
                 )
             }
         }
-        TextButton(
+        if (onSkip != null) TextButton(
             onClick = onSkip,
             modifier = Modifier.heightIn(min = 48.dp).testTag("onboarding-skip"),
         ) { Text(stringResource(R.string.onboarding_skip), style = MaterialTheme.typography.labelLarge) }
@@ -367,8 +383,9 @@ private fun OnboardingBottomBar(
     onPrimary: () -> Unit,
 ) {
     Row(
-        Modifier.widthIn(max = ControlsMaxWidth).fillMaxWidth()
-            .padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Md),
+        // Back's text lines up with the page text; the primary button's edge with the column's.
+        Modifier.widthIn(max = PageMaxWidth).fillMaxWidth()
+            .padding(start = GallerySpacing.Sm, end = GallerySpacing.Xl, top = GallerySpacing.Md, bottom = GallerySpacing.Md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (showBack) {
@@ -384,7 +401,11 @@ private fun OnboardingBottomBar(
     }
 }
 
-/** Scrollable, width-capped page body so large font scales and tablets both stay readable. */
+/**
+ * Scrollable, width-capped page body so large font scales and tablets both stay readable. While
+ * more content sits below the fold a divider marks the footer's edge, so a row half hidden behind
+ * it reads as "scroll for more" rather than as the end of the page.
+ */
 @Composable
 private fun OnboardingPage(step: OnboardingStep, scrollKey: Any?, content: @Composable () -> Unit) {
     val scroll = rememberScrollState()
@@ -392,12 +413,18 @@ private fun OnboardingPage(step: OnboardingStep, scrollKey: Any?, content: @Comp
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(
             Modifier
-                .widthIn(max = 560.dp)
+                .widthIn(max = PageMaxWidth)
                 .fillMaxWidth()
                 .verticalScroll(scroll)
                 .padding(horizontal = GallerySpacing.Xl, vertical = GallerySpacing.Lg)
                 .testTag("onboarding-step-${step.name}"),
         ) { content() }
+        if (scroll.canScrollForward) {
+            HorizontalDivider(
+                Modifier.align(Alignment.BottomCenter).widthIn(max = PageMaxWidth).fillMaxWidth()
+                    .testTag("onboarding-more-below"),
+            )
+        }
     }
 }
 
@@ -418,6 +445,7 @@ internal fun OnboardingHero(
         MaterialShapes.Flower,
     )
     val reducedMotion = rememberGalleryReducedMotion()
+    val height = if (LocalOnboardingShortWindow.current) minOf(height, ShortHeroHeight) else height
     val rotation by animateFloatAsState(
         targetValue = if (reducedMotion) 0f else shapeIndex * 24f,
         animationSpec = MaterialTheme.motionScheme.slowSpatialSpec(),
@@ -442,12 +470,16 @@ internal fun OnboardingHero(
     }
 }
 
+/** Hero height in short windows: enough for the shape to read, low enough for the copy to show. */
+internal const val ShortHeroHeight = 96
+
 @Composable
 internal fun OnboardingHeadline(title: String, body: String) {
-    Spacer(Modifier.height(GallerySpacing.Xxl))
+    val short = LocalOnboardingShortWindow.current
+    Spacer(Modifier.height(if (short) GallerySpacing.Lg else GallerySpacing.Xxl))
     Text(
         title,
-        style = MaterialTheme.typography.displaySmall,
+        style = if (short) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.displaySmall,
         color = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.semantics { heading() },
     )
@@ -699,9 +731,10 @@ private fun DoneStep(reducedMotion: Boolean) {
         animationSpec = infiniteRepeatable(tween(durationMillis = 1_800, easing = FastOutSlowInEasing), RepeatMode.Reverse),
         label = "done-breath",
     )
+    val short = LocalOnboardingShortWindow.current
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        Spacer(Modifier.height(GallerySpacing.Xxl))
-        Box(Modifier.size(220.dp), contentAlignment = Alignment.Center) {
+        Spacer(Modifier.height(if (short) GallerySpacing.Sm else GallerySpacing.Xxl))
+        Box(Modifier.size(if (short) 120.dp else 220.dp), contentAlignment = Alignment.Center) {
             Box(
                 Modifier
                     .fillMaxSize()
@@ -717,17 +750,17 @@ private fun DoneStep(reducedMotion: Boolean) {
                 GalleryIcons.Check,
                 contentDescription = null,
                 tint = success.onContainer,
-                modifier = Modifier.size(104.dp).graphicsLayer {
+                modifier = Modifier.size(if (short) 56.dp else 104.dp).graphicsLayer {
                     scaleX = check.value
                     scaleY = check.value
                     alpha = check.value.coerceIn(0f, 1f)
                 },
             )
         }
-        Spacer(Modifier.height(GallerySpacing.Xxl))
+        Spacer(Modifier.height(if (short) GallerySpacing.Lg else GallerySpacing.Xxl))
         Text(
             stringResource(R.string.onboarding_done_title),
-            style = MaterialTheme.typography.displaySmall,
+            style = if (short) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.displaySmall,
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
             modifier = Modifier.semantics { heading() },

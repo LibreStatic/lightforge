@@ -373,7 +373,7 @@ private fun FeatureItemList(items: List<FeatureItem>) {
 @Composable
 internal fun FeatureSample(page: Int, reducedMotion: Boolean) {
     Surface(
-        modifier = Modifier.fillMaxWidth().height(220.dp),
+        modifier = Modifier.fillMaxWidth().height(if (LocalOnboardingShortWindow.current) 140.dp else 220.dp),
         shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         contentColor = MaterialTheme.colorScheme.onSurface,

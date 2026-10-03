@@ -3,6 +3,7 @@ package com.librestatic.lightforge.feature.onboarding
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -47,14 +48,21 @@ class OnboardingScreenTest {
 
     private fun next() = rule.onNodeWithTag("onboarding-primary").performClick()
 
-    @Test fun skipIsVisibleOnEveryStepAndFinishesWithoutAnalysisChoice() {
+    @Test fun skipIsVisibleBeforeTheLastStepAndFinishesWithoutAnalysisChoice() {
         show()
         OnboardingStep.entries.forEach { step ->
             rule.onNodeWithTag("onboarding-step-${step.name}").assertIsDisplayed()
-            rule.onNodeWithTag("onboarding-skip").assertIsDisplayed()
-            if (step == OnboardingStep.Features) repeat(FeaturePageCount) { next() } else if (step != OnboardingStep.Done) next()
+            if (step == OnboardingStep.Done) {
+                // The last step has nothing left to skip.
+                rule.onNodeWithTag("onboarding-skip").assertDoesNotExist()
+            } else {
+                rule.onNodeWithTag("onboarding-skip").assertIsDisplayed()
+                if (step == OnboardingStep.Features) repeat(FeaturePageCount) { next() } else next()
+            }
             rule.waitForIdle()
         }
+        rule.onNodeWithTag("onboarding-back").performClick()
+        rule.waitForIdle()
         rule.onNodeWithTag("onboarding-skip").performClick()
         // Finishing waits for the backdrop's exit, which completes at once with animations off.
         rule.waitUntil { finishCalls > 0 }
