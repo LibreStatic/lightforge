@@ -27,9 +27,9 @@
     <string name="remote_stop">Detener intento de conexión</string>
     <string name="remote_sources">Seleccionar originales</string>
     <string name="remote_organization">Incluir organización compatible</string>
-    <string name="remote_prepare">Preparar backup para revisar</string>
-    <string name="remote_list">Ver backups remotos</string>
-    <string name="remote_empty">No se encontraron backups en esta carpeta</string>
+    <string name="remote_prepare">Preparar copia de seguridad para revisar</string>
+    <string name="remote_list">Ver copias de seguridad remotas</string>
+    <string name="remote_empty">No se encontraron copias de seguridad en esta carpeta</string>
     <string name="remote_download">Descargar y verificar</string>
     <string name="remote_history">Historial de transferencias</string>
     <string name="remote_history_empty">Todavía no hay tareas</string>
@@ -37,7 +37,7 @@
     <string name="remote_pause">Pausar</string>
     <string name="remote_resume">Reintentar / reanudar</string>
     <string name="remote_review">Revisar archivo</string>
-    <string name="remote_upload">Confirmar backup remoto</string>
+    <string name="remote_upload">Confirmar copia de seguridad remota</string>
     <string name="remote_gallery">Restaurar en Galería</string>
     <string name="remote_restore_folder">Restaurar originales en carpeta</string>
     <string name="remote_local_task">Abrir restauración local</string>
@@ -63,7 +63,7 @@
     <string name="remote_status_needsreview">Datos cambiados o ambiguos: revisar</string>
     <string name="remote_status_failed">Falló</string>
     <string name="remote_status_cancelled">Cancelado; los archivos conservados se muestran abajo</string>
-    <string name="remote_status_completed">Backup remoto verificado</string>
+    <string name="remote_status_completed">Copia de seguridad remota verificada</string>
     <string name="remote_status_restoringlocally">Entregado a restauración local; seguí su historial</string>
     <string name="remote_capabilities">Conexión verificada · cifrada: %1$s · firmada: %2$s · publicación sin reemplazo: %3$s</string>
     <string name="remote_yes">Sí</string>
