@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
@@ -636,8 +637,10 @@ fun ViewerContent(
                 state = videoState,
                 visible = chromeVisible,
                 onInteraction = { chromeInteractionGeneration++ },
-                modifier = Modifier.align(Alignment.Center).graphicsLayer { alpha = chromeAutoHideAlpha },
-                onMuteToggle = onMuteToggle,
+                modifier = Modifier.align(Alignment.Center).graphicsLayer {
+                    alpha = chromeAutoHideAlpha
+                    translationY = -mediaLiftPx
+                },
             )
         }
         gestureFeedback?.let { feedback ->
@@ -808,16 +811,21 @@ fun ViewerContent(
                     .padding(top = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                if (
-                    media.kind == MediaKind.Video &&
-                    videoDurationMillis > 0L &&
-                    (videoScrubbingMode == VideoScrubbingMode.LegacySeekBar || filmstripUnavailable)
-                ) {
-                    LegacyVideoSeekBar(
+                if (media.kind == MediaKind.Video && videoDurationMillis > 0L && videoController != null) {
+                    VideoScrubberRow(
                         positionMillis = displayedVideoPositionMillis,
                         durationMillis = videoDurationMillis,
+                        showSeekBar = videoScrubbingMode == VideoScrubbingMode.LegacySeekBar || filmstripUnavailable,
                         onScrub = ::seekVideoFromScrubber,
                         onScrubFinished = ::finishVideoScrub,
+                        muteButton = {
+                            VideoMuteButton(
+                                controller = videoController,
+                                state = videoState,
+                                onInteraction = { chromeInteractionGeneration++ },
+                                onMuteToggle = onMuteToggle,
+                            )
+                        },
                     )
                 }
                 ViewerFilmstrip(
@@ -857,36 +865,73 @@ private data class VideoFilmstripConfig(
     val onClose: () -> Unit,
 )
 
+/**
+ * The immersive video row: elapsed time, a thin seek bar, total time and mute. With
+ * [showSeekBar] false (the frame filmstrip scrubs instead) only the times and mute remain.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
-private fun LegacyVideoSeekBar(
+private fun VideoScrubberRow(
     positionMillis: Long,
     durationMillis: Long,
+    showSeekBar: Boolean,
     onScrub: (Long) -> Unit,
     onScrubFinished: () -> Unit,
+    muteButton: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     if (durationMillis <= 0L) return
     val position = positionMillis.coerceIn(0L, durationMillis)
-    Column(
-        Modifier.fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .testTag(VIDEO_LEGACY_SEEK_BAR_TEST_TAG),
+    val timeStyle = MaterialTheme.typography.labelMedium.copy(
+        fontFeatureSettings = "tnum",
+        color = GalleryOverlayTokens.Content,
+    )
+    Row(
+        modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(formatVideoTime(position), color = GalleryOverlayTokens.Content, style = MaterialTheme.typography.bodySmall)
-            Text(formatVideoTime(durationMillis), color = GalleryOverlayTokens.Content, style = MaterialTheme.typography.bodySmall)
-        }
-        Slider(
-            value = position.toFloat() / durationMillis.toFloat(),
-            onValueChange = { fraction -> onScrub((durationMillis.toFloat() * fraction).toLong()) },
-            onValueChangeFinished = onScrubFinished,
-            valueRange = 0f..1f,
-            colors = SliderDefaults.colors(
+        Text(formatVideoTime(position), style = timeStyle)
+        if (showSeekBar) {
+            val colors = SliderDefaults.colors(
                 thumbColor = GalleryOverlayTokens.Content,
                 activeTrackColor = GalleryOverlayTokens.Content,
                 inactiveTrackColor = GalleryOverlayTokens.Content.copy(alpha = 0.35f),
-            ),
-            modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp),
-        )
+            )
+            val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+            Slider(
+                value = position.toFloat() / durationMillis.toFloat(),
+                onValueChange = { fraction -> onScrub((durationMillis.toFloat() * fraction).toLong()) },
+                onValueChangeFinished = onScrubFinished,
+                valueRange = 0f..1f,
+                colors = colors,
+                interactionSource = interactionSource,
+                thumb = {
+                    SliderDefaults.Thumb(
+                        interactionSource = interactionSource,
+                        colors = colors,
+                        thumbSize = androidx.compose.ui.unit.DpSize(4.dp, 20.dp),
+                    )
+                },
+                track = { sliderState ->
+                    SliderDefaults.Track(
+                        sliderState = sliderState,
+                        modifier = Modifier.height(4.dp),
+                        colors = colors,
+                        drawStopIndicator = null,
+                        thumbTrackGapSize = 4.dp,
+                    )
+                },
+                modifier = Modifier.weight(1f)
+                    .padding(horizontal = 12.dp)
+                    .heightIn(min = 40.dp)
+                    .testTag(VIDEO_LEGACY_SEEK_BAR_TEST_TAG),
+            )
+        } else {
+            Text(" / ", style = timeStyle)
+        }
+        Text(formatVideoTime(durationMillis), style = timeStyle)
+        if (!showSeekBar) androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
+        muteButton()
     }
 }
 
@@ -1619,7 +1664,6 @@ private fun VideoPlaybackControl(
     state: VideoViewerState?,
     visible: Boolean,
     onInteraction: () -> Unit,
-    onMuteToggle: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val current = state as? VideoViewerState.Ready ?: return
@@ -1629,44 +1673,16 @@ private fun VideoPlaybackControl(
         exit = fadeOut(tween(CHROME_FADE_MILLIS)),
         modifier = modifier,
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // Dedicated mute/unmute button
-            FilledIconButton(
-                onClick = {
-                    onInteraction()
-                    if (current.isMuted) {
-                        controller.unmute()
-                        onMuteToggle(false)
-                    } else {
-                        controller.mute()
-                        onMuteToggle(true)
-                    }
-                },
-                shapes = androidx.compose.material3.IconButtonDefaults.shapes(),
-                modifier = Modifier.size(48.dp),
-                colors = androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(
-                    containerColor = GalleryOverlayTokens.ControlSurface,
-                    contentColor = GalleryOverlayTokens.Content,
-                ),
-            ) {
-                Icon(
-                    imageVector = if (current.isMuted) GalleryIcons.VolumeOff else GalleryIcons.Volume,
-                    contentDescription = stringResource(
-                        if (current.isMuted) R.string.viewer_unmute else R.string.viewer_mute,
-                    ),
-                )
-            }
-            // Play/pause button (no longer handles unmute)
+        // One large play/pause target in the middle; mute sits next to the scrubber.
+        val label = stringResource(if (current.isPlaying) R.string.viewer_pause else R.string.viewer_play)
+        ViewerTooltip(label, ViewerShortcutKeys.PlayPause) {
             FilledIconButton(
                 onClick = {
                     onInteraction()
                     if (current.isPlaying) controller.pause() else controller.play()
                 },
                 shapes = androidx.compose.material3.IconButtonDefaults.shapes(),
-                modifier = Modifier.size(56.dp),
+                modifier = Modifier.size(72.dp),
                 colors = androidx.compose.material3.IconButtonDefaults.filledIconButtonColors(
                     containerColor = GalleryOverlayTokens.ControlSurface,
                     contentColor = GalleryOverlayTokens.Content,
@@ -1674,12 +1690,40 @@ private fun VideoPlaybackControl(
             ) {
                 Icon(
                     imageVector = if (current.isPlaying) GalleryIcons.Pause else GalleryIcons.Play,
-                    contentDescription = stringResource(
-                        if (current.isPlaying) R.string.viewer_pause else R.string.viewer_play,
-                    ),
+                    contentDescription = label,
+                    modifier = Modifier.size(36.dp),
                 )
             }
         }
+    }
+}
+
+/** Mute toggle for the scrubber row. */
+@Composable
+private fun VideoMuteButton(
+    controller: VideoViewerController,
+    state: VideoViewerState?,
+    onInteraction: () -> Unit,
+    onMuteToggle: (Boolean) -> Unit,
+) {
+    val current = state as? VideoViewerState.Ready ?: return
+    GalleryExpressiveIconButton(
+        onClick = {
+            onInteraction()
+            if (current.isMuted) {
+                controller.unmute()
+                onMuteToggle(false)
+            } else {
+                controller.mute()
+                onMuteToggle(true)
+            }
+        },
+    ) {
+        Icon(
+            imageVector = if (current.isMuted) GalleryIcons.VolumeOff else GalleryIcons.Volume,
+            contentDescription = stringResource(if (current.isMuted) R.string.viewer_unmute else R.string.viewer_mute),
+            tint = GalleryOverlayTokens.Content,
+        )
     }
 }
 
