@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -383,9 +385,17 @@ private fun PrivacyRow(onShowPrivacy: () -> Unit) {
 @Composable
 private fun PeopleConsent(onEnable: () -> Unit, onShowPrivacy: () -> Unit, modifier: Modifier = Modifier) {
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        if (galleryWindowClass(maxWidth) != GalleryWindowClass.Compact) {
+        // A landscape phone is wide but short: shrink the hero and let the card scroll, so the
+        // enable button is always reachable.
+        val shortWindow = maxHeight < 480.dp
+        val wide = galleryWindowClass(maxWidth) != GalleryWindowClass.Compact
+        Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).testTag("people_consent")) {
+        if (wide) {
             // Wide layout: a hero card with message and actions on the start side, the hero shape as the anchor.
-            Box(Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 24.dp), contentAlignment = Alignment.Center) {
+            Box(
+                Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = if (shortWindow) 12.dp else 24.dp),
+                contentAlignment = Alignment.Center,
+            ) {
             Surface(
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 contentColor = MaterialTheme.colorScheme.onSurface,
@@ -393,14 +403,14 @@ private fun PeopleConsent(onEnable: () -> Unit, onShowPrivacy: () -> Unit, modif
                 modifier = Modifier.widthIn(max = 1_000.dp).fillMaxWidth(),
             ) {
             Row(
-                Modifier.padding(40.dp),
-                horizontalArrangement = Arrangement.spacedBy(48.dp),
+                Modifier.padding(if (shortWindow) 24.dp else 40.dp),
+                horizontalArrangement = Arrangement.spacedBy(if (shortWindow) 32.dp else 48.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text(
                         stringResource(R.string.people_enable_title),
-                        style = MaterialTheme.typography.displaySmall,
+                        style = if (shortWindow) MaterialTheme.typography.headlineMedium else MaterialTheme.typography.displaySmall,
                         modifier = Modifier.semantics { heading() },
                     )
                     Text(
@@ -425,10 +435,10 @@ private fun PeopleConsent(onEnable: () -> Unit, onShowPrivacy: () -> Unit, modif
                     color = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     shape = heroShape(),
-                    modifier = Modifier.size(260.dp),
+                    modifier = Modifier.size(if (shortWindow) 160.dp else 260.dp),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(GalleryIcons.User, contentDescription = null, modifier = Modifier.size(112.dp))
+                        Icon(GalleryIcons.User, contentDescription = null, modifier = Modifier.size(if (shortWindow) 72.dp else 112.dp))
                     }
                 }
             }
@@ -476,6 +486,7 @@ private fun PeopleConsent(onEnable: () -> Unit, onShowPrivacy: () -> Unit, modif
                     Text(stringResource(R.string.people_how_it_works), modifier = Modifier.padding(start = 8.dp))
                 }
             }
+        }
         }
     }
 }
