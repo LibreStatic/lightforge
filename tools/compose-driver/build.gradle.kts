@@ -31,6 +31,8 @@ dependencies {
     testImplementation(project(":core:designsystem"))
     testImplementation(project(":feature:details"))
     testImplementation(project(":feature:viewer"))
+    testImplementation(project(":feature:photos"))
+    testImplementation(project(":feature:picker"))
 
     testImplementation(libs.compose.driver)
     testImplementation(libs.robolectric)

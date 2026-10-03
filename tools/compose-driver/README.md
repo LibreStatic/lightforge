@@ -75,7 +75,35 @@ The raw HTTP API is also available at `http://localhost:8137` (`/printTree`, `/s
 
 Current previews: `PhotoEditorPreview`, `PhotoEditorLoadingPreview`, `EraserModelPanelStatesPreview`
 (`feature/photoeditor`), `CleanupPreview`, `CleanupAnalysisOffPreview`, `CleanupEmptyPreview`,
-`CleanupLoadingPreview` (`feature/collections`).
+`CleanupLoadingPreview` (`feature/collections`), `PhotosTimelinePreview`, `PhotosSelectionPreview`,
+`PhotosFilterEmptyPreview` (`feature/photos`), `PickerGridPreview`, `PickerSingleGridPreview`
+(`feature/picker`), `DesignSystemCataloguePreview`, `DesignSystemStatesPreview`, `SelectionBarPreview`
+(`core/designsystem`).
+
+## Screenshot matrix
+
+A lean, repeatable set of window classes for layout work. Shots are not committed; they land in
+`build/compose-driver/screenshots/<name>.png`. Use the `-<window>[-dark][-fs13]` suffix so runs compare.
+
+| Window | Qualifiers | Why |
+|---|---|---|
+| `phone` | `w393dp-h852dp` | Compact portrait, the most common case. |
+| `phone-land` | `w852dp-h393dp` | Compact height: bars, sheets and headers must not eat the content. |
+| `fold` | `w673dp-h841dp` | Medium width (unfolded book posture). |
+| `fold-land` | `w841dp-h673dp` | Expanded width, short height. |
+| `tablet` | `w1280dp-h800dp` | Expanded landscape tablet. |
+| `desktop` | `w1920dp-h1080dp` | Desktop window: margins, max widths, no stretched rows. |
+
+Per screen, check at least `phone` (light), `phone --dark`, `phone --font-scale 1.3` and one wide
+window; run the full matrix for grid or shell changes. Each option needs its own `start`:
+
+```bash
+scripts/compose-driver.sh start PhotosTimelinePreview --qualifiers w1280dp-h800dp --dark
+scripts/compose-driver.sh shot photos-tablet-dark
+```
+
+Shared grid and selection components (`AdaptiveMediaGrid`, `GallerySelectionBar`) are covered by
+`SelectionBarPreview`; screens that adopt them should add their own preview rather than relying on it.
 
 ## Behavior worth knowing
 
