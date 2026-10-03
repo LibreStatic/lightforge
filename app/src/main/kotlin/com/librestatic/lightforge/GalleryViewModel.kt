@@ -128,6 +128,7 @@ import com.librestatic.lightforge.core.editing.video.VideoEditRecipeCodec
 import com.librestatic.lightforge.core.editing.video.VideoOutputQuality
 import com.librestatic.lightforge.core.editing.video.VideoDynamicRange
 import com.librestatic.lightforge.core.editing.video.VideoOutputCapabilities
+import com.librestatic.lightforge.core.editing.video.VideoSourceInfoReader
 import com.librestatic.lightforge.core.editing.video.SlowMotionSegment
 import com.librestatic.lightforge.core.editing.video.VideoAnnotationLayer
 import com.librestatic.lightforge.core.editing.video.VideoAnnotationKeyframe
@@ -4675,7 +4676,6 @@ class GalleryViewModel @Inject constructor(
                         slowMotionSegments = recipe.slowMotionSegments,
                         annotations = recipe.annotations,
                         output = recipe.output,
-                        outputSource = videoOutputSource(source),
                         isDirty = recipe != (pendingExportRecipe ?: baselineRecipe),
                         statusMessage = if (customLutUnavailable) {
                             getApplication<Application>().getString(
@@ -4699,6 +4699,7 @@ class GalleryViewModel @Inject constructor(
                     mutableVideoEditor.value = session.withVideoExportState(videoExportStore.jobs.value)
                     canUseExternalVideoSource(requireNotNull(mutableVideoEditor.value))
                     captureVideoEditorRecovery()
+                    loadVideoOutputSource(sessionId, source.uri)
                 }
             } catch (cancelled: CancellationException) { throw cancelled
             } catch (_: Exception) {
@@ -5054,6 +5055,26 @@ class GalleryViewModel @Inject constructor(
             ),
         )
         persistVideoRecipe(recipe)
+    }
+
+    /**
+     * Probes the source and the device encoders for the Output tool once the editor is showing:
+     * the summary, estimate and codec choice fill in when ready, without delaying the editor.
+     */
+    private fun loadVideoOutputSource(sessionId: String, uri: Uri) {
+        viewModelScope.launch {
+            val encoders = withContext(Dispatchers.Default) { VideoOutputCapabilities.encoders() }
+            val info = VideoSourceInfoReader.read(getApplication(), uri)
+            val session = mutableVideoEditor.value?.takeIf { it.id == sessionId } ?: return@launch
+            mutableVideoEditor.value = session.copy(
+                content = session.content.copy(
+                    outputSource = info,
+                    outputEncoders = encoders,
+                    supportedOutputCodecs = com.librestatic.lightforge.core.editing.video.VideoOutputCodec.entries
+                        .filter(encoders::supports).toSet(),
+                ),
+            )
+        }
     }
 
     fun setVideoOutputSettings(settings: com.librestatic.lightforge.core.editing.video.VideoOutputSettings) {
