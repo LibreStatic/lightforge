@@ -143,6 +143,7 @@ fun AlbumContent(
     BoxWithConstraints(modifier.fillMaxSize()) {
         // The pane's own width, not the window's: beside the albums panel the grid is narrower.
         val wide = maxWidth >= 600.dp
+        val paneHeight = maxHeight
         val count = runCatching { SelectionReducer.count(selection, selectionQueryCount) }.getOrDefault(0)
         val header: @Composable () -> Unit = {
             AlbumHeader(
@@ -180,7 +181,7 @@ fun AlbumContent(
                     stringResource(state.first),
                     stringResource(state.second),
                     stringResource(state.third),
-                    Modifier.fillMaxWidth().heightIn(min = (maxHeight - 160.dp).coerceAtLeast(0.dp)),
+                    Modifier.fillMaxWidth().heightIn(min = (paneHeight - 160.dp).coerceAtLeast(0.dp)),
                 )
             }
         } else {

@@ -422,7 +422,7 @@ private fun OnboardingPage(step: OnboardingStep, scrollKey: Any?, content: @Comp
         if (scroll.canScrollForward) {
             HorizontalDivider(
                 Modifier.align(Alignment.BottomCenter).widthIn(max = PageMaxWidth).fillMaxWidth()
-                    .testTag("onboarding-more-below"),
+                    .padding(horizontal = GallerySpacing.Xl).testTag("onboarding-more-below"),
             )
         }
     }

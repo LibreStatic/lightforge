@@ -1,5 +1,6 @@
 package com.librestatic.lightforge.feature.onboarding
 
+import android.provider.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,6 +30,12 @@ fun OnboardingDonePreview() = OnboardingFrame(OnboardingStep.Done)
 @Composable
 private fun OnboardingFrame(initial: OnboardingStep) {
     val context = LocalContext.current
+    // The backdrop and samples animate on an endless frame loop that never lets the headless
+    // renderer go idle; with animations off (as on the test emulator) they render their still frame.
+    remember(context) {
+        listOf(Settings.Global.ANIMATOR_DURATION_SCALE, Settings.Global.TRANSITION_ANIMATION_SCALE, Settings.Global.WINDOW_ANIMATION_SCALE)
+            .forEach { Settings.Global.putFloat(context.contentResolver, it, 0f) }
+    }
     val permissions = remember(context) { PermissionCoordinator(context) }
     var step by remember { mutableStateOf(initial) }
     var analysis by remember { mutableStateOf(emptySet<OnboardingAnalysisOption>()) }
