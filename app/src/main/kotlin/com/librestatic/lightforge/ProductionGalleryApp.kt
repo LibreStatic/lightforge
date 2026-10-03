@@ -1813,6 +1813,7 @@ internal fun ProductionGalleryApp(
                         onTrackAnnotation = viewModel::startVideoAnnotationTracking,
                         onCancelAnnotationTracking = viewModel::cancelVideoAnnotationTracking,
                         onCancelExport = viewModel::cancelVideoExport,
+                        onOutputSettingsChange = viewModel::setVideoOutputSettings,
                         foldInfo = adaptiveInfo.foldInfo,
                     )
                         }

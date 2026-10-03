@@ -4674,6 +4674,8 @@ class GalleryViewModel @Inject constructor(
                         isHdr10ExportAvailable = hdrCapabilities.hdr10,
                         slowMotionSegments = recipe.slowMotionSegments,
                         annotations = recipe.annotations,
+                        output = recipe.output,
+                        outputSource = videoOutputSource(source),
                         isDirty = recipe != (pendingExportRecipe ?: baselineRecipe),
                         statusMessage = if (customLutUnavailable) {
                             getApplication<Application>().getString(
@@ -5050,6 +5052,21 @@ class GalleryViewModel @Inject constructor(
                 outputQuality = outputQuality,
                 isDirty = session.isDirty(recipe),
             ),
+        )
+        persistVideoRecipe(recipe)
+    }
+
+    fun setVideoOutputSettings(settings: com.librestatic.lightforge.core.editing.video.VideoOutputSettings) {
+        val session = mutableVideoEditor.value ?: return
+        val codecs = session.content.supportedOutputCodecs
+        if (codecs != null && settings.codec != com.librestatic.lightforge.core.editing.video.VideoOutputCodec.Auto &&
+            settings.codec !in codecs
+        ) return
+        if (settings == session.recipe.output) return
+        val recipe = session.recipe.copy(output = settings)
+        mutableVideoEditor.value = session.copy(
+            recipe = recipe,
+            content = session.content.copy(output = settings, isDirty = session.isDirty(recipe)),
         )
         persistVideoRecipe(recipe)
     }

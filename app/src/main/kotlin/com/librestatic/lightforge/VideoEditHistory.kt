@@ -136,6 +136,7 @@ internal class VideoEditHistory(private val limit: Int = DefaultLimit) {
             if (old.outputQuality != new.outputQuality) add("quality")
             if (old.dynamicRange != new.dynamicRange) add("range")
             if (old.slowMotionSegments != new.slowMotionSegments) add("slowMotion")
+            if (old.output != new.output) add("output")
         }.joinToString(",")
 
         /** Copies the recipe-derived fields of [from] onto [this], keeping transient session state. */
@@ -160,6 +161,7 @@ internal class VideoEditHistory(private val limit: Int = DefaultLimit) {
                 selectedSlowMotionSegmentId = from.selectedSlowMotionSegmentId,
                 slowMotionMarkInMillis = null,
                 annotations = from.annotations,
+                output = from.output,
                 selectedAnnotationId = from.selectedAnnotationId,
                 annotationTrackingProgress = null,
                 annotationTrackingCorrectionMillis = null,
