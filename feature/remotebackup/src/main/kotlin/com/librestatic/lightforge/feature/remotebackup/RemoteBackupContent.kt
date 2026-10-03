@@ -33,6 +33,7 @@ import com.librestatic.lightforge.feature.settings.LocalRestoreOrganizationOptio
 import kotlinx.coroutines.*
 import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 
 /** A complete own-server archive workflow. No secret is put into saved state. */
 @Composable
@@ -119,21 +120,23 @@ fun RemoteBackupContent(
         color = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
+        Column(Modifier.fillMaxSize()) {
+        GalleryTopAppBar(
+            title = stringResource(R.string.remote_title),
+            onBack = onBack,
+            navigationContentDescription = stringResource(R.string.remote_back),
+            // The shell scaffold already placed this route below the status bar.
+            windowInsets = WindowInsets(0, 0, 0, 0),
+        )
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
         LazyColumn(
             Modifier.fillMaxSize()
                 .semantics { testTagsAsResourceId = true }
                 .testTag("remote-backup-screen"),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = readableListPadding(maxWidth),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item {
-                TextButton(onClick = onBack) { Text(stringResource(R.string.remote_back)) }
-                Text(
-                    stringResource(R.string.remote_title),
-                    style = MaterialTheme.typography.headlineMedium,
-                )
-                Text(stringResource(R.string.remote_scope))
-            }
+            item { Text(stringResource(R.string.remote_scope)) }
             if (profileFailure) item { Text(stringResource(R.string.remote_corrupt)) }
             if (genericError || error != null)
                 item {
@@ -492,6 +495,8 @@ fun RemoteBackupContent(
                     }
                 }
             }
+        }
+        }
         }
     }
     if (editor)

@@ -208,7 +208,7 @@ class SmartAlbumsContentDeviceTest {
     }
 
     private fun back() {
-        compose.onNodeWithTag("smart-back").performClick()
+        compose.onNodeWithContentDescription(context.getString(R.string.smart_back)).performClick()
     }
 
     private fun count(n: Int) {

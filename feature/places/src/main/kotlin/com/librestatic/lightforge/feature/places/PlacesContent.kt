@@ -30,6 +30,7 @@ import com.librestatic.lightforge.core.model.MediaKey
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 
 @OptIn(ExperimentalLayoutApi::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
@@ -151,21 +152,22 @@ fun PlacesContent(
         color = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
     ) {
+        Column(Modifier.fillMaxSize()) {
+        GalleryTopAppBar(
+            title = stringResource(R.string.places_title),
+            onBack = onBack,
+            navigationContentDescription = stringResource(R.string.places_back),
+            modifier = Modifier.testTag("places-top-bar"),
+            // The shell scaffold already placed this route below the status bar.
+            windowInsets = WindowInsets(0, 0, 0, 0),
+        )
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
         LazyColumn(
             Modifier.fillMaxSize().testTag("places-list"),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = readableListPadding(maxWidth),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item {
-                TextButton(onClick = onBack, modifier = Modifier.testTag("places-back")) {
-                    Text(stringResource(R.string.places_back))
-                }
-                Text(
-                    stringResource(R.string.places_title),
-                    style = MaterialTheme.typography.headlineMedium,
-                )
-                Text(stringResource(R.string.places_body))
-            }
+            item { Text(stringResource(R.string.places_body)) }
             if (!locationAccessGranted)
                 item {
                     Text(stringResource(R.string.places_location_body))
@@ -528,6 +530,8 @@ fun PlacesContent(
                     }
                 }
             }
+        }
+        }
         }
     }
     if (remove != null)

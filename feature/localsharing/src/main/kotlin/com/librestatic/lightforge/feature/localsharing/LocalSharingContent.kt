@@ -39,6 +39,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
+import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
@@ -96,19 +97,20 @@ fun LocalSharingContent(
                 }
         }
     LaunchedEffect(controller) { controller.reconcile() }
+    Column(Modifier.fillMaxSize()) {
+    GalleryTopAppBar(
+        title = stringResource(R.string.peer_title),
+        onBack = onBack,
+        navigationContentDescription = stringResource(R.string.peer_back),
+        // The shell scaffold already placed this route below the status bar.
+        windowInsets = WindowInsets(0, 0, 0, 0),
+    )
+    BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
     LazyColumn(
-        Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }.padding(16.dp),
+        Modifier.fillMaxSize().semantics { testTagsAsResourceId = true },
+        contentPadding = readableListPadding(maxWidth),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onBack) { Text(stringResource(R.string.peer_back)) }
-                Text(
-                    stringResource(R.string.peer_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                )
-            }
-        }
         item { Text(stringResource(R.string.peer_scope)) }
         if (error || receiver.failure != null)
             item {
@@ -399,6 +401,8 @@ fun LocalSharingContent(
                 }
             }
         }
+    }
+    }
     }
     val review = transfers.find { it.id == reviewId }
     if (review != null)

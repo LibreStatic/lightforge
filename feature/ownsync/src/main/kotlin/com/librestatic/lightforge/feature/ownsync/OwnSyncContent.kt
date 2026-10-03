@@ -26,6 +26,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
+import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 
 @Composable
 fun OwnSyncContent(
@@ -72,16 +73,21 @@ fun OwnSyncContent(
         color = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
+        Column(Modifier.fillMaxSize()) {
+        GalleryTopAppBar(
+            title = stringResource(R.string.own_sync_title),
+            onBack = onBack,
+            navigationContentDescription = stringResource(R.string.own_sync_back),
+            // The shell scaffold already placed this route below the status bar.
+            windowInsets = WindowInsets(0, 0, 0, 0),
+        )
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
         LazyColumn(
-            Modifier.fillMaxSize().padding(16.dp).testTag("own-sync-list"),
+            Modifier.fillMaxSize().testTag("own-sync-list"),
+            contentPadding = readableListPadding(maxWidth),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
-                TextButton(onClick = onBack) { Text(stringResource(R.string.own_sync_back)) }
-                Text(
-                    stringResource(R.string.own_sync_title),
-                    style = MaterialTheme.typography.headlineSmall,
-                )
                 Text(stringResource(R.string.own_sync_scope))
                 Button(
                     onClick = { creating = true },
@@ -273,6 +279,8 @@ fun OwnSyncContent(
                     }
                 }
             }
+        }
+        }
         }
     }
     if (creating) {

@@ -42,6 +42,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
+import com.librestatic.lightforge.core.designsystem.GalleryContentWidths
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import org.json.JSONObject
 
@@ -123,7 +124,7 @@ private fun AboutOverview(
         Column(
             Modifier
                 .fillMaxSize()
-                .widthIn(max = 720.dp)
+                .widthIn(max = GalleryContentWidths.Reading)
                 .align(Alignment.CenterHorizontally)
                 .verticalScroll(rememberScrollState())
                 .padding(GallerySpacing.Xl),
@@ -240,21 +241,20 @@ private fun AppLicense(
             onBack = onBack,
             navigationContentDescription = stringResource(R.string.about_back),
         )
-        SelectionContainer {
-            Text(
-                text = buildString {
-                    append(copyrightNotice.trimEnd())
-                    append("\n\n")
-                    append(templateNote)
-                    append("\n\n")
-                    append(licenseText)
-                },
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(GallerySpacing.Xl),
-            )
+        ReadableScrollColumn {
+            SelectionContainer {
+                Text(
+                    text = buildString {
+                        append(copyrightNotice.trimEnd())
+                        append("\n\n")
+                        append(templateNote)
+                        append("\n\n")
+                        append(licenseText)
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.fillMaxWidth().padding(GallerySpacing.Xl),
+                )
+            }
         }
     }
 }
@@ -327,9 +327,17 @@ private fun LicenseCatalog(
         )
         components.fold(
             onSuccess = { catalog ->
+                androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+                // Cards stay in a readable column; the list still scrolls from the whole width.
+                val side = maxOf(GallerySpacing.Xl, (maxWidth - GalleryContentWidths.Reading) / 2)
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(GallerySpacing.Xl),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                        start = side,
+                        top = GallerySpacing.Xl,
+                        end = side,
+                        bottom = GallerySpacing.Xl,
+                    ),
                     verticalArrangement = Arrangement.spacedBy(GallerySpacing.Md),
                 ) {
                     item {
@@ -361,6 +369,7 @@ private fun LicenseCatalog(
                         }
                     }
                 }
+                }
             },
             onFailure = {
                 Text(
@@ -370,6 +379,17 @@ private fun LicenseCatalog(
                 )
             },
         )
+    }
+}
+
+/** Scrolls the whole width while keeping long text in a centred, readable column. */
+@Composable
+private fun ReadableScrollColumn(content: @Composable () -> Unit) {
+    Box(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        Box(Modifier.widthIn(max = GalleryContentWidths.Reading).fillMaxWidth()) { content() }
     }
 }
 
@@ -395,16 +415,17 @@ private fun DependencyLicense(
         )
         licenseText.fold(
             onSuccess = { text ->
-                SelectionContainer {
-                    Text(
-                        text = text,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier
-                            .testTag("dependency_license_body")
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                            .padding(GallerySpacing.Xl),
-                    )
+                ReadableScrollColumn {
+                    SelectionContainer {
+                        Text(
+                            text = text,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier
+                                .testTag("dependency_license_body")
+                                .fillMaxWidth()
+                                .padding(GallerySpacing.Xl),
+                        )
+                    }
                 }
             },
             onFailure = {

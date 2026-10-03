@@ -141,6 +141,13 @@ class SmartAlbumsAppDeviceTest {
             tag(tag).click()
             device.waitForIdle()
         }
+        // Back is the top app bar's navigation icon, found by its content description.
+        fun back() {
+            val label = context.getString(com.librestatic.lightforge.feature.collections.R.string.smart_back)
+            assertTrue("Missing back", device.wait(Until.hasObject(By.desc(label)), 15000))
+            device.findObject(By.desc(label)).click()
+            device.waitForIdle()
+        }
         fun count(n: Int) {
             tag("smart-count")
             assertTrue(
@@ -209,7 +216,7 @@ class SmartAlbumsAppDeviceTest {
             }
             click("smart-preview")
             count(2)
-            click("smart-back")
+            back()
             click("smart-save")
             count(2)
             owned =
@@ -241,8 +248,8 @@ class SmartAlbumsAppDeviceTest {
             count(3)
             click("smart-exclude-external_primary:$first")
             count(2)
-            click("smart-back")
-            click("smart-back")
+            back()
+            back()
             // The expanded rail only holds root destinations; smart albums live in Collections.
             val railCollections = device.findObject(By.res("rail-collections"))
             val railUsed = railCollections != null

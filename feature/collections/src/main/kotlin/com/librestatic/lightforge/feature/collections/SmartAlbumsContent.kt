@@ -28,6 +28,7 @@ import androidx.paging.compose.itemKey
 import com.librestatic.lightforge.core.data.*
 import com.librestatic.lightforge.core.database.*
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.core.thumbnail.*
 import kotlinx.coroutines.CancellationException
@@ -183,19 +184,17 @@ fun SmartAlbumsContent(
         modifier =
             modifier.testTag("smart-albums-screen").semantics { testTagsAsResourceId = true },
         topBar = {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                TextButton(
-                    onClick = { back() },
-                    enabled = !busy,
-                    modifier = Modifier.testTag("smart-back"),
-                ) {
-                    Text(stringResource(R.string.smart_back))
-                }
-                Text(
-                    title,
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.semantics { heading() },
+            Column(Modifier.fillMaxWidth()) {
+                // back() ignores presses while a change is being saved.
+                GalleryTopAppBar(
+                    title = title,
+                    onBack = { back() },
+                    navigationContentDescription = stringResource(R.string.smart_back),
+                    modifier = Modifier.testTag("smart-top-bar").semantics { heading() },
+                    // The shell scaffold already placed this route below the status bar.
+                    windowInsets = WindowInsets(0, 0, 0, 0),
                 )
+                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                 GalleryProgressSlot(busy)
                 error?.let { id ->
                     Text(
@@ -210,6 +209,7 @@ fun SmartAlbumsContent(
                     ) {
                         Text(stringResource(R.string.smart_retry))
                     }
+                }
                 }
             }
         },
