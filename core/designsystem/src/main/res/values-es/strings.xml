@@ -14,4 +14,6 @@
     <string name="media_tile_action_select">Seleccionar</string>
     <string name="media_tile_action_deselect">Deseleccionar</string>
     <string name="media_tile_action_open">Abrir</string>
+    <!-- Media editors -->
+    <string name="editor_slider_reset">Restablecer %1$s</string>
 </resources>

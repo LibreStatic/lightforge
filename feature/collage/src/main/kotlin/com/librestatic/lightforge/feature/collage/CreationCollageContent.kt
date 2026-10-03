@@ -25,6 +25,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.librestatic.lightforge.core.designsystem.EditorAdjustmentSlider
 import com.librestatic.lightforge.core.designsystem.MediaEditorScaffold
 import com.librestatic.lightforge.core.designsystem.MediaEditorTopBar
 import kotlinx.coroutines.launch
@@ -244,12 +245,11 @@ private fun CollageSlotControls(
     Text("${zoomLabel}: ${java.text.NumberFormat.getNumberInstance().format(zoom)}", Modifier.testTag("creation-collage-zoom-value"))
     Slider(zoom, { zoom = it }, enabled = editingEnabled, valueRange = 1f..3f,
         onValueChangeFinished = ::commitCrop, modifier = Modifier.testTag("creation-collage-zoom").semantics { contentDescription = "${zoomLabel}: ${java.text.NumberFormat.getNumberInstance().format(zoom)}" })
-    Text("${horizontalLabel}: ${java.text.NumberFormat.getNumberInstance().format(horizontal)}", Modifier.testTag("creation-collage-horizontal-value"))
-    Slider(horizontal, { horizontal = it }, enabled = editingEnabled, valueRange = -1f..1f,
-        onValueChangeFinished = ::commitCrop, modifier = Modifier.testTag("creation-collage-horizontal").semantics { contentDescription = "${horizontalLabel}: ${java.text.NumberFormat.getNumberInstance().format(horizontal)}" })
-    Text("${verticalLabel}: ${java.text.NumberFormat.getNumberInstance().format(vertical)}", Modifier.testTag("creation-collage-vertical-value"))
-    Slider(vertical, { vertical = it }, enabled = editingEnabled, valueRange = -1f..1f,
-        onValueChangeFinished = ::commitCrop, modifier = Modifier.testTag("creation-collage-vertical").semantics { contentDescription = "${verticalLabel}: ${java.text.NumberFormat.getNumberInstance().format(vertical)}" })
+    // Positions are bidirectional around the centre of the slot.
+    EditorAdjustmentSlider(horizontalLabel, horizontal, { horizontal = it }, Modifier.fillMaxWidth(),
+        onValueChangeFinished = ::commitCrop, enabled = editingEnabled, testTag = "creation-collage-horizontal")
+    EditorAdjustmentSlider(verticalLabel, vertical, { vertical = it }, Modifier.fillMaxWidth(),
+        onValueChangeFinished = ::commitCrop, enabled = editingEnabled, testTag = "creation-collage-vertical")
     TextButton(onClick = { actions.onCrop(CreationCollageCrop()) }, enabled = editingEnabled,
         modifier = Modifier.testTag("creation-collage-reset")) { Text(stringResource(R.string.creation_collage_reset)) }
 }

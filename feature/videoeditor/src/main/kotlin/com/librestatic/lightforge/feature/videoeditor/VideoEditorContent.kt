@@ -97,6 +97,8 @@ import com.librestatic.lightforge.core.designsystem.GalleryLoadingIndicator
 import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
 import com.librestatic.lightforge.core.designsystem.GalleryMonoTypography
 import com.librestatic.lightforge.core.designsystem.MediaEditorHistory
+import com.librestatic.lightforge.core.designsystem.EditorAdjustmentSlider
+import com.librestatic.lightforge.core.designsystem.EditorAdjustmentSliderRules
 import com.librestatic.lightforge.core.designsystem.MediaEditorScaffold
 import com.librestatic.lightforge.core.designsystem.MediaEditorToolChip
 import com.librestatic.lightforge.core.designsystem.MediaEditorToolChips
@@ -1138,6 +1140,21 @@ internal fun LogWheelControls(
 internal fun GradeSlider(label: String, value: Float, range: ClosedFloatingPointRange<Float>, onChange: (Float) -> Unit) {
     var liveValue by remember(label) { mutableFloatStateOf(value) }
     LaunchedEffect(value) { liveValue = value }
+    if (range.start < 0f && range.endInclusive > 0f) {
+        // Bidirectional grades (exposure, contrast, wheels, hue…): centred fill and a detent at 0.
+        EditorAdjustmentSlider(
+            label = label,
+            value = liveValue,
+            onValueChange = {
+                liveValue = it
+                onChange(it)
+            },
+            valueRange = range,
+            displayValue = { EditorAdjustmentSliderRules.format(it, 0f, decimals = if (range.endInclusive > 10f) 0 else 2) },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        return
+    }
     Column {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, style = MaterialTheme.typography.labelLarge)

@@ -62,6 +62,8 @@ import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import com.librestatic.lightforge.core.designsystem.GalleryLoadingIndicator
 import com.librestatic.lightforge.core.designsystem.MediaEditorHistory
+import com.librestatic.lightforge.core.designsystem.EditorAdjustmentSlider
+import com.librestatic.lightforge.core.designsystem.EditorAdjustmentSliderRules
 import com.librestatic.lightforge.core.designsystem.MediaEditorScaffold
 import com.librestatic.lightforge.core.designsystem.MediaEditorToolChip
 import com.librestatic.lightforge.core.designsystem.MediaEditorToolChips
@@ -438,6 +440,7 @@ private fun PhotoTools(
                         label = stringResource(R.string.photo_editor_contrast),
                         value = state.tone.contrast,
                         range = 0f..2f,
+                        neutral = 1f,
                         onChange = { onTonePreview(state.tone.copy(contrast = it)) },
                         onFinished = onToneChangeFinished,
                     )
@@ -445,6 +448,7 @@ private fun PhotoTools(
                         label = stringResource(R.string.photo_editor_saturation),
                         value = state.tone.saturation,
                         range = 0f..2f,
+                        neutral = 1f,
                         onChange = { onTonePreview(state.tone.copy(saturation = it)) },
                         onFinished = onToneChangeFinished,
                     )
@@ -662,6 +666,7 @@ internal fun cropEditOperations(draft: PhotoCropDraft): List<EditOperation> = li
     EditOperation.Straighten(draft.straightenDegrees),
 )
 
+/** Tone adjustments are bidirectional around [neutral]: brightness 0, contrast and saturation 1. */
 @Composable
 private fun PhotoToneSlider(
     label: String,
@@ -669,20 +674,17 @@ private fun PhotoToneSlider(
     range: ClosedFloatingPointRange<Float>,
     onChange: (Float) -> Unit,
     onFinished: () -> Unit,
+    neutral: Float = 0f,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, style = MaterialTheme.typography.labelLarge)
-            Text("%.2f".format(value), style = MaterialTheme.typography.labelMedium)
-        }
-        Slider(
-            value = value,
-            onValueChange = onChange,
-            onValueChangeFinished = onFinished,
-            valueRange = range,
-            modifier = Modifier.semantics { contentDescription = label },
-        )
-    }
+    EditorAdjustmentSlider(
+        label = label,
+        value = value,
+        onValueChange = onChange,
+        onValueChangeFinished = onFinished,
+        valueRange = range,
+        neutral = neutral,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable
@@ -878,10 +880,24 @@ private fun RawSlider(
     onFinished: () -> Unit,
     onChange: (Float) -> Unit,
 ) {
+    val wholeNumbers = range.endInclusive > 100f
+    if (range.start < 0f && range.endInclusive > 0f) {
+        // Bidirectional (exposure, tint, highlights…): centred fill and a detent at 0.
+        EditorAdjustmentSlider(
+            label = label,
+            value = value,
+            onValueChange = onChange,
+            onValueChangeFinished = onFinished,
+            valueRange = range,
+            displayValue = { EditorAdjustmentSliderRules.format(it, 0f, decimals = if (wholeNumbers) 0 else 2) },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        return
+    }
     Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(label, style = MaterialTheme.typography.labelLarge)
-            Text(if (range.endInclusive > 100f) value.toInt().toString() else "%.2f".format(value), style = MaterialTheme.typography.labelMedium)
+            Text(if (wholeNumbers) value.toInt().toString() else "%.2f".format(value), style = MaterialTheme.typography.labelMedium)
         }
         Slider(
             value = value,
