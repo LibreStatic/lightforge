@@ -127,16 +127,16 @@
         <item quantity="other">Eliminar %1$d páginas</item>
     </plurals>
     <string name="pdf_export_filename">Nombre del archivo</string>
-    <string name="pdf_export_filename_invalid">Escribe un nombre de archivo.</string>
+    <string name="pdf_export_filename_invalid">Escribí un nombre de archivo.</string>
     <string name="pdf_export_pages_current">Página actual</string>
-    <string name="pdf_export_pages_selected_helper">Selecciona páginas primero para exportar solo esas.</string>
+    <string name="pdf_export_pages_selected_helper">Seleccioná páginas primero para exportar solo esas.</string>
     <string name="pdf_export_pages_custom">Personalizado</string>
     <string name="pdf_export_custom_pages_label">Páginas</string>
     <string name="pdf_export_custom_pages_placeholder">1–3, 5</string>
-    <string name="pdf_export_custom_pages_empty">Escribe las páginas</string>
+    <string name="pdf_export_custom_pages_empty">Escribí las páginas</string>
     <string name="pdf_export_custom_pages_invalid">\"%1$s\" no es una página o rango válido</string>
     <string name="pdf_export_custom_pages_out_of_range">La página %1$s no existe (1–%2$d)</string>
-    <string name="pdf_export_custom_pages_reversed">\"%1$s\" está invertido; usa primero el número más pequeño</string>
+    <string name="pdf_export_custom_pages_reversed">\"%1$s\" está invertido; usá primero el número más pequeño</string>
     <plurals name="pdf_export_custom_pages_summary">
         <item quantity="one">%1$d página: %2$s</item>
         <item quantity="other">%1$d páginas: %2$s</item>
@@ -204,7 +204,7 @@
     </plurals>
     <string name="pdf_page_check_selected">Seleccionada</string>
     <string name="pdf_page_check_unselected">No seleccionada</string>
-    <string name="pdf_imported_page_note">Las páginas de PDF importadas conservan su contenido vectorial original; puedes rotarlas o reordenarlas.</string>
+    <string name="pdf_imported_page_note">Las páginas de PDF importadas conservan su contenido vectorial original; podés rotarlas o reordenarlas.</string>
     <string name="pdf_paper">Papel</string>
     <string name="pdf_paper_custom">Personalizado</string>
     <string name="pdf_orientation">Orientación</string>
@@ -232,7 +232,7 @@
     <string name="pdf_custom_size_title">Tamaño personalizado</string>
     <string name="pdf_custom_size_min">El mínimo es %1$s</string>
     <string name="pdf_custom_size_max">El máximo es %1$s</string>
-    <string name="pdf_custom_size_invalid">Ingresa un tamaño</string>
+    <string name="pdf_custom_size_invalid">Ingresá un tamaño</string>
     <string name="pdf_custom_size_swap">Intercambiar ancho y alto</string>
     <string name="pdf_custom_size_preview_note">Mostrando el último tamaño válido</string>
     <string name="pdf_custom_size_use">Usar tamaño</string>
@@ -255,8 +255,8 @@
     <string name="pdf_library_sort">Ordenar</string>
     <string name="pdf_library_sort_recent">Recientes</string>
     <string name="pdf_library_sort_name">Nombre</string>
-    <string name="pdf_library_empty_headline">Crea tu primer PDF</string>
-    <string name="pdf_library_empty_body">Crea PDF a partir de fotos, recibos y documentos, en este dispositivo</string>
+    <string name="pdf_library_empty_headline">Creá tu primer PDF</string>
+    <string name="pdf_library_empty_body">Creá PDF a partir de fotos, recibos y documentos, en este dispositivo</string>
     <string name="pdf_library_template_photo_grid">Cuadrícula de fotos</string>
     <string name="pdf_library_template_receipts">Recibos</string>
     <string name="pdf_library_template_prints">Impresiones 10 × 15</string>
@@ -292,7 +292,7 @@
     <string name="pdf_intake_replace_photo">Reemplazar foto</string>
     <string name="pdf_intake_remove_retry">Quitar y reintentar</string>
     <string name="pdf_order_badge">Posición %1$d</string>
-    <string name="pdf_library_rename_blank">Ingresa un nombre</string>
+    <string name="pdf_library_rename_blank">Ingresá un nombre</string>
     <string name="pdf_library_rename_too_long">Máximo 80 caracteres</string>
     <string name="pdf_library_duplicate_suffix">%1$s (copia)</string>
     <string name="pdf_reset">Restablecer</string>
@@ -319,7 +319,7 @@
     <string name="pdf_distribute">Distribuir</string>
     <string name="pdf_distribute_horizontal">Distribuir horizontalmente</string>
     <string name="pdf_distribute_vertical">Distribuir verticalmente</string>
-    <string name="pdf_distribute_needs_three">Selecciona 3 o más para distribuir</string>
+    <string name="pdf_distribute_needs_three">Seleccioná 3 o más para distribuir</string>
     <string name="pdf_group_selection_bar">Acciones de selección</string>
     <string name="pdf_status_snap">Ajuste %1$s</string>
     <string name="pdf_status_snap_off">Ajuste desactivado</string>
