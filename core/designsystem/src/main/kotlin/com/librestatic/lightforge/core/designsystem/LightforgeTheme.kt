@@ -36,6 +36,48 @@ object GalleryContentWidths {
     val Browsing = 1_200.dp
 }
 
+/**
+ * Maximum line length for text, forms and settings rows, also inside wide panes: lines stay
+ * readable (640–760 dp) instead of stretching across a tablet or desktop window.
+ */
+val ReadableContentMaxWidth: Dp = GalleryContentWidths.Reading
+
+/**
+ * Pane sizing for list-detail and supporting-pane layouts, always in dp and never as a fraction
+ * of the window, so a master list keeps the same width on a foldable, a tablet and a desktop.
+ */
+object GalleryPaneMetrics {
+    val MasterMinWidth = 300.dp
+    val MasterMaxWidth = 360.dp
+
+    /** Narrowest detail pane that still shows its titles and rows without wrapping mid-word. */
+    val DetailMinWidth = 360.dp
+
+    /** A detail pane this wide lets the master grow to [MasterMaxWidth]. */
+    val DetailComfortableWidth = 560.dp
+
+    val SupportingPaneMinWidth = 360.dp
+    val SupportingPaneMaxWidth = 420.dp
+
+    /** Content width from which a third, supporting pane may join list + detail. */
+    val ThirdPaneMinContentWidth = 1_100.dp
+}
+
+/**
+ * Master pane width for a list-detail layout in [contentWidth] (the window minus the navigation
+ * rail), or null when the two panes do not fit with their minimums and the screen should show
+ * one pane at a time. The master grows from 300 to 360 dp only out of the detail's spare room.
+ */
+fun galleryMasterPaneWidth(contentWidth: Dp): Dp? {
+    if (contentWidth < GalleryPaneMetrics.MasterMinWidth + GalleryPaneMetrics.DetailMinWidth) return null
+    return (contentWidth - GalleryPaneMetrics.DetailComfortableWidth)
+        .coerceIn(GalleryPaneMetrics.MasterMinWidth, GalleryPaneMetrics.MasterMaxWidth)
+}
+
+/** Whether a supporting (third) pane fits beside list + detail in [contentWidth]. */
+fun galleryShowsSupportingPane(contentWidth: Dp): Boolean =
+    contentWidth >= GalleryPaneMetrics.ThirdPaneMinContentWidth
+
 object GalleryGridMetrics {
     val Gap = 4.dp
     val CompactCell = 112.dp
@@ -65,7 +107,51 @@ object GallerySidePanelMetrics {
         stored ?: (windowClass != GalleryWindowClass.Compact)
 }
 
-enum class GalleryNavigationType { BottomBar, Rail }
+/**
+ * Root navigation chrome. [Floating] is the pill (Photos · Collections · Create) plus a separate
+ * Search button over the bottom of the content; [Rail] is the side navigation rail.
+ */
+enum class GalleryNavigationType { Floating, Rail }
+
+/** Window thresholds for [galleryNavigationType], in dp of the whole window. */
+object GalleryNavigationThresholds {
+    /** Below either of these the rail is dropped (a 393 dp tall landscape phone cannot fit it). */
+    val RailMinWidth = 600.dp
+    val RailMinHeight = 480.dp
+
+    /** Coming from the floating navigation, the window has to clear these to switch to the rail. */
+    val RailEnterWidth = 616.dp
+    val RailEnterHeight = 496.dp
+}
+
+/**
+ * Picks the navigation for a [width] × [height] window, never from orientation alone.
+ *
+ * - Floating when the width is below 600 dp or the height below 480 dp; rail otherwise.
+ * - Hysteresis for freely resized windows: from [previous] = Floating the rail needs 616 × 496 dp,
+ *   and an existing rail stays until the window drops below 600 × 480 dp.
+ * - Tabletop (a separating horizontal hinge) keeps the floating navigation, which sits at the
+ *   bottom of the lower half; a book posture (separating vertical hinge) keeps the rail in the
+ *   starting half whenever the height allows one.
+ */
+fun galleryNavigationType(
+    width: Dp,
+    height: Dp,
+    foldInfo: GalleryFoldInfo? = null,
+    previous: GalleryNavigationType? = null,
+): GalleryNavigationType {
+    val fitsRail = width >= GalleryNavigationThresholds.RailMinWidth &&
+        height >= GalleryNavigationThresholds.RailMinHeight
+    val entersRail = width >= GalleryNavigationThresholds.RailEnterWidth &&
+        height >= GalleryNavigationThresholds.RailEnterHeight
+    val rail = when {
+        foldInfo?.isTabletop == true -> false
+        foldInfo?.enablesSideBySide == true -> height >= GalleryNavigationThresholds.RailMinHeight
+        previous == GalleryNavigationType.Floating -> entersRail
+        else -> fitsRail
+    }
+    return if (rail) GalleryNavigationType.Rail else GalleryNavigationType.Floating
+}
 
 enum class GalleryFoldOrientation { Vertical, Horizontal }
 
@@ -81,6 +167,10 @@ data class GalleryFoldInfo(
     val hingeHeight: Dp get() = (bottom - top).coerceAtLeast(0.dp)
     val enablesSideBySide: Boolean
         get() = isSeparating && orientation == GalleryFoldOrientation.Vertical
+
+    /** Half-open with a horizontal hinge: content above, controls on the lower half. */
+    val isTabletop: Boolean
+        get() = isSeparating && orientation == GalleryFoldOrientation.Horizontal
 }
 
 data class GalleryAdaptiveLayoutInfo(
@@ -89,7 +179,20 @@ data class GalleryAdaptiveLayoutInfo(
     val gutter: Dp,
     val supportsTwoPane: Boolean,
     val foldInfo: GalleryFoldInfo? = null,
+    /** Window height the policy was computed for; [Dp.Infinity] when only the width was known. */
+    val windowHeight: Dp = Dp.Infinity,
+    /** Width left for content beside the navigation (the whole window with floating navigation). */
+    val contentWidth: Dp = Dp.Infinity,
 )
+
+/** Width of the shell's navigation rail. */
+val GalleryNavigationRailWidth: Dp = 120.dp
+
+/**
+ * The shell's current adaptive policy, provided around every library surface so screens can read
+ * the navigation type, gutter and content width instead of measuring the window again.
+ */
+val LocalGalleryAdaptiveLayoutInfo = staticCompositionLocalOf<GalleryAdaptiveLayoutInfo?> { null }
 
 fun galleryWindowClass(width: Dp): GalleryWindowClass = when {
     width < 600.dp -> GalleryWindowClass.Compact
@@ -103,18 +206,22 @@ fun galleryGridCellSize(width: Dp): Dp = when (galleryWindowClass(width)) {
     GalleryWindowClass.Expanded -> GalleryGridMetrics.ExpandedCell
 }
 
+/**
+ * Adaptive policy for a [width] × [height] window. [previousNavigationType] is the navigation the
+ * window showed last, for the rail hysteresis of [galleryNavigationType]. The gutter is the one
+ * content inset of the shell: screens indent their content by it instead of their own margins.
+ */
 fun galleryAdaptiveLayoutInfo(
     width: Dp,
     foldInfo: GalleryFoldInfo? = null,
+    height: Dp = Dp.Infinity,
+    previousNavigationType: GalleryNavigationType? = null,
 ): GalleryAdaptiveLayoutInfo {
     val windowClass = galleryWindowClass(width)
+    val navigationType = galleryNavigationType(width, height, foldInfo, previousNavigationType)
     return GalleryAdaptiveLayoutInfo(
         windowClass = windowClass,
-        navigationType = if (windowClass == GalleryWindowClass.Compact) {
-            GalleryNavigationType.BottomBar
-        } else {
-            GalleryNavigationType.Rail
-        },
+        navigationType = navigationType,
         gutter = when (windowClass) {
             GalleryWindowClass.Compact -> GallerySpacing.Lg
             GalleryWindowClass.Medium -> GallerySpacing.Xxl
@@ -122,6 +229,10 @@ fun galleryAdaptiveLayoutInfo(
         },
         supportsTwoPane = foldInfo?.enablesSideBySide == true || windowClass == GalleryWindowClass.Expanded,
         foldInfo = foldInfo,
+        windowHeight = height,
+        contentWidth = if (navigationType == GalleryNavigationType.Rail) {
+            (width - GalleryNavigationRailWidth).coerceAtLeast(0.dp)
+        } else width,
     )
 }
 
