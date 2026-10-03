@@ -1,6 +1,7 @@
 package com.librestatic.lightforge.feature.videoeditor
 
 import android.view.SurfaceView
+import android.view.TextureView
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
@@ -71,6 +72,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -836,15 +838,22 @@ private fun VideoPreview(
         }
         val description = stringResource(R.string.video_editor_preview_description)
         val viewerState by controller.state.collectAsState()
+        // Set once the controller fell back to playback without Media3 effects (the effects graph
+        // failed on this device). Edits then preview through a view transform instead.
+        var plainPlayback by remember(controller) { mutableStateOf(false) }
+        LaunchedEffect(viewerState) {
+            val ready = viewerState as? VideoViewerState.Ready
+            if (ready != null && !ready.videoEffectsActive) plainPlayback = true
+        }
         key(controller) {
             BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 val videoAspectRatio = (viewerState as? VideoViewerState.Ready)?.aspectRatio
+                val containerAspectRatio = maxWidth.value / maxHeight.value.coerceAtLeast(1f)
                 // A forced output aspect reshapes the frame; crop editing keeps the untouched one.
                 val outputBoxes = if (cropActive) null else videoOutputPreviewBoxes(state, videoAspectRatio, maxWidth, maxHeight)
                 val baseSurfaceModifier = if (outputBoxes != null) {
                     Modifier.size(outputBoxes.videoWidth.dp, outputBoxes.videoHeight.dp)
                 } else if (videoAspectRatio != null && videoAspectRatio > 0f) {
-                    val containerAspectRatio = maxWidth.value / maxHeight.value.coerceAtLeast(1f)
                     if (videoAspectRatio >= containerAspectRatio) {
                         Modifier.fillMaxWidth().aspectRatio(videoAspectRatio)
                     } else {
@@ -864,10 +873,31 @@ private fun VideoPreview(
                     baseSurfaceModifier
                 }
                 outputBoxes?.let { VideoOutputPadBars(it, state.output.aspect) }
-                AndroidView(
-                    factory = { context -> SurfaceView(context).also(controller::attachSurface) },
-                    modifier = surfaceModifier.semantics { contentDescription = description },
-                )
+                if (plainPlayback) {
+                    // A TextureView, unlike a SurfaceView, follows the layer's rotation and mirror.
+                    val geometry = if (cropActive) VideoGeometry() else state.geometry
+                    val aspect = videoAspectRatio?.takeIf { it > 0f } ?: containerAspectRatio
+                    val frameWidth = if (aspect >= containerAspectRatio) maxWidth.value else maxHeight.value * aspect
+                    val frameHeight = if (aspect >= containerAspectRatio) maxWidth.value / aspect else maxHeight.value
+                    val transform = fallbackPreviewTransform(
+                        geometry, frameWidth, frameHeight, maxWidth.value, maxHeight.value,
+                    )
+                    AndroidView(
+                        factory = { context -> TextureView(context).also(controller::attachTextureView) },
+                        modifier = surfaceModifier
+                            .graphicsLayer {
+                                rotationZ = transform.rotationZ
+                                scaleX = transform.scaleX
+                                scaleY = transform.scaleY
+                            }
+                            .semantics { contentDescription = description },
+                    )
+                } else {
+                    AndroidView(
+                        factory = { context -> SurfaceView(context).also(controller::attachSurface) },
+                        modifier = surfaceModifier.semantics { contentDescription = description },
+                    )
+                }
                 VideoAnnotationGestureLayer(
                     enabled = annotationsActive,
                     tool = annotationTool,
@@ -956,7 +986,12 @@ private fun VideoPreview(
                 modifier = Modifier.align(Alignment.BottomStart).padding(GallerySpacing.Md),
             )
         }
-        DisposableEffect(controller) { onDispose { controller.attachSurface(null) } }
+        DisposableEffect(controller) {
+            onDispose {
+                controller.attachSurface(null)
+                controller.attachTextureView(null)
+            }
+        }
     }
 }
 
