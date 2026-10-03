@@ -17,6 +17,8 @@ import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material.icons.rounded.Collections
 import androidx.compose.material.icons.rounded.Crop
+import androidx.compose.material.icons.rounded.ImageSearch
+import androidx.compose.material.icons.rounded.Transform
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Place
 import androidx.compose.material.icons.rounded.Delete
@@ -127,11 +129,12 @@ val GalleryIconCheck: ImageVector get() = Icons.Rounded.Check
 val GalleryIconShare: ImageVector get() = Icons.Rounded.Share
 val GalleryIconAlbum: ImageVector get() = Icons.Rounded.Collections
 val GalleryIconEdit: ImageVector get() = Icons.Rounded.Edit
-val GalleryIconAnalyze: ImageVector get() = Icons.Rounded.Crop
+val GalleryIconAnalyze: ImageVector get() = Icons.Rounded.ImageSearch
 val GalleryIconPlace: ImageVector get() = Icons.Rounded.Place
 val GalleryIconAutoAwesome: ImageVector get() = Icons.Rounded.AutoAwesome
 val GalleryIconInfo: ImageVector get() = Icons.Rounded.Info
 val GalleryIconCrop: ImageVector get() = Icons.Rounded.Crop
+val GalleryIconTransform: ImageVector get() = Icons.Rounded.Transform
 val GalleryIconTune: ImageVector get() = Icons.Rounded.Tune
 val GalleryIconPalette: ImageVector get() = Icons.Rounded.Palette
 val GalleryIconLock: ImageVector get() = Icons.Rounded.Lock
@@ -328,6 +331,7 @@ object GalleryIcons {
     val AutoAwesome get() = GalleryIconAutoAwesome
     val Info get() = GalleryIconInfo
     val Crop get() = GalleryIconCrop
+    val Transform get() = GalleryIconTransform
     val Tune get() = GalleryIconTune
     val Palette get() = GalleryIconPalette
     val Lock get() = GalleryIconLock

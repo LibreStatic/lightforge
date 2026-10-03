@@ -41,7 +41,7 @@ internal enum class VideoEditorTool(
     Audio(1, R.string.video_editor_audio, GalleryIcons.Volume),
     Music(2, R.string.video_editor_music, GalleryIcons.Music),
     Color(3, R.string.video_editor_color, GalleryIcons.Palette),
-    Transform(4, R.string.video_editor_transform, GalleryIcons.Crop),
+    Transform(4, R.string.video_editor_transform, GalleryIcons.Transform),
     Draw(5, R.string.video_editor_draw, GalleryIcons.Edit),
     ;
 
