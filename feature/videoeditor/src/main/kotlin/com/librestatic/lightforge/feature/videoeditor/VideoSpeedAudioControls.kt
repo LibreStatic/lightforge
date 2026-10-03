@@ -63,6 +63,7 @@ internal fun SpeedControls(
         FlowRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
             BasePlaybackSpeeds.forEach { speed ->
                 FilterChip(
+                    colors = editorFilterChipColors(),
                     selected = state.speed == speed,
                     onClick = { onSpeedChange(speed) },
                     label = { Text("${speed}×") },
@@ -101,6 +102,7 @@ internal fun SpeedControls(
             FlowRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
                 state.slowMotionSegments.forEachIndexed { index, segment ->
                     FilterChip(
+                        colors = editorFilterChipColors(),
                         selected = segment.id == state.selectedSlowMotionSegmentId,
                         onClick = { onSelect(segment.id) },
                         label = { Text("${index + 1}: ${formatMillis(segment.startMillis)}–${formatMillis(segment.endMillis)}") },
@@ -114,6 +116,7 @@ internal fun SpeedControls(
             FlowRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
                 listOf(0.5f, 0.25f, 0.125f).forEach { speed ->
                     FilterChip(
+                        colors = editorFilterChipColors(),
                         selected = segment.speed == speed,
                         onClick = { onUpdate(segment.copy(speed = speed)) },
                         label = { Text("${speed}×") },
@@ -129,6 +132,7 @@ internal fun SpeedControls(
                     SlowMotionAudioMode.Varispeed to R.string.video_editor_audio_varispeed,
                 ).forEach { (mode, label) ->
                     FilterChip(
+                        colors = editorFilterChipColors(),
                         selected = segment.audioMode == mode,
                         onClick = { onUpdate(segment.copy(audioMode = mode)) },
                         label = { Text(stringResource(label)) },

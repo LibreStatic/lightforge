@@ -270,6 +270,7 @@ fun MemoryVideoContent(
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         MemoryVideoRequest.SupportedSecondsPerPhoto.forEach { value ->
                             FilterChip(
+                                colors = editorFilterChipColors(),
                                 selected = seconds == value,
                                 onClick = { seconds = value },
                                 enabled = !busy,

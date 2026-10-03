@@ -193,12 +193,14 @@ internal fun VideoAnnotationControls(
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             VideoAnnotationAppearance.entries.forEach { appearance ->
                 FilterChip(
+                    colors = editorFilterChipColors(),
                     selected = tool.appearance == appearance,
                     onClick = { onToolChange(tool.copy(appearance = appearance, eraser = false)) },
                     label = { Text(stringResource(appearance.labelResource())) },
                 )
             }
             FilterChip(
+                colors = editorFilterChipColors(),
                 selected = tool.eraser,
                 onClick = { onToolChange(tool.copy(eraser = true)) },
                 label = { Text(stringResource(R.string.video_editor_annotation_eraser)) },
@@ -207,6 +209,7 @@ internal fun VideoAnnotationControls(
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             VideoAnnotationShape.entries.forEach { shape ->
                 FilterChip(
+                    colors = editorFilterChipColors(),
                     selected = tool.shape == shape,
                     onClick = { onToolChange(tool.copy(shape = shape)) },
                     label = { Text(stringResource(shape.labelResource())) },
@@ -274,6 +277,7 @@ internal fun VideoAnnotationControls(
                 valueRange = 0.1f..1f,
             )
             FilterChip(
+                colors = editorFilterChipColors(),
                 selected = tool.filled,
                 onClick = { onToolChange(tool.copy(filled = !tool.filled)) },
                 label = { Text(stringResource(R.string.video_editor_annotation_fill)) },
@@ -297,6 +301,7 @@ internal fun VideoAnnotationControls(
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 state.annotations.forEachIndexed { index, layer ->
                     FilterChip(
+                        colors = editorFilterChipColors(),
                         selected = layer.id == state.selectedAnnotationId,
                         onClick = { onSelect(layer.id) },
                         label = { Text(stringResource(R.string.video_editor_annotation_layer, index + 1)) },
@@ -333,6 +338,7 @@ internal fun VideoAnnotationControls(
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 VideoAnnotationTrackingMode.entries.forEach { mode ->
                     FilterChip(
+                        colors = editorFilterChipColors(),
                         selected = layer.trackingMode == mode,
                         onClick = { onUpdate(layer.copy(trackingMode = mode)) },
                         label = { Text(stringResource(mode.labelResource())) },

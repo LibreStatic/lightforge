@@ -250,6 +250,7 @@ internal fun VideoOutputControls(
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 modes.forEachIndexed { index, option ->
                     SegmentedButton(
+                        colors = editorSegmentedButtonColors(),
                         selected = option == mode,
                         onClick = { onChange(settings.copy(aspect = forced.copy(mode = option))) },
                         shape = SegmentedButtonDefaults.itemShape(index, modes.size),
@@ -455,6 +456,7 @@ private fun OutputChip(
     testTag: String? = null,
 ) {
     FilterChip(
+        colors = editorFilterChipColors(),
         selected = selected,
         onClick = onClick,
         enabled = enabled,

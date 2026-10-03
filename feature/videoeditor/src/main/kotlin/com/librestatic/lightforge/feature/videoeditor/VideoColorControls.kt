@@ -176,6 +176,7 @@ private fun BasicColorControls(
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 FilterChip(
+                    colors = editorFilterChipColors(),
                     selected = grade.bypass,
                     onClick = { onChange(grade.copy(bypass = !grade.bypass)) },
                     label = { Text(stringResource(R.string.video_editor_bypass_grade)) },
@@ -375,6 +376,7 @@ private fun AdvancedColorControls(
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 sections.forEachIndexed { index, label ->
                     SegmentedButton(
+                        colors = editorSegmentedButtonColors(),
                         selected = section == index,
                         onClick = { section = index },
                         shape = SegmentedButtonDefaults.itemShape(index, sections.size),
@@ -432,6 +434,7 @@ private fun AdvancedColorControls(
                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         HueBand.entries.forEachIndexed { index, band ->
                             FilterChip(
+                                colors = editorFilterChipColors(),
                                 selected = selectedBand == index,
                                 onClick = { selectedBand = index },
                                 label = { Text(stringResource(band.labelResource())) },

@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
@@ -34,6 +35,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
@@ -43,7 +45,9 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonColors
 import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SelectableChipColors
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.RangeSlider
@@ -72,6 +76,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -148,6 +153,32 @@ private const val ShortcutFrameMillis = 33L
 private const val ShortcutJumpMillis = 1_000L
 private const val GeometryPreviewDebounceMillis = 50L
 internal val EditorChipModifier = Modifier.widthIn(min = 80.dp).heightIn(min = 48.dp)
+
+/**
+ * Selected editor chips use the emphasis pair (primary / onPrimary) instead of Material's
+ * secondaryContainer: some dynamic palettes (Motorola on Android 16) resolve that to a mid grey
+ * with black text, which reads as disabled next to the dark editor panels.
+ */
+@Composable
+internal fun editorFilterChipColors(): SelectableChipColors {
+    val scheme = MaterialTheme.colorScheme
+    return FilterChipDefaults.filterChipColors(
+        selectedContainerColor = scheme.primary,
+        selectedLabelColor = scheme.onPrimary,
+        selectedLeadingIconColor = scheme.onPrimary,
+        selectedTrailingIconColor = scheme.onPrimary,
+    )
+}
+
+/** Segmented buttons in the editor, with the same selected pair as [editorFilterChipColors]. */
+@Composable
+internal fun editorSegmentedButtonColors(): SegmentedButtonColors {
+    val scheme = MaterialTheme.colorScheme
+    return SegmentedButtonDefaults.colors(
+        activeContainerColor = scheme.primary,
+        activeContentColor = scheme.onPrimary,
+    )
+}
 
 private data class VideoGradePreviewRequest(
     val grade: VideoColorGrade,
@@ -897,16 +928,30 @@ private fun VideoPreview(
                     val transform = fallbackPreviewTransform(
                         geometry, frameWidth, frameHeight, maxWidth.value, maxHeight.value,
                     )
-                    AndroidView(
-                        factory = { context -> TextureView(context).also(controller::attachTextureView) },
-                        modifier = surfaceModifier
-                            .graphicsLayer {
-                                rotationZ = transform.rotationZ
-                                scaleX = transform.scaleX
-                                scaleY = transform.scaleY
-                            }
-                            .semantics { contentDescription = description },
-                    )
+                    val textureModifier = Modifier
+                        .graphicsLayer {
+                            rotationZ = transform.rotationZ
+                            scaleX = transform.scaleX
+                            scaleY = transform.scaleY
+                        }
+                        .semantics { contentDescription = description }
+                    if (geometry.rotationDegrees % 90f == 0f) {
+                        AndroidView(
+                            factory = { context -> TextureView(context).also(controller::attachTextureView) },
+                            modifier = surfaceModifier.then(textureModifier),
+                        )
+                    } else {
+                        // Straightening zooms past the frame's edges; clip to the frame like the export.
+                        Box(
+                            Modifier.size(transform.clipWidth.dp, transform.clipHeight.dp).clipToBounds(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            AndroidView(
+                                factory = { context -> TextureView(context).also(controller::attachTextureView) },
+                                modifier = Modifier.requiredSize(frameWidth.dp, frameHeight.dp).then(textureModifier),
+                            )
+                        }
+                    }
                 } else {
                     AndroidView(
                         factory = { context -> SurfaceView(context).also(controller::attachSurface) },
@@ -1363,6 +1408,7 @@ private fun ExportControls(
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 qualities.forEachIndexed { index, quality ->
                     SegmentedButton(
+                        colors = editorSegmentedButtonColors(),
                         selected = state.outputQuality == quality,
                         onClick = { onQualitySelected(quality) },
                         enabled = quality != VideoOutputQuality.HevcMain10 || state.isHevcMain10Available,
@@ -1389,6 +1435,7 @@ private fun ExportControls(
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             ranges.forEachIndexed { index, dynamicRange ->
                 SegmentedButton(
+                    colors = editorSegmentedButtonColors(),
                     selected = state.dynamicRange == dynamicRange,
                     onClick = { onDynamicRangeSelected(dynamicRange) },
                     enabled = when (dynamicRange) {
@@ -1501,6 +1548,7 @@ private fun TransformControls(
             verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
         ) {
             FilterChip(
+                colors = editorFilterChipColors(),
                 selected = cropEditing,
                 onClick = { onCropEditingChange(!cropEditing) },
                 label = { Text(stringResource(R.string.video_editor_crop)) },
@@ -1516,6 +1564,7 @@ private fun TransformControls(
                 Text(stringResource(R.string.video_editor_rotate_90), modifier = Modifier.padding(start = GallerySpacing.Xs))
             }
             FilterChip(
+                colors = editorFilterChipColors(),
                 selected = geometry.flipHorizontal,
                 onClick = { onChange(geometry.copy(flipHorizontal = !geometry.flipHorizontal)) },
                 label = { Text(stringResource(R.string.video_editor_flip_horizontal)) },
