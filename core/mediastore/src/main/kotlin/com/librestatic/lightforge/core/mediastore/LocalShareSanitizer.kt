@@ -56,10 +56,14 @@ class LocalShareSanitizer(
         return when (val result = PhotoImageRenderer(resolver, maxExportPixels = 12_000_000L)
             .export(source, recipe, destination)
         ) {
-            is PhotoExportOutcome.Completed -> PreparedShareAsset(
-                destination.toUri(),
-                result.mimeType ?: "image/jpeg",
-            )
+            is PhotoExportOutcome.Completed -> {
+                val mime = result.mimeType ?: "image/jpeg"
+                // FileProvider derives the type and display name from the extension, so an
+                // extension-less ".out" copy reaches the target as an anonymous binary file.
+                val named = registry.allocate(extensionFor(mime))
+                val file = if (destination.renameTo(named)) named else destination
+                PreparedShareAsset(file.toUri(), mime)
+            }
             is PhotoExportOutcome.Failure -> throw IllegalStateException(result.reason)
         }
     }
@@ -71,6 +75,15 @@ class LocalShareSanitizer(
         )
         check(destination.isFile && destination.length() > 0) { "Video sanitization produced an empty file" }
         return PreparedShareAsset(destination.toUri(), "video/mp4")
+    }
+
+    private fun extensionFor(mime: String): String = when (mime.lowercase()) {
+        "image/png" -> "png"
+        "image/webp" -> "webp"
+        "image/gif" -> "gif"
+        "image/heic", "image/heif" -> "heic"
+        "image/avif" -> "avif"
+        else -> "jpg"
     }
 
     private fun MediaActionTarget.uri(): Uri = ContentUris.withAppendedId(
