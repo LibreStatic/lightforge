@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 14 adds selected-photos access. -->
+    <string name="permission_body">Choose full or selected access. You can change this later in system settings.</string>
+</resources>

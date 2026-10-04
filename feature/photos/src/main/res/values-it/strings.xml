@@ -9,7 +9,7 @@
     <string name="library_loading_title">Preparazione della raccolta</string>
     <string name="library_loading_body">Gli elementi già indicizzati restano disponibili durante l’indicizzazione locale.</string>
     <string name="permission_title">Consenti l’accesso a foto e video</string>
-    <string name="permission_body">Scegli l’accesso completo o selezionato. Puoi modificarlo in seguito nelle impostazioni di sistema.</string>
+    <string name="permission_body">Consenti l’accesso a foto e video. Puoi modificarlo in seguito nelle impostazioni di sistema.</string>
     <string name="grant_access_action">Scegli accesso</string>
     <string name="photo_thumbnail_description">Foto</string>
     <string name="video_thumbnail_description">Video</string>

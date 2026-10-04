@@ -9,7 +9,7 @@
     <string name="library_loading_title">Preparando sua biblioteca</string>
     <string name="library_loading_body">Os itens já indexados continuam disponíveis durante a indexação local.</string>
     <string name="permission_title">Permitir acesso a fotos e vídeos</string>
-    <string name="permission_body">Escolha acesso completo ou selecionado. Você pode alterar isso depois nas configurações do sistema.</string>
+    <string name="permission_body">Permita o acesso às suas fotos e vídeos. Você pode alterar isso depois nas configurações do sistema.</string>
     <string name="grant_access_action">Escolher acesso</string>
     <string name="photo_thumbnail_description">Foto</string>
     <string name="video_thumbnail_description">Vídeo</string>

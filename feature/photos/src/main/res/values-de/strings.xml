@@ -9,7 +9,7 @@
     <string name="library_loading_title">Mediathek wird vorbereitet</string>
     <string name="library_loading_body">Bereits indexierte Elemente bleiben während der lokalen Indexierung verfügbar.</string>
     <string name="permission_title">Zugriff auf Fotos und Videos erlauben</string>
-    <string name="permission_body">Wähle vollständigen oder ausgewählten Zugriff. Dies lässt sich später in den Systemeinstellungen ändern.</string>
+    <string name="permission_body">Erlaube den Zugriff auf deine Fotos und Videos. Dies lässt sich später in den Systemeinstellungen ändern.</string>
     <string name="grant_access_action">Zugriff wählen</string>
     <string name="photo_thumbnail_description">Foto</string>
     <string name="video_thumbnail_description">Video</string>
