@@ -12,7 +12,7 @@
     <string name="places_packages">Map packages</string>
     <string name="places_import">Import regional package</string>
     <string name="places_formats">PMTiles or MBTiles. Vector schemas: Protomaps and OpenMapTiles; PNG/JPEG/WebP raster tiles. Styles and fonts are local.</string>
-    <string name="places_details">%1$s · %2$d bytes · zoom %3$d–%4$d</string>
+    <string name="places_details">%1$s · %2$s · zoom %3$d–%4$d</string>
     <string name="places_select">Show map</string>
     <string name="places_remove">Remove package</string>
     <string name="places_replace">Replace after review</string>
@@ -21,7 +21,7 @@
     <string name="places_install">Install verified map</string>
     <string name="places_bounds">Coverage: %1$.4f, %2$.4f → %3$.4f, %4$.4f</string>
     <string name="places_world">Detailed world — optional</string>
-    <string name="places_world_body">Protomaps 2026-09-06, z0–15: 137,823,988,466 bytes. This is a large download, not satellite imagery or polar coverage. Requires compatible OpenGL, at least 6 GiB RAM, Wi-Fi, charging and sufficient free storage. Nothing downloads until you confirm.</string>
+    <string name="places_world_body">Protomaps 2026-09-06, z0–15: about 138 GB. This is a large download, not satellite imagery or polar coverage. Requires compatible OpenGL, at least 6 GiB RAM, Wi-Fi, charging and sufficient free storage. Nothing downloads until you confirm.</string>
     <string name="places_world_confirm">I confirm this world package download</string>
     <string name="places_download">Queue download</string>
     <string name="places_capacity">Free: %1$s · RAM: %2$s</string>

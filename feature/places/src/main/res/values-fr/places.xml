@@ -12,7 +12,7 @@
     <string name="places_packages">Paquets de cartes</string>
     <string name="places_import">Importer un paquet régional</string>
     <string name="places_formats">PMTiles ou MBTiles. Vecteurs : Protomaps et OpenMapTiles ; tuiles PNG/JPEG/WebP. Styles et polices locaux.</string>
-    <string name="places_details">%1$s · %2$d octets · zoom %3$d–%4$d</string>
+    <string name="places_details">%1$s · %2$s · zoom %3$d–%4$d</string>
     <string name="places_select">Afficher la carte</string>
     <string name="places_remove">Supprimer le paquet</string>
     <string name="places_replace">Remplacer après vérification</string>
@@ -21,7 +21,7 @@
     <string name="places_install">Installer la carte vérifiée</string>
     <string name="places_bounds">Couverture : %1$.4f, %2$.4f → %3$.4f, %4$.4f</string>
     <string name="places_world">Monde détaillé — facultatif</string>
-    <string name="places_world_body">Protomaps 2026-09-06, z0–15 : 137 823 988 466 octets. Téléchargement volumineux, sans imagerie satellite ni couverture polaire. OpenGL compatible, 6 Gio de RAM, Wi-Fi, charge et espace libre requis. Aucun téléchargement sans confirmation.</string>
+    <string name="places_world_body">Protomaps 2026-09-06, z0–15 : environ 138 Go. Téléchargement volumineux, sans imagerie satellite ni couverture polaire. OpenGL compatible, 6 Gio de RAM, Wi-Fi, charge et espace libre requis. Aucun téléchargement sans confirmation.</string>
     <string name="places_world_confirm">Je confirme le téléchargement de ce paquet mondial</string>
     <string name="places_download">Planifier le téléchargement</string>
     <string name="places_capacity">Libre : %1$s · RAM : %2$s</string>

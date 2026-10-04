@@ -372,8 +372,8 @@ fun PlacesContent(
                         Text(
                             stringResource(
                                 R.string.places_details,
-                                pack.format.name,
-                                pack.bytes,
+                                placesFormatLabel(pack.format.name),
+                                android.text.format.Formatter.formatShortFileSize(LocalContext.current, pack.bytes),
                                 pack.minZoom,
                                 pack.maxZoom,
                             )
@@ -573,8 +573,8 @@ fun PlacesContent(
                     Text(
                         stringResource(
                             R.string.places_details,
-                            info.format.name,
-                            job.total,
+                            placesFormatLabel(info.format.name),
+                            android.text.format.Formatter.formatShortFileSize(LocalContext.current, job.total),
                             info.minZoom,
                             info.maxZoom,
                         )
@@ -679,3 +679,6 @@ internal fun statusResource(status: OfflineMapTaskStatus): Int =
         OfflineMapTaskStatus.Failed -> R.string.places_status_failed
         OfflineMapTaskStatus.Cancelled -> R.string.places_status_cancelled
     }
+
+/** Display name of a map archive format; the enum name is an internal identifier. */
+private fun placesFormatLabel(enumName: String) = if (enumName.startsWith("PM")) "PMTiles" else "MBTiles"
