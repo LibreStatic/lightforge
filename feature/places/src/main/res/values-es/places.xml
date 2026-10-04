@@ -4,9 +4,9 @@
     <string name="places_back">Volver</string>
     <string name="places_body">Los mapas y las coordenadas quedan en este dispositivo. Solo se muestra GPS autorizado. Los años usan la cronología en UTC.</string>
     <string name="places_all_years">Todos los años</string>
-    <string name="places_no_map">Importá un mapa regional para comenzar</string>
+    <string name="places_no_map">Importa un mapa regional para comenzar</string>
     <string name="places_no_photos">No hay fotos con GPS autorizado en esta zona y año</string>
-    <string name="places_overflow">%1$s de %2$d. Acercá el mapa para ver las restantes.</string>
+    <string name="places_overflow">%1$s de %2$d. Acerca el mapa para ver las restantes.</string>
     <plurals name="places_group"><item quantity="one">%1$d foto · %2$.4f, %3$.4f</item><item quantity="many">%1$d fotos · %2$.4f, %3$.4f</item><item quantity="other">%1$d fotos · %2$.4f, %3$.4f</item></plurals>
     <string name="places_open_photo">Abrir foto</string>
     <string name="places_packages">Paquetes de mapas</string>
@@ -31,7 +31,7 @@
     <string name="places_resume">Reanudar</string>
     <string name="places_regrant">Elegir origen nuevamente</string>
     <string name="places_loading">Cargando mapa local…</string>
-    <string name="places_error">Falló la operación local. Revisá el origen, formato o espacio disponible y reintentá.</string>
+    <string name="places_error">Falló la operación local. Revisa el origen, el formato o el espacio disponible e inténtalo de nuevo.</string>
     <string name="places_ready">Mapa local listo</string>
     <string name="places_status_queued">En cola</string>
     <string name="places_status_copying">Copiando origen local</string>
@@ -47,13 +47,13 @@
     <string name="places_status_waitingpermission">Se necesita acceso al origen</string>
     <string name="places_status_failed">Falló — origen y mapa anterior intactos</string>
     <string name="places_status_cancelled">Cancelado</string>
-    <string name="places_location_body">Permití los metadatos de ubicación de fotos para mostrarlas en el mapa. No se solicita ubicación del dispositivo.</string>
+    <string name="places_location_body">Permite los metadatos de ubicación de fotos para mostrarlas en el mapa. No se solicita ubicación del dispositivo.</string>
     <string name="places_location_allow">Permitir ubicación de fotos</string>
     <string name="places_location_read">Leer ubicaciones de fotos localmente</string>
     <string name="places_location_indexing">Leyendo ubicaciones de fotos…</string>
     <string name="places_location_index_status">Leídas localmente: %1$d · Fallidas: %2$d</string>
     <string name="places_local_map_name">Mapa local</string>
-    <string name="places_renderer_unavailable">Este dispositivo no admite el renderizador de mapas OpenGL ES 3.0. Podés administrar paquetes locales y explorar grupos de fotos.</string>
+    <string name="places_renderer_unavailable">Este dispositivo no admite el renderizador de mapas OpenGL ES 3.0. Puedes administrar paquetes locales y explorar grupos de fotos.</string>
     <plurals name="places_overflow_shown">
         <item quantity="one">Se muestra %d foto</item>
         <item quantity="many">Se muestran %d fotos</item>
