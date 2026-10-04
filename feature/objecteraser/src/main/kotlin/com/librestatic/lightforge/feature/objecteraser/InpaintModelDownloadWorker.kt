@@ -31,8 +31,13 @@ class InpaintModelDownloadWorker(context: Context, parameters: WorkerParameters)
         // WorkManager stops the worker when Wi-Fi is lost; the signal aborts the blocking read at once.
         val stop = coroutineContext.job.invokeOnCompletion { signal.cancel() }
         try {
+            var reported = 0L
             store.download(signal, gate::checkpoint) { bytes ->
-                setProgressAsync(Data.Builder().putLong(KeyDownloadedBytes, bytes).build())
+                // Each report is a WorkManager database write; one per read chunk floods it and the UI.
+                if (bytes - reported >= ProgressStepBytes || bytes >= InpaintModelStore.PackageBytes) {
+                    reported = bytes
+                    setProgressAsync(Data.Builder().putLong(KeyDownloadedBytes, bytes).build())
+                }
             }
             finished(Result.success())
         } catch (_: ModelDownloadPausedException) {
@@ -57,6 +62,7 @@ class InpaintModelDownloadWorker(context: Context, parameters: WorkerParameters)
     companion object {
         const val UniqueName = "inpaint-model-download"
         const val KeyDownloadedBytes = "downloaded_bytes"
+        private const val ProgressStepBytes = 256 * 1024L
 
         suspend fun enqueue(context: Context) =
             ModelDownloads.enqueue(context, UniqueName, InpaintModelDownloadWorker::class.java, Data.EMPTY)
