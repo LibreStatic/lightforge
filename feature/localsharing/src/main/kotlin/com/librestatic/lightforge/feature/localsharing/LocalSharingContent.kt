@@ -428,7 +428,7 @@ fun LocalSharingContent(
                         Column(Modifier.padding(vertical = 8.dp)) {
                             Text(entry.name)
                             Text(
-                                "${entry.bytes} B · ${entry.sha256.take(16)}",
+                                "${Formatter.formatShortFileSize(context, entry.bytes)} · ${entry.sha256.take(16)}",
                                 style = MaterialTheme.typography.bodySmall,
                             )
                             importItems
