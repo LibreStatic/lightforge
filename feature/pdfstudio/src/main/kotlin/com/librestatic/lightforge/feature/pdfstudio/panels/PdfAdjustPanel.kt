@@ -527,6 +527,10 @@ private fun PdfTextInspector(vm: PdfStudioViewModel, s: PdfStudioState, page: Pd
         onSelect = { index -> vm.textEdit(text.id) { it.copy(align = PdfTextAlign.entries[index]) } },
         icons = listOf(GalleryIcons.FormatAlignLeft, GalleryIcons.FormatAlignCenter, GalleryIcons.FormatAlignRight),
         enabled = listOf(!s.editorLocked, !s.editorLocked, !s.editorLocked),
+        // The equal-weight button group clipped "Align left/center/right" to "Align lef/ce/rig"
+        // at phone width (and in localized strings); wrapping chips keep every label whole.
+        minimumItemWidth = 96.dp,
+        wrap = true,
     )
 
     Text(stringResource(R.string.pdf_text_ink), style = MaterialTheme.typography.labelLarge)
