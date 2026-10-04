@@ -17,6 +17,7 @@ data class PhotoAutoEnhancementSuggestions(
 object PhotoAutoEnhancementAnalyzer {
     private const val MaxSamples = 16_384
     private const val MinimumSamples = 32
+    private const val FitSteps = 8
 
     fun analyze(bitmap: Bitmap): PhotoAutoEnhancementSuggestions {
         if (bitmap.width <= 0 || bitmap.height <= 0) return identitySuggestions()
@@ -57,16 +58,18 @@ object PhotoAutoEnhancementAnalyzer {
         val meanSaturation = saturationSum / sampleCount
 
         val enhanceContrast = if (range <= 0.001f) 1f else (0.80f / range).coerceIn(0.90f, 1.25f)
+        val (enhanceFit, enhanceBrightness) = fitTone(enhanceContrast, p05, p50, p95)
         val enhance = EditOperation.Tone(
-            brightness = boundedBrightness(enhanceContrast, p05, p50, p95),
-            contrast = enhanceContrast,
+            brightness = enhanceBrightness,
+            contrast = enhanceFit,
             saturation = saturationFor(meanSaturation, target = 0.35f, minimum = 0.95f, maximum = 1.18f),
         )
         val dynamicContrast = (1f + (enhanceContrast - 1f) * 1.25f + 0.04f)
             .coerceIn(0.95f, 1.35f)
+        val (dynamicFit, dynamicBrightness) = fitTone(dynamicContrast, p05, p50, p95)
         val dynamic = EditOperation.Tone(
-            brightness = boundedBrightness(dynamicContrast, p05, p50, p95),
-            contrast = dynamicContrast,
+            brightness = dynamicBrightness,
+            contrast = dynamicFit,
             saturation = saturationFor(meanSaturation, target = 0.42f, minimum = 1f, maximum = 1.30f),
         )
         return PhotoAutoEnhancementSuggestions(enhance, dynamic)
@@ -77,12 +80,27 @@ object PhotoAutoEnhancementAnalyzer {
         return sorted[index]
     }
 
-    private fun boundedBrightness(contrast: Float, p05: Float, p50: Float, p95: Float): Float {
+    /**
+     * Pairs a contrast with a brightness that keeps the 5th/95th percentiles inside the displayable range.
+     * Contrast pivots around mid-grey, so on a dark or bright photo the requested contrast can leave no
+     * feasible brightness; the contrast is then eased toward 1 until one exists instead of giving up on
+     * brightness (which made dark photos darker).
+     */
+    internal fun fitTone(contrast: Float, p05: Float, p50: Float, p95: Float): Pair<Float, Float> {
+        for (step in 0..FitSteps) {
+            val candidate = contrast + (1f - contrast) * step / FitSteps
+            val brightness = boundedBrightness(candidate, p05, p50, p95)
+            if (brightness != null) return candidate to brightness
+        }
+        return 1f to 0f
+    }
+
+    private fun boundedBrightness(contrast: Float, p05: Float, p50: Float, p95: Float): Float? {
         val desired = contrast * (0.50f - p50)
         val translation = (1f - contrast) * 0.50f
         val lower = max(-0.15f, 0.02f - (contrast * p05 + translation))
         val upper = min(0.15f, 0.98f - (contrast * p95 + translation))
-        return if (lower <= upper) desired.coerceIn(lower, upper) else 0f
+        return if (lower <= upper) desired.coerceIn(lower, upper) else null
     }
 
     private fun saturationFor(mean: Float, target: Float, minimum: Float, maximum: Float): Float =
