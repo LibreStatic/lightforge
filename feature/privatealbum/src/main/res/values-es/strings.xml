@@ -1,14 +1,14 @@
 <resources>
     <string name="private_setup_title">Configuración del álbum privado</string>
-    <string name="private_setup_body">Mover contenido aquí lo cifra con tus credenciales biométricas. Si desinstalás la aplicación, no se podrá recuperar. Exportá los elementos importantes antes de desinstalar.</string>
+    <string name="private_setup_body">Mover contenido aquí lo cifra con tus credenciales biométricas. Si desinstalas la aplicación, no se podrá recuperar. Exporta los elementos importantes antes de desinstalar.</string>
     <string name="private_understand">Entiendo</string><string name="private_cancel">Cancelar</string>
-    <string name="private_locked">El álbum privado está bloqueado</string><string name="private_unlock_body">Autenticate con biometría para desbloquearlo.</string><string name="private_unlock">Desbloquear</string>
+    <string name="private_locked">El álbum privado está bloqueado</string><string name="private_unlock_body">Autentícate con biometría para desbloquearlo.</string><string name="private_unlock">Desbloquear</string>
     <string name="private_title_count">Álbum privado (%1$d)</string><string name="private_back">Volver</string>
-    <string name="private_empty">Todavía no hay elementos privados. Mové contenido desde el visor.</string><string name="private_video">Video</string><string name="private_photo">Foto</string><string name="private_error">Error</string><string name="private_ok">Aceptar</string><string name="private_exported">Elemento exportado a tu galería.</string><string name="private_biometric_unavailable">La autenticación biométrica fuerte no está disponible en este dispositivo.</string><string name="private_biometric_failed">No se reconoció la autenticación biométrica.</string><string name="private_export_failed">No se pudo exportar el elemento.</string>
-    <string name="private_empty_title">Guardá acá tus momentos privados</string><string name="private_empty_body">Elegí fotos y videos para guardar copias cifradas protegidas con biometría.</string><string name="private_empty_illustration">Álbum privado vacío</string><string name="private_choose_media">Elegir fotos y videos</string><string name="private_originals_note">Después de agregarlos, vas a poder elegir si querés conservar los originales.</string><string name="private_picker_title">Agregar al álbum privado</string><string name="private_picker_add">Agregar</string><string name="private_picker_limit">Podés agregar hasta 500 elementos por vez.</string><string name="private_importing">Cifrando %1$d de %2$d…</string><string name="private_import_result_title">Copias privadas agregadas</string>    <plurals name="private_import_result">
-        <item quantity="one">Se agregó %1$d de %2$s. ¿Qué querés hacer con el original copiado correctamente?</item>
-        <item quantity="many">Se agregaron %1$d de %2$s. ¿Qué querés hacer con los %1$d originales copiados correctamente?</item>
-        <item quantity="other">Se agregaron %1$d de %2$s. ¿Qué querés hacer con los %1$d originales copiados correctamente?</item>
+    <string name="private_empty">Todavía no hay elementos privados. Mueve contenido desde el visor.</string><string name="private_video">Video</string><string name="private_photo">Foto</string><string name="private_error">Error</string><string name="private_ok">Aceptar</string><string name="private_exported">Elemento exportado a tu galería.</string><string name="private_biometric_unavailable">La autenticación biométrica fuerte no está disponible en este dispositivo.</string><string name="private_biometric_failed">No se reconoció la autenticación biométrica.</string><string name="private_export_failed">No se pudo exportar el elemento.</string>
+    <string name="private_empty_title">Guarda aquí tus momentos privados</string><string name="private_empty_body">Elige fotos y videos para guardar copias cifradas protegidas con biometría.</string><string name="private_empty_illustration">Álbum privado vacío</string><string name="private_choose_media">Elegir fotos y videos</string><string name="private_originals_note">Después de agregarlos, podrás elegir si quieres conservar los originales.</string><string name="private_picker_title">Agregar al álbum privado</string><string name="private_picker_add">Agregar</string><string name="private_picker_limit">Puedes agregar hasta 500 elementos por vez.</string><string name="private_importing">Cifrando %1$d de %2$d…</string><string name="private_import_result_title">Copias privadas agregadas</string>    <plurals name="private_import_result">
+        <item quantity="one">Se agregó %1$d de %2$s. ¿Qué quieres hacer con el original copiado correctamente?</item>
+        <item quantity="many">Se agregaron %1$d de %2$s. ¿Qué quieres hacer con los %1$d originales copiados correctamente?</item>
+        <item quantity="other">Se agregaron %1$d de %2$s. ¿Qué quieres hacer con los %1$d originales copiados correctamente?</item>
     </plurals>
     <plurals name="private_import_result_items">
         <item quantity="one">%d elemento</item>
@@ -17,7 +17,7 @@
     </plurals>
 <string name="private_import_result_failed">No se pudo agregar ningún elemento. Tus originales no se modificaron.</string><string name="private_keep_originals">Conservar originales</string><string name="private_delete_originals">Eliminar originales</string>
 <string name="private_open_security_settings">Abrir ajustes</string>
-    <string name="private_import_confirm_body">Confirmá tu identidad para seguir agregando elementos al álbum privado.</string>
+    <string name="private_import_confirm_body">Confirma tu identidad para seguir agregando elementos al álbum privado.</string>
     <string name="private_import_interrupted">La carga al álbum privado se detuvo antes de terminar. Los originales que no se agregaron no cambiaron.</string>
     <plurals name="private_picker_count">
         <item quantity="one">%1$d seleccionado</item>

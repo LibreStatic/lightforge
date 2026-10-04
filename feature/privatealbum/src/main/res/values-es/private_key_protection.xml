@@ -3,10 +3,10 @@
     <string name="private_key_protection_title">Proteger claves multimedia y del índice</string>
     <string name="private_key_protection_body">Exigir autenticación del dispositivo para usar las claves de cifrado de fotos y videos privados y la clave independiente del índice privado.</string>
     <string name="private_key_protection_index_scope">El índice privado se cierra al bloquear o salir del álbum, o al pasar la app a segundo plano. Cerrar el índice conserva intacta la copia de seguridad cifrada que ya esté preparada.</string>
-    <string name="private_key_protection_risk">Quitar o restablecer el bloqueo de pantalla del dispositivo puede inutilizar estas claves y bloquear el acceso permanentemente. Exportá una copia de seguridad cifrada antes de continuar.</string>
-    <string name="private_key_protection_working">Protegiendo las claves de cifrado multimedia y la clave independiente del índice. Esperá a que finalice la operación.</string>
-    <string name="private_key_protection_authentication_required">Volvé a autenticarte con el dispositivo para continuar protegiendo las claves multimedia y del índice.</string>
-    <string name="private_key_protection_failed">No se pudo completar la protección. Volvé a autenticarte y reintentá.</string>
+    <string name="private_key_protection_risk">Quitar o restablecer el bloqueo de pantalla del dispositivo puede inutilizar estas claves y bloquear el acceso permanentemente. Exporta una copia de seguridad cifrada antes de continuar.</string>
+    <string name="private_key_protection_working">Protegiendo las claves de cifrado multimedia y la clave independiente del índice. Espera a que finalice la operación.</string>
+    <string name="private_key_protection_authentication_required">Vuelve a autenticarte con el dispositivo para continuar protegiendo las claves multimedia y del índice.</string>
+    <string name="private_key_protection_failed">No se pudo completar la protección. Vuelve a autenticarte y reintenta.</string>
     <string name="private_key_protection_complete_title">Claves multimedia y del índice protegidas</string>
     <string name="private_key_protection_complete">Las claves de cifrado multimedia y la clave independiente del índice ahora requieren autenticación del dispositivo.</string>
     <string name="private_key_protection_protect">Proteger</string>
@@ -15,9 +15,9 @@
     <string name="private_key_protection_continue">Continuar autenticación</string>
     <string name="private_key_protection_retry">Reintentar</string>
     <string name="private_key_protection_done">Listo</string>
-    <string name="private_key_protection_credentials_required">Configurá un bloqueo de pantalla con PIN, patrón o contraseña en los Ajustes del sistema. Después volvé aquí y tocá Reintentar para proteger las claves multimedia y del índice.</string>
-    <string name="private_key_unlock_body">Desbloqueá con biometría o el bloqueo de pantalla del dispositivo.</string>
-    <string name="private_key_auth_unavailable">La autenticación del dispositivo no está disponible. Configurá un bloqueo de pantalla en los Ajustes del sistema, después volvé y reintentá.</string>
-    <string name="private_key_protection_auto_working">Tu álbum privado se está actualizando para que sus claves requieran tu bloqueo de pantalla. Mantené la app abierta hasta que termine.</string>
+    <string name="private_key_protection_credentials_required">Configura un bloqueo de pantalla con PIN, patrón o contraseña en los Ajustes del sistema. Después vuelve aquí y toca Reintentar para proteger las claves multimedia y del índice.</string>
+    <string name="private_key_unlock_body">Desbloquea con biometría o el bloqueo de pantalla del dispositivo.</string>
+    <string name="private_key_auth_unavailable">La autenticación del dispositivo no está disponible. Configura un bloqueo de pantalla en los Ajustes del sistema, después vuelve y reintenta.</string>
+    <string name="private_key_protection_auto_working">Tu álbum privado se está actualizando para que sus claves requieran tu bloqueo de pantalla. Mantén la app abierta hasta que termine.</string>
     <string name="private_key_protection_auto_failed">No se pudo completar la actualización. Tu álbum privado sigue funcionando y se volverá a intentar la próxima vez que lo desbloquees.</string>
 </resources>

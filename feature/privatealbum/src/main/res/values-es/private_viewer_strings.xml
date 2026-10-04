@@ -2,7 +2,7 @@
 <resources>
     <string name="private_viewer_title">Visor privado</string>
     <string name="private_viewer_back">Volver</string>
-    <string name="private_viewer_locked">El visor privado está bloqueado. Desbloqueá el álbum para continuar.</string>
+    <string name="private_viewer_locked">El visor privado está bloqueado. Desbloquea el álbum para continuar.</string>
     <string name="private_viewer_unlock">Desbloquear álbum</string>
     <string name="private_viewer_error">No se pudo leer o verificar este elemento privado.</string>
     <string name="private_viewer_retry">Reintentar</string>

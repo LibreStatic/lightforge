@@ -1,9 +1,9 @@
 <resources>
     <string name="private_portable_title">Copia cifrada</string>
-    <string name="private_portable_body">Guardá una copia de tu álbum privado protegida con contraseña. Solo salen archivos cifrados de la app. Guardá la contraseña por separado; no se puede recuperar.</string>
+    <string name="private_portable_body">Guarda una copia de tu álbum privado protegida con contraseña. Solo salen archivos cifrados de la app. Guarda la contraseña por separado; no se puede recuperar.</string>
     <string name="private_portable_export">Respaldar álbum privado</string>
     <string name="private_portable_import">Restaurar copia cifrada</string>
-    <string name="private_portable_password_note">Usá al menos 12 caracteres. La contraseña no se guarda.</string>
+    <string name="private_portable_password_note">Usa al menos 12 caracteres. La contraseña no se guarda.</string>
     <string name="private_portable_password">Contraseña</string>
     <string name="private_portable_confirm_password">Confirmar contraseña</string>
     <string name="private_portable_prepare">Preparar y verificar</string>
@@ -14,7 +14,7 @@
     <plurals name="private_portable_previous"><item quantity="one">Esta copia ya se restauró (%1$d elemento). Es un comprobante histórico; los elementos que eliminaste no se restauran nuevamente.</item><item quantity="many">Esta copia ya se restauró (%1$d elementos). Es un comprobante histórico; los elementos que eliminaste no se restauran nuevamente.</item><item quantity="other">Esta copia ya se restauró (%1$d elementos). Es un comprobante histórico; los elementos que eliminaste no se restauran nuevamente.</item></plurals>
     <string name="private_portable_saved">Copia cifrada guardada y verificada mediante lectura.</string>
     <string name="private_portable_share">Compartir copia cifrada</string>
-    <string name="private_portable_error">La copia no se pudo verificar. Revisá la contraseña, el acceso al archivo y el espacio libre. No se agregaron elementos sin verificar.</string>
+    <string name="private_portable_error">La copia no se pudo verificar. Revisa la contraseña, el acceso al archivo y el espacio libre. No se agregaron elementos sin verificar.</string>
     <string name="private_portable_cancel_title">¿Cancelar esta operación?</string>
     <string name="private_portable_cancel_body">Se eliminarán los archivos cifrados temporales sin confirmar. Tus originales y los elementos restaurados anteriormente quedan intactos.</string>
     <string name="private_portable_continue">Continuar</string>
