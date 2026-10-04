@@ -80,4 +80,5 @@
     <string name="photo_editor_eraser_mask_description">Zonas marcadas para borrar</string>
     <string name="photo_editor_experimental_too_large">Esta foto es demasiado grande para la herramienta experimental</string>
     <string name="photo_editor_eraser_reset">Se quitaron las zonas borradas porque cambió la geometría de la foto</string>
+    <string name="photo_editor_clip_no_subject">No se encontró ningún sujeto en ese punto. Tocá un objeto o una zona bien diferenciada.</string>
 </resources>

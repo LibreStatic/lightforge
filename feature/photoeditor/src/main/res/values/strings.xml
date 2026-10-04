@@ -94,4 +94,5 @@
     <string name="photo_editor_eraser_mask_description">Areas marked for erasing</string>
     <string name="photo_editor_experimental_too_large">This photo is too large for the experimental tool</string>
     <string name="photo_editor_eraser_reset">Erased areas were cleared because the photo geometry changed</string>
+    <string name="photo_editor_clip_no_subject">No subject found at that point. Tap a clearly separated object or area.</string>
 </resources>

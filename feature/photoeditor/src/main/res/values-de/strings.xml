@@ -78,4 +78,5 @@
     <string name="photo_editor_eraser_mask_description">Zum Entfernen markierte Bereiche</string>
     <string name="photo_editor_experimental_too_large">Dieses Foto ist zu groß für das experimentelle Werkzeug</string>
     <string name="photo_editor_eraser_reset">Die radierten Bereiche wurden entfernt, weil sich die Fotogeometrie geändert hat</string>
+    <string name="photo_editor_clip_no_subject">An dieser Stelle wurde kein Motiv gefunden. Tippe auf ein klar abgegrenztes Objekt oder einen Bereich.</string>
 </resources>

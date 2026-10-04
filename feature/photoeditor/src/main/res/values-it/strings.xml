@@ -78,4 +78,5 @@
     <string name="photo_editor_eraser_mask_description">Aree segnate da cancellare</string>
     <string name="photo_editor_experimental_too_large">Questa foto è troppo grande per lo strumento sperimentale</string>
     <string name="photo_editor_eraser_reset">Le aree cancellate sono state rimosse perché la geometria della foto è cambiata</string>
+    <string name="photo_editor_clip_no_subject">Nessun soggetto trovato in quel punto. Tocca un oggetto o un\'area ben distinta.</string>
 </resources>

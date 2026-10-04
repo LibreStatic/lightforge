@@ -78,4 +78,5 @@
     <string name="photo_editor_eraser_mask_description">Zones marquées à effacer</string>
     <string name="photo_editor_experimental_too_large">Cette photo est trop grande pour l’outil expérimental</string>
     <string name="photo_editor_eraser_reset">Les zones effacées ont été retirées car la géométrie de la photo a changé</string>
+    <string name="photo_editor_clip_no_subject">Aucun sujet trouvé à cet endroit. Touchez un objet ou une zone nettement distincte.</string>
 </resources>

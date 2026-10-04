@@ -78,4 +78,5 @@
     <string name="photo_editor_eraser_mask_description">Áreas marcadas para apagar</string>
     <string name="photo_editor_experimental_too_large">Esta foto é grande demais para a ferramenta experimental</string>
     <string name="photo_editor_eraser_reset">As áreas apagadas foram removidas porque a geometria da foto mudou</string>
+    <string name="photo_editor_clip_no_subject">Nenhum sujeito encontrado nesse ponto. Toque num objeto ou área bem separado.</string>
 </resources>

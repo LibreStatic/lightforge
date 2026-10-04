@@ -3984,11 +3984,18 @@ class GalleryViewModel @Inject constructor(
                 return@launch
             }
             current.content.subjectClipPreview?.recycle()
+            val usable = clip?.takeUnless { it.isEmpty }
+            if (clip != null && usable == null) clip.bitmap.recycle()
             mutablePhotoEditor.value = current.copy(
                 content = current.content.copy(
-                    subjectClipPreview = clip?.bitmap,
+                    subjectClipPreview = usable?.bitmap,
                     subjectClipMethod = clip?.method,
                     isExperimentalProcessing = false,
+                    statusMessage = if (clip != null && usable == null) {
+                        getApplication<Application>().getString(
+                            com.librestatic.lightforge.feature.photoeditor.R.string.photo_editor_clip_no_subject,
+                        )
+                    } else null,
                 ),
             )
         }
@@ -4009,14 +4016,23 @@ class GalleryViewModel @Inject constructor(
                 val bitmap = renderExperimentalPhotoSource(session, rendered) ?: return@launch
                 val clip = try {
                     withContext(Dispatchers.Default) {
-                        SubjectClipper().clipSubject(
+                        val clipper = SubjectClipper()
+                        val full = clipper.clipSubject(
                             bitmap,
                             seedX = (seed.x * bitmap.width).toInt(),
                             seedY = (seed.y * bitmap.height).toInt(),
                         )
+                        if (full.isEmpty) full else clipper.cropToSubject(full)
                     }
                 } finally {
                     bitmap.recycle()
+                }
+                if (clip.isEmpty) {
+                    clip.bitmap.recycle()
+                    updatePhotoExportFailure(getApplication<Application>().getString(
+                        com.librestatic.lightforge.feature.photoeditor.R.string.photo_editor_clip_no_subject,
+                    ))
+                    return@launch
                 }
                 try {
                     withContext(Dispatchers.IO) {
