@@ -2420,8 +2420,14 @@ class GalleryViewModel @Inject constructor(
                 android.util.Log.w("GalleryViewModel", "Splitting a person failed", failure)
                 return@launch
             }
+            val before = peopleSummaries.value.firstOrNull { it.clusterId == clusterId }?.memberCount
             peopleRefreshGeneration.value++
             loadPersonMembers(clusterId)
+            // The header count comes from the people summary; refresh it so it matches the grid.
+            val updated = kotlinx.coroutines.withTimeoutOrNull(5_000L) {
+                peopleSummaries.first { people -> people.firstOrNull { it.clusterId == clusterId }?.memberCount != before }
+            }?.firstOrNull { it.clusterId == clusterId }
+            if (updated != null && mutableSelectedPerson.value?.clusterId == clusterId) mutableSelectedPerson.value = updated
         }
     }
 
