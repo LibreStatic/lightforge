@@ -506,7 +506,9 @@ internal fun ObjectEraserActions(state: PhotoEditorContentState, actions: Experi
 @Composable
 internal fun SubjectClipControls(state: PhotoEditorContentState, actions: ExperimentalToolActions) {
     val method = state.subjectClipMethod ?: SubjectClipper.ClipMethod.COLOR_DISTANCE_FALLBACK
-    ExperimentalFallbackNotice(stringResource(R.string.photo_editor_clip_fallback, method.name))
+    if (method == SubjectClipper.ClipMethod.COLOR_DISTANCE_FALLBACK) {
+        ExperimentalFallbackNotice(stringResource(R.string.photo_editor_clip_fallback))
+    }
     Text(stringResource(R.string.photo_editor_clip_hint), style = MaterialTheme.typography.bodyMedium)
 }
 

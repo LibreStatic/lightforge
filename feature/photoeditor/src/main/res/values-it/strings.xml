@@ -69,7 +69,7 @@
     <string name="photo_editor_eraser_model_waiting_battery">Batteria sotto il minimo per l’analisi</string>
     <string name="photo_editor_eraser_model_cancel">Annulla</string>
     <string name="photo_editor_eraser_model_remove">Rimuovi</string>
-    <string name="photo_editor_clip_fallback">Qualità di riserva (%1$s): mantiene i pixel di colore simile al punto toccato. Il risultato è approssimativo.</string>
+    <string name="photo_editor_clip_fallback">Qualità di riserva: mantiene i pixel di colore simile al punto toccato. Il risultato è approssimativo.</string>
     <string name="photo_editor_eraser_hint">Dipingi sull’oggetto da rimuovere, poi tocca Applica. Salva copia non modifica l’originale.</string>
     <string name="photo_editor_clip_hint">Tocca il soggetto per vedere l’anteprima del ritaglio. Viene salvato come nuovo PNG con sfondo trasparente.</string>
     <string name="photo_editor_eraser_apply">Applica</string>

@@ -69,7 +69,7 @@
     <string name="photo_editor_eraser_model_waiting_battery">Akku unter dem Analyse-Minimum</string>
     <string name="photo_editor_eraser_model_cancel">Abbrechen</string>
     <string name="photo_editor_eraser_model_remove">Entfernen</string>
-    <string name="photo_editor_clip_fallback">Ersatzqualität (%1$s): behält Pixel mit ähnlicher Farbe wie der angetippte Punkt. Das Ergebnis ist eine Näherung.</string>
+    <string name="photo_editor_clip_fallback">Ersatzqualität: behält Pixel mit ähnlicher Farbe wie der angetippte Punkt. Das Ergebnis ist eine Näherung.</string>
     <string name="photo_editor_eraser_hint">Male über das zu entfernende Objekt und tippe auf Anwenden. Kopie speichern lässt das Original unverändert.</string>
     <string name="photo_editor_clip_hint">Tippe auf das Motiv, um die Freistellung anzusehen. Sie wird als neue PNG-Datei mit transparentem Hintergrund gespeichert.</string>
     <string name="photo_editor_eraser_apply">Anwenden</string>

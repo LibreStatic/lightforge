@@ -69,7 +69,7 @@
     <string name="photo_editor_eraser_model_waiting_battery">Bateria abaixo do mínimo de análise</string>
     <string name="photo_editor_eraser_model_cancel">Cancelar</string>
     <string name="photo_editor_eraser_model_remove">Remover</string>
-    <string name="photo_editor_clip_fallback">Qualidade alternativa (%1$s): mantém os pixels de cor parecida com o ponto tocado. O resultado é aproximado.</string>
+    <string name="photo_editor_clip_fallback">Qualidade alternativa: mantém os pixels de cor parecida com o ponto tocado. O resultado é aproximado.</string>
     <string name="photo_editor_eraser_hint">Pinte sobre o objeto a remover e toque em Aplicar. Salvar cópia não altera o original.</string>
     <string name="photo_editor_clip_hint">Toque no assunto para pré-visualizar o recorte. Ele é salvo como um novo PNG com fundo transparente.</string>
     <string name="photo_editor_eraser_apply">Aplicar</string>

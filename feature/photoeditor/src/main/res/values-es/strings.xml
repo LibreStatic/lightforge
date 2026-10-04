@@ -71,7 +71,7 @@
     <string name="photo_editor_eraser_model_waiting_battery">Batería por debajo del mínimo de análisis</string>
     <string name="photo_editor_eraser_model_cancel">Cancelar</string>
     <string name="photo_editor_eraser_model_remove">Quitar</string>
-    <string name="photo_editor_clip_fallback">Calidad alternativa (%1$s): conserva los píxeles de color parecido al punto tocado. El resultado es aproximado.</string>
+    <string name="photo_editor_clip_fallback">Calidad alternativa: conserva los píxeles de color parecido al punto tocado. El resultado es aproximado.</string>
     <string name="photo_editor_eraser_hint">Pinta sobre el objeto que quieres quitar y toca Aplicar. Guardar copia no modifica el original.</string>
     <string name="photo_editor_clip_hint">Toca el sujeto para previsualizar el recorte. Se guarda como un PNG nuevo con fondo transparente.</string>
     <string name="photo_editor_eraser_apply">Aplicar</string>

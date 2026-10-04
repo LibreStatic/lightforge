@@ -69,7 +69,7 @@
     <string name="photo_editor_eraser_model_waiting_battery">Batterie sous le minimum d’analyse</string>
     <string name="photo_editor_eraser_model_cancel">Annuler</string>
     <string name="photo_editor_eraser_model_remove">Retirer</string>
-    <string name="photo_editor_clip_fallback">Qualité de secours (%1$s) : conserve les pixels de couleur proche du point touché. Le résultat est approximatif.</string>
+    <string name="photo_editor_clip_fallback">Qualité de secours : conserve les pixels de couleur proche du point touché. Le résultat est approximatif.</string>
     <string name="photo_editor_eraser_hint">Peignez sur l’objet à retirer, puis touchez Appliquer. Enregistrer une copie ne modifie pas l’original.</string>
     <string name="photo_editor_clip_hint">Touchez le sujet pour prévisualiser le détourage. Il est enregistré comme nouveau PNG à fond transparent.</string>
     <string name="photo_editor_eraser_apply">Appliquer</string>

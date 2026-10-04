@@ -85,7 +85,7 @@
     <string name="photo_editor_eraser_model_waiting_battery">Battery below the analysis minimum</string>
     <string name="photo_editor_eraser_model_cancel">Cancel</string>
     <string name="photo_editor_eraser_model_remove">Remove</string>
-    <string name="photo_editor_clip_fallback">Fallback quality (%1$s): keeps pixels close in color to the tapped point. Results are approximate.</string>
+    <string name="photo_editor_clip_fallback">Fallback quality: keeps pixels close in color to the tapped point. Results are approximate.</string>
     <string name="photo_editor_eraser_hint">Brush over the object to remove, then tap Apply. Save copy keeps the original unchanged.</string>
     <string name="photo_editor_clip_hint">Tap the subject to preview the cut-out. It is saved as a new PNG with a transparent background.</string>
     <string name="photo_editor_eraser_apply">Apply</string>

@@ -251,11 +251,12 @@ fun PhotoEditorContent(
         },
         stackedMediaWeight = 1f,
         // The crop panel stacks Rotate/Flip, aspect chips, the Straighten slider and Reset/Cancel/Apply;
-        // the default share clipped the slider and left Apply half hidden.
+        // the default share clipped the slider and left Apply half hidden. The other tools list sliders
+        // and suggestion cards that a smaller share cut down to a single visible row.
         stackedInspectorWeight = when {
             experimentalPanel -> null
             selectedTool == PhotoEditorTool.Crop -> 1.1f
-            else -> 0.42f
+            else -> 0.8f
         },
         stackedInspectorMaxFraction = 0.5f,
     )
