@@ -40,6 +40,16 @@ class TimelineDensityStateTest {
     }
 
     @Test
+    fun explicitColumnsOutsideThePinchLevelsAreShownExactly() {
+        val state = TimelineDensityState(0, 0, 0)
+        state.seedFromPreferredColumns(columns = 8, widthDp = 360)
+        assertEquals(8, state.columns(360))
+        // The first pinch hands over to the nearest pinch level.
+        assertTrue(state.changeDensity(delta = -1, anchorIndex = 0))
+        assertEquals(5, state.columns(360))
+    }
+
+    @Test
     fun automaticColumnsFollowWidthUntilTheUserAdjusts() {
         val state = TimelineDensityState(0, 0, 0)
         state.seedFromPreferredColumns(columns = null, widthDp = 411)

@@ -91,7 +91,14 @@ class TimelineDensityState internal constructor(
     var pinchPivot by mutableStateOf(Offset.Zero)
         internal set
 
+    /**
+     * Exact column count seeded from the settings (2..13), shown as-is until the user pinches or
+     * cycles. The pinch levels only cover a few counts, and the settings offer every value.
+     */
+    private var explicitColumns by mutableStateOf<Int?>(null)
+
     fun columns(widthDp: Int): Int {
+        explicitColumns?.let { return it }
         val options = adaptiveDensityColumns(widthDp)
         return options[densityIndex.coerceIn(options.indices)]
     }
@@ -105,7 +112,10 @@ class TimelineDensityState internal constructor(
      */
     fun seedFromPreferredColumns(columns: Int?, widthDp: Int) {
         if (seededFromPreferredColumns || userAdjusted) return
-        if (columns != null) seededFromPreferredColumns = true
+        if (columns != null) {
+            seededFromPreferredColumns = true
+            explicitColumns = columns.coerceIn(2, 13)
+        }
         val target = columns ?: mediaGridLayout(widthDp.coerceAtLeast(1).dp).columns
         val options = adaptiveDensityColumns(widthDp)
         var bestIndex = 0
@@ -132,6 +142,7 @@ class TimelineDensityState internal constructor(
         this.anchorTopPx = null
         anchorRestorePending = true
         userAdjusted = true
+        explicitColumns = null
         densityIndex = (densityIndex + 1) % 5
         return true
     }
@@ -151,6 +162,7 @@ class TimelineDensityState internal constructor(
         this.anchorTopPx = anchorTopPx
         anchorRestorePending = true
         userAdjusted = true
+        explicitColumns = null
         densityIndex = next
         return true
     }
