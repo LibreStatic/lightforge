@@ -35,7 +35,8 @@ void configure(LibRaw& raw, const float* values, int maxDimension, bool sixteenB
     const float temperatureRatio = std::clamp(values[1] / 6500.0f, 0.25f, 3.25f);
     const float redScale = std::pow(temperatureRatio, 0.35f);
     const float blueScale = std::pow(temperatureRatio, -0.35f);
-    const float greenScale = std::exp(std::clamp(values[2], -150.0f, 150.0f) / 900.0f);
+    // Positive tint moves towards magenta (the Lightroom convention), so it must attenuate green.
+    const float greenScale = std::exp(-std::clamp(values[2], -150.0f, 150.0f) / 900.0f);
     for (int channel = 0; channel < 4; ++channel) {
         const float cameraMultiplier = raw.imgdata.color.cam_mul[channel] > 0.0f
             ? raw.imgdata.color.cam_mul[channel] : 1.0f;
