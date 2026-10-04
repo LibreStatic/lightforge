@@ -54,6 +54,7 @@ dependencies {
             because("Match the reviewed ASN.1/CMS utility patch release")
         }
     }
+    debugImplementation("androidx.compose.ui:ui-tooling-preview")
     testImplementation(libs.junit4)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation("org.json:json:20240303")

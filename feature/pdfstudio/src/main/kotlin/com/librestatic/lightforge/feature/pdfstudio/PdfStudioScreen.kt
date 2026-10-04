@@ -422,9 +422,10 @@ fun PdfStudioScreen(
     }
     deleteProject?.let { row ->
         Confirm(
-            stringResource(R.string.pdf_library_delete_confirm, row.name),
+            stringResource(R.string.pdf_deleteproject),
             stringResource(R.string.pdf_deleteproject_action),
             { deleteProject = null },
+            body = stringResource(R.string.pdf_library_delete_confirm, row.name),
         ) {
             vm.delete(row.id)
             deleteProject = null

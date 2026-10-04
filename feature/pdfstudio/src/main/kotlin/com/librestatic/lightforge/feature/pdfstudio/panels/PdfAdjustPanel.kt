@@ -516,21 +516,10 @@ private fun PdfTextInspector(vm: PdfStudioViewModel, s: PdfStudioState, page: Pd
     )
 
     Text(stringResource(R.string.pdf_text_align), style = MaterialTheme.typography.labelLarge)
-    com.librestatic.lightforge.core.designsystem.GalleryExpressiveChoiceGroup(
-        labels =
-            listOf(
-                stringResource(R.string.pdf_align_left),
-                stringResource(R.string.pdf_align_center),
-                stringResource(R.string.pdf_align_right),
-            ),
-        selectedIndex = text.align.ordinal,
-        onSelect = { index -> vm.textEdit(text.id) { it.copy(align = PdfTextAlign.entries[index]) } },
-        icons = listOf(GalleryIcons.FormatAlignLeft, GalleryIcons.FormatAlignCenter, GalleryIcons.FormatAlignRight),
-        enabled = listOf(!s.editorLocked, !s.editorLocked, !s.editorLocked),
-        // The equal-weight button group clipped "Align left/center/right" to "Align lef/ce/rig"
-        // at phone width (and in localized strings); wrapping chips keep every label whole.
-        minimumItemWidth = 96.dp,
-        wrap = true,
+    PdfTextAlignChoice(
+        selected = text.align,
+        enabled = !s.editorLocked,
+        onSelect = { align -> vm.textEdit(text.id) { it.copy(align = align) } },
     )
 
     Text(stringResource(R.string.pdf_text_ink), style = MaterialTheme.typography.labelLarge)
@@ -835,4 +824,23 @@ internal fun PdfGroupInspector(vm: PdfStudioViewModel, s: PdfStudioState) {
             Text(stringResource(R.string.pdf_delete))
         }
     }
+}
+
+/** Left/Center/Right text alignment choice; extracted so Compose Driver can render it alone. */
+@Composable
+internal fun PdfTextAlignChoice(selected: PdfTextAlign, enabled: Boolean, onSelect: (PdfTextAlign) -> Unit) {
+    com.librestatic.lightforge.core.designsystem.GalleryExpressiveChoiceGroup(
+        labels =
+            listOf(
+                stringResource(R.string.pdf_align_left),
+                stringResource(R.string.pdf_align_center),
+                stringResource(R.string.pdf_align_right),
+            ),
+        selectedIndex = selected.ordinal,
+        onSelect = { index -> onSelect(PdfTextAlign.entries[index]) },
+        icons = listOf(GalleryIcons.FormatAlignLeft, GalleryIcons.FormatAlignCenter, GalleryIcons.FormatAlignRight),
+        enabled = listOf(enabled, enabled, enabled),
+        minimumItemWidth = 96.dp,
+        wrap = true,
+    )
 }

@@ -15,6 +15,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -32,16 +34,25 @@ private val WATCHED_PROGRESS_PHASES =
 
 @Composable
 internal fun Confirm(title: Int, confirmLabel: String, dismiss: () -> Unit, confirm: () -> Unit) {
-    Confirm(stringResource(title), confirmLabel, dismiss, confirm)
+    Confirm(stringResource(title), confirmLabel, dismiss, confirm = confirm)
 }
 
 /** Overload for confirmations that name the specific target (e.g. "Delete “My project”?")
  * instead of a generic string resource. */
 @Composable
-internal fun Confirm(title: String, confirmLabel: String, dismiss: () -> Unit, confirm: () -> Unit) {
+internal fun Confirm(
+    title: String,
+    confirmLabel: String,
+    dismiss: () -> Unit,
+    body: String? = null,
+    confirm: () -> Unit,
+) {
     AlertDialog(
+        modifier = androidx.compose.ui.Modifier.testTag("pdf-confirm-dialog"),
         onDismissRequest = dismiss,
         title = { Text(title) },
+        // Long target names wrap here (capped) so the title stays short and the dialog readable.
+        text = body?.let { { Text(it, maxLines = 3, overflow = TextOverflow.Ellipsis) } },
         confirmButton = { TextButton(onClick = confirm) { Text(confirmLabel) } },
         dismissButton = {
             TextButton(onClick = dismiss) { Text(stringResource(R.string.pdf_cancel)) }
