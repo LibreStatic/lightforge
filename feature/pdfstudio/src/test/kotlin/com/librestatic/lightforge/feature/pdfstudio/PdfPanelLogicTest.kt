@@ -50,6 +50,15 @@ class PdfPanelLogicTest {
         PdfLayoutTemplates.rowsFor(3, landscape = true)
     }
 
+    @Test fun matchForFallsBackToPhotosPerPageTile() {
+        // Photo grid / Blank: 2 columns, 4 photos per page -> the 2x2 tile.
+        assertEquals(4, PdfLayoutTemplates.matchFor(2, landscape = false, photosPerPage = 4))
+        // Receipts: 1 column, 3 per page has no such tile -> stays unselected.
+        assertNull(PdfLayoutTemplates.matchFor(1, landscape = false, photosPerPage = 3))
+        // An unambiguous column count still wins.
+        assertEquals(9, PdfLayoutTemplates.matchFor(3, landscape = false, photosPerPage = 4))
+    }
+
     @Test fun unambiguousMatchIsNullWhenSeveralTemplatesShareAColumnCount() {
         // Portrait: columns == 1 matches both template 1 and template 2; columns == 2 matches
         // both template 4 and template 6 — the carry-over bug from the plan's Phase F item 0.

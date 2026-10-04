@@ -582,7 +582,7 @@ private fun PdfNewProjectSheet(
     // columns in portrait) and would otherwise both show as selected. Falls back to the
     // columns-derived match only when it is unambiguous.
     var selectedTemplate by rememberSaveable(template) {
-        mutableStateOf(PdfLayoutTemplates.unambiguousMatch(selectedProjectTemplate.columns, selectedProjectTemplate.landscape))
+        mutableStateOf(PdfLayoutTemplates.matchFor(selectedProjectTemplate.columns, selectedProjectTemplate.landscape, selectedProjectTemplate.photosPerPage))
     }
     var margin by rememberSaveable(template) { mutableDoubleStateOf(selectedProjectTemplate.margin) }
     var gap by rememberSaveable(template) { mutableDoubleStateOf(selectedProjectTemplate.gap) }
@@ -599,7 +599,7 @@ private fun PdfNewProjectSheet(
         selectedProjectTemplate = t
         paper = t.paper
         landscape = t.landscape
-        selectedTemplate = PdfLayoutTemplates.unambiguousMatch(t.columns, t.landscape)
+        selectedTemplate = PdfLayoutTemplates.matchFor(t.columns, t.landscape, t.photosPerPage)
         margin = t.margin
         gap = t.gap
         printSize = t.printSize

@@ -96,6 +96,15 @@ internal object PdfLayoutTemplates {
      */
     fun unambiguousMatch(columns: Int, landscape: Boolean): Int? =
         TEMPLATES.filter { columnsFor(it, landscape) == columns }.singleOrNull()
+
+    /**
+     * Like [unambiguousMatch], but when several tiles share [columns] it falls back to the tile
+     * equal to [photosPerPage] (if it really has that column count), so a project template such
+     * as "Photo grid" (4 photos per page, 2 columns) highlights its 2x2 tile instead of none.
+     */
+    fun matchFor(columns: Int, landscape: Boolean, photosPerPage: Int): Int? =
+        unambiguousMatch(columns, landscape)
+            ?: photosPerPage.takeIf { it in TEMPLATES && columnsFor(it, landscape) == columns }
 }
 
 /** Inline validation for the custom page-size sheet: min 20 mm, max 2000 mm (matches
