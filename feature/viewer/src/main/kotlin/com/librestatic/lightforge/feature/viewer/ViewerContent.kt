@@ -236,6 +236,17 @@ fun ViewerContent(
     val view = LocalView.current
     val activity = context.findViewerActivity()
     val audioManager = remember(context) { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+    // The brightness gesture overrides the window brightness; give it back when the viewer closes
+    // so the rest of the app does not stay dimmed or brightened.
+    DisposableEffect(activity) {
+        val window = activity?.window
+        val original = window?.attributes?.screenBrightness
+        onDispose {
+            if (window != null && original != null) {
+                window.attributes = window.attributes.apply { screenBrightness = original }
+            }
+        }
+    }
     val videoState = videoController?.state?.collectAsStateWithLifecycle()?.value
     val videoIsPlaying = (videoState as? VideoViewerState.Ready)?.isPlaying == true
     val videoDurationMillis = (videoState as? VideoViewerState.Ready)?.durationMillis ?: 0L
@@ -649,17 +660,15 @@ fun ViewerContent(
                             onContentTap()
                         },
                         onDoubleTap = { position ->
-                            if (!gestureSettings.doubleTapZoom) return@detectTapGestures
-                            if (media.kind == MediaKind.Video && videoController != null && gestureSettings.videoSeek) {
-                                val edge = size.width / 3f
-                                when {
-                                    position.x < edge -> videoController.seekBy(-gestureSettings.videoSkipSeconds * 1_000L)
-                                    position.x > size.width - edge -> videoController.seekBy(gestureSettings.videoSkipSeconds * 1_000L)
-                                    else -> { zoomTapPosition = position; zoomTapGeneration++ }
-                                }
-                            } else {
-                                zoomTapPosition = position
-                                zoomTapGeneration++
+                            val edge = size.width / 3f
+                            val skipSide = media.kind == MediaKind.Video && videoController != null &&
+                                gestureSettings.videoSeek && (position.x < edge || position.x > size.width - edge)
+                            when {
+                                // The skip gesture has its own switch; it must not depend on double-tap zoom.
+                                skipSide && position.x < edge ->
+                                    videoController?.seekBy(-gestureSettings.videoSkipSeconds * 1_000L)
+                                skipSide -> videoController?.seekBy(gestureSettings.videoSkipSeconds * 1_000L)
+                                gestureSettings.doubleTapZoom -> { zoomTapPosition = position; zoomTapGeneration++ }
                             }
                         },
                     )
