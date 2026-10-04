@@ -100,6 +100,15 @@ object MediaEditorLayoutTokens {
     const val WideInspectorFraction = 0.32f
     const val StackedMediaFractionMin = 0.2f
     const val StackedMediaFractionMax = 0.7f
+
+    /** Media at least this wide (width/height) may stack in a square window to show it larger. */
+    const val WideMediaAspect = 1.5f
+
+    /** Stacking must show wide media at least this much larger (by area) than the media pane would. */
+    const val WideMediaStackGain = 1.15f
+
+    /** Upper bound of the initial preview share when a stacked body fits wide media to its width. */
+    const val WideMediaInitialFractionMax = 0.5f
     val ResizeHandleThickness = 24.dp
 }
 
@@ -143,12 +152,16 @@ data class MediaEditorLayout(
  *
  * @param fold a separating hinge in the body's own coordinates, if any.
  * @param previous the mode chosen for the previous size, for the 800/776 dp hysteresis.
+ * @param mediaAspect width/height of the media, if known. The window still decides the mode; in a
+ *   square window, wide media (16:9 video on an unfolded foldable) stacks when a full-width
+ *   preview shows it clearly larger than the media pane beside an inspector would.
  */
 fun mediaEditorLayout(
     width: Dp,
     height: Dp,
     fold: GalleryFoldInfo? = null,
     previous: MediaEditorLayoutMode? = null,
+    mediaAspect: Float? = null,
 ): MediaEditorLayout {
     val tokens = MediaEditorLayoutTokens
     if (fold != null && fold.isSeparating) {
@@ -178,12 +191,37 @@ fun mediaEditorLayout(
     val maxInspector = max(min(tokens.InspectorWidthMax, width - tokens.MinMediaWidth), tokens.MinInspectorWidth)
     val minInspector = min(tokens.InspectorWidthMin, maxInspector)
     val preferred = width * if (square) tokens.SquareInspectorFraction else tokens.WideInspectorFraction
+    val inspectorWidth = preferred.coerceIn(minInspector, maxInspector)
+    if (square && mediaAspect != null && mediaAspect >= tokens.WideMediaAspect) {
+        val besideArea = fittedArea(width - inspectorWidth, height, mediaAspect)
+        val stackedArea = fittedArea(width, height * tokens.WideMediaInitialFractionMax, mediaAspect)
+        if (stackedArea >= besideArea * tokens.WideMediaStackGain) {
+            return MediaEditorLayout(MediaEditorLayoutMode.Stacked)
+        }
+    }
     return MediaEditorLayout(
         mode = MediaEditorLayoutMode.TwoPane,
-        inspectorWidth = preferred.coerceIn(minInspector, maxInspector),
+        inspectorWidth = inspectorWidth,
         minInspectorWidth = minInspector,
         maxInspectorWidth = maxInspector,
     )
+}
+
+/** Area (dp²) of media with [aspect] fitted inside [width] × [height]. */
+private fun fittedArea(width: Dp, height: Dp, aspect: Float): Float {
+    val w = minOf(width.value, height.value * aspect).coerceAtLeast(0f)
+    return w * (w / aspect)
+}
+
+/**
+ * Initial preview share of a resizable stacked body: the height that fits [mediaAspect] at full
+ * width, so wide media has no side bars, or [fallback] when the aspect is unknown.
+ */
+internal fun initialStackedMediaFraction(bodyWidth: Dp, resizableHeight: Dp, mediaAspect: Float?, fallback: Float): Float {
+    val tokens = MediaEditorLayoutTokens
+    if (mediaAspect == null || mediaAspect <= 0f || resizableHeight <= 0.dp) return fallback
+    return (bodyWidth.value / mediaAspect / resizableHeight.value)
+        .coerceIn(tokens.StackedMediaFractionMin, tokens.WideMediaInitialFractionMax)
 }
 
 /** Moves a window-coordinate [fold] into a body placed at [origin] (dp) and sized [width] × [height]. */
@@ -211,6 +249,7 @@ fun GalleryFoldInfo.toLocal(originX: Dp, originY: Dp, width: Dp, height: Dp): Ga
  * @param resizeDescription when set, a draggable, accessible handle lets people resize the panes.
  * @param stackedInspectorWeight weight of the inspector in a stacked body; null lets it wrap its
  *   content up to [stackedInspectorMaxFraction] of the height.
+ * @param mediaAspect width/height of the media, if known; see [mediaEditorLayout].
  */
 @Composable
 fun MediaEditorScaffold(
@@ -225,6 +264,7 @@ fun MediaEditorScaffold(
     stackedInspectorMaxFraction: Float = 0.5f,
     resizeDescription: String? = null,
     bodyWindowInsets: WindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+    mediaAspect: Float? = null,
 ) {
     val density = LocalDensity.current
     var origin by remember { mutableStateOf(Offset.Zero) }
@@ -243,7 +283,7 @@ fun MediaEditorScaffold(
             val windowFold = foldInfo?.takeIf(GalleryFoldInfo::isSeparating)?.let { fold ->
                 with(density) { fold.toLocal(origin.x.toDp(), origin.y.toDp(), maxWidth, maxHeight) }
             }
-            val windowLayout = mediaEditorLayout(maxWidth, maxHeight, windowFold, previousMode)
+            val windowLayout = mediaEditorLayout(maxWidth, maxHeight, windowFold, previousMode, mediaAspect)
             SideEffect { previousMode = windowLayout.mode }
             Column(
                 Modifier
@@ -341,8 +381,13 @@ fun MediaEditorScaffold(
                                 val tokens = MediaEditorLayoutTokens
                                 val resizable = (bodyHeight - tokens.ResizeHandleThickness).coerceAtLeast(1.dp)
                                 val fraction = stackedMediaFraction.takeUnless(Float::isNaN)
-                                    ?: (stackedMediaWeight / (stackedMediaWeight + (stackedInspectorWeight ?: 1f)))
-                                        .coerceIn(tokens.StackedMediaFractionMin, tokens.StackedMediaFractionMax)
+                                    ?: initialStackedMediaFraction(
+                                        bodyWidth = bodyWidth,
+                                        resizableHeight = resizable,
+                                        mediaAspect = mediaAspect,
+                                        fallback = (stackedMediaWeight / (stackedMediaWeight + (stackedInspectorWeight ?: 1f)))
+                                            .coerceIn(tokens.StackedMediaFractionMin, tokens.StackedMediaFractionMax),
+                                    )
                                 val span = tokens.StackedMediaFractionMax - tokens.StackedMediaFractionMin
                                 media(Modifier.fillMaxWidth().height(resizable * fraction).then(mediaSemantics))
                                 MediaEditorResizeHandle(

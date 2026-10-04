@@ -10,6 +10,19 @@ import androidx.compose.material.icons.automirrored.rounded.Redo
 import androidx.compose.material.icons.automirrored.rounded.Undo
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.VolumeOff
+import androidx.compose.material.icons.rounded.Exposure
+import androidx.compose.material.icons.rounded.Contrast
+import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.Tonality
+import androidx.compose.material.icons.rounded.Brightness6
+import androidx.compose.material.icons.rounded.Thermostat
+import androidx.compose.material.icons.rounded.Gradient
+import androidx.compose.material.icons.rounded.InvertColors
+import androidx.compose.material.icons.rounded.Colorize
+import androidx.compose.material.icons.rounded.Brightness5
+import androidx.compose.material.icons.rounded.Adjust
+import androidx.compose.material.icons.rounded.Opacity
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
@@ -287,6 +300,21 @@ val GalleryIconFormatAlignLeft: ImageVector get() = Icons.Rounded.FormatAlignLef
 val GalleryIconFormatAlignCenter: ImageVector get() = Icons.Rounded.FormatAlignCenter
 val GalleryIconFormatAlignRight: ImageVector get() = Icons.Rounded.FormatAlignRight
 
+// Adjustment indicators for editor sliders (decorative; the slider label names the control).
+val GalleryIconAdjustExposure: ImageVector get() = Icons.Rounded.Exposure
+val GalleryIconAdjustContrast: ImageVector get() = Icons.Rounded.Contrast
+val GalleryIconAdjustHighlights: ImageVector get() = Icons.Rounded.LightMode
+val GalleryIconAdjustShadows: ImageVector get() = Icons.Rounded.DarkMode
+val GalleryIconAdjustMidtones: ImageVector get() = Icons.Rounded.Tonality
+val GalleryIconAdjustLevel: ImageVector get() = Icons.Rounded.Brightness6
+val GalleryIconAdjustTemperature: ImageVector get() = Icons.Rounded.Thermostat
+val GalleryIconAdjustTint: ImageVector get() = Icons.Rounded.Gradient
+val GalleryIconAdjustSaturation: ImageVector get() = Icons.Rounded.InvertColors
+val GalleryIconAdjustHue: ImageVector get() = Icons.Rounded.Colorize
+val GalleryIconAdjustLuminance: ImageVector get() = Icons.Rounded.Brightness5
+val GalleryIconAdjustPivot: ImageVector get() = Icons.Rounded.Adjust
+val GalleryIconAdjustIntensity: ImageVector get() = Icons.Rounded.Opacity
+
 /**
  * Standard gallery icon composable with Material 3 defaults:
  * 22dp size (matches CSS svg width/height: 22px), 1.9 stroke-width equivalent.
@@ -412,4 +440,17 @@ object GalleryIcons {
     val FormatAlignRight get() = GalleryIconFormatAlignRight
     val ExpandMore get() = GalleryIconExpandMore
     val Unchecked get() = GalleryIconUnchecked
+    val AdjustExposure get() = GalleryIconAdjustExposure
+    val AdjustContrast get() = GalleryIconAdjustContrast
+    val AdjustHighlights get() = GalleryIconAdjustHighlights
+    val AdjustShadows get() = GalleryIconAdjustShadows
+    val AdjustMidtones get() = GalleryIconAdjustMidtones
+    val AdjustLevel get() = GalleryIconAdjustLevel
+    val AdjustTemperature get() = GalleryIconAdjustTemperature
+    val AdjustTint get() = GalleryIconAdjustTint
+    val AdjustSaturation get() = GalleryIconAdjustSaturation
+    val AdjustHue get() = GalleryIconAdjustHue
+    val AdjustLuminance get() = GalleryIconAdjustLuminance
+    val AdjustPivot get() = GalleryIconAdjustPivot
+    val AdjustIntensity get() = GalleryIconAdjustIntensity
 }

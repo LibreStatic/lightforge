@@ -5,6 +5,7 @@ import com.librestatic.lightforge.core.editing.video.VideoAspectMode
 import com.librestatic.lightforge.core.editing.video.VideoAspectOverride
 import com.librestatic.lightforge.core.editing.video.VideoEditRecipe
 import com.librestatic.lightforge.core.editing.video.VideoEncoderCapabilities
+import com.librestatic.lightforge.core.editing.video.VideoGeometry
 import com.librestatic.lightforge.core.editing.video.VideoOutputAdjustment
 import com.librestatic.lightforge.core.editing.video.VideoOutputCodec
 import com.librestatic.lightforge.core.editing.video.VideoOutputPlan
@@ -94,6 +95,17 @@ internal fun VideoEditorContentState.outputEstimate(): VideoOutputEstimate? {
 internal fun VideoEditorContentState.editedSourceAspect(): Float? {
     val source = outputSource ?: return null
     val (width, height) = VideoOutputPlan.editedSize(source, geometry)
+    return if (width > 0 && height > 0) (width / height).toFloat() else null
+}
+
+/**
+ * Display aspect of the source (after its rotation metadata, ignoring the editor's crop and
+ * rotation), or null while unknown. The editor layout follows this one so rotating in Transform
+ * does not rearrange the whole screen mid-edit.
+ */
+internal fun VideoEditorContentState.sourceDisplayAspect(): Float? {
+    val source = outputSource ?: return null
+    val (width, height) = VideoOutputPlan.editedSize(source, VideoGeometry())
     return if (width > 0 && height > 0) (width / height).toFloat() else null
 }
 

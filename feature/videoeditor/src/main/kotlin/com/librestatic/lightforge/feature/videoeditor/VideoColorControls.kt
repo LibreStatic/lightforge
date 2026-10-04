@@ -52,6 +52,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.librestatic.lightforge.core.designsystem.EditorColorSwatch
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import com.librestatic.lightforge.core.editing.video.BuiltInLook
@@ -140,7 +141,7 @@ private fun BasicColorControls(
                 )
             }
             if (grade.lut.builtIn != BuiltInLook.None || grade.lut.customId != null) {
-                GradeSlider(stringResource(R.string.video_editor_look_intensity), grade.lut.intensity, 0f..1f) {
+                GradeSlider(stringResource(R.string.video_editor_look_intensity), grade.lut.intensity, 0f..1f, sliderIcon(GalleryIcons.AdjustIntensity)) {
                     onChange(grade.copy(lut = grade.lut.copy(intensity = it)))
                 }
             }
@@ -151,12 +152,12 @@ private fun BasicColorControls(
                 onReset = { onChange(grade.copy(exposureEv = 0f, contrast = 0f, highlights = 0f, shadows = 0f)) },
                 wide = wide,
                 first = {
-                    GradeSlider(stringResource(R.string.video_editor_exposure), grade.exposureEv, -5f..5f) { onChange(grade.copy(exposureEv = it)) }
-                    GradeSlider(stringResource(R.string.video_editor_contrast), grade.contrast, -1f..1f) { onChange(grade.copy(contrast = it)) }
+                    GradeSlider(stringResource(R.string.video_editor_exposure), grade.exposureEv, -5f..5f, sliderIcon(GalleryIcons.AdjustExposure)) { onChange(grade.copy(exposureEv = it)) }
+                    GradeSlider(stringResource(R.string.video_editor_contrast), grade.contrast, -1f..1f, sliderIcon(GalleryIcons.AdjustContrast)) { onChange(grade.copy(contrast = it)) }
                 },
                 second = {
-                    GradeSlider(stringResource(R.string.video_editor_highlights), grade.highlights, -1f..1f) { onChange(grade.copy(highlights = it)) }
-                    GradeSlider(stringResource(R.string.video_editor_shadows), grade.shadows, -1f..1f) { onChange(grade.copy(shadows = it)) }
+                    GradeSlider(stringResource(R.string.video_editor_highlights), grade.highlights, -1f..1f, sliderIcon(GalleryIcons.AdjustHighlights)) { onChange(grade.copy(highlights = it)) }
+                    GradeSlider(stringResource(R.string.video_editor_shadows), grade.shadows, -1f..1f, sliderIcon(GalleryIcons.AdjustShadows)) { onChange(grade.copy(shadows = it)) }
                 },
             )
             ColorGroup(
@@ -165,12 +166,12 @@ private fun BasicColorControls(
                 onReset = { onChange(grade.copy(temperature = 0f, tint = 0f, saturation = 0f, vibrance = 0f)) },
                 wide = wide,
                 first = {
-                    GradeSlider(stringResource(R.string.video_editor_temperature), grade.temperature, -1f..1f) { onChange(grade.copy(temperature = it)) }
-                    GradeSlider(stringResource(R.string.video_editor_tint), grade.tint, -1f..1f) { onChange(grade.copy(tint = it)) }
+                    GradeSlider(stringResource(R.string.video_editor_temperature), grade.temperature, -1f..1f, sliderIcon(GalleryIcons.AdjustTemperature)) { onChange(grade.copy(temperature = it)) }
+                    GradeSlider(stringResource(R.string.video_editor_tint), grade.tint, -1f..1f, sliderIcon(GalleryIcons.AdjustTint)) { onChange(grade.copy(tint = it)) }
                 },
                 second = {
-                    GradeSlider(stringResource(R.string.video_editor_saturation), grade.saturation, -1f..1f) { onChange(grade.copy(saturation = it)) }
-                    GradeSlider(stringResource(R.string.video_editor_vibrance), grade.vibrance, -1f..1f) { onChange(grade.copy(vibrance = it)) }
+                    GradeSlider(stringResource(R.string.video_editor_saturation), grade.saturation, -1f..1f, sliderIcon(GalleryIcons.AdjustSaturation)) { onChange(grade.copy(saturation = it)) }
+                    GradeSlider(stringResource(R.string.video_editor_vibrance), grade.vibrance, -1f..1f, sliderIcon(GalleryIcons.AutoAwesome)) { onChange(grade.copy(vibrance = it)) }
                 },
             )
 
@@ -390,7 +391,7 @@ private fun AdvancedColorControls(
                     ProfilePicker(grade.inputProfile) { profile ->
                         onChange(grade.copy(inputProfile = profile, profileWasAutoDetected = false))
                     }
-                    GradeSlider(stringResource(R.string.video_editor_pivot), grade.pivot, 0.05f..0.95f) {
+                    GradeSlider(stringResource(R.string.video_editor_pivot), grade.pivot, 0.05f..0.95f, sliderIcon(GalleryIcons.AdjustPivot)) {
                         onChange(grade.copy(pivot = it))
                     }
                 }
@@ -402,7 +403,12 @@ private fun AdvancedColorControls(
                     ) { Text(stringResource(R.string.video_editor_reset)) }
                     val wheel: @Composable (Modifier, Int, LogWheel, (LogWheel) -> Unit) -> Unit =
                         { wheelModifier, label, value, update ->
-                            LogWheelControls(label = label, wheel = value, onChange = update, modifier = wheelModifier)
+                            val icon = when (label) {
+                                R.string.video_editor_shadows -> GalleryIcons.AdjustShadows
+                                R.string.video_editor_midtones -> GalleryIcons.AdjustMidtones
+                                else -> GalleryIcons.AdjustHighlights
+                            }
+                            LogWheelControls(label = label, icon = icon, wheel = value, onChange = update, modifier = wheelModifier)
                         }
                     val shadows: @Composable (Modifier) -> Unit = { m ->
                         wheel(m, R.string.video_editor_shadows, grade.logWheels.shadows) {
@@ -439,18 +445,19 @@ private fun AdvancedColorControls(
                                 selected = selectedBand == index,
                                 onClick = { selectedBand = index },
                                 label = { Text(stringResource(band.labelResource())) },
+                                leadingIcon = { EditorColorSwatch(band.indicatorColor()) },
                                 modifier = EditorChipModifier,
                             )
                         }
                     }
                     val adjustment = grade.hueBands.first { it.band == HueBand.entries[selectedBand] }
-                    GradeSlider(stringResource(R.string.video_editor_hue), adjustment.hueShiftDegrees, -45f..45f) { value ->
+                    GradeSlider(stringResource(R.string.video_editor_hue), adjustment.hueShiftDegrees, -45f..45f, sliderIcon(GalleryIcons.AdjustHue)) { value ->
                         onChange(grade.copy(hueBands = grade.hueBands.map { if (it.band == adjustment.band) it.copy(hueShiftDegrees = value) else it }))
                     }
-                    GradeSlider(stringResource(R.string.video_editor_saturation), adjustment.saturation, -1f..1f) { value ->
+                    GradeSlider(stringResource(R.string.video_editor_saturation), adjustment.saturation, -1f..1f, sliderIcon(GalleryIcons.AdjustSaturation)) { value ->
                         onChange(grade.copy(hueBands = grade.hueBands.map { if (it.band == adjustment.band) it.copy(saturation = value) else it }))
                     }
-                    GradeSlider(stringResource(R.string.video_editor_luminance), adjustment.luminance, -1f..1f) { value ->
+                    GradeSlider(stringResource(R.string.video_editor_luminance), adjustment.luminance, -1f..1f, sliderIcon(GalleryIcons.AdjustLuminance)) { value ->
                         onChange(grade.copy(hueBands = grade.hueBands.map { if (it.band == adjustment.band) it.copy(luminance = value) else it }))
                     }
                 }

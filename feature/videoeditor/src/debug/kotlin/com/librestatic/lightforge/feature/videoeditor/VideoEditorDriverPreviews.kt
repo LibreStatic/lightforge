@@ -152,6 +152,39 @@ fun VideoEditorForcedAspectPreview() = DriverFrame {
     )
 }
 
+/**
+ * Whole editor for a 1920×1080 phone clip. In a square window (an unfolded foldable) the 16:9
+ * preview spans the full width on top with the tools below it. Driver:
+ * `start VideoEditorWideSourcePreview --qualifiers w760dp-h700dp`, then open Color → Advanced.
+ */
+@Preview(widthDp = 760, heightDp = 700)
+@Composable
+fun VideoEditorWideSourcePreview() = DriverFrame {
+    var state by remember { mutableStateOf(WideState) }
+    VideoEditorContent(
+        sessionId = "driver-video-editor-wide-source",
+        state = state,
+        controller = null,
+        onBack = {},
+        onSaveCopy = {},
+        onSpeedChange = { state = state.copy(speed = it) },
+        onOriginalVolumeChange = { state = state.copy(originalAudioVolume = it) },
+        onChooseMusic = {},
+        onRemoveMusic = {},
+        onSeek = {},
+        onTrimChange = { start, end -> state = state.copy(trimStartMillis = start, trimEndMillis = end) },
+        onColorGradeChange = { state = state.copy(colorGrade = it) },
+        onOutputSettingsChange = { state = state.copy(output = it) },
+    )
+}
+
+private val WideState = CctvState.copy(
+    durationMillis = 24_000,
+    trimEndMillis = 24_000,
+    output = VideoOutputSettings(),
+    outputSource = CctvSource.copy(width = 1920, height = 1080, frameRate = 30f, nominalFrameRate = 30f, durationMs = 24_000),
+)
+
 @Composable
 private fun DriverFrame(content: @Composable () -> Unit) {
     LightforgeTheme { Surface(Modifier.fillMaxSize(), content = content) }

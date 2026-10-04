@@ -93,4 +93,27 @@ class MediaEditorLayoutTest {
         assertEquals(436.dp, local.top)
         assertEquals(456.dp, local.bottom)
     }
+
+    @Test
+    fun wideMediaStacksInSquareWindowsOnly() {
+        fun mode(width: Dp, height: Dp, aspect: Float?) = mediaEditorLayout(width, height, mediaAspect = aspect).mode
+        // Unfolded foldable: 16:9 video is far larger across the full width than beside the inspector.
+        assertEquals(MediaEditorLayoutMode.Stacked, mode(852.dp, 883.dp, 16f / 9f))
+        assertEquals(MediaEditorLayoutMode.Stacked, mode(883.dp, 852.dp, 16f / 9f))
+        // Square, portrait or unknown media keep the side-by-side inspector.
+        assertEquals(MediaEditorLayoutMode.TwoPane, mode(883.dp, 852.dp, 1f))
+        assertEquals(MediaEditorLayoutMode.TwoPane, mode(883.dp, 852.dp, 9f / 16f))
+        assertEquals(MediaEditorLayoutMode.TwoPane, mode(883.dp, 852.dp, null))
+        // Landscape windows already give the media pane its full height.
+        assertEquals(MediaEditorLayoutMode.TwoPane, mode(1280.dp, 800.dp, 16f / 9f))
+        assertEquals(MediaEditorLayoutMode.TwoPane, mode(852.dp, 393.dp, 16f / 9f))
+    }
+
+    @Test
+    fun stackedBodyFitsWideMediaToItsWidth() {
+        assertEquals(0.4f, initialStackedMediaFraction(720.dp, 1000.dp, 1.8f, fallback = 0.35f), 0.001f)
+        // Capped so the controls keep room, and the fallback applies while the aspect is unknown.
+        assertEquals(0.5f, initialStackedMediaFraction(900.dp, 600.dp, 1.5f, fallback = 0.35f), 0.001f)
+        assertEquals(0.35f, initialStackedMediaFraction(900.dp, 600.dp, null, fallback = 0.35f), 0.001f)
+    }
 }

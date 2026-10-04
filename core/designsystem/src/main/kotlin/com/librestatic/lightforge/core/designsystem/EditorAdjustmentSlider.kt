@@ -1,14 +1,20 @@
 package com.librestatic.lightforge.core.designsystem
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -16,10 +22,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -77,6 +86,7 @@ object EditorAdjustmentSliderRules {
  *
  * @param neutral the value that means "no change"; it need not be the middle of [valueRange].
  * @param displayValue the value shown and announced, relative to [neutral] (defaults to a signed delta).
+ * @param leading optional decorative indicator (icon or color swatch) drawn before the label.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -91,6 +101,7 @@ fun EditorAdjustmentSlider(
     enabled: Boolean = true,
     displayValue: (Float) -> String = { EditorAdjustmentSliderRules.format(it, neutral) },
     testTag: String? = null,
+    leading: (@Composable () -> Unit)? = null,
 ) {
     val haptics = LocalHapticFeedback.current
     val currentValue by rememberUpdatedState(value)
@@ -114,10 +125,7 @@ fun EditorAdjustmentSlider(
     val inactiveColor = if (enabled) scheme.secondaryContainer else scheme.onSurface.copy(alpha = 0.12f)
     val tickColor = if (enabled) scheme.onSecondaryContainer else scheme.onSurface.copy(alpha = 0.38f)
     Column(modifier, verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, style = MaterialTheme.typography.labelLarge)
-            Text(shown, style = GalleryMonoTypography, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        EditorSliderHeader(label = label, value = shown, leading = leading)
         Slider(
             value = value,
             onValueChange = { raw ->
@@ -193,4 +201,46 @@ fun EditorAdjustmentSlider(
                 },
         )
     }
+}
+
+/**
+ * Label row shared by editor sliders: an optional [leading] indicator, the label, and the value
+ * at the end in [GalleryMonoTypography].
+ */
+@Composable
+fun EditorSliderHeader(label: String, value: String, leading: (@Composable () -> Unit)? = null) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (leading != null) {
+            Box(Modifier.size(EditorSliderLeadingSize), contentAlignment = Alignment.Center) { leading() }
+        }
+        Text(label, style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+        Text(value, style = GalleryMonoTypography, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** Size of the box holding a slider's leading icon or swatch. */
+val EditorSliderLeadingSize = 18.dp
+
+/** Decorative icon for [EditorAdjustmentSlider]'s `leading` slot; it inherits the content color. */
+@Composable
+fun EditorSliderIcon(imageVector: ImageVector, modifier: Modifier = Modifier) {
+    Icon(imageVector, contentDescription = null, modifier = modifier.size(EditorSliderLeadingSize))
+}
+
+/**
+ * A dot showing which color a control affects (a channel or hue band). The fill is data, not a
+ * theme role; the `outlineVariant` ring keeps it visible on light, dark and dynamic surfaces.
+ */
+@Composable
+fun EditorColorSwatch(color: Color, modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .size(12.dp)
+            .background(color, CircleShape)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
+    )
 }

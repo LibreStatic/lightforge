@@ -109,6 +109,10 @@ import com.librestatic.lightforge.core.designsystem.GalleryMonoTypography
 import com.librestatic.lightforge.core.designsystem.MediaEditorHistory
 import com.librestatic.lightforge.core.designsystem.EditorAdjustmentSlider
 import com.librestatic.lightforge.core.designsystem.EditorAdjustmentSliderRules
+import com.librestatic.lightforge.core.designsystem.EditorColorSwatch
+import com.librestatic.lightforge.core.designsystem.EditorSliderHeader
+import com.librestatic.lightforge.core.designsystem.EditorSliderIcon
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.librestatic.lightforge.core.designsystem.MediaEditorScaffold
 import com.librestatic.lightforge.core.designsystem.MediaEditorShortcut
 import com.librestatic.lightforge.core.designsystem.mediaEditorShortcuts
@@ -611,6 +615,7 @@ fun VideoEditorContent(
         resizeDescription = stringResource(R.string.video_editor_resize_panels),
         stackedMediaWeight = 0.55f,
         stackedInspectorWeight = 1f,
+        mediaAspect = state.sourceDisplayAspect(),
         topBar = {
             MediaEditorTopBar(
                 title = stringResource(R.string.video_editor_title),
@@ -1302,6 +1307,7 @@ private fun VideoExportPhase?.exportLabel(): Int = when (this) {
 @Composable
 internal fun LogWheelControls(
     @StringRes label: Int,
+    icon: ImageVector,
     wheel: LogWheel,
     onChange: (LogWheel) -> Unit,
     modifier: Modifier = Modifier,
@@ -1316,17 +1322,20 @@ internal fun LogWheelControls(
             Modifier.padding(GallerySpacing.Md),
             verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
         ) {
-            Text(stringResource(label), style = MaterialTheme.typography.titleSmall)
-            GradeSlider(stringResource(R.string.video_editor_level), wheel.level, -1f..1f) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+                EditorSliderIcon(icon)
+                Text(stringResource(label), style = MaterialTheme.typography.titleSmall)
+            }
+            GradeSlider(stringResource(R.string.video_editor_level), wheel.level, -1f..1f, sliderIcon(GalleryIcons.AdjustLevel)) {
                 onChange(wheel.copy(level = it))
             }
-            GradeSlider(stringResource(R.string.video_editor_band_red), wheel.red, -1f..1f) {
+            GradeSlider(stringResource(R.string.video_editor_band_red), wheel.red, -1f..1f, colorSwatch(ChannelRed)) {
                 onChange(wheel.copy(red = it))
             }
-            GradeSlider(stringResource(R.string.video_editor_band_green), wheel.green, -1f..1f) {
+            GradeSlider(stringResource(R.string.video_editor_band_green), wheel.green, -1f..1f, colorSwatch(ChannelGreen)) {
                 onChange(wheel.copy(green = it))
             }
-            GradeSlider(stringResource(R.string.video_editor_band_blue), wheel.blue, -1f..1f) {
+            GradeSlider(stringResource(R.string.video_editor_band_blue), wheel.blue, -1f..1f, colorSwatch(ChannelBlue)) {
                 onChange(wheel.copy(blue = it))
             }
         }
@@ -1334,7 +1343,13 @@ internal fun LogWheelControls(
 }
 
 @Composable
-internal fun GradeSlider(label: String, value: Float, range: ClosedFloatingPointRange<Float>, onChange: (Float) -> Unit) {
+internal fun GradeSlider(
+    label: String,
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    leading: (@Composable () -> Unit)? = null,
+    onChange: (Float) -> Unit,
+) {
     var liveValue by remember(label) { mutableFloatStateOf(value) }
     LaunchedEffect(value) { liveValue = value }
     if (range.start < 0f && range.endInclusive > 0f) {
@@ -1349,14 +1364,12 @@ internal fun GradeSlider(label: String, value: Float, range: ClosedFloatingPoint
             valueRange = range,
             displayValue = { EditorAdjustmentSliderRules.format(it, 0f, decimals = if (range.endInclusive > 10f) 0 else 2) },
             modifier = Modifier.fillMaxWidth(),
+            leading = leading,
         )
         return
     }
     Column {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, style = MaterialTheme.typography.labelLarge)
-            Text("%.2f".format(liveValue), style = GalleryMonoTypography)
-        }
+        EditorSliderHeader(label = label, value = "%.2f".format(liveValue), leading = leading)
         Slider(
             value = liveValue,
             onValueChange = {
@@ -1673,6 +1686,20 @@ internal fun formatMillis(value: Long): String {
     val seconds = ((value + 500) / 1_000).coerceAtLeast(0)
     return "%d:%02d".format(seconds / 60, seconds % 60)
 }
+
+/** Decorative leading icon for [GradeSlider]. */
+internal fun sliderIcon(icon: ImageVector): @Composable () -> Unit = { EditorSliderIcon(icon) }
+
+/** Leading color dot for [GradeSlider], naming the channel or band it changes. */
+internal fun colorSwatch(color: Color): @Composable () -> Unit = { EditorColorSwatch(color) }
+
+// Primary-wheel channel colors: data indicators, so fixed hues rather than theme roles.
+internal val ChannelRed = Color.hsv(0f, 0.8f, 0.92f)
+internal val ChannelGreen = Color.hsv(120f, 0.8f, 0.75f)
+internal val ChannelBlue = Color.hsv(225f, 0.8f, 0.95f)
+
+/** The hue a band is centred on, as the grade shader sees it (`ordinal × 45°`). */
+internal fun HueBand.indicatorColor(): Color = Color.hsv(ordinal * 45f, 0.8f, 0.92f)
 
 @StringRes
 internal fun HueBand.labelResource(): Int = when (this) {
