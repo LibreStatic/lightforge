@@ -47,7 +47,13 @@ void configure(LibRaw& raw, const float* values, int maxDimension, bool sixteenB
     params.use_auto_wb = 0;
     params.no_auto_bright = 1;
     params.exp_correc = 1;
-    params.exp_shift = std::pow(2.0f, values[0]);
+    // LibRaw's exposure shift only spans 0.25..8 (-2..+3 EV) and silently clamps beyond that,
+    // which made the outer part of the -5..+5 EV slider a dead zone. The remainder is applied
+    // through the (linear) output brightness gain, which both the bitmap and TIFF paths honour.
+    const float requestedGain = std::pow(2.0f, std::clamp(values[0], -5.0f, 5.0f));
+    const float appliedShift = std::clamp(requestedGain, 0.25f, 8.0f);
+    params.exp_shift = appliedShift;
+    params.bright = requestedGain / appliedShift;
     params.exp_preser = std::clamp(values[10], 0.0f, 1.0f);
     params.highlight = values[10] > 0.66f ? 5 : (values[10] > 0.05f ? 3 : 0);
     params.threshold = values[11] * 800.0f;
