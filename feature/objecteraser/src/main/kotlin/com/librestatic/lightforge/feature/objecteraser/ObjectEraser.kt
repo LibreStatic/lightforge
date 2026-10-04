@@ -38,26 +38,21 @@ class ObjectEraser {
     }
 
     /**
-     * Erases the specified regions by filling them with interpolated neighbor pixels.
+     * Fallback eraser: fills the round dabs inscribed in [regions] (the shapes the brush preview shows) from the
+     * colors around them. Colors flow inward one ring at a time from the pixels that are not masked, so a
+     * neighboring dab never feeds the object's own color back in, then a few smoothing passes soften the rings.
      *
      * @param bitmap The source bitmap (not modified)
-     * @param regions List of rectangular regions to erase
-     * @return A new bitmap with erased regions filled
+     * @param regions Square regions whose inscribed circles are erased
+     * @return A new bitmap with the masked pixels filled
      */
     fun eraseRegions(
         bitmap: Bitmap,
         regions: List<EraseRegion>,
     ): EraseResult {
         require(regions.isNotEmpty()) { "At least one region required" }
-
-        val width = bitmap.width
-        val height = bitmap.height
         val result = bitmap.copy(Bitmap.Config.ARGB_8888, true)
-
-        for (region in regions) {
-            eraseRegion(result, region, width, height)
-        }
-
+        fillMasked(result, regions)
         return EraseResult(result, regions.size, EraseMethod.NEIGHBOR_INTERPOLATION_FALLBACK)
     }
 
@@ -148,69 +143,135 @@ class ObjectEraser {
     private fun bilinear(c00: Int, c10: Int, c01: Int, c11: Int, fx: Float, fy: Float): Int =
         blendColor(blendColor(c00, c10, fx), blendColor(c01, c11, fx), fy)
 
-    /**
-     * Erases a single region by interpolating from border pixels.
-     * Uses bilinear interpolation from the nearest non-erased pixels.
-     */
-    private fun eraseRegion(
-        bitmap: Bitmap,
-        region: EraseRegion,
-        bitmapWidth: Int,
-        bitmapHeight: Int,
-    ) {
-        val x1 = region.x.coerceIn(0, bitmapWidth - 1)
-        val y1 = region.y.coerceIn(0, bitmapHeight - 1)
-        val x2 = (region.x + region.width).coerceAtMost(bitmapWidth)
-        val y2 = (region.y + region.height).coerceAtMost(bitmapHeight)
-
-        if (x1 >= x2 || y1 >= y2) return
-
-        // Sample border pixels
-        val leftColors = mutableListOf<Int>()
-        val rightColors = mutableListOf<Int>()
-        val topColors = mutableListOf<Int>()
-        val bottomColors = mutableListOf<Int>()
-
-        for (y in y1 until y2) {
-            if (x1 > 0) leftColors.add(bitmap.getPixel(x1 - 1, y))
-            if (x2 < bitmapWidth) rightColors.add(bitmap.getPixel(x2, y))
+    private fun fillMasked(target: Bitmap, regions: List<EraseRegion>) {
+        var left = Int.MAX_VALUE
+        var top = Int.MAX_VALUE
+        var right = Int.MIN_VALUE
+        var bottom = Int.MIN_VALUE
+        for (r in regions) {
+            left = minOf(left, r.x)
+            top = minOf(top, r.y)
+            right = maxOf(right, r.x + r.width)
+            bottom = maxOf(bottom, r.y + r.height)
         }
-        for (x in x1 until x2) {
-            if (y1 > 0) topColors.add(bitmap.getPixel(x, y1 - 1))
-            if (y2 < bitmapHeight) bottomColors.add(bitmap.getPixel(x, y2))
-        }
-
-        val avgLeft = averageColor(leftColors)
-        val avgRight = averageColor(rightColors)
-        val avgTop = averageColor(topColors)
-        val avgBottom = averageColor(bottomColors)
-
-        for (y in y1 until y2) {
-            for (x in x1 until x2) {
-                val tX = if (x2 > x1) (x - x1).toFloat() / (x2 - x1) else 0.5f
-                val tY = if (y2 > y1) (y - y1).toFloat() / (y2 - y1) else 0.5f
-
-                val horizontalColor = blendColor(avgLeft, avgRight, tX)
-                val verticalColor = blendColor(avgTop, avgBottom, tY)
-                val finalColor = blendColor(horizontalColor, verticalColor, 0.5f)
-
-                bitmap.setPixel(x, y, finalColor)
+        // One pixel of unmasked margin supplies the colors the fill starts from.
+        left = (left - 1).coerceAtLeast(0)
+        top = (top - 1).coerceAtLeast(0)
+        right = (right + 1).coerceAtMost(target.width)
+        bottom = (bottom + 1).coerceAtMost(target.height)
+        val w = right - left
+        val h = bottom - top
+        if (w <= 0 || h <= 0) return
+        val mask = BooleanArray(w * h)
+        var masked = 0
+        for (r in regions) {
+            val radius = minOf(r.width, r.height) / 2f
+            if (radius <= 0f) continue
+            val cx = r.x + r.width / 2f
+            val cy = r.y + r.height / 2f
+            for (y in maxOf(top, floor(cy - radius).toInt())..minOf(bottom - 1, ceil(cy + radius).toInt())) {
+                for (x in maxOf(left, floor(cx - radius).toInt())..minOf(right - 1, ceil(cx + radius).toInt())) {
+                    val dx = x + 0.5f - cx
+                    val dy = y + 0.5f - cy
+                    val index = (y - top) * w + (x - left)
+                    if (dx * dx + dy * dy <= radius * radius && !mask[index]) {
+                        mask[index] = true
+                        masked++
+                    }
+                }
             }
         }
+        if (masked == 0) return
+        val pixels = IntArray(w * h)
+        target.getPixels(pixels, 0, w, left, top, w, h)
+        val known = BooleanArray(w * h) { !mask[it] }
+        val queued = BooleanArray(w * h)
+        val filledOrder = IntArray(masked)
+        var filledCount = 0
+        var frontier = ArrayList<Int>()
+        fun enqueue(index: Int) {
+            if (mask[index] && !known[index] && !queued[index]) {
+                queued[index] = true
+                frontier.add(index)
+            }
+        }
+        fun addNeighbors(index: Int) {
+            val x = index % w
+            val y = index / w
+            if (x > 0) enqueue(index - 1)
+            if (x < w - 1) enqueue(index + 1)
+            if (y > 0) enqueue(index - w)
+            if (y < h - 1) enqueue(index + w)
+        }
+        for (index in mask.indices) {
+            if (!mask[index]) addNeighbors(index)
+        }
+        while (frontier.isNotEmpty()) {
+            val wave = frontier
+            frontier = ArrayList()
+            val colors = IntArray(wave.size)
+            for (i in wave.indices) colors[i] = averageKnown(wave[i], pixels, known, w, h)
+            for (i in wave.indices) {
+                val index = wave[i]
+                pixels[index] = colors[i]
+                known[index] = true
+                filledOrder[filledCount++] = index
+            }
+            for (index in wave) addNeighbors(index)
+        }
+        // A mask with no known pixel to start from (the whole image) falls back to neutral gray.
+        for (index in mask.indices) {
+            if (mask[index] && !known[index]) {
+                pixels[index] = 0xFF808080.toInt()
+                filledOrder[filledCount++] = index
+            }
+        }
+        if (masked <= MaxSmoothedPixels) smooth(pixels, filledOrder, filledCount, w, h)
+        target.setPixels(pixels, 0, w, left, top, w, h)
     }
 
-    private fun averageColor(colors: List<Int>): Int {
-        if (colors.isEmpty()) return 0xFF808080.toInt()
-        var r = 0; var g = 0; var b = 0
-        for (c in colors) {
-            r += (c shr 16) and 0xFF
-            g += (c shr 8) and 0xFF
-            b += c and 0xFF
+    private fun averageKnown(index: Int, pixels: IntArray, known: BooleanArray, w: Int, h: Int): Int {
+        val x = index % w
+        val y = index / w
+        var r = 0
+        var g = 0
+        var b = 0
+        var n = 0
+        for (dy in -1..1) {
+            for (dx in -1..1) {
+                if (dx == 0 && dy == 0) continue
+                val nx = x + dx
+                val ny = y + dy
+                if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue
+                val neighbor = ny * w + nx
+                if (!known[neighbor]) continue
+                val c = pixels[neighbor]
+                r += (c shr 16) and 0xFF
+                g += (c shr 8) and 0xFF
+                b += c and 0xFF
+                n++
+            }
         }
-        r /= colors.size
-        g /= colors.size
-        b /= colors.size
-        return (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+        if (n == 0) return 0xFF808080.toInt()
+        return (0xFF shl 24) or ((r / n) shl 16) or ((g / n) shl 8) or (b / n)
+    }
+
+    /** Jacobi passes over the filled pixels only; the surrounding photo stays untouched. */
+    private fun smooth(pixels: IntArray, order: IntArray, count: Int, w: Int, h: Int) {
+        val next = IntArray(count)
+        repeat(SmoothingPasses) {
+            for (i in 0 until count) {
+                val index = order[i]
+                val x = index % w
+                val y = index / w
+                val l = pixels[if (x > 0) index - 1 else index]
+                val r = pixels[if (x < w - 1) index + 1 else index]
+                val u = pixels[if (y > 0) index - w else index]
+                val d = pixels[if (y < h - 1) index + w else index]
+                next[i] = blendColor(blendColor(l, r, 0.5f), blendColor(u, d, 0.5f), 0.5f)
+            }
+            for (i in 0 until count) pixels[order[i]] = next[i]
+        }
     }
 
     private fun blendColor(c1: Int, c2: Int, t: Float): Int {
@@ -223,5 +284,9 @@ class ObjectEraser {
     private companion object {
         /** Rows blended per band; bounds the pixel buffers on full-resolution photos. */
         const val BandRows = 128
+
+        /** Larger masks skip smoothing to keep full-resolution saves quick. */
+        const val MaxSmoothedPixels = 2_000_000
+        const val SmoothingPasses = 12
     }
 }
