@@ -676,6 +676,11 @@ private fun PdfNewProjectSheet(
                 singleLine = true,
                 label = { Text(stringResource(R.string.pdf_name)) },
                 placeholder = { Text(defaultName) },
+                // Projects reject names over 80 characters; say so here instead of failing on Create.
+                isError = name.length > 80,
+                supportingText = if (name.length > 80) {
+                    { Text(stringResource(R.string.pdf_library_rename_too_long)) }
+                } else null,
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(16.dp))
@@ -745,7 +750,7 @@ private fun PdfNewProjectSheet(
                         placementMode,
                     )
                 },
-                enabled = slotFitValid,
+                enabled = slotFitValid && name.length <= 80,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(stringResource(R.string.pdf_new_project_create))
