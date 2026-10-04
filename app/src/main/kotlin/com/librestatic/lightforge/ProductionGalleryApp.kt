@@ -4409,6 +4409,7 @@ private fun ViewerRoute(
                 viewModel.saveQuickSlowMotionClip(media, clip.startMillis, clip.endMillis)
             },
             slowMotionSaveProgress = quickSlowMotionSave.progress,
+            onCancelSlowMotionSave = viewModel::cancelQuickSlowMotionSave,
             slowMotionSaveCompletionGeneration = quickSlowMotionSave.completionGeneration,
             gestureSettings = gallerySettings.gestures,
             onMuteToggle = { muted -> onSessionVideoMutedChange(muted) },

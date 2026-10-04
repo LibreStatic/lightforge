@@ -52,6 +52,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -205,6 +206,7 @@ fun ViewerContent(
     onSaveSlowMotionClip: (SlowMotionClip) -> Unit = {},
     slowMotionSaveProgress: Float? = null,
     slowMotionSaveCompletionGeneration: Long = 0,
+    onCancelSlowMotionSave: () -> Unit = {},
     gestureSettings: GestureSettings = GestureSettings(),
     onMuteToggle: (Boolean) -> Unit = {},
     videoScrubbingMode: VideoScrubbingMode = VideoScrubbingMode.LegacySeekBar,
@@ -232,6 +234,20 @@ fun ViewerContent(
     )
     var zoomTapPosition by remember(media.viewerId) { mutableStateOf(Offset.Zero) }
     var gestureFeedback by remember(media.viewerId) { mutableStateOf<String?>(null) }
+    // A finished save dismisses the Save button and confirms once; the counter is process-wide,
+    // so only a change seen while this viewer is open counts.
+    val slowMotionSavedMessage = stringResource(R.string.viewer_slow_motion_saved)
+    var seenSlowMotionSaveGeneration by remember(media.viewerId) {
+        mutableLongStateOf(slowMotionSaveCompletionGeneration)
+    }
+    LaunchedEffect(slowMotionSaveCompletionGeneration) {
+        if (slowMotionSaveCompletionGeneration == seenSlowMotionSaveGeneration) return@LaunchedEffect
+        seenSlowMotionSaveGeneration = slowMotionSaveCompletionGeneration
+        slowMotionSession?.discardSavedClip()
+        gestureFeedback = slowMotionSavedMessage
+        delay(2_000L)
+        gestureFeedback = null
+    }
     val context = LocalContext.current
     val view = LocalView.current
     val activity = context.findViewerActivity()
@@ -782,17 +798,27 @@ fun ViewerContent(
                         .padding(horizontal = 12.dp, vertical = 6.dp),
                 )
             }
-            is HoldSlowMotionState.ReadyToSave -> GalleryExpressiveButton(
-                onClick = { onSaveSlowMotionClip(slow.clip) },
-                enabled = slowMotionSaveProgress == null,
+            is HoldSlowMotionState.ReadyToSave -> Row(
                 modifier = Modifier.align(Alignment.TopStart).padding(top = 72.dp, start = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
+                GalleryExpressiveButton(
+                    onClick = { onSaveSlowMotionClip(slow.clip) },
+                    enabled = slowMotionSaveProgress == null,
+                ) {
+                    if (slowMotionSaveProgress != null) {
+                        GalleryLoadingIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = LocalContentColor.current,
+                        )
+                    } else Text(stringResource(R.string.viewer_save_slow_motion_clip))
+                }
                 if (slowMotionSaveProgress != null) {
-                    GalleryLoadingIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = GalleryOverlayTokens.Content,
-                    )
-                } else Text(stringResource(R.string.viewer_save_slow_motion_clip))
+                    GalleryExpressiveButton(onClick = onCancelSlowMotionSave) {
+                        Text(stringResource(R.string.viewer_cancel))
+                    }
+                }
             }
             is HoldSlowMotionState.Failure -> Text(
                 slow.message,

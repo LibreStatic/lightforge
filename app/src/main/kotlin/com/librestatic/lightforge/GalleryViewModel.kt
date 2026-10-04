@@ -4902,6 +4902,10 @@ class GalleryViewModel @Inject constructor(
         cancelVideoEditorExport()
     }
 
+    fun cancelQuickSlowMotionSave() {
+        slowMotionSaveJob?.cancel()
+    }
+
     fun saveQuickSlowMotionClip(media: TimelineMedia, startMillis: Long, endMillis: Long) {
         val safeStart = startMillis.coerceIn(0L, (media.durationMillis - 1L).coerceAtLeast(0L))
         val safeEnd = endMillis.coerceAtMost(media.durationMillis)
@@ -4946,6 +4950,7 @@ class GalleryViewModel @Inject constructor(
                 )
                 refreshLibrary()
             } catch (cancelled: CancellationException) {
+                mutableQuickSlowMotionSave.value = mutableQuickSlowMotionSave.value.copy(progress = null)
                 throw cancelled
             } catch (failure: Throwable) {
                 android.util.Log.e("LightforgeSlowMotion", "Quick slow-motion export failed", failure)
