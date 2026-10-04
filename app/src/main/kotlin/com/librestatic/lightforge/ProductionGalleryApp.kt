@@ -1218,7 +1218,11 @@ internal fun ProductionGalleryApp(
                     Intent.FLAG_GRANT_READ_URI_PERMISSION,
                 )
             }
-            viewModel.setVideoMusic(uri, uri.lastPathSegment?.substringAfterLast('/') ?: "Local track")
+            val trackName = runCatching {
+                context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
+                    ?.use { if (it.moveToFirst()) it.getString(0) else null }
+            }.getOrNull()?.takeIf(String::isNotBlank) ?: context.getString(R.string.video_music_untitled)
+            viewModel.setVideoMusic(uri, trackName)
         }
     }
     val exportNotificationPermission = rememberLauncherForActivityResult(

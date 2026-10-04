@@ -136,4 +136,4 @@
     <string name="settings_reset_confirm">Restaurar</string>
     <string name="album_create_too_long">Use 200 caracteres ou menos.</string>
     <string name="album_create_failed">Não foi possível criar o álbum. Talvez já exista um álbum com este nome.</string>
-</resources>
+<string name="video_music_untitled">Faixa de áudio</string></resources>
