@@ -19,12 +19,17 @@ import android.print.PrintDocumentInfo
 import android.print.PrintManager
 import android.provider.DocumentsContract
 import android.provider.MediaStore
+import androidx.exifinterface.media.ExifInterface
 import com.librestatic.lightforge.core.model.MediaKind
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.ensureActive
 import kotlin.coroutines.coroutineContext
 import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import kotlin.math.max
 
 object ScopedMediaOperations {
@@ -147,15 +152,44 @@ object ScopedMediaOperations {
         check(updated == 1) { "The media could not be renamed" }
     }
 
-    fun repairDateTaken(resolver: ContentResolver, target: MediaActionTarget, dateTakenMillis: Long) {
+    /**
+     * Records a corrected capture date. MediaProvider ignores third-party writes to
+     * [MediaStore.MediaColumns.DATE_TAKEN] (it derives the value from the file), so for images the
+     * date is embedded as EXIF through the already-granted write access; the provider then rescans
+     * the file. Returns whether the date was embedded in the file. Callers still keep a local
+     * override so the library reflects the change at once and for formats that cannot carry it.
+     */
+    fun repairDateTaken(resolver: ContentResolver, target: MediaActionTarget, dateTakenMillis: Long): Boolean {
         require(dateTakenMillis > 0L) { "The capture date must be valid" }
-        val updated = resolver.update(
-            target.mediaUri(),
-            ContentValues().apply { put(MediaStore.MediaColumns.DATE_TAKEN, dateTakenMillis) },
-            null,
-            null,
-        )
-        check(updated == 1) { "The capture date could not be updated" }
+        val uri = target.mediaUri()
+        // Some providers honour the column; this one logs and drops it, so the result is advisory.
+        runCatching {
+            resolver.update(uri, ContentValues().apply { put(MediaStore.MediaColumns.DATE_TAKEN, dateTakenMillis) }, null, null)
+        }
+        if (target.kind != MediaKind.Image) return false
+        return runCatching {
+            resolver.openFileDescriptor(uri, "rw")?.use { descriptor ->
+                val exif = ExifInterface(descriptor.fileDescriptor)
+                val zone = TimeZone.getDefault()
+                val local = exifDateTime(dateTakenMillis, zone)
+                exif.setAttribute(ExifInterface.TAG_DATETIME_ORIGINAL, local)
+                exif.setAttribute(ExifInterface.TAG_DATETIME, local)
+                exif.setAttribute(ExifInterface.TAG_DATETIME_DIGITIZED, local)
+                exif.setAttribute(ExifInterface.TAG_OFFSET_TIME_ORIGINAL, exifOffset(dateTakenMillis, zone))
+                exif.saveAttributes()
+                true
+            } ?: false
+        }.getOrDefault(false)
+    }
+
+    internal fun exifDateTime(millis: Long, zone: TimeZone): String =
+        SimpleDateFormat("yyyy:MM:dd HH:mm:ss", Locale.US).apply { timeZone = zone }.format(Date(millis))
+
+    internal fun exifOffset(millis: Long, zone: TimeZone): String {
+        val minutes = zone.getOffset(millis) / 60_000
+        val sign = if (minutes < 0) '-' else '+'
+        val absolute = kotlin.math.abs(minutes)
+        return "%c%02d:%02d".format(Locale.US, sign, absolute / 60, absolute % 60)
     }
 
     fun printImage(context: Context, target: MediaActionTarget, title: String) {

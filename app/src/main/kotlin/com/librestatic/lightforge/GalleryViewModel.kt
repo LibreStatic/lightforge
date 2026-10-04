@@ -20,6 +20,7 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import com.librestatic.lightforge.core.data.MomentRepository
 import com.librestatic.lightforge.core.database.MomentEntity
+import com.librestatic.lightforge.core.database.PortableTimelineOverrideEntity
 import com.librestatic.lightforge.core.database.MomentMemberRow
 import com.librestatic.lightforge.core.database.MomentSummaryRow
 import com.librestatic.lightforge.core.data.GalleryTimelineRepository
@@ -6184,7 +6185,23 @@ class GalleryViewModel @Inject constructor(
                     is PendingWriteMutation.Rename -> ScopedMediaOperations.rename(resolver, authorizedTarget, mutation.displayName)
                     is PendingWriteMutation.DateTaken -> {
                         ScopedMediaOperations.repairDateTaken(resolver, authorizedTarget, mutation.dateTakenMillis)
-                        runtime.value?.database?.portableTimelineOverrideDao()?.remove(mutation.key.volumeName, mutation.key.mediaStoreId)
+                        // MediaProvider ignores third-party DATE_TAKEN writes and videos cannot carry
+                        // the date, so the choice is also kept locally; the row hint that follows
+                        // re-reads the item and applies it to its timeline position and details.
+                        runtime.value?.database?.let { database ->
+                            val row = database.libraryDao().media(mutation.key.volumeName, mutation.key.mediaStoreId)
+                            if (row != null) {
+                                database.portableTimelineOverrideDao().put(
+                                    PortableTimelineOverrideEntity(
+                                        volumeName = row.volumeName,
+                                        mediaStoreId = row.mediaStoreId,
+                                        generationAdded = row.generationAdded,
+                                        timelineSortMillis = mutation.dateTakenMillis,
+                                        dateTakenMillis = mutation.dateTakenMillis,
+                                    ),
+                                )
+                            }
+                        }
                     }
                 }
             }
