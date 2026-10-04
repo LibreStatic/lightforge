@@ -61,6 +61,7 @@ internal data class CreationGifEditorUi(
     @StringRes val recoveryMessage: Int? = null,
     val showRecoveryActions: Boolean = false,
     val showKeepEditing: Boolean = false,
+    val showDiscard: Boolean = false,
     val savedVisible: Boolean = false,
     val handoffEnabled: Boolean = false,
 )
@@ -78,6 +79,7 @@ internal class CreationGifEditorActions(
     val onCancelExport: () -> Unit = {},
     val onCheckPublication: () -> Unit = {},
     val onKeepEditing: () -> Unit = {},
+    val onDiscard: () -> Unit = {},
     val onOpen: () -> Unit = {},
     val onShare: () -> Unit = {},
 )
@@ -264,6 +266,10 @@ private fun GifProperties(ui: CreationGifEditorUi, actions: CreationGifEditorAct
                             onClick = actions.onCheckPublication, modifier = Modifier.testTag("creation-gif-check-publication"),
                             colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
                         ) { Text(stringResource(R.string.gif_publication_check)) }
+                        if (ui.showDiscard) TextButton(
+                            onClick = actions.onDiscard, modifier = Modifier.testTag("creation-gif-discard-publication"),
+                            colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
+                        ) { Text(stringResource(R.string.gif_publication_discard)) }
                         if (ui.showKeepEditing) TextButton(
                             onClick = actions.onKeepEditing, modifier = Modifier.testTag("creation-gif-keep-editing"),
                             colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),

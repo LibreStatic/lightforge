@@ -10,4 +10,5 @@
     <string name="gif_publication_sources_unavailable">The original photos are unavailable. A verified saved GIF can still be opened or shared; editing and export are blocked.</string>
     <string name="gif_publication_check">Check saved GIF</string>
     <string name="gif_publication_keep_editing">Return to editing</string>
+    <string name="gif_publication_discard">Discard and start over</string>
 </resources>

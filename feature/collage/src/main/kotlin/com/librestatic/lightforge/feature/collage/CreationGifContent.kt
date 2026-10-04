@@ -163,6 +163,7 @@ fun CreationGifContent(sessionId: String, title: String, sources: List<CreationG
         recoveryMessage = recoveryMessage,
         showRecoveryActions = gifKeepsRecovery(export.publication) && !export.running,
         showKeepEditing = export.publication == CreationGifPublicationUi.RetryableMissing && sourcesAvailable,
+        showDiscard = export.publication == CreationGifPublicationUi.Incomplete,
         savedVisible = export.uri != null && (handoffReady || export.publication == CreationGifPublicationUi.Unverified),
         handoffEnabled = handoffReady && !export.running && !closing,
     )
@@ -179,6 +180,7 @@ fun CreationGifContent(sessionId: String, title: String, sources: List<CreationG
         onCancelExport = { scope.launch { controller.cancelAndWait() } },
         onCheckPublication = controller::checkPublication,
         onKeepEditing = { scope.launch { controller.acknowledgeMissing() } },
+        onDiscard = { scope.launch { controller.discardIncomplete() } },
         onOpen = { open(false) },
         onShare = { open(true) },
     )

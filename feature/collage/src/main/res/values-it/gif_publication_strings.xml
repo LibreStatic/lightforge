@@ -10,4 +10,5 @@
     <string name="gif_publication_sources_unavailable">Le foto originali non sono disponibili. Un GIF salvato verificato può ancora essere aperto o condiviso; modifica ed esportazione sono bloccate.</string>
     <string name="gif_publication_check">Verifica GIF salvato</string>
     <string name="gif_publication_keep_editing">Torna alla modifica</string>
+    <string name="gif_publication_discard">Scarta e ricomincia</string>
 </resources>

@@ -10,4 +10,5 @@
     <string name="gif_publication_sources_unavailable">Les photos originales sont indisponibles. Un GIF enregistré vérifié reste accessible pour ouverture ou partage ; modification et exportation sont bloquées.</string>
     <string name="gif_publication_check">Vérifier le GIF enregistré</string>
     <string name="gif_publication_keep_editing">Revenir à la modification</string>
+    <string name="gif_publication_discard">Abandonner et recommencer</string>
 </resources>

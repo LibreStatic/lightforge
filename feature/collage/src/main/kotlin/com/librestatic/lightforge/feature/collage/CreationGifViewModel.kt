@@ -32,6 +32,20 @@ internal fun gifMissingPublicationState(confirmed: Boolean, retirementRequested:
     else -> CreationGifPublicationUi.None
 }
 
+internal enum class GifCancelCleanup { None, DiscardPending, ClearAttempt }
+
+/**
+ * A user-initiated Cancel is a terminal choice, not an interruption: whatever the cancelled attempt left
+ * behind (a journal record, a pending MediaStore row, or only the attempt marker) is cleaned so the user can
+ * export again. A committed or otherwise settled publication is never touched.
+ */
+internal fun gifCancelCleanup(userCancelled: Boolean, status: CreationGifPublicationUi): GifCancelCleanup = when {
+    !userCancelled -> GifCancelCleanup.None
+    status == CreationGifPublicationUi.Incomplete -> GifCancelCleanup.DiscardPending
+    status == CreationGifPublicationUi.RetryableMissing -> GifCancelCleanup.ClearAttempt
+    else -> GifCancelCleanup.None
+}
+
 /** Small Bundle marker: identity order and both generations are already part of each source identity. */
 internal fun gifPublicationBinding(sessionId: String, identities: List<String>): ArrayList<String> {
     val hash = java.security.MessageDigest.getInstance("SHA-256")
@@ -81,6 +95,7 @@ class CreationGifViewModel(application: Application, private val savedState: Sav
     private var job: Job? = null
     private var closed = false
     private var invalidBinding = false
+    @Volatile private var userCancelled = false
     /** Last URI the exporter reported as committed; recovery, not this field, still owns publication truth. */
     private var publishedUri: String? = null
     private val markerKey = "gif-publication-attempt-v1"
@@ -175,6 +190,7 @@ class CreationGifViewModel(application: Application, private val savedState: Sav
         if (closed || gifHasOwnedWork(job) || mutableState.value.publication != CreationGifPublicationUi.None) return
         check(request.sources.map { it.identity } == identities)
         publishedUri = null
+        userCancelled = false
         mark(markerKey) // Saved UI distinguishes a failed pre-intent attempt; the journal owns publication truth.
         mutableState.value = CreationGifExportState(running = true, publication = CreationGifPublicationUi.Checking)
         job = viewModelScope.launch {
@@ -187,8 +203,42 @@ class CreationGifViewModel(application: Application, private val savedState: Sav
                 // The durable receipt, not an exception category, decides whether retry is possible.
             } finally {
                 // Resolve even when Back cancels encoding. Never publish again from recovery.
-                withContext(NonCancellable) { recover() }
+                withContext(NonCancellable) {
+                    recover()
+                    cleanUpCancelledExport()
+                }
             }
+        }
+    }
+
+    private suspend fun cleanUpCancelledExport() {
+        if (closed || invalidBinding) return
+        when (gifCancelCleanup(userCancelled, mutableState.value.publication)) {
+            GifCancelCleanup.None -> return
+            GifCancelCleanup.DiscardPending -> {
+                val discarded = try { exporter.discardIncompletePublication(checkNotNull(session)) } catch (_: Exception) { false }
+                if (!discarded) return // Keeps the recovery card, which offers Check and Discard.
+            }
+            GifCancelCleanup.ClearAttempt -> Unit
+        }
+        savedState.remove<ArrayList<String>>(markerKey)
+        mutableState.value = CreationGifExportState(cancelled = true, publication = CreationGifPublicationUi.None)
+    }
+
+    /** Recovery-card action: drops an unfinished publication (pending file and journal) so a new export can start. */
+    suspend fun discardIncomplete() {
+        if (closed || invalidBinding || mutableState.value.running || gifHasOwnedWork(job) ||
+            mutableState.value.publication != CreationGifPublicationUi.Incomplete) return
+        mutableState.value = mutableState.value.copy(running = true)
+        val discarded = try { exporter.discardIncompletePublication(checkNotNull(session)) }
+            catch (cancel: CancellationException) { mutableState.value = mutableState.value.copy(running = false); throw cancel }
+            catch (_: Exception) { false }
+        if (discarded) {
+            savedState.remove<ArrayList<String>>(markerKey)
+            mutableState.value = CreationGifExportState(cancelled = true, publication = CreationGifPublicationUi.None)
+        } else {
+            recover()
+            mutableState.value = mutableState.value.copy(failed = true)
         }
     }
 
@@ -232,7 +282,10 @@ class CreationGifViewModel(application: Application, private val savedState: Sav
             it == expected.uri && current.receipt == expected.receipt }?.let(Uri::parse)
     }
 
-    suspend fun cancelAndWait() { job?.cancelAndJoin() }
+    suspend fun cancelAndWait() {
+        if (gifHasOwnedWork(job)) userCancelled = true
+        job?.cancelAndJoin()
+    }
     suspend fun closeResolvedDraft(): Boolean {
         cancelAndWait()
         if (closed) return true
