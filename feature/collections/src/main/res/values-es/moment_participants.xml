@@ -1,20 +1,20 @@
 <resources>
     <string name="moment_participants_title">Participantes</string>
-    <string name="moment_participants_local_only">Elegí personas locales existentes. Los nombres y las fotos originales no cambian.</string>
+    <string name="moment_participants_local_only">Elige personas locales existentes. Los nombres y las fotos originales no cambian.</string>
     <string name="moment_participants_automatic">Automático</string>
     <string name="moment_participants_manual">Manual</string>
     <string name="moment_participants_automatic_hint">Usa las identidades locales actuales de las personas de este recuerdo.</string>
     <string name="moment_participants_manual_hint">Sólo cambia este recuerdo. Una selección vacía significa sin participantes.</string>
-    <string name="moment_participants_unavailable">Este recuerdo o sus personas no están disponibles. Recargá antes de aplicar.</string>
-    <string name="moment_participants_changed">Las personas o las opciones guardadas cambiaron durante la edición. Revisá las opciones actuales antes de aplicar.</string>
+    <string name="moment_participants_unavailable">Este recuerdo o sus personas no están disponibles. Recarga antes de aplicar.</string>
+    <string name="moment_participants_changed">Las personas o las opciones guardadas cambiaron durante la edición. Revisa las opciones actuales antes de aplicar.</string>
     <string name="moment_participants_review">Revisar opciones actuales</string>
     <string name="moment_participants_clear">Limpiar selección</string>
     <string name="moment_participants_search">Buscar personas</string>
     <string name="moment_participants_no_matches">No hay personas coincidentes.</string>
-    <string name="moment_participants_empty">No hay personas para mostrar. Podés conservar este recuerdo sin participantes.</string>
+    <string name="moment_participants_empty">No hay personas para mostrar. Puedes conservar este recuerdo sin participantes.</string>
     <string name="moment_participants_unnamed">Persona %1$d</string>
     <string name="moment_participants_cancel">Cancelar</string>
-    <string name="moment_participants_error">Los cambios no se guardaron. Intentá de nuevo.</string>
+    <string name="moment_participants_error">Los cambios no se guardaron. Inténtalo de nuevo.</string>
     <string name="moment_participants_retry">Reintentar</string>
     <string name="moment_participants_apply">Aplicar</string>
     <plurals name="moment_participants_count">

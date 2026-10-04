@@ -8,8 +8,8 @@
     <string name="people_enable_body">El análisis se realiza solo en tu dispositivo.</string>
     <string name="people_how_it_works">Cómo funciona</string>
     <string name="people_found_title">Personas encontradas</string>
-    <string name="people_choose_me_title">Elegí quién sos</string>
-    <string name="people_choose_me_body">Abrí una persona y tocá Marcar como Yo para encontrar tus fotos.</string>
+    <string name="people_choose_me_title">Elige quién eres</string>
+    <string name="people_choose_me_body">Abre una persona y toca Marcar como Yo para encontrar tus fotos.</string>
     <string name="people_merge_confirm">Combinar</string>
     <plurals name="people_hidden_count">
         <item quantity="one">Ocultas (%d)</item>
