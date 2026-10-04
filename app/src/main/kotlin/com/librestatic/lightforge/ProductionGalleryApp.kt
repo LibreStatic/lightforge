@@ -4289,9 +4289,13 @@ private fun ViewerRoute(
             delay(1_000L)
         }
     }
-    DisposableEffect(videoController, slowMotionSession) {
+    // The session outlives the controller's null -> ready transition: closing it with the controller
+    // key cancelled its scope before the first hold, leaving "Preparing AI slow motion" forever.
+    DisposableEffect(slowMotionSession) {
+        onDispose { slowMotionSession?.close() }
+    }
+    DisposableEffect(videoController) {
         onDispose {
-            slowMotionSession?.close()
             videoController?.let { viewModel.saveVideoPosition(media, it.currentPositionMillis()) }
             videoController?.close()
         }
