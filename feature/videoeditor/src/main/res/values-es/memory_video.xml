@@ -20,8 +20,8 @@
     <string name="memory_video_choose_music">Elegir archivo de audio</string>
     <string name="memory_video_remove_music">Quitar música</string>
     <string name="memory_video_local_note">Se crea en este dispositivo. Los originales y el orden guardado del recuerdo no cambian. Las fotos se ajustan a un cuadro 16:9. Límite de música: 128 MB. La exportación se cancela al cerrar esta pantalla.</string>
-    <string name="memory_video_limit">Elegí un recuerdo con 1–120 fotos disponibles.</string>
-    <string name="memory_video_failure">El video no se completó. Revisá el acceso a fotos y música y el espacio disponible; luego reintentá. No se publicó un video parcial.</string>
+    <string name="memory_video_limit">Elige un recuerdo con 1–120 fotos disponibles.</string>
+    <string name="memory_video_failure">El video no se completó. Revisa el acceso a fotos y música y el espacio disponible; luego vuelve a intentarlo. No se publicó un video parcial.</string>
     <string name="memory_video_cancelled">Exportación cancelada. No se publicó un video parcial.</string>
     <string name="memory_video_preparing">Preparando fotos…</string>
     <string name="memory_video_encoding">Creando video…</string>
