@@ -67,6 +67,7 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.search.MediaSearchHit
@@ -132,6 +133,7 @@ fun SearchContent(
     modifier: Modifier = Modifier,
 ) {
     var showDetectedContent by rememberSaveable { mutableStateOf(false) }
+    var confirmDeleteDetected by rememberSaveable { mutableStateOf(false) }
     val textFieldState = rememberTextFieldState(query)
     val searchBarState = rememberSearchBarState()
     val focusManager = LocalFocusManager.current
@@ -268,6 +270,17 @@ fun SearchContent(
                     }
                 } else {
                     Text(stringResource(R.string.search_empty))
+                    if (!detectedContentEnabled) {
+                        // Content queries (people, places, topics) find nothing until analysis has run.
+                        Text(
+                            stringResource(R.string.search_empty_analysis_hint),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        TextButton(onClick = { showDetectedContent = true }) {
+                            Text(stringResource(R.string.search_local_analysis))
+                        }
+                    }
                 }
             }
             else -> SearchResultsGrid(
@@ -302,11 +315,24 @@ fun SearchContent(
                         Text(stringResource(R.string.search_analysis_enable_people))
                     }
                 }
-                if (detectedContentEnabled) TextButton(onClick = onDeleteDetectedContent) {
+                if (detectedContentEnabled) TextButton(onClick = { confirmDeleteDetected = true }) {
                     Text(stringResource(R.string.search_analysis_delete))
                 }
                 TextButton(onClick = { showDetectedContent = false }) { Text(stringResource(R.string.search_close)) }
             }
+        },
+    )
+    if (confirmDeleteDetected) AlertDialog(
+        onDismissRequest = { confirmDeleteDetected = false },
+        title = { Text(stringResource(R.string.search_analysis_delete_title)) },
+        text = { Text(stringResource(R.string.search_analysis_delete_body)) },
+        confirmButton = {
+            TextButton(onClick = { confirmDeleteDetected = false; onDeleteDetectedContent() }) {
+                Text(stringResource(R.string.search_analysis_delete_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { confirmDeleteDetected = false }) { Text(stringResource(R.string.search_cancel)) }
         },
     )
 }
@@ -643,7 +669,13 @@ private fun SearchResultCard(
                 )
             }
         }
-        Text(hit.displayName ?: fallbackDescription, Modifier.padding(8.dp), maxLines = 2)
+        Text(
+            hit.displayName ?: fallbackDescription,
+            Modifier.padding(8.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

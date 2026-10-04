@@ -12,4 +12,10 @@
     <string name="search_topics">Topics</string><string name="search_landscapes">Landscapes</string><string name="search_food">Food</string>
 <string name="search_voice">Voice search</string><string name="search_voice_unavailable">Voice search is unavailable on this device.</string>    <string name="search_empty_collection_title">No matching photos</string>
     <string name="search_empty_collection_body">But there is a matching collection. Open it?</string>
-<string name="search_semantic_unavailable">Semantic search unavailable, showing keyword results</string></resources>
+<string name="search_semantic_unavailable">Semantic search unavailable, showing keyword results</string>
+    <string name="search_analysis_delete_title">Delete all local-analysis data?</string>
+    <string name="search_analysis_delete_body">Faces, people, labels, recognized text, progress and consent will be removed. Your photos are never changed.</string>
+    <string name="search_analysis_delete_confirm">Delete data</string>
+    <string name="search_cancel">Cancel</string>
+    <string name="search_empty_analysis_hint">Turn on on-device analysis to also search what is in your photos.</string>
+</resources>
