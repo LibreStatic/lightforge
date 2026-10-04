@@ -3459,12 +3459,21 @@ class GalleryViewModel @Inject constructor(
         sort: AlbumSort,
     ) = openMedia(media, albumQuery(album.key, filter, sort))
 
+    /** Removes items that were trashed or deleted from the current search results. */
+    private fun dropFromSearchHits(keys: Set<MediaKey>) {
+        if (keys.isEmpty()) return
+        mutableSearch.value = mutableSearch.value.let { state ->
+            if (state.hits.none { it.key in keys }) state else state.copy(hits = state.hits.filterNot { it.key in keys })
+        }
+    }
+
     /** Keys trashed from the viewer, hidden from its window until the library sync drops them. */
     private val viewerTrashedKeys = mutableSetOf<MediaKey>()
 
     /** Advances past [trashed] after a viewer trash, so neither the pager nor the filmstrip keeps it. */
     fun selectViewerMediaAfterTrash(neighbour: TimelineMedia, trashed: MediaKey) {
         viewerTrashedKeys += trashed
+        dropFromSearchHits(setOf(trashed))
         mutableViewerState.value = mutableViewerState.value.let { viewer ->
             val items = viewer.items.filterNot { it.key == trashed }
             viewer.copy(items = items, currentIndex = viewer.currentIndex.coerceAtMost((items.size - 1).coerceAtLeast(0)))
@@ -6196,6 +6205,9 @@ class GalleryViewModel @Inject constructor(
                 applyPendingWriteMutation(approvedTargets.singleOrNull())
             }
             if (approved) approvedTargets.forEach { runtime.value?.synchronizer?.applyRowHint(it.key) }
+            if (approved && ((approvedAction is MediaAction.Trash && approvedAction.enabled) || approvedAction == MediaAction.Delete)) {
+                dropFromSearchHits(approvedTargets.map { it.key }.toSet())
+            }
             if (snapshot?.phase == com.librestatic.lightforge.core.mediastore.MediaActionPhase.ReadyForChunk) {
                 when {
                     bulkCursor != null -> stageNextBulkChunk()
