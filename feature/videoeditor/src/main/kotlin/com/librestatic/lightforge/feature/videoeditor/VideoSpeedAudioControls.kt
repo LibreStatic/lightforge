@@ -66,7 +66,7 @@ internal fun SpeedControls(
                     colors = editorFilterChipColors(),
                     selected = state.speed == speed,
                     onClick = { onSpeedChange(speed) },
-                    label = { Text("${speed}×") },
+                    label = { Text(speedMultiplierLabel(speed)) },
                     modifier = EditorChipModifier,
                 )
             }
@@ -119,7 +119,7 @@ internal fun SpeedControls(
                         colors = editorFilterChipColors(),
                         selected = segment.speed == speed,
                         onClick = { onUpdate(segment.copy(speed = speed)) },
-                        label = { Text("${speed}×") },
+                        label = { Text(speedMultiplierLabel(speed)) },
                         modifier = EditorChipModifier,
                     )
                 }
