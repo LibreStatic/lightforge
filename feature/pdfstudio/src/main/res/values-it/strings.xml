@@ -124,6 +124,7 @@
     <string name="pdf_deleteproject_action">Elimina progetto</string>
     <plurals name="pdf_delete_pages_action">
         <item quantity="one">Elimina pagina</item>
+        <item quantity="many">Elimina %1$d pagine</item>
         <item quantity="other">Elimina %1$d pagine</item>
     </plurals>
     <string name="pdf_export_filename">Nome del file</string>
@@ -139,6 +140,7 @@
     <string name="pdf_export_custom_pages_reversed">\"%1$s\" è invertito; usa prima il numero più piccolo</string>
     <plurals name="pdf_export_custom_pages_summary">
         <item quantity="one">%1$d pagina: %2$s</item>
+        <item quantity="many">%1$d pagine: %2$s</item>
         <item quantity="other">%1$d pagine: %2$s</item>
     </plurals>
     <string name="pdf_export_size_estimate">≈ %1$s</string>
@@ -170,6 +172,7 @@
     <string name="pdf_export_recovery_failed">L’esportazione è terminata mentre Lightforge Studio era chiuso — %1$s</string>
     <plurals name="pdf_export_saved_pages">
         <item quantity="one">%1$d pagina</item>
+        <item quantity="many">%1$d pagine</item>
         <item quantity="other">%1$d pagine</item>
     </plurals>
     <string name="pdf_export_quality_card_label">%1$s, %2$s</string>
@@ -200,6 +203,7 @@
     <string name="pdf_delete">Elimina</string>
     <plurals name="pdf_pages_selected">
         <item quantity="one">%1$d selezionata</item>
+        <item quantity="many">%1$d selezionate</item>
         <item quantity="other">%1$d selezionate</item>
     </plurals>
     <string name="pdf_page_check_selected">Selezionata</string>
@@ -226,6 +230,7 @@
     <string name="pdf_placement_fit_desc">Mostra la foto intera, leggermente più piccola, dentro il riquadro</string>
     <plurals name="pdf_photos_per_page">
         <item quantity="one">%1$d foto per pagina</item>
+        <item quantity="many">%1$d foto per pagina</item>
         <item quantity="other">%1$d foto per pagina</item>
     </plurals>
     <string name="pdf_print_size_doesnt_fit">Non entra in questo foglio</string>
@@ -273,6 +278,7 @@
     <string name="pdf_library_more_actions">Altre azioni per %1$s</string>
     <plurals name="pdf_library_card_summary">
         <item quantity="one">%1$d pagina · %2$s · %3$s</item>
+        <item quantity="many">%1$d pagine · %2$s · %3$s</item>
         <item quantity="other">%1$d pagine · %2$s · %3$s</item>
     </plurals>
     <string name="pdf_library_history_needs_action">Esportazioni, azione richiesta</string>
@@ -283,6 +289,7 @@
     <string name="pdf_selection_pdf_hint">L\'ordine è l\'ordine delle pagine · fino a 24 per pagina</string>
     <plurals name="pdf_intake_title">
         <item quantity="one">Aggiunta di %1$d foto</item>
+        <item quantity="many">Aggiunta di %1$d foto</item>
         <item quantity="other">Aggiunta di %1$d foto</item>
     </plurals>
     <string name="pdf_intake_progress">%1$d di %2$d copiate</string>
@@ -311,6 +318,7 @@
     <string name="pdf_shortcut_exit_selection">Esci dalla selezione</string>
     <plurals name="pdf_elements_selected">
         <item quantity="one">%1$d selezionato</item>
+        <item quantity="many">%1$d selezionati</item>
         <item quantity="other">%1$d selezionati</item>
     </plurals>
     <string name="pdf_multiselect_add">Aggiungi alla selezione</string>
