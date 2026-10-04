@@ -2656,7 +2656,7 @@ internal fun ProductionGalleryApp(
                         )
                         else -> SelectionActions(
                             count = selectionCount,
-                            canShare = selection is SelectionSpec.Explicit && selectionCount <= 500,
+                            canShare = selectionCount in 1L..500L,
                             showShareLimitNote = selectionCount > 500,
                             onSelectAll = {
                                 if (activeRoute == SurfaceRoute.Album && selectedAlbum != null) {
@@ -2672,9 +2672,7 @@ internal fun ProductionGalleryApp(
                                 if (gallerySettings.operations.shareWithoutLocationByDefault) {
                                     viewModel.sanitizedSelectionShare()
                                 } else {
-                                    viewModel.selectionShareIntent()?.let {
-                                        context.startActivity(Intent.createChooser(it, null))
-                                    }
+                                    viewModel.shareSelectionOriginals()
                                 }
                             },
                             onStack = {

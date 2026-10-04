@@ -3242,13 +3242,41 @@ class GalleryViewModel @Inject constructor(
         return targets.map { it.uri() }
     }
 
-    fun selectionShareIntent(): Intent? {
-        val selected = mutableSelection.value as? SelectionSpec.Explicit ?: return null
-        val targets = selected.keys.mapNotNull(explicitTargets::get)
-        if (targets.isEmpty() || targets.size > 500) return null
-        return ShareCoordinator(getApplication<Application>().contentResolver).original(
-            targets.map { ShareCandidate(it, mediaMime(it.kind)) },
-        ).intent
+    /** Shares the originals; the chooser opens through [sanitizedShare], like the location-free path. */
+    fun shareSelectionOriginals() {
+        viewModelScope.launch {
+            val targets = selectionShareTargets() ?: return@launch
+            mutableSanitizedShare.emit(
+                ShareCoordinator(getApplication<Application>().contentResolver).original(
+                    targets.map { ShareCandidate(it, mediaMime(it.kind)) },
+                ).intent,
+            )
+        }
+    }
+
+    /** Explicit keys, or a select-all query resolved page by page; null when empty or over the share limit. */
+    private suspend fun selectionShareTargets(): List<MediaActionTarget>? {
+        val targets = when (val selected = mutableSelection.value) {
+            is SelectionSpec.Explicit -> selected.keys.mapNotNull(explicitTargets::get)
+            is SelectionSpec.QueryAll -> withContext(Dispatchers.IO) {
+                val active = runtime.value ?: return@withContext emptyList()
+                val resolved = mutableListOf<MediaActionTarget>()
+                var after: MediaKey? = null
+                while (resolved.size <= SelectionShareLimit) {
+                    val page = active.selectionTargets.page(selected.querySnapshot, after, 500)
+                    if (page.isEmpty()) break
+                    resolved += page.filterNot { it.key in selected.exclusions }
+                    after = page.last().key
+                    if (page.size < 500) break
+                }
+                resolved
+            }
+        }
+        if (targets.size > SelectionShareLimit) {
+            mutableShareError.emit(getApplication<Application>().getString(R.string.selection_share_limit))
+            return null
+        }
+        return targets.ifEmpty { null }
     }
 
     fun canCreateCollage(template: CollageTemplate): Boolean {
@@ -5926,10 +5954,8 @@ class GalleryViewModel @Inject constructor(
 
     /** Share of the current selection as location-free copies (the "share without location" setting). */
     fun sanitizedSelectionShare() {
-        val selected = mutableSelection.value as? SelectionSpec.Explicit ?: return
-        val targets = selected.keys.mapNotNull(explicitTargets::get)
-        if (targets.isEmpty() || targets.size > 500) return
         viewModelScope.launch {
+            val targets = selectionShareTargets() ?: return@launch
             try {
                 val sanitizer = LocalShareSanitizer(getApplication<Application>())
                 val assets = targets.map { sanitizer.prepare(ShareCandidate(it, mediaMime(it.kind))) }
@@ -6790,3 +6816,5 @@ class GalleryViewModel @Inject constructor(
         const val CleanupPreviewLimit = 30
     }
 }
+
+private const val SelectionShareLimit = 500
