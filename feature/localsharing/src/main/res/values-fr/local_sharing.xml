@@ -65,4 +65,6 @@
     </plurals>
     <string name="peer_revoke_title">Révoquer %1$s ?</string>
     <string name="peer_revoke_body">Cet appareil ne pourra plus envoyer ni recevoir d’éléments tant que vous ne l’aurez pas associé à nouveau.</string>
+    <string name="peer_host_invalid">Saisissez un nom d’hôte ou une adresse IP valide.</string>
+    <string name="peer_code_invalid">Ce code d’appairage n’est pas valide. Vérifiez-le et réessayez.</string>
 </resources>

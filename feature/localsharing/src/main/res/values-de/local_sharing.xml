@@ -64,4 +64,6 @@
     </plurals>
     <string name="peer_revoke_title">%1$s widerrufen?</string>
     <string name="peer_revoke_body">Dieses Gerät kann erst wieder Elemente senden oder empfangen, wenn du es erneut koppelst.</string>
+    <string name="peer_host_invalid">Gib einen gültigen Hostnamen oder eine gültige IP-Adresse ein.</string>
+    <string name="peer_code_invalid">Dieser Kopplungscode ist ungültig. Prüfe ihn und versuche es erneut.</string>
 </resources>

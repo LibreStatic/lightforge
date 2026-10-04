@@ -64,4 +64,6 @@
     </plurals>
     <string name="peer_revoke_title">Revoke %1$s?</string>
     <string name="peer_revoke_body">This device will no longer be able to send or receive items until you pair it again.</string>
+    <string name="peer_host_invalid">Enter a valid host name or IP address.</string>
+    <string name="peer_code_invalid">This pairing code isn\'t valid. Check it and try again.</string>
 </resources>

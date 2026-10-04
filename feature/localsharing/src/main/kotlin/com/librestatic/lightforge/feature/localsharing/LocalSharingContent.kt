@@ -54,6 +54,8 @@ fun LocalSharingContent(
     var host by remember { mutableStateOf("") }
     var code by remember { mutableStateOf("") }
     var error by remember { mutableStateOf(false) }
+    var hostError by remember { mutableStateOf(false) }
+    var codeError by remember { mutableStateOf(false) }
     var receiveFailureDismissed by remember { mutableStateOf(false) }
     var working by remember { mutableStateOf(false) }
     var revokeTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
@@ -69,8 +71,11 @@ fun LocalSharingContent(
         scope.launch {
             working = true
             error = false
+            codeError = false
             try {
                 action()
+            } catch (e: InvalidPairingCode) {
+                codeError = true
             } catch (e: Exception) {
                 error = true
             } finally {
@@ -92,7 +97,7 @@ fun LocalSharingContent(
             if (uri != null)
                 launch {
                     code = withContext(Dispatchers.IO) { readPeerQr(context, uri) }
-                    controller.parseInvitation(code)
+                    invitationOrThrow(controller, code)
                 }
         }
     LaunchedEffect(controller) { controller.reconcile() }
@@ -134,9 +139,14 @@ fun LocalSharingContent(
                             {
                                 host = it
                                 error = false
+                                hostError = false
                                 receiveFailureDismissed = true
                             },
                             label = { Text(stringResource(R.string.peer_host)) },
+                            isError = hostError,
+                            supportingText = if (hostError) {
+                                { Text(stringResource(R.string.peer_host_invalid)) }
+                            } else null,
                             modifier = Modifier.fillMaxWidth().testTag("peer-host"),
                             singleLine = true,
                             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
@@ -147,9 +157,12 @@ fun LocalSharingContent(
                         Button(
                             onClick = {
                                 error = false
+                                hostError = false
                                 receiveFailureDismissed = false
                                 try {
                                     controller.receive(host)
+                                } catch (e: IllegalArgumentException) {
+                                    hostError = true
                                 } catch (e: Exception) {
                                     error = true
                                 }
@@ -221,8 +234,13 @@ fun LocalSharingContent(
                         {
                             code = it
                             error = false
+                            codeError = false
                         },
                         label = { Text(stringResource(R.string.peer_code)) },
+                        isError = codeError,
+                        supportingText = if (codeError) {
+                            { Text(stringResource(R.string.peer_code_invalid)) }
+                        } else null,
                         modifier = Modifier.fillMaxWidth().testTag("peer-code"),
                         maxLines = 3,
                     )
@@ -235,7 +253,7 @@ fun LocalSharingContent(
                                 launch {
                                     pairing =
                                         !controller.pair(
-                                            controller.parseInvitation(code),
+                                            invitationOrThrow(controller, code),
                                             android.os.Build.MODEL.take(80),
                                         )
                                     if (!pairing) code = ""
@@ -621,3 +639,13 @@ private fun copySensitive(context: android.content.Context, text: String) {
     }
     context.getSystemService(android.content.ClipboardManager::class.java)?.setPrimaryClip(clip)
 }
+
+private class InvalidPairingCode : Exception()
+
+/** Parses a pairing code, flagging a malformed one so the code field can explain it. */
+private fun invitationOrThrow(controller: LocalSharingController, code: String) =
+    try {
+        controller.parseInvitation(code)
+    } catch (e: Exception) {
+        throw InvalidPairingCode()
+    }
