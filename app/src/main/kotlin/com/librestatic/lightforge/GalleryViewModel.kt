@@ -322,6 +322,7 @@ data class QuickSlowMotionSaveState(
 )
 
 private const val LibraryLogTag = "LightforgeLibrary"
+private const val VIDEO_ANNOTATION_COALESCE_MILLIS = 1_500L
 
 private data class GalleryRuntime(
     val database: GalleryDatabase,
@@ -803,6 +804,8 @@ class GalleryViewModel @Inject constructor(
     private val videoAnnotationTrackingEpoch = MemoryVideoRequestEpoch()
     private val videoAnnotationUndo = ArrayDeque<List<VideoAnnotationLayer>>()
     private val videoAnnotationRedo = ArrayDeque<List<VideoAnnotationLayer>>()
+    /** Layer id and time of the last slider-style edit, so a burst of updates is one undo step. */
+    private var videoAnnotationCoalesce: Pair<String, Long>? = null
     private val videoEditHistory = VideoEditHistory()
     private var videoHistoryApplying: VideoEditRecipe? = null
     private var slowMotionSaveJob: Job? = null
@@ -5166,7 +5169,7 @@ class GalleryViewModel @Inject constructor(
             layer.startMillis < session.recipe.startMillis ||
             layer.endMillis > (session.recipe.endMillis ?: session.content.durationMillis)
         ) return
-        commitVideoAnnotations(session.recipe.annotations.map { if (it.id == layer.id) layer else it }, layer.id)
+        commitVideoAnnotations(session.recipe.annotations.map { if (it.id == layer.id) layer else it }, layer.id, coalesceId = layer.id)
     }
 
     fun eraseVideoAnnotations(points: List<NormalizedPoint>, timeMillis: Long) {
@@ -5247,6 +5250,7 @@ class GalleryViewModel @Inject constructor(
         when (val step = videoEditHistory.undo(VideoEditHistory.Snapshot(session.recipe, session.content))) {
             is VideoEditHistory.Step.Restore -> applyVideoHistorySnapshot(step.snapshot)
             VideoEditHistory.Step.Annotation -> {
+                videoAnnotationCoalesce = null
                 val previous = videoAnnotationUndo.removeLastOrNull() ?: return
                 pushBounded(videoAnnotationRedo, session.recipe.annotations)
                 applyVideoAnnotations(previous, null)
@@ -5260,6 +5264,7 @@ class GalleryViewModel @Inject constructor(
         when (val step = videoEditHistory.redo(VideoEditHistory.Snapshot(session.recipe, session.content))) {
             is VideoEditHistory.Step.Restore -> applyVideoHistorySnapshot(step.snapshot)
             VideoEditHistory.Step.Annotation -> {
+                videoAnnotationCoalesce = null
                 val next = videoAnnotationRedo.removeLastOrNull() ?: return
                 pushBounded(videoAnnotationUndo, session.recipe.annotations)
                 applyVideoAnnotations(next, null)
@@ -5293,6 +5298,7 @@ class GalleryViewModel @Inject constructor(
             if (applying != null && applying == new.recipe) {
                 videoHistoryApplying = null
             } else if (old.recipe.copy(annotations = emptyList()) != new.recipe.copy(annotations = emptyList())) {
+                videoAnnotationCoalesce = null
                 videoEditHistory.recordRecipeChange(
                     VideoEditHistory.Snapshot(old.recipe, old.content),
                     VideoEditHistory.changeKey(old.recipe, new.recipe),
@@ -5413,12 +5419,23 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
-    private fun commitVideoAnnotations(updated: List<VideoAnnotationLayer>, selectedId: String?) {
+    private fun commitVideoAnnotations(
+        updated: List<VideoAnnotationLayer>,
+        selectedId: String?,
+        coalesceId: String? = null,
+    ) {
         val session = mutableVideoEditor.value ?: return
         if (updated == session.recipe.annotations) return
-        pushBounded(videoAnnotationUndo, session.recipe.annotations)
-        videoAnnotationRedo.clear()
-        videoEditHistory.recordAnnotationChange()
+        val now = SystemClock.elapsedRealtime()
+        val previous = videoAnnotationCoalesce
+        val coalesce = coalesceId != null && previous != null && previous.first == coalesceId &&
+            now - previous.second <= VIDEO_ANNOTATION_COALESCE_MILLIS && videoAnnotationUndo.isNotEmpty()
+        videoAnnotationCoalesce = coalesceId?.let { it to now }
+        if (!coalesce) {
+            pushBounded(videoAnnotationUndo, session.recipe.annotations)
+            videoAnnotationRedo.clear()
+            videoEditHistory.recordAnnotationChange()
+        }
         applyVideoAnnotations(updated, selectedId)
     }
 
