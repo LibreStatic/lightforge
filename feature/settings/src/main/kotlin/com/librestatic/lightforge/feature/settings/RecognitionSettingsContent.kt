@@ -619,7 +619,7 @@ private fun SettingsCategoryRow(
         }
     } else null
     val supporting: (@Composable () -> Unit)? = summary?.let { value ->
-        { Text(value, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        { Text(value, maxLines = 2, overflow = TextOverflow.Ellipsis) }
     }
     if (selected) {
         SegmentedListItem(
