@@ -748,6 +748,8 @@ internal fun ProductionGalleryApp(
     var backupReviewTaskId by rememberSaveable { mutableStateOf<String?>(null) }
     var backupTasksReturnRemote by rememberSaveable { mutableStateOf(false) }
     var momentReturnToBrowser by rememberSaveable { mutableStateOf(false) }
+    // An album opened from On device returns to that list; one opened from Collections returns to Collections.
+    var albumReturnToDeviceFolders by rememberSaveable { mutableStateOf(false) }
     var placesReturnRoute by rememberSaveable { mutableStateOf(SurfaceRoute.Settings) }
     var placesReturnRootTab by rememberSaveable { mutableStateOf(RootTab.Photos) }
     fun openOfflinePlaces() {
@@ -1167,6 +1169,7 @@ internal fun ProductionGalleryApp(
             route == SurfaceRoute.Moment && momentReturnToBrowser -> route = SurfaceRoute.MemoriesBrowser
             route == SurfaceRoute.MemoriesBrowser -> { rootTab = RootTab.Collections; route = SurfaceRoute.Root }
             route == SurfaceRoute.PublicationRecoveries -> { route = SurfaceRoute.Root }
+            route == SurfaceRoute.Album && albumReturnToDeviceFolders -> route = SurfaceRoute.DeviceFolders
             route == SurfaceRoute.LocalBackupTasks -> { backupReviewTaskId = null; route = if (backupTasksReturnRemote) SurfaceRoute.RemoteBackup else SurfaceRoute.LocalBackup }
             route == SurfaceRoute.OfflinePlaces -> leaveOfflinePlaces()
             route == SurfaceRoute.OwnSync || route == SurfaceRoute.LocalSharing || route == SurfaceRoute.PetIdentity -> { route = SurfaceRoute.Settings }
@@ -1523,6 +1526,7 @@ internal fun ProductionGalleryApp(
                         onMomentClick = { momentReturnToBrowser = false; viewModel.openMoment(it.momentId); route = SurfaceRoute.Moment },
                         onAllMemoriesClick = { route = SurfaceRoute.MemoriesBrowser },
                         onAlbumClick = { album ->
+                            albumReturnToDeviceFolders = false
                             viewModel.selectAlbum(album, filter, sort)
                             route = SurfaceRoute.Album
                         },
@@ -1647,6 +1651,7 @@ internal fun ProductionGalleryApp(
                 SurfaceRoute.DeviceFolders -> DeviceFoldersContent(
                     albums = physicalAlbums,
                     onAlbumClick = { album ->
+                        albumReturnToDeviceFolders = true
                         viewModel.selectAlbum(album, filter, sort)
                         route = SurfaceRoute.Album
                     },
@@ -3000,7 +3005,7 @@ internal fun ProductionGalleryApp(
                         subtitle = selectedAlbum?.takeIf { it.availability != com.librestatic.lightforge.core.model.AlbumAvailability.VolumeUnavailable }?.let {
                             pluralStringResource(com.librestatic.lightforge.feature.album.R.plurals.album_item_count, it.itemCount.toInt(), it.itemCount)
                         },
-                        onBack = { route = SurfaceRoute.Root },
+                        onBack = { handleBack() },
                         navigationContentDescription = stringResource(R.string.nav_back),
                         actions = {
                             IconButton(
