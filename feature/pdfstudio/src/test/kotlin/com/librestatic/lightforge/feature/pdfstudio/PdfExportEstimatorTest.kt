@@ -100,6 +100,16 @@ class PdfExportEstimatorTest {
     }
 
     @Test
+    fun compactJpegEstimateNeverExceedsTheOriginalSourceBytes() {
+        val a = asset("image/jpeg", w = 4000, h = 3000)
+        val project = projectWith(a)
+        val sourceBytes = mapOf(a.hash to 40_000L)
+        val original = PdfExportEstimator.estimate(project, sourceBytes, compact = false)
+        val compact = PdfExportEstimator.estimate(project, sourceBytes, compact = true)
+        assertTrue("compact ($compact) must not exceed original ($original)", compact <= original)
+    }
+
+    @Test
     fun missingSourceBytesContributeZeroInsteadOfCrashing() {
         val a = asset("image/jpeg")
         val project = projectWith(a)

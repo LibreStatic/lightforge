@@ -113,6 +113,11 @@ object PdfExportEstimator {
             }
         } else {
             val (w, h) = effectiveDimensions(asset.width, asset.height, COMPACT_MAX_SIDE, MAX_PIXELS)
-            (w.toLong() * h.toLong() * COMPACT_JPEG_BYTES_PER_PIXEL).toLong()
+            val heuristic = (w.toLong() * h.toLong() * COMPACT_JPEG_BYTES_PER_PIXEL).toLong()
+            // A JPEG source is already lossy-compressed: its Compact re-encode (never upscaled)
+            // is not expected to outgrow the file Original copies byte-for-byte, so the heuristic
+            // (tuned for photographic content) must not make Compact read larger than Original
+            // for flat or already-small images.
+            if (asset.mime == "image/jpeg" && sourceBytes > 0L) minOf(heuristic, sourceBytes) else heuristic
         }
 }
