@@ -125,4 +125,6 @@
     <string name="settings_reset_confirm_title">Standardeinstellungen wiederherstellen?</string>
     <string name="settings_reset_confirm_body">Alle Einstellungen werden auf ihre Standardwerte zurückgesetzt. Ihre Fotos, Alben und Favoriten bleiben unverändert.</string>
     <string name="settings_reset_confirm">Wiederherstellen</string>
+    <string name="album_create_too_long">Verwende höchstens 200 Zeichen.</string>
+    <string name="album_create_failed">Das Album konnte nicht erstellt werden. Möglicherweise gibt es bereits ein Album mit diesem Namen.</string>
 </resources>

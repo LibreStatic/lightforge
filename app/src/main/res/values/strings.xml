@@ -147,4 +147,6 @@
     <string name="settings_reset_confirm_title">Restore default settings?</string>
     <string name="settings_reset_confirm_body">All settings return to their defaults. Your photos, albums and favorites are not changed.</string>
     <string name="settings_reset_confirm">Restore</string>
+    <string name="album_create_too_long">Use 200 characters or fewer.</string>
+    <string name="album_create_failed">The album could not be created. An album with this name may already exist.</string>
 </resources>

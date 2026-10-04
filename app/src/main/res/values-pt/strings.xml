@@ -134,4 +134,6 @@
     <string name="settings_reset_confirm_title">Restaurar as configurações padrão?</string>
     <string name="settings_reset_confirm_body">Todas as configurações voltam aos valores padrão. Suas fotos, álbuns e favoritos não são alterados.</string>
     <string name="settings_reset_confirm">Restaurar</string>
+    <string name="album_create_too_long">Use 200 caracteres ou menos.</string>
+    <string name="album_create_failed">Não foi possível criar o álbum. Talvez já exista um álbum com este nome.</string>
 </resources>

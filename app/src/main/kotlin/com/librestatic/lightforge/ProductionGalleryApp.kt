@@ -744,6 +744,7 @@ internal fun ProductionGalleryApp(
     var showVideoExportQueue by rememberSaveable { mutableStateOf(false) }
     var dismissedVideoExportIds by rememberSaveable { mutableStateOf("") }
     var newAlbumName by rememberSaveable { mutableStateOf("") }
+    var createAlbumFailed by rememberSaveable { mutableStateOf(false) }
     var pendingRequestId by rememberSaveable { mutableStateOf<Long?>(null) }
     var gifReturnRoute by rememberSaveable { mutableStateOf(SurfaceRoute.Root) }
     var gifReturnRootTab by rememberSaveable { mutableStateOf(RootTab.Photos) }
@@ -3336,13 +3337,20 @@ internal fun ProductionGalleryApp(
     if (showCreateAlbum) {
         AlbumNameDialog(
             value = newAlbumName,
-            onValue = { newAlbumName = it },
-            onDismiss = { showCreateAlbum = false; reopenAddToAlbum = false },
+            onValue = { newAlbumName = it; createAlbumFailed = false },
+            error = createAlbumFailed,
+            onDismiss = { showCreateAlbum = false; reopenAddToAlbum = false; createAlbumFailed = false },
             onConfirm = {
-                viewModel.createVirtualAlbum(newAlbumName)
-                newAlbumName = ""
-                showCreateAlbum = false
-                if (reopenAddToAlbum) { reopenAddToAlbum = false; showAddToAlbum = true }
+                viewModel.createVirtualAlbum(newAlbumName) { created ->
+                    if (created) {
+                        newAlbumName = ""
+                        createAlbumFailed = false
+                        showCreateAlbum = false
+                        if (reopenAddToAlbum) { reopenAddToAlbum = false; showAddToAlbum = true }
+                    } else {
+                        createAlbumFailed = true
+                    }
+                }
             },
         )
     }
@@ -4507,12 +4515,34 @@ private fun ViewerRoute(
 }
 
 @Composable
-private fun AlbumNameDialog(value: String, onValue: (String) -> Unit, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+private fun AlbumNameDialog(
+    value: String,
+    onValue: (String) -> Unit,
+    error: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    val normalized = value.trim().replace(Regex("\\s+"), " ")
+    val tooLong = normalized.length > com.librestatic.lightforge.core.data.GalleryAlbumRepository.MaxAlbumNameLength
+    val message = when {
+        tooLong -> R.string.album_create_too_long
+        error -> R.string.album_create_failed
+        else -> null
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.album_create_title)) },
-        text = { androidx.compose.material3.OutlinedTextField(value, onValue, label = { Text(stringResource(R.string.album_name)) }) },
-        confirmButton = { TextButton(onClick = onConfirm, enabled = value.isNotBlank()) { Text(stringResource(R.string.album_create)) } },
+        text = {
+            androidx.compose.material3.OutlinedTextField(
+                value = value,
+                onValueChange = onValue,
+                label = { Text(stringResource(R.string.album_name)) },
+                isError = message != null,
+                supportingText = message?.let { { Text(stringResource(it)) } },
+                singleLine = true,
+            )
+        },
+        confirmButton = { TextButton(onClick = onConfirm, enabled = normalized.isNotEmpty() && !tooLong) { Text(stringResource(R.string.album_create)) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.album_cancel)) } },
     )
 }

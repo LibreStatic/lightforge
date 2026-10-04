@@ -3170,8 +3170,18 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
-    fun createVirtualAlbum(name: String) {
-        viewModelScope.launch { runtime.value?.albums?.createVirtualAlbum(name) }
+    /** Reports whether the album was created; a duplicate or invalid name fails instead of crashing. */
+    fun createVirtualAlbum(name: String, onResult: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val created = try {
+                runtime.value?.albums?.createVirtualAlbum(name) != null
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                false
+            }
+            onResult(created)
+        }
     }
 
     private val mutableAlbumDelete = MutableStateFlow<AlbumDeleteState?>(null)
