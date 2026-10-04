@@ -635,7 +635,7 @@ private fun SettingsCategoryRow(
             leadingContent = leading,
             supportingContent = supporting,
             trailingContent = trailing,
-        ) { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        ) { Text(title, maxLines = 2, overflow = TextOverflow.Ellipsis) }
     } else {
         SegmentedListItem(
             onClick = onClick,
@@ -644,7 +644,7 @@ private fun SettingsCategoryRow(
             leadingContent = leading,
             supportingContent = supporting,
             trailingContent = trailing,
-        ) { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        ) { Text(title, maxLines = 2, overflow = TextOverflow.Ellipsis) }
     }
 }
 
