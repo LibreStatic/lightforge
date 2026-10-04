@@ -19,14 +19,14 @@ internal object SmartEntities {
     private val link = Regex(
         """(?i)\b(?:https?://|www\.)[^\s<>"]+|\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:com|org|net|io|dev|app|edu|gov|ar|es|fr|it|pt|br|de|uk|co|info)(?:/[^\s<>"]*)?\b""",
     )
-    private val phone = Regex("""(?<![\w.])\+?\d[\d\s().-]{6,}\d(?![\w.])""")
+    private val phone = Regex("""(?<![\w.])\+?\d[\d \t ().-]{6,}\d(?![\w.])""")
     private val streetWords =
         "street|st\\.|avenue|ave\\.?|road|rd\\.|boulevard|blvd|lane|drive|calle|avenida|av\\.|rue|rua|via|viale|piazza|straße|strasse|platz"
     private val address = Regex(
-        """(?i)(?:\b\d{1,5}\s+(?:[\p{L}.'-]+\s+){0,4}(?:$streetWords)\b|\b(?:$streetWords)\s+[\p{L}.'-]+(?:\s+[\p{L}.'-]+){0,3}\s+\d{1,5}\b)""",
+        """(?i)(?:\b\d{1,5}\s+(?:[\p{L}.'-]+\s+){0,4}(?:$streetWords)\b(?:,[ \t]*\p{L}[\p{L} .'-]{0,30})?|\b(?:$streetWords)\s+[\p{L}.'-]+(?:\s+[\p{L}.'-]+){0,3}\s+\d{1,5}\b)""",
     )
 
-    fun detect(text: String, limit: Int = 3): List<SmartEntity> {
+    fun detect(text: String, limit: Int = 5): List<SmartEntity> {
         val found = linkedMapOf<String, SmartEntity>()
         val emails = email.findAll(text).map { it.value }.toList()
         emails.forEach { found.putIfAbsent("e:$it", SmartEntity.Email(it)) }

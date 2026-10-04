@@ -29,4 +29,23 @@ class SmartEntitiesTest {
         assertEquals(emptyList<SmartEntity>(), SmartEntities.detect("The Odyssey is a poem of extraordinary pleasures"))
         assertEquals(emptyList<SmartEntity>(), SmartEntities.detect("Published in 1946"))
     }
+
+    @Test
+    fun phoneDoesNotSwallowDigitsFromTheNextLine() {
+        val phone = SmartEntities.detect("Call +1 415 555 0132\n221 Baker Street, London")
+            .filterIsInstance<SmartEntity.Phone>().single()
+        assertEquals("+1 415 555 0132", phone.value)
+    }
+
+    @Test
+    fun addressKeepsTheCityAndAllFourActionsFit() {
+        val entities = SmartEntities.detect(
+            "Visit https://example.com/menu\nhello@example.com\n+1 415 555 0132\n221 Baker Street, London",
+        )
+        assertEquals(
+            SmartEntity.Address("221 Baker Street, London"),
+            entities.filterIsInstance<SmartEntity.Address>().single(),
+        )
+        assertEquals(4, entities.size)
+    }
 }
