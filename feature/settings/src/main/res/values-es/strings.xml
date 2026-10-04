@@ -104,8 +104,8 @@
     <string name="settings_back">Atrás</string>
     <string name="settings_grid_columns_auto">Automático</string><string name="settings_summary_columns_auto">Columnas automáticas</string><string name="settings_summary_columns">%1$d columnas</string>
     <string name="settings_summary_enabled">%1$d de %2$d activadas</string>
-    <string name="settings_summary_on">Sí</string>
-    <string name="settings_summary_off">No</string>
+    <string name="settings_summary_on">Activado</string>
+    <string name="settings_summary_off">Desactivado</string>
     <string name="settings_zoom_value">%1$d×</string>
 
     <string name="settings_title">Ajustes</string>
