@@ -1107,6 +1107,15 @@ internal fun ProductionGalleryApp(
         closedId?.let { surfaceStateHolder.removeState("video-editor:$it") }
     }
 
+    fun leaveVideoEditor() {
+        closeVideoEditor()
+        if (external?.editMode == true) {
+            viewModel.clearExternal()
+            activity?.setResult(Activity.RESULT_CANCELED)
+            activity?.finish()
+        } else route = SurfaceRoute.Viewer
+    }
+
     fun handleBack() {
         when {
             showDetails -> showDetails = false
@@ -1123,14 +1132,7 @@ internal fun ProductionGalleryApp(
             }
             route == SurfaceRoute.VideoEditor -> {
                 if (videoEditor?.content?.isDirty == true) showDiscardEditorConfirmation = true
-                else {
-                    closeVideoEditor()
-                    if (external?.editMode == true) {
-                        viewModel.clearExternal()
-                        activity?.setResult(Activity.RESULT_CANCELED)
-                        activity?.finish()
-                    } else route = SurfaceRoute.Viewer
-                }
+                else leaveVideoEditor()
             }
             route == SurfaceRoute.People && selectedPerson != null -> viewModel.closePerson()
             route == SurfaceRoute.PrivateAlbumPicker -> {
@@ -1781,7 +1783,7 @@ internal fun ProductionGalleryApp(
                         state = session.content,
                         onPositionCheckpoint = { viewModel.checkpointVideoPosition(session.id, it) },
                         controller = controller,
-                        onBack = ::handleBack,
+                        onBack = ::leaveVideoEditor,
                         onSaveCopy = ::startVideoExport,
                         onSpeedChange = viewModel::setVideoSpeed,
                         onOriginalVolumeChange = viewModel::setVideoOriginalVolume,
