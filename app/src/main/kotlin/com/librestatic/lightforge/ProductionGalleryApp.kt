@@ -4369,7 +4369,7 @@ private fun ViewerRoute(
             trashActionLabel = if (trashContext) {
                 stringResource(com.librestatic.lightforge.feature.trash.R.string.trash_restore)
             } else null,
-            onContentTap = { videoController?.unmute(); onSessionVideoMutedChange(false) },
+            onContentTap = { videoController?.let { it.unmute(); onSessionVideoMutedChange(false) } },
             slowMotionSession = slowMotionSession,
             onSaveSlowMotionClip = { clip ->
                 viewModel.saveQuickSlowMotionClip(media, clip.startMillis, clip.endMillis)
