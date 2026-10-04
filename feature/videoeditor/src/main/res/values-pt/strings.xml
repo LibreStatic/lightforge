@@ -51,7 +51,6 @@
     <string name="video_editor_look_monochrome">Monocromático</string>
 
     <string name="video_editor_detected_profile">%1$s detectado</string>
-    <string name="video_editor_profile_unknown">O perfil LOG não foi declarado; escolha manualmente o perfil da câmera</string>
     <string name="video_editor_lut_imported">LUT importada</string>
     <string name="video_editor_lut_import_failed">Não foi possível importar a LUT</string>
 

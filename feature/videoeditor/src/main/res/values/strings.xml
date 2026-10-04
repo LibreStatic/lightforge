@@ -63,7 +63,6 @@
     <string name="video_editor_look_teal_orange">Teal and orange</string>
     <string name="video_editor_look_monochrome">Monochrome</string>
     <string name="video_editor_detected_profile">Detected %1$s</string>
-    <string name="video_editor_profile_unknown">LOG profile was not declared; choose the camera profile manually</string>
     <string name="video_editor_lut_imported">LUT imported</string>
     <string name="video_editor_lut_import_failed">Could not import LUT</string>
     <string name="video_editor_hevc_unavailable">This device has no HEVC Main10 encoder. Use compatible H.264.</string>

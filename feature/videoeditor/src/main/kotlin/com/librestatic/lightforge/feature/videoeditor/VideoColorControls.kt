@@ -347,7 +347,8 @@ private fun AdvancedColorControls(
                 }
                 Text(stringResource(R.string.video_editor_advanced_color), style = MaterialTheme.typography.titleMedium)
             }
-            state.logDetectionMessage?.let { message ->
+            // Only a detected profile is worth a notice, and only while it is still the selected one.
+            state.logDetectionMessage?.takeIf { grade.profileWasAutoDetected }?.let { message ->
                 Surface(
                     shape = MaterialTheme.shapes.small,
                     color = MaterialTheme.colorScheme.tertiaryContainer,

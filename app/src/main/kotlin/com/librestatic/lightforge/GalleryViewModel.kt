@@ -4682,14 +4682,12 @@ class GalleryViewModel @Inject constructor(
                                 com.librestatic.lightforge.feature.videoeditor.R.string.video_editor_lut_unavailable,
                             )
                         } else null,
-                        logDetectionMessage = if (detection.confidence >= 0.8f) {
+                        logDetectionMessage = if (restoring == null && detection.confidence >= 0.8f) {
                             getApplication<Application>().getString(
                                 com.librestatic.lightforge.feature.videoeditor.R.string.video_editor_detected_profile,
                                 getApplication<Application>().getString(detection.profile.labelResource()),
                             )
-                        } else getApplication<Application>().getString(
-                            com.librestatic.lightforge.feature.videoeditor.R.string.video_editor_profile_unknown,
-                        ),
+                        } else null,
                     ),
                 )
                 if (generation == videoEditorOpenGeneration && runtime.value === active && permission == access.value) {
