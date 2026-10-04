@@ -16,7 +16,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -51,8 +50,8 @@ internal fun Confirm(
         modifier = androidx.compose.ui.Modifier.testTag("pdf-confirm-dialog"),
         onDismissRequest = dismiss,
         title = { Text(title) },
-        // Long target names wrap here (capped) so the title stays short and the dialog readable.
-        text = body?.let { { Text(it, maxLines = 3, overflow = TextOverflow.Ellipsis) } },
+        // Long target names wrap here so the title stays short; callers shorten the name itself.
+        text = body?.let { { Text(it) } },
         confirmButton = { TextButton(onClick = confirm) { Text(confirmLabel) } },
         dismissButton = {
             TextButton(onClick = dismiss) { Text(stringResource(R.string.pdf_cancel)) }

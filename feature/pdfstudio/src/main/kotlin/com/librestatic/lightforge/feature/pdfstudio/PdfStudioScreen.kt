@@ -425,7 +425,11 @@ fun PdfStudioScreen(
             stringResource(R.string.pdf_deleteproject),
             stringResource(R.string.pdf_deleteproject_action),
             { deleteProject = null },
-            body = stringResource(R.string.pdf_library_delete_confirm, row.name),
+            // Shorten the name, not the sentence, so "This can't be undone." always shows.
+            body = stringResource(
+                R.string.pdf_library_delete_confirm,
+                if (row.name.length > 80) row.name.take(79).trimEnd() + "…" else row.name,
+            ),
         ) {
             vm.delete(row.id)
             deleteProject = null
