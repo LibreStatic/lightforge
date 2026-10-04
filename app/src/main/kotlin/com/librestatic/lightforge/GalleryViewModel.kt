@@ -3743,7 +3743,8 @@ class GalleryViewModel @Inject constructor(
             history = updated,
             content = (mutablePhotoEditor.value ?: session).content.copy(
                 isRendering = renderRequired,
-                isDirty = updated.present.operations.isNotEmpty(),
+                isDirty = updated.present.operations.isNotEmpty() ||
+                    mutablePhotoEditor.value?.eraseMarks?.isNotEmpty() == true,
                 canUndo = updated.past.isNotEmpty(),
                 canRedo = updated.future.isNotEmpty(),
                 selectedFilter = selectedFilter(updated.present),
