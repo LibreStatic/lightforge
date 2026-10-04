@@ -1,9 +1,9 @@
-"""Synthesizes the promo soundtrack (bright electro-pop, 120 BPM, F major) into soundtrack.wav.
+"""Synthesizes the promo soundtrack (restrained electronic, 120 BPM, D minor) into soundtrack.wav.
 
 Everything is generated from oscillators and noise: no third-party samples, no licensing questions.
-Four-on-the-floor drums, a bouncing octave bass and pumping supersaw chords carry I-V-vi-IV
-(Fmaj7 - Cadd9 - Dm7 - Bbadd9); a sparkly arpeggio, a two-bar hook and, in the second half,
-formant "vocal chops" sit on top. Section changes follow the scene timings in promo.html.
+A heavy four-on-the-floor kick and a deep, saturated sub bass drive i - VI - iv - v
+(Dm9 - Bbmaj7 - Gm9 - Am7) under dark, filtered chords and a low arpeggio; a sparse minor motif
+enters for the second run of features. Section changes follow the scene timings in promo.html.
 usage: python soundtrack.py [out.wav]   (needs numpy)
 """
 import sys
@@ -26,7 +26,7 @@ BUS = {k: np.zeros((N, 2)) for k in ('drums', 'bass', 'music', 'lead', 'fx')}
 # timeline (seconds), aligned to the scenes; the groove runs on bars from DROP
 DROP = 3.0               # phone lands
 PRIVATE = (19.0, 23.0)   # private album: breakdown
-LIFT = 45.0              # second run of feature scenes: chops, open hats, extra claps
+LIFT = 45.0              # second run of feature scenes: minor motif and open hats
 BREAK = (73.0, 77.0)     # licenses: breakdown, then rebuild
 END = 81.0               # logo outro impact
 
@@ -79,11 +79,11 @@ def saw(f, n, harmonics=None, detune=0.0, bright=None):
 def kick():
     n = int(0.45 * SR)
     t = tt(n)
-    f = 50 + 190 * np.exp(-t / 0.025) + 60 * np.exp(-t / 0.004)
+    f = 45 + 170 * np.exp(-t / 0.03) + 70 * np.exp(-t / 0.004)
     body = np.sin(2 * np.pi * np.cumsum(f) / SR)
-    body = np.tanh(body * 1.6 * np.exp(-t / 0.22)) * np.minimum(t / 0.0012, 1)
-    click = band_noise(n, 2500, 10000) * np.exp(-t / 0.003) * 0.4
-    return body + click
+    body = np.tanh(body * 2.2 * np.exp(-t / 0.3)) * np.minimum(t / 0.0012, 1)
+    click = band_noise(n, 2000, 8000) * np.exp(-t / 0.003) * 0.3
+    return body * 1.1 + click
 
 
 @lru_cache(None)
@@ -150,8 +150,8 @@ def supersaw(chord, length, bright):
 @lru_cache(None)
 def pluck(m, length=0.16):
     n = int(length * SR)
-    b = np.exp(-tt(n) / 0.035) * 0.85 + 0.15
-    return saw(hz(m), n, harmonics=18, bright=b) * env(n, 0.001, length / 3)
+    b = np.exp(-tt(n) / 0.03) * 0.5 + 0.08
+    return saw(hz(m), n, harmonics=12, bright=b) * env(n, 0.001, length / 3)
 
 
 @lru_cache(None)
@@ -161,36 +161,22 @@ def lead(m, length):
     t = tt(n)
     vib = 1 + 0.004 * np.sin(2 * np.pi * 5.5 * t) * np.minimum(t / 0.25, 1)
     ph = np.cumsum(hz(m) * vib) / SR
-    sq = sum(np.sin(2 * np.pi * k * ph) / k for k in (1, 3, 5, 7, 9, 11))
-    sw = sum(np.sin(2 * np.pi * k * ph) / k for k in range(1, 13))
+    sq = sum(np.sin(2 * np.pi * k * ph) / k for k in (1, 3, 5))
+    sw = sum(np.sin(2 * np.pi * k * ph) / k ** 1.4 for k in range(1, 7))
     x = sq * 0.55 + sw * 0.45
     e = np.minimum(t / 0.006, 1) * (0.75 + 0.25 * np.exp(-t / 0.08)) * np.minimum((length - t) / 0.03, 1)
     return x * e * 0.3
 
 
 @lru_cache(None)
-def chop(m, length=0.22):
-    """Formant 'vocal chop' ("ah"): harmonics weighted by two vowel formants, with a small scoop up."""
-    n = int(length * SR)
-    t = tt(n)
-    f0 = hz(m) * (1 - 0.03 * np.exp(-t / 0.03))
-    ph = np.cumsum(f0) / SR
-    x = np.zeros(n)
-    for k in range(1, 30):
-        fk = k * hz(m)
-        w = np.exp(-((fk - 800) / 180) ** 2) + 0.7 * np.exp(-((fk - 1250) / 220) ** 2) + 0.15 * np.exp(-((fk - 2600) / 400) ** 2)
-        x += np.sin(2 * np.pi * k * ph) * w
-    return x * np.minimum(t / 0.008, 1) * np.exp(-t / 0.11) * 0.5
-
-
-@lru_cache(None)
 def bass(m, length):
     n = int(length * SR)
-    b = np.exp(-tt(n) / 0.06) * 0.55 + 0.12
-    mid = saw(hz(m), n, harmonics=10, bright=b)
-    sub = np.sin(2 * np.pi * hz(m) * tt(n)) * 1.1
-    e = np.minimum(tt(n) / 0.003, 1) * np.minimum((length - tt(n)) / 0.01, 1)
-    return (mid * 0.35 + sub) * e * 0.32
+    t = tt(n)
+    b = np.exp(-t / 0.05) * 0.4 + 0.06
+    mid = saw(hz(m), n, harmonics=8, bright=b)
+    sub = np.sin(2 * np.pi * hz(m) * t + 0.8 * np.exp(-t / 0.02))   # small pitch "knock" on the attack
+    e = np.minimum(t / 0.002, 1) * (0.7 + 0.3 * np.exp(-t / 0.08)) * np.minimum((length - t) / 0.01, 1)
+    return np.tanh((mid * 0.3 + sub * 1.3) * 1.8) * e * 0.34
 
 
 def riser(length):
@@ -208,20 +194,19 @@ def impact():
     return boom * 0.8 + band_noise(n, 300, 12000) * np.exp(-t / 0.5) * 0.25
 
 
-# I - V - vi - IV in F major: (bass root, chord voicing, arp tones)
-PROG = [(41, (65, 69, 72, 76), (77, 81, 84, 88)),
-        (36, (64, 67, 72, 74), (76, 79, 84, 86)),
-        (38, (62, 65, 69, 72), (74, 77, 81, 84)),
-        (34, (62, 65, 70, 72), (74, 77, 82, 84))]
-BASS_PAT = [(0, 0, 2, 1.0), (2, 12, 1, .8), (4, 0, 1, .75), (6, 12, 1, .85),
-            (8, 0, 2, .95), (10, 12, 1, .8), (12, 0, 1, .75), (14, 12, 2, .9)]
-ARP = [0, 1, 2, 3, 2, 1, 2, 3, 0, 1, 2, 3, 2, 3, 1, 2]
-# hook: four bars (16th step, midi, length in 16ths), one bar per chord
-HOOK = [[(0, 81, 2), (3, 79, 1), (4, 77, 2), (6, 79, 2), (8, 81, 3), (12, 84, 2), (14, 81, 2)],
-        [(0, 79, 3), (4, 77, 2), (6, 76, 2), (8, 74, 2), (10, 72, 2), (12, 74, 4)],
-        [(0, 81, 2), (3, 79, 1), (4, 77, 2), (6, 79, 2), (8, 81, 3), (12, 86, 2), (14, 84, 2)],
-        [(0, 82, 3), (4, 81, 2), (6, 79, 2), (8, 77, 6), (14, 72, 2)]]
-CHOPS = [(6, 84), (7, 84), (10, 81), (14, 79)]
+# i - VI - iv - v in D minor: (bass root, chord voicing, arp tones)
+PROG = [(38, (57, 60, 64, 65), (62, 65, 69, 72)),
+        (34, (57, 58, 62, 65), (62, 65, 69, 70)),
+        (31, (55, 58, 62, 65), (62, 65, 67, 70)),
+        (33, (55, 57, 60, 64), (60, 64, 67, 69))]
+# deep house bass: anchored root, pushes on the offbeats, one octave lift at the end of the bar
+BASS_PAT = [(0, 0, 3, 1.0), (3, 0, 1, .7), (6, 0, 2, .9), (10, 0, 2, .9), (13, 0, 1, .7), (14, 12, 2, .75)]
+ARP = [0, 2, 1, 3, 0, 2, 1, 3, 0, 2, 1, 3, 2, 1, 3, 2]
+# sparse minor motif: four bars (16th step, midi, length in 16ths), one bar per chord
+HOOK = [[(0, 74, 3), (4, 77, 2), (8, 76, 2), (12, 74, 4)],
+        [(0, 70, 3), (4, 74, 2), (8, 72, 6)],
+        [(0, 74, 3), (4, 77, 2), (8, 79, 2), (12, 77, 4)],
+        [(0, 76, 3), (4, 72, 2), (8, 69, 8)]]
 
 sidechain = np.ones(N)
 
@@ -250,7 +235,7 @@ def roll(t0, beats, v0=0.25):
 
 # ---------------- intro ----------------
 root, chord, _ = PROG[0]
-add('music', supersaw(chord, DROP + 0.2, 0.2), 0, 2.2)
+add('music', supersaw(chord, DROP + 0.2, 0.12), 0, 2.4)
 add('fx', riser(DROP), 0, 1.1)
 for b in range(2, 6):
     add('drums', snap(), b * BEAT, 0.8, 0.2)
@@ -263,7 +248,7 @@ while t < END - 1e-6:
     root, chord, arp = PROG[bar % 4]
     priv, brk = in_(t, PRIVATE), in_(t, BREAK)
     lift = t >= LIFT
-    hook_on = t >= DROP + 4 * BAR and not priv
+    hook_on = t >= LIFT and not priv
     last_of_phrase = bar % 4 == 3
     next_t = t + BAR
     rebuild = (priv and next_t >= PRIVATE[1]) or (brk and next_t >= BREAK[1])
@@ -273,7 +258,7 @@ while t < END - 1e-6:
 
     # --- chords: pumping supersaw; filtered in breakdowns
     soft = priv or brk
-    add('music', supersaw(chord, BAR + 0.05, 0.22 if soft else 0.55), t, 1.0 if soft else 0.8)
+    add('music', supersaw(chord, BAR + 0.05, 0.16 if soft else 0.38), t, 1.1 if soft else 0.85)
 
     # --- drums
     if soft:
@@ -294,13 +279,11 @@ while t < END - 1e-6:
         for b in (1, 3):
             add('drums', clap(), t + b * BEAT, 1.0, 0.05)
             add('drums', snare(), t + b * BEAT, 0.5, -0.05)
-            if lift:
-                add('drums', clap(), t + b * BEAT + 0.012, 0.45, -0.35)
         for s in range(16):
             if s % 4 == 2:
-                add('drums', hat(open_=lift or s == 14), t + s * S16, 0.9 if lift else 0.75, -0.25)
+                add('drums', hat(open_=lift or s == 14), t + s * S16, 0.6 if lift else 0.5, -0.25)
             else:
-                add('drums', hat(), t + s * S16, (0.55 + 0.3 * (s % 2 == 0)) * (0.9 + 0.2 * rng.random()), 0.25)
+                add('drums', hat(), t + s * S16, (0.3 + 0.2 * (s % 2 == 0)) * (0.9 + 0.2 * rng.random()), 0.25)
         if last_of_phrase and next_t < END - 1e-6 and not in_(next_t, PRIVATE) and not in_(next_t, BREAK):
             for s, m in enumerate([55, 55, 52, 52, 50, 48, 45, 43]):
                 add('drums', tom(m), t + 2 * BEAT + s * S16, 0.75, 0.5 - s * 0.14)
@@ -313,16 +296,13 @@ while t < END - 1e-6:
             continue   # room for the fill
         add('bass', bass(root + off, (ln * S16 * 0.9) if not soft else BEAT * 1.8), t + step * S16, v)
 
-    # --- arp, hook, chops
+    # --- arp and motif
     if not soft or brk:
         for s, idx in enumerate(ARP):
-            add('music', pluck(arp[idx]), t + s * S16, 0.12 if not brk else 0.16, 0.5 if s % 2 else -0.5)
+            add('music', pluck(arp[idx]), t + s * S16, 0.1 if not brk else 0.13, 0.5 if s % 2 else -0.5)
     if hook_on or brk:
         for step, m, ln in HOOK[bar % 4]:
-            add('lead', lead(m, ln * S16 * 0.92), t + step * S16, 0.55 if brk else 0.8)
-    if lift and not brk and bar % 2 == 1:
-        for step, m in CHOPS:
-            add('lead', chop(m), t + step * S16, 0.55, 0.35 if step % 2 else -0.35)
+            add('lead', lead(m, ln * S16 * 0.92), t + step * S16, 0.5 if brk else 0.65)
 
     t = next_t
     bar += 1
@@ -330,9 +310,9 @@ while t < END - 1e-6:
 add('fx', impact(), END, 1.0)
 add('drums', crash(), END, 1.3)
 add('drums', kick(), END, 1.0)
-add('music', supersaw((53, 65, 69, 72, 76, 79), DUR - END, 0.4), END, 0.9)
-for k, m in enumerate([77, 81, 84, 88, 89]):
-    add('lead', lead(m, 0.5), END + 0.25 + k * S16 * 2, 0.45, (k - 2) * 0.2)
+add('music', supersaw((50, 57, 62, 65, 69, 76), DUR - END, 0.18), END, 1.0)
+for k, m in enumerate([62, 65, 69, 74]):
+    add('lead', lead(m, 0.7), END + 0.25 + k * S16 * 3, 0.4, (k - 1.5) * 0.25)
 
 
 # ---------------- mix ----------------
@@ -369,7 +349,7 @@ def limiter(x, ceiling=10 ** (-1.0 / 20), look=0.005, release=0.12):
 music = BUS['music'] * sidechain[:, None]
 lead_bus = delay(BUS['lead'], 3 * S16, fb=0.3, mix=0.3) * (0.55 + 0.45 * sidechain[:, None])
 bass_bus = BUS['bass'] * (0.05 + 0.95 * sidechain[:, None] ** 2)
-mix = BUS['drums'] * 1.0 + bass_bus * 0.42 + music * 0.75 + lead_bus * 0.55 + BUS['fx'] * 0.6
+mix = BUS['drums'] * 1.0 + bass_bus * 0.5 + music * 1.8 + lead_bus * 1.0 + BUS['fx'] * 0.5
 mix *= 10 ** (-14.4 / 20) / np.sqrt(np.mean(mix ** 2))   # about -14 LUFS after limiting
 pre = mix.copy()
 mix = limiter(mix)
