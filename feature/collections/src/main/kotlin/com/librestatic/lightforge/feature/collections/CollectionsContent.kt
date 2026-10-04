@@ -527,7 +527,7 @@ private fun CollectionTile(
             Box(
                 Modifier.fillMaxSize().background(
                     Brush.verticalGradient(
-                        0.45f to Color.Transparent,
+                        0.3f to Color.Transparent,
                         1f to GalleryOverlayTokens.ScrimBottom,
                     ),
                 ),
