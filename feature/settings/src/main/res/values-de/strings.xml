@@ -183,4 +183,7 @@
         <item quantity="one">%1$d Sekunde</item>
         <item quantity="other">%1$d Sekunden</item>
     </plurals>
+    <string name="settings_lock_unavailable_title">Bildschirmsperre erforderlich</string>
+    <string name="settings_lock_unavailable_body">Richte zuerst in den Geräteeinstellungen eine Bildschirmsperre, PIN oder Biometrie ein. Ohne sie ließe sich Lightforge Studio nicht entsperren.</string>
+    <string name="settings_lock_unavailable_ok">OK</string>
 </resources>

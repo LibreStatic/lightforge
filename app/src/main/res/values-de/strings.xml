@@ -115,4 +115,4 @@
         <item quantity="one">%1$d Laufzeitabhängigkeit</item>
         <item quantity="other">%1$d Laufzeitabhängigkeiten</item>
     </plurals>
-</resources>
+<string name="app_lock_unavailable_body">Lightforge Studio ist gesperrt, aber dieses Gerät hat keine Bildschirmsperre, PIN oder Biometrie zum Entsperren.</string><string name="app_lock_turn_off">Sperre deaktivieren</string><string name="destructive_auth_unavailable">Diese Aktion erfordert eine Bildschirmsperre, PIN oder Biometrie auf dem Gerät. Richte eine ein oder deaktiviere die Sperre für destruktive Aktionen in den Einstellungen.</string></resources>

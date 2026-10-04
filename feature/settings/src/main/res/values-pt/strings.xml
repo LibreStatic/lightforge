@@ -185,4 +185,7 @@
         <item quantity="many">%1$d segundos</item>
         <item quantity="other">%1$d segundos</item>
     </plurals>
+    <string name="settings_lock_unavailable_title">Bloqueio de tela necessário</string>
+    <string name="settings_lock_unavailable_body">Configure primeiro um bloqueio de tela, PIN ou biometria nas configurações do dispositivo. Sem isso, não seria possível desbloquear o Lightforge Studio.</string>
+    <string name="settings_lock_unavailable_ok">OK</string>
 </resources>

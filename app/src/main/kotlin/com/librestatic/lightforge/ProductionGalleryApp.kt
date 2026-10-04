@@ -570,6 +570,11 @@ internal fun ProductionGalleryApp(
             return
         }
         val fragmentActivity = context as? FragmentActivity ?: return
+        if (!BiometricGate.canAuthenticate(context)) {
+            // No biometrics or device credential left to ask for: say so instead of failing silently.
+            android.widget.Toast.makeText(context, context.getString(R.string.destructive_auth_unavailable), android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
         BiometricGate.authenticate(
             activity = fragmentActivity,
             title = destructiveAuthTitle,
@@ -639,8 +644,17 @@ internal fun ProductionGalleryApp(
         Box(Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
             Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
                 Text(stringResource(R.string.app_lock_title), style = MaterialTheme.typography.headlineSmall)
-                Text(stringResource(R.string.app_lock_body), Modifier.padding(16.dp))
-                GalleryExpressiveButton(onClick = ::requestAppUnlock) { Text(stringResource(R.string.app_lock_unlock)) }
+                if (BiometricGate.canAuthenticate(context)) {
+                    Text(stringResource(R.string.app_lock_body), Modifier.padding(16.dp))
+                    GalleryExpressiveButton(onClick = ::requestAppUnlock) { Text(stringResource(R.string.app_lock_unlock)) }
+                } else {
+                    // The device credential was removed after the lock was enabled: nothing can
+                    // authenticate, so offer a way out instead of locking the user out for good.
+                    Text(stringResource(R.string.app_lock_unavailable_body), Modifier.padding(16.dp))
+                    GalleryExpressiveButton(onClick = {
+                        viewModel.updateGallerySettings { current -> current.copy(security = current.security.copy(appLockEnabled = false)) }
+                    }) { Text(stringResource(R.string.app_lock_turn_off)) }
+                }
             }
         }
         return
@@ -4183,6 +4197,11 @@ private fun ViewerRoute(
             return
         }
         val fragmentActivity = context as? FragmentActivity ?: return
+        if (!BiometricGate.canAuthenticate(context)) {
+            // No biometrics or device credential left to ask for: say so instead of failing silently.
+            android.widget.Toast.makeText(context, context.getString(R.string.destructive_auth_unavailable), android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
         BiometricGate.authenticate(
             activity = fragmentActivity,
             title = destructiveAuthTitle,

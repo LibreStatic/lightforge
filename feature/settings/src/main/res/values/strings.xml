@@ -188,4 +188,7 @@
         <item quantity="one">%1$d second</item>
         <item quantity="other">%1$d seconds</item>
     </plurals>
+    <string name="settings_lock_unavailable_title">Screen lock required</string>
+    <string name="settings_lock_unavailable_body">Set up a screen lock, PIN or biometrics in your device settings first. Without one, Lightforge Studio could not be unlocked.</string>
+    <string name="settings_lock_unavailable_ok">OK</string>
 </resources>

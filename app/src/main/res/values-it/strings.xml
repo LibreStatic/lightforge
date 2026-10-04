@@ -124,4 +124,4 @@
         <item quantity="many">%1$d dipendenze di runtime</item>
         <item quantity="other">%1$d dipendenze di runtime</item>
     </plurals>
-</resources>
+<string name="app_lock_unavailable_body">Lightforge Studio è bloccata, ma questo dispositivo non ha un blocco schermo, un PIN o la biometria per sbloccarla.</string><string name="app_lock_turn_off">Disattiva il blocco</string><string name="destructive_auth_unavailable">Questa azione richiede un blocco schermo, un PIN o la biometria sul dispositivo. Impostane uno o disattiva il blocco delle azioni distruttive nelle impostazioni.</string></resources>

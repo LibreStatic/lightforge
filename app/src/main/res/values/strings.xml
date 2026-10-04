@@ -137,4 +137,4 @@
         <item quantity="one">%1$d runtime dependency</item>
         <item quantity="other">%1$d runtime dependencies</item>
     </plurals>
-</resources>
+<string name="app_lock_unavailable_body">Lightforge Studio is locked, but this device has no screen lock, PIN or biometrics to unlock it with.</string><string name="app_lock_turn_off">Turn off app lock</string><string name="destructive_auth_unavailable">This action needs a screen lock, PIN or biometrics on the device. Set one up, or turn off the destructive-action lock in Settings.</string></resources>

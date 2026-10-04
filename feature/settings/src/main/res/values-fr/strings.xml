@@ -185,4 +185,7 @@
         <item quantity="many">%1$d secondes</item>
         <item quantity="other">%1$d secondes</item>
     </plurals>
+    <string name="settings_lock_unavailable_title">Verrouillage d\'écran requis</string>
+    <string name="settings_lock_unavailable_body">Configurez d\'abord un verrouillage d\'écran, un code PIN ou la biométrie dans les paramètres de l\'appareil. Sans cela, Lightforge Studio ne pourrait pas être déverrouillé.</string>
+    <string name="settings_lock_unavailable_ok">OK</string>
 </resources>

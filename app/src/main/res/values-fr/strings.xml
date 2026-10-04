@@ -124,4 +124,4 @@
         <item quantity="many">%1$d dépendances d’exécution</item>
         <item quantity="other">%1$d dépendances d’exécution</item>
     </plurals>
-</resources>
+<string name="app_lock_unavailable_body">Lightforge Studio est verrouillée, mais cet appareil n\'a ni verrouillage d\'écran, ni code PIN, ni biométrie pour la déverrouiller.</string><string name="app_lock_turn_off">Désactiver le verrouillage</string><string name="destructive_auth_unavailable">Cette action nécessite un verrouillage d\'écran, un code PIN ou la biométrie sur l\'appareil. Configurez-en un ou désactivez le verrouillage des actions destructives dans les paramètres.</string></resources>

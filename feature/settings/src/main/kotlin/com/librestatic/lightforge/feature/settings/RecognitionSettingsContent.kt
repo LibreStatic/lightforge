@@ -3,6 +3,7 @@ package com.librestatic.lightforge.feature.settings
 import android.app.LocaleManager
 import android.os.Build
 import android.os.LocaleList
+import androidx.biometric.BiometricManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.testTagsAsResourceId
 
@@ -1434,12 +1435,29 @@ private fun SecuritySection(
     settings: GallerySettings,
     onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit,
 ) {
+    val context = LocalContext.current
+    var lockUnavailable by remember { mutableStateOf(false) }
+    // Both locks authenticate with biometrics or the device credential. Without either, enabling a
+    // lock would only lock the user out (or silently block deletes), so refuse and explain.
+    fun canAuthenticate() = BiometricManager.from(context).canAuthenticate(
+        BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL,
+    ) == BiometricManager.BIOMETRIC_SUCCESS
+    if (lockUnavailable) {
+        AlertDialog(
+            onDismissRequest = { lockUnavailable = false },
+            title = { Text(stringResource(R.string.settings_lock_unavailable_title)) },
+            text = { Text(stringResource(R.string.settings_lock_unavailable_body)) },
+            confirmButton = { TextButton(onClick = { lockUnavailable = false }) { Text(stringResource(R.string.settings_lock_unavailable_ok)) } },
+        )
+    }
     SettingsCard {
         SettingsSwitchRow(stringResource(R.string.settings_app_lock), settings.security.appLockEnabled) {
-            onSettingsChange { current -> current.copy(security = current.security.copy(appLockEnabled = it)) }
+            if (it && !canAuthenticate()) lockUnavailable = true
+            else onSettingsChange { current -> current.copy(security = current.security.copy(appLockEnabled = it)) }
         }
         SettingsSwitchRow(stringResource(R.string.settings_destructive_lock), settings.security.destructiveActionLockEnabled) {
-            onSettingsChange { current -> current.copy(security = current.security.copy(destructiveActionLockEnabled = it)) }
+            if (it && !canAuthenticate()) lockUnavailable = true
+            else onSettingsChange { current -> current.copy(security = current.security.copy(destructiveActionLockEnabled = it)) }
         }
         SettingsValueRow(stringResource(R.string.settings_relock_timeout), stringResource(R.string.settings_minutes, settings.security.relockTimeoutMinutes)) {
             val next = when (settings.security.relockTimeoutMinutes) { 0 -> 1; 1 -> 5; 5 -> 15; else -> 0 }

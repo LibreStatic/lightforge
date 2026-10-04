@@ -124,4 +124,4 @@
         <item quantity="many">%1$d dependências de execução</item>
         <item quantity="other">%1$d dependências de execução</item>
     </plurals>
-</resources>
+<string name="app_lock_unavailable_body">O Lightforge Studio está bloqueado, mas este dispositivo não tem bloqueio de tela, PIN nem biometria para desbloqueá-lo.</string><string name="app_lock_turn_off">Desativar o bloqueio</string><string name="destructive_auth_unavailable">Esta ação precisa de um bloqueio de tela, PIN ou biometria no dispositivo. Configure um ou desative o bloqueio de ações destrutivas nas configurações.</string></resources>
