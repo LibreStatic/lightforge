@@ -160,6 +160,7 @@
     <string name="video_editor_annotation_color_white">Blanco</string>
     <string name="video_editor_annotation_color_black">Negro</string>
     <string name="video_editor_log_curve_only_note">Este ajuste solo linealiza la curva LOG; la conversión del gamut de cámara no se aplica automáticamente.</string>
+    <string name="video_editor_log_gamut_converted_note">OpenCine Log 2 se convierte de BT.2020 a Rec.709 automáticamente, y sus altas luces se suavizan en vez de recortarse.</string>
     <string name="video_editor_lut_unavailable">La LUT seleccionada falta o está dañada. Elígela o impórtala de nuevo.</string>
     <string name="video_editor_discard_title">¿Descartar los cambios?</string>
     <string name="video_editor_discard_message">Tus cambios no se han guardado como copia.</string>

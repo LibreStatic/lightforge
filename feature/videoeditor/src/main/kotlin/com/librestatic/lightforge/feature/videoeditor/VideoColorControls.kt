@@ -366,7 +366,10 @@ private fun AdvancedColorControls(
                 }
             }
             Text(
-                stringResource(R.string.video_editor_log_curve_only_note),
+                stringResource(
+                    if (grade.inputProfile.isOpenCineLog) R.string.video_editor_log_gamut_converted_note
+                    else R.string.video_editor_log_curve_only_note,
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
