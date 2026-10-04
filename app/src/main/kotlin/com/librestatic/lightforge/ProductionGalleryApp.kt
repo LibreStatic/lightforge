@@ -3961,7 +3961,8 @@ private fun ChooseAlbumDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.selection_choose_album)) },
         text = {
-            Column {
+            // Scrolls so a long album list stays reachable inside the dialog's bounded height.
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 if (albums.isEmpty()) Text(stringResource(R.string.selection_no_albums))
                 albums.forEach { album ->
                     TextButton(onClick = { onSelect(album) }) {
