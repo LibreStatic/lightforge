@@ -836,6 +836,9 @@ interface LibraryDao {
     @Query("SELECT * FROM media_items WHERE volumeName = :volumeName AND mediaStoreId = :id")
     suspend fun media(volumeName: String, id: Long): MediaItemEntity?
 
+    @Query("SELECT isFavorite FROM media_items WHERE volumeName = :volumeName AND mediaStoreId = :id")
+    fun observeIsFavorite(volumeName: String, id: Long): Flow<Boolean?>
+
     @Query("DELETE FROM media_items WHERE volumeName = :volumeName AND mediaStoreId = :id")
     suspend fun deleteMedia(volumeName: String, id: Long): Int
 

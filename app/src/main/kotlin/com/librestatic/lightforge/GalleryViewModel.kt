@@ -3083,6 +3083,14 @@ class GalleryViewModel @Inject constructor(
     fun isArchived(media: TimelineMedia): Flow<Boolean> = runtime.filterNotNull()
         .flatMapLatest { it.archive.isArchived(media.key) }
 
+    /**
+     * Live favorite flag of [media]. The viewer's [TimelineMedia] is a snapshot taken when it opened,
+     * so after a favorite toggle only the database row reflects the new state.
+     */
+    fun isFavorite(media: TimelineMedia): Flow<Boolean> = runtime.filterNotNull()
+        .flatMapLatest { it.database.libraryDao().observeIsFavorite(media.key.volumeName, media.key.mediaStoreId) }
+        .map { it ?: media.isFavorite }
+
     private val mutableAlbumRename = MutableStateFlow<AlbumRenameState?>(null)
     val albumRename = mutableAlbumRename.asStateFlow()
 

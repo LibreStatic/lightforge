@@ -4330,6 +4330,8 @@ private fun ViewerRoute(
     }
     val mediaArchived by remember(media.key) { viewModel.isArchived(media) }
         .collectAsState(initial = false)
+    val mediaFavorite by remember(media.key) { viewModel.isFavorite(media) }
+        .collectAsState(initial = media.isFavorite)
     val archiveLabel = stringResource(if (mediaArchived) R.string.archive_unarchive else R.string.archive_move)
     // Restore/Delete from the trash viewer leaves the item stale in this list; close on completion.
     var trashActionPending by remember(media.key) { mutableStateOf(false) }
@@ -4366,10 +4368,10 @@ private fun ViewerRoute(
             adjacentPhotoStates = adjacentPhotoStates,
             videoController = videoController,
             thumbnailLoader = thumbnailLoader,
-            isFavorite = media.isFavorite,
+            isFavorite = mediaFavorite,
             onBack = onBack,
             // A trashed item only offers Restore, Delete permanently and Details.
-            onToggleFavorite = if (trashContext) null else ({ viewModel.beginSystemAction(media, MediaAction.Favorite(!media.isFavorite)) }),
+            onToggleFavorite = if (trashContext) null else ({ viewModel.beginSystemAction(media, MediaAction.Favorite(!mediaFavorite)) }),
             onShare = if (trashContext) null else ({
                 if (gallerySettings.operations.shareWithoutLocationByDefault) {
                     onShareSanitized()
