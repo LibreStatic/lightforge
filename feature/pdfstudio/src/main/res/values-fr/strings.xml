@@ -362,4 +362,5 @@
         <item quantity="many">%1$d photos</item>
         <item quantity="other">%1$d photos</item>
     </plurals>
+    <string name="pdf_library_no_results">Aucun projet ne correspond à votre recherche</string>
 </resources>

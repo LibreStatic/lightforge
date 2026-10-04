@@ -131,7 +131,16 @@ internal fun ColumnScope.PdfLibraryScreen(
                         onDelete = { onDeleteProject(row) },
                     )
                 }
-                if (wide) {
+                if (visible.isEmpty()) {
+                    Box(Modifier.weight(1f).fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                        Text(
+                            stringResource(R.string.pdf_library_no_results),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        )
+                    }
+                } else if (wide) {
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(280.dp),
                         modifier = Modifier.weight(1f),
@@ -415,7 +424,14 @@ private fun PdfLibraryCard(
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text(row.name, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                // Two lines + ellipsis: a single clipped line hid word-wrapped suffixes such as
+                // "(copy)", leaving a project and its duplicate visually identical.
+                Text(
+                    row.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 2,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                )
                 Text(
                     summary,
                     style = MaterialTheme.typography.bodySmall,
