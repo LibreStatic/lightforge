@@ -258,7 +258,7 @@ internal fun DeviceFoldersContent(
                         Icon(GalleryIcons.Folder, contentDescription = null)
                         Column {
                             Text(album.name ?: stringResource(com.librestatic.lightforge.feature.album.R.string.album_untitled), style = MaterialTheme.typography.titleMedium)
-                            Text(album.itemCount.toString(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(pluralStringResource(com.librestatic.lightforge.feature.album.R.plurals.album_item_count, album.itemCount.toInt(), album.itemCount), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
