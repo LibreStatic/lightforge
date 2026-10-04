@@ -187,6 +187,9 @@ fun CollectionsContent(
                 title = momentDisplayTitle(summary.moment, momentPlaceLabels),
                 body = pluralStringResource(R.plurals.collections_item_count, summary.memberCount.toInt(), summary.memberCount),
                 icon = GalleryIcons.Image,
+                cover = summary.coverVolumeName?.let { volume ->
+                    summary.coverMediaStoreId?.let { MediaKey(volume, it) }
+                },
                 onClick = { onMomentClick(summary.moment) },
             )
         }
