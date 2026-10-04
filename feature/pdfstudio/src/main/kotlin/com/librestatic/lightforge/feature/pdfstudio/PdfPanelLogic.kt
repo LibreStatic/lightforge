@@ -193,3 +193,10 @@ internal object PdfCropFocus {
 
     fun percent(focus: Double): Int = (focus * 100).roundToInt().coerceIn(0, 100)
 }
+
+/** The hard per-project page cap shared by the strip, the Pages panel and the view model. */
+internal object PdfPageLimit {
+    const val MAX_PAGES = 100
+
+    fun canAdd(current: Int, adding: Int): Boolean = current + adding <= MAX_PAGES
+}

@@ -147,4 +147,11 @@ class PdfPanelLogicTest {
         assertEquals(PdfPaperPresets.SQUARE, PdfPaperPresets.matching(148.0, 148.0))
         assertEquals(PdfPaperPresets.CUSTOM, PdfPaperPresets.matching(123.0, 456.0))
     }
+
+    @Test fun pageLimitAllowsUpToTheCapAndNoFurther() {
+        assertTrue(PdfPageLimit.canAdd(99, 1))
+        assertFalse(PdfPageLimit.canAdd(100, 1))
+        assertTrue(PdfPageLimit.canAdd(98, 2))
+        assertFalse(PdfPageLimit.canAdd(98, 3))
+    }
 }

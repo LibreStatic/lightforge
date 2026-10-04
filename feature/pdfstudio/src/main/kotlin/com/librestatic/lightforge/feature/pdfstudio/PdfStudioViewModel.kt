@@ -1438,12 +1438,14 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
     }
 
     fun addPage() {
+        if (!PdfPageLimit.canAdd(mutable.value.project?.pages?.size ?: 0, 1)) return
         val next = mutable.value.page + 1
         update { p -> p.copy(pages = p.pages.toMutableList().apply { add(next, PdfPage()) }) }
         if (next < (mutable.value.project?.pages?.size ?: 0)) selectPage(next)
     }
 
     fun duplicatePage() {
+        if (!PdfPageLimit.canAdd(mutable.value.project?.pages?.size ?: 0, 1)) return
         val next = mutable.value.page + 1
         update { p ->
             p.copy(
@@ -1475,7 +1477,14 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
 
     /** Duplicates every selected page (or just the current one), each copy inserted right after
      * its original, as a single undo step. */
-    fun duplicateSelectedPages() = update { p ->
+    fun duplicateSelectedPages() {
+        val project = mutable.value.project ?: return
+        val count = mutable.value.selectedPages.size.coerceAtLeast(1)
+        if (!PdfPageLimit.canAdd(project.pages.size, count)) return
+        duplicateSelectedPagesUnchecked()
+    }
+
+    private fun duplicateSelectedPagesUnchecked() = update { p ->
         val ids = mutable.value.selectedPages.ifEmpty { setOf(p.pages[mutable.value.page].id) }
         p.copy(
             pages =

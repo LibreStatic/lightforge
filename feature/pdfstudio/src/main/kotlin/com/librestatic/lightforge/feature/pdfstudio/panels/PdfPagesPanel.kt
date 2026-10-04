@@ -96,10 +96,16 @@ internal fun PdfPagesPanel(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            OutlinedButton(onClick = vm::duplicateSelectedPages, enabled = !s.editorLocked) {
+            OutlinedButton(
+                onClick = vm::duplicateSelectedPages,
+                enabled =
+                    !s.editorLocked &&
+                        s.selectedPages.isNotEmpty() &&
+                        PdfPageLimit.canAdd(p.pages.size, s.selectedPages.size),
+            ) {
                 Text(stringResource(R.string.pdf_duplicatepage))
             }
-            OutlinedButton(onClick = vm::rotateSelectedPages, enabled = !s.editorLocked) {
+            OutlinedButton(onClick = vm::rotateSelectedPages, enabled = !s.editorLocked && s.selectedPages.isNotEmpty()) {
                 // Distinct from the Layout panel's "Rotate this page" (R7 review fix).
                 Text(stringResource(R.string.pdf_rotatepage_selected))
             }
@@ -113,7 +119,7 @@ internal fun PdfPagesPanel(
             // canvas contextual toolbar's own Delete action.
             Button(
                 onClick = delete,
-                enabled = !s.editorLocked,
+                enabled = !s.editorLocked && s.selectedPages.isNotEmpty(),
                 colors =
                     ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.errorContainer,
