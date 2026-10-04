@@ -54,6 +54,7 @@ fun LocalSharingContent(
     var host by remember { mutableStateOf("") }
     var code by remember { mutableStateOf("") }
     var error by remember { mutableStateOf(false) }
+    var receiveFailureDismissed by remember { mutableStateOf(false) }
     var working by remember { mutableStateOf(false) }
     var revokeTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
     var pairing by remember { mutableStateOf(false) }
@@ -110,7 +111,7 @@ fun LocalSharingContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item { Text(stringResource(R.string.peer_scope)) }
-        if (error || receiver.failure != null)
+        if (error || (receiver.failure != null && !receiveFailureDismissed))
             item {
                 Surface(
                     color = MaterialTheme.colorScheme.errorContainer,
@@ -130,7 +131,11 @@ fun LocalSharingContent(
                     if (!receiver.active) {
                         OutlinedTextField(
                             host,
-                            { host = it },
+                            {
+                                host = it
+                                error = false
+                                receiveFailureDismissed = true
+                            },
                             label = { Text(stringResource(R.string.peer_host)) },
                             modifier = Modifier.fillMaxWidth().testTag("peer-host"),
                             singleLine = true,
@@ -141,6 +146,8 @@ fun LocalSharingContent(
                         )
                         Button(
                             onClick = {
+                                error = false
+                                receiveFailureDismissed = false
                                 try {
                                     controller.receive(host)
                                 } catch (e: Exception) {
@@ -211,7 +218,10 @@ fun LocalSharingContent(
                     )
                     OutlinedTextField(
                         code,
-                        { code = it },
+                        {
+                            code = it
+                            error = false
+                        },
                         label = { Text(stringResource(R.string.peer_code)) },
                         modifier = Modifier.fillMaxWidth().testTag("peer-code"),
                         maxLines = 3,
