@@ -117,7 +117,7 @@ svg.ic{width:24px;height:24px;fill:currentColor}
 #panel{position:absolute;left:1002px;top:64px;width:780px;height:952px;border-radius:120px;background:#D6E3FF;opacity:0}
 .portrait #panel{left:40px;top:640px;width:1000px;height:1180px;border-radius:110px}
 /* canvas layer: color sweeps between scenes + drifting Material Expressive shapes */
-#wipe,#morphs{display:none}
+#wipe{display:none}
 #wipe{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 #wipe .wp{position:absolute;top:-10%;bottom:-10%;left:0;width:70%;opacity:.34;display:none}
 #morphs{position:absolute;inset:0;pointer-events:none}
@@ -185,8 +185,8 @@ html:has(body.portrait){width:1080px;height:1920px}
 <body>
 <div id="stage">
   <div class="blob" id="b0"></div><div class="blob" id="b1"></div><div class="blob" id="b2"></div><div class="blob" id="b3"></div>
-  <div id="panel"></div>
   <div id="morphs"></div>
+  <div id="panel"></div>
   <div id="wipe"><div class="wp"></div></div>
   <div id="grain"></div>
   <div id="cap"></div>
@@ -519,9 +519,14 @@ const switchOn = (sw, on) => { css(sw, { background: on ? 'var(--pri)' : 'var(--
 const mkSwitch = parent => { const s = el('span', 'sw', '<b></b>', parent); switchOn(s, false); return s; };
 
 /* background: drifting expressive shapes + color sweep */
-const MORPH = [[9, .07, 120, '#FFC247'], [6, .15, 180, '#F2607A'], [4, .22, 150, '#7B61F0'], [8, .1, 100, '#C45ED8'], [5, .18, 130, '#FF8A4C']];
-const morphEls = MORPH.map(([n, a, s, c]) => { const e = el('i', null, null, $('morphs')); css(e, { width: s + 'px', height: s + 'px', background: c, opacity: .16 }); return e; });
-const MPOS = [[90, 80], [1700, 120], [1500, 880], [120, 900], [980, 40]];
+// Material Expressive shapes framing the canvas: [cx, cy, size] for landscape and portrait.
+// They sit behind the device panel, away from the captions, and morph into the next shape at each scene.
+const MPOS = [[150, 150, 170], [870, 140, 110], [1835, 300, 150], [1050, 975, 200], [300, 950, 140], [1770, 55, 120], [905, 880, 90]];
+const MPOS_P = [[95, 110, 150], [985, 115, 120], [1040, 690, 140], [40, 1180, 130], [1000, 1840, 180], [150, 1865, 120], [560, 1890, 90]];
+const SHAPESET = [[9, .08], [6, .14], [4, .2], [5, .16], [12, .05], [8, .1], [2, .22]];
+const DEEP = ['#AFC6FF', '#A8D8AE', '#F2CC8F', '#FFB3C4', '#A2D8D2'];
+const morphEls = MPOS.map(() => el('i', null, null, $('morphs')));
+const shapeMix = (n1, a1, n2, a2, k, rot, pts = 72) => { const a = []; for (let i = 0; i < pts; i++) { const th = i / pts * Math.PI * 2; const r1 = (1 + a1 * Math.cos(n1 * th + rot)) / (1 + a1), r2 = (1 + a2 * Math.cos(n2 * th + rot)) / (1 + a2); const r = lerp(r1, r2, k); a.push(`${(50 + 50 * r * Math.cos(th)).toFixed(1)}% ${(50 + 50 * r * Math.sin(th)).toFixed(1)}%`); } return `polygon(${a.join(',')})`; };
 const WIPES = [9.2, 14.2, 18.7, 23.1, 27.5, 32.0, 37.4, 44.4, 48.0, 51.8, 55.4, 59.0, 63.0, 66.8, 72.4, 44.8 + LO, 52.4 + LO];
 const WCOL = ['#FFC247', '#F2607A', '#7B61F0', '#FF8A4C', '#C45ED8'];
 
@@ -700,7 +705,24 @@ function render(t) {
   BLOBS.forEach((_, i) => { const e = $('b' + i); css(e, { left: bp[i][0] + Math.sin(t * .35 + i * 1.7) * 120 + 'px', top: bp[i][1] + Math.cos(t * .28 + i) * 90 + 'px', opacity: .28 + .08 * Math.sin(t * .6 + i) }); });
 
   // poppy layer: expressive shapes + color sweep at every scene change
-  morphEls.forEach((e, i) => { const [n, a] = MORPH[i]; let [x, y] = MPOS[i]; if (PORTRAIT) { x *= .55; y *= 1.7; } e.style.clipPath = shapePoly(n, a, t * .6 + i); css(e, { left: x + Math.sin(t * .4 + i * 2) * 40 + 'px', top: y + Math.cos(t * .33 + i) * 40 + 'px', transform: `rotate(${t * 14 * (i % 2 ? -1 : 1)}deg) scale(${1 + .1 * Math.sin(t + i)})` }); });
+  {
+    let sc = 0; CAPS.forEach((c, i) => { if (t > c.a - .3) sc = i; });
+    const b0 = CAPS[sc].a - .3, u = Math.max(0, t - b0), mk = eio(P(t, b0, b0 + .8));
+    const intro = eo5(P(t, .2, 1.4));
+    morphEls.forEach((e, i) => {
+      const [cx, cy, size] = (PORTRAIT ? MPOS_P : MPOS)[i];
+      const [n1, a1] = SHAPESET[(i + sc + 6) % 7], [n2, a2] = SHAPESET[(i + sc) % 7];
+      const rot = t * (.12 + i * .015) * (i % 2 ? -1 : 1);
+      e.style.clipPath = sc === 0 ? shapeMix(n2, a2, n2, a2, 1, rot) : shapeMix(n1, a1, n2, a2, mk, rot);
+      const col = sc === 0 ? DEEP[i % 5] : mixHex(DEEP[(i + sc + 4) % 5], DEEP[(i + sc) % 5], mk);
+      const pop = 1 + .07 * Math.exp(-4 * u) * Math.sin(10 * u) * (sc ? 1 : 0);
+      const fx = Math.sin(t * .35 + i * 2.1) * 18, fy = Math.cos(t * .29 + i * 1.3) * 18;
+      const licDy = i === 3 && !PORTRAIT ? 150 * Math.min(eio(P(t, 72.0, 72.8)), 1 - eio(P(t, 79.9, 80.6))) : 0;
+      const k = back(P(t, .1 + i * .08, .9 + i * .08));
+      css(e, { left: cx - size / 2 + fx + 'px', top: cy - size / 2 + fy + licDy + 'px', width: size + 'px', height: size + 'px', background: col, opacity: .78 * clamp(k),
+        transform: `rotate(${t * (8 + i) * (i % 2 ? -1 : 1)}deg) scale(${clamp(k, 0, 1.2) * pop * lerp(.85, 1, intro)})` });
+    });
+  }
   const wp = $('wipe').firstChild; let wk = -1, wi = 0; WIPES.forEach((b, i) => { if (t > b - .2 && t < b + .7) { wk = P(t, b - .2, b + .7); wi = i; } });
   if (wk >= 0) css(wp, { display: 'block', background: `linear-gradient(90deg,transparent,${WCOL[wi % 5]} 40%,${WCOL[(wi + 1) % 5]} 70%,transparent)`, transform: `translateX(${lerp(-100, 230, eio(wk))}%) skewX(-14deg)` }); else wp.style.display = 'none';
 
