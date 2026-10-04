@@ -1,7 +1,7 @@
 <resources>
     <string name="own_sync_back">Volver</string>
     <string name="own_sync_title">Sincronización de carpetas</string>
-    <string name="own_sync_scope">Carpeta local → tu servidor SFTP o SMB. Los archivos quedan separados; no es un backup ZIP ni emparejamiento con Android.</string>
+    <string name="own_sync_scope">Carpeta local → tu servidor SFTP o SMB. Los archivos quedan separados; no es una copia de seguridad ZIP ni emparejamiento con Android.</string>
     <string name="own_sync_create">Nueva tarea de carpeta</string>
     <string name="own_sync_servers">Perfiles, credenciales y confianza del servidor</string>
     <string name="own_sync_error">La operación requiere revisión. Revisa la carpeta, el perfil y la conexión; se conservan los archivos existentes.</string>

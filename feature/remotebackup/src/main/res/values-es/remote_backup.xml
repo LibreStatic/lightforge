@@ -1,7 +1,7 @@
 <resources>
     <string name="remote_title">Servidores propios</string>
     <string name="remote_back">Volver</string>
-    <string name="remote_scope">Respalda originales seleccionados y organización opcional en tu servidor SFTP o carpeta SMB. Sin cuenta cloud, espejo, borrado automático ni emparejamiento Android. No incluye álbumes privados ni recetas de edición.</string>
+    <string name="remote_scope">Respalda originales seleccionados y organización opcional en tu servidor SFTP o carpeta SMB. Sin cuenta en la nube, espejo, borrado automático ni emparejamiento Android. No incluye álbumes privados ni recetas de edición.</string>
     <string name="remote_profiles">Servidores</string>
     <string name="remote_add">Agregar servidor</string>
     <string name="remote_name">Nombre del perfil</string>
