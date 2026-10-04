@@ -21,9 +21,6 @@ import java.io.IOException
 import kotlin.coroutines.coroutineContext
 import kotlin.math.ceil
 import kotlin.math.max
-import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.sin
 import kotlin.math.roundToInt
 
 data class ImageBounds(val width: Int, val height: Int, val mimeType: String?)
@@ -282,29 +279,9 @@ class PhotoImageRenderer(
     private fun straighten(bitmap: Bitmap, degrees: Float): Bitmap {
         if (degrees == 0f) return bitmap
         val rotated = transform(bitmap, Matrix().apply { postRotate(degrees) })
-        val radians = Math.toRadians(abs(degrees).toDouble())
-        val sine = sin(radians)
-        val cosine = cos(radians)
-        val denominator = cosine * cosine - sine * sine
-        val width: Double
-        val height: Double
-        if (minOf(bitmap.width, bitmap.height) <= 2 * sine * cosine * maxOf(bitmap.width, bitmap.height) ||
-            abs(denominator) < 0.000_001
-        ) {
-            val halfShort = 0.5 * minOf(bitmap.width, bitmap.height)
-            if (bitmap.width >= bitmap.height) {
-                width = halfShort / sine.coerceAtLeast(0.000_001)
-                height = halfShort / cosine.coerceAtLeast(0.000_001)
-            } else {
-                width = halfShort / cosine.coerceAtLeast(0.000_001)
-                height = halfShort / sine.coerceAtLeast(0.000_001)
-            }
-        } else {
-            width = (bitmap.width * cosine - bitmap.height * sine) / denominator
-            height = (bitmap.height * cosine - bitmap.width * sine) / denominator
-        }
-        val cropWidth = width.roundToInt().coerceIn(1, rotated.width)
-        val cropHeight = height.roundToInt().coerceIn(1, rotated.height)
+        val (width, height) = StraightenGeometry.inscribedSize(bitmap.width, bitmap.height, degrees)
+        val cropWidth = width.coerceIn(1, rotated.width)
+        val cropHeight = height.coerceIn(1, rotated.height)
         val result = Bitmap.createBitmap(
             rotated,
             (rotated.width - cropWidth) / 2,

@@ -22,13 +22,10 @@ import java.util.zip.CRC32
 import java.util.zip.Deflater
 import kotlin.coroutines.coroutineContext
 import kotlin.math.ceil
-import kotlin.math.abs
-import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
-import kotlin.math.sin
 
 /**
  * Full-resolution still exporter for sources that cannot fit in one Android Bitmap.
@@ -184,7 +181,7 @@ private class TiledTransformPlan(
                     rotation.postTranslate(-bounds.left, -bounds.top)
                     concat(rotation)
 
-                    val (safeWidth, safeHeight) = inscribedRotatedSize(
+                    val (safeWidth, safeHeight) = StraightenGeometry.inscribedSize(
                         width,
                         height,
                         operation.degrees,
@@ -252,31 +249,6 @@ private class TiledTransformPlan(
             current = next
         }
         return current
-    }
-
-    private fun inscribedRotatedSize(width: Int, height: Int, degrees: Float): Pair<Int, Int> {
-        val radians = Math.toRadians(abs(degrees).toDouble())
-        val sine = sin(radians)
-        val cosine = cos(radians)
-        val denominator = cosine * cosine - sine * sine
-        val safeWidth: Double
-        val safeHeight: Double
-        if (minOf(width, height) <= 2 * sine * cosine * maxOf(width, height) ||
-            abs(denominator) < 0.000_001
-        ) {
-            val halfShort = 0.5 * minOf(width, height)
-            if (width >= height) {
-                safeWidth = halfShort / sine.coerceAtLeast(0.000_001)
-                safeHeight = halfShort / cosine.coerceAtLeast(0.000_001)
-            } else {
-                safeWidth = halfShort / cosine.coerceAtLeast(0.000_001)
-                safeHeight = halfShort / sine.coerceAtLeast(0.000_001)
-            }
-        } else {
-            safeWidth = (width * cosine - height * sine) / denominator
-            safeHeight = (height * cosine - width * sine) / denominator
-        }
-        return safeWidth.roundToInt().coerceAtLeast(1) to safeHeight.roundToInt().coerceAtLeast(1)
     }
 
 }
