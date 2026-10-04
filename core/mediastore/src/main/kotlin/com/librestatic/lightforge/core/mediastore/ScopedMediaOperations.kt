@@ -285,8 +285,12 @@ private class ImagePrintAdapter(
 
 private fun decodeSampledBitmap(resolver: ContentResolver, uri: Uri): Bitmap {
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    resolver.openFileDescriptor(uri, "r")?.use { BitmapFactory.decodeFileDescriptor(it.fileDescriptor, null, bounds) }
-        ?: error("Could not open image")
+    // decodeFileDescriptor returns null with inJustDecodeBounds, so it cannot signal a failed open.
+    val opened = resolver.openFileDescriptor(uri, "r")?.use {
+        BitmapFactory.decodeFileDescriptor(it.fileDescriptor, null, bounds)
+        true
+    } ?: false
+    check(opened) { "Could not open image" }
     var sample = 1
     while (max(bounds.outWidth, bounds.outHeight) / sample > 4096) sample *= 2
     return resolver.openFileDescriptor(uri, "r")?.use {
