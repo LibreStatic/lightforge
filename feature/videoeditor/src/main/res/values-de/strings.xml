@@ -242,4 +242,5 @@
     <string name="video_editor_output_audio_remove_music">Entfernt den Originalton; die hinzugefügte Musik bleibt.</string>
     <string name="video_editor_hevc_8bit">HEVC · 8 Bit</string>
     <string name="video_editor_output_codec_set">Codec: %1$s, in den Ausgabeeinstellungen gewählt.</string>
+    <string name="video_editor_dismiss_message">Meldung schließen</string>
 </resources>

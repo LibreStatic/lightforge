@@ -39,6 +39,7 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -1183,14 +1184,32 @@ private fun VideoControls(
                 VideoEditorTool.Output -> VideoOutputControls(state, onOutputSettingsChange, Modifier.fillMaxSize())
             }
         }
-        state.statusMessage?.let {
-            Surface(
-                modifier = Modifier.padding(horizontal = GallerySpacing.Lg),
-                shape = MaterialTheme.shapes.small,
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-            ) {
-                Text(it, Modifier.padding(horizontal = GallerySpacing.Md, vertical = GallerySpacing.Sm))
+        state.statusMessage?.let { message ->
+            // Dismissible so a stale error or result does not keep covering the tool panel; a new
+            // message (or none in between) brings it back because the state is keyed on the text.
+            var dismissed by remember(message) { mutableStateOf(false) }
+            if (!dismissed) {
+                Surface(
+                    modifier = Modifier.padding(horizontal = GallerySpacing.Lg),
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            message,
+                            Modifier
+                                .weight(1f, fill = false)
+                                .padding(start = GallerySpacing.Md, top = GallerySpacing.Sm, bottom = GallerySpacing.Sm),
+                        )
+                        IconButton(onClick = { dismissed = true }) {
+                            Icon(
+                                GalleryIcons.Close,
+                                contentDescription = stringResource(R.string.video_editor_dismiss_message),
+                            )
+                        }
+                    }
+                }
             }
         }
         if (state.isExporting) {
