@@ -20,7 +20,7 @@ class VideoViewerControllerTest {
     }
 
     @Test
-    fun refreshingEffectsAtEndReturnsToFirstFrame() {
+    fun refreshingEffectsAtEndStaysOnTheLastFrame() {
         val engine = FakeVideoEngine()
         val controller = VideoViewerController(engine)
         engine.position = 10_000L
@@ -28,7 +28,52 @@ class VideoViewerControllerTest {
 
         controller.setVideoEffects(emptyList())
 
-        assertEquals(0L, engine.lastSeek)
+        assertEquals(9_999L, engine.lastSeek)
+    }
+
+    @Test
+    fun repeatedRefreshesDoNotDriftThePausedPosition() {
+        val engine = FakeVideoEngine().apply { seekMovesPosition = true }
+        val controller = VideoViewerController(engine)
+        engine.position = 1_234L
+        engine.listener?.onReady(10_000L, false)
+
+        val seeks = List(6) {
+            controller.refreshVideoFrame()
+            engine.lastSeek
+        }
+
+        assertEquals(listOf(1_233L, 1_234L, 1_233L, 1_234L, 1_233L, 1_234L), seeks)
+    }
+
+    @Test
+    fun refreshSnapsToTheDisplayedFrameInsteadOfThePlaybackPosition() {
+        val engine = FakeVideoEngine().apply { seekMovesPosition = true }
+        val controller = VideoViewerController(engine)
+        // Paused mid-frame: the frame on screen started at 1.201 s.
+        engine.position = 1_230L
+        engine.renderedFrame = 1_201L
+        engine.listener?.onReady(10_000L, false)
+
+        val seeks = List(4) {
+            controller.refreshVideoFrame()
+            engine.lastSeek
+        }
+
+        assertEquals(listOf(1_201L, 1_200L, 1_201L, 1_200L), seeks)
+    }
+
+    @Test
+    fun staleRenderedFrameTimeIsIgnored() {
+        val engine = FakeVideoEngine()
+        val controller = VideoViewerController(engine)
+        engine.position = 5_000L
+        engine.renderedFrame = 1_000L
+        engine.listener?.onReady(10_000L, false)
+
+        controller.refreshVideoFrame()
+
+        assertEquals(4_999L, engine.lastSeek)
     }
 
     @Test
@@ -111,6 +156,8 @@ private class FakeVideoEngine : VideoEngine {
     override var listener: VideoEngine.Listener? = null
     var position = 0L
     var lastSeek: Long? = null
+    var seekMovesPosition = false
+    var renderedFrame: Long? = null
     val repeatEnabled = mutableListOf<Boolean>()
     val scrubbingModeChanges = mutableListOf<Boolean>()
     var effectCalls = 0
@@ -119,7 +166,10 @@ private class FakeVideoEngine : VideoEngine {
     override fun play() = Unit
     override fun pause() = Unit
     override fun setScrubbingModeEnabled(enabled: Boolean) { scrubbingModeChanges += enabled }
-    override fun seekTo(positionMillis: Long) { lastSeek = positionMillis }
+    override fun seekTo(positionMillis: Long) {
+        lastSeek = positionMillis
+        if (seekMovesPosition) position = positionMillis
+    }
     override fun stopAndClear() = Unit
     override fun release() = Unit
     override fun attachSurface(surfaceView: SurfaceView?) = Unit
@@ -127,4 +177,5 @@ private class FakeVideoEngine : VideoEngine {
     override fun setRepeatEnabled(enabled: Boolean) { repeatEnabled += enabled }
     override fun setVideoEffects(effects: List<Effect>) { effectCalls++ }
     override fun currentPositionMillis(): Long = position
+    override fun lastRenderedFrameMillis(): Long? = renderedFrame
 }

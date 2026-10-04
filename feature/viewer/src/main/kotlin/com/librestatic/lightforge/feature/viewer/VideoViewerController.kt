@@ -8,6 +8,7 @@ import android.net.Uri
 import android.view.SurfaceView
 import android.view.TextureView
 import androidx.annotation.MainThread
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Effect
 import androidx.media3.common.PlaybackException
@@ -74,6 +75,9 @@ internal interface VideoEngine {
     fun setVideoEffects(effects: List<Effect>)
     fun currentPositionMillis(): Long
 
+    /** Presentation time of the frame most recently rendered, or null when it is not known. */
+    fun lastRenderedFrameMillis(): Long? = null
+
     /**
      * Replaces the player with one running [pipeline], keeping the attached view, volume, speed and
      * repeat mode; media must be set and prepared again. Returns false when the engine cannot.
@@ -115,6 +119,7 @@ class VideoViewerController internal constructor(
     private var pipeline = VideoPipeline(videoEffects = videoEffectsRequested)
     private var recoveries = 0
     private var videoEffects: List<Effect>? = null
+    private var refreshAnchorMillis: Long? = null
 
     init {
         engine.setRepeatEnabled(looping)
@@ -293,13 +298,26 @@ class VideoViewerController internal constructor(
     @MainThread
     fun refreshVideoFrame() {
         if (released || !playbackReady || playbackIsPlaying) return
+        // ExoPlayer ignores a seek to the current position, so a paused frame is re-rendered by
+        // seeking to an adjacent millisecond. Stepping back from wherever playback stands made
+        // the position drift a millisecond per edit and the picture jump a frame whenever it
+        // crossed a frame boundary. Instead, alternate between the displayed frame's own time and
+        // the millisecond before it: an exact seek shows the first frame at or after the target,
+        // which is that same frame for both positions.
         val current = engine.currentPositionMillis()
-        val duration = playbackDurationMillis
+        if (playbackDurationMillis <= 1) {
+            engine.seekTo(current)
+            return
+        }
+        val frame = engine.lastRenderedFrameMillis()
+            ?.takeIf { kotlin.math.abs(it - current) <= FrameSnapToleranceMillis }
+        val previousAnchor = refreshAnchorMillis
+        val anchor = frame ?: previousAnchor?.takeIf { current == it || current == it - 1 } ?: current
+        refreshAnchorMillis = anchor
         val refreshPosition = when {
-            duration <= 1 -> current
-            current >= duration - 1 -> 0
-            current <= 0 -> 1
-            else -> current - 1
+            anchor <= 0 -> if (current == 0L) 1 else 0
+            current == anchor -> anchor - 1
+            else -> anchor
         }
         engine.seekTo(refreshPosition)
     }
@@ -341,6 +359,9 @@ class VideoViewerController internal constructor(
     }
 }
 
+/** A rendered-frame time further than this from the playback position is treated as stale. */
+private const val FrameSnapToleranceMillis = 250L
+
 private class Media3VideoEngine(
     private val context: Context,
     private var pipeline: VideoPipeline,
@@ -362,6 +383,7 @@ private class Media3VideoEngine(
     private var volume = 1f
     private var speed = 1f
     private var repeat = false
+    @Volatile private var lastRenderedFrameUs = C.TIME_UNSET
     private var player = createPlayer()
 
     private fun createPlayer(): ExoPlayer = ExoPlayer.Builder(
@@ -390,6 +412,11 @@ private class Media3VideoEngine(
         // renderer is enabled. Register an empty chain up front so later editor changes
         // can be applied live without recreating playback.
         if (pipeline.videoEffects) player.setVideoEffects(emptyList())
+        lastRenderedFrameUs = C.TIME_UNSET
+        // Called on the playback thread as each frame is released for display.
+        player.setVideoFrameMetadataListener { presentationTimeUs, _, _, _ ->
+            if (this.player === player) lastRenderedFrameUs = presentationTimeUs
+        }
         player.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_READY) {
@@ -444,7 +471,10 @@ private class Media3VideoEngine(
         })
     }
 
-    override fun setMedia(uri: Uri) = player.setMediaItem(MediaItem.fromUri(uri))
+    override fun setMedia(uri: Uri) {
+        lastRenderedFrameUs = C.TIME_UNSET
+        player.setMediaItem(MediaItem.fromUri(uri))
+    }
     override fun prepare() = player.prepare()
     override fun play() {
         if (player.playbackState == Player.STATE_ENDED) player.seekToDefaultPosition()
@@ -491,6 +521,8 @@ private class Media3VideoEngine(
         if (pipeline.videoEffects) player.setVideoEffects(effects)
     }
     override fun currentPositionMillis(): Long = player.currentPosition.coerceAtLeast(0)
+    override fun lastRenderedFrameMillis(): Long? =
+        lastRenderedFrameUs.takeIf { it != C.TIME_UNSET && it >= 0 }?.let { it / 1_000 }
 
     private companion object {
         val UnsupportedErrorCodes = setOf(
