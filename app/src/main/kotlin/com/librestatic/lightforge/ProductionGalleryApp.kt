@@ -2627,7 +2627,7 @@ internal fun ProductionGalleryApp(
                                     viewModel.selectAllAlbum(requireNotNull(selectedAlbum), filter, sort)
                                 } else viewModel.selectAllTimeline()
                             },
-                            onFavorite = { viewModel.beginSelectionSystemAction(MediaAction.Favorite(true)) },
+                            onFavorite = viewModel::toggleSelectionFavorite,
                             onTrash = { runDestructive { viewModel.beginSelectionSystemAction(MediaAction.Trash(true)) } },
                             onDelete = { runDestructive { viewModel.beginSelectionSystemAction(MediaAction.Delete) } },
                             onAddToAlbum = { showAddToAlbum = true },

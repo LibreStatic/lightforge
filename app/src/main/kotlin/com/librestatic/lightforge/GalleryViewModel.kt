@@ -2945,6 +2945,29 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Selection bar favorite: a hand-picked selection that is already entirely favorite is
+     * unfavorited (so the action can be undone); anything else is favorited. Select-all
+     * selections span the whole query and always favorite.
+     */
+    fun toggleSelectionFavorite() {
+        val selected = mutableSelection.value
+        if (selected !is SelectionSpec.Explicit) {
+            beginSelectionSystemAction(MediaAction.Favorite(true))
+            return
+        }
+        val keys = selected.keys.toList()
+        val revision = selectionRevision
+        viewModelScope.launch {
+            val dao = runtime.value?.database?.libraryDao()
+            val allFavorite = dao != null && keys.isNotEmpty() && withContext(Dispatchers.IO) {
+                keys.all { dao.media(it.volumeName, it.mediaStoreId)?.isFavorite == true }
+            }
+            if (selectionRevision != revision) return@launch
+            beginSelectionSystemAction(MediaAction.Favorite(!allFavorite))
+        }
+    }
+
     fun emptyTrash() = beginQueryAction(
         SelectionSpec.queryAll(
             MediaQuery(trashedOnly = true, archiveMode = MediaQuery.ArchiveMode.Include),
