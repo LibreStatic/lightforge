@@ -3,7 +3,7 @@
     <string name="local_backup_title">Lokale Dateisicherung</string>
     <string name="local_backup_back">Zurück</string>
     <string name="local_backup_scope">Enthält die exakten Bytes ausgewählter Dateien: Fotos, Videos und Dokumente. Alben, Stapel, Erinnerungen, Personen, Einstellungen und private Tresorinhalte sind nicht enthalten. Dies ist keine vollständige Mediathek-Sicherung.</string>
-    <string name="local_backup_local_hint">Wähle Gerätespeicher oder ein angeschlossenes USB-Laufwerk. Lightforge verwendet keine Netzwerkdienste. Behalte die Sicherung, bis du die wiederhergestellten Dateien geprüft hast.</string>
+    <string name="local_backup_local_hint">Wähle Gerätespeicher oder ein angeschlossenes USB-Laufwerk. Lightforge Studio verwendet keine Netzwerkdienste. Behalte die Sicherung, bis du die wiederhergestellten Dateien geprüft hast.</string>
     <string name="local_backup_select">Originaldateien auswählen</string>
     <string name="local_backup_selected">Ausgewählte Dateien: %1$d</string>
     <string name="local_backup_create">Sicherung erstellen und prüfen</string>

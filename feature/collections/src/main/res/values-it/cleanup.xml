@@ -5,7 +5,7 @@
     <string name="cleanup_back">Raccolte</string>
     <string name="cleanup_analysis_off">Il rilevamento di duplicati e foto sfocate è disattivato. Attivalo per analizzare la raccolta su questo dispositivo.</string>
     <string name="cleanup_analysis_enable">Attiva analisi</string>
-    <string name="cleanup_analysis_hint">L’analisi viene eseguita su questo dispositivo durante la ricarica, o con Lightforge aperta e batteria sufficiente. I risultati compaiono man mano.</string>
+    <string name="cleanup_analysis_hint">L’analisi viene eseguita su questo dispositivo durante la ricarica, o con Lightforge Studio aperta e batteria sufficiente. I risultati compaiono man mano.</string>
     <string name="cleanup_duplicates_title">Duplicati esatti</string>
     <string name="cleanup_keep">Mantieni</string>
     <string name="cleanup_trash_copies">Sposta le copie nel cestino</string>

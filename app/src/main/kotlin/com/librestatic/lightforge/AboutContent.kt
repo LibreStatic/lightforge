@@ -141,7 +141,7 @@ private fun AboutOverview(
                 verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
             ) {
                 Text(
-                    text = stringResource(R.string.app_name),
+                    text = stringResource(R.string.app_full_name),
                     style = MaterialTheme.typography.headlineMedium,
                     modifier = Modifier.semantics { heading() },
                 )

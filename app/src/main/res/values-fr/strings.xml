@@ -128,7 +128,7 @@
     <string name="settings_export_done">Réglages et favoris exportés</string>
     <string name="settings_export_failed">Impossible d\'exporter les réglages et favoris</string>
     <string name="settings_import_done">Réglages importés</string>
-    <string name="settings_import_failed">Impossible d\'importer les réglages. Le fichier n\'est pas une sauvegarde de réglages Lightforge valide.</string>
+    <string name="settings_import_failed">Impossible d\'importer les réglages. Le fichier n\'est pas une sauvegarde de réglages Lightforge Studio valide.</string>
     <string name="settings_reset_done">Réglages par défaut restaurés</string>
     <string name="settings_reset_failed">Impossible de restaurer les réglages par défaut</string>
     <string name="settings_reset_confirm_title">Restaurer les réglages par défaut ?</string>

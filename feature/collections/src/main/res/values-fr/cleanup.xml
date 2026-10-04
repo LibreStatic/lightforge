@@ -5,7 +5,7 @@
     <string name="cleanup_back">Collections</string>
     <string name="cleanup_analysis_off">La détection des doublons et des photos floues est désactivée. Activez-la pour analyser votre bibliothèque sur cet appareil.</string>
     <string name="cleanup_analysis_enable">Activer l’analyse</string>
-    <string name="cleanup_analysis_hint">L’analyse s’exécute sur cet appareil pendant la charge, ou quand Lightforge est ouverte avec assez de batterie. Les résultats apparaissent au fur et à mesure.</string>
+    <string name="cleanup_analysis_hint">L’analyse s’exécute sur cet appareil pendant la charge, ou quand Lightforge Studio est ouverte avec assez de batterie. Les résultats apparaissent au fur et à mesure.</string>
     <string name="cleanup_duplicates_title">Doublons exacts</string>
     <string name="cleanup_keep">Conserver</string>
     <string name="cleanup_trash_copies">Placer les copies dans la corbeille</string>

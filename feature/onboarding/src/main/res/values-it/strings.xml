@@ -7,7 +7,7 @@
     <string name="onboarding_get_started">Inizia</string>
     <string name="onboarding_start_exploring">Inizia a esplorare</string>
     <string name="onboarding_got_it">Ho capito</string>
-    <string name="onboarding_welcome_title">Ti diamo il benvenuto in Lightforge</string>
+    <string name="onboarding_welcome_title">Ti diamo il benvenuto in Lightforge Studio</string>
     <string name="onboarding_welcome_body">Le tue foto restano tue. Sfoglia, cerca, modifica e crea, tutto sul tuo dispositivo.</string>
     <string name="onboarding_chip_offline">Prima offline</string>
     <string name="onboarding_chip_no_account">Nessun account</string>
@@ -47,8 +47,8 @@
     <string name="onboarding_studio_collage_body">Combina le foto in un unico layout e regola il ritaglio di ciascuna.</string>
     <string name="onboarding_studio_gif_title">Creatore di GIF</string>
     <string name="onboarding_studio_gif_body">Anima una serie di foto in una GIF in loop.</string>
-    <string name="onboarding_permissions_title">Scegli cosa può vedere Lightforge</string>
-    <string name="onboarding_permissions_body">Lightforge legge i contenuti solo per mostrarteli. Nulla viene caricato e ogni autorizzazione è facoltativa.</string>
+    <string name="onboarding_permissions_title">Scegli cosa può vedere Lightforge Studio</string>
+    <string name="onboarding_permissions_body">Lightforge Studio legge i contenuti solo per mostrarteli. Nulla viene caricato e ogni autorizzazione è facoltativa.</string>
     <string name="onboarding_permission_media_title">Foto e video</string>
     <string name="onboarding_permission_media_body">Necessario per cronologia, album e ricerca. Android ti permette di condividere tutto o solo gli elementi selezionati.</string>
     <string name="onboarding_permission_location_title">Posizione delle foto</string>
@@ -77,13 +77,13 @@
     <string name="onboarding_analysis_semantic_body">Cerca per significato. Richiede il download di un modello nelle Impostazioni.</string>
     <string name="onboarding_analysis_footer">L\'analisi può consumare batteria. Puoi cambiarla in qualsiasi momento nelle Impostazioni.</string>
     <string name="onboarding_open_source_title">Sviluppato in modo aperto</string>
-    <string name="onboarding_open_source_body">Lightforge è software libero con Licenza Apache 2.0. Nessun account, nessuna pubblicità, nessun tracciamento.</string>
+    <string name="onboarding_open_source_body">Lightforge Studio è software libero con Licenza Apache 2.0. Nessun account, nessuna pubblicità, nessun tracciamento.</string>
     <string name="onboarding_source_title">Codice sorgente</string>
     <string name="onboarding_source_body">Esploralo e contribuisci su GitHub</string>
     <string name="onboarding_licenses_title">Licenze open source</string>
-    <string name="onboarding_licenses_body">Lightforge e le librerie su cui si basa</string>
+    <string name="onboarding_licenses_body">Lightforge Studio e le librerie su cui si basa</string>
     <string name="onboarding_credits_title">Riconoscimenti</string>
-    <string name="onboarding_credits_body">FacuM e i collaboratori di Lightforge</string>
+    <string name="onboarding_credits_body">FacuM e i collaboratori di Lightforge Studio</string>
     <string name="onboarding_version">Versione %1$s</string>
     <string name="onboarding_reopen_title">Per iniziare</string>
     <string name="onboarding_reopen_body">Rivedi l\'introduzione e le autorizzazioni</string>

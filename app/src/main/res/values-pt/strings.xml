@@ -128,7 +128,7 @@
     <string name="settings_export_done">Configurações e favoritos exportados</string>
     <string name="settings_export_failed">Não foi possível exportar as configurações e favoritos</string>
     <string name="settings_import_done">Configurações importadas</string>
-    <string name="settings_import_failed">Não foi possível importar as configurações. O arquivo não é um backup de configurações válido do Lightforge.</string>
+    <string name="settings_import_failed">Não foi possível importar as configurações. O arquivo não é um backup de configurações válido do Lightforge Studio.</string>
     <string name="settings_reset_done">Configurações padrão restauradas</string>
     <string name="settings_reset_failed">Não foi possível restaurar as configurações padrão</string>
     <string name="settings_reset_confirm_title">Restaurar as configurações padrão?</string>

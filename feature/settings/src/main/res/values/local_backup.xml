@@ -3,7 +3,7 @@
     <string name="local_backup_title">Local file backup</string>
     <string name="local_backup_back">Back</string>
     <string name="local_backup_scope">Includes the exact bytes of files you select: photos, videos and documents. Albums, stacks, memories, people, preferences and private-vault contents are not included. This is not a complete library backup.</string>
-    <string name="local_backup_local_hint">Choose storage on this device or a connected USB drive. No network service is used by Lightforge. Keep the backup until you have checked your restored files.</string>
+    <string name="local_backup_local_hint">Choose storage on this device or a connected USB drive. No network service is used by Lightforge Studio. Keep the backup until you have checked your restored files.</string>
     <string name="local_backup_select">Select original files</string>
     <string name="local_backup_selected">Selected files: %1$d</string>
     <string name="local_backup_create">Create and verify backup</string>
