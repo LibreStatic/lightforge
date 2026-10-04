@@ -156,7 +156,8 @@ void main() {
     rgb *= exp2(uExposure);
     rgb.r *= 1.0 + uTemperature * 0.12;
     rgb.b *= 1.0 - uTemperature * 0.12;
-    rgb.g *= 1.0 + uTint * 0.06;
+    // Positive tint moves towards magenta, matching the CPU path.
+    rgb.g *= 1.0 - uTint * 0.06;
     // The pivot is an encoded mid-tone; convert it like the CPU path (VideoColorGradeEffects.grade).
     float pivotLinear = decodeLog(uPivot, uInputProfile);
     rgb = (rgb - pivotLinear) * exp2(uContrast * 1.5) + pivotLinear;

@@ -130,7 +130,8 @@ object VideoColorGradeEffects {
         val warmth = settings.temperature * 0.12f
         rgb[0] *= 1f + warmth
         rgb[2] *= 1f - warmth
-        rgb[1] *= 1f + settings.tint * 0.06f
+        // Positive tint moves towards magenta, as in the RAW develop and other photo tools.
+        rgb[1] *= 1f - settings.tint * 0.06f
         val contrastScale = 2f.pow(settings.contrast * 1.5f)
         // The pivot is an encoded mid-tone (0.42 is about 18% grey), so convert it to the linear
         // working space; using it as a linear value would darken the whole picture with contrast.
