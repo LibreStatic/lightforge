@@ -894,7 +894,14 @@ private fun VideoPreview(
         }
         key(controller) {
             BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                val videoAspectRatio = (viewerState as? VideoViewerState.Ready)?.aspectRatio
+                // While cropping, the surface must be exactly the whole source frame: the overlay maps
+                // its own bounds onto the source, and the player's reported size can lag or differ
+                // (effects rebuild), which letterboxes the frame inside a larger surface.
+                val sourceFrameAspect = if (cropActive) {
+                    state.copy(geometry = VideoGeometry()).editedSourceAspect()
+                } else null
+                val videoAspectRatio = sourceFrameAspect
+                    ?: (viewerState as? VideoViewerState.Ready)?.aspectRatio
                 val containerAspectRatio = maxWidth.value / maxHeight.value.coerceAtLeast(1f)
                 // A forced output aspect reshapes the frame; crop editing keeps the untouched one.
                 val outputBoxes = if (cropActive) null else videoOutputPreviewBoxes(state, videoAspectRatio, maxWidth.value, maxHeight.value)
