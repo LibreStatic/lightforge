@@ -50,6 +50,8 @@ import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.material.icons.rounded.Archive
+import androidx.compose.material.icons.rounded.RestoreFromTrash
+import androidx.compose.material.icons.rounded.Unarchive
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.automirrored.rounded.ViewSidebar
@@ -157,6 +159,8 @@ val GalleryIconVolume: ImageVector get() = Icons.AutoMirrored.Rounded.VolumeUp
 val GalleryIconVolumeOff: ImageVector get() = Icons.Rounded.VolumeOff
 val GalleryIconMusic: ImageVector get() = Icons.Rounded.MusicNote
 val GalleryIconArchive: ImageVector get() = Icons.Rounded.Archive
+val GalleryIconUnarchive: ImageVector get() = Icons.Rounded.Unarchive
+val GalleryIconRestoreFromTrash: ImageVector get() = Icons.Rounded.RestoreFromTrash
 val GalleryIconAsk: ImageVector get() = Icons.Rounded.AutoAwesome
 val GalleryIconFolder: ImageVector get() = Icons.Rounded.Folder
 val GalleryIconSidePanel: ImageVector get() = Icons.AutoMirrored.Rounded.ViewSidebar
@@ -355,6 +359,8 @@ object GalleryIcons {
     val VolumeOff get() = GalleryIconVolumeOff
     val Music get() = GalleryIconMusic
     val Archive get() = GalleryIconArchive
+    val Unarchive get() = GalleryIconUnarchive
+    val RestoreFromTrash get() = GalleryIconRestoreFromTrash
     val Ask get() = GalleryIconAsk
     val Folder get() = GalleryIconFolder
     val SidePanel get() = GalleryIconSidePanel

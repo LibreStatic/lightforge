@@ -2585,7 +2585,7 @@ internal fun ProductionGalleryApp(
                     when (activeRoute) {
                         SurfaceRoute.Trash -> ContextSelectionActions(
                             count = selectionCount,
-                            primaryIcon = GalleryIcons.Download,
+                            primaryIcon = GalleryIcons.RestoreFromTrash,
                             primaryLabel = stringResource(com.librestatic.lightforge.feature.trash.R.string.trash_restore),
                             onPrimary = {
                                 trashSelectionMode = false
@@ -2604,7 +2604,7 @@ internal fun ProductionGalleryApp(
                         )
                         SurfaceRoute.Archive -> ContextSelectionActions(
                             count = selectionCount,
-                            primaryIcon = GalleryIcons.Archive,
+                            primaryIcon = GalleryIcons.Unarchive,
                             primaryLabel = stringResource(R.string.archive_unarchive),
                             onPrimary = { archiveSelectionMode = false; viewModel.setSelectionArchived(false) },
                             secondaryIcon = GalleryIcons.Trash,
