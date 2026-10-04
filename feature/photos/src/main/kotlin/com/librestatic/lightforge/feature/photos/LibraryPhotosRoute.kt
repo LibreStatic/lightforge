@@ -37,6 +37,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
+import com.librestatic.lightforge.core.designsystem.galleryBottomContentPadding
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveButton
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveIconButton
@@ -403,7 +404,13 @@ private fun PermissionRequired(onRequestAccess: () -> Unit) {
         )
         GalleryExpressiveButton(
             onClick = onRequestAccess,
-            modifier = Modifier.padding(GallerySpacing.Xl),
+            // The floating navigation overlays the content: clear it or the button is unreachable.
+            modifier = Modifier.padding(
+                start = GallerySpacing.Xl,
+                top = GallerySpacing.Xl,
+                end = GallerySpacing.Xl,
+                bottom = galleryBottomContentPadding(GallerySpacing.Xl),
+            ),
         ) { Text(stringResource(R.string.grant_access_action)) }
     }
 }
