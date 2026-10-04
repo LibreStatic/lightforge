@@ -369,11 +369,7 @@ internal fun VideoAnnotationControls(
                 onValueChange = { range ->
                     val start = range.start.toLong().coerceIn(allowedStart, allowedEnd - 1)
                     val end = range.endInclusive.toLong().coerceIn(start + 1, allowedEnd)
-                    onUpdate(layer.copy(
-                        startMillis = start,
-                        endMillis = end,
-                        keyframes = layer.keyframes.filter { it.timeMillis in start..end },
-                    ))
+                    onUpdate(layer.retimed(start, end))
                 },
                 valueRange = 0f..duration.toFloat(),
                 modifier = Modifier.semantics { contentDescription = timingDescription },
@@ -466,6 +462,32 @@ internal fun VideoAnnotationControls(
             TextButton(onClick = onCancelTracking) { Text(stringResource(R.string.video_editor_cancel_tracking)) }
         }
     }
+}
+
+/**
+ * Moves the visible interval without losing the layer's motion: a Fixed layer keeps its single
+ * transform at the new start, and keyframes cut off by the new bounds are replaced by one at the
+ * bound holding the value the layer had there.
+ */
+internal fun VideoAnnotationLayer.retimed(start: Long, end: Long): VideoAnnotationLayer {
+    if (keyframes.isEmpty()) return copy(startMillis = start, endMillis = end)
+    if (trackingMode == VideoAnnotationTrackingMode.Fixed) {
+        return copy(
+            startMillis = start,
+            endMillis = end,
+            keyframes = listOf(VideoAnnotationKeyframe(start, keyframes.first().transform)),
+        )
+    }
+    fun valueAt(time: Long): com.librestatic.lightforge.core.editing.video.VideoAnnotationTransform =
+        if (time >= keyframes.last().timeMillis) keyframes.last().transform else transformAt(time)
+    val inside = keyframes.filter { it.timeMillis in start..end }.toMutableList()
+    if (keyframes.first().timeMillis < start && inside.none { it.timeMillis == start }) {
+        inside.add(0, VideoAnnotationKeyframe(start, valueAt(start)))
+    }
+    if (keyframes.last().timeMillis > end && inside.none { it.timeMillis == end }) {
+        inside.add(VideoAnnotationKeyframe(end, valueAt(end)))
+    }
+    return copy(startMillis = start, endMillis = end, keyframes = inside)
 }
 
 private fun VideoAnnotationAppearance.labelResource() = when (this) {
