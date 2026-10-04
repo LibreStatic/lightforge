@@ -494,6 +494,10 @@ internal fun ProjectDetails(vm: PdfStudioViewModel, state: PdfStudioState) {
         Modifier.fillMaxWidth(),
         label = { Text(stringResource(R.string.pdf_name)) },
         singleLine = true,
+        isError = title.isBlank(),
+        supportingText = if (title.isBlank()) {
+            { Text(stringResource(R.string.pdf_library_rename_blank)) }
+        } else null,
         enabled = !state.editorLocked,
     )
 }
