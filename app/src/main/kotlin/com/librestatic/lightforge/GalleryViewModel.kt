@@ -2893,6 +2893,8 @@ class GalleryViewModel @Inject constructor(
     }
 
     fun clearSelection() {
+        // A denied confirmation's retry belongs to the selection that asked for it.
+        dismissCancelledSystemAction()
         timelineStackSelectionJob?.cancel()
         selectionRevision++
         mutableSelection.value = SelectionReducer.clear()
