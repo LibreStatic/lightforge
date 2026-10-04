@@ -533,7 +533,10 @@ internal fun ProductionGalleryApp(
         // The live count leaves composition at zero. A visible, polite Snackbar covers that
         // terminal transition without a hidden focus target or an initial "0 selected" announcement.
         // A new selection cancels a queued clear message through this effect's count key.
-        if (previous > 0L && selectionCount == 0L) {
+        // Only screen-reader users need it; for everyone else it delays the action's own Snackbar.
+        val screenReaderOn = context.getSystemService(android.view.accessibility.AccessibilityManager::class.java)
+            ?.isTouchExplorationEnabled == true
+        if (previous > 0L && selectionCount == 0L && screenReaderOn) {
             snackbarHostState.showSnackbar(selectionClearedMessage)
         }
     }
