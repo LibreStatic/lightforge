@@ -148,8 +148,11 @@ data class VideoOutputPlan(
             is VideoAudioPlan.Encode -> audio.bitsPerSecond
         }
         val payloadBits = (videoBitrate.toLong() + audioBitrate) * durationMs / 1_000L
-        // MP4 sample tables and headers add roughly 1-2 %.
-        return (payloadBits / 8.0 * ContainerOverhead).roundToLong()
+        val payloadBytes = payloadBits / 8.0
+        // Media3's MP4 muxer reserves about 400 kB up front for a streamable (moov first) file and
+        // leaves what the sample tables do not use as a free box: a constant in every export, large
+        // for short clips. Past that, the sample tables themselves add roughly 1-2 %.
+        return (payloadBytes + max(MuxerReservedBytes, payloadBytes * (ContainerOverhead - 1.0))).roundToLong()
     }
 
     companion object {
@@ -162,6 +165,7 @@ data class VideoOutputPlan(
         const val DefaultAudioBitrate = 128_000
 
         internal const val ContainerOverhead = 1.015
+        internal const val MuxerReservedBytes = 400_000.0
         internal const val FallbackFrameRate = 30f
         private const val MinVideoBitrate = 100_000
         private const val MaxVideoBitrate = 200_000_000

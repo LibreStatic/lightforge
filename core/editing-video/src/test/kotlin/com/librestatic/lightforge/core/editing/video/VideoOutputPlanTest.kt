@@ -384,7 +384,8 @@ class VideoOutputPlanTest {
                 audio = VideoOutputAudio.Remove,
             ),
         )
-        assertEquals(2_537_500.0, target.estimatedSizeBytes(10_000).toDouble(), 1.0)
+        // 2.5 MB of payload plus the muxer's 400 kB reserve (a 4 s export measured 865 kB + 400 kB).
+        assertEquals(2_900_000.0, target.estimatedSizeBytes(10_000).toDouble(), 1.0)
         assertEquals(0L, target.estimatedSizeBytes(0))
     }
 }
