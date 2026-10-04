@@ -966,6 +966,19 @@ private fun VideoPreview(
                         modifier = surfaceModifier.semantics { contentDescription = description },
                     )
                 }
+                // The annotation effect draws into the edited frame (display aspect, after crop and
+                // rotation), which the player fits inside its surface. The player can report a
+                // different aspect than that frame (for example without the pixel aspect ratio), so
+                // the surface may be larger than the picture and strokes land off the finger.
+                // Size the gesture layer to the picture itself so normalized points match the export.
+                val pictureAspect = state.editedSourceAspect()?.takeIf { it > 0f }
+                val gestureModifier = if (pictureAspect == null || outputBoxes != null || cropActive || plainPlayback) {
+                    surfaceModifier
+                } else if (pictureAspect >= containerAspectRatio) {
+                    Modifier.fillMaxWidth().aspectRatio(pictureAspect)
+                } else {
+                    Modifier.fillMaxHeight().aspectRatio(pictureAspect, matchHeightConstraintsFirst = true)
+                }
                 VideoAnnotationGestureLayer(
                     enabled = annotationsActive,
                     tool = annotationTool,
@@ -979,7 +992,7 @@ private fun VideoPreview(
                         onAddAnnotation(it)
                     },
                     onErase = onEraseAnnotations,
-                    modifier = surfaceModifier,
+                    modifier = gestureModifier,
                 )
                 outputBoxes?.let { VideoOutputCropMask(it) }
                 if (cropActive) {
