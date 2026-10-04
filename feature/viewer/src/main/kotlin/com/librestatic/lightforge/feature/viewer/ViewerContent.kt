@@ -1573,7 +1573,7 @@ private fun PhotoSurfaceState(
             }
             if (selection != null) {
                 if (selection.recognizing) {
-                    TextRecognitionProgress(Modifier.align(Alignment.BottomCenter).padding(bottom = 140.dp))
+                    TextRecognitionProgress(Modifier.align(Alignment.Center))
                 }
                 TextSelectionToolbar(
                     controller = selection,

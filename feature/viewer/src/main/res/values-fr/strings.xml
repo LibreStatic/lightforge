@@ -25,4 +25,5 @@
     <string name="viewer_trash_confirm_title">Placer cet élément dans la corbeille ?</string>
     <string name="viewer_delete_confirm_title">Supprimer définitivement cet élément ?</string>
     <string name="viewer_cancel">Annuler</string>
+    <string name="viewer_text_read_failed">Impossible de lire le texte de cette photo</string>
 </resources>

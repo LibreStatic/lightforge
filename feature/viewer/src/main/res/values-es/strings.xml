@@ -25,4 +25,5 @@
     <string name="viewer_trash_confirm_title">¿Mover este elemento a la papelera?</string>
     <string name="viewer_delete_confirm_title">¿Eliminar este elemento de forma permanente?</string>
     <string name="viewer_cancel">Cancelar</string>
+    <string name="viewer_text_read_failed">No se pudo leer el texto de esta foto</string>
 </resources>

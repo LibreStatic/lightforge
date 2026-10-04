@@ -25,4 +25,5 @@
     <string name="viewer_trash_confirm_title">Spostare questo elemento nel cestino?</string>
     <string name="viewer_delete_confirm_title">Eliminare definitivamente questo elemento?</string>
     <string name="viewer_cancel">Annulla</string>
+    <string name="viewer_text_read_failed">Impossibile leggere il testo di questa foto</string>
 </resources>

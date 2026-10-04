@@ -424,14 +424,19 @@ internal fun rememberTextSelectionLongPress(
     val haptics = LocalHapticFeedback.current
     val density = LocalDensity.current
     val noText = stringResource(R.string.viewer_text_none_found)
+    val readFailed = stringResource(R.string.viewer_text_read_failed)
     BackHandler(enabled = controller?.active == true) { controller?.clear() }
-    return remember(controller, scope, context, haptics, density) {
+    return remember(controller, scope, context, haptics, density, noText, readFailed) {
         { position ->
             controller?.let { selectionController ->
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 selectionController.recognize(scope) { recognized ->
                     val rect = imageRect()
-                    if (recognized == null || recognized.isEmpty() || rect.isEmpty) {
+                    if (recognized == null) {
+                        Toast.makeText(context, readFailed, Toast.LENGTH_SHORT).show()
+                        return@recognize
+                    }
+                    if (recognized.isEmpty() || rect.isEmpty) {
                         Toast.makeText(context, noText, Toast.LENGTH_SHORT).show()
                         return@recognize
                     }

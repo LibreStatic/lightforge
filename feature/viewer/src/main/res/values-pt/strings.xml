@@ -25,4 +25,5 @@
     <string name="viewer_trash_confirm_title">Mover este item para a lixeira?</string>
     <string name="viewer_delete_confirm_title">Excluir este item permanentemente?</string>
     <string name="viewer_cancel">Cancelar</string>
+    <string name="viewer_text_read_failed">Não foi possível ler o texto desta foto</string>
 </resources>
