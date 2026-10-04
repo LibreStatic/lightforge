@@ -73,7 +73,13 @@ class MlChunkRunner(
         return when (outcome) {
             is MlChunkOutcome.More -> {
                 require(outcome.processedItems in 1..policy.chunkSize)
-                require(outcome.nextAfterExclusive != current.afterExclusive)
+                if (outcome.nextAfterExclusive == current.afterExclusive) {
+                    // Engines that select their own pending work can return the same cursor when
+                    // another run (or a changed file) raced them. Retrying re-reads the pending set;
+                    // throwing here would fail the worker and silently end the whole task chain.
+                    state.write(current.copy(status = MlCheckpoint.Status.Ready))
+                    return MlRunnerResult.Retry("cursor did not advance")
+                }
                 val updated = current.copy(
                     afterExclusive = outcome.nextAfterExclusive,
                     completedItems = current.completedItems + outcome.processedItems,
