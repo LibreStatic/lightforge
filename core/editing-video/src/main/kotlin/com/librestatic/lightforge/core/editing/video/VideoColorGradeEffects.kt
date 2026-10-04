@@ -79,12 +79,18 @@ object VideoColorGradeEffects {
         grade: VideoColorGrade,
         customLut: CubeLut? = null,
         size: Int,
-    ): Array<Array<IntArray>> =
-        if (grade.bypass || (!grade.hasChanges && customLut == null)) {
+    ): Array<Array<IntArray>> {
+        // While a custom LUT is still loading, preview the rest of the grade rather than failing
+        // (and freezing the preview on its previous cube).
+        val previewGrade = if (grade.lut.customId != null && customLut == null) {
+            grade.copy(lut = LutReference(intensity = grade.lut.intensity))
+        } else grade
+        return if (previewGrade.bypass || (!previewGrade.hasChanges && customLut == null)) {
             buildIdentityCube(size)
         } else {
-            buildCube(grade, customLut, size)
+            buildCube(previewGrade, customLut, size)
         }
+    }
 
     private fun buildIdentityCube(size: Int): Array<Array<IntArray>> {
         require(size in 2..65)

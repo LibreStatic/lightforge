@@ -545,6 +545,8 @@ class GalleryViewModel @Inject constructor(
     private val mutableBenchmarkMlRunning = MutableStateFlow(false)
     val benchmarkMlRunning = mutableBenchmarkMlRunning.asStateFlow()
     private var benchmarkMlJob: Job? = null
+    private var videoLutLoadJob: Job? = null
+    private var videoLutLoadId: Long? = null
     private var searchCursor: MediaSearchCursor? = null
     private var searchJob: Job? = null
     private var searchGeneration = 0L
@@ -5136,20 +5138,39 @@ class GalleryViewModel @Inject constructor(
     fun setVideoColorGrade(grade: VideoColorGrade) {
         val session = mutableVideoEditor.value ?: return
         val recipe = session.recipe.copy(colorGrade = grade)
+        val customId = grade.lut.customId
+        // Slider drags land here many times per second. The parsed LUT only depends on its id, so
+        // keep it instead of re-reading the file per tick: parallel parses ran the app out of
+        // memory, and the preview could not grade while the LUT was missing.
+        val keptLut = session.content.activeCustomLut
+            ?.takeIf { customId != null && customId == session.recipe.colorGrade.lut.customId }
         mutableVideoEditor.value = session.copy(
             recipe = recipe,
             content = session.content.copy(
                 colorGrade = grade,
-                activeCustomLut = null,
+                activeCustomLut = keptLut,
                 statusMessage = null,
                 isDirty = session.isDirty(recipe),
             ),
         )
         persistVideoRecipe(recipe)
-        val customId = grade.lut.customId ?: return
-        viewModelScope.launch {
+        if (customId == null || keptLut != null) {
+            videoLutLoadJob?.cancel()
+            videoLutLoadJob = null
+            return
+        }
+        if (videoLutLoadJob?.isActive == true && videoLutLoadId == customId) return
+        videoLutLoadJob?.cancel()
+        videoLutLoadId = customId
+        videoLutLoadJob = viewModelScope.launch {
             val active = runtime.value ?: return@launch
-            val lut = runCatching { lutRepository(active).load(customId) }.getOrNull()
+            val lut = try {
+                lutRepository(active).load(customId)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Throwable) {
+                null
+            }
             val current = mutableVideoEditor.value
             if (current?.recipe?.colorGrade?.lut?.customId == customId) {
                 if (lut != null) {

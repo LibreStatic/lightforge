@@ -370,15 +370,6 @@ class VideoColorGradeEffectsTest {
         )
     }
 
-    @Test(expected = IllegalArgumentException::class)
-    fun previewRejectsAnUnavailableCustomLut() {
-        VideoColorGradeEffects.buildPreviewCube(
-            grade = VideoColorGrade(lut = LutReference(customId = 42L)),
-            customLut = null,
-            size = 2,
-        )
-    }
-
     @Test
     fun contrastKeepsTheMidToneAndDoesNotShiftOverallBrightness() {
         val grade = VideoColorGrade(contrast = 0.55f)
@@ -389,5 +380,13 @@ class VideoColorGradeEffectsTest {
         val bright = VideoColorGradeEffects.grade(floatArrayOf(0.6f, 0.6f, 0.6f), grade, null)
         assertTrue(dark[0] < 0.3f)
         assertTrue(bright[0] > 0.6f)
+    }
+
+    @Test
+    fun previewCubeGradesWhileCustomLutIsLoading() {
+        val loading = VideoColorGrade(exposureEv = -2f, lut = LutReference(customId = 7L))
+        val preview = VideoColorGradeEffects.buildPreviewCube(loading, customLut = null, size = 5)
+        val expected = VideoColorGradeEffects.buildCube(loading.copy(lut = LutReference()), size = 5)
+        assertTrue(preview.indices.all { r -> preview[r].indices.all { g -> preview[r][g].contentEquals(expected[r][g]) } })
     }
 }

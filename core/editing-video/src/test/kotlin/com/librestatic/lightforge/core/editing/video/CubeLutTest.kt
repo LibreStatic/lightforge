@@ -43,4 +43,27 @@ class CubeLutTest {
 
         assertArrayEquals(floatArrayOf(0.4f, 0.15f, 0.3f), lut.sample(0.5f, 0.25f, 0.75f), 0.0001f)
     }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsCubeWithMissingRows() {
+        CubeLutParser.parse(StringReader("LUT_3D_SIZE 2\n0 0 0\n1 0 0"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsCubeWithExtraRows() {
+        CubeLutParser.parse(StringReader("LUT_1D_SIZE 2\n0 0 0\n1 1 1\n1 1 1"))
+    }
+
+    @Test
+    fun parsesLargestCubeWithTabsAndComments() {
+        val size = 65
+        val text = buildString {
+            append("# generated\nLUT_3D_SIZE\t65\n")
+            for (b in 0 until size) for (g in 0 until size) for (r in 0 until size) {
+                append(r / 64f).append('\t').append(g / 64f).append("  ").append(b / 64f).append(" # row\n")
+            }
+        }
+        val lut = CubeLutParser.parse(StringReader(text))
+        assertArrayEquals(floatArrayOf(0.25f, 0.5f, 0.75f), lut.sample(0.25f, 0.5f, 0.75f), 0.0001f)
+    }
 }
