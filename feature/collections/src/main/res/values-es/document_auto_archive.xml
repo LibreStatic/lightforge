@@ -10,13 +10,13 @@
     <string name="document_auto_pause">Pausar archivado automático</string>
     <string name="document_auto_undo">Deshacer último lote y pausar</string>
     <string name="document_auto_preview">Fotos para archivar: %1$d</string>
-    <string name="document_auto_future">Confirmá este lote y futuras coincidencias. Las comprobaciones locales se ejecutan aproximadamente cada 15 minutos, según Android y la batería. Sin nube ni nuevos análisis.</string>
+    <string name="document_auto_future">Confirma este lote y futuras coincidencias. Las comprobaciones locales se ejecutan aproximadamente cada 15 minutos, según Android y la batería. Sin nube ni nuevos análisis.</string>
     <string name="document_auto_more">Esta vista muestra las primeras 100 coincidencias. Las demás se procesarán en lotes posteriores.</string>
-    <string name="document_auto_empty">No hay coincidencias ahora. Podés activar la regla para futuras fotos.</string>
+    <string name="document_auto_empty">No hay coincidencias ahora. Puedes activar la regla para futuras fotos.</string>
     <string name="document_auto_keep">Conservar en Fotos</string>
     <string name="document_auto_confirm">Archivar y activar regla</string>
     <string name="document_auto_cancel">Cancelar revisión</string>
-    <string name="document_auto_stale">Las coincidencias o la configuración cambiaron. Revisá nuevamente antes de confirmar.</string>
+    <string name="document_auto_stale">Las coincidencias o la configuración cambiaron. Revisa nuevamente antes de confirmar.</string>
     <string name="document_auto_active_rule">Regla guardada: %1$s · %2$s</string>
     <string name="document_auto_keep_named">Conservar en Fotos: %1$s</string>
     <string name="document_auto_preview_rule">Regla a activar: %1$s · %2$s</string>

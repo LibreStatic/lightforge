@@ -43,25 +43,25 @@
     <string name="photo_editor_warning_hdr_metadata">Los metadatos HDR y del contenedor no se conservaron en la copia</string>
     <string name="photo_editor_error_decode">No se pudo leer esta foto</string>
     <string name="photo_editor_error_save">No se pudo guardar la copia</string>
-    <string name="photo_editor_error_raw_too_large">Este RAW es demasiado grande para exportarlo como JPEG. Elegí TIFF de 16 bits.</string>
+    <string name="photo_editor_error_raw_too_large">Este RAW es demasiado grande para exportarlo como JPEG. Elige TIFF de 16 bits.</string>
     <string name="photo_editor_error_raw_render">No se pudo revelar esta foto RAW</string>
     <plurals name="photo_editor_error_raw_storage"><item quantity="one">La exportación RAW necesita %1$d MB de almacenamiento temporal libre</item><item quantity="many">La exportación RAW necesita %1$d MB de almacenamiento temporal libre</item><item quantity="other">La exportación RAW necesita %1$d MB de almacenamiento temporal libre</item></plurals>
     <string name="photo_editor_object_eraser">Borrador de objetos</string>
     <string name="photo_editor_subject_clip">Recorte de sujeto</string>
     <string name="photo_editor_experimental_tool">%1$s · Experimental</string>
-    <string name="photo_editor_eraser_model_offer">Descargá el modelo del borrador una sola vez (%1$d MB). Funciona en este dispositivo y tus fotos no salen de él.</string>
+    <string name="photo_editor_eraser_model_offer">Descarga el modelo del borrador una sola vez (%1$d MB). Funciona en este dispositivo y tus fotos no salen de él.</string>
     <string name="photo_editor_eraser_model_download">Descargar</string>
     <string name="photo_editor_eraser_quality_basic">Calidad básica</string>
     <string name="photo_editor_eraser_quality_basic_body">Rellena con colores cercanos; puede fallar en texturas o bordes complejos.</string>
-    <string name="photo_editor_eraser_model_offer_title">Mejorá el resultado con IA</string>
+    <string name="photo_editor_eraser_model_offer_title">Mejora el resultado con IA</string>
     <string name="photo_editor_eraser_model_wifi_only">Solo con Wi-Fi</string>
     <string name="photo_editor_eraser_model_any_network">Wi-Fi o datos móviles</string>
     <string name="photo_editor_eraser_model_downloading">Descargando modelo de IA</string>
     <string name="photo_editor_eraser_model_paused">Descarga en pausa</string>
-    <string name="photo_editor_eraser_model_keep_editing">Podés seguir editando mientras tanto.</string>
+    <string name="photo_editor_eraser_model_keep_editing">Puedes seguir editando mientras tanto.</string>
     <string name="photo_editor_eraser_model_ready">Modelo de IA listo</string>
     <string name="photo_editor_eraser_model_ready_body">Funciona en este dispositivo; las fotos no salen de él.</string>
-    <string name="photo_editor_eraser_marked">Zona marcada. Tocá Aplicar para quitar el objeto.</string>
+    <string name="photo_editor_eraser_marked">Zona marcada. Toca Aplicar para quitar el objeto.</string>
     <string name="photo_editor_eraser_model_failed">Falló la descarga del modelo.</string>
     <string name="photo_editor_eraser_model_retry">Reintentar</string>
     <string name="photo_editor_eraser_model_progress">%1$d de %2$d MB</string>
@@ -72,13 +72,13 @@
     <string name="photo_editor_eraser_model_cancel">Cancelar</string>
     <string name="photo_editor_eraser_model_remove">Quitar</string>
     <string name="photo_editor_clip_fallback">Calidad alternativa (%1$s): conserva los píxeles de color parecido al punto tocado. El resultado es aproximado.</string>
-    <string name="photo_editor_eraser_hint">Pintá sobre el objeto que querés quitar y tocá Aplicar. Guardar copia no modifica el original.</string>
-    <string name="photo_editor_clip_hint">Tocá el sujeto para previsualizar el recorte. Se guarda como un PNG nuevo con fondo transparente.</string>
+    <string name="photo_editor_eraser_hint">Pinta sobre el objeto que quieres quitar y toca Aplicar. Guardar copia no modifica el original.</string>
+    <string name="photo_editor_clip_hint">Toca el sujeto para previsualizar el recorte. Se guarda como un PNG nuevo con fondo transparente.</string>
     <string name="photo_editor_eraser_apply">Aplicar</string>
     <string name="photo_editor_eraser_clear">Borrar</string>
     <string name="photo_editor_clip_save">Guardar recorte</string>
     <string name="photo_editor_eraser_mask_description">Zonas marcadas para borrar</string>
     <string name="photo_editor_experimental_too_large">Esta foto es demasiado grande para la herramienta experimental</string>
     <string name="photo_editor_eraser_reset">Se quitaron las zonas borradas porque cambió la geometría de la foto</string>
-    <string name="photo_editor_clip_no_subject">No se encontró ningún sujeto en ese punto. Tocá un objeto o una zona bien diferenciada.</string>
+    <string name="photo_editor_clip_no_subject">No se encontró ningún sujeto en ese punto. Toca un objeto o una zona bien diferenciada.</string>
 </resources>

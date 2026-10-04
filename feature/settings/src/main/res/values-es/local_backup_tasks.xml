@@ -5,7 +5,7 @@
     <string name="local_backup_tasks_empty">Todavía no hay tareas de copia de seguridad.</string>
     <string name="local_backup_task_action_failed">La acción falló. Revisa el acceso y elige el destino original.</string>
     <string name="local_backup_task_review_hint">Los archivos y registros modificados o ambiguos se conservan para revisión. No se reemplazan archivos existentes.</string>
-    <string name="local_backup_task_permission_hint">Restablecé el acceso al mismo destino y reanudá. Un archivo ausente o inaccesible nunca implica borrarlo.</string>
+    <string name="local_backup_task_permission_hint">Restablece el acceso al mismo destino y reanuda. Un archivo ausente o inaccesible nunca implica borrarlo.</string>
     <string name="local_backup_task_pause">Pausar</string>
     <string name="local_backup_task_resume">Reanudar / reintentar</string>
     <string name="local_backup_task_regrant">Restablecer acceso</string>

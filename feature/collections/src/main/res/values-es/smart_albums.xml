@@ -17,7 +17,7 @@
     <string name="smart_unnamed_person">Persona sin nombre</string>
     <string name="smart_unavailable_person">Persona guardada no disponible: se conserva la regla</string>
     <string name="smart_year">Año (opcional)</string>
-    <string name="smart_year_hint">Dejalo vacío para incluir cualquier año.</string>
+    <string name="smart_year_hint">Déjalo vacío para incluir cualquier año.</string>
     <string name="smart_year_error">Introduce un año entre 1 y 9998.</string>
     <string name="smart_year_value">Año: %1$s</string>
     <string name="smart_any_year">Cualquier año</string>
@@ -25,7 +25,7 @@
     <string name="smart_favorites">Solo favoritos</string>
     <string name="smart_preview">Ver coincidencias</string>
     <string name="smart_preview_hint">Esta vista previa no modifica archivos. Las exclusiones se aplican al guardar el álbum.</string>
-    <string name="smart_existing_exclusions">Las fotos excluidas antes siguen excluidas. Administralas desde el álbum guardado.</string>
+    <string name="smart_existing_exclusions">Las fotos excluidas antes siguen excluidas. Adminístralas desde el álbum guardado.</string>
     <string name="smart_pending_count">Revisar exclusiones pendientes (%1$d)</string>
     <string name="smart_pending_hint">Estas exclusiones son parte del borrador sin guardar.</string>
     <string name="smart_save">Guardar álbum</string>

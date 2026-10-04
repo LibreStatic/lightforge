@@ -1,7 +1,7 @@
 <resources>
     <string name="remote_title">Servidores propios</string>
     <string name="remote_back">Volver</string>
-    <string name="remote_scope">Respaldá originales seleccionados y organización opcional en tu servidor SFTP o carpeta SMB. Sin cuenta cloud, espejo, borrado automático ni emparejamiento Android. No incluye álbumes privados ni recetas de edición.</string>
+    <string name="remote_scope">Respalda originales seleccionados y organización opcional en tu servidor SFTP o carpeta SMB. Sin cuenta cloud, espejo, borrado automático ni emparejamiento Android. No incluye álbumes privados ni recetas de edición.</string>
     <string name="remote_profiles">Servidores</string>
     <string name="remote_add">Agregar servidor</string>
     <string name="remote_name">Nombre del perfil</string>
@@ -21,7 +21,7 @@
     <string name="remote_credentials">Actualizar credenciales</string>
     <string name="remote_test">Probar conexión</string>
     <string name="remote_trust">Confirmar identidad del servidor</string>
-    <string name="remote_trust_hint">Compará esta huella SSH con el administrador por otro canal antes de confiar. Una clave cambiada nunca se acepta automáticamente.</string>
+    <string name="remote_trust_hint">Compara esta huella SSH con el administrador por otro canal antes de confiar. Una clave cambiada nunca se acepta automáticamente.</string>
     <string name="remote_confirm">Confirmar</string>
     <string name="remote_cancel">Cancelar</string>
     <string name="remote_stop">Detener intento de conexión</string>
@@ -48,7 +48,7 @@
     <string name="remote_partial">Acepto el alcance parcial de organización mostrado</string>
     <string name="remote_global">También importar reglas de recuerdos que afectan la biblioteca existente</string>
     <string name="remote_restore_scope">Restaurar en Galería crea copias nuevas e importa organización compatible sin sobreescribir decisiones existentes. En carpeta se copian sólo originales. Preferencias y archivo automático siguen sólo para revisión.</string>
-    <string name="remote_error">La acción falló. Revisá conexión, credenciales, permisos y espacio disponible; luego reintentá.</string>
+    <string name="remote_error">La acción falló. Revisa conexión, credenciales, permisos y espacio disponible; luego reintenta.</string>
     <string name="remote_unsupported">El servidor o la clave no admite la operación verificada requerida. No se usó una conexión menos protegida.</string>
     <string name="remote_corrupt">Los datos guardados requieren revisión; las tareas inválidas no se reanudan.</string>
     <string name="remote_status_queued">En cola</string>
@@ -64,22 +64,22 @@
     <string name="remote_status_failed">Falló</string>
     <string name="remote_status_cancelled">Cancelado; los archivos conservados se muestran abajo</string>
     <string name="remote_status_completed">Copia de seguridad remota verificada</string>
-    <string name="remote_status_restoringlocally">Entregado a restauración local; seguí su historial</string>
+    <string name="remote_status_restoringlocally">Entregado a restauración local; sigue su historial</string>
     <string name="remote_capabilities">Conexión verificada · cifrada: %1$s · firmada: %2$s · publicación sin reemplazo: %3$s</string>
     <string name="remote_yes">Sí</string>
     <string name="remote_no">No</string>
     <string name="remote_regrant_sources">Elegir los mismos originales para restituir acceso</string>
     <string name="remote_regrant_folder">Elegir la misma carpeta para restituir acceso</string>
-    <string name="remote_error_name_required">Ingresá un nombre de perfil.</string>
-    <string name="remote_error_host_required">Ingresá el host del servidor.</string>
+    <string name="remote_error_name_required">Introduce un nombre de perfil.</string>
+    <string name="remote_error_host_required">Introduce el host del servidor.</string>
     <string name="remote_error_host_invalid">Host inválido: sin espacios ni los caracteres / \\ @ ? #.</string>
-    <string name="remote_error_port_invalid">Ingresá un puerto entre 1 y 65535.</string>
-    <string name="remote_error_user_required">Ingresá un usuario.</string>
+    <string name="remote_error_port_invalid">Introduce un puerto entre 1 y 65535.</string>
+    <string name="remote_error_user_required">Introduce un usuario.</string>
     <string name="remote_error_folder_invalid">Carpeta inválida: no puede contener segmentos «..».</string>
     <string name="remote_error_folder_sftp_absolute">Las carpetas SFTP deben empezar con / y no pueden contener una barra invertida, por ejemplo /backups.</string>
-    <string name="remote_error_invalid_path">El servidor rechazó la ruta de la carpeta. Volvé a agregar el servidor con una carpeta absoluta como /backups.</string>
-    <string name="remote_error_share_required">Ingresá un nombre de recurso SMB válido.</string>
-    <string name="remote_error_key_required">Elegí un archivo de clave privada SSH.</string>
+    <string name="remote_error_invalid_path">El servidor rechazó la ruta de la carpeta. Vuelve a agregar el servidor con una carpeta absoluta como /backups.</string>
+    <string name="remote_error_share_required">Introduce un nombre de recurso SMB válido.</string>
+    <string name="remote_error_key_required">Elige un archivo de clave privada SSH.</string>
     <string name="remote_transfer_progress">%1$s de %2$s</string>
     <string name="remote_archive_checksum">Suma de verificación (SHA-256): %1$s</string>
     <plurals name="remote_selected">

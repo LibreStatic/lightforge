@@ -12,8 +12,8 @@
     <string name="creation_gif_remove">Quitar fotograma</string>
     <string name="creation_gif_duration">Tiempo por fotograma</string>
     <string name="creation_gif_seconds">%1$d s</string>
-    <string name="creation_gif_note">GIF local: 512 × 512 píxeles, 256 colores, sin sonido y en bucle. Seleccioná 2–60 fotos. Los originales no se modifican.</string>
-    <string name="creation_gif_error">Una foto cambió o no está disponible, o la operación falló. Revisá la selección e intentá de nuevo.</string>
+    <string name="creation_gif_note">GIF local: 512 × 512 píxeles, 256 colores, sin sonido y en bucle. Selecciona 2–60 fotos. Los originales no se modifican.</string>
+    <string name="creation_gif_error">Una foto cambió o no está disponible, o la operación falló. Revisa la selección e inténtalo de nuevo.</string>
     <string name="creation_gif_cancelled">Exportación cancelada; no se conservó ninguna copia incompleta.</string>
     <string name="creation_gif_cancel">Cancelar exportación</string>
     <string name="creation_gif_export">Exportar GIF</string>
@@ -23,7 +23,7 @@
     <string name="creation_gif_leave">¿Salir de esta exportación?</string>
     <string name="creation_gif_leave_hint">Se cancelará la exportación actual. Las fotos originales no se modifican.</string>
     <string name="creation_gif_keep">Seguir exportando</string>
-    <string name="creation_gif_no_selection">Seleccioná 2–60 fotos en Fotos y elegí Crear GIF.</string>
+    <string name="creation_gif_no_selection">Selecciona 2–60 fotos en Fotos y elige Crear GIF.</string>
     <string name="creation_gif_frame_rate">Cuadros por segundo</string>
     <string name="creation_gif_fps">%1$d FPS</string>
     <string name="creation_gif_fps_limit">Un GIF no reproduce %1$d FPS de forma confiable: este GIF se verá a %2$d FPS, el límite práctico del formato.</string>

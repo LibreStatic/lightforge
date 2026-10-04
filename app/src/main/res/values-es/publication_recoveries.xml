@@ -5,9 +5,9 @@
     <string name="publication_recoveries_refresh">Actualizar</string>
     <string name="publication_recoveries_result">Resultado guardado</string>
     <string name="publication_recoveries_loading">Comprobando publicaciones…</string>
-    <string name="publication_recoveries_error">Algunos registros o archivos no se pudieron leer. Actualizá para comprobar otra vez; no se supone que falte el resultado.</string>
-    <string name="publication_recoveries_changed">El estado revisado cambió. Revisá el registro actualizado antes de intentarlo otra vez.</string>
-    <string name="publication_recoveries_failed">No se pudo confirmar la operación. Comprobá el estado actualizado antes de otra acción.</string>
+    <string name="publication_recoveries_error">Algunos registros o archivos no se pudieron leer. Actualiza para comprobar otra vez; no se supone que falte el resultado.</string>
+    <string name="publication_recoveries_changed">El estado revisado cambió. Revisa el registro actualizado antes de intentarlo otra vez.</string>
+    <string name="publication_recoveries_failed">No se pudo confirmar la operación. Comprueba el estado actualizado antes de otra acción.</string>
     <string name="publication_recoveries_completed">Operación completada.</string>
     <string name="publication_recoveries_empty">No hay publicaciones por recuperar.</string>
     <string name="publication_recoveries_review">Revisar esta publicación</string>
@@ -36,7 +36,7 @@
     <string name="publication_recoveries_phase_conflict">El resultado falta o cambió</string>
     <string name="publication_recoveries_phase_unreadable">Registro ilegible — acciones bloqueadas</string>
     <string name="publication_recoveries_phase_missing">Faltan los datos del archivo pendiente</string>
-    <string name="publication_recoveries_phase_busy">La publicación está ocupada — actualizá más tarde</string>
+    <string name="publication_recoveries_phase_busy">La publicación está ocupada — actualiza más tarde</string>
     <string name="publication_recoveries_phase_unknown">Estado sin verificar</string>
     <string name="publication_recoveries_complete">Completar publicación</string>
     <string name="publication_recoveries_remove">Eliminar archivo pendiente</string>

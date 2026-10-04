@@ -186,6 +186,6 @@
         <item quantity="other">%1$d segundos</item>
     </plurals>
     <string name="settings_lock_unavailable_title">Se requiere un bloqueo de pantalla</string>
-    <string name="settings_lock_unavailable_body">Primero configurá un bloqueo de pantalla, PIN o biometría en los ajustes del dispositivo. Sin uno, no se podría desbloquear Lightforge Studio.</string>
+    <string name="settings_lock_unavailable_body">Primero configura un bloqueo de pantalla, PIN o biometría en los ajustes del dispositivo. Sin uno, no se podría desbloquear Lightforge Studio.</string>
     <string name="settings_lock_unavailable_ok">Aceptar</string>
 </resources>

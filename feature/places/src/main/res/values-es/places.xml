@@ -39,7 +39,7 @@
     <string name="places_status_verifying">Verificando bytes y formato</string>
     <string name="places_status_readyforreview">Listo para revisar</string>
     <string name="places_status_installed">Instalado</string>
-    <string name="places_status_paused">Pausado por vos</string>
+    <string name="places_status_paused">Pausado por ti</string>
     <string name="places_status_waitingwifi">Esperando Wi-Fi</string>
     <string name="places_status_waitingcharging">Esperando carga</string>
     <string name="places_status_waitingstorage">Espacio libre insuficiente</string>

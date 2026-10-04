@@ -4,7 +4,7 @@
     <string name="own_sync_scope">Carpeta local → tu servidor SFTP o SMB. Los archivos quedan separados; no es un backup ZIP ni emparejamiento con Android.</string>
     <string name="own_sync_create">Nueva tarea de carpeta</string>
     <string name="own_sync_servers">Perfiles, credenciales y confianza del servidor</string>
-    <string name="own_sync_error">La operación requiere revisión. Revisá la carpeta, el perfil y la conexión; se conservan los archivos existentes.</string>
+    <string name="own_sync_error">La operación requiere revisión. Revisa la carpeta, el perfil y la conexión; se conservan los archivos existentes.</string>
     <string name="own_sync_additive">Aditivo: conservar todas las versiones</string>
     <string name="own_sync_mirror">Espejo de los archivos gestionados por esta tarea</string>
     <string name="own_sync_scan">Analizar y revisar</string>
@@ -40,7 +40,7 @@
     <string name="own_sync_permission">Se requiere permiso de carpeta o red</string>
     <string name="own_sync_completed">Completado</string>
     <string name="own_sync_cancelled">Cancelado — se conservan los archivos</string>
-    <string name="own_sync_review_scope">Revisá las rutas exactas origen → destino. Los conflictos conservan los archivos existentes y usan un nombre alternativo estable cuando está disponible. Cada carga verifica SHA-256 leyendo el destino.</string>
+    <string name="own_sync_review_scope">Revisa las rutas exactas origen → destino. Los conflictos conservan los archivos existentes y usan un nombre alternativo estable cuando está disponible. Cada carga verifica SHA-256 leyendo el destino.</string>
     <string name="own_sync_incomplete">El análisis está incompleto o incluye archivos inaccesibles. No se retirarán archivos mediante espejo.</string>
     <string name="own_sync_partial">Copiar solo los archivos accesibles y revisados</string>
     <string name="own_sync_confirm_mirror">Confirmo mover los archivos gestionados indicados a cuarentena recuperable</string>

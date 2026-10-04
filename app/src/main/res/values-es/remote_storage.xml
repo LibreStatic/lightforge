@@ -2,7 +2,7 @@
 <resources>
     <string name="remote_storage_title">Copia de seguridad en tu servidor</string>
     <string name="remote_storage_working">Transfiriendo una copia de seguridad verificada</string>
-    <string name="remote_storage_permission_explanation">Permití el acceso a la red local para conectar con tu servidor SFTP o SMB. No se usa ningún servicio ni cuenta cloud.</string>
+    <string name="remote_storage_permission_explanation">Permite el acceso a la red local para conectar con tu servidor SFTP o SMB. No se usa ningún servicio ni cuenta cloud.</string>
     <string name="remote_storage_permission_allow">Permitir red local</string>
     <string name="remote_storage_permission_settings">Abrir ajustes de la app</string>
     <string name="remote_storage_back">Atrás</string>

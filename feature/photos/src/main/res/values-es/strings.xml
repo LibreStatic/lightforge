@@ -5,11 +5,11 @@
     <string name="limited_access_body">Solo se ven las fotos y los videos seleccionados.</string>
     <string name="manage_access_action">Administrar</string>
     <string name="library_error_title">Biblioteca no disponible</string>
-    <string name="library_error_body">Tus archivos están seguros. Intentá abrir la galería de nuevo.</string>
+    <string name="library_error_body">Tus archivos están seguros. Intenta abrir la galería de nuevo.</string>
     <string name="library_loading_title">Preparando tu biblioteca</string>
     <string name="library_loading_body">Las fotos ya indexadas siguen disponibles mientras continúa el indexado local.</string>
-    <string name="permission_title">Permití el acceso a fotos y videos</string>
-    <string name="permission_body">Elegí acceso completo o seleccionado. Podés cambiarlo luego en los ajustes del sistema.</string>
+    <string name="permission_title">Permite el acceso a fotos y videos</string>
+    <string name="permission_body">Elige acceso completo o seleccionado. Puedes cambiarlo luego en los ajustes del sistema.</string>
     <string name="grant_access_action">Elegir acceso</string>
     <string name="photo_thumbnail_description">Foto</string>
     <string name="video_thumbnail_description">Video</string>

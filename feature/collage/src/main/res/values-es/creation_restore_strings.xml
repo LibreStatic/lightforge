@@ -1,12 +1,12 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="creation_collage_publication_uncertain">La exportación sigue sin resolverse. Se conserva la información de recuperación. Revisá de nuevo o volvé atrás; crear otra copia sigue bloqueado.</string>
+    <string name="creation_collage_publication_uncertain">La exportación sigue sin resolverse. Se conserva la información de recuperación. Revisa de nuevo o vuelve atrás; crear otra copia sigue bloqueado.</string>
     <string name="creation_collage_keep_editing">Seguir editando</string>
-    <string name="creation_collage_publication_not_started">No se encontró una copia publicada para este intento. Elegí Seguir editando para volver al borrador sin exportar.</string>
+    <string name="creation_collage_publication_not_started">No se encontró una copia publicada para este intento. Elige Seguir editando para volver al borrador sin exportar.</string>
     <string name="creation_collage_publication_conflict">El registro de exportación o la copia guardada no coincide con este collage. Se conserva la información de recuperación; no se creará otra copia.</string>
-    <string name="creation_collage_publication_unreadable">No se pudo verificar la exportación anterior. Se conserva la información de recuperación. Revisá de nuevo o volvé más tarde.</string>
+    <string name="creation_collage_publication_unreadable">No se pudo verificar la exportación anterior. Se conserva la información de recuperación. Revisa de nuevo o vuelve más tarde.</string>
     <string name="creation_collage_check_export">Revisar exportación</string>
     <string name="creation_collage_sources_unavailable">Las fotos originales cambiaron o no están disponibles. Se pueden revisar las copias guardadas, pero crear otra copia está bloqueado.</string>
-    <string name="creation_collage_published_new_draft">Para editar otra copia, volvé atrás y creá un collage nuevo. Este PNG guardado se conservará.</string>
+    <string name="creation_collage_published_new_draft">Para editar otra copia, vuelve atrás y crea un collage nuevo. Este PNG guardado se conservará.</string>
     <string name="creation_collage_discard_export">Descartar y empezar de nuevo</string>
 </resources>

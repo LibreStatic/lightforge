@@ -1,11 +1,11 @@
-<resources><string name="album_untitled">Álbum sin nombre</string><string name="album_volume_unavailable">Almacenamiento no disponible</string><string name="album_volume_unavailable_body">Reconectá el dispositivo para ver este álbum.</string><string name="album_all">Todos</string><string name="album_photos">Fotos</string><string name="album_videos">Videos</string><string name="album_newest">Más recientes</string><string name="album_oldest">Más antiguos</string><string name="album_empty">Este álbum está vacío</string><string name="album_empty_body">Los elementos agregados aparecerán acá.</string><string name="album_photo">Foto</string><string name="album_video">Video</string>
+<resources><string name="album_untitled">Álbum sin nombre</string><string name="album_volume_unavailable">Almacenamiento no disponible</string><string name="album_volume_unavailable_body">Reconecta el dispositivo para ver este álbum.</string><string name="album_all">Todos</string><string name="album_photos">Fotos</string><string name="album_videos">Videos</string><string name="album_newest">Más recientes</string><string name="album_oldest">Más antiguos</string><string name="album_empty">Este álbum está vacío</string><string name="album_empty_body">Los elementos agregados aparecerán aquí.</string><string name="album_photo">Foto</string><string name="album_video">Video</string>
     <string name="album_rename">Renombrar álbum</string>
     <string name="album_rename_title">Renombrar álbum</string>
     <string name="album_rename_body">Solo cambia el nombre del álbum. Tus fotos y videos permanecen donde están.</string>
     <string name="album_name_label">Nombre del álbum</string>
-    <string name="album_rename_empty">Ingresá un nombre para el álbum.</string>
-    <string name="album_rename_too_long">Usá 200 caracteres o menos.</string>
-    <string name="album_rename_failed">No se pudo renombrar el álbum. Tus archivos no cambiaron. Intentá de nuevo.</string>
+    <string name="album_rename_empty">Introduce un nombre para el álbum.</string>
+    <string name="album_rename_too_long">Usa 200 caracteres o menos.</string>
+    <string name="album_rename_failed">No se pudo renombrar el álbum. Tus archivos no cambiaron. Inténtalo de nuevo.</string>
     <string name="album_rename_save">Guardar</string>
     <string name="album_rename_saving">Guardando…</string>
     <string name="album_rename_cancel">Cancelar</string>
@@ -15,11 +15,11 @@
     <string name="album_sort_size_ascending">Tamaño (menor primero)</string>
     <string name="album_sort_size_descending">Tamaño (mayor primero)</string>
     <string name="album_cover_title">Elegir portada del álbum</string>
-    <string name="album_cover_hint">Tocá un elemento del álbum para revisarlo como portada. Tus archivos no cambiarán.</string>
+    <string name="album_cover_hint">Toca un elemento del álbum para revisarlo como portada. Tus archivos no cambiarán.</string>
     <string name="album_cover_automatic">Portada automática</string>
     <string name="album_cover_auto_confirm">¿Usar el elemento disponible más reciente del álbum como portada?</string>
     <string name="album_cover_confirm">¿Usar «%1$s» como portada del álbum?</string>
-    <string name="album_cover_failed">No se pudo guardar la portada. Tus archivos no cambiaron. Intentá de nuevo.</string>
+    <string name="album_cover_failed">No se pudo guardar la portada. Tus archivos no cambiaron. Inténtalo de nuevo.</string>
     <string name="album_side_panel_show">Mostrar panel de álbumes</string>
     <string name="album_side_panel_hide">Ocultar panel de álbumes</string>
     <string name="album_side_panel_label">Álbumes</string>

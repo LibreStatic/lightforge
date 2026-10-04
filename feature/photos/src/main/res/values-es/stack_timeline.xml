@@ -2,5 +2,5 @@
     <string name="timeline_stack_description">Grupo de %1$d fotos. Abrir grupo.</string>
     <string name="timeline_stack_select">Seleccionar las %1$d fotos visibles de este grupo</string>
     <string name="timeline_stack_selection_hint">Los grupos se expanden al seleccionar. Las acciones afectan solo a las fotos seleccionadas.</string>
-    <string name="timeline_stack_changed">Este grupo cambió. Revisalo y volvé a seleccionar.</string>
+    <string name="timeline_stack_changed">Este grupo cambió. Revísalo y vuelve a seleccionar.</string>
 </resources>

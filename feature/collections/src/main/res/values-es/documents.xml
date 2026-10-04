@@ -1,6 +1,6 @@
 <resources>
     <string name="documents_title">Documentos</string>
-    <string name="documents_hint">Revisá fotos con texto detectado en este dispositivo. Elegí sus categorías; los originales quedan en su lugar.</string>
+    <string name="documents_hint">Revisa fotos con texto detectado en este dispositivo. Elige sus categorías; los originales quedan en su lugar.</string>
     <string name="documents_all">Todos</string>
     <string name="documents_suggested">Por revisar</string>
     <string name="documents_receipts">Recibos</string>
@@ -12,20 +12,20 @@
     <string name="documents_prepare_pdf">Preparar PDF (%1$d)</string>
     <string name="documents_studio">Abrir PDF Studio</string>
     <string name="documents_clear_selection">Limpiar selección</string>
-    <string name="documents_selection_hint">Seleccioná hasta 24 fotos en orden de página. Para agregar fotos, seleccionalas en Fotos y elegí Documentos.</string>
-    <string name="documents_empty">No hay documentos coincidentes. Clasificá fotos manualmente o revisá resultados del análisis de texto local opcional.</string>
+    <string name="documents_selection_hint">Selecciona hasta 24 fotos en orden de página. Para agregar fotos, selecciónalas en Fotos y elige Documentos.</string>
+    <string name="documents_empty">No hay documentos coincidentes. Clasifica fotos manualmente o revisa resultados del análisis de texto local opcional.</string>
     <string name="documents_back">Volver</string>
     <string name="documents_retry">Reintentar</string>
-    <string name="documents_error">El documento cambió o no está disponible. Actualizá y reintentá.</string>
+    <string name="documents_error">El documento cambió o no está disponible. Actualiza y reintenta.</string>
     <string name="documents_changed">Archivo actualizado</string>
     <string name="documents_undo">Deshacer</string>
     <string name="documents_copied">Texto copiado</string>
     <string name="documents_untitled">Foto sin título</string>
     <string name="documents_archived">Archivado</string>
-    <string name="documents_unavailable">Cargando documento. Si se quitó el acceso, volvé a la lista.</string>
+    <string name="documents_unavailable">Cargando documento. Si se quitó el acceso, vuelve a la lista.</string>
     <string name="documents_category">Categoría</string>
     <string name="documents_text">Texto reconocido · hasta 20.000 caracteres</string>
-    <string name="documents_no_text">No hay texto local actualizado. Podés clasificar y crear PDF igualmente.</string>
+    <string name="documents_no_text">No hay texto local actualizado. Puedes clasificar y crear PDF igualmente.</string>
     <string name="documents_copy">Copiar texto</string>
     <string name="documents_archive">Archivar foto</string>
     <string name="documents_unarchive">Desarchivar foto</string>

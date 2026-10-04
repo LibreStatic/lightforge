@@ -29,11 +29,11 @@
     <string name="portable_preferences_presentation">Presentación</string>
     <string name="portable_preferences_playback">Reproducción</string>
     <string name="portable_preferences_gestures">Gestos</string>
-    <string name="portable_preferences_conflict">Las preferencias cambiaron después de la revisión. Recargá y elige las categorías nuevamente.</string>
+    <string name="portable_preferences_conflict">Las preferencias cambiaron después de la revisión. Recarga y elige las categorías nuevamente.</string>
     <string name="portable_preferences_mismatch">Esta operación corresponde a otra copia o a otras categorías. Vuelve a revisar la copia para iniciar una operación nueva.</string>
     <string name="portable_preferences_limit">Se alcanzó el límite de recibos de importación. No hubo cambios. Restablecer ajustes no elimina la protección contra repeticiones.</string>
     <string name="portable_preferences_invalid">Las preferencias son inválidas, incompatibles o superan 1 MiB. No hubo cambios.</string>
-    <string name="portable_preferences_storage">Falló la lectura o escritura de preferencias. Recargá para comprobar si la operación se confirmó.</string>
+    <string name="portable_preferences_storage">Falló la lectura o escritura de preferencias. Recarga para comprobar si la operación se confirmó.</string>
     <string name="portable_preferences_on">Activado</string>
     <string name="portable_preferences_off">Desactivado</string>
     <string name="portable_preferences_field_sort">Orden</string>

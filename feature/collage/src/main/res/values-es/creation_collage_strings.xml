@@ -2,7 +2,7 @@
 <resources>
     <string name="creation_collage_title">Collage</string>
     <string name="creation_collage_back">Volver</string>
-    <string name="creation_collage_originals">Ajustá el diseño sin cambiar los originales. El PNG exportado coincide con esta vista previa.</string>
+    <string name="creation_collage_originals">Ajusta el diseño sin cambiar los originales. El PNG exportado coincide con esta vista previa.</string>
     <string name="creation_collage_preview">Vista previa del collage</string>
     <string name="creation_collage_template">Diseño</string>
     <string name="creation_collage_order">Orden de fotos</string>
@@ -14,7 +14,7 @@
     <string name="creation_collage_horizontal">Posición horizontal</string>
     <string name="creation_collage_vertical">Posición vertical</string>
     <string name="creation_collage_reset">Restablecer recorte</string>
-    <string name="creation_collage_error">El collage no se pudo preparar o guardar. Revisá el acceso a las fotos originales y reintentá.</string>
+    <string name="creation_collage_error">El collage no se pudo preparar o guardar. Revisa el acceso a las fotos originales y reintenta.</string>
     <string name="creation_collage_retry">Reintentar</string>
     <string name="creation_collage_cancelled">Exportación cancelada. Los originales siguen intactos.</string>
     <string name="creation_collage_publishing">Guardando y verificando la copia…</string>
@@ -33,5 +33,5 @@
     <string name="creation_collage_strip3">Tira · 3</string>
     <string name="creation_collage_polaroid3">Polaroid · 3</string>
     <string name="creation_collage_strip4">Tira · 4</string>
-    <string name="creation_collage_no_selection">Seleccioná de 2 a 4 fotos y elegí Collage.</string>
+    <string name="creation_collage_no_selection">Selecciona de 2 a 4 fotos y elige Collage.</string>
 </resources>
