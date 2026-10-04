@@ -4661,7 +4661,7 @@ class GalleryViewModel @Inject constructor(
                         trimEndMillis = recipe.endMillis ?: source.durationMillis,
                         speed = recipe.speed,
                         originalAudioVolume = recipe.originalAudioVolume,
-                        selectedMusicName = recipe.musicUri?.lastPathSegment,
+                        selectedMusicName = recipe.musicUri?.let { uri -> musicDisplayName(uri) ?: uri.lastPathSegment },
                         selectedMusicUri = recipe.musicUri,
                         musicVolume = recipe.musicVolume,
                         colorGrade = recipe.colorGrade,
@@ -4929,13 +4929,20 @@ class GalleryViewModel @Inject constructor(
         persistVideoRecipe(recipe)
     }
 
+    /** Human-readable file name of a picked track; document ids such as `audio:42` are not shown to the user. */
+    private fun musicDisplayName(uri: Uri): String? = runCatching {
+        getApplication<Application>().contentResolver
+            .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+            ?.use { cursor -> if (cursor.moveToFirst() && !cursor.isNull(0)) cursor.getString(0) else null }
+    }.getOrNull()?.takeIf { it.isNotBlank() }
+
     fun setVideoMusic(uri: Uri, displayName: String) {
         val session = mutableVideoEditor.value ?: return
         val recipe = session.recipe.copy(musicUri = uri)
         mutableVideoEditor.value = session.copy(
             recipe = recipe,
             content = session.content.copy(
-                selectedMusicName = displayName,
+                selectedMusicName = musicDisplayName(uri) ?: displayName,
                 selectedMusicUri = uri,
                 isDirty = session.isDirty(recipe),
             ),
