@@ -205,6 +205,11 @@ internal enum class SurfaceRoute {
     Root, Updates, DeviceFolders, Album, HighlightCollection, Viewer, PhotoEditor, VideoEditor,
     Archive, Trash, Settings, About, Moment, MomentParticipants, MemoryControls, MemoriesBrowser, ManualMoment, MemoryVideo, MotionPhoto, CreationGif, LocalBackup, LocalBackupTasks, RemoteBackup, OwnSync, OfflinePlaces, LocalSharing, PetIdentity, People, Cleanup, PrivateAlbum, PrivateAlbumPicker, Collage, PdfStudio, Documents, Stacks, SmartAlbums, PublicationRecoveries,
 }
+/** Routes whose grid owns the selection bar: Back clears the selection before leaving. */
+private val selectionGridRoutes = setOf(
+    SurfaceRoute.Root, SurfaceRoute.Album, SurfaceRoute.DeviceFolders, SurfaceRoute.HighlightCollection,
+    SurfaceRoute.Archive, SurfaceRoute.Trash,
+)
 internal fun retainsPhotosViewerWindow(
     requested: Boolean, route: SurfaceRoute, fromPhotos: Boolean, external: Boolean,
 ): Boolean = requested && fromPhotos && !external &&
@@ -1168,7 +1173,11 @@ internal fun ProductionGalleryApp(
 
     BackHandler(enabled = renderedRoute != SurfaceRoute.Root || showDetails || selectionCount > 0) {
         // Back from a root selection returns to browsing, not to the previous Android task.
-        if (renderedRoute == SurfaceRoute.Root && !showDetails && selectionCount > 0) {
+        // The same holds in collection grids (album, highlight, archive, trash): Back clears the
+        // selection and stays there instead of leaving with a selection the next screen cannot show.
+        if (!showDetails && selectionCount > 0 && renderedRoute in selectionGridRoutes) {
+            trashSelectionMode = false
+            archiveSelectionMode = false
             viewModel.clearSelection()
         } else handleBack()
     }
