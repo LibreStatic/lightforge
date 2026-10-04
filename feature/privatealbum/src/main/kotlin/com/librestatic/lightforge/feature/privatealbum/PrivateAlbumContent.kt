@@ -40,6 +40,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveButton
@@ -348,7 +349,11 @@ fun PrivateAlbumContent(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center,
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Icon(
                         GalleryIcons.Lock,
                         contentDescription = null,
@@ -357,10 +362,12 @@ fun PrivateAlbumContent(
                     Text(
                         stringResource(R.string.private_locked),
                         style = MaterialTheme.typography.titleMedium,
+                        textAlign = TextAlign.Center,
                     )
                     Text(
                         stringResource(R.string.private_key_unlock_body),
                         style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
                     )
                     GalleryExpressiveButton(
                         onClick = { onUnlockRequest({ onUnlocked(); retryIndex++ }, { showError = it }) },
