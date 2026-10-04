@@ -184,14 +184,30 @@ fun reprojectEditedPoints(
     return points.mapNotNull { point -> projectToSource(point, from)?.let { projectToEdited(it, to) } }
 }
 
-/** Drops dabs closer than half a brush radius to the previous one, keeping masks bounded. */
-internal fun appendBrushPoint(points: List<PhotoPoint>, point: PhotoPoint, aspect: Float): List<PhotoPoint> {
+/**
+ * Drops dabs closer than half a brush radius to the previous one, keeping masks bounded. A [connect]ed point
+ * (a drag move, not a fresh touch) also fills the dabs between it and the previous one, so a fast drag that
+ * delivers sparse pointer events still paints a continuous stroke.
+ */
+internal fun appendBrushPoint(
+    points: List<PhotoPoint>,
+    point: PhotoPoint,
+    aspect: Float,
+    connect: Boolean = true,
+): List<PhotoPoint> {
     val last = points.lastOrNull() ?: return points + point
     val shortSide = min(1f, aspect)
     val dx = (point.x - last.x) * aspect / shortSide
     val dy = (point.y - last.y) / shortSide
     val spacing = PHOTO_ERASE_BRUSH_RADIUS / 2f
-    return if (dx * dx + dy * dy < spacing * spacing) points else points + point
+    val distance = kotlin.math.sqrt(dx * dx + dy * dy)
+    if (distance < spacing) return points
+    if (!connect) return points + point
+    val steps = kotlin.math.ceil(distance / spacing).toInt()
+    return points + List(steps) { i ->
+        val t = (i + 1f) / steps
+        PhotoPoint(last.x + (point.x - last.x) * t, last.y + (point.y - last.y) * t)
+    }
 }
 
 internal class ExperimentalToolActions(
@@ -230,7 +246,7 @@ internal fun ExperimentalPreviewOverlay(
                     awaitEachGesture {
                         val down = awaitFirstDown()
                         var strokes = currentStrokes
-                        imagePointAt(down.position, bounds)?.let { strokes = appendBrushPoint(strokes, it, aspect) }
+                        imagePointAt(down.position, bounds)?.let { strokes = appendBrushPoint(strokes, it, aspect, connect = false) }
                         onEraseStrokesChange(strokes)
                         down.consume()
                         do {

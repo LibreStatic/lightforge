@@ -4,6 +4,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.IntSize
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PhotoExperimentalToolsTest {
@@ -39,7 +40,17 @@ class PhotoExperimentalToolsTest {
     fun brushPoints_skipDabsCloserThanHalfARadius() {
         val first = listOf(PhotoPoint(0.5f, 0.5f))
         assertEquals(1, appendBrushPoint(first, PhotoPoint(0.505f, 0.5f), 1f).size)
-        assertEquals(2, appendBrushPoint(first, PhotoPoint(0.6f, 0.5f), 1f).size)
+        assertEquals(2, appendBrushPoint(first, PhotoPoint(0.6f, 0.5f), 1f, connect = false).size)
+    }
+
+    @Test
+    fun brushPoints_fillTheGapOfAFastDrag() {
+        val first = listOf(PhotoPoint(0.5f, 0.5f))
+        val stroke = appendBrushPoint(first, PhotoPoint(0.6f, 0.5f), 1f)
+        assertEquals(PhotoPoint(0.6f, 0.5f), stroke.last())
+        stroke.zipWithNext().forEach { (a, b) ->
+            assertTrue(b.x - a.x <= PHOTO_ERASE_BRUSH_RADIUS / 2f + 1e-4f)
+        }
     }
 
     @Test
