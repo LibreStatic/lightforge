@@ -1475,8 +1475,7 @@ private fun ExportControls(
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
         ) {
             Column(Modifier.fillMaxWidth().padding(GallerySpacing.Md), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
-                val trimEnd = state.trimEndMillis.takeIf { it > state.trimStartMillis } ?: state.durationMillis
-                val length = ((trimEnd - state.trimStartMillis) / state.speed).toLong().coerceAtLeast(0)
+                val length = state.outputLengthMillis()
                 Text(
                     stringResource(
                         R.string.video_editor_export_summary,

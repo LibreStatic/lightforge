@@ -71,17 +71,11 @@ internal fun SpeedControls(
                 )
             }
         }
-        // Slow-motion segments change the length in ways this estimate ignores, so only show it
-        // when the base speed is the whole story.
-        if (state.slowMotionSegments.isEmpty()) {
-            val trimEnd = state.trimEndMillis.takeIf { it > state.trimStartMillis } ?: state.durationMillis
-            val resulting = ((trimEnd - state.trimStartMillis) / state.speed).toLong().coerceAtLeast(0)
-            Text(
-                stringResource(R.string.video_editor_speed_result, formatVideoEditorShortTime(resulting)),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        Text(
+            stringResource(R.string.video_editor_speed_result, formatVideoEditorShortTime(state.outputLengthMillis())),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
         Text(stringResource(R.string.video_editor_slow_segments), style = MaterialTheme.typography.titleSmall)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {

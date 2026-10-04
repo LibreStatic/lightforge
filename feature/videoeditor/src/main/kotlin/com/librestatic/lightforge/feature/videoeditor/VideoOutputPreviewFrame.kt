@@ -64,6 +64,18 @@ internal fun VideoEditorContentState.outputRecipe(): VideoEditRecipe? = runCatch
     )
 }.getOrNull()
 
+/**
+ * Length of the exported clip: the trim with the base speed and every slow-motion segment applied,
+ * the same arithmetic the exporter uses. Falls back to the plain trim at base speed while the state
+ * is not a valid recipe.
+ */
+internal fun VideoEditorContentState.outputLengthMillis(): Long {
+    val clipEnd = trimEndMillis.takeIf { it > trimStartMillis } ?: durationMillis
+    val recipe = outputRecipe()
+        ?: return ((clipEnd - trimStartMillis) / speed).toLong().coerceAtLeast(0)
+    return recipe.outputDurationMillis(recipe.endMillis ?: clipEnd)
+}
+
 /** The exporter's own plan for this state, plus the size it should produce. */
 internal data class VideoOutputEstimate(val plan: VideoOutputPlan, val sizeBytes: Long)
 

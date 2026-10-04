@@ -1,5 +1,6 @@
 package com.librestatic.lightforge.feature.videoeditor
 
+import com.librestatic.lightforge.core.editing.video.SlowMotionSegment
 import com.librestatic.lightforge.core.editing.video.VideoAspectMode
 import com.librestatic.lightforge.core.editing.video.VideoAspectOverride
 import com.librestatic.lightforge.core.editing.video.VideoEncoderCapabilities
@@ -113,5 +114,16 @@ class VideoOutputPreviewFrameTest {
         assertNull(parseTargetMbps("abc"))
         assertEquals("HEVC", videoCodecDisplayName("video/hevc"))
         assertEquals("VP9", videoCodecDisplayName("video/x-vnd.on2.vp9"))
+    }
+
+    @Test
+    fun outputLengthAppliesBaseSpeedAndSlowMotionSegments() {
+        assertEquals(73_000L, plain.outputLengthMillis())
+        assertEquals(36_500L, plain.copy(speed = 2f).outputLengthMillis())
+        // 10 s at 0.25x -> 40 s, plus the other 63 s at normal speed.
+        val slow = plain.copy(slowMotionSegments = listOf(SlowMotionSegment(startMillis = 10_000, endMillis = 20_000)))
+        assertEquals(103_000L, slow.outputLengthMillis())
+        // A trim that cuts the clip short is honoured together with the segment.
+        assertEquals(70_000L, slow.copy(trimEndMillis = 40_000).outputLengthMillis())
     }
 }
