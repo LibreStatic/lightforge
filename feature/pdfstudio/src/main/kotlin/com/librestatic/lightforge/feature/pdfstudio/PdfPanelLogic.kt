@@ -7,6 +7,15 @@ internal object PdfStepperMath {
     /** [value] moved by one [step] in the direction of [delta] (usually -1 or 1), clamped. */
     fun stepped(value: Double, step: Double, delta: Int, min: Double, max: Double): Double =
         (value + step * delta).coerceIn(min, max)
+
+    /** Margin/gap stepper increment in the displayed [unit]: about 1 mm everywhere (0.1 cm, 0.05 in, 1 px). */
+    fun layoutStep(unit: PdfUnit): Double =
+        when (unit) {
+            PdfUnit.Millimeter -> 1.0
+            PdfUnit.Centimeter -> 0.1
+            PdfUnit.Inch -> 0.05
+            PdfUnit.Pixel -> 1.0
+        }
 }
 
 /** A visual paper preset offered by the Layout panel's paper cards, in millimeters. */

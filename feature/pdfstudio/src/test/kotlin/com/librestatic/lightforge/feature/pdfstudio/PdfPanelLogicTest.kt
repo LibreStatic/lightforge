@@ -4,6 +4,14 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class PdfPanelLogicTest {
+    @Test
+    fun layoutStepIsAboutOneMillimeterInPhysicalUnits() {
+        PdfUnit.entries.filter { it != PdfUnit.Pixel }.forEach { unit ->
+            val mm = PdfStepperMath.layoutStep(unit) * unit.factor(300)
+            assertEquals(1.0, mm, 0.3)
+        }
+    }
+
     @Test fun stepperMathClampsAtBothEnds() {
         assertEquals(51.0, PdfStepperMath.stepped(50.0, 1.0, 1, 0.0, 100.0), 0.0)
         assertEquals(49.0, PdfStepperMath.stepped(50.0, 1.0, -1, 0.0, 100.0), 0.0)

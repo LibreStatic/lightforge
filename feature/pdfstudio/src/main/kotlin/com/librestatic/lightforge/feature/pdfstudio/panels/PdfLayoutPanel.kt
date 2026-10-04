@@ -186,7 +186,7 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
         stringResource(R.string.pdf_margin),
         page.margin / factor,
         unitLabel,
-        step = 1.0,
+        step = PdfStepperMath.layoutStep(p.unit),
         min = 0.0,
         max = min(page.width, page.height) / 4 / factor,
         enabled = !s.editorLocked,
@@ -204,7 +204,7 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
         stringResource(R.string.pdf_gap),
         p.gap / factor,
         unitLabel,
-        step = 1.0,
+        step = PdfStepperMath.layoutStep(p.unit),
         min = 0.0,
         max = 30.0 / factor,
         enabled = !s.editorLocked,
@@ -276,8 +276,9 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
     // print-size/placement-mode change above already re-lays out and repaginates automatically
     // (see applyPaperChange and the placement-mode control), so there is nothing left for a manual
     // "Apply to This page/All pages" + Arrange action to do (it operates per-page, which doesn't
-    // match this feature's whole-project repagination).
-    if (currentPrintSize == null) {
+    // match this feature's whole-project repagination). Exception: a project with imported PDF
+    // pages is never repaginated by a print-size change, so the manual Arrange stays available.
+    if (currentPrintSize == null || p.pages.any { it.source != null }) {
         Spacer(Modifier.height(12.dp))
         Surface(
             color = MaterialTheme.colorScheme.surfaceContainer,
