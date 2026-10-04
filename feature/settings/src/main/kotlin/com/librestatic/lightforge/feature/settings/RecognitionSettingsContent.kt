@@ -1797,7 +1797,7 @@ private fun SemanticModelsSection(
                     ),
                     style = MaterialTheme.typography.bodySmall,
                 )
-                model.error?.let { Text(stringResource(R.string.semantic_index_error)) }
+                model.error?.let { Text(stringResource(R.string.semantic_model_error, it), style = MaterialTheme.typography.bodySmall) }
                 if (state.buildingModelId == model.id) {
                     Text(
                         stringResource(

@@ -169,7 +169,7 @@
     <string name="semantic_quality_balanced">Equilibrado</string>
     <string name="semantic_quality_higher">Mayor calidad</string>
     <string name="semantic_language_english_focused">Principalmente inglés</string>
-    <string name="semantic_index_error">No se pudo crear el índice semántico. Comprobá el almacenamiento disponible y el acceso a los archivos, y volvé a elegir el modelo.</string>
+    <string name="semantic_index_error">No se pudo crear el índice semántico. Comprueba el almacenamiento disponible y el acceso a los archivos, y vuelve a elegir el modelo.</string>
     <string name="portable_preferences_field_collection_order">Orden de colecciones</string>
     <string name="portable_preferences_field_hidden_collections">Colecciones ocultas</string>
     <string name="local_analysis_cleanup">Análisis para liberar espacio</string>
