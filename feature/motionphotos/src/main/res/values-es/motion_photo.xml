@@ -20,7 +20,7 @@
     <string name="motion_save_mp4">Guardar clip MP4</string>
     <string name="motion_cancel">Cancelar</string>
     <string name="motion_saved">Portada guardada localmente</string>
-    <string name="motion_error">La acción no terminó. Revisá el acceso al original y el espacio libre; luego reintentá. El original no cambia.</string>
+    <string name="motion_error">La acción no terminó. Revisa el acceso al original y el espacio libre; luego reintenta. El original no cambia.</string>
     <string name="motion_exported">Copia verificada guardada</string>
     <string name="motion_open">Abrir copia</string>
     <string name="motion_share">Compartir copia</string>
