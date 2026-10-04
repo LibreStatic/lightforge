@@ -1046,6 +1046,8 @@ private fun PdfImageElement(
 ) {
     var activeSnap by activeSnap
     var dragOffsetMm by dragOffsetMm
+    val inGroupSelectionState = rememberUpdatedState(inGroupSelection)
+    val groupDragState = rememberUpdatedState(groupDrag)
     run {
         val imageLabel = stringResource(R.string.pdf_image_label, n + 1)
                         val resizeLabel = stringResource(R.string.pdf_resize_label, n + 1)
@@ -1237,7 +1239,12 @@ private fun PdfImageElement(
                                         }
                                     },
                                 )
-                                .pointerInput(i, busy, inGroupSelection, groupDrag) {
+                                .pointerInput(i, busy) {
+                                    // Read through rememberUpdatedState, not as pointerInput keys: selecting the dragged
+                                    // element in onDragStart flips inGroupSelection, which would restart this block
+                                    // mid-gesture and cancel the drag without onDragCancel (stale guides, no commit).
+                                    val inGroupSelection by inGroupSelectionState
+                                    val groupDrag by groupDragState
                                     if (!busy)
                                         detectDragGestures(
                                             onDragStart = {
@@ -1671,6 +1678,8 @@ private fun PdfTextElement(
 ) {
     var activeSnap by activeSnap
     var dragOffsetMm by dragOffsetMm
+    val inGroupSelectionState = rememberUpdatedState(inGroupSelection)
+    val groupDragState = rememberUpdatedState(groupDrag)
     val isSelected = selectedTextId == t.id
     val isEditing = editingTextId == t.id
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -1791,7 +1800,12 @@ private fun PdfTextElement(
                     }
                 },
             )
-            .pointerInput(t.id, busy, isEditing, inGroupSelection, groupDrag) {
+            .pointerInput(t.id, busy, isEditing) {
+                // Read through rememberUpdatedState, not as pointerInput keys: selecting the dragged
+                // element in onDragStart flips inGroupSelection, which would restart this block
+                // mid-gesture and cancel the drag without onDragCancel (stale guides, no commit).
+                val inGroupSelection by inGroupSelectionState
+                val groupDrag by groupDragState
                 if (!busy && !isEditing)
                     detectDragGestures(
                         onDragStart = {
