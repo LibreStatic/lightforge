@@ -77,7 +77,7 @@
     <string name="settings_import">Importar ajustes y favoritos</string>
     <string name="settings_reset">Restaurar ajustes predeterminados</string>
     <string name="face_analysis_title">Análisis de rostros</string>
-    <string name="face_analysis_privacy">Las regiones faciales se detectan localmente después de tu autorización. Podés pausar el análisis y borrar todos los datos derivados.</string>
+    <string name="face_analysis_privacy">Las regiones faciales se detectan localmente después de tu autorización. Puedes pausar el análisis y borrar todos los datos derivados.</string>
     <string name="face_analysis_no_identity">La detección no identifica ni nombra personas.</string>
     <string name="face_analysis_enable">Activar detección facial local</string>
     <plurals name="face_analysis_progress"><item quantity="one">%1$d foto analizada</item><item quantity="many">%1$d fotos analizadas</item><item quantity="other">%1$d fotos analizadas</item></plurals>
@@ -115,7 +115,7 @@
     <string name="settings_group_about">Acerca de</string>
     <string name="settings_about">Acerca de Lightforge Studio</string>
     <string name="settings_about_summary">Versión, contribuidores y licencias de código abierto</string>
-    <string name="local_analysis_privacy">Lightforge Studio puede analizar tus fotos accesibles completamente en este dispositivo. No se sube nada y podés detener el análisis o borrar sus resultados cuando quieras.</string>
+    <string name="local_analysis_privacy">Lightforge Studio puede analizar tus fotos accesibles completamente en este dispositivo. No se sube nada y puedes detener el análisis o borrar sus resultados cuando quieras.</string>
     <string name="local_analysis_master">Usar análisis local</string>
     <string name="local_analysis_master_summary">Controla personas y rostros, contenido y texto de fotos, y colecciones de mascotas. Los elementos conocidos sin cambios no se vuelven a analizar.</string>
     <string name="local_analysis_minimum_battery">Batería mínima para el análisis completo</string>
@@ -132,7 +132,7 @@
     <string name="local_analysis_content">Contenido y texto de fotos</string>
     <string name="local_analysis_content_summary">Crea etiquetas para buscar y reconoce texto. Las colecciones de mascotas comparten estas etiquetas.</string>
     <string name="local_analysis_opt_out_title">El análisis local está listo</string>
-    <string name="local_analysis_opt_out_body">Lightforge Studio puede organizar personas, mascotas, contenido y texto de fotos completamente en este dispositivo usando solo las fotos que autorizaste. El indexado completo se ejecuta durante la carga o mientras Lightforge Studio está abierto con al menos 20 por ciento de batería de forma predeterminada. Podés cambiar este nivel, desactivar el análisis o borrar sus datos desde Ajustes.</string>
+    <string name="local_analysis_opt_out_body">Lightforge Studio puede organizar personas, mascotas, contenido y texto de fotos completamente en este dispositivo usando solo las fotos que autorizaste. El indexado completo se ejecuta durante la carga o mientras Lightforge Studio está abierto con al menos 20 por ciento de batería de forma predeterminada. Puedes cambiar este nivel, desactivar el análisis o borrar sus datos desde Ajustes.</string>
     <string name="local_analysis_opt_out_accept">Activar análisis local</string>
     <string name="local_analysis_opt_out_decline">Ahora no</string>
 
@@ -157,7 +157,7 @@
     <string name="semantic_model_delete">Eliminar</string>
     <string name="semantic_models_delete_all">Eliminar todos los modelos descargados</string>
     <string name="semantic_override_title">¿Usar un modelo no recomendado?</string>
-    <string name="semantic_override_body">Este modelo puede usar más memoria, batería o tiempo de procesamiento en este dispositivo. Podés continuar de todos modos.</string>
+    <string name="semantic_override_body">Este modelo puede usar más memoria, batería o tiempo de procesamiento en este dispositivo. Puedes continuar de todos modos.</string>
     <string name="semantic_override_confirm">Usar de todos modos</string>
     <string name="semantic_delete_title">¿Eliminar modelo?</string>
     <string name="semantic_delete_body">Eliminar el modelo activo también desactiva la búsqueda semántica y borra su índice derivado.</string>
