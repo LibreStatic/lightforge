@@ -4225,21 +4225,8 @@ private fun ViewerRoute(
         runCatching { context.startActivity(Intent.createChooser(intent, chooserTitle)) }
             .onFailure { Toast.makeText(context, actionUnavailable, Toast.LENGTH_SHORT).show() }
     }
-    fun showDateRepairPicker() {
-        val calendar = java.util.Calendar.getInstance().apply { timeInMillis = media.timelineSortMillis }
-        android.app.DatePickerDialog(
-            context,
-            { _, year, month, day ->
-                calendar.set(java.util.Calendar.YEAR, year)
-                calendar.set(java.util.Calendar.MONTH, month)
-                calendar.set(java.util.Calendar.DAY_OF_MONTH, day)
-                viewModel.requestDateRepair(media, calendar.timeInMillis)
-            },
-            calendar.get(java.util.Calendar.YEAR),
-            calendar.get(java.util.Calendar.MONTH),
-            calendar.get(java.util.Calendar.DAY_OF_MONTH),
-        ).show()
-    }
+    var dateRepairVisible by rememberSaveable(media.key) { mutableStateOf(false) }
+    fun showDateRepairPicker() { dateRepairVisible = true }
     fun runViewerDestructive(block: () -> Unit) {
         if (!gallerySettings.security.destructiveActionLockEnabled) {
             block()
@@ -4487,6 +4474,34 @@ private fun ViewerRoute(
             }
         },
     )
+    if (dateRepairVisible) {
+        // The Material picker works in UTC days; keep the original local time of day.
+        val captured = remember(media.key) {
+            java.time.Instant.ofEpochMilli(media.timelineSortMillis).atZone(java.time.ZoneId.systemDefault())
+        }
+        val pickerState = androidx.compose.material3.rememberDatePickerState(
+            initialSelectedDateMillis = captured.toLocalDate()
+                .atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli(),
+        )
+        androidx.compose.material3.DatePickerDialog(
+            onDismissRequest = { dateRepairVisible = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pickerState.selectedDateMillis?.let { picked ->
+                            val day = java.time.Instant.ofEpochMilli(picked).atZone(java.time.ZoneOffset.UTC).toLocalDate()
+                            viewModel.requestDateRepair(media, captured.with(day).toInstant().toEpochMilli())
+                        }
+                        dateRepairVisible = false
+                    },
+                    enabled = pickerState.selectedDateMillis != null,
+                ) { Text(stringResource(android.R.string.ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { dateRepairVisible = false }) { Text(stringResource(android.R.string.cancel)) }
+            },
+        ) { androidx.compose.material3.DatePicker(pickerState) }
+    }
     if (renameDialogVisible) AlertDialog(
         onDismissRequest = { renameDialogVisible = false },
         title = { Text(stringResource(R.string.viewer_rename)) },
