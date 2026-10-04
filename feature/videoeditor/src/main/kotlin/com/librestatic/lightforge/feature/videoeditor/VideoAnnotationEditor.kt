@@ -35,10 +35,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
@@ -53,6 +54,7 @@ import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import com.librestatic.lightforge.core.editing.video.NormalizedPoint
 import com.librestatic.lightforge.core.editing.video.VideoAnnotationAppearance
+import com.librestatic.lightforge.core.editing.video.VideoAnnotationGeometry
 import com.librestatic.lightforge.core.editing.video.VideoAnnotationLayer
 import com.librestatic.lightforge.core.editing.video.VideoAnnotationKeyframe
 import com.librestatic.lightforge.core.editing.video.VideoAnnotationShape
@@ -148,19 +150,38 @@ internal fun VideoAnnotationGestureLayer(
             }
         }
         if (points.size < 2) return@Canvas
-        val path = Path().apply {
-            moveTo(points.first().x, points.first().y)
-            if (tool.shape == VideoAnnotationShape.Freehand) {
-                points.drop(1).forEach { lineTo(it.x, it.y) }
-            } else lineTo(points.last().x, points.last().y)
-        }
+        val dragged = points.map { NormalizedPoint(it.x / size.width, it.y / size.height) }
+            .takeIf { list -> list.all { it.x in -1f..2f && it.y in -1f..2f } }
+            ?: return@Canvas
+        val shapePath = VideoAnnotationGeometry.path(tool.shape, dragged, size.width, size.height)
+        val arrowHead = if (tool.shape == VideoAnnotationShape.Arrow && !tool.eraser) {
+            VideoAnnotationGeometry.arrowHead(
+                dragged, tool.strokeWidth * minOf(size.width, size.height) * 5f, size.width, size.height,
+            )
+        } else null
         val previewColor = if (tool.eraser) eraserPreviewColor else when (tool.appearance) {
             VideoAnnotationAppearance.Blur -> redactionPreviewColor
             VideoAnnotationAppearance.Mosaic -> mosaicPreviewColor
             VideoAnnotationAppearance.Highlighter -> tool.color.copy(alpha = tool.opacity * 0.38f)
             VideoAnnotationAppearance.Pen -> tool.color.copy(alpha = tool.opacity)
         }
-        drawPath(path, previewColor, style = Stroke(tool.strokeWidth * minOf(size.width, size.height)))
+        val filled = !tool.eraser && tool.shape != VideoAnnotationShape.Line &&
+            tool.shape != VideoAnnotationShape.Arrow && (
+            (tool.filled && tool.appearance in setOf(VideoAnnotationAppearance.Pen, VideoAnnotationAppearance.Highlighter)) ||
+                (tool.appearance in setOf(VideoAnnotationAppearance.Blur, VideoAnnotationAppearance.Mosaic) &&
+                    tool.shape != VideoAnnotationShape.Freehand)
+            )
+        val previewPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            style = if (filled) android.graphics.Paint.Style.FILL else android.graphics.Paint.Style.STROKE
+            strokeWidth = tool.strokeWidth * minOf(size.width, size.height)
+            strokeCap = android.graphics.Paint.Cap.ROUND
+            strokeJoin = android.graphics.Paint.Join.ROUND
+            color = previewColor.toArgb()
+        }
+        drawIntoCanvas { canvas ->
+            canvas.nativeCanvas.drawPath(shapePath, previewPaint)
+            arrowHead?.let { canvas.nativeCanvas.drawPath(it, previewPaint) }
+        }
     }
 }
 
