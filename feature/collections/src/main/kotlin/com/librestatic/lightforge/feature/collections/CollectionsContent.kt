@@ -432,8 +432,14 @@ private fun CollectionShortcuts(shortcuts: List<CollectionCardSpec>, wrap: Boole
     // Compact keeps one scrollable row; wide layouts wrap so every shortcut stays visible.
     if (wrap) FlowRow(rowModifier, horizontalArrangement = gap, verticalArrangement = gap) {
         shortcuts.forEach { key(it.key) { ShortcutChip(it) } }
-    } else LazyRow(rowModifier, horizontalArrangement = gap) {
-        items(shortcuts, key = { it.key }) { ShortcutChip(it) }
+    } else {
+        val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+        // Keyed rows keep the first visible chip anchored; after a layout change start from the first one.
+        val order = shortcuts.map { it.key }
+        androidx.compose.runtime.LaunchedEffect(order) { listState.scrollToItem(0) }
+        LazyRow(rowModifier, state = listState, horizontalArrangement = gap) {
+            items(shortcuts, key = { it.key }) { ShortcutChip(it) }
+        }
     }
 }
 
