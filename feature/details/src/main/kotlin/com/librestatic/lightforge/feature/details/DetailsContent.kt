@@ -146,7 +146,9 @@ fun DetailsContent(
                     if (listOf(camera, lens, aperture, shutter, iso, focal).all { it == null }) {
                         SectionMessage(stringResource(R.string.details_camera_empty))
                     }
-                    camera?.let { DetailRow(stringResource(R.string.details_camera_model), it) }
+                    // cameraName falls back to the maker alone, which is not a model.
+                    val cameraLabel = if (ready.model.isNullOrBlank()) R.string.details_camera_make else R.string.details_camera_model
+                    camera?.let { DetailRow(stringResource(cameraLabel), it) }
                     lens?.let { DetailRow(stringResource(R.string.details_lens), it) }
                     aperture?.let { DetailRow(stringResource(R.string.details_aperture), it) }
                     shutter?.let { DetailRow(stringResource(R.string.details_shutter), it) }
