@@ -893,7 +893,7 @@ fun ViewerContent(
                         onRename?.let { action -> DropdownMenuItem(text = { Text(stringResource(R.string.viewer_rename)) }, onClick = { menuExpanded = false; action() }) }
                         onCopy?.let { action -> DropdownMenuItem(text = { Text(stringResource(R.string.viewer_copy_to)) }, onClick = { menuExpanded = false; action() }) }
                         onMove?.let { action -> DropdownMenuItem(text = { Text(stringResource(R.string.viewer_move_to)) }, onClick = { menuExpanded = false; action() }) }
-                        onSetAs?.let { action -> DropdownMenuItem(text = { Text(stringResource(R.string.viewer_set_as)) }, onClick = { menuExpanded = false; action() }) }
+                        onSetAs?.takeIf { media.kind == MediaKind.Image }?.let { action -> DropdownMenuItem(text = { Text(stringResource(R.string.viewer_set_as)) }, onClick = { menuExpanded = false; action() }) }
                         onOpenWith?.let { action -> DropdownMenuItem(text = { Text(stringResource(R.string.viewer_open_with)) }, onClick = { menuExpanded = false; action() }) }
                         onRepairDate?.let { action -> DropdownMenuItem(text = { Text(stringResource(R.string.viewer_repair_date)) }, onClick = { menuExpanded = false; action() }) }
                         onMoveToPrivate?.let { action -> DropdownMenuItem(
