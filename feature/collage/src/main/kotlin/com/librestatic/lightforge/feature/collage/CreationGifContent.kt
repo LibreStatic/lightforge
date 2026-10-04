@@ -186,6 +186,6 @@ fun CreationGifContent(sessionId: String, title: String, sources: List<CreationG
     )
     CreationGifEditorLayout(ui, actions, contentScroll, modifier)
     if (exitDialog) AlertDialog(onDismissRequest = { exitDialog = false }, title = { Text(stringResource(R.string.creation_gif_leave)) }, text = { Text(stringResource(R.string.creation_gif_leave_hint)) },
-        confirmButton = { TextButton(onClick = { exitDialog = false; closeDraft() }) { Text(stringResource(R.string.creation_gif_cancel)) } },
+        confirmButton = { TextButton(onClick = { exitDialog = false; closeDraft() }) { Text(stringResource(R.string.creation_collage_leave_confirm)) } },
         dismissButton = { TextButton(onClick = { exitDialog = false }) { Text(stringResource(R.string.creation_gif_keep)) } })
 }

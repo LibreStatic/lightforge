@@ -127,7 +127,7 @@ fun CreationCollageContent(
         title = { Text(stringResource(R.string.creation_collage_leave)) },
         text = { Text(stringResource(R.string.creation_collage_leave_hint)) },
         confirmButton = { TextButton(onClick = { exitConfirmation = false; closeDraft() }) {
-            Text(stringResource(R.string.creation_collage_cancel)) } },
+            Text(stringResource(R.string.creation_collage_leave_confirm)) } },
         dismissButton = { TextButton(onClick = { exitConfirmation = false }) { Text(stringResource(R.string.creation_collage_keep)) } })
 }
 

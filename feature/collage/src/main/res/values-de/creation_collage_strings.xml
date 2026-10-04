@@ -34,4 +34,5 @@
     <string name="creation_collage_polaroid3">Polaroid · 3</string>
     <string name="creation_collage_strip4">Streifen · 4</string>
     <string name="creation_collage_no_selection">Wähle 2 bis 4 Fotos und dann Collage aus.</string>
+    <string name="creation_collage_leave_confirm">Verlassen</string>
 </resources>
