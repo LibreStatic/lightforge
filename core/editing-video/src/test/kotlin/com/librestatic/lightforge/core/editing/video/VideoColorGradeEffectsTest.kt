@@ -389,4 +389,52 @@ class VideoColorGradeEffectsTest {
         val expected = VideoColorGradeEffects.buildCube(loading.copy(lut = LutReference()), size = 5)
         assertTrue(preview.indices.all { r -> preview[r].indices.all { g -> preview[r][g].contentEquals(expected[r][g]) } })
     }
+
+    @Test
+    fun openCineLog2DecodesBlackAndEachTierGreyToTheSharedReference() {
+        val curve = { linear: Double -> (0.10 + 0.80 * kotlin.math.ln(1 + 50 * linear) / kotlin.math.ln(51.0)).toFloat() }
+        val hlgGrey = curve(0.38 * 0.38 / 3)
+
+        assertEquals(0.3494f, hlgGrey, 0.0001f)
+        assertEquals(0.18f, VideoColorGradeEffects.decodeToLinear(hlgGrey, LogInputProfile.OpenCineLog2Hlg), 0.0002f)
+        assertEquals(0.18f, VideoColorGradeEffects.decodeToLinear(0.5685019750f, LogInputProfile.OpenCineLog2Hfr), 0.0002f)
+        assertEquals(0f, VideoColorGradeEffects.decodeToLinear(0.10f, LogInputProfile.OpenCineLog2Hlg), 0.00002f)
+        assertEquals(1f, VideoColorGradeEffects.decodeToLinear(0.90f, LogInputProfile.OpenCineLog2Hfr), 0.0001f)
+    }
+
+    @Test
+    fun openCineLog2KeepsNeutralGreyNeutralThroughTheGamutConversion() {
+        val grey = VideoColorGradeEffects.grade(
+            floatArrayOf(0.3494f, 0.3494f, 0.3494f),
+            VideoColorGrade(inputProfile = LogInputProfile.OpenCineLog2Hlg),
+            customLut = null,
+        )
+
+        grey.forEach { assertEquals(0.409f, it, 0.003f) }
+    }
+
+    @Test
+    fun openCineLog2RollsHighlightsOffSoTheHighlightsControlCanRecoverThem() {
+        val skyCodes = listOf(0.80f, 0.85f, 0.90f)
+        fun render(code: Float, highlights: Float) = VideoColorGradeEffects.grade(
+            floatArrayOf(code, code, code),
+            VideoColorGrade(inputProfile = LogInputProfile.OpenCineLog2Hlg, highlights = highlights),
+            customLut = null,
+        )[1]
+
+        val recovered = skyCodes.map { render(it, highlights = -1f) }
+        assertTrue("sky gradation must survive: $recovered", recovered.zipWithNext().all { (a, b) -> b - a > 0.01f })
+        assertTrue(recovered.last() < 0.99f)
+        assertTrue(skyCodes.all { render(it, highlights = -1f) < render(it, highlights = 0f) })
+    }
+
+    @Test
+    fun highlightShoulderIsIdentityBelowTheKneeAndSmoothAboveIt() {
+        assertEquals(0.5f, VideoColorGradeEffects.highlightShoulder(0.5f), 0f)
+        val justAbove = VideoColorGradeEffects.highlightShoulder(0.6001f)
+        assertEquals(0.6001f, justAbove, 0.00001f)
+        val samples = (0..40).map { VideoColorGradeEffects.highlightShoulder(0.6f + it * 0.1f) }
+        assertTrue(samples.zipWithNext().all { (a, b) -> b >= a })
+        assertTrue(samples.last() <= 1f)
+    }
 }

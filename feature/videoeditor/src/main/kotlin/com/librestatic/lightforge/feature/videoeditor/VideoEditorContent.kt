@@ -1741,4 +1741,6 @@ fun LogInputProfile.labelResource(): Int = when (this) {
     LogInputProfile.ArriLogC3 -> R.string.video_editor_profile_arri_logc3
     LogInputProfile.ArriLogC4 -> R.string.video_editor_profile_arri_logc4
     LogInputProfile.RedLog3G10 -> R.string.video_editor_profile_red_log3g10
+    LogInputProfile.OpenCineLog2Hlg -> R.string.video_editor_profile_opencine_log2_hlg
+    LogInputProfile.OpenCineLog2Hfr -> R.string.video_editor_profile_opencine_log2_hfr
 }

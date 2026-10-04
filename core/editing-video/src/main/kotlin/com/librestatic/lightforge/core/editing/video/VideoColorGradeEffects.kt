@@ -131,6 +131,7 @@ object VideoColorGradeEffects {
 
     internal fun grade(input: FloatArray, settings: VideoColorGrade, customLut: CubeLut?): FloatArray {
         var rgb = FloatArray(3) { channel -> decodeToLinear(input[channel], settings.inputProfile) }
+        if (settings.inputProfile.isOpenCineLog) rgb = bt2020To709(rgb)
         val exposure = 2f.pow(settings.exposureEv)
         rgb = FloatArray(3) { rgb[it] * exposure }
         val warmth = settings.temperature * 0.12f
@@ -151,6 +152,9 @@ object VideoColorGradeEffects {
         rgb = adjustSaturation(rgb, 1f + settings.saturation)
         if (settings.vibrance != 0f) rgb = applyVibrance(rgb, settings.vibrance)
         rgb = applyHueBands(rgb, settings.hueBands)
+        // OCLog2 keeps up to ~2 stops above diffuse white; roll it off instead of clipping, so the
+        // highlights and exposure controls can still bring back a bright sky.
+        if (settings.inputProfile.isOpenCineLog) rgb = FloatArray(3) { highlightShoulder(rgb[it]) }
         val beforeLook = rgb
         val builtInResult = applyBuiltInLook(beforeLook, settings.lut.builtIn)
         rgb = FloatArray(3) { channel ->
@@ -240,7 +244,38 @@ object VideoColorGradeEffects {
         } else {
             (10f.pow(value / 0.224282f) - 1f) / 155.975327f - 0.01f
         }
+        LogInputProfile.OpenCineLog2Hlg -> decodeOpenCineLog2(value) * OpenCineHlgGreyGain
+        LogInputProfile.OpenCineLog2Hfr -> decodeOpenCineLog2(value)
     }.coerceIn(0f, 16f)
+
+    /** OCLog2 v2: codes 0.10..0.90 hold scene-linear 0..1 on a base-50 log curve. */
+    private fun decodeOpenCineLog2(value: Float): Float =
+        (51f.pow((value - 0.10f) / 0.80f) - 1f) / 50f
+
+    /**
+     * The HLG tier puts 18% grey at the inverse HLG OETF of a 38% signal (BT.2408), 0.38²/3, so
+     * this gain brings it to 0.18 like the other profiles.
+     */
+    internal const val OpenCineHlgGreyGain = 0.18f / (0.38f * 0.38f / 3f)
+
+    private const val ShoulderKnee = 0.6f
+
+    /**
+     * Identity up to [ShoulderKnee], then a rational approach to 1 with matching slope. It is
+     * gentler than an exponential, so the ~2 stops OCLog2 keeps above white still show gradation.
+     */
+    internal fun highlightShoulder(value: Float): Float {
+        if (value <= ShoulderKnee) return value
+        val span = 1f - ShoulderKnee
+        val over = (value - ShoulderKnee) / span
+        return ShoulderKnee + span * over / (1f + over)
+    }
+
+    private fun bt2020To709(rgb: FloatArray) = floatArrayOf(
+        1.6605f * rgb[0] - 0.5876f * rgb[1] - 0.0728f * rgb[2],
+        -0.1246f * rgb[0] + 1.1329f * rgb[1] - 0.0083f * rgb[2],
+        -0.0182f * rgb[0] - 0.1006f * rgb[1] + 1.1187f * rgb[2],
+    )
 
     private fun decodeSLog2(value: Float): Float {
         val fullRangeSignal = (value * 1023f - 64f) / 876f

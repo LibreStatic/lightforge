@@ -74,7 +74,10 @@ float decodeLog(float v, int profile) {
     float t = (pow(2.0, 14.0 * (-c / b) + 6.0) - 64.0) / a;
     return v >= 0.0 ? (pow(2.0, 14.0 * ((v - c) / b) + 6.0) - 64.0) / a : v * s + t;
   }
-  return v < 0.0 ? v / 15.1927 - 0.01 : (pow(10.0, v / 0.224282) - 1.0) / 155.975327 - 0.01;
+  if (profile == 14) return v < 0.0 ? v / 15.1927 - 0.01 : (pow(10.0, v / 0.224282) - 1.0) / 155.975327 - 0.01;
+  // OpenCine Log 2; the HLG tier gain matches VideoColorGradeEffects.OpenCineHlgGreyGain.
+  float openCine = (pow(51.0, (v - 0.10) / 0.80) - 1.0) / 50.0;
+  return profile == 15 ? openCine * (0.18 / (0.38 * 0.38 / 3.0)) : openCine;
 }
 
 vec3 bt2020To709(vec3 c) {
@@ -151,6 +154,8 @@ void main() {
   vec3 source709Linear = texture2D(uTexSampler, vTexSamplingCoord).rgb;
   vec3 signal = vec3(encode709(source709Linear.r), encode709(source709Linear.g), encode709(source709Linear.b));
   vec3 rgb = vec3(decodeLog(signal.r, uInputProfile), decodeLog(signal.g, uInputProfile), decodeLog(signal.b, uInputProfile));
+  // OpenCine Log 2 is scene-linear BT.2020; the rest of the grade works in BT.709.
+  if (uInputProfile >= 15) rgb = bt2020To709(rgb);
 
   if (uBypass == 0) {
     rgb *= exp2(uExposure);

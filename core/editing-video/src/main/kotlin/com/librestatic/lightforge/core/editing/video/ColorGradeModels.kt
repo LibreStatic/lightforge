@@ -2,7 +2,10 @@ package com.librestatic.lightforge.core.editing.video
 
 import java.io.Serializable
 
-/** Input transfer curve. This does not imply a vendor-gamut to Rec.709 matrix conversion. */
+/**
+ * Input transfer curve. Vendor gamuts are not converted to Rec.709, except OpenCine Log 2, whose
+ * BT.2020 gamut is fixed by its specification.
+ */
 enum class LogInputProfile(val displayName: String) {
     Standard("Standard Rec.709"),
     AppleLog("Apple Log"),
@@ -19,6 +22,14 @@ enum class LogInputProfile(val displayName: String) {
     ArriLogC3("ARRI LogC3"),
     ArriLogC4("ARRI LogC4"),
     RedLog3G10("RED Log3G10"),
+    /** OpenCineCam OCLog2 from its HLG10 source, whose 18% grey sits at 0.38²/3 scene-linear. */
+    OpenCineLog2Hlg("OpenCine Log 2 (HLG)"),
+    /** OpenCineCam OCLog2 from its high-frame-rate Rec.709 source, whose 18% grey stays at 0.18. */
+    OpenCineLog2Hfr("OpenCine Log 2 (high frame rate)"),
+    ;
+
+    /** OCLog2 stores scene-linear BT.2020, so it needs a gamut conversion and a highlight shoulder. */
+    val isOpenCineLog: Boolean get() = this == OpenCineLog2Hlg || this == OpenCineLog2Hfr
 }
 
 enum class HueBand { Red, Orange, Yellow, Green, Cyan, Blue, Purple, Magenta }

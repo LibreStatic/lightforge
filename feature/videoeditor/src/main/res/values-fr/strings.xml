@@ -149,6 +149,8 @@
     <string name="video_editor_profile_arri_logc3">ARRI LogC3</string>
     <string name="video_editor_profile_arri_logc4">ARRI LogC4</string>
     <string name="video_editor_profile_red_log3g10">RED Log3G10</string>
+    <string name="video_editor_profile_opencine_log2_hlg">OpenCine Log 2 (HLG)</string>
+    <string name="video_editor_profile_opencine_log2_hfr">OpenCine Log 2 (haute cadence)</string>
     <string name="video_editor_position_description">Position de lecture : %1$s sur %2$s</string>
     <string name="video_editor_annotation_color_red">Rouge</string>
     <string name="video_editor_annotation_color_yellow">Jaune</string>
