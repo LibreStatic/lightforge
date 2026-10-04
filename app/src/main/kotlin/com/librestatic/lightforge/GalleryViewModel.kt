@@ -3421,6 +3421,19 @@ class GalleryViewModel @Inject constructor(
         sort: AlbumSort,
     ) = openMedia(media, albumQuery(album.key, filter, sort))
 
+    /** Keys trashed from the viewer, hidden from its window until the library sync drops them. */
+    private val viewerTrashedKeys = mutableSetOf<MediaKey>()
+
+    /** Advances past [trashed] after a viewer trash, so neither the pager nor the filmstrip keeps it. */
+    fun selectViewerMediaAfterTrash(neighbour: TimelineMedia, trashed: MediaKey) {
+        viewerTrashedKeys += trashed
+        mutableViewerState.value = mutableViewerState.value.let { viewer ->
+            val items = viewer.items.filterNot { it.key == trashed }
+            viewer.copy(items = items, currentIndex = viewer.currentIndex.coerceAtMost((items.size - 1).coerceAtLeast(0)))
+        }
+        selectViewerMedia(neighbour, forceWindowReload = true)
+    }
+
     fun selectViewerMedia(media: TimelineMedia, forceWindowReload: Boolean = false) {
         mutableCurrentMedia.value = media
         captureViewerRecovery(media)
@@ -3507,9 +3520,11 @@ class GalleryViewModel @Inject constructor(
                 hasPrevious = window.hasPrevious
                 hasNext = window.hasNext
             }
-            val currentIndex = items.indexOfFirst { it.key == media.key }.let { if (it < 0) 0 else it }
+            viewerTrashedKeys.retainAll { trashed -> items.any { it.key == trashed } }
+            val visibleItems = items.filterNot { it.key in viewerTrashedKeys }
+            val currentIndex = visibleItems.indexOfFirst { it.key == media.key }.let { if (it < 0) 0 else it }
             mutableViewerState.value = ViewerUiState(
-                items = items.ifEmpty { listOf(media) },
+                items = visibleItems.ifEmpty { listOf(media) },
                 currentIndex = currentIndex,
                 hasPrevious = hasPrevious,
                 hasNext = hasNext,

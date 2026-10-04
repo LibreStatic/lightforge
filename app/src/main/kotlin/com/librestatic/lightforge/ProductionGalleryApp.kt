@@ -4352,7 +4352,8 @@ private fun ViewerRoute(
                     onBack()
                 } else if (advanceAfterTrash) {
                     advanceAfterTrash = false
-                    trashNeighbour?.let(viewModel::selectViewerMedia) ?: onBack()
+                    // Reload the window so the trashed row leaves the pager and filmstrip too.
+                    trashNeighbour?.let { viewModel.selectViewerMediaAfterTrash(it, media.key) } ?: onBack()
                 }
             }
             is com.librestatic.lightforge.core.mediastore.MediaActionPhase.Cancelled,
