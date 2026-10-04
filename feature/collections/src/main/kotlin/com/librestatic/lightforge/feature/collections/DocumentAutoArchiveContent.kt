@@ -109,7 +109,7 @@ fun DocumentAutoArchiveContent(
                                     stringResource(
                                         DocumentCategory.valueOf(state!!.category).label()
                                     ),
-                                    state!!.minimumAgeDays,
+                                    autoArchiveAgeLabel(state!!.minimumAgeDays),
                                 )
                             )
                             if (state!!.lastRunId != null)
@@ -147,13 +147,7 @@ fun DocumentAutoArchiveContent(
                                     selected = minimumAge == days,
                                     enabled = !busy,
                                     onClick = { age = days },
-                                    label = {
-                                        Text(
-                                            if (days == 0)
-                                                stringResource(R.string.document_auto_any_age)
-                                            else pluralStringResource(R.plurals.document_auto_days, days.toInt(), days)
-                                        )
-                                    },
+                                    label = { Text(autoArchiveAgeLabel(days)) },
                                 )
                             }
                         }
@@ -204,7 +198,7 @@ fun DocumentAutoArchiveContent(
                             modifier = Modifier.semantics { heading() },
                         )
                         Text(stringResource(R.string.document_auto_preview_rule,
-                            stringResource(snapshot.category.label()), snapshot.minimumAgeDays))
+                            stringResource(snapshot.category.label()), autoArchiveAgeLabel(snapshot.minimumAgeDays)))
                         Text(stringResource(R.string.document_auto_future))
                         if (snapshot.hasMore) Text(stringResource(R.string.document_auto_more))
                         if (snapshot.items.isEmpty())
@@ -282,3 +276,8 @@ fun DocumentAutoArchiveContent(
         }
     }
 }
+
+@Composable
+private fun autoArchiveAgeLabel(days: Int): String =
+    if (days <= 0) stringResource(R.string.document_auto_any_age)
+    else pluralStringResource(R.plurals.document_auto_days, days, days)

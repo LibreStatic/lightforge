@@ -128,7 +128,7 @@ class DocumentAutoArchiveContentDeviceTest {
             }
             capture("settings")
             scrollTag("document-auto-list", "document-auto-review")
-            val proposed = context.getString(R.string.document_auto_preview_rule, context.getString(R.string.documents_all), 0)
+            val proposed = context.getString(R.string.document_auto_preview_rule, context.getString(R.string.documents_all), context.getString(R.string.document_auto_any_age))
             compose.onNodeWithTag("document-auto-list").performScrollToNode(hasText(proposed))
             compose.onNodeWithText(proposed).assertIsDisplayed()
             val keep = context.getString(R.string.document_auto_keep_named, "photo-1.jpg")

@@ -17,9 +17,9 @@
     <string name="document_auto_confirm">Archiver et activer la règle</string>
     <string name="document_auto_cancel">Annuler l’aperçu</string>
     <string name="document_auto_stale">Les correspondances ou les réglages ont changé. Examinez-les à nouveau avant de confirmer.</string>
-    <string name="document_auto_active_rule">Règle enregistrée : %1$s · %2$d jours</string>
+    <string name="document_auto_active_rule">Règle enregistrée : %1$s · %2$s</string>
     <string name="document_auto_keep_named">Conserver dans Photos : %1$s</string>
-    <string name="document_auto_preview_rule">Règle à activer : %1$s · %2$d jours</string>
+    <string name="document_auto_preview_rule">Règle à activer : %1$s · %2$s</string>
     <plurals name="document_auto_last_run">
         <item quantity="one">Dernier lot : %1$d archivé</item>
         <item quantity="many">Dernier lot : %1$d archivés</item>

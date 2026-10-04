@@ -17,9 +17,9 @@
     <string name="document_auto_confirm">Archive and enable rule</string>
     <string name="document_auto_cancel">Cancel preview</string>
     <string name="document_auto_stale">Matches or settings changed. Review again before confirming.</string>
-    <string name="document_auto_active_rule">Saved rule: %1$s · %2$d days</string>
+    <string name="document_auto_active_rule">Saved rule: %1$s · %2$s</string>
     <string name="document_auto_keep_named">Keep in Photos: %1$s</string>
-    <string name="document_auto_preview_rule">Rule to enable: %1$s · %2$d days</string>
+    <string name="document_auto_preview_rule">Rule to enable: %1$s · %2$s</string>
     <plurals name="document_auto_last_run">
         <item quantity="one">Last batch: %1$d archived</item>
         <item quantity="other">Last batch: %1$d archived</item>
