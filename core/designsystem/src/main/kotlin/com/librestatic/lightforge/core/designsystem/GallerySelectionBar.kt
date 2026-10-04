@@ -137,14 +137,17 @@ fun GallerySelectionBar(
     onClear: () -> Unit,
     actions: List<GallerySelectionAction>,
     modifier: Modifier = Modifier,
-    countLabel: String = pluralStringResource(
-        R.plurals.gallery_selection_count,
-        count.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
-        count,
-    ),
     clearLabel: String = stringResource(R.string.gallery_selection_clear),
     clearTestTag: String = "gallery_selection_clear",
 ) {
+    // The count drops to 0 while the bar animates out; keep the last real count on screen.
+    var shownCount by remember { mutableStateOf(count) }
+    if (count > 0L) shownCount = count
+    val countLabel = pluralStringResource(
+        R.plurals.gallery_selection_count,
+        shownCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+        shownCount,
+    )
     BoxWithConstraints(modifier.fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
         val inlineActions = actions.filter { it.inline }
         val menuOnly = actions.filterNot { it.inline }
