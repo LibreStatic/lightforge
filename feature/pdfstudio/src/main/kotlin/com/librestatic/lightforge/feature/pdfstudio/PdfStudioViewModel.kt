@@ -1636,10 +1636,19 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
         textEdit(id) { PdfGeometry.alignText(it, page, align, relativeToMargins) }
     }
 
-    /** Resets the selected image's crop focus, rotation and fit to their defaults, keeping its
-     * frame (x/y/width/height) untouched. */
-    fun resetSelectedImage() = imageEdit {
-        it.copy(fit = PdfFit.Contain, focusX = .5, focusY = .5, rotation = 0)
+    /** Resets the selected image's crop focus, rotation and fit to their defaults. A quarter-turn
+     * rotation swaps the frame's width/height, so undoing it also swaps them back (keeping the
+     * top-left corner and clamping to the page). */
+    fun resetSelectedImage() {
+        val page = mutable.value.project?.pages?.getOrNull(mutable.value.page) ?: return
+        imageEdit {
+            val quarter = it.rotation % 180 != 0
+            val base = if (quarter) it.copy(width = it.height, height = it.width) else it
+            PdfGeometry.constrain(
+                base.copy(fit = PdfFit.Contain, focusX = .5, focusY = .5, rotation = 0),
+                page,
+            )
+        }
     }
 
     /** Nudges the selected image's crop focus by [dx]/[dy] (Phase D's 2D crop-focus viewport). */
