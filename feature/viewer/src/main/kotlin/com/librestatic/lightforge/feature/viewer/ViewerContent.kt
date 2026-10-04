@@ -848,12 +848,6 @@ fun ViewerContent(
                         Icon(GalleryIcons.Back, contentDescription = backLabel, tint = GalleryOverlayTokens.Content)
                     }
                 }
-                if (onMotionPhoto != null && motionPhotoLabel != null) {
-                    androidx.compose.material3.FilledTonalButton(onClick = onMotionPhoto) {
-                        Icon(GalleryIcons.Play, contentDescription = null)
-                        Text(motionPhotoLabel)
-                    }
-                }
                 Text(
                     dateLabel,
                     Modifier.weight(1f).padding(horizontal = 4.dp),
@@ -863,6 +857,14 @@ fun ViewerContent(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
+                // Icon-only so a long localized label cannot squeeze the date.
+                if (onMotionPhoto != null && motionPhotoLabel != null) {
+                    ViewerTooltip(motionPhotoLabel, null) {
+                        androidx.compose.material3.FilledTonalIconButton(onClick = onMotionPhoto) {
+                            Icon(GalleryIcons.Play, contentDescription = motionPhotoLabel)
+                        }
+                    }
+                }
                 onDetails?.let { openDetails ->
                     val detailsLabel = stringResource(R.string.viewer_details)
                     ViewerTooltip(detailsLabel, ViewerShortcutKeys.Details) {

@@ -48,6 +48,11 @@ fun ViewerPhotoDetailsPreview() = ViewerPreviewFrame(selected = 13, detailsOpen 
 @Composable
 fun ViewerVideoPreview() = ViewerPreviewFrame(selected = 12, detailsOpen = false)
 
+/** A motion photo: its play button shares the top bar with the date. */
+@Preview
+@Composable
+fun ViewerMotionPhotoPreview() = ViewerPreviewFrame(selected = 13, detailsOpen = false, motion = true)
+
 private data class PreviewMedia(
     val id: Long,
     override val kind: MediaKind,
@@ -103,7 +108,7 @@ private class PreviewVideoEngine : VideoEngine {
 }
 
 @Composable
-private fun ViewerPreviewFrame(selected: Int, detailsOpen: Boolean) = LightforgeTheme {
+private fun ViewerPreviewFrame(selected: Int, detailsOpen: Boolean, motion: Boolean = false) = LightforgeTheme {
     val items = previewItems
     var current by remember { mutableStateOf(items[selected]) }
     var favorite by remember { mutableStateOf(false) }
@@ -145,6 +150,8 @@ private fun ViewerPreviewFrame(selected: Int, detailsOpen: Boolean) = Lightforge
                 onShareSanitized = {},
                 onDetails = { showDetails = true },
                 onEdit = {},
+                onMotionPhoto = if (motion) ({}) else null,
+                motionPhotoLabel = if (motion) "Motion" else null,
                 onRename = {},
                 onCopy = {},
                 onMove = {},
