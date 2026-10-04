@@ -638,10 +638,11 @@ class PdfStudioViewModel(application: Application, private val saved: SavedState
 
     fun duplicate(id: String) = operation {
         val p = requireNotNull(repository.load(id))
+        val app = getApplication<Application>()
         val name =
-            getApplication<Application>()
-                .getString(R.string.pdf_library_duplicate_suffix, p.name)
-                .take(80)
+            duplicateProjectName(p.name, projects.value.mapTo(HashSet()) { it.name }) {
+                app.getString(R.string.pdf_library_duplicate_suffix, it)
+            }
         repository.save(p.copy(id = newId(), name = name))
     }
 

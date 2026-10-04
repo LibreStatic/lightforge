@@ -46,12 +46,20 @@ internal fun filterAndSortProjects(
     query: String,
     sort: PdfLibrarySort,
 ): List<PdfProjectRow> =
-    projects.filter { it.name.contains(query, ignoreCase = true) }.let { list ->
-        when (sort) {
-            PdfLibrarySort.Recent -> list.sortedByDescending { it.updated }
-            PdfLibrarySort.Name -> list.sortedBy { it.name.lowercase() }
+    foldForSearch(query.trim()).let { needle ->
+        projects.filter { foldForSearch(it.name).contains(needle) }.let { list ->
+            when (sort) {
+                PdfLibrarySort.Recent -> list.sortedByDescending { it.updated }
+                PdfLibrarySort.Name -> list.sortedBy { foldForSearch(it.name) }
+            }
         }
     }
+
+private val combiningMarks = Regex("\\p{Mn}+")
+
+/** Lower-cases and strips diacritics so "Cafe" matches "Café" (and the reverse). */
+internal fun foldForSearch(text: String): String =
+    combiningMarks.replace(java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD), "").lowercase()
 
 /** The "no project open" list (Phase E redesign): first-run empty state with template shortcuts,
  * or a searchable/sortable list of rich project cards. */
@@ -233,6 +241,18 @@ private fun PdfLibrarySearchAndSort(
             singleLine = true,
             placeholder = { Text(stringResource(R.string.pdf_library_search_hint)) },
             leadingIcon = { Icon(GalleryIcons.Search, contentDescription = null) },
+            trailingIcon =
+                if (query.isNotEmpty()) {
+                    {
+                        val clearLabel = stringResource(R.string.pdf_library_search_clear)
+                        IconButton(
+                            onClick = { onQuery("") },
+                            modifier = Modifier.semantics { contentDescription = clearLabel },
+                        ) {
+                            Icon(GalleryIcons.Close, contentDescription = null)
+                        }
+                    }
+                } else null,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         )
         var menu by remember { mutableStateOf(false) }
