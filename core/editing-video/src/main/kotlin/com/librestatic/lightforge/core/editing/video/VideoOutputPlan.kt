@@ -442,9 +442,12 @@ data class VideoOutputPlan(
                     }
                 }
                 is VideoOutputResolution.Custom -> {
-                    width = resolution.width.toDouble()
-                    height = resolution.height.toDouble()
-                    resizes += VideoFrameResize(resolution.width, resolution.height, VideoAspectMode.Pad)
+                    // Odd sizes round down to even, as VideoOutputResolution.Custom promises.
+                    val evenWidth = max(2, resolution.width / 2 * 2)
+                    val evenHeight = max(2, resolution.height / 2 * 2)
+                    width = evenWidth.toDouble()
+                    height = evenHeight.toDouble()
+                    resizes += VideoFrameResize(evenWidth, evenHeight, VideoAspectMode.Pad)
                 }
             }
             return Sizes(even(width), even(height), resizes)

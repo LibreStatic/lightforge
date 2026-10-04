@@ -109,6 +109,14 @@ class VideoOutputPlanTest {
     }
 
     @Test
+    fun customOddSizeRoundsDownToEven() {
+        val plan = plan(VideoOutputSettings(resolution = VideoOutputResolution.Custom(641, 361)))
+
+        assertEquals(640 to 360, plan.width to plan.height)
+        assertEquals(listOf(VideoFrameResize(640, 360, VideoAspectMode.Pad)), plan.resizes)
+    }
+
+    @Test
     fun geometryCropAndRotationComeBeforeTheAspect() {
         val recipe = VideoEditRecipe(geometry = VideoGeometry(left = 0f, right = 0.5f, rotationDegrees = 90f))
         val plan = plan(VideoOutputSettings(), recipe = recipe)
