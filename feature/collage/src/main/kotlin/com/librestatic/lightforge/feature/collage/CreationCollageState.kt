@@ -44,6 +44,7 @@ class CreationCollageState(application: Application, private val savedStateHandl
     private var publicationReceipt: CreationCollagePublicationReceipt? = null
     private var publicationUsesJournal = false
     private var invalidSavedSnapshot = false
+    @Volatile private var userCancelled = false
     private var restoredRaw: Any? = savedStateHandle.get<Any>(SnapshotKey)
 
     /** Called on Main. Persist only small review state, never a render job or owned cache path. */
@@ -246,7 +247,7 @@ class CreationCollageState(application: Application, private val savedStateHandl
         resultSha256 = null
         notifiedResult = null
         mutableState.update { it.copy(layout = layout, preview = null, busy = true,
-            publishing = false, failed = false, cancelled = false, result = null) }
+            publishing = false, failed = false, cancelled = afterRecovery && it.cancelled, result = null) }
         saveDraft()
         work = viewModelScope.launch {
             old?.join()
@@ -276,6 +277,7 @@ class CreationCollageState(application: Application, private val savedStateHandl
         val image = rendered ?: return
         if (image.layout != state.value.layout || state.value.preview == null) return
         val currentRevision = ++revision
+        userCancelled = false
         mutableState.update { it.copy(busy = true, publishing = true, failed = false, cancelled = false,
             publicationUncertain = true) }
         publicationUsesJournal = true
@@ -292,6 +294,12 @@ class CreationCollageState(application: Application, private val savedStateHandl
             } finally {
                 if (revision == currentRevision) {
                     work = null
+                    // A user Cancel is a decision, not an interruption: drop what the attempt left behind so the
+                    // draft can be exported again. Only an unfinished publication is ever removed.
+                    if (userCancelled && withContext(NonCancellable) { discardUnfinishedAttempt() }) {
+                        mutableState.update { it.copy(publicationUncertain = false) }
+                        saveDraft()
+                    }
                     recoverPublication() // Read the receipt; never repeat the publication operation.
                 }
             }
@@ -323,7 +331,43 @@ class CreationCollageState(application: Application, private val savedStateHandl
         return true
     }
 
-    suspend fun cancelAndWait() { work?.cancelAndJoin() }
+    private suspend fun discardUnfinishedAttempt(): Boolean {
+        val id = draftId ?: return false
+        return try { exporter.discardIncompletePublication(id) } catch (_: Exception) { false }
+    }
+
+    /** Recovery-card action: drops an unfinished publication (pending file and journal) so a new export can start. */
+    fun discardInterruptedPublication() {
+        val current = state.value
+        if (closed || current.busy || current.publication != CreationCollagePublicationUi.Incomplete) return
+        val old = work
+        old?.cancel()
+        val currentRevision = ++revision
+        mutableState.update { it.copy(busy = true, failed = false) }
+        work = viewModelScope.launch {
+            old?.join()
+            val discarded = discardUnfinishedAttempt()
+            if (revision != currentRevision) return@launch
+            if (discarded) {
+                mutableState.update { it.copy(publicationUncertain = false, cancelled = true) }
+                saveDraft()
+                work = null
+                recoverPublication()
+            } else mutableState.update { it.copy(busy = false, failed = true) }
+        }
+    }
+
+    suspend fun cancelAndWait() {
+        val exporting = state.value.publishing
+        if (exporting) userCancelled = true
+        work?.cancelAndJoin()
+        if (exporting) while (true) {
+            // The cancelled export cleans up and re-reads its receipt (and may re-render) before it settles.
+            val pending = work ?: break
+            pending.join()
+            if (work === pending) break
+        }
+    }
 
     /** Explicit close acknowledges only the exact verified receipt, never the published PNG. */
     suspend fun closeResolvedDraft(): Boolean {

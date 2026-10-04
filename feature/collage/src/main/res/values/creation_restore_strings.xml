@@ -8,4 +8,5 @@
     <string name="creation_collage_check_export">Check export</string>
     <string name="creation_collage_sources_unavailable">The original photos are unavailable or changed. Saved copies can still be checked, but creating another copy is blocked.</string>
     <string name="creation_collage_published_new_draft">To edit another copy, go back and start a new collage. This saved PNG will be kept.</string>
+    <string name="creation_collage_discard_export">Discard and start over</string>
 </resources>

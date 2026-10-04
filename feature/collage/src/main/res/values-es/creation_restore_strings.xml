@@ -8,4 +8,5 @@
     <string name="creation_collage_check_export">Revisar exportación</string>
     <string name="creation_collage_sources_unavailable">Las fotos originales cambiaron o no están disponibles. Se pueden revisar las copias guardadas, pero crear otra copia está bloqueado.</string>
     <string name="creation_collage_published_new_draft">Para editar otra copia, volvé atrás y creá un collage nuevo. Este PNG guardado se conservará.</string>
+    <string name="creation_collage_discard_export">Descartar y empezar de nuevo</string>
 </resources>

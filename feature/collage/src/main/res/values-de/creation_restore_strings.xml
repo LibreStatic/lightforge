@@ -8,4 +8,5 @@
     <string name="creation_collage_check_export">Export prüfen</string>
     <string name="creation_collage_sources_unavailable">Die Originalfotos sind nicht verfügbar oder wurden geändert. Gespeicherte Kopien lassen sich prüfen, aber eine weitere Kopie bleibt gesperrt.</string>
     <string name="creation_collage_published_new_draft">Um eine weitere Kopie zu bearbeiten, gehe zurück und starte eine neue Collage. Diese gespeicherte PNG-Datei bleibt erhalten.</string>
+    <string name="creation_collage_discard_export">Verwerfen und neu beginnen</string>
 </resources>

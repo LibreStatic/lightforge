@@ -409,6 +409,24 @@ class CreationCollageExporter(
         }
     }
 
+    /**
+     * User-initiated discard of an unfinished publication: removes only the exact pending MediaStore row this
+     * journal inserted (when one exists) and then its journal record. A committed result is never touched.
+     * Returns true when no unfinished publication remains for the session.
+     */
+    suspend fun discardIncompletePublication(sessionId: String): Boolean = withContext(Dispatchers.IO) {
+        val entry = publicationJournal.readEntry(sessionId)
+        if (entry.unreadable) return@withContext false
+        if (entry.receipt == null) return@withContext true
+        val resolution = inspectResolution(entry)
+        when {
+            resolution.canRemovePending -> removePendingPublication(resolution)
+            resolution.canForget && resolution.recovery?.status == CreationCollagePublicationStatus.Incomplete ->
+                forgetPublication(resolution)
+            else -> false
+        }
+    }
+
     suspend fun forgetPublication(expected: CreationCollagePublicationResolution): Boolean = withContext(Dispatchers.IO) {
         publicationJournal.tryWithPublicationLock(expected.entry.id, { false }) {
             val fresh = inspectResolutionUnlocked(expected.entry)

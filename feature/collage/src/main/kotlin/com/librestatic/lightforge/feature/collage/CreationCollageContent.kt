@@ -114,6 +114,7 @@ fun CreationCollageContent(
             onMove = controller::move,
             onCrop = controller::crop,
             onAcknowledgeInterruption = controller::acknowledgeInterruptedPublication,
+            onDiscardInterruption = controller::discardInterruptedPublication,
             onRetry = { callbackError = false; controller.retry() },
             onExport = controller::export,
             onCancelExport = { scope.launch { controller.cancelAndWait() } },
@@ -137,6 +138,7 @@ internal class CreationCollageEditorActions(
     val onMove: (Int) -> Unit = {},
     val onCrop: (CreationCollageCrop) -> Unit = {},
     val onAcknowledgeInterruption: () -> Unit = {},
+    val onDiscardInterruption: () -> Unit = {},
     val onRetry: () -> Unit = {},
     val onExport: () -> Unit = {},
     val onCancelExport: () -> Unit = {},
@@ -283,6 +285,12 @@ private fun CollageStatus(
                     modifier = Modifier.testTag("creation-collage-acknowledge-interruption")) {
                     Text(stringResource(if (state.publication == CreationCollagePublicationUi.RetryableMissing)
                         R.string.creation_collage_keep_editing else R.string.creation_collage_check_export))
+                }
+                if (state.publication == CreationCollagePublicationUi.Incomplete) TextButton(
+                    onClick = actions.onDiscardInterruption,
+                    colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
+                    modifier = Modifier.testTag("creation-collage-discard-publication")) {
+                    Text(stringResource(R.string.creation_collage_discard_export))
                 }
             }
         }
