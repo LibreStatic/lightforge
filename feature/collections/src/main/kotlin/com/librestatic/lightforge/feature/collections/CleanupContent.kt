@@ -79,7 +79,7 @@ sealed interface CleanupList {
 
 private sealed interface CleanupTrashRequest {
     val count: Long
-    data class Copies(val groupId: String, override val count: Long) : CleanupTrashRequest
+    data class Copies(val groupId: String, val copies: List<MediaKey>, override val count: Long) : CleanupTrashRequest
     data class Section(val section: CleanupSection, override val count: Long) : CleanupTrashRequest
 }
 
@@ -101,6 +101,13 @@ fun CleanupContent(
     val context = LocalContext.current
     fun size(bytes: Long) = Formatter.formatShortFileSize(context, bytes)
     var request by remember { mutableStateOf<CleanupTrashRequest?>(null) }
+    // Groups keep the position they first appeared at while this screen is open. Analysis keeps
+    // re-ranking them by size, and a card sliding under the finger could trash the wrong group.
+    val groupOrder = remember { HashMap<String, Int>() }
+    val duplicateGroups = remember(state.duplicateGroups) {
+        state.duplicateGroups.onEach { group -> groupOrder.getOrPut(group.id) { groupOrder.size } }
+            .sortedBy { groupOrder.getValue(it.id) }
+    }
     // LazyColumn's builder is not composable, so resolve section texts up front.
     val duplicatesTitle = stringResource(R.string.cleanup_duplicates_title)
     val duplicatesSummary = pluralStringResource(
@@ -162,8 +169,8 @@ fun CleanupContent(
             }
 
             sectionHeader("duplicates", duplicatesTitle, duplicatesSummary)
-            if (state.duplicateGroups.isEmpty()) item { Text(stringResource(R.string.cleanup_empty)) }
-            items(state.duplicateGroups, key = { "group:${it.id}" }) { group ->
+            if (duplicateGroups.isEmpty()) item { Text(stringResource(R.string.cleanup_empty)) }
+            items(duplicateGroups, key = { "group:${it.id}" }) { group ->
                 Card(Modifier.fillMaxWidth().testTag("cleanup-group-${group.id}")) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
@@ -179,8 +186,8 @@ fun CleanupContent(
                             onOpen(it, CleanupList.DuplicateGroup(group.id))
                         }
                         OutlinedButton(onClick = {
-                            request = CleanupTrashRequest.Copies(group.id, group.memberCount - 1)
-                        }) { Text(stringResource(R.string.cleanup_trash_copies)) }
+                            request = CleanupTrashRequest.Copies(group.id, group.members.filter { it != group.keep }, group.memberCount - 1)
+                        }, modifier = Modifier.testTag("cleanup-trash-copies-${group.id}")) { Text(stringResource(R.string.cleanup_trash_copies)) }
                     }
                 }
             }
@@ -224,7 +231,13 @@ fun CleanupContent(
             title = {
                 Text(pluralStringResource(R.plurals.cleanup_trash_title, pending.count.toInt(), pending.count))
             },
-            text = { Text(stringResource(R.string.cleanup_trash_body)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(R.string.cleanup_trash_body))
+                    // Show exactly which copies go, so the confirmation names the group it acts on.
+                    if (pending is CleanupTrashRequest.Copies) ThumbnailRow(pending.copies, thumbnailLoader, keep = null, onOpen = null)
+                }
+            },
             confirmButton = {
                 TextButton(onClick = {
                     request = null
@@ -275,15 +288,17 @@ private fun ThumbnailRow(
     items: List<MediaKey>,
     loader: ThumbnailLoader?,
     keep: MediaKey?,
-    onOpen: (MediaKey) -> Unit,
+    onOpen: ((MediaKey) -> Unit)?,
 ) {
     val openLabel = stringResource(R.string.cleanup_open_item)
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items(items, key = { "${it.volumeName}:${it.mediaStoreId}" }) { key ->
             Box(
                 Modifier.size(96.dp).clip(MaterialTheme.shapes.medium)
-                    .semantics { contentDescription = openLabel }
-                    .clickable { onOpen(key) },
+                    .then(
+                        if (onOpen == null) Modifier
+                        else Modifier.semantics { contentDescription = openLabel }.clickable { onOpen(key) },
+                    ),
             ) {
                 PersonThumbnail(key, loader, Modifier.fillMaxSize())
                 if (key == keep) Surface(
