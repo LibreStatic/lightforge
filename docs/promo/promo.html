@@ -519,14 +519,30 @@ const switchOn = (sw, on) => { css(sw, { background: on ? 'var(--pri)' : 'var(--
 const mkSwitch = parent => { const s = el('span', 'sw', '<b></b>', parent); switchOn(s, false); return s; };
 
 /* background: drifting expressive shapes + color sweep */
-// Material Expressive shapes framing the canvas: [cx, cy, size] for landscape and portrait.
-// They sit behind the device panel, away from the captions, and morph into the next shape at each scene.
-const MPOS = [[150, 150, 170], [870, 140, 110], [1835, 300, 150], [1050, 975, 200], [300, 950, 140], [1770, 55, 120], [905, 880, 90]];
-const MPOS_P = [[95, 110, 150], [985, 115, 120], [1040, 690, 140], [40, 1180, 130], [1000, 1840, 180], [150, 1865, 120], [560, 1890, 90]];
-const SHAPESET = [[9, .08], [6, .14], [4, .2], [5, .16], [12, .05], [8, .1], [2, .22]];
-const DEEP = ['#AFC6FF', '#A8D8AE', '#F2CC8F', '#FFB3C4', '#A2D8D2'];
-const morphEls = MPOS.map(() => el('i', null, null, $('morphs')));
-const shapeMix = (n1, a1, n2, a2, k, rot, pts = 72) => { const a = []; for (let i = 0; i < pts; i++) { const th = i / pts * Math.PI * 2; const r1 = (1 + a1 * Math.cos(n1 * th + rot)) / (1 + a1), r2 = (1 + a2 * Math.cos(n2 * th + rot)) / (1 + a2); const r = lerp(r1, r2, k); a.push(`${(50 + 50 * r * Math.cos(th)).toFixed(1)}% ${(50 + 50 * r * Math.sin(th)).toFixed(1)}%`); } return `polygon(${a.join(',')})`; };
+// Floating Material Expressive shapes, after feature/onboarding OnboardingBackdrop.kt: each shape rides a
+// horizontal rail that wraps around (WRAP canvas widths), with parallax by depth, a slow spin and wobble,
+// low-alpha container colours, and a light outward burst whenever the scene changes.
+const WRAP = 1.5;
+const SHAPE_CAT = [
+  { poly: [9, .07] }, { poly: [4, .2] }, { poly: [10, .035] }, { poly: [8, .12] }, { pill: 1 },
+  { arch: 1 }, { poly: [8, .04] }, { gem: 1 }, { poly: [6, .1] }, { poly: [4, .09] },
+];
+const FIELD_C = ['#9FB7EE', '#A9C0A8', '#E5BC8C', '#E9A5B6', '#9CC9C3'];
+const fieldR = rng(4242);
+const FIELD = Array.from({ length: PORTRAIT ? 13 : 16 }, () => {
+  const depth = .4 + fieldR() * .6;
+  return { cat: SHAPE_CAT[Math.floor(fieldR() * SHAPE_CAT.length)], col: FIELD_C[Math.floor(fieldR() * FIELD_C.length)],
+    x: fieldR() * WRAP, y: fieldR(), size: 60 + 180 * depth, depth, spin: (6 + fieldR() * 14) * (fieldR() < .5 ? 1 : -1),
+    phase: fieldR() * Math.PI * 2, wobble: 12 + fieldR() * 24 };
+});
+FIELD.forEach(f => {
+  f.el = el('i', null, null, $('morphs'));
+  const c = f.cat; css(f.el, { width: f.size * (c.pill ? 1.7 : 1) + 'px', height: f.size + 'px', background: f.col });
+  if (c.poly) f.el.style.clipPath = shapePoly(c.poly[0], c.poly[1], 0, 96);
+  if (c.pill) f.el.style.borderRadius = f.size / 2 + 'px';
+  if (c.arch) f.el.style.borderRadius = `${f.size / 2}px ${f.size / 2}px ${f.size * .14}px ${f.size * .14}px`;
+  if (c.gem) f.el.style.clipPath = 'polygon(50% 0%,92% 30%,78% 100%,22% 100%,8% 30%)', f.el.style.borderRadius = '18%';
+});
 const WIPES = [9.2, 14.2, 18.7, 23.1, 27.5, 32.0, 37.4, 44.4, 48.0, 51.8, 55.4, 59.0, 63.0, 66.8, 72.4, 44.8 + LO, 52.4 + LO];
 const WCOL = ['#FFC247', '#F2607A', '#7B61F0', '#FF8A4C', '#C45ED8'];
 
@@ -706,21 +722,23 @@ function render(t) {
 
   // poppy layer: expressive shapes + color sweep at every scene change
   {
+    // rail: constant drift plus one spring-eased "page move" per scene; burst: damped impulse at each scene change
     let sc = 0; CAPS.forEach((c, i) => { if (t > c.a - .3) sc = i; });
-    const b0 = CAPS[sc].a - .3, u = Math.max(0, t - b0), mk = eio(P(t, b0, b0 + .8));
-    const intro = eo5(P(t, .2, 1.4));
-    morphEls.forEach((e, i) => {
-      const [cx, cy, size] = (PORTRAIT ? MPOS_P : MPOS)[i];
-      const [n1, a1] = SHAPESET[(i + sc + 6) % 7], [n2, a2] = SHAPESET[(i + sc) % 7];
-      const rot = t * (.12 + i * .015) * (i % 2 ? -1 : 1);
-      e.style.clipPath = sc === 0 ? shapeMix(n2, a2, n2, a2, 1, rot) : shapeMix(n1, a1, n2, a2, mk, rot);
-      const col = sc === 0 ? DEEP[i % 5] : mixHex(DEEP[(i + sc + 4) % 5], DEEP[(i + sc) % 5], mk);
-      const pop = 1 + .07 * Math.exp(-4 * u) * Math.sin(10 * u) * (sc ? 1 : 0);
-      const fx = Math.sin(t * .35 + i * 2.1) * 18, fy = Math.cos(t * .29 + i * 1.3) * 18;
-      const licDy = i === 3 && !PORTRAIT ? 150 * Math.min(eio(P(t, 72.0, 72.8)), 1 - eio(P(t, 79.9, 80.6))) : 0;
-      const k = back(P(t, .1 + i * .08, .9 + i * .08));
-      css(e, { left: cx - size / 2 + fx + 'px', top: cy - size / 2 + fy + licDy + 'px', width: size + 'px', height: size + 'px', background: col, opacity: .78 * clamp(k),
-        transform: `rotate(${t * (8 + i) * (i % 2 ? -1 : 1)}deg) scale(${clamp(k, 0, 1.2) * pop * lerp(.85, 1, intro)})` });
+    const b0 = CAPS[sc].a - .3, u = Math.max(0, t - b0);
+    const rail = t * .045 + sc * .35 + (sc ? eio(P(t, b0, b0 + 1.4)) - 1 : 0) * .35;
+    const burst = sc ? Math.exp(-3.2 * u) * Math.sin(7 * u) : 0;
+    const emerge = eo5(P(t, .2, 1.8));
+    const VW = PORTRAIT ? 1080 : 1920, VH = PORTRAIT ? 1920 : 1080, cx0 = VW / 2, cy0 = VH / 2;
+    FIELD.forEach(f => {
+      const along = ((f.x - rail * .55 * f.depth) % WRAP + WRAP) % WRAP;
+      let cx = (along - (WRAP - 1) / 2) * VW + Math.sin(t * .35 + f.phase) * f.wobble;
+      let cy = f.y * VH + Math.cos(t * .27 + f.phase * 1.3) * f.wobble;
+      const dx = cx - cx0, dy = cy - cy0, d = Math.max(1, Math.hypot(dx, dy)), push = burst * 60 * f.depth;
+      cx = cx0 + (cx + dx / d * push - cx0) * emerge; cy = cy0 + (cy + dy / d * push - cy0) * emerge;
+      const ang = f.phase * 57.3 + t * f.spin + rail * 90 * f.depth * Math.sign(f.spin) + (1 - emerge) * f.spin * 10;
+      const w = f.size * (f.cat.pill ? 1.7 : 1);
+      css(f.el, { left: cx - w / 2 + 'px', top: cy - f.size / 2 + 'px', opacity: (.16 + .16 * f.depth) * emerge,
+        transform: `rotate(${ang}deg) scale(${(1 + .15 * burst) * emerge})` });
     });
   }
   const wp = $('wipe').firstChild; let wk = -1, wi = 0; WIPES.forEach((b, i) => { if (t > b - .2 && t < b + .7) { wk = P(t, b - .2, b + .7); wi = i; } });
