@@ -33,7 +33,7 @@ internal object PdfPaperPresets {
         listOf(
             PdfPaperPreset(A4, "A4", 210.0, 297.0),
             PdfPaperPreset(LETTER, "Letter", 215.9, 279.4),
-            PdfPaperPreset(PRINT_10X15, "10 × 15 cm", 100.0, 150.0),
+            PdfPaperPreset(PRINT_10X15, "10\u00A0×\u00A015\u00A0cm", 100.0, 150.0),
             PdfPaperPreset(SQUARE, "Square", 148.0, 148.0),
         )
 

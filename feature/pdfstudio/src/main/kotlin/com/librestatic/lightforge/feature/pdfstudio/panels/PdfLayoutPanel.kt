@@ -113,7 +113,7 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
         PdfPaperPresets.presets.forEach { preset ->
             val selected = preset.id == selectedPreset
             PdfPaperCard(
-                label = preset.label,
+                label = if (preset.id == PdfPaperPresets.SQUARE) stringResource(R.string.pdf_export_square) else preset.label,
                 widthMm = if (landscape) preset.heightMm else preset.widthMm,
                 heightMm = if (landscape) preset.widthMm else preset.heightMm,
                 selected = selected,
@@ -132,8 +132,8 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
         }
         PdfPaperCard(
             label = stringResource(R.string.pdf_paper_custom),
-            widthMm = if (landscape) page.height else page.width,
-            heightMm = if (landscape) page.width else page.height,
+            widthMm = page.width,
+            heightMm = page.height,
             selected = selectedPreset == PdfPaperPresets.CUSTOM,
             enabled = !s.editorLocked,
         ) {

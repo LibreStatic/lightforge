@@ -687,7 +687,7 @@ private fun PdfNewProjectSheet(
             ) {
                 PdfPaperPresets.presets.forEach { preset ->
                     PdfPaperCard(
-                        label = preset.label,
+                        label = if (preset.id == PdfPaperPresets.SQUARE) stringResource(R.string.pdf_export_square) else preset.label,
                         widthMm = if (landscape) preset.heightMm else preset.widthMm,
                         heightMm = if (landscape) preset.widthMm else preset.heightMm,
                         selected = preset.id == paper,
