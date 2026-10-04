@@ -13,14 +13,34 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import java.text.DecimalFormatSymbols
 import java.util.Locale
 
 private val UNIT_SUFFIXES = listOf("mm", "cm", "in", "px")
 
-private fun formatMm(mm: Double, unit: PdfUnit, dpi: Int): String {
+/** Pixels are whole numbers, inches need two decimals (0.79 in must not read "1 in"). */
+private fun formatValue(mm: Double, unit: PdfUnit, dpi: Int): String {
     val value = mm / unit.factor(dpi)
-    return "%.0f %s".format(Locale.ROOT, value, UNIT_SUFFIXES[unit.ordinal])
+    val decimals = when (unit) {
+        PdfUnit.Pixel -> 0
+        PdfUnit.Inch -> 2
+        else -> 1
+    }
+    // ASCII digits with the locale's decimal separator (210,0 in es/fr/pt/it/de); the parser
+    // accepts both ',' and '.'.
+    val separator = DecimalFormatSymbols.getInstance().decimalSeparator
+    return "%.${decimals}f".format(Locale.ROOT, value).replace('.', separator)
 }
+
+private fun formatMm(mm: Double, unit: PdfUnit, dpi: Int): String =
+    "${formatValue(mm, unit, dpi)} ${UNIT_SUFFIXES[unit.ordinal]}"
+
+/**
+ * A displayed field text together with the exact millimeter value it was rendered from. Re-expressing
+ * a size in another unit rounds the *text* (297 mm -> "11.7 in"); parsing that text back would drift
+ * the size (297.18 mm), so while the text is untouched the exact value wins.
+ */
+private data class PinnedMm(val text: String, val dpi: Int, val mm: Double)
 
 /**
  * Custom page size sheet (Phase D item 3), opened from the Layout panel's Custom paper card.
@@ -42,16 +62,19 @@ internal fun PdfCustomSizeSheet(
     var unit by remember { mutableStateOf(initialUnit) }
     var dpi by remember { mutableStateOf(initialDpi) }
     val factor = unit.factor(dpi)
-    var widthText by remember { mutableStateOf("%.1f".format(Locale.ROOT, initialWidthMm / factor)) }
-    var heightText by remember { mutableStateOf("%.1f".format(Locale.ROOT, initialHeightMm / factor)) }
+    var widthText by remember { mutableStateOf(formatValue(initialWidthMm, unit, dpi)) }
+    var heightText by remember { mutableStateOf(formatValue(initialHeightMm, unit, dpi)) }
+    var widthPin by remember { mutableStateOf<PinnedMm?>(PinnedMm(widthText, dpi, initialWidthMm)) }
+    var heightPin by remember { mutableStateOf<PinnedMm?>(PinnedMm(heightText, dpi, initialHeightMm)) }
     var lastValidWidthMm by remember { mutableStateOf(initialWidthMm) }
     var lastValidHeightMm by remember { mutableStateOf(initialHeightMm) }
 
-    fun parsedMm(text: String): Double? =
-        text.replace(',', '.').toDoubleOrNull()?.takeIf { it.isFinite() }?.times(factor)
+    fun parsedMm(text: String, pin: PinnedMm?): Double? =
+        pin?.takeIf { it.text == text && it.dpi == dpi }?.mm
+            ?: text.replace(',', '.').toDoubleOrNull()?.takeIf { it.isFinite() }?.times(factor)
 
-    val widthMm = parsedMm(widthText)
-    val heightMm = parsedMm(heightText)
+    val widthMm = parsedMm(widthText, widthPin)
+    val heightMm = parsedMm(heightText, heightPin)
     val validation = PdfCustomSize.validate(widthMm, heightMm)
     LaunchedEffect(widthMm, validation.width.isValid) {
         if (widthMm != null && validation.width.isValid) lastValidWidthMm = widthMm
@@ -125,9 +148,14 @@ internal fun PdfCustomSizeSheet(
                                 val w = widthMm
                                 val h = heightMm
                                 unit = u
-                                val f = u.factor(dpi)
-                                if (w != null) widthText = "%.1f".format(Locale.ROOT, w / f)
-                                if (h != null) heightText = "%.1f".format(Locale.ROOT, h / f)
+                                if (w != null) {
+                                    widthText = formatValue(w, u, dpi)
+                                    widthPin = PinnedMm(widthText, dpi, w)
+                                }
+                                if (h != null) {
+                                    heightText = formatValue(h, u, dpi)
+                                    heightPin = PinnedMm(heightText, dpi, h)
+                                }
                             },
                         )
                     }
@@ -153,6 +181,9 @@ internal fun PdfCustomSizeSheet(
                         val w = widthText
                         widthText = heightText
                         heightText = w
+                        val wp = widthPin
+                        widthPin = heightPin
+                        heightPin = wp
                     },
                     modifier = Modifier.padding(top = 8.dp).size(48.dp).semantics { contentDescription = swapLabel },
                 ) {
