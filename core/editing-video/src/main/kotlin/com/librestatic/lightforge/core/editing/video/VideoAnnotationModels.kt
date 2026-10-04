@@ -82,8 +82,8 @@ data class VideoAnnotationLayer(
             return keyframes.firstOrNull()?.transform ?: VideoAnnotationTransform()
         }
         val rightIndex = keyframes.indexOfFirst { it.timeMillis >= timeMillis }
-        if (rightIndex <= 0) return keyframes.first().transform
         if (rightIndex < 0) return keyframes.last().transform
+        if (rightIndex == 0) return keyframes.first().transform
         val left = keyframes[rightIndex - 1]
         val right = keyframes[rightIndex]
         val span = (right.timeMillis - left.timeMillis).coerceAtLeast(1)
