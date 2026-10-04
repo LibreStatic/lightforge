@@ -14,7 +14,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
@@ -458,7 +461,10 @@ fun PlacesContent(
                             stringResource(statusResource(job.status)),
                             modifier = Modifier.testTag("places-task-${job.id}"),
                         )
-                        Text("${job.copied} / ${job.total}")
+                        Text(
+                            "${Formatter.formatShortFileSize(context, job.copied)} / " +
+                                Formatter.formatShortFileSize(context, job.total)
+                        )
                         if (job.total > 0)
                             GalleryProgressIndicator(
                                 progress = {
@@ -619,10 +625,17 @@ fun PlacesContent(
             text = {
                 Column {
                     Text(stringResource(R.string.places_world_body))
-                    Row {
+                    Row(
+                        Modifier.toggleable(
+                            value = worldConfirmed,
+                            role = Role.Checkbox,
+                            onValueChange = { worldConfirmed = it },
+                        ),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Checkbox(
                             checked = worldConfirmed,
-                            onCheckedChange = { worldConfirmed = it },
+                            onCheckedChange = null,
                             modifier = Modifier.testTag("places-world-consent"),
                         )
                         Text(stringResource(R.string.places_world_confirm))
