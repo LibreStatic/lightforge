@@ -3,7 +3,7 @@
     <string name="cleanup_title">Liberar espacio</string>
     <string name="cleanup_collection_body">Duplicados exactos, videos grandes y fotos borrosas para revisar</string>
     <string name="cleanup_back">Colecciones</string>
-    <string name="cleanup_analysis_off">La detección de duplicados y fotos borrosas está desactivada. Activala para analizar tu biblioteca en este dispositivo.</string>
+    <string name="cleanup_analysis_off">La detección de duplicados y fotos borrosas está desactivada. Actívala para analizar tu biblioteca en este dispositivo.</string>
     <string name="cleanup_analysis_enable">Activar análisis</string>
     <string name="cleanup_analysis_hint">El análisis se ejecuta en este dispositivo mientras carga, o con Lightforge abierta y batería suficiente. Los resultados aparecen a medida que avanza.</string>
     <string name="cleanup_duplicates_title">Duplicados exactos</string>
@@ -14,7 +14,7 @@
     <string name="cleanup_blurry_title">Fotos borrosas</string>
     <string name="cleanup_trash_all">Mover todo a la papelera</string>
     <string name="cleanup_empty">Todavía no se encontró nada.</string>
-    <string name="cleanup_trash_body">Podés restaurar los elementos desde la papelera hasta que se borren automáticamente.</string>
+    <string name="cleanup_trash_body">Puedes restaurar los elementos desde la papelera hasta que se borren automáticamente.</string>
     <string name="cleanup_trash_confirm">Mover a la papelera</string>
     <string name="cleanup_cancel">Cancelar</string>
     <string name="cleanup_open_item">Abrir</string>

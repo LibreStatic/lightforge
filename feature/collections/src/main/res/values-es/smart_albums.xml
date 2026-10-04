@@ -18,7 +18,7 @@
     <string name="smart_unavailable_person">Persona guardada no disponible: se conserva la regla</string>
     <string name="smart_year">Año (opcional)</string>
     <string name="smart_year_hint">Dejalo vacío para incluir cualquier año.</string>
-    <string name="smart_year_error">Ingresá un año entre 1 y 9998.</string>
+    <string name="smart_year_error">Introduce un año entre 1 y 9998.</string>
     <string name="smart_year_value">Año: %1$s</string>
     <string name="smart_any_year">Cualquier año</string>
     <string name="smart_timezone">Zona horaria del calendario: %1$s</string>
@@ -42,13 +42,13 @@
     <string name="smart_discard">Descartar borrador</string>
     <string name="smart_discard_hint">¿Salir sin guardar estos cambios?</string>
     <string name="smart_cancel">Cancelar</string>
-    <string name="smart_changed">El álbum o una foto elegida cambió. Recargá las reglas guardadas o revisá las exclusiones pendientes antes de guardar.</string>
+    <string name="smart_changed">El álbum o una foto elegida cambió. Recarga las reglas guardadas o revisa las exclusiones pendientes antes de guardar.</string>
     <string name="smart_reload">Recargar reglas guardadas</string>
-    <string name="smart_error">Ocurrió un error al cargar o guardar el álbum. Intentá de nuevo.</string>
+    <string name="smart_error">Ocurrió un error al cargar o guardar el álbum. Inténtalo de nuevo.</string>
     <string name="smart_retry">Reintentar</string>
     <string name="smart_missing">Este álbum ya no está disponible.</string>
-    <string name="smart_limit">Revisá hasta 200 exclusiones por vez. Guardá y continuá desde el álbum.</string>
-    <string name="smart_empty_albums">Todavía no hay álbumes inteligentes. Creá reglas para organizar fotos automáticamente.</string>
+    <string name="smart_limit">Revisa hasta 200 exclusiones por vez. Guarda y continúa desde el álbum.</string>
+    <string name="smart_empty_albums">Todavía no hay álbumes inteligentes. Crea reglas para organizar fotos automáticamente.</string>
     <string name="smart_empty_results">No hay coincidencias por ahora. Nuevas fotos o el análisis local pueden agregarlas después.</string>
     <string name="smart_empty_exclusions">No hay fotos excluidas.</string>
     <string name="smart_empty_topics">Todavía no hay temas del análisis local actual.</string>
