@@ -1,14 +1,14 @@
 <resources>
     <string name="memories_browser_title">Recuerdos</string>
     <string name="memories_browser_open">Ver todos los recuerdos</string>
-    <string name="memories_browser_body">Explorá todas las historias guardadas y sugeridas. Las fotos locales nuevas se incluyen al actualizar la biblioteca.</string>
+    <string name="memories_browser_body">Explora todas las historias guardadas y sugeridas. Las fotos locales nuevas se incluyen al actualizar la biblioteca.</string>
     <string name="memories_browser_back">Volver</string>
     <string name="memories_browser_all">Todos</string>
     <string name="memories_browser_saved">Guardados</string>
     <string name="memories_browser_suggested">Sugeridos</string>
     <string name="memories_browser_loading">Cargando recuerdos…</string>
     <string name="memories_browser_empty">No hay recuerdos en esta vista</string>
-    <string name="memories_browser_empty_body">Probá otro filtro. Las historias aparecen cuando suficientes fotos locales pertenecen al mismo evento.</string>
+    <string name="memories_browser_empty_body">Prueba otro filtro. Las historias aparecen cuando suficientes fotos locales pertenecen al mismo evento.</string>
     <string name="memories_browser_error">No se pudieron cargar los recuerdos.</string>
     <string name="memories_browser_retry">Reintentar</string>
     <string name="memories_browser_hidden">Sin fotos visibles. Se conservan la historia guardada y su organización.</string>
