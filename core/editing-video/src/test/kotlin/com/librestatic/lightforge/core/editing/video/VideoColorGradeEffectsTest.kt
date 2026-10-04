@@ -378,4 +378,16 @@ class VideoColorGradeEffectsTest {
             size = 2,
         )
     }
+
+    @Test
+    fun contrastKeepsTheMidToneAndDoesNotShiftOverallBrightness() {
+        val grade = VideoColorGrade(contrast = 0.55f)
+        val mid = VideoColorGrade().pivot
+        val graded = VideoColorGradeEffects.grade(floatArrayOf(mid, mid, mid), grade, null)
+        assertEquals(mid, graded[0], 0.01f)
+        val dark = VideoColorGradeEffects.grade(floatArrayOf(0.3f, 0.3f, 0.3f), grade, null)
+        val bright = VideoColorGradeEffects.grade(floatArrayOf(0.6f, 0.6f, 0.6f), grade, null)
+        assertTrue(dark[0] < 0.3f)
+        assertTrue(bright[0] > 0.6f)
+    }
 }

@@ -157,7 +157,9 @@ void main() {
     rgb.r *= 1.0 + uTemperature * 0.12;
     rgb.b *= 1.0 - uTemperature * 0.12;
     rgb.g *= 1.0 + uTint * 0.06;
-    rgb = (rgb - uPivot) * exp2(uContrast * 1.5) + uPivot;
+    // The pivot is an encoded mid-tone; convert it like the CPU path (VideoColorGradeEffects.grade).
+    float pivotLinear = decodeLog(uPivot, uInputProfile);
+    rgb = (rgb - pivotLinear) * exp2(uContrast * 1.5) + pivotLinear;
     // Keep the weights and scaling identical to VideoColorGradeEffects.tonalRangeGain.
     float toneY = clamp(luma(rgb), 0.0, 1.0);
     rgb *= exp2(uToneShadows * (1.0 - smoothWeight(0.0, 0.35, toneY)) + uToneHighlights * smoothWeight(0.25, 0.9, toneY));

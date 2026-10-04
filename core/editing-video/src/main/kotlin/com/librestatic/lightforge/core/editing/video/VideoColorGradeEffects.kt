@@ -132,7 +132,10 @@ object VideoColorGradeEffects {
         rgb[2] *= 1f - warmth
         rgb[1] *= 1f + settings.tint * 0.06f
         val contrastScale = 2f.pow(settings.contrast * 1.5f)
-        rgb = FloatArray(3) { (rgb[it] - settings.pivot) * contrastScale + settings.pivot }
+        // The pivot is an encoded mid-tone (0.42 is about 18% grey), so convert it to the linear
+        // working space; using it as a linear value would darken the whole picture with contrast.
+        val pivot = decodeToLinear(settings.pivot, settings.inputProfile)
+        rgb = FloatArray(3) { (rgb[it] - pivot) * contrastScale + pivot }
         if (settings.shadows != 0f || settings.highlights != 0f) {
             val gain = tonalRangeGain(luma(rgb), settings.shadows, settings.highlights)
             rgb = FloatArray(3) { rgb[it] * gain }
