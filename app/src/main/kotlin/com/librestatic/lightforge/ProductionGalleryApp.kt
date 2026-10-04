@@ -3005,7 +3005,8 @@ internal fun ProductionGalleryApp(
                         subtitle = selectedAlbum?.takeIf { it.availability != com.librestatic.lightforge.core.model.AlbumAvailability.VolumeUnavailable }?.let {
                             pluralStringResource(com.librestatic.lightforge.feature.album.R.plurals.album_item_count, it.itemCount.toInt(), it.itemCount)
                         },
-                        onBack = { handleBack() },
+                        // Leaving with a selection would strand the selection bar over Collections.
+                        onBack = { viewModel.clearSelection(); handleBack() },
                         navigationContentDescription = stringResource(R.string.nav_back),
                         actions = {
                             IconButton(
@@ -3059,7 +3060,7 @@ internal fun ProductionGalleryApp(
                                 GalleryHighlightKind.Selfies -> stringResource(R.string.highlight_selfies)
                             }
                         } ?: stringResource(R.string.nav_photos),
-                        onBack = { route = SurfaceRoute.Root },
+                        onBack = { viewModel.clearSelection(); route = SurfaceRoute.Root },
                         navigationContentDescription = stringResource(R.string.nav_back),
                     )
                     SurfaceRoute.Trash -> GalleryTopAppBar(
@@ -3878,7 +3879,6 @@ private fun ContextSelectionActions(
     com.librestatic.lightforge.core.designsystem.GallerySelectionBar(
         count = count,
         onClear = onClear,
-        countLabel = stringResource(R.string.selection_count, count),
         clearLabel = stringResource(R.string.selection_clear),
         clearTestTag = "selection-count-clear",
         actions = listOf(
@@ -3951,7 +3951,6 @@ private fun SelectionActions(
         com.librestatic.lightforge.core.designsystem.GallerySelectionBar(
             count = count,
             onClear = onClear,
-            countLabel = stringResource(R.string.selection_count, count),
             clearLabel = stringResource(R.string.selection_clear),
             clearTestTag = "selection-count-clear",
             actions = listOfNotNull(
