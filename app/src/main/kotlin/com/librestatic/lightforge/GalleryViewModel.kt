@@ -6262,7 +6262,19 @@ class GalleryViewModel @Inject constructor(
                     }
                 }
             }
+        }.onSuccess {
+            if (mutation is PendingWriteMutation.DateTaken) showRepairedDateInViewer(mutation.key, mutation.dateTakenMillis)
         }.onFailure { mutableShareError.emit(getApplication<Application>().getString(R.string.media_change_failed)) }
+    }
+
+    /** The viewer header reads the open item's snapshot, which the library sync replaces only later. */
+    private fun showRepairedDateInViewer(key: MediaKey, dateTakenMillis: Long) {
+        mutableCurrentMedia.value?.takeIf { it.key == key }?.let {
+            mutableCurrentMedia.value = it.copy(timelineSortMillis = dateTakenMillis)
+        }
+        mutableViewerState.value = mutableViewerState.value.let { viewer ->
+            viewer.copy(items = viewer.items.map { if (it.key == key) it.copy(timelineSortMillis = dateTakenMillis) else it })
+        }
     }
 
     fun mediaUri(media: TimelineMedia): Uri = media.uri()
