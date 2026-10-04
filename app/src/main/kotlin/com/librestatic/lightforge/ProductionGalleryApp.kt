@@ -2829,7 +2829,10 @@ internal fun ProductionGalleryApp(
             }
             actionState?.let { state ->
                 if (state.phase is MediaActionPhase.Cancelled) {
-                    GalleryExpressiveButton(onClick = viewModel::retrySystemAction) {
+                    GalleryExpressiveButton(
+                        onClick = viewModel::retrySystemAction,
+                        modifier = Modifier.then(controlsTopInset).padding(horizontal = 16.dp, vertical = 8.dp),
+                    ) {
                         Text(stringResource(R.string.action_retry))
                     }
                 }
