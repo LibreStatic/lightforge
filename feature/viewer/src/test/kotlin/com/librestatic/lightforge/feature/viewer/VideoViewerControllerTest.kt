@@ -20,6 +20,23 @@ class VideoViewerControllerTest {
     }
 
     @Test
+    fun effectsChangedBeforeReadyRedrawTheFirstFrameOnceReady() {
+        val engine = FakeVideoEngine()
+        val controller = VideoViewerController(engine)
+        engine.position = 0L
+
+        controller.setVideoEffects(emptyList())
+        assertEquals(null, engine.lastSeek)
+
+        engine.listener?.onReady(10_000L, false)
+        assertEquals(1L, engine.lastSeek)
+
+        engine.lastSeek = null
+        engine.listener?.onReady(10_000L, false)
+        assertEquals(null, engine.lastSeek)
+    }
+
+    @Test
     fun refreshingEffectsAtEndStaysOnTheLastFrame() {
         val engine = FakeVideoEngine()
         val controller = VideoViewerController(engine)

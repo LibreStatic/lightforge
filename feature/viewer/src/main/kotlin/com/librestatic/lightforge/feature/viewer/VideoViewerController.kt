@@ -120,6 +120,7 @@ class VideoViewerController internal constructor(
     private var recoveries = 0
     private var videoEffects: List<Effect>? = null
     private var refreshAnchorMillis: Long? = null
+    private var refreshPending = false
 
     init {
         engine.setRepeatEnabled(looping)
@@ -129,6 +130,10 @@ class VideoViewerController internal constructor(
                 playbackIsPlaying = isPlaying
                 playbackDurationMillis = durationMillis.coerceAtLeast(0)
                 updateReady(durationMillis, isPlaying)
+                if (refreshPending) {
+                    refreshPending = false
+                    refreshVideoFrame()
+                }
             }
             override fun onPlayingChanged(isPlaying: Boolean, durationMillis: Long) {
                 playbackIsPlaying = isPlaying
@@ -171,6 +176,7 @@ class VideoViewerController internal constructor(
         activePoster = poster
         muted = startMuted
         playbackReady = false
+        refreshPending = false
         playbackIsPlaying = false
         playbackDurationMillis = 0
         playbackAspectRatio = null
@@ -297,7 +303,13 @@ class VideoViewerController internal constructor(
     }
     @MainThread
     fun refreshVideoFrame() {
-        if (released || !playbackReady || playbackIsPlaying) return
+        if (released || playbackIsPlaying) return
+        if (!playbackReady) {
+            // The first frame can be drawn before the player reports ready, with whatever
+            // effects were current then. Redraw it once ready so a late effect change shows.
+            refreshPending = true
+            return
+        }
         // ExoPlayer ignores a seek to the current position, so a paused frame is re-rendered by
         // seeking to an adjacent millisecond. Stepping back from wherever playback stands made
         // the position drift a millisecond per edit and the picture jump a frame whenever it
@@ -330,6 +342,7 @@ class VideoViewerController internal constructor(
         activeUri = null
         activePoster = null
         playbackReady = false
+        refreshPending = false
         playbackIsPlaying = false
         playbackDurationMillis = 0
         playbackAspectRatio = null
