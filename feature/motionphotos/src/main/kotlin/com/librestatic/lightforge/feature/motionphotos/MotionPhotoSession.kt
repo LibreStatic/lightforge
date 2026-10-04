@@ -38,6 +38,19 @@ data class MotionPhotoInput(
 
 internal const val MaximumMotionDurationUs = 60_000_000L
 
+/**
+ * Display-oriented target size for a frame: never larger than the video itself (no upscaling),
+ * and at most [maxDimension] on the long side. Unknown metadata falls back to the bound.
+ */
+internal fun scaledFrameSize(width: Int?, height: Int?, rotation: Int, maxDimension: Int): Pair<Int, Int> {
+    if (width == null || height == null || width <= 0 || height <= 0) return maxDimension to maxDimension
+    val quarter = rotation / 90 % 2 != 0
+    val w = if (quarter) height else width
+    val h = if (quarter) width else height
+    val scale = minOf(1f, maxDimension.toFloat() / maxOf(w, h))
+    return (w * scale).toInt().coerceAtLeast(1) to (h * scale).toInt().coerceAtLeast(1)
+}
+
 internal fun motionPhotoInputIdentity(uri: String, modified: Long?, added: Long?): String = "$uri@$modified/$added"
 
 internal fun requireMotionPhotoIdentity(savedIdentity: String, identity: String) {
@@ -82,11 +95,17 @@ private constructor(
                 val retriever = MediaMetadataRetriever()
                 try {
                     retriever.setDataSource(clip.absolutePath)
+                    val (width, height) = scaledFrameSize(
+                        retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull(),
+                        retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull(),
+                        retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0,
+                        maxDimension,
+                    )
                     retriever.getScaledFrameAtTime(
                         timeUs,
                         MediaMetadataRetriever.OPTION_CLOSEST,
-                        maxDimension,
-                        maxDimension,
+                        width,
+                        height,
                     ) ?: error("Frame is not decodable")
                 } finally {
                     retriever.release()
