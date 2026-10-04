@@ -275,7 +275,9 @@ internal fun PageThumbnail(page: PdfPage, vm: PdfStudioViewModel, modifier: Modi
         if (page.source != null) {
             PdfPageBitmap(page, vm, 192, Modifier.fillMaxSize())
         } else
-            page.images.forEach { i ->
+            // Paint in stacking order (PdfLayers.order), like the canvas and the exported PDF —
+            // not in list order, which ignores Layer forward/backward/front/back changes.
+            PdfLayers.order(page).filterIsInstance<PdfLayers.Element.Img>().map { it.image }.forEach { i ->
                 PdfBitmap(
                     vm.repository.file(i.asset),
                     i.rotation,
