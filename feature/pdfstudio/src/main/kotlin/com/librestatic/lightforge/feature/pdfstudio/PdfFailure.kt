@@ -22,6 +22,8 @@ enum class PdfFailure(val message: Int) {
     DestinationChanged(R.string.pdf_failure_destination),
     ImportTargetMissing(R.string.pdf_failure_import_target),
     InvalidInput(R.string.pdf_failure_input),
+    /** An imported project file that is not a PDF Studio archive (corrupt, truncated, wrong type). */
+    InvalidProjectFile(R.string.pdf_failure_project_file),
     /** A text element contains a character the bundled fonts cannot render, or that needs shaping
      * PDFBox doesn't perform (Phase G1a's [PdfTextSupport]). */
     UnsupportedGlyph(R.string.pdf_failure_unsupported_glyph),

@@ -362,4 +362,5 @@
         <item quantity="other">%1$d Fotos</item>
     </plurals>
     <string name="pdf_library_no_results">Keine Projekte entsprechen deiner Suche</string>
+    <string name="pdf_failure_project_file">Das ist keine gültige Projektdatei. Wähle eine aus PDF Studio exportierte Projektdatei.</string>
 </resources>

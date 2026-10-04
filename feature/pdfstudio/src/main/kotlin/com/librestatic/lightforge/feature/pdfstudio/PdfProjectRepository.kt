@@ -790,6 +790,14 @@ class PdfProjectRepository(
             currentCoroutineContext().ensureActive()
             withContext(NonCancellable) { saveUnlocked(p, requestId = requestId) }
             p
+        } catch (e: IllegalArgumentException) {
+            // Malformed or non-archive input (failed require/parse/decode): a clear message
+            // instead of the generic "operation failed".
+            throw PdfOperationFailure(PdfFailure.InvalidProjectFile)
+        } catch (e: JSONException) {
+            throw PdfOperationFailure(PdfFailure.InvalidProjectFile)
+        } catch (e: ZipException) {
+            throw PdfOperationFailure(PdfFailure.InvalidProjectFile)
         } finally {
             temp.deleteRecursively()
         }
