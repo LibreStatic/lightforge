@@ -182,6 +182,13 @@ internal fun videoOutputPreviewBoxes(
     }
     val plan = state.outputEstimate()?.plan
     val frameAspect = plan?.let { it.width.toFloat() / it.height } ?: customAspect ?: forced?.ratio ?: sourceAspect
+    if (forced?.mode == VideoAspectMode.Pad && custom != null) {
+        // Two letterboxes: the video sits in the forced-ratio canvas, which sits in the custom frame.
+        // Drawing the video straight into the custom frame would magnify it.
+        val frame = videoPreviewBoxes(containerWidth, height, forced.ratio, frameAspect, crop = false)
+        val (vw, vh) = fit(sourceAspect, frame.videoWidth, frame.videoHeight)
+        return VideoPreviewBoxes(vw, vh, frame.frameWidth, frame.frameHeight)
+    }
     val contentAspect = if (forced?.mode == VideoAspectMode.Stretch) forced.ratio else sourceAspect
     return videoPreviewBoxes(containerWidth, height, contentAspect, frameAspect, crop = false)
 }

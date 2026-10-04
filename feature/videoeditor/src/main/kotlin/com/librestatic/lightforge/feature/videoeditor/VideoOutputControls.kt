@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -216,25 +217,38 @@ internal fun VideoOutputControls(
         SectionTitle(R.string.video_editor_output_aspect)
         val forced = settings.aspect as? VideoAspectOverride.Forced
         val mode = forced?.mode ?: VideoAspectMode.Stretch
-        val customAspect = forced != null && (forced.width to forced.height) !in VideoAspectOverride.Common
+        // A typed ratio can equal a common one (4 x 3): keep the Custom chip and its fields while the
+        // user is editing instead of switching to the common chip and dropping the fields.
+        var customAspectPicked by rememberSaveable { mutableStateOf(false) }
+        val customAspect = forced != null &&
+            (customAspectPicked || (forced.width to forced.height) !in VideoAspectOverride.Common)
         ChipRow {
             OutputChip(
                 selected = forced == null,
                 label = stringResource(R.string.video_editor_output_original),
-                onClick = { onChange(settings.copy(aspect = VideoAspectOverride.Original)) },
+                onClick = {
+                    customAspectPicked = false
+                    onChange(settings.copy(aspect = VideoAspectOverride.Original))
+                },
             )
             VideoAspectOverride.Common.forEach { (w, h) ->
                 OutputChip(
                     selected = forced != null && forced.width == w && forced.height == h,
                     label = "$w:$h",
-                    onClick = { onChange(settings.copy(aspect = VideoAspectOverride.Forced(w, h, mode))) },
+                    onClick = {
+                        customAspectPicked = false
+                        onChange(settings.copy(aspect = VideoAspectOverride.Forced(w, h, mode)))
+                    },
                     testTag = "video-output-aspect-${w}x$h",
                 )
             }
             OutputChip(
                 selected = customAspect,
                 label = stringResource(R.string.video_editor_output_custom),
-                onClick = { if (!customAspect) onChange(settings.copy(aspect = VideoAspectOverride.Forced(3, 2, mode))) },
+                onClick = {
+                    customAspectPicked = true
+                    if (!customAspect) onChange(settings.copy(aspect = VideoAspectOverride.Forced(3, 2, mode)))
+                },
             )
         }
         if (forced != null) {

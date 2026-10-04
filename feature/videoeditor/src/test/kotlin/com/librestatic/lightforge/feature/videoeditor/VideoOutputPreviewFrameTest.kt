@@ -105,6 +105,23 @@ class VideoOutputPreviewFrameTest {
     }
 
     @Test
+    fun padWithCustomSizeNestsTheVideoInTheForcedCanvas() {
+        // 960x1088 padded to 16:9 (1934x1088) then letterboxed into a square 1080x1080 canvas.
+        val state = plain.copy(
+            output = VideoOutputSettings(
+                aspect = stretch169.copy(mode = VideoAspectMode.Pad),
+                resolution = VideoOutputResolution.Custom(1080, 1080),
+            ),
+        )
+        val boxes = requireNotNull(videoOutputPreviewBoxes(state, null, 300f, 300f))
+        assertEquals(300f, boxes.frameWidth, 0.5f)
+        assertEquals(300f, boxes.frameHeight, 0.5f)
+        // The 16:9 canvas is 300x168.75 inside the frame, and the video fits its height.
+        assertEquals(168.75f, boxes.videoHeight, 0.5f)
+        assertEquals(168.75f * 960f / 1088f, boxes.videoWidth, 0.5f)
+    }
+
+    @Test
     fun formatsAndParsing() {
         assertEquals("0.98", formatMbps(979_500).replace(',', '.'))
         assertEquals("12.5", formatMbps(12_500_000).replace(',', '.'))
