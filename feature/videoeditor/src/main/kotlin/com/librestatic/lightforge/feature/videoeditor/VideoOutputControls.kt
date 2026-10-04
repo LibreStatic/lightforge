@@ -190,8 +190,11 @@ internal fun VideoOutputControls(
         if (anyLargerSize) Hint(stringResource(R.string.video_editor_output_no_upscale))
 
         SectionTitle(R.string.video_editor_output_frame_rate)
+        // The cap applies after speed (output rate = source rate x speed), and probed rates are
+        // measured (59.66 for a 60 fps clip), so allow 1 % of slack like the nominal rate.
         val sourceFps = source?.frameRate?.takeIf { it > 0f }
-        val anyFasterRate = sourceFps != null && VideoOutputFrameRate.Common.any { it.fps > sourceFps + 0.01f }
+            ?.let { it * if (state.slowMotionSegments.isEmpty()) state.speed else 1f }
+        val anyFasterRate = sourceFps != null && VideoOutputFrameRate.Common.any { it.fps > sourceFps * 1.01f + 0.01f }
         ChipRow {
             OutputChip(
                 selected = settings.frameRate == VideoOutputFrameRate.Original,
@@ -199,7 +202,7 @@ internal fun VideoOutputControls(
                 onClick = { onChange(settings.copy(frameRate = VideoOutputFrameRate.Original)) },
             )
             VideoOutputFrameRate.Common.forEach { option ->
-                val reachable = sourceFps == null || option.fps <= sourceFps + 0.01f
+                val reachable = sourceFps == null || option.fps <= sourceFps * 1.01f + 0.01f
                 OutputChip(
                     selected = settings.frameRate == option,
                     enabled = reachable,
