@@ -15,7 +15,8 @@ BPM = 122
 BEAT = 60 / BPM
 S16 = BEAT / 4
 BAR = 4 * BEAT
-DUR = 57.0
+LO = 27.8             # seven feature scenes inserted between PDF Studio and the licenses
+DUR = 57.0 + LO
 N = int(SR * DUR)
 rng = np.random.default_rng(11)
 
@@ -24,8 +25,9 @@ BUS = {k: np.zeros((N, 2)) for k in ('drums', 'bass', 'music', 'fx')}
 # timeline (seconds), aligned to the scenes
 DROP = 3.0               # phone lands
 PRIVATE = (18.7, 23.0)   # half-time, filtered
-BREAK = (44.6, 48.5)     # licenses: breakdown, then rebuild
-END = 52.6               # logo outro impact
+BREAK = (44.6 + LO, 48.5 + LO)     # licenses: breakdown, then rebuild
+LIFT = 44.3          # new feature run starts: second drop
+END = 52.6 + LO       # logo outro impact
 
 
 def add(bus, sig, t0, gain=1.0, pan=0.0):
@@ -303,6 +305,8 @@ while t < END - 1e-6:
     t = next_t
     bar += 1
 
+add('fx', riser(BAR), LIFT - BAR, 0.8)
+add('drums', crash(1.0), LIFT, 1, -0.2)
 add('fx', downlifter(2.0), PRIVATE[0], 0.8)
 add('fx', riser(2 * BAR), PRIVATE[1] - 2 * BAR, 0.7)
 add('fx', downlifter(2.0), BREAK[0], 0.8)

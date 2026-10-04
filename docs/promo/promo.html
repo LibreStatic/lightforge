@@ -106,6 +106,51 @@ svg.ic{width:24px;height:24px;fill:currentColor}
 #word .tag{font-size:34px;color:#CAC4D0;margin-top:10px}
 #pills{position:absolute;left:0;right:0;top:880px;display:flex;justify-content:center;gap:18px}
 #pills span{height:52px;padding:0 26px;border-radius:26px;display:inline-flex;align-items:center;font-size:22px;font-weight:700;background:#4A4458;color:#E8DEF8}
+/* poppy canvas layer: color sweeps between scenes + drifting Material Expressive shapes */
+#wipe{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+#wipe .wp{position:absolute;top:-10%;bottom:-10%;left:0;width:70%;opacity:.34;display:none}
+#morphs{position:absolute;inset:0;pointer-events:none}
+#morphs i{position:absolute;display:block;will-change:transform}
+/* Material components (app UI: matching container / on-container pairs) */
+.fab{position:absolute;display:flex;align-items:center;justify-content:center;gap:12px;height:56px;padding:0 20px;border-radius:20px;background:#4F378B;color:#EADDFF;font-size:16px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.4);z-index:26}
+.fab.sm{width:56px;padding:0}
+.seg{position:absolute;display:flex;height:40px;border-radius:20px;box-shadow:0 0 0 1px #938F99 inset;overflow:hidden}
+.seg span{flex:1;padding:0 14px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:14px;font-weight:700;color:#CAC4D0;white-space:nowrap}
+.seg span.on{background:#4A4458;color:#E8DEF8}
+.sheet{position:absolute;left:0;right:0;bottom:0;height:340px;border-radius:28px 28px 0 0;background:#2B2930;color:#E6E0E9;padding:12px 24px;z-index:35;box-shadow:0 -10px 40px rgba(0,0,0,.5)}
+.handle{width:32px;height:4px;border-radius:2px;background:#938F99;margin:0 auto 18px}
+.drow{display:flex;align-items:center;gap:16px;margin-top:14px}
+.drow .di{width:44px;height:44px;border-radius:22px;background:#4A4458;color:#E8DEF8;display:flex;align-items:center;justify-content:center}
+.drow .dt{font-size:16px;font-weight:700;color:#E6E0E9}
+.drow .ds{font-size:14px;color:#CAC4D0;margin-top:2px}
+.live{position:absolute;left:14px;right:14px;top:46px;height:64px;border-radius:32px;background:#4F378B;color:#EADDFF;display:flex;align-items:center;gap:12px;padding:0 20px 0 12px;z-index:50;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.live .li{width:40px;height:40px;border-radius:20px;background:#D0BCFF;color:#381E72;display:flex;align-items:center;justify-content:center;flex:none}
+.live .lt{font-size:15px;font-weight:700}
+.live .lb{height:4px;border-radius:2px;background:rgba(234,221,255,.3);margin-top:7px;position:relative;overflow:hidden}
+.live .lb i{position:absolute;left:0;top:0;bottom:0;background:#D0BCFF;border-radius:2px}
+.tbtn{height:40px;padding:0 20px;border-radius:20px;display:inline-flex;align-items:center;font-size:15px;font-weight:700;background:#D0BCFF;color:#381E72}
+.tonal{height:40px;padding:0 16px;border-radius:20px;display:inline-flex;align-items:center;font-size:14px;font-weight:700;background:#4A4458;color:#E8DEF8}
+.sw{width:52px;height:32px;border-radius:16px;position:relative;display:inline-block;flex:none}
+.sw b{position:absolute;top:6px;width:20px;height:20px;border-radius:10px}
+.vchip{position:absolute;z-index:12}
+/* tablet (canvas): palette driven by CSS variables so Material You color can be swapped live */
+#tablet{position:absolute;left:1010px;top:150px;width:800px;height:520px;border-radius:40px;padding:10px;background:linear-gradient(145deg,#2a2731,#141218);box-shadow:0 50px 140px rgba(0,0,0,.6),0 0 0 2px #3a3642 inset;display:none}
+#tabIn{position:relative;width:780px;height:500px;border-radius:30px;overflow:hidden;background:var(--bg);color:var(--on)}
+#tabIn .rail{position:absolute;left:0;top:0;bottom:0;width:76px;background:var(--bg);display:flex;flex-direction:column;align-items:center;gap:14px;padding-top:18px}
+#tabIn .rail .ri{width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;color:var(--on)}
+#tabIn .rail .ri.on{background:var(--sec);color:var(--onSec);border-radius:28px}
+#tabIn .tbar{position:absolute;left:76px;top:14px;height:52px;display:flex;align-items:center;gap:14px;padding:0 18px}
+#tabIn .tbar h3{font-size:26px;font-weight:700}
+#tabIn .srch{height:48px;border-radius:24px;background:var(--sc);color:var(--on);display:flex;align-items:center;gap:10px;padding:0 18px;font-size:16px;width:240px}
+#tabIn .tfab{position:absolute;width:64px;height:64px;border-radius:20px;background:var(--pc);color:var(--onPc);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+#tabIn .pane{position:absolute;top:70px;bottom:14px;right:14px;width:290px;border-radius:28px;background:var(--sc);color:var(--on);overflow:hidden}
+#tabIn .pane .pt{padding:14px 18px}
+#tabIn .pane .pn{font-size:20px;font-weight:700}
+#tabIn .pane .ps{font-size:14px;margin-top:2px;opacity:.78}
+#tabIn .pchip{display:inline-flex;height:32px;padding:0 14px;border-radius:16px;align-items:center;font-size:13px;font-weight:700;background:var(--pc);color:var(--onPc);margin:0 6px 6px 0}
+#widget{position:absolute;display:none;width:300px;border-radius:32px;padding:16px;background:rgba(43,41,48,1);color:#E6E0E9;box-shadow:0 24px 60px rgba(0,0,0,.5)}
+#widget .wg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px}
+#widget .wg div{position:relative;height:96px;border-radius:14px;overflow:hidden}
 /* portrait (Reels, 1080x1920): ?portrait. Text stays out of the top ~250px and bottom ~420px
    that Instagram covers with its own UI. */
 body.portrait,body.portrait #stage{width:1080px;height:1920px}
@@ -122,11 +167,15 @@ html:has(body.portrait){width:1080px;height:1920px}
 .portrait #word .name{font-size:92px;letter-spacing:-3px}
 .portrait #word .tag{font-size:32px}
 .portrait #pills{top:1180px;flex-wrap:wrap;padding:0 120px}
+.portrait #tablet{left:140px;top:790px}
+.portrait #wipe .wp{width:130%}
 </style>
 </head>
 <body>
 <div id="stage">
   <div class="blob" id="b0"></div><div class="blob" id="b1"></div><div class="blob" id="b2"></div><div class="blob" id="b3"></div>
+  <div id="morphs"></div>
+  <div id="wipe"><div class="wp"></div></div>
   <div id="grain"></div>
   <div id="cap"></div>
   <div id="floats"></div>
@@ -141,18 +190,28 @@ html:has(body.portrait){width:1080px;height:1920px}
     <div class="scr" id="sEdit"></div>
     <div class="scr" id="sGif"></div>
     <div class="scr" id="sPdf"></div>
+    <div class="scr" id="sView"></div>
+    <div class="scr" id="sVideo"></div>
+    <div class="scr" id="sMem"></div>
+    <div class="scr" id="sClean"></div>
+    <div class="scr" id="sRaw"></div>
+    <div class="scr" id="sShare"></div>
     <div class="nav" id="nav"></div>
     <div id="touches"></div>
   </div></div></div>
+  <div id="tablet"><div id="tabIn"></div></div>
+  <div id="widget"></div>
   <div id="logo"></div>
   <div id="word"><div class="name">Lightforge Studio</div><div class="tag" id="tag"></div></div>
   <div id="pills"><span>Offline-first</span><span>Open source</span><span>No cloud</span><span>Apache-2.0</span></div>
 </div>
 <script>
-const DURATION = 57;
+const LO = 27.8; // licenses/outro shift: seven new scenes sit between PDF Studio and the licenses
+const DURATION = 57 + LO;
+const PO = [66.4, 67.2]; // phone exits as the tablet scene arrives
 const PORTRAIT = location.search.includes('portrait');
 if (PORTRAIT) document.body.classList.add('portrait');
-const SHIFT = 24.1; // outro logo reuses the intro-relative timings, shifted
+const SHIFT = 24.1 + LO; // outro logo reuses the intro-relative timings, shifted
 const W = 400, H = 866;
 const $ = id => document.getElementById(id);
 const el = (tag, cls, html, parent) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; if (parent) parent.appendChild(e); return e; };
@@ -181,6 +240,23 @@ const ICON = {
   shield: 'M12 1 3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z',
   face: 'M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z',
   sparkle: 'M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z',
+  favorite: 'M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z',
+  share: 'M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z',
+  trash: 'M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z',
+  play: 'M8 5v14l11-7z',
+  edit: 'M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z',
+  info: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z',
+  add: 'M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z',
+  back: 'M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z',
+  cloud: 'M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z',
+  wifi: 'M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z',
+  movie: 'M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z',
+  copy: 'M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z',
+  tablet: 'M21 4H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h18c1.1 0 1.99-.9 1.99-2L23 6c0-1.1-.9-2-2-2zm-2 14H5V6h14v12z',
+  star: 'M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z',
+  sync: 'M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z',
+  fix: 'M7.5 5.6L10 7 8.6 4.5 10 2 7.5 3.4 5 2l1.4 2.5L5 7zm12 9.8L17 14l1.4 2.5L17 19l2.5-1.4L22 19l-1.4-2.5L22 14zM22 2l-2.5 1.4L17 2l1.4 2.5L17 7l2.5-1.4L22 7l-1.4-2.5zm-7.63 5.29a.996.996 0 0 0-1.41 0L1.29 18.96a.996.996 0 0 0 0 1.41l2.34 2.34c.39.39 1.02.39 1.41 0L16.7 11.05a.996.996 0 0 0 0-1.41l-2.33-2.35zm-1.03 5.49-2.12-2.12 2.44-2.44 2.12 2.12-2.44 2.44z',
+  home: 'M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z',
   more: 'M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z',
 };
 const ic = (n, size = 24) => `<svg class="ic" viewBox="0 0 24 24" style="width:${size}px;height:${size}px"><path d="${ICON[n]}"/></svg>`;
@@ -228,7 +304,14 @@ const CAPS = [
   { a: 27.6, b: 31.9, k: 'Photo editor', h: 'Edit without<br>regrets.', s: 'Filters, auto-enhance, crop and straighten. Every edit is saved as a copy.' },
   { a: 32.1, b: 37.3, k: 'GIF maker', h: 'Loops in<br>seconds.', s: 'Pick 2 to 60 photos, reorder frames, set the frame rate and export a GIF locally.' },
   { a: 37.5, b: 43.8, k: 'PDF Studio', h: 'A PDF studio<br>in your pocket.', s: 'Paper sizes, grids, margins and print-true layouts. Exports queue up while you keep editing.' },
-  { a: 44.8, b: 52.2, k: 'Open source', h: 'Open all the<br>way down.', s: 'Lightforge Studio is Apache-2.0. Every library, model, font and map it ships is credited in the app.' },
+  { a: 44.4, b: 48.2, k: 'Viewer', h: 'Zoom in.<br>Keep going.', s: 'Huge images tile smoothly, GIF and WebP play, and motion photos come alive.' },
+  { a: 48.0, b: 52.0, k: 'Video editor', h: 'Cut. Grade.<br>Export in HDR.', s: 'Trim, change speed, add music, grade LOG footage and import your own LUTs.' },
+  { a: 51.8, b: 55.6, k: 'Memories', h: 'Memories that<br>make themselves.', s: 'Grouped by time and place, and turned into short videos in a tap.' },
+  { a: 55.4, b: 59.2, k: 'Cleanup', h: 'Free space,<br>keep the best.', s: 'Exact duplicates, similar shots and smart suggestions, with a trash you can undo.' },
+  { a: 59.0, b: 63.2, k: 'RAW and magic', h: 'Develop RAW.<br>Erase. Cut out.', s: 'Highlight recovery and lens correction, plus experimental on-device object eraser and subject cut-outs.' },
+  { a: 63.0, b: 67.0, k: 'Share and backup', h: 'Yours to move.<br>Never to lose.', s: 'Encrypted transfers to nearby Android devices, folder mirroring and backup to your own server.' },
+  { a: 66.8, b: 72.0, k: 'Everywhere', h: 'Phone. Fold.<br>Tablet.', s: 'Adaptive layouts, a home-screen widget, and light, dark or Material You color.' },
+  { a: 44.8 + LO, b: 52.2 + LO, k: 'Open source', h: 'Open all the<br>way down.', s: 'Lightforge Studio is Apache-2.0. Every library, model, font and map it ships is credited in the app.' },
 ];
 CAPS.forEach(c => {
   const blk = el('div', 'capblk', null, $('cap'));
@@ -246,6 +329,12 @@ const FLOATS = [
   { a: 28.6, b: 31.8, x: 890, y: 700, i: 'sparkle', t: 'Enhance · Dynamic', s: 'Automatic, on-device' },
   { a: 33.4, b: 37.2, x: 880, y: 250, i: 'gif', t: '512 × 512 · 256 colors', s: 'Up to 60 frames' },
   { a: 38.8, b: 43.7, x: 880, y: 700, i: 'pdf', t: 'Print-true sizes', s: 'A4, Letter or custom, in mm or in' },
+  { a: 45.4, b: 48.0, x: 880, y: 700, i: 'photo', t: 'Tiled zoom', s: 'Large images stay sharp' },
+  { a: 49.2, b: 51.8, x: 880, y: 250, i: 'movie', t: 'LOG · LUT · HDR', s: 'Grade and export' },
+  { a: 53.2, b: 55.4, x: 880, y: 700, i: 'place', t: 'Time + place', s: 'Grouped for you' },
+  { a: 56.6, b: 59.0, x: 880, y: 250, i: 'shield', t: 'Undo anytime', s: 'Trash keeps it safe' },
+  { a: 60.6, b: 63.0, x: 880, y: 700, i: 'fix', t: 'Experimental', s: 'Runs on your phone' },
+  { a: 64.4, b: 66.8, x: 880, y: 250, i: 'lock', t: 'Encrypted', s: 'Local network transfer' },
 ];
 FLOATS.forEach(f => { f.el = el('div', 'float', `<div class="fi">${ic(f.i, 26)}</div><div><div class="ft">${f.t}</div><div class="fs">${f.s}</div></div>`, $('floats')); });
 
@@ -404,6 +493,156 @@ const paddEl = el('div', 'pthumb add', '+', sPdf); css(paddEl, { left: 20 + 3 * 
 const pdfBtn = el('div', 'btn', `${ic('pdf', 22)} Export PDF`, sPdf); css(pdfBtn, { left: '250px', right: '16px', top: '706px', height: '52px', fontSize: '15px' });
 const pdfSnack = el('div', 'snack', `<span id="pdfSnackT">Export queued. You can keep editing.</span><b id="pdfSnackB"></b>`, sPdf);
 
+/* ---------- Material Expressive helpers ---------- */
+const shapePoly = (n, amp, rot = 0, pts = 56) => { const a = []; for (let i = 0; i < pts; i++) { const th = i / pts * Math.PI * 2, r = (1 + amp * Math.cos(n * th + rot)) / (1 + amp); a.push(`${(50 + 50 * r * Math.cos(th)).toFixed(1)}% ${(50 + 50 * r * Math.sin(th)).toFixed(1)}%`); } return `polygon(${a.join(',')})`; };
+function wavy(parent, left, top, width) {
+  const d = el('div', 'abs', null, parent); css(d, { left: left + 'px', top: top + 'px', width: width + 'px', height: '24px' });
+  let p = ''; for (let x = 0; x <= width; x += 2) p += (x ? 'L' : 'M') + x + ' ' + (12 + 3.5 * Math.sin(x / 8)).toFixed(1) + ' ';
+  d.innerHTML = `<div class="abs" style="left:0;right:0;top:11px;height:3px;border-radius:2px;background:#4A4458"></div><div class="wv abs" style="left:0;top:0;height:24px;overflow:hidden;width:0"><svg width="${width}" height="24" style="display:block"><path d="${p}" fill="none" stroke="#D0BCFF" stroke-width="4" stroke-linecap="round"/></svg></div><div class="kn abs" style="top:2px;width:6px;height:20px;border-radius:3px;background:#D0BCFF"></div>`;
+  const wv = d.querySelector('.wv'), kn = d.querySelector('.kn');
+  return { el: d, set: k => { wv.style.width = k * width + 'px'; kn.style.left = k * width - 3 + 'px'; } };
+}
+const switchOn = (sw, on) => { css(sw, { background: on ? '#D0BCFF' : '#36343B', boxShadow: on ? 'none' : '0 0 0 2px #938F99 inset' }); css(sw.firstChild, { left: on ? '26px' : '6px', background: on ? '#381E72' : '#938F99' }); };
+const mkSwitch = parent => { const s = el('span', 'sw', '<b></b>', parent); switchOn(s, false); return s; };
+
+/* background: drifting expressive shapes + color sweep */
+const MORPH = [[9, .07, 120, '#FFC247'], [6, .15, 180, '#F2607A'], [4, .22, 150, '#7B61F0'], [8, .1, 100, '#C45ED8'], [5, .18, 130, '#FF8A4C']];
+const morphEls = MORPH.map(([n, a, s, c]) => { const e = el('i', null, null, $('morphs')); css(e, { width: s + 'px', height: s + 'px', background: c, opacity: .16 }); return e; });
+const MPOS = [[90, 80], [1700, 120], [1500, 880], [120, 900], [980, 40]];
+const WIPES = [9.2, 14.2, 18.7, 23.1, 27.5, 32.0, 37.4, 44.4, 48.0, 51.8, 55.4, 59.0, 63.0, 66.8, 72.4, 44.8 + LO, 52.4 + LO];
+const WCOL = ['#FFC247', '#F2607A', '#7B61F0', '#FF8A4C', '#C45ED8'];
+
+/* ---------- screen: viewer ---------- */
+const sView = $('sView'); sView.style.background = '#000';
+const vZoom = el('div', 'abs', null, sView); css(vZoom, { inset: 0, overflow: 'hidden' });
+const vImg = tile(vZoom, 1301, 'sun'); css(vImg, { left: 0, top: 0, width: '400px', height: '866px' });
+const vGrid = el('div', 'abs', null, vImg); css(vGrid, { inset: 0, opacity: 0, background: 'repeating-linear-gradient(90deg,rgba(255,255,255,.35) 0 1px,transparent 1px 100px),repeating-linear-gradient(0deg,rgba(255,255,255,.35) 0 1px,transparent 1px 100px)' });
+const vScrim = el('div', 'abs', null, sView); css(vScrim, { left: 0, right: 0, top: 0, height: '150px', background: 'linear-gradient(rgba(0,0,0,.6),transparent)', zIndex: 10 });
+const vBar = el('div', 'topbar', `<div class="iconbtn" style="color:#fff">${ic('back')}</div><h2></h2><div class="iconbtn" style="color:#fff">${ic('more')}</div>`, sView); vBar.style.zIndex = 11;
+const vMotion = el('div', 'badge vchip', `${ic('play', 16)}<span id="vMT">Motion photo</span>`, sView); css(vMotion, { left: '16px', top: '112px' });
+const vBig = el('div', 'badge vchip', `${ic('photo', 16)}48 MP · tiled`, sView); css(vBig, { right: '16px', top: '112px' });
+const vTb = el('div', 'toolbar', ['favorite', 'share', 'edit', 'trash'].map((n, i) => `<div class="tb" ${i === 0 ? 'id="vFav"' : ''}>${ic(n)}</div>`).join(''), sView);
+const vFav = vTb.querySelector('#vFav');
+const vSheet = el('div', 'sheet', `<div class="handle"></div><div style="font-size:22px;font-weight:700">Details</div>
+  <div class="drow"><div class="di">${ic('photo')}</div><div><div class="dt">IMG_4821.HEIC</div><div class="ds">12.4 MP · 4.1 MB</div></div></div>
+  <div class="drow"><div class="di">${ic('info')}</div><div><div class="dt">Pixel 9 Pro</div><div class="ds">f/1.7 · 1/250 s · ISO 50</div></div></div>
+  <div class="drow"><div class="di">${ic('place')}</div><div><div class="dt">Lisbon, Portugal</div><div class="ds">Offline place lookup</div></div></div>`, sView);
+
+/* ---------- screen: video editor ---------- */
+const sVideo = $('sVideo');
+el('div', 'topbar', `<h2>Video editor</h2><span class="tbtn" id="vdExp">Export</span>`, sVideo);
+const vdPrev = el('div', 'abs', null, sVideo); css(vdPrev, { left: '16px', top: '112px', width: '368px', height: '290px', borderRadius: '24px', overflow: 'hidden' });
+const vdImg = tile(vdPrev, 1311, 'sea'); css(vdImg, { left: 0, top: 0, width: '368px', height: '290px' });
+el('div', 'badge', 'HDR', vdPrev).style.cssText += 'right:12px;top:12px';
+el('div', 'abs', `<div style="width:60px;height:60px;border-radius:30px;background:#4F378B;color:#EADDFF;display:flex;align-items:center;justify-content:center;opacity:.92">${ic('play', 32)}</div>`, vdPrev).style.cssText += 'left:154px;top:115px';
+const vdTime = el('div', 'abs', '0:08 / 0:24', vdPrev); css(vdTime, { left: '12px', bottom: '12px', height: '28px', padding: '0 12px', borderRadius: '14px', background: '#2B2930', color: '#E6E0E9', fontSize: '13px', fontWeight: 700, display: 'flex', alignItems: 'center' });
+const vdTl = el('div', 'abs', null, sVideo); css(vdTl, { left: '16px', top: '418px', width: '368px', height: '76px', borderRadius: '16px', background: '#2B2930', overflow: 'hidden' });
+const vdThumbs = []; for (let i = 0; i < 8; i++) { const t = tile(vdTl, 1320 + i * 3); css(t, { left: 8 + i * 44 + 'px', top: '8px', width: '42px', height: '60px', borderRadius: '6px' }); vdThumbs.push(t); }
+const vdDimL = el('div', 'abs', null, vdTl); css(vdDimL, { left: 0, top: 0, bottom: 0, background: 'rgba(20,18,24,.72)' });
+const vdDimR = el('div', 'abs', null, vdTl); css(vdDimR, { right: 0, top: 0, bottom: 0, background: 'rgba(20,18,24,.72)' });
+const vdHL = el('div', 'abs', null, vdTl); css(vdHL, { top: 0, bottom: 0, width: '10px', background: '#D0BCFF', borderRadius: '6px 0 0 6px' });
+const vdHR = el('div', 'abs', null, vdTl); css(vdHR, { top: 0, bottom: 0, width: '10px', background: '#D0BCFF', borderRadius: '0 6px 6px 0' });
+const vdHead = el('div', 'abs', null, vdTl); css(vdHead, { top: '-2px', bottom: '-2px', width: '3px', background: '#fff', borderRadius: '2px' });
+const vdSegLbl = el('div', 'abs label', 'Speed', sVideo); css(vdSegLbl, { left: '18px', top: '510px' });
+const vdSeg = el('div', 'seg', ['0.5×', '1×', '2×'].map((x, i) => `<span class="${i === 1 ? 'on' : ''}" style="min-width:76px">${x}</span>`).join(''), sVideo); css(vdSeg, { left: '16px', top: '536px' });
+const vdSegEls = [...vdSeg.children];
+const vdChips = el('div', 'abs', ['LOG', 'LUT · Cinematic', 'HDR'].map(c => `<span class="chip out">${c}</span>`).join(''), sVideo); css(vdChips, { left: '16px', top: '592px', display: 'flex', gap: '8px' });
+const vdChipEls = [...vdChips.children];
+const vdMusic = el('div', 'row', `<span>Music · Lo-fi</span><span class="v" id="vdMv">40%</span>`, sVideo); vdMusic.style.top = '650px';
+const vdWave = wavy(sVideo, 20, 684, 360);
+const vdBtn = el('div', 'btn', `${ic('movie', 22)} Export HDR video`, sVideo); css(vdBtn, { left: '20px', right: '20px', top: '740px' });
+const vdLive = el('div', 'live', `<div class="li">${ic('movie', 22)}</div><div style="flex:1"><div class="lt">Exporting HDR video</div><div class="lb"><i id="vdLb"></i></div></div><div class="lt" id="vdLp">0%</div>`, sVideo);
+
+/* ---------- screen: memories ---------- */
+const sMem = $('sMem');
+const memBar = el('div', 'topbar', `<h2>Memories</h2><div class="iconbtn">${ic('search')}</div>`, sMem);
+const memRow = el('div', 'abs', null, sMem); css(memRow, { left: 0, right: 0, top: '112px', height: '100px' });
+const MEMS = ['Today', 'Lisbon', 'Summer', 'Pets'];
+const memStories = MEMS.map((n, i) => { const d = el('div', 'abs', `<div style="width:68px;height:68px;border-radius:50%;padding:3px;background:conic-gradient(#FFC247,#F2607A,#C45ED8,#7B61F0,#FFC247)"><div style="width:100%;height:100%;border-radius:50%;overflow:hidden;position:relative;border:3px solid #141218"></div></div><div style="font-size:13px;font-weight:600;color:#E6E0E9;text-align:center;margin-top:6px">${n}</div>`, memRow); css(d, { left: 18 + i * 92 + 'px', top: 0, width: '68px' }); const t = tile(d.firstChild.firstChild, 1400 + i * 5); css(t, { inset: 0, width: '100%', height: '100%' }); return d; });
+const memCard = el('div', 'abs', null, sMem); css(memCard, { background: '#211F26', overflow: 'hidden', zIndex: 5 });
+const memCovers = [0, 1, 2, 3].map(i => { const t = tile(memCard, 1450 + i * 7, ['sea', 'sun', 'hill', 'peak'][i]); css(t, { left: 0, top: 0, width: '100%', height: '100%' }); return t; });
+const memShade = el('div', 'abs', null, memCard); css(memShade, { inset: 0, background: 'linear-gradient(transparent 45%,rgba(0,0,0,.72))' });
+const memTitle = el('div', 'abs', `<div style="font-size:26px;font-weight:800;color:#fff;letter-spacing:-.5px">Lisbon · Summer 2025</div><div style="display:flex;gap:6px;margin-top:10px"><span class="chip" style="background:#4A4458;color:#E8DEF8">142 photos</span><span class="chip" style="background:#4A4458;color:#E8DEF8">12 places</span></div>`, memCard); css(memTitle, { left: '20px', bottom: '84px' });
+const memShapes = [[9, .07, 74, 24, 24], [6, .15, 62, 300, 60], [4, .2, 58, 292, 150]].map(([n, a, sz, x, y], i) => { const d = el('div', 'abs', null, memCard); const t = tile(d, 1480 + i * 9); css(t, { inset: 0, width: '100%', height: '100%' }); css(d, { left: x + 'px', top: y + 'px', width: sz + 'px', height: sz + 'px', overflow: 'hidden', border: '0' }); return { d, n, a }; });
+const memProg = el('div', 'abs', [0, 1, 2, 3].map(() => `<i style="flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.35);position:relative;overflow:hidden"><b style="position:absolute;left:0;top:0;bottom:0;background:#fff;width:0"></b></i>`).join(''), sMem); css(memProg, { left: '16px', right: '16px', top: '52px', display: 'flex', gap: '6px', zIndex: 8 });
+const memProgB = [...memProg.querySelectorAll('b')];
+const memCap = el('div', 'abs', 'Summer in Lisbon', sMem); css(memCap, { left: '24px', bottom: '60px', fontSize: '32px', fontWeight: 800, letterSpacing: '-1px', color: '#fff', zIndex: 8 });
+const memFab = el('div', 'fab', `${ic('play', 24)} Play memory`, sMem); css(memFab, { right: '20px', bottom: '28px', zIndex: 9 });
+
+/* ---------- screen: cleanup ---------- */
+const sClean = $('sClean');
+el('div', 'topbar', `<h2>Cleanup</h2><div class="iconbtn">${ic('more')}</div>`, sClean);
+const clHero = el('div', 'abs', `<div style="font-size:15px;font-weight:600">Space you can free</div><div style="font-size:60px;font-weight:800;letter-spacing:-2px;margin-top:2px" id="clGb">0.0 GB</div><div style="font-size:14px;opacity:.85" id="clSub">Across 192 items</div>`, sClean);
+css(clHero, { left: '16px', top: '112px', width: '368px', height: '160px', borderRadius: '28px', padding: '20px 22px', background: '#4F378B', color: '#EADDFF', overflow: 'hidden' });
+const clBlob = el('div', 'abs', ic('trash', 44), clHero); css(clBlob, { right: '-6px', top: '38px', width: '116px', height: '116px', background: '#D0BCFF', color: '#381E72', display: 'flex', alignItems: 'center', justifyContent: 'center' });
+const clSeg = el('div', 'seg', ['Duplicates · 128', 'Similar · 64', 'Trash · 9'].map((x, i) => `<span class="${i ? '' : 'on'}" style="font-size:13px;padding:0 6px">${x}</span>`).join(''), sClean); css(clSeg, { left: '16px', width: '368px', top: '290px' });
+const clSegEls = [...clSeg.children];
+const clCards = [0, 1, 2].map(i => { const c = el('div', 'card', null, sClean); css(c, { left: '16px', width: '368px', height: '124px', top: '350px' });
+  for (let k = 0; k < 2; k++) { const t = tile(c, 1500 + i * 4 + (k ? 0 : 0), ['sea', 'sun', 'hill'][i]); css(t, { left: 14 + k * 76 + 'px', top: '14px', width: '70px', height: '96px', borderRadius: '14px' }); if (!k) { el('div', 'abs', ic('star', 14), t).style.cssText += 'left:6px;top:6px;width:22px;height:22px;border-radius:11px;background:#D0BCFF;color:#381E72;display:flex;align-items:center;justify-content:center'; } }
+  c.insertAdjacentHTML('beforeend', `<div class="abs" style="left:176px;top:16px;right:14px"><div style="font-size:16px;font-weight:700;color:#E6E0E9">${['Exact duplicate', 'Similar shots', 'Exact duplicate'][i]}</div><div style="font-size:13px;color:#CAC4D0;margin-top:2px">${['IMG_2031 · 4.2 MB', '3 burst photos', 'IMG_1988 · 3.8 MB'][i]}</div></div>`);
+  const b = el('span', 'tonal', 'Keep best', c); css(b, { position: 'absolute', right: '14px', bottom: '14px' }); return { c, b }; });
+const clSnack = el('div', 'snack', `<span>Moved 12 to trash</span><b>Undo</b>`, sClean);
+
+/* ---------- screen: RAW, eraser, cut-out ---------- */
+const sRaw = $('sRaw');
+el('div', 'topbar', `<div class="iconbtn" style="font-size:26px;color:#E6E0E9">✕</div><h2>Edit</h2><span class="badge" style="position:static">RAW</span><span class="txtbtn">Save copy</span>`, sRaw);
+const rwStage = el('div', 'abs', null, sRaw); css(rwStage, { left: '16px', top: '112px', width: '368px', height: '400px', borderRadius: '24px', overflow: 'hidden', background: '#0f0e12' });
+const rwChecker = el('div', 'abs', null, rwStage); css(rwChecker, { inset: 0, opacity: 0, background: 'repeating-conic-gradient(#2B2930 0 25%,#36343B 0 50%) 0 0/28px 28px' });
+const rwImg = tile(rwStage, 1501, 'sea'); css(rwImg, { left: 0, top: 0, width: '368px', height: '400px' });
+const figure = (parent, x, y, k, col, skin) => { const f = el('div', 'abs', `<div style="position:absolute;left:${14 * k}px;top:0;width:${22 * k}px;height:${22 * k}px;border-radius:50%;background:${skin}"></div><div style="position:absolute;left:${4 * k}px;top:${24 * k}px;width:${42 * k}px;height:${62 * k}px;border-radius:${20 * k}px ${20 * k}px ${8 * k}px ${8 * k}px;background:${col}"></div>`, parent); css(f, { left: x + 'px', top: y + 'px', width: 50 * k + 'px', height: 90 * k + 'px' }); return f; };
+const rwTourist = figure(rwStage, 52, 236, 1.2, '#5B43D4', '#e9b48a');
+const rwSubject = figure(rwStage, 220, 196, 1.9, '#F2607A', '#f1c7a3');
+const rwRing = el('div', 'abs', null, rwStage); css(rwRing, { left: '36px', top: '224px', width: '104px', height: '146px', borderRadius: '50%', border: '3px dashed #D0BCFF', opacity: 0 });
+const rwSpark = [0, 1, 2, 3, 4].map(i => { const s = el('div', 'abs', ic('sparkle', 22), rwStage); css(s, { color: '#EADDFF', opacity: 0 }); return s; });
+const rwTabs = el('div', 'tabs', ['Develop', 'Eraser', 'Cut-out'].map((x, i) => `<div class="tab${i ? '' : ' on'}">${x}</div>`).join(''), sRaw); rwTabs.style.top = '528px';
+const rwTabEls = [...rwTabs.children];
+const rwDev = el('div', 'abs', null, sRaw); css(rwDev, { left: 0, right: 0, top: '584px', height: '200px' });
+el('div', 'row', `<span>Highlight recovery</span><span class="v" id="rwHv">0</span>`, rwDev).style.top = '8px';
+const rwWave = wavy(rwDev, 20, 42, 360);
+el('div', 'row', `<span>Lens correction</span><span class="v">Auto profile</span>`, rwDev).style.top = '88px';
+const rwSw = mkSwitch(rwDev); css(rwSw, { position: 'absolute', right: '20px', top: '82px', display: 'none' });
+const rwEr = el('div', 'abs', `<div style="font-size:16px;color:#E6E0E9;font-weight:600">Circle what to remove</div><div style="margin-top:12px;display:flex;gap:8px"><span class="chip">${ic('fix', 16)} Experimental</span><span class="chip out">Brush</span></div>`, sRaw); css(rwEr, { left: '20px', top: '600px' });
+const rwCut = el('div', 'abs', `<div style="font-size:16px;color:#E6E0E9;font-weight:600">Subject found</div><div style="margin-top:12px;display:flex;gap:8px"><span class="chip">${ic('fix', 16)} Experimental</span><span class="chip out">Sticker</span></div>`, sRaw); css(rwCut, { left: '20px', top: '600px' });
+const rwBtn = el('div', 'btn', `${ic('check', 22)} Save cut-out`, sRaw); css(rwBtn, { left: '20px', right: '20px', top: '700px' });
+
+/* ---------- screen: share + backup ---------- */
+const sShare = $('sShare');
+const shBar = el('div', 'topbar', `<div class="iconbtn" style="color:#E6E0E9">${ic('back')}</div><h2 id="shT">Send nearby</h2>`, sShare);
+const shA = el('div', 'abs', null, sShare); css(shA, { inset: 0 });
+const shRings = [0, 1, 2].map(() => { const r = el('div', 'abs', null, shA); css(r, { left: '110px', top: '170px', width: '180px', height: '180px', borderRadius: '50%', border: '3px solid #D0BCFF' }); return r; });
+el('div', 'abs', ic('wifi', 40), shA).style.cssText += 'left:150px;top:210px;width:100px;height:100px;border-radius:50%;background:#4F378B;color:#EADDFF;display:flex;align-items:center;justify-content:center';
+const shDev = el('div', 'card', `<div style="width:56px;height:56px;border-radius:28px;background:#633B48;color:#FFD8E4;display:flex;align-items:center;justify-content:center;flex:none">${ic('tablet', 28)}</div><div style="flex:1"><div style="font-size:18px;font-weight:700;color:#E6E0E9">Pixel Tablet</div><div style="font-size:14px;color:#CAC4D0" id="shDs">Same Wi-Fi · Ready</div></div><div id="shCk" style="width:32px;height:32px;border-radius:16px;background:#D0BCFF;color:#381E72;display:flex;align-items:center;justify-content:center">${ic('check', 20)}</div>`, shA);
+css(shDev, { left: '16px', right: '16px', top: '400px', height: '88px', display: 'flex', alignItems: 'center', gap: '14px', padding: '0 16px' });
+const shEnc = el('div', 'abs', `<span class="chip">${ic('lock', 16)} Encrypted · local network</span>`, shA); css(shEnc, { left: '16px', top: '508px' });
+const shSend = el('div', 'abs', `<div style="display:flex;justify-content:space-between;font-size:15px;font-weight:600;color:#E6E0E9"><span>Sending 24 originals</span><span id="shP">0%</span></div><div class="slider" style="position:relative;margin-top:14px;height:6px"><i id="shBar"></i></div><div style="font-size:13px;color:#CAC4D0;margin-top:10px">1.2 GB · Original quality, no cloud</div>`, shA); css(shSend, { left: '20px', right: '20px', top: '580px' });
+const shB = el('div', 'abs', null, sShare); css(shB, { inset: 0 });
+const BK = [['Mirror folders', 'DCIM/Camera · Downloads', 'sync', 1], ['Back up to my server', 'nas.home.lan · Synced 2 min ago', 'cloud', 1], ['Wi-Fi only', 'Save mobile data', 'wifi', 1]];
+const bkSw = BK.map(([t, s, ico], i) => { const r = el('div', 'card', `<div style="width:48px;height:48px;border-radius:24px;background:#4A4458;color:#E8DEF8;display:flex;align-items:center;justify-content:center;flex:none">${ic(ico, 26)}</div><div style="flex:1"><div style="font-size:17px;font-weight:700;color:#E6E0E9">${t}</div><div style="font-size:13px;color:#CAC4D0;margin-top:2px">${s}</div></div>`, shB); css(r, { left: '16px', right: '16px', top: 128 + i * 104 + 'px', height: '88px', display: 'flex', alignItems: 'center', gap: '14px', padding: '0 16px' }); const sw = mkSwitch(r); return { r, sw }; });
+const shBtn = el('div', 'btn', `${ic('sync', 22)} Back up now`, shB); css(shBtn, { left: '20px', right: '20px', top: '470px' });
+const shLive = el('div', 'live', `<div class="li">${ic('cloud', 22)}</div><div style="flex:1"><div class="lt">Backing up to nas.home.lan</div><div class="lb"><i id="shLb"></i></div></div><div class="lt" id="shLp">0%</div>`, sShare);
+
+/* ---------- tablet + widget (canvas) ---------- */
+const PAL4 = [
+  { bg: '#141218', sc: '#2B2930', on: '#E6E0E9', pri: '#D0BCFF', onPri: '#381E72', pc: '#4F378B', onPc: '#EADDFF', sec: '#4A4458', onSec: '#E8DEF8' },
+  { bg: '#0E1513', sc: '#212B28', on: '#DDE4E1', pri: '#82D5C7', onPri: '#00382F', pc: '#005046', onPc: '#9EF2E0', sec: '#334B46', onSec: '#CEE9E3' },
+  { bg: '#17120E', sc: '#2A221C', on: '#EDE0D8', pri: '#FFB68A', onPri: '#532200', pc: '#763300', onPc: '#FFDCC8', sec: '#5D4133', onSec: '#FFDCC8' },
+  { bg: '#FDFBFF', sc: '#E8EAF3', on: '#1A1C1E', pri: '#3F5F90', onPri: '#FFFFFF', pc: '#D6E3FF', onPc: '#001B3E', sec: '#DBE2F9', onSec: '#141B2C' },
+];
+const hex2 = h => [1, 3, 5].map(i => parseInt(h.substr(i, 2), 16));
+const mixHex = (a, b, k) => { const A = hex2(a), B = hex2(b); return '#' + A.map((v, i) => Math.round(lerp(v, B[i], k)).toString(16).padStart(2, '0')).join(''); };
+const tabIn = $('tabIn');
+tabIn.innerHTML = `<div class="rail">${['photo', 'collections', 'search', 'home'].map((n, i) => `<div class="ri${i ? '' : ' on'}">${ic(n, 26)}</div>`).join('')}</div>
+  <div class="tbar"><h3>Photos</h3><div class="srch">${ic('search', 22)}Search your photos</div></div>
+  <div class="abs" id="tabGrid" style="left:76px;top:78px;right:0;bottom:0;overflow:hidden"></div>
+  <div class="tfab" id="tabFab">${ic('add', 30)}</div>
+  <div class="pane" id="tabPane"><div id="tabPaneImg" style="height:230px;position:relative"></div><div class="pt"><div class="pn">Lisbon, Portugal</div><div class="ps">Sep 14, 2025 · 12.4 MP</div><div style="margin-top:14px"><span class="pchip">Beach</span><span class="pchip">Sunset</span><span class="pchip">Ana</span></div></div></div>`;
+const tabTiles = []; for (let i = 0; i < 20; i++) { const t = tile($('tabGrid'), 1600 + i); tabTiles.push(t); }
+const tabPaneT = tile($('tabPaneImg'), 1301, 'sun'); css(tabPaneT, { inset: 0, width: '100%', height: '100%' });
+const TCOLS = [5, 3];
+const widget = $('widget');
+widget.innerHTML = `<div style="display:flex;align-items:center;gap:10px;font-size:18px;font-weight:700">${ic('collections', 24)} On this day</div><div class="wg">${[0, 1, 2, 3].map(() => '<div></div>').join('')}</div>`;
+[...widget.querySelectorAll('.wg div')].forEach((d, i) => { const t = tile(d, 1700 + i * 3); css(t, { inset: 0, width: '100%', height: '100%' }); });
+
 /* ---------- licenses (canvas) ---------- */
 const LIC = [
   { k: 'Apache-2.0', w: '215 AndroidX & Kotlin libraries', n: 'Plus PDFBox, Tink, SFace, pet models' },
@@ -447,8 +686,13 @@ function render(t) {
   const bp = [[300, 120], [1400, -80], [1300, 600], [200, 640]].map(([x, y]) => PORTRAIT ? [x * .5, y * 1.8 + 100] : [x, y]);
   BLOBS.forEach((_, i) => { const e = $('b' + i); css(e, { left: bp[i][0] + Math.sin(t * .35 + i * 1.7) * 120 + 'px', top: bp[i][1] + Math.cos(t * .28 + i) * 90 + 'px', opacity: .28 + .08 * Math.sin(t * .6 + i) }); });
 
+  // poppy layer: expressive shapes + color sweep at every scene change
+  morphEls.forEach((e, i) => { const [n, a] = MORPH[i]; let [x, y] = MPOS[i]; if (PORTRAIT) { x *= .55; y *= 1.7; } e.style.clipPath = shapePoly(n, a, t * .6 + i); css(e, { left: x + Math.sin(t * .4 + i * 2) * 40 + 'px', top: y + Math.cos(t * .33 + i) * 40 + 'px', transform: `rotate(${t * 14 * (i % 2 ? -1 : 1)}deg) scale(${1 + .1 * Math.sin(t + i)})` }); });
+  const wp = $('wipe').firstChild; let wk = -1, wi = 0; WIPES.forEach((b, i) => { if (t > b - .2 && t < b + .7) { wk = P(t, b - .2, b + .7); wi = i; } });
+  if (wk >= 0) css(wp, { display: 'block', background: `linear-gradient(90deg,transparent,${WCOL[wi % 5]} 40%,${WCOL[(wi + 1) % 5]} 70%,transparent)`, transform: `translateX(${lerp(-100, 230, eio(wk))}%) skewX(-14deg)` }); else wp.style.display = 'none';
+
   // logo: intro 0-3.3, outro 52.4-57 (written against 28.3-32 and shifted)
-  t = t > 10 && t > 44 ? t - SHIFT : t > 10 ? 20 : t;
+  t = t > 10 && t > 44 + LO ? t - SHIFT : t > 10 ? 20 : t;
   const inA = P(t, 0.2, 1.6), inOut = P(t, 2.5, 3.3), outA = P(t, 28.4, 29.8);
   const logoVis = t < 3.3 || t > 28.3;
   $('logo').style.display = logoVis ? 'block' : 'none';
@@ -481,12 +725,12 @@ function render(t) {
 
   t = tt0;
   // phone pose
-  const pin = eo5(P(t, 2.8, 4.0)), pout = eio(P(t, 43.9, 44.8));
+  const pin = eo5(P(t, 2.8, 4.0)), pout = eio(P(t, PO[0], PO[1]));
   const pw = $('phoneWrap');
   const rotY = lerp(-38, -10, pin) + Math.sin(t * .5) * 3 + pout * 25;
   const rotYp = PORTRAIT ? rotY * .5 : rotY;
   const rotX = 4 + Math.sin(t * .4) * 1.5;
-  css(pw, { display: t > 2.7 && t < 44.9 ? 'block' : 'none', opacity: Math.min(pin * 1.5, 1) * (1 - pout),
+  css(pw, { display: t > 2.7 && t < PO[1] + .1 ? 'block' : 'none', opacity: Math.min(pin * 1.5, 1) * (1 - pout),
     transform: PORTRAIT
       ? `translate(0px, ${(1 - pin) * 700 + pout * 160 + Math.sin(t * .7) * 6}px) scale(${1.2 * lerp(.9, 1, pin) * lerp(1, .6, pout)})`
       : `translate(${(1 - pin) * 500 - pout * 320}px, ${(1 - pin) * 60 + pout * 90 + Math.sin(t * .7) * 6}px) scale(${lerp(.9, 1, pin) * lerp(1, .6, pout)})` });
@@ -695,14 +939,170 @@ function render(t) {
     $('pdfSnackB').textContent = t < 43.4 ? '' : 'Save PDF';
   }
 
-  // ---- licenses 44.6–52.3 (canvas)
-  const licVis = t > 44.6 && t < 52.4; $('lic').style.display = licVis ? 'block' : 'none';
+  // ---- viewer 44.4–48.2
+  const sw1 = screenAt(t, 44.4, 48.2, .4); applyScreen(sView, sw1);
+  if (sw1.vis) {
+    const u = t - 44.4;
+    const z = 1 + 1.3 * eio(P(u, .7, 1.4)) - 1.3 * eio(P(u, 1.8, 2.4));
+    css(vImg, { transformOrigin: '62% 42%', transform: `scale(${z}) translate(${u > 2.3 ? Math.sin((u - 2.3) * 5) * 7 : 0}px, 0)` });
+    vGrid.style.opacity = .85 * clamp((z - 1) / 1.3);
+    const mk = back(P(u, .25, .75)); css(vMotion, { opacity: clamp(mk), transform: `scale(${mk})` });
+    $('vMT').textContent = u > 2.3 ? 'Playing' : 'Motion photo';
+    const bk = back(P(u, 1.1, 1.6)) * (1 - P(u, 2.0, 2.3)); css(vBig, { opacity: clamp(bk), transform: `scale(${clamp(bk, 0, 1.1)})` });
+    const tk = eo5(P(u, .1, .6)); css(vTb, { transform: `translateY(${(1 - tk) * 130 + eio(P(u, 2.7, 3.1)) * 130}px)`, opacity: tk });
+    const fav = u > 1.9; vFav.className = 'tb' + (fav ? ' on' : ''); vFav.style.transform = `scale(${1 + .3 * Math.sin(P(u, 1.9, 2.3) * Math.PI)})`;
+    const sk = eo5(P(u, 2.7, 3.2)); css(vSheet, { transform: `translateY(${(1 - sk) * 340}px)` });
+    if (u > .55 && u < .9) touch(0, 250, 360, 1, 1 - P(u, .7, .9));
+    if (u > 1.7 && u < 2.1) touch(0, 70, 808, 1 - .15 * Math.sin(P(u, 1.7, 2.1) * Math.PI), 1 - P(u, 1.95, 2.1));
+  }
+
+  // ---- video editor 48.0–52.0
+  const sw2 = screenAt(t, 48.0, 52.0, .4); applyScreen(sVideo, sw2);
+  if (sw2.vis) {
+    const u = t - 48.0;
+    const lx = lerp(0, 56, eio(P(u, .3, 1.0))), rx = lerp(368, 316, eio(P(u, .5, 1.1)));
+    css(vdDimL, { width: lx + 'px' }); css(vdDimR, { width: 368 - rx + 'px' });
+    css(vdHL, { left: lx + 'px' }); css(vdHR, { left: rx - 10 + 'px' });
+    css(vdHead, { left: lerp(lx + 16, rx - 16, P(u, 1.1, 4)) + 'px' });
+    vdThumbs.forEach((e, i) => { const k = back(P(u, .1 + i * .04, .5 + i * .04)); css(e, { opacity: clamp(k), transform: `scaleY(${k})` }); });
+    const spd = u > 1.2 ? 2 : 1; vdSegEls.forEach((e, i) => e.className = i === spd ? 'on' : '');
+    const log = u > 1.5, lut = u > 1.8, hdr = u > 2.1;
+    [log, lut, hdr].forEach((on, i) => { vdChipEls[i].className = 'chip' + (on ? '' : ' out'); });
+    vdImg.style.filter = lut ? 'contrast(1.12) saturate(1.35)' : log ? 'contrast(.72) saturate(.55) brightness(1.1)' : 'none';
+    vdImg.style.transform = `scale(${1 + .05 * P(u, 0, 4)})`;
+    const mv = lerp(.4, .8, eio(P(u, 2.3, 2.7))); vdWave.set(mv); $('vdMv').textContent = Math.round(mv * 100) + '%';
+    [vdSeg, vdChips, vdTl, vdWave.el].forEach((e, i) => { const k = eo5(P(u, .1 + i * .08, .6 + i * .08)); css(e, { opacity: k, transform: `translateY(${(1 - k) * 24}px)` }); });
+    vdBtn.style.transform = `scale(${1 - .06 * Math.sin(P(u, 2.7, 3.0) * Math.PI)})`;
+    const lk = eo5(P(u, 2.95, 3.35)); css(vdLive, { opacity: lk, transform: `translateY(${(lk - 1) * 90}px)` });
+    const lp = eio(P(u, 3.0, 4.0)) * .86; $('vdLb').style.width = lp * 100 + '%'; $('vdLp').textContent = Math.round(lp * 100) + '%';
+    [[1.2, 206, 556], [1.5, 46, 610], [1.8, 154, 610], [2.1, 262, 610], [2.8, 200, 766]].forEach(([tt, x, y]) => { if (u > tt - .2 && u < tt + .15) touch(0, x, y, 1 - .15 * Math.sin(P(u, tt - .2, tt + .15) * Math.PI), 1 - P(u, tt, tt + .15)); });
+    if (u > 2.3 && u < 2.75) touch(0, lerp(20 + 144, 20 + 288, P(u, 2.3, 2.7)), 696, 1, 1 - P(u, 2.65, 2.75));
+  }
+
+  // ---- memories 51.8–55.6
+  const sw3 = screenAt(t, 51.8, 55.6, .4); applyScreen(sMem, sw3);
+  if (sw3.vis) {
+    const u = t - 51.8;
+    const ex = eio(P(u, 1.65, 2.35));
+    const rowO = 1 - clamp(ex * 2);
+    memBar.style.opacity = rowO; memRow.style.opacity = rowO;
+    memStories.forEach((d, i) => { const k = back(P(u, .1 + i * .1, .6 + i * .1)); css(d, { opacity: clamp(k), transform: `scale(${clamp(k, 0, 1.1)})` }); });
+    const ck = eo5(P(u, .3, .9));
+    css(memCard, { left: lerp(16, 0, ex) + 'px', top: lerp(232 + (1 - ck) * 120, 0, ex) + 'px', width: lerp(368, 400, ex) + 'px', height: lerp(500, 866, ex) + 'px', borderRadius: lerp(28, 0, ex) + 'px', opacity: ck });
+    const cu = u - 2.2;
+    memCovers.forEach((e, i) => {
+      const t0 = i === 0 ? -9 : 2.3 + (i - 1) * .45, o = i === 0 ? 1 : eo(P(u, t0, t0 + .25));
+      css(e, { opacity: o, transform: `scale(${1 + .1 * clamp((u - (i === 0 ? 0 : t0)) / 1.4)})` });
+    });
+    css(memShade, { opacity: 1 - ex * .4 });
+    css(memTitle, { opacity: 1 - clamp(ex * 3), transform: `translateY(${ex * 20}px)` });
+    memShapes.forEach(({ d, n, a }, i) => { d.style.clipPath = shapePoly(n, a, u * 1.4 + i); css(d, { opacity: (1 - clamp(ex * 3)) * back(P(u, .7 + i * .15, 1.2 + i * .15)), transform: `translateY(${Math.sin(u * 2 + i) * 6}px) rotate(${u * 25 * (i % 2 ? -1 : 1)}deg)` }); });
+    css(memFab, { opacity: eo5(P(u, .9, 1.4)) * (1 - clamp(ex * 3)), transform: `scale(${1 - .08 * Math.sin(P(u, 1.5, 1.8) * Math.PI)})` });
+    css(memProg, { opacity: eo(P(u, 2.2, 2.5)) }); css(memCap, { opacity: eo(P(u, 2.4, 2.8)), transform: `translateY(${(1 - eo(P(u, 2.4, 2.8))) * 20}px)` });
+    memProgB.forEach((b, i) => { b.style.width = 100 * P(u, 2.3 + i * .45, 2.3 + (i + 1) * .45) + '%'; });
+    if (u > 1.4 && u < 1.8) touch(0, 300, 810, 1 - .15 * Math.sin(P(u, 1.4, 1.8) * Math.PI), 1 - P(u, 1.65, 1.8));
+  }
+
+  // ---- cleanup 55.4–59.2
+  const sw4 = screenAt(t, 55.4, 59.2, .4); applyScreen(sClean, sw4);
+  if (sw4.vis) {
+    const u = t - 55.4;
+    const hk = eo5(P(u, .1, .6)); css(clHero, { opacity: hk, transform: `translateY(${(1 - hk) * 40}px)` });
+    $('clGb').textContent = (3.2 * eio(P(u, .3, 1.3))).toFixed(1) + ' GB';
+    clBlob.style.clipPath = shapePoly(8, .09, u * 1.2); clBlob.style.transform = `rotate(${u * 30}deg)`; clBlob.firstChild.style.transform = `rotate(${-u * 30}deg)`;
+    const gone = u > 1.7;
+    $('clSub').textContent = u > 2.4 ? 'Across 191 items' : 'Across 192 items';
+    clSegEls[0].textContent = 'Duplicates · ' + (u > 2.4 ? 127 : 128); clSegEls[2].textContent = 'Trash · ' + (u > 2.4 ? 10 : 9);
+    const sk0 = eo5(P(u, .3, .8)); css(clSeg, { opacity: sk0 });
+    clCards.forEach(({ c, b }, i) => {
+      const k = back(P(u, .5 + i * .12, 1.0 + i * .12));
+      const slide = i === 0 ? eio(P(u, 1.75, 2.3)) : 0, up = i > 0 ? eio(P(u, 2.1, 2.6)) : 0;
+      css(c, { top: 350 + i * 136 - up * 136 + (1 - clamp(k)) * 50 + 'px', opacity: clamp(k) * (1 - slide), transform: `translateX(${slide * 440}px) scale(${1 - .03 * Math.sin(P(u, 1.55, 1.8) * Math.PI) * (i === 0 ? 1 : 0)})` });
+      if (i === 0) { b.style.background = u > 1.6 ? '#D0BCFF' : '#4A4458'; b.style.color = u > 1.6 ? '#381E72' : '#E8DEF8'; }
+    });
+    const nk = eo5(P(u, 2.4, 2.8)); css(clSnack, { opacity: nk, transform: `translateY(${(1 - nk) * 90}px)` }); clSnack.firstChild.textContent = 'Moved 1 duplicate to trash';
+    if (u > 1.4 && u < 1.75) touch(0, 330, 436, 1, 1 - P(u, 1.6, 1.75));
+  }
+
+  // ---- RAW, eraser, cut-out 59.0–63.2
+  const sw5 = screenAt(t, 59.0, 63.2, .4); applyScreen(sRaw, sw5);
+  if (sw5.vis) {
+    const u = t - 59.0;
+    const tab = u < 1.5 ? 0 : u < 3.0 ? 1 : 2;
+    rwTabEls.forEach((e, i) => e.className = 'tab' + (i === tab ? ' on' : ''));
+    css(rwDev, { display: tab === 0 ? 'block' : 'none' }); css(rwEr, { display: tab === 1 ? 'block' : 'none' }); css(rwCut, { display: tab === 2 ? 'block' : 'none' });
+    css(rwBtn, { display: tab === 2 ? 'flex' : 'none', opacity: eo(P(u, 3.35, 3.7)), transform: `scale(${lerp(.9, 1, eo(P(u, 3.35, 3.7)))})` });
+    const dk = eio(P(u, .3, 1.1)); rwWave.set(.7 * dk); $('rwHv').textContent = Math.round(70 * dk);
+    const lc = u > .9; css(rwSw, { display: 'inline-block' }); switchOn(rwSw, lc);
+    const f = 1 - dk * .6;
+    const cutK = eio(P(u, 3.1, 3.6));
+    rwImg.style.filter = `brightness(${lerp(1.3, 1, dk)}) contrast(${lerp(.82, 1.06, dk)}) saturate(${lerp(.75, 1.12, dk)})`;
+    css(rwImg, { opacity: 1 - cutK * .92 }); rwChecker.style.opacity = cutK;
+    const erase = eio(P(u, 2.25, 2.8));
+    css(rwRing, { opacity: Math.min(P(u, 1.7, 1.9), 1 - P(u, 2.5, 2.8)) * (tab === 1 ? 1 : 0), transform: `rotate(${u * 40}deg) scale(${lerp(1.3, 1, eo(P(u, 1.7, 2.1)))})` });
+    css(rwTourist, { opacity: 1 - erase, filter: `blur(${erase * 8}px)`, transform: `scale(${1 - .15 * erase})` });
+    rwSpark.forEach((s, i) => { const k = P(u, 2.3 + i * .06, 2.9 + i * .06), a = i * 1.26; css(s, { left: 52 + 30 + Math.cos(a) * 54 * k + 'px', top: 236 + 70 + Math.sin(a) * 74 * k + 'px', opacity: Math.sin(k * Math.PI), transform: `scale(${.4 + k}) rotate(${k * 120}deg)` }); });
+    css(rwSubject, { filter: cutK > 0 ? `drop-shadow(0 0 ${12 * cutK}px #fff) drop-shadow(0 0 3px #fff)` : 'none', transform: `translateY(${-24 * cutK}px) scale(${1 + .12 * cutK}) rotate(${-4 * cutK}deg)` });
+    [[1.5, 200, 548], [3.0, 330, 548]].forEach(([tt, x, y]) => { if (u > tt - .2 && u < tt + .15) touch(0, x, y, 1 - .15 * Math.sin(P(u, tt - .2, tt + .15) * Math.PI), 1 - P(u, tt, tt + .15)); });
+    if (u > 1.7 && u < 2.3) touch(0, 140 + 40 * Math.sin(P(u, 1.7, 2.3) * 6), 280 + 150, 1, Math.min(P(u, 1.7, 1.8), 1 - P(u, 2.2, 2.3)));
+  }
+
+  // ---- share + backup 63.0–67.0
+  const sw6 = screenAt(t, 63.0, 67.0, .4); applyScreen(sShare, sw6);
+  if (sw6.vis) {
+    const u = t - 63.0;
+    const toB = eio(P(u, 1.95, 2.4));
+    css(shA, { opacity: 1 - toB, display: toB >= 1 ? 'none' : 'block' }); css(shB, { opacity: toB, display: toB <= 0 ? 'none' : 'block' });
+    $('shT').textContent = toB > .5 ? 'Backup' : 'Send nearby';
+    shRings.forEach((r, i) => { const k = ((u * .7) + i / 3) % 1; css(r, { transform: `scale(${.55 + k * 1.1})`, opacity: (1 - k) * .75 * (u < 1.9 ? 1 : 0) }); });
+    const dk = back(P(u, .5, 1.0)); css(shDev, { opacity: clamp(dk), transform: `translateY(${(1 - dk) * 60}px)` });
+    css($('shCk'), { transform: `scale(${back(P(u, 1.0, 1.3))})` });
+    $('shDs').textContent = u > 1.2 ? 'Connected · Encrypted' : 'Same Wi-Fi · Ready';
+    css(shEnc, { opacity: eo(P(u, 1.1, 1.4)), transform: `translateY(${(1 - eo(P(u, 1.1, 1.4))) * 14}px)` });
+    const pr = eio(P(u, 1.3, 1.95)); css(shSend, { opacity: eo(P(u, 1.2, 1.5)) }); $('shBar').style.width = pr * 100 + '%'; $('shP').textContent = Math.round(pr * 100) + '%';
+    bkSw.forEach(({ r, sw }, i) => { const k = back(P(u, 2.25 + i * .12, 2.75 + i * .12)); css(r, { opacity: clamp(k), transform: `translateY(${(1 - k) * 40}px)` }); switchOn(sw, u > 2.7 + i * .2); });
+    css(shBtn, { opacity: eo(P(u, 2.6, 3.0)), transform: `scale(${1 - .06 * Math.sin(P(u, 3.1, 3.4) * Math.PI)})` });
+    const lk = eo5(P(u, 3.25, 3.6)); css(shLive, { opacity: lk, transform: `translateY(${(lk - 1) * 90}px)` });
+    const lp = eio(P(u, 3.3, 4.0)) * .64; $('shLb').style.width = lp * 100 + '%'; $('shLp').textContent = Math.round(lp * 100) + '%';
+    bkSw.forEach((x, i) => { const tt = 2.7 + i * .2; if (u > tt - .15 && u < tt + .12) touch(0, 340, 172 + i * 104, 1, 1 - P(u, tt, tt + .12)); });
+    if (u > 2.95 && u < 3.3) touch(0, 200, 496, 1 - .15 * Math.sin(P(u, 2.95, 3.3) * Math.PI), 1 - P(u, 3.15, 3.3));
+  }
+
+  // ---- tablet, widget and Material You 66.8–72.0 (canvas)
+  const tVis = t > 66.7 && t < 72.5; $('tablet').style.display = tVis ? 'block' : 'none'; widget.style.display = tVis ? 'block' : 'none';
+  if (tVis) {
+    const u = t - 66.8, out = eio(P(u, 5.0, 5.5));
+    const ik = eo5(P(u, 0, .8));
+    const tp = PORTRAIT ? 0 : 1;
+    css($('tablet'), { opacity: ik * (1 - out), transform: `translate(${(1 - ik) * 260 + out * -60}px, ${(1 - ik) * 40}px) rotateY(${lerp(-24, -6, ik) * (PORTRAIT ? .4 : 1)}deg) scale(${lerp(.9, 1, ik)})` });
+    const pi = u < 1.9 ? 0 : u < 3.0 ? 1 : u < 4.1 ? 2 : 3;
+    const mixK = pi === 0 ? 0 : eio(P(u, [0, 1.9, 3.0, 4.1][pi], [0, 2.4, 3.5, 4.6][pi]));
+    const A = PAL4[Math.max(0, pi - 1)], B = PAL4[pi];
+    const vars = { bg: '--bg', sc: '--sc', on: '--on', pri: '--pri', onPri: '--onPri', pc: '--pc', onPc: '--onPc', sec: '--sec', onSec: '--onSec' };
+    for (const k in vars) tabIn.style.setProperty(vars[k], pi === 0 ? B[k] : mixHex(A[k], B[k], mixK));
+    const k2 = eo5(P(u, .9, 1.6));
+    css($('tabPane'), { transform: `translateX(${(1 - k2) * 330}px)`, opacity: k2 });
+    const availA = 704, availB = 376;
+    tabTiles.forEach((e, i) => {
+      const gap = 6, ca = 5, cb = 3, sa = (availA - (ca - 1) * gap) / ca, sb2 = (availB - (cb - 1) * gap) / cb;
+      const ax = (i % ca) * (sa + gap) + 8, ay = Math.floor(i / ca) * (sa + gap), bx = (i % cb) * (sb2 + gap) + 8, by = Math.floor(i / cb) * (sb2 + gap);
+      const k = back(P(u, .3 + (Math.floor(i / 5) + i % 5) * .05, .8 + (Math.floor(i / 5) + i % 5) * .05));
+      css(e, { left: lerp(ax, bx, k2) + 'px', top: lerp(ay, by, k2) + 'px', width: lerp(sa, sb2, k2) + 'px', height: lerp(sa, sb2, k2) + 'px', borderRadius: '14px', opacity: clamp(k), transform: `scale(${clamp(k, 0, 1.1)})`, boxShadow: i === 7 && u > .6 ? '0 0 0 3px var(--pri)' : 'none' });
+    });
+    css($('tabFab'), { right: 20 + 306 * k2 + 'px', bottom: '20px', opacity: back(P(u, .6, 1.1)) > .1 ? 1 : 0, transform: `scale(${clamp(back(P(u, .6, 1.1)), 0, 1.15)})` });
+    const wk = back(P(u, 1.4, 2.0));
+    css(widget, { left: PORTRAIT ? '390px' : '1060px', top: PORTRAIT ? '1360px' : '705px', opacity: clamp(wk) * (1 - out), transform: `translateY(${(1 - clamp(wk)) * 60 + Math.sin(t * 1.3) * 6}px) scale(${.7 + .3 * clamp(wk, 0, 1.05)}) rotate(${(1 - clamp(wk)) * 8}deg)` });
+  }
+
+  // ---- licenses (canvas), shifted by LO
+  const tL = t - LO;
+  const licVis = tL > 44.6 && tL < 52.4; $('lic').style.display = licVis ? 'block' : 'none';
   if (licVis) {
-    const out = eio(P(t, 51.9, 52.4));
-    const hk = eo5(P(t, 44.8, 45.5)); css(licHero, { opacity: hk * (1 - out), transform: `translateY(${(1 - hk) * 60}px) scale(${lerp(.9, 1, hk)})` });
-    licCards.forEach((c, i) => { if (!c) return; const k = back(P(t, 45.6 + i * .32, 46.2 + i * .32)); css(c, { opacity: clamp(k) * (1 - out), transform: `translateY(${(1 - k) * 50 - out * 20}px) scale(${.7 + .3 * k}) rotate(${(1 - clamp(k)) * (i % 2 ? 6 : -6)}deg)` }); });
-    const nk = eo(P(t, 45.6, 49.0)); $('licN').textContent = Math.round(225 * nk) + '+';
-    css(licFoot, { opacity: eo(P(t, 45.6, 46.0)) * (1 - out) });
+    const out = eio(P(tL, 51.9, 52.4));
+    const hk = eo5(P(tL, 44.8, 45.5)); css(licHero, { opacity: hk * (1 - out), transform: `translateY(${(1 - hk) * 60}px) scale(${lerp(.9, 1, hk)})` });
+    licCards.forEach((c, i) => { if (!c) return; const k = back(P(tL, 45.6 + i * .32, 46.2 + i * .32)); css(c, { opacity: clamp(k) * (1 - out), transform: `translateY(${(1 - k) * 50 - out * 20}px) scale(${.7 + .3 * k}) rotate(${(1 - clamp(k)) * (i % 2 ? 6 : -6)}deg)` }); });
+    const nk = eo(P(tL, 45.6, 49.0)); $('licN').textContent = Math.round(225 * nk) + '+';
+    css(licFoot, { opacity: eo(P(tL, 45.6, 46.0)) * (1 - out) });
   }
 
   // ---- nav (shared across screens)
