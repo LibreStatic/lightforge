@@ -72,6 +72,28 @@ internal data class VideoAnnotationToolState(
     val eraser: Boolean = false,
 )
 
+/**
+ * Fills in points along each eraser segment. Touch samples can be far apart on a quick swipe, and the
+ * eraser only tests points, so thin strokes between two samples would otherwise be missed.
+ */
+internal fun densifyEraserPath(points: List<NormalizedPoint>, maxStep: Float = 0.012f): List<NormalizedPoint> {
+    if (points.size < 2) return points
+    val result = ArrayList<NormalizedPoint>(points.size)
+    result += points.first()
+    for (index in 1 until points.size) {
+        val from = points[index - 1]
+        val to = points[index]
+        val dx = to.x - from.x
+        val dy = to.y - from.y
+        val steps = kotlin.math.ceil(kotlin.math.hypot(dx, dy) / maxStep).toInt().coerceIn(1, 400)
+        for (step in 1..steps) {
+            val t = step / steps.toFloat()
+            result += NormalizedPoint(from.x + dx * t, from.y + dy * t)
+        }
+    }
+    return result
+}
+
 @Composable
 internal fun VideoAnnotationGestureLayer(
     enabled: Boolean,
@@ -102,7 +124,7 @@ internal fun VideoAnnotationGestureLayer(
                         NormalizedPoint(point.x / size.width, point.y / size.height)
                     }
                     if (tool.eraser) {
-                        onErase(normalized)
+                        onErase(densifyEraserPath(normalized))
                     } else onAdd(VideoAnnotationLayer(
                         shape = tool.shape,
                         points = normalized,
@@ -215,7 +237,7 @@ internal fun VideoAnnotationControls(
             VideoAnnotationAppearance.entries.forEach { appearance ->
                 FilterChip(
                     colors = editorFilterChipColors(),
-                    selected = tool.appearance == appearance,
+                    selected = !tool.eraser && tool.appearance == appearance,
                     onClick = { onToolChange(tool.copy(appearance = appearance, eraser = false)) },
                     label = { Text(stringResource(appearance.labelResource())) },
                 )
