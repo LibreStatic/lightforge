@@ -1,10 +1,10 @@
 <resources>
     <string name="private_setup_title">Private album setup</string>
-    <string name="private_setup_body">Moving media here encrypts it with your biometric credentials. If you uninstall the app, the data cannot be recovered. Export important items before uninstalling.</string>
+    <string name="private_setup_body">Moving media here encrypts it with a key protected by your screen lock. If you uninstall the app, the data cannot be recovered. Export important items before uninstalling.</string>
     <string name="private_understand">I understand</string>
     <string name="private_cancel">Cancel</string>
     <string name="private_locked">Private album is locked</string>
-    <string name="private_unlock_body">Authenticate with biometrics to unlock it.</string>
+    <string name="private_unlock_body">Authenticate with biometrics or your screen lock to unlock it.</string>
     <string name="private_unlock">Unlock</string>
     <string name="private_title_count">Private album (%1$d)</string>
     <string name="private_back">Back</string>
@@ -18,7 +18,7 @@
     <string name="private_biometric_failed">Biometric authentication was not recognized.</string>
     <string name="private_export_failed">The item could not be exported.</string>
     <string name="private_empty_title">Keep private moments here</string>
-    <string name="private_empty_body">Choose photos and videos to store encrypted copies protected by biometrics.</string>
+    <string name="private_empty_body">Choose photos and videos to store encrypted copies protected by your screen lock.</string>
     <string name="private_empty_illustration">Empty private album</string>
     <string name="private_choose_media">Choose photos and videos</string>
     <string name="private_originals_note">After they’re added, you’ll choose whether to keep the originals.</string>
