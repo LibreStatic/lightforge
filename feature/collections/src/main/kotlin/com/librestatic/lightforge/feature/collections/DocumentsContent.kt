@@ -481,12 +481,26 @@ fun DocumentsContent(
                             onClick = {
                                 mutate {
                                     val token = repository.archive(row.key(), !row.archived)
-                                    if (
-                                        snackbar.showSnackbar(changed, actionLabel = undo) ==
-                                            SnackbarResult.ActionPerformed &&
-                                            !repository.undo(token)
-                                    )
-                                        snackbar.showSnackbar(failure)
+                                    // The snackbar waits for its dismissal; keep it out of the busy
+                                    // window so the screen controls stay usable meanwhile.
+                                    scope.launch {
+                                        try {
+                                            snackbar.currentSnackbarData?.dismiss()
+                                            if (
+                                                snackbar.showSnackbar(
+                                                    changed,
+                                                    actionLabel = undo,
+                                                    duration = SnackbarDuration.Long,
+                                                ) == SnackbarResult.ActionPerformed &&
+                                                    !repository.undo(token)
+                                            )
+                                                snackbar.showSnackbar(failure)
+                                        } catch (e: CancellationException) {
+                                            throw e
+                                        } catch (_: Exception) {
+                                            snackbar.showSnackbar(failure)
+                                        }
+                                    }
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
