@@ -1701,6 +1701,7 @@ internal fun ProductionGalleryApp(
                     ExternalViewer(
                         media = externalMedia,
                         photo = externalPhoto,
+                        shareWithoutLocation = gallerySettings.operations.shareWithoutLocationByDefault,
                         onClose = ::handleBack,
                         onEdit = {
                             viewModel.openExternalEditor()
@@ -2656,8 +2657,12 @@ internal fun ProductionGalleryApp(
                             onAddToAlbum = { showAddToAlbum = true },
                             onArchive = { viewModel.setSelectionArchived(true) },
                             onShare = {
-                                viewModel.selectionShareIntent()?.let {
-                                    context.startActivity(Intent.createChooser(it, null))
+                                if (gallerySettings.operations.shareWithoutLocationByDefault) {
+                                    viewModel.sanitizedSelectionShare()
+                                } else {
+                                    viewModel.selectionShareIntent()?.let {
+                                        context.startActivity(Intent.createChooser(it, null))
+                                    }
                                 }
                             },
                             onStack = {
@@ -4010,6 +4015,7 @@ private fun ChooseAlbumDialog(
 private fun ExternalViewer(
     media: GalleryViewModel.ExternalMedia,
     photo: com.librestatic.lightforge.feature.viewer.PhotoLoadState?,
+    shareWithoutLocation: Boolean,
     onClose: () -> Unit,
     onEdit: () -> Unit,
 ) {
@@ -4048,6 +4054,20 @@ private fun ExternalViewer(
             .onFailure { Toast.makeText(context, actionUnavailable, Toast.LENGTH_SHORT).show() }
     }
     val mime = media.mimeType ?: if (media.kind == MediaKind.Image) "image/*" else "video/*"
+    fun shareSanitized() {
+        scope.launch {
+            runCatching { LocalShareSanitizer(context).prepare(media.uri, media.kind) }
+                .onSuccess { asset ->
+                    launchExternal(Intent(Intent.ACTION_SEND).apply {
+                        type = asset.mimeType
+                        putExtra(Intent.EXTRA_STREAM, asset.uri)
+                        clipData = android.content.ClipData.newUri(context.contentResolver, media.displayName, asset.uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    })
+                }
+                .onFailure { Toast.makeText(context, it.message ?: actionUnavailable, Toast.LENGTH_LONG).show() }
+        }
+    }
     ViewerContent(
         media = media,
         mediaItems = listOf(media),
@@ -4058,27 +4078,18 @@ private fun ExternalViewer(
         onBack = onClose,
         onToggleFavorite = null,
         onShare = {
-            launchExternal(Intent(Intent.ACTION_SEND).apply {
-                type = mime
-                putExtra(Intent.EXTRA_STREAM, media.uri)
-                clipData = android.content.ClipData.newUri(context.contentResolver, media.displayName, media.uri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            })
-        },
-        onShareSanitized = {
-            scope.launch {
-                runCatching { LocalShareSanitizer(context).prepare(media.uri, media.kind) }
-                    .onSuccess { asset ->
-                        launchExternal(Intent(Intent.ACTION_SEND).apply {
-                            type = asset.mimeType
-                            putExtra(Intent.EXTRA_STREAM, asset.uri)
-                            clipData = android.content.ClipData.newUri(context.contentResolver, media.displayName, asset.uri)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        })
-                    }
-                    .onFailure { Toast.makeText(context, it.message ?: actionUnavailable, Toast.LENGTH_LONG).show() }
+            if (shareWithoutLocation) {
+                shareSanitized()
+            } else {
+                launchExternal(Intent(Intent.ACTION_SEND).apply {
+                    type = mime
+                    putExtra(Intent.EXTRA_STREAM, media.uri)
+                    clipData = android.content.ClipData.newUri(context.contentResolver, media.displayName, media.uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                })
             }
         },
+        onShareSanitized = ::shareSanitized,
         onDetails = { showDetails = true },
         onEdit = onEdit,
         onRename = null,

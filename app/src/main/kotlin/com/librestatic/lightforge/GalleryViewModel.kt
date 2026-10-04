@@ -5858,6 +5858,25 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
+    /** Share of the current selection as location-free copies (the "share without location" setting). */
+    fun sanitizedSelectionShare() {
+        val selected = mutableSelection.value as? SelectionSpec.Explicit ?: return
+        val targets = selected.keys.mapNotNull(explicitTargets::get)
+        if (targets.isEmpty() || targets.size > 500) return
+        viewModelScope.launch {
+            try {
+                val sanitizer = LocalShareSanitizer(getApplication<Application>())
+                val assets = targets.map { sanitizer.prepare(ShareCandidate(it, mediaMime(it.kind))) }
+                mutableSanitizedShare.emit(
+                    ShareCoordinator(getApplication<Application>().contentResolver)
+                        .sanitized(assets, excludedPrivateCount = 0).intent,
+                )
+            } catch (failure: Throwable) {
+                mutableShareError.emit(getApplication<Application>().getString(R.string.share_sanitized_failed))
+            }
+        }
+    }
+
     fun beginSystemAction(media: TimelineMedia, action: MediaAction) {
         beginTargetsAction(listOf(MediaActionTarget(media.key, media.kind)), action)
     }
