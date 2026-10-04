@@ -1351,6 +1351,10 @@ internal fun ProductionGalleryApp(
     LaunchedEffect(Unit) {
         viewModel.editorCopyNotice.collect { notice -> snackbarHostState.showSnackbar(notice) }
     }
+    LaunchedEffect(Unit) {
+        viewModel.settingsNotice.collect { notice -> snackbarHostState.showSnackbar(notice) }
+    }
+    var confirmResetSettings by rememberSaveable { mutableStateOf(false) }
     val exportFailedMessage = stringResource(R.string.video_export_failed)
     val exportCancelledMessage = stringResource(R.string.video_export_cancelled)
     LaunchedEffect(viewModel, exportFailedMessage, exportCancelledMessage) {
@@ -2278,7 +2282,7 @@ internal fun ProductionGalleryApp(
                     onOwnSync = { route = SurfaceRoute.OwnSync },
                     onOfflinePlaces = ::openOfflinePlaces,
                     onImportSettings = { importSettingsLauncher.launch("application/json") },
-                    onResetSettings = viewModel::resetGallerySettings,
+                    onResetSettings = { confirmResetSettings = true },
                     onBack = { route = SurfaceRoute.Root },
                     peopleAnalysisEnabled = localAnalysisSwitches.isActive(com.librestatic.lightforge.core.ml.LocalAnalysisFeature.People),
                     contentAnalysisEnabled = localAnalysisSwitches.isActive(com.librestatic.lightforge.core.ml.LocalAnalysisFeature.Content),
@@ -2823,6 +2827,27 @@ internal fun ProductionGalleryApp(
                         }
                     }
                 }
+            }
+            if (confirmResetSettings) {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { confirmResetSettings = false },
+                    title = { Text(stringResource(R.string.settings_reset_confirm_title)) },
+                    text = { Text(stringResource(R.string.settings_reset_confirm_body)) },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                confirmResetSettings = false
+                                viewModel.resetGallerySettings()
+                            },
+                            modifier = Modifier.testTag("settings-reset-confirm"),
+                        ) { Text(stringResource(R.string.settings_reset_confirm)) }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { confirmResetSettings = false }) {
+                            Text(stringResource(android.R.string.cancel))
+                        }
+                    },
+                )
             }
             moveState.corruptReview?.let { review ->
                 androidx.compose.material3.AlertDialog(

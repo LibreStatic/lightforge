@@ -124,4 +124,14 @@
         <item quantity="many">%1$d dipendenze di runtime</item>
         <item quantity="other">%1$d dipendenze di runtime</item>
     </plurals>
-<string name="app_lock_unavailable_body">Lightforge Studio è bloccata, ma questo dispositivo non ha un blocco schermo, un PIN o la biometria per sbloccarla.</string><string name="app_lock_turn_off">Disattiva il blocco</string><string name="destructive_auth_unavailable">Questa azione richiede un blocco schermo, un PIN o la biometria sul dispositivo. Impostane uno o disattiva il blocco delle azioni distruttive nelle impostazioni.</string></resources>
+<string name="app_lock_unavailable_body">Lightforge Studio è bloccata, ma questo dispositivo non ha un blocco schermo, un PIN o la biometria per sbloccarla.</string><string name="app_lock_turn_off">Disattiva il blocco</string><string name="destructive_auth_unavailable">Questa azione richiede un blocco schermo, un PIN o la biometria sul dispositivo. Impostane uno o disattiva il blocco delle azioni distruttive nelle impostazioni.</string>
+    <string name="settings_export_done">Impostazioni e preferiti esportati</string>
+    <string name="settings_export_failed">Impossibile esportare impostazioni e preferiti</string>
+    <string name="settings_import_done">Impostazioni importate</string>
+    <string name="settings_import_failed">Impossibile importare le impostazioni. Il file non è un backup di impostazioni Lightforge valido.</string>
+    <string name="settings_reset_done">Impostazioni predefinite ripristinate</string>
+    <string name="settings_reset_failed">Impossibile ripristinare le impostazioni predefinite</string>
+    <string name="settings_reset_confirm_title">Ripristinare le impostazioni predefinite?</string>
+    <string name="settings_reset_confirm_body">Tutte le impostazioni tornano ai valori predefiniti. Foto, album e preferiti non vengono modificati.</string>
+    <string name="settings_reset_confirm">Ripristina</string>
+</resources>

@@ -137,4 +137,14 @@
         <item quantity="one">%1$d runtime dependency</item>
         <item quantity="other">%1$d runtime dependencies</item>
     </plurals>
-<string name="app_lock_unavailable_body">Lightforge Studio is locked, but this device has no screen lock, PIN or biometrics to unlock it with.</string><string name="app_lock_turn_off">Turn off app lock</string><string name="destructive_auth_unavailable">This action needs a screen lock, PIN or biometrics on the device. Set one up, or turn off the destructive-action lock in Settings.</string></resources>
+<string name="app_lock_unavailable_body">Lightforge Studio is locked, but this device has no screen lock, PIN or biometrics to unlock it with.</string><string name="app_lock_turn_off">Turn off app lock</string><string name="destructive_auth_unavailable">This action needs a screen lock, PIN or biometrics on the device. Set one up, or turn off the destructive-action lock in Settings.</string>
+    <string name="settings_export_done">Settings and favorites exported</string>
+    <string name="settings_export_failed">Couldn\'t export settings and favorites</string>
+    <string name="settings_import_done">Settings imported</string>
+    <string name="settings_import_failed">Couldn\'t import settings. The file is not a valid Lightforge settings backup.</string>
+    <string name="settings_reset_done">Default settings restored</string>
+    <string name="settings_reset_failed">Couldn\'t restore default settings</string>
+    <string name="settings_reset_confirm_title">Restore default settings?</string>
+    <string name="settings_reset_confirm_body">All settings return to their defaults. Your photos, albums and favorites are not changed.</string>
+    <string name="settings_reset_confirm">Restore</string>
+</resources>

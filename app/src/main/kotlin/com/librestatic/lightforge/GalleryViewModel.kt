@@ -1697,28 +1697,59 @@ class GalleryViewModel @Inject constructor(
         viewModelScope.launch { gallerySettingsRepository.update(transform) }
     }
 
+    private val mutableSettingsNotice = MutableSharedFlow<String>(extraBufferCapacity = 4)
+    /** Localized outcome of the settings export, import and reset actions. */
+    val settingsNotice = mutableSettingsNotice.asSharedFlow()
+
     fun resetGallerySettings() {
-        viewModelScope.launch { gallerySettingsRepository.reset() }
+        viewModelScope.launch {
+            try {
+                gallerySettingsRepository.reset()
+                notifySettings(R.string.settings_reset_done)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                notifySettings(R.string.settings_reset_failed)
+            }
+        }
+    }
+
+    private fun notifySettings(message: Int) {
+        mutableSettingsNotice.tryEmit(getApplication<Application>().getString(message))
     }
 
     fun exportGallerySettings(uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
-            val favorites = runtime.value?.database?.libraryDao()?.favoriteMediaForBackup().orEmpty()
-                .map { it.toFavoriteBackupRecord() }
-            val backup = GalleryBackupCodec.encode(gallerySettingsRepository.exportJson(), favorites)
-            getApplication<Application>().contentResolver.openOutputStream(uri)?.bufferedWriter()?.use {
-                it.write(backup.toString(2))
+            try {
+                val favorites = runtime.value?.database?.libraryDao()?.favoriteMediaForBackup().orEmpty()
+                    .map { it.toFavoriteBackupRecord() }
+                val backup = GalleryBackupCodec.encode(gallerySettingsRepository.exportJson(), favorites)
+                val output = checkNotNull(getApplication<Application>().contentResolver.openOutputStream(uri))
+                output.bufferedWriter().use { it.write(backup.toString(2)) }
+                notifySettings(R.string.settings_export_done)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                notifySettings(R.string.settings_export_failed)
             }
         }
     }
 
     fun importGallerySettings(uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
-            val root = getApplication<Application>().contentResolver.openInputStream(uri)?.bufferedReader()?.use {
-                JSONObject(it.readText())
-            } ?: return@launch
-            val payload = GalleryBackupCodec.decode(root)
-            gallerySettingsRepository.importJson(payload.settings)
+            val payload = try {
+                val root = getApplication<Application>().contentResolver.openInputStream(uri)?.bufferedReader()?.use {
+                    JSONObject(it.readText())
+                } ?: throw IllegalStateException("Unreadable settings file")
+                GalleryBackupCodec.decode(root).also { gallerySettingsRepository.importJson(it.settings) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                // A corrupt, unsupported or unreadable file must not crash the app or change anything.
+                notifySettings(R.string.settings_import_failed)
+                return@launch
+            }
+            notifySettings(R.string.settings_import_done)
             val dao = runtime.value?.database?.libraryDao() ?: return@launch
             val targets = payload.favorites.mapNotNull { record ->
                 val exact = dao.media(record.volumeName, record.mediaStoreId)

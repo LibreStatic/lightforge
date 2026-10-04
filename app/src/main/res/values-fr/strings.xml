@@ -124,4 +124,14 @@
         <item quantity="many">%1$d dépendances d’exécution</item>
         <item quantity="other">%1$d dépendances d’exécution</item>
     </plurals>
-<string name="app_lock_unavailable_body">Lightforge Studio est verrouillée, mais cet appareil n\'a ni verrouillage d\'écran, ni code PIN, ni biométrie pour la déverrouiller.</string><string name="app_lock_turn_off">Désactiver le verrouillage</string><string name="destructive_auth_unavailable">Cette action nécessite un verrouillage d\'écran, un code PIN ou la biométrie sur l\'appareil. Configurez-en un ou désactivez le verrouillage des actions destructives dans les paramètres.</string></resources>
+<string name="app_lock_unavailable_body">Lightforge Studio est verrouillée, mais cet appareil n\'a ni verrouillage d\'écran, ni code PIN, ni biométrie pour la déverrouiller.</string><string name="app_lock_turn_off">Désactiver le verrouillage</string><string name="destructive_auth_unavailable">Cette action nécessite un verrouillage d\'écran, un code PIN ou la biométrie sur l\'appareil. Configurez-en un ou désactivez le verrouillage des actions destructives dans les paramètres.</string>
+    <string name="settings_export_done">Réglages et favoris exportés</string>
+    <string name="settings_export_failed">Impossible d\'exporter les réglages et favoris</string>
+    <string name="settings_import_done">Réglages importés</string>
+    <string name="settings_import_failed">Impossible d\'importer les réglages. Le fichier n\'est pas une sauvegarde de réglages Lightforge valide.</string>
+    <string name="settings_reset_done">Réglages par défaut restaurés</string>
+    <string name="settings_reset_failed">Impossible de restaurer les réglages par défaut</string>
+    <string name="settings_reset_confirm_title">Restaurer les réglages par défaut ?</string>
+    <string name="settings_reset_confirm_body">Tous les réglages reprennent leurs valeurs par défaut. Vos photos, albums et favoris ne sont pas modifiés.</string>
+    <string name="settings_reset_confirm">Restaurer</string>
+</resources>

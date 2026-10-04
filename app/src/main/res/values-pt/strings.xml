@@ -124,4 +124,14 @@
         <item quantity="many">%1$d dependências de execução</item>
         <item quantity="other">%1$d dependências de execução</item>
     </plurals>
-<string name="app_lock_unavailable_body">O Lightforge Studio está bloqueado, mas este dispositivo não tem bloqueio de tela, PIN nem biometria para desbloqueá-lo.</string><string name="app_lock_turn_off">Desativar o bloqueio</string><string name="destructive_auth_unavailable">Esta ação precisa de um bloqueio de tela, PIN ou biometria no dispositivo. Configure um ou desative o bloqueio de ações destrutivas nas configurações.</string></resources>
+<string name="app_lock_unavailable_body">O Lightforge Studio está bloqueado, mas este dispositivo não tem bloqueio de tela, PIN nem biometria para desbloqueá-lo.</string><string name="app_lock_turn_off">Desativar o bloqueio</string><string name="destructive_auth_unavailable">Esta ação precisa de um bloqueio de tela, PIN ou biometria no dispositivo. Configure um ou desative o bloqueio de ações destrutivas nas configurações.</string>
+    <string name="settings_export_done">Configurações e favoritos exportados</string>
+    <string name="settings_export_failed">Não foi possível exportar as configurações e favoritos</string>
+    <string name="settings_import_done">Configurações importadas</string>
+    <string name="settings_import_failed">Não foi possível importar as configurações. O arquivo não é um backup de configurações válido do Lightforge.</string>
+    <string name="settings_reset_done">Configurações padrão restauradas</string>
+    <string name="settings_reset_failed">Não foi possível restaurar as configurações padrão</string>
+    <string name="settings_reset_confirm_title">Restaurar as configurações padrão?</string>
+    <string name="settings_reset_confirm_body">Todas as configurações voltam aos valores padrão. Suas fotos, álbuns e favoritos não são alterados.</string>
+    <string name="settings_reset_confirm">Restaurar</string>
+</resources>

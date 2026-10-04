@@ -115,4 +115,14 @@
         <item quantity="one">%1$d Laufzeitabhängigkeit</item>
         <item quantity="other">%1$d Laufzeitabhängigkeiten</item>
     </plurals>
-<string name="app_lock_unavailable_body">Lightforge Studio ist gesperrt, aber dieses Gerät hat keine Bildschirmsperre, PIN oder Biometrie zum Entsperren.</string><string name="app_lock_turn_off">Sperre deaktivieren</string><string name="destructive_auth_unavailable">Diese Aktion erfordert eine Bildschirmsperre, PIN oder Biometrie auf dem Gerät. Richte eine ein oder deaktiviere die Sperre für destruktive Aktionen in den Einstellungen.</string></resources>
+<string name="app_lock_unavailable_body">Lightforge Studio ist gesperrt, aber dieses Gerät hat keine Bildschirmsperre, PIN oder Biometrie zum Entsperren.</string><string name="app_lock_turn_off">Sperre deaktivieren</string><string name="destructive_auth_unavailable">Diese Aktion erfordert eine Bildschirmsperre, PIN oder Biometrie auf dem Gerät. Richte eine ein oder deaktiviere die Sperre für destruktive Aktionen in den Einstellungen.</string>
+    <string name="settings_export_done">Einstellungen und Favoriten exportiert</string>
+    <string name="settings_export_failed">Einstellungen und Favoriten konnten nicht exportiert werden</string>
+    <string name="settings_import_done">Einstellungen importiert</string>
+    <string name="settings_import_failed">Die Einstellungen konnten nicht importiert werden. Die Datei ist keine gültige Lightforge-Einstellungssicherung.</string>
+    <string name="settings_reset_done">Standardeinstellungen wiederhergestellt</string>
+    <string name="settings_reset_failed">Standardeinstellungen konnten nicht wiederhergestellt werden</string>
+    <string name="settings_reset_confirm_title">Standardeinstellungen wiederherstellen?</string>
+    <string name="settings_reset_confirm_body">Alle Einstellungen werden auf ihre Standardwerte zurückgesetzt. Ihre Fotos, Alben und Favoriten bleiben unverändert.</string>
+    <string name="settings_reset_confirm">Wiederherstellen</string>
+</resources>
