@@ -63,4 +63,6 @@
         <item quantity="many">Selecionar arquivos · %1$d selecionados</item>
         <item quantity="other">Selecionar arquivos · %1$d selecionados</item>
     </plurals>
+    <string name="peer_revoke_title">Revogar %1$s?</string>
+    <string name="peer_revoke_body">Este aparelho não poderá mais enviar nem receber itens até que você o pareie novamente.</string>
 </resources>

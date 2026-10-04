@@ -17,7 +17,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.platform.LocalClipboardManager
 import android.text.format.Formatter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -26,7 +25,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.BinaryBitmap
@@ -49,7 +47,6 @@ fun LocalSharingContent(
     onOpenLocalTasks: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     val peers by controller.peers.collectAsState()
     val transfers by controller.transfers.collectAsState()
@@ -58,6 +55,7 @@ fun LocalSharingContent(
     var code by remember { mutableStateOf("") }
     var error by remember { mutableStateOf(false) }
     var working by remember { mutableStateOf(false) }
+    var revokeTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
     var pairing by remember { mutableStateOf(false) }
     var peerId by remember { mutableStateOf<String?>(null) }
     var selected by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -135,6 +133,11 @@ fun LocalSharingContent(
                             { host = it },
                             label = { Text(stringResource(R.string.peer_host)) },
                             modifier = Modifier.fillMaxWidth().testTag("peer-host"),
+                            singleLine = true,
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri,
+                                autoCorrectEnabled = false,
+                            ),
                         )
                         Button(
                             onClick = {
@@ -163,7 +166,7 @@ fun LocalSharingContent(
                             Text(invite.pin, style = MaterialTheme.typography.bodySmall)
                             Text(stringResource(R.string.peer_expiry))
                             TextButton(
-                                onClick = { clipboard.setText(AnnotatedString(text)) },
+                                onClick = { copySensitive(context, text) },
                                 modifier = Modifier.testTag("peer-copy-code"),
                             ) {
                                 Text(stringResource(R.string.peer_copy))
@@ -268,7 +271,7 @@ fun LocalSharingContent(
                     if (!peer.canSend) Text(stringResource(R.string.peer_pair_reverse))
                     if (peer.revoked) Text(stringResource(R.string.peer_revoked))
                     else
-                        TextButton(onClick = { launch { controller.revoke(peer.id) } }) {
+                        TextButton(onClick = { revokeTarget = peer.id to peer.name }) {
                             Text(stringResource(R.string.peer_revoke))
                         }
                 }
@@ -403,6 +406,21 @@ fun LocalSharingContent(
         }
     }
     }
+    }
+    revokeTarget?.let { (id, name) ->
+        AlertDialog(
+            onDismissRequest = { revokeTarget = null },
+            title = { Text(stringResource(R.string.peer_revoke_title, name)) },
+            text = { Text(stringResource(R.string.peer_revoke_body)) },
+            confirmButton = {
+                TextButton(onClick = { revokeTarget = null; launch { controller.revoke(id) } }) {
+                    Text(stringResource(R.string.peer_revoke))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { revokeTarget = null }) { Text(stringResource(R.string.peer_cancel)) }
+            },
+        )
     }
     val review = transfers.find { it.id == reviewId }
     if (review != null)
@@ -582,4 +600,14 @@ private fun readPeerQr(context: Context, uri: Uri): String {
     } finally {
         bitmap.recycle()
     }
+}
+
+/** The invitation carries the pairing PIN, so keep it out of clipboard previews and keyboard suggestions. */
+private fun copySensitive(context: android.content.Context, text: String) {
+    val clip = android.content.ClipData.newPlainText(null, text).apply {
+        description.extras = android.os.PersistableBundle().apply {
+            putBoolean(android.content.ClipDescription.EXTRA_IS_SENSITIVE, true)
+        }
+    }
+    context.getSystemService(android.content.ClipboardManager::class.java)?.setPrimaryClip(clip)
 }

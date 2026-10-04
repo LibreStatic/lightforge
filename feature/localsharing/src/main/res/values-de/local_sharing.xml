@@ -62,4 +62,6 @@
         <item quantity="one">Dateien auswählen · %1$d ausgewählt</item>
         <item quantity="other">Dateien auswählen · %1$d ausgewählt</item>
     </plurals>
+    <string name="peer_revoke_title">%1$s widerrufen?</string>
+    <string name="peer_revoke_body">Dieses Gerät kann erst wieder Elemente senden oder empfangen, wenn du es erneut koppelst.</string>
 </resources>

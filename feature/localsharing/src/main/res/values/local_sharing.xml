@@ -62,4 +62,6 @@
         <item quantity="one">Select files · %1$d selected</item>
         <item quantity="other">Select files · %1$d selected</item>
     </plurals>
+    <string name="peer_revoke_title">Revoke %1$s?</string>
+    <string name="peer_revoke_body">This device will no longer be able to send or receive items until you pair it again.</string>
 </resources>
