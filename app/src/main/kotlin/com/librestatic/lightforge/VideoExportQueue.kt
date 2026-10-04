@@ -317,12 +317,13 @@ class VideoExportWorker(context: Context, parameters: WorkerParameters) : Corout
             throw cancelled
         } catch (failure: Throwable) {
             val causes = generateSequence(failure) { it.cause }.toList()
-            val message = if (causes.any { it is HdrVideoExportUnsupportedException }) {
-                applicationContext.getString(R.string.video_export_hdr_unsupported)
-            } else {
-                videoExportDiagnostic(failure, applicationContext.getString(R.string.video_export_failed))
-            }
-            Log.e("VideoExportWorker", "Video export $id failed: $message", failure)
+            // Users see a localized sentence; Media3's error code and causes stay in the log.
+            val message = applicationContext.getString(
+                if (causes.any { it is HdrVideoExportUnsupportedException }) R.string.video_export_hdr_unsupported
+                else R.string.video_export_failed,
+            )
+            val diagnostic = videoExportDiagnostic(failure, message)
+            Log.e("VideoExportWorker", "Video export $id failed: $diagnostic", failure)
             val failed = store.update(id) {
                 it.copy(status = VideoExportJobStatus.Failed, error = message)
             }
