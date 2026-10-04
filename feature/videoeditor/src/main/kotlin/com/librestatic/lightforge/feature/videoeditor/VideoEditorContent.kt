@@ -131,6 +131,7 @@ import com.librestatic.lightforge.core.editing.video.VideoEncoderCapabilities
 import com.librestatic.lightforge.core.editing.video.VideoOutputCodec
 import com.librestatic.lightforge.core.editing.video.VideoOutputQuality
 import com.librestatic.lightforge.core.editing.video.VideoSourceInfo
+import com.librestatic.lightforge.core.editing.video.VideoStraighten
 import com.librestatic.lightforge.core.editing.video.VideoOutputSettings
 import com.librestatic.lightforge.core.editing.video.VideoDynamicRange
 import com.librestatic.lightforge.core.editing.video.VideoGeometry
@@ -1533,8 +1534,8 @@ private fun TransformControls(
     onChange: (VideoGeometry) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val fineRotation = ((geometry.rotationDegrees + 45f) % 90f + 90f) % 90f - 45f
-    val quarterRotation = geometry.rotationDegrees - fineRotation
+    val fineRotation = VideoStraighten.fineDegrees(geometry.rotationDegrees)
+    val quarterRotation = VideoStraighten.quarterTurnDegrees(geometry.rotationDegrees)
     val horizontalCropDescription = stringResource(R.string.video_editor_crop_horizontal)
     val verticalCropDescription = stringResource(R.string.video_editor_crop_vertical)
     val straightenDescription = stringResource(R.string.video_editor_straighten)

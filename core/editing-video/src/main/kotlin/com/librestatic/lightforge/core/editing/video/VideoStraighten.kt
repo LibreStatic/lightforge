@@ -6,9 +6,9 @@ import android.graphics.Matrix
 import androidx.media3.common.util.Size
 import androidx.media3.effect.MatrixTransformation
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.max
-import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
@@ -17,8 +17,15 @@ import kotlin.math.sin
  * hide the corners the tilt would otherwise expose.
  */
 object VideoStraighten {
-    /** The whole quarter turns in [rotationDegrees], as a multiple of 90. */
-    fun quarterTurnDegrees(rotationDegrees: Float): Float = (rotationDegrees / 90f).roundToInt() * 90f
+    /**
+     * The whole quarter turns in [rotationDegrees], as a multiple of 90. A half turn (exactly 45 degrees
+     * past a quarter) rounds towards zero, so a straighten slider reaching +45 or -45 stays on its
+     * quarter turn instead of jumping to the next one and changing the output size.
+     */
+    fun quarterTurnDegrees(rotationDegrees: Float): Float {
+        val turns = ceil(abs(rotationDegrees) / 90f - 0.5f)
+        return (if (rotationDegrees < 0f) -turns else turns) * 90f
+    }
 
     /** The straighten angle left after the quarter turns, in -45..45 degrees. */
     fun fineDegrees(rotationDegrees: Float): Float = rotationDegrees - quarterTurnDegrees(rotationDegrees)

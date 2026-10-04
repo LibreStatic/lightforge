@@ -16,6 +16,19 @@ class VideoStraightenTest {
     }
 
     @Test
+    fun theStraightenExtremesStayOnTheirQuarterTurn() {
+        assertEquals(0f, VideoStraighten.quarterTurnDegrees(45f), 0f)
+        assertEquals(45f, VideoStraighten.fineDegrees(45f), 0f)
+        assertEquals(0f, VideoStraighten.quarterTurnDegrees(-45f), 0f)
+        assertEquals(-45f, VideoStraighten.fineDegrees(-45f), 0f)
+        assertEquals(90f, VideoStraighten.quarterTurnDegrees(135f), 0f)
+        assertEquals(45f, VideoStraighten.fineDegrees(135f), 0f)
+        assertEquals(270f, VideoStraighten.quarterTurnDegrees(315f), 0f)
+        assertEquals(45f, VideoStraighten.fineDegrees(315f), 0f)
+        assertEquals(90f, VideoStraighten.quarterTurnDegrees(45.5f), 0f)
+    }
+
+    @Test
     fun coverScaleHidesTheCornersOfATiltedFrame() {
         val radians = Math.toRadians(10.0)
         val expected = cos(radians) + 16.0 / 9.0 * sin(radians)
