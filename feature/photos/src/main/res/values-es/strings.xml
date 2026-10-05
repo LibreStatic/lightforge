@@ -13,7 +13,7 @@
     <string name="grant_access_action">Elegir acceso</string>
     <string name="photo_thumbnail_description">Foto</string>
     <string name="video_thumbnail_description">Video</string>
-<string name="open_settings">Abrir ajustes</string><string name="change_grid_density">Cambiar densidad de cuadrícula</string><string name="photos_create">Crear</string><string name="photos_updates">Actualizaciones</string>    <string name="library_ready_dismiss">Entendido</string>    <string name="library_ready_status">Biblioteca lista</string>
+<string name="open_settings">Abrir ajustes</string><string name="change_grid_density">Cambiar densidad de cuadrícula</string><string name="photos_create">Crear</string><string name="photos_updates">Actualizaciones</string>    <string name="library_ready_detail">Todas tus fotos y videos están indexados</string><string name="library_ready_dismiss">Entendido</string>    <string name="library_ready_status">Biblioteca lista</string>
     <string name="scrubber_handle_description">Desplazamiento por fecha</string>
     <string name="scrubber_today">Hoy</string>
     <string name="scrubber_yesterday">Ayer</string>

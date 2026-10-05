@@ -142,6 +142,21 @@ internal fun LibraryIndexStatus(
                         ) {
                             GalleryIndeterminateProgressIndicator(Modifier.testTag("library-index-progress"))
                         }
+                        // With nothing left to run, the confirmation says what "ready" means so the slot
+                        // under it is not left blank.
+                        AnimatedVisibility(
+                            visible = ready && hint == null,
+                            enter = fadeIn(tween(delayMillis = 400)),
+                            exit = fadeOut(),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.library_ready_detail),
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.testTag("library-ready-detail"),
+                            )
+                        }
                         // Once the library is browsable the bar gives way to a quieter line naming what
                         // still runs, or what the device is holding back.
                         var lastHint by remember { mutableStateOf(hint) }

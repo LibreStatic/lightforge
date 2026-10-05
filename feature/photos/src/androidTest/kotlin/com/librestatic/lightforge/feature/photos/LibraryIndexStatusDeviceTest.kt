@@ -74,6 +74,8 @@ class LibraryIndexStatusDeviceTest {
         compose.mainClock.advanceTimeBy(60_000)
         compose.onNodeWithText(context.getString(R.string.library_ready_status), useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithTag("library-background-status", useUnmergedTree = true).assertIsDisplayed()
+        // A running hint takes the line instead of the "all indexed" detail.
+        compose.onNodeWithTag("library-ready-detail", useUnmergedTree = true).assertDoesNotExist()
         compose.onNodeWithTag("library-ready-dismiss")
             .assertIsDisplayed().assertHasClickAction().assertTextEquals(context.getString(R.string.library_ready_dismiss))
             .performClick()
@@ -154,6 +156,8 @@ class LibraryIndexStatusDeviceTest {
                 // "Library ready" waits for the person instead of a timer.
                 compose.mainClock.advanceTimeBy(10_000)
                 compose.onNodeWithText(ready, useUnmergedTree = true).assertIsDisplayed()
+                compose.onNodeWithTag("library-ready-detail", useUnmergedTree = true)
+                    .assertIsDisplayed().assertTextEquals(context.getString(R.string.library_ready_detail))
             }
         }
     }
