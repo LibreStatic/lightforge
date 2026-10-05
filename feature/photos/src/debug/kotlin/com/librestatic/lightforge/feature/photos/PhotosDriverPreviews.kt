@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,6 +26,7 @@ import com.librestatic.lightforge.core.model.TimelineMedia
 import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
 import java.time.LocalDate
 import java.time.ZoneOffset
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
 
 // Debug-only, zero-argument entry points for tools/compose-driver and Android Studio previews.
@@ -46,8 +48,23 @@ fun PhotosSelectionPreview() = PhotosFrame(initialSelection = setOf(3L, 4L, 10L)
 @Composable
 fun PhotosFilterEmptyPreview() = PhotosFrame(initialFilter = PhotosFilter.Raw, days = emptyList())
 
+/**
+ * A cold start that indexes for a while: the status pill turns into a "Library ready"
+ * confirmation that stays until "Got it". */
+@Preview
+@Composable
+fun PhotosColdStartPreview() {
+    var engineState by remember { mutableStateOf(LibraryUiState.Indexing) }
+    LaunchedEffect(Unit) {
+        delay(3_000)
+        engineState = LibraryUiState.Ready
+    }
+    PhotosFrame(engineState = engineState)
+}
+
 @Composable
 private fun PhotosFrame(
+    engineState: LibraryUiState = LibraryUiState.Ready,
     initialSelection: Set<Long> = emptySet(),
     initialFilter: PhotosFilter = PhotosFilter.All,
     days: List<Pair<LocalDate, Int>> = SampleDays,
@@ -67,7 +84,7 @@ private fun PhotosFrame(
         Surface(Modifier.fillMaxSize()) {
             LibraryPhotosRoute(
                 access = LibraryAccess(GrantLevel.Full, GrantLevel.Full, unredactedLocation = true),
-                engineState = LibraryUiState.Ready,
+                engineState = engineState,
                 entries = entries,
                 thumbnailLoader = loader,
                 onRequestAccess = {},

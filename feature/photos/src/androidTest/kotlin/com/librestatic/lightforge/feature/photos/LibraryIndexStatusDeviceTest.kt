@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.librestatic.lightforge.core.designsystem.LightforgeTheme
+import com.librestatic.lightforge.core.designsystem.LocalGallerySuccessColors
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Rule
@@ -35,6 +36,11 @@ import org.junit.runner.RunWith
 /** Component acceptance only: never starts indexing or reads a real media library. */
 @RunWith(AndroidJUnit4::class)
 class LibraryIndexStatusDeviceTest {
+    private companion object {
+        /** Long enough for enter/exit, the color change and the progress bar's fade. */
+        const val SettleMillis = 600L
+    }
+
     @get:Rule val compose = createComposeRule()
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context get() = instrumentation.targetContext
@@ -45,22 +51,72 @@ class LibraryIndexStatusDeviceTest {
     @Test fun compactLargeRtlDynamicLightStatusesRemainVisibleAndPolite() = exercise(false, true)
     @Test fun compactLargeRtlDynamicDarkStatusesRemainVisibleAndPolite() = exercise(true, true)
 
+    @Test fun shortStartStaysSilent() {
+        var state by mutableStateOf(LibraryUiState.Ready)
+        setStatus { LibraryIndexStatus(state) }
+        // An already-indexed library leaves Starting within the grace period: nothing flashes.
+        compose.runOnIdle { state = LibraryUiState.Starting }
+        compose.mainClock.advanceTimeBy(LibraryPreparingGraceMillis / 2)
+        compose.onNodeWithTag("library-index-status", useUnmergedTree = true).assertDoesNotExist()
+        compose.runOnIdle { state = LibraryUiState.Ready }
+        compose.mainClock.advanceTimeBy(LibraryPreparingGraceMillis + SettleMillis)
+        compose.onNodeWithTag("library-index-status", useUnmergedTree = true).assertDoesNotExist()
+    }
+
+    @Test fun readyStaysUntilAcknowledged() {
+        var state by mutableStateOf(LibraryUiState.Indexing)
+        var background by mutableStateOf<LibraryBackgroundStatus?>(LibraryBackgroundStatus(LibraryBackgroundWork.Faces))
+        setStatus { LibraryIndexStatus(state, background = background) }
+        compose.mainClock.advanceTimeBy(LibraryPreparingGraceMillis + SettleMillis)
+        compose.onNodeWithTag("library-ready-dismiss", useUnmergedTree = true).assertDoesNotExist()
+        compose.runOnIdle { state = LibraryUiState.Ready }
+        // No timer: the confirmation never moves the timeline on its own.
+        compose.mainClock.advanceTimeBy(60_000)
+        compose.onNodeWithText(context.getString(R.string.library_ready_status), useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithTag("library-background-status", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithTag("library-ready-dismiss")
+            .assertIsDisplayed().assertHasClickAction().assertTextEquals(context.getString(R.string.library_ready_dismiss))
+            .performClick()
+        compose.mainClock.advanceTimeBy(SettleMillis)
+        compose.onNodeWithTag("library-index-status", useUnmergedTree = true).assertDoesNotExist()
+        // Later hints stay quiet once acknowledged; new preparing work brings the pill back.
+        compose.runOnIdle { background = LibraryBackgroundStatus(LibraryBackgroundWork.People) }
+        compose.mainClock.advanceTimeBy(5_000)
+        compose.onNodeWithTag("library-index-status", useUnmergedTree = true).assertDoesNotExist()
+        compose.runOnIdle { state = LibraryUiState.Indexing }
+        compose.mainClock.advanceTimeBy(LibraryPreparingGraceMillis + SettleMillis)
+        compose.onNodeWithText(context.getString(R.string.library_loading_title), useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    /** Effects and animations only move when the test advances the clock, so timed phases are deterministic. */
+    private fun setStatus(content: @Composable () -> Unit) {
+        compose.mainClock.autoAdvance = false
+        compose.setContent { LightforgeTheme { Box(Modifier.requiredSize(360.dp, 640.dp)) { content() } } }
+        compose.mainClock.advanceTimeBy(SettleMillis)
+    }
+
     private fun exercise(dark: Boolean, dynamic: Boolean = false) {
         var contrast = 0.0
         val expected = if (dynamic) {
             if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         } else null
         var state by mutableStateOf(LibraryUiState.Ready)
+        compose.mainClock.autoAdvance = false
         compose.setContent {
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, 2f),
                 LocalLayoutDirection provides LayoutDirection.Rtl) {
                 LightforgeTheme(darkTheme = dark, dynamicColor = dynamic) {
                     val colors = MaterialTheme.colorScheme
+                    val success = LocalGallerySuccessColors.current
                     SideEffect {
-                        val foreground = colors.onSurface.luminance().toDouble()
-                        val background = colors.surfaceContainer.luminance().toDouble()
-                        contrast = (maxOf(foreground, background) + 0.05) / (minOf(foreground, background) + 0.05)
+                        fun ratio(a: androidx.compose.ui.graphics.Color, b: androidx.compose.ui.graphics.Color): Double {
+                            val foreground = a.luminance().toDouble()
+                            val background = b.luminance().toDouble()
+                            return (maxOf(foreground, background) + 0.05) / (minOf(foreground, background) + 0.05)
+                        }
+                        // Both pills: neutral while working, success once ready.
+                        contrast = minOf(ratio(colors.onSurface, colors.surfaceContainer), ratio(success.onContainer, success.container))
                         if (expected != null) {
                             check(colors.onSurface == expected.onSurface && colors.surfaceContainer == expected.surfaceContainer)
                         }
@@ -71,7 +127,9 @@ class LibraryIndexStatusDeviceTest {
                 }
             }
         }
-        compose.onNodeWithText(context.getString(R.string.library_ready_status), useUnmergedTree = true).assertDoesNotExist()
+        compose.mainClock.advanceTimeBy(SettleMillis)
+        val ready = context.getString(R.string.library_ready_status)
+        compose.onNodeWithText(ready, useUnmergedTree = true).assertDoesNotExist()
         compose.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsProperties.LiveRegion), useUnmergedTree = true).assertCountEquals(0)
         val steps = listOf(
             LibraryUiState.Starting to R.string.library_loading_title,
@@ -83,6 +141,8 @@ class LibraryIndexStatusDeviceTest {
         )
         for ((next, resource) in steps) {
             compose.runOnIdle { state = next }
+            // Starting waits out its grace period before showing; everything else shows at once.
+            compose.mainClock.advanceTimeBy(SettleMillis + if (next == LibraryUiState.Starting) LibraryPreparingGraceMillis else 0)
             check(contrast >= 4.5) { "Insufficient status contrast: $contrast" }
             observe(
                 resource,
@@ -90,11 +150,15 @@ class LibraryIndexStatusDeviceTest {
                 contrast,
                 preparing = next == LibraryUiState.Starting || next == LibraryUiState.Indexing,
             )
+            if (next == LibraryUiState.Ready) {
+                // "Library ready" waits for the person instead of a timer.
+                compose.mainClock.advanceTimeBy(10_000)
+                compose.onNodeWithText(ready, useUnmergedTree = true).assertIsDisplayed()
+            }
         }
     }
 
     private fun observe(resource: Int, theme: String, contrast: Double, preparing: Boolean) {
-        compose.waitForIdle()
         val label = context.getString(resource)
         val node = compose.onNodeWithText(label, useUnmergedTree = true).assertIsDisplayed()
         val semantics = node.fetchSemanticsNode()
@@ -158,7 +222,7 @@ class LibraryIndexStatusDeviceTest {
                     visit(root, emptyList(), 0)
                 } finally { @Suppress("DEPRECATION") root.recycle() }
             }
-            if (!matched) { compose.waitForIdle(); SystemClock.sleep(50) }
+            if (!matched) SystemClock.sleep(50)
         } while (!matched && SystemClock.uptimeMillis() < deadline)
         println("LIBRARY_INDEX_ACCESSIBILITY " + JSONObject().put("phase", label)
             .put("theme", theme).put("contrast", contrast).put("fontScale", 2).put("layoutDirection", "RTL")

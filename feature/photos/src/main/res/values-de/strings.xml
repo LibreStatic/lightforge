@@ -13,7 +13,7 @@
     <string name="grant_access_action">Zugriff wählen</string>
     <string name="photo_thumbnail_description">Foto</string>
     <string name="video_thumbnail_description">Video</string>
-<string name="open_settings">Einstellungen öffnen</string><string name="change_grid_density">Rasterdichte ändern</string><string name="photos_create">Erstellen</string><string name="photos_updates">Aktuelles</string>    <string name="library_ready_status">Mediathek bereit</string>
+<string name="open_settings">Einstellungen öffnen</string><string name="change_grid_density">Rasterdichte ändern</string><string name="photos_create">Erstellen</string><string name="photos_updates">Aktuelles</string>    <string name="library_ready_dismiss">Verstanden</string>    <string name="library_ready_status">Mediathek bereit</string>
     <string name="scrubber_handle_description">Zeitleisten-Regler</string>
     <string name="scrubber_today">Heute</string>
     <string name="scrubber_yesterday">Gestern</string>
