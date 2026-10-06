@@ -117,7 +117,7 @@ internal fun LibraryIndexStatus(
             contentColor = content,
             shape = MaterialTheme.shapes.medium,
         ) {
-            Row {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(
                         text = stringResource(label),
@@ -130,10 +130,11 @@ internal fun LibraryIndexStatus(
                     )
                     // The slot keeps its height in every state and the bar only fades, so indexing starting or
                     // ending never resizes the pill or moves the timeline below it. The bar sits at the top of the
-                    // slot, so the top padding keeps the wave's crests clear of the text.
+                    // slot, so the top padding keeps the wave's crests clear of the text; the bottom padding
+                    // matches the title's top inset so the second line does not crowd the pill's edge.
                     GalleryProgressSlot(
                         visible = true,
-                        modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 4.dp),
+                        modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 12.dp),
                     ) {
                         AnimatedVisibility(
                             visible = preparing,
@@ -183,8 +184,8 @@ internal fun LibraryIndexStatus(
                         }
                     }
                 }
-                // Fits beside the two lines, so the pill keeps its height when the button appears; the top
-                // padding lines its label up with the status text (12 dp + half a line vs half a 40 dp button).
+                // Fits beside the two lines, so the pill keeps its height when the button appears; centred
+                // against both lines rather than the first, as in a Material banner's single-line action.
                 if (ready) {
                     TextButton(
                         onClick = {
@@ -193,7 +194,7 @@ internal fun LibraryIndexStatus(
                             shown = false
                         },
                         colors = ButtonDefaults.textButtonColors(contentColor = LocalContentColor.current),
-                        modifier = Modifier.padding(top = 2.dp, end = 4.dp).testTag("library-ready-dismiss"),
+                        modifier = Modifier.padding(end = 4.dp).testTag("library-ready-dismiss"),
                     ) {
                         Text(stringResource(R.string.library_ready_dismiss))
                     }
