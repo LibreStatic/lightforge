@@ -18,6 +18,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
+import androidx.paging.filter
 import com.librestatic.lightforge.core.data.MomentRepository
 import com.librestatic.lightforge.core.database.MomentEntity
 import com.librestatic.lightforge.core.database.PortableTimelineOverrideEntity
@@ -569,6 +570,21 @@ class GalleryViewModel @Inject constructor(
         mutableTimelineJump.update { TimelineJump(anchor, it.count + 1) }
     }
 
+    /**
+     * Media whose trash, restore or delete the user just approved. MediaStore applies it and the
+     * index catches up one row at a time, so the grids hide these keys at once instead of letting
+     * the items drain out one by one under a still-active selection.
+     */
+    private val pendingLibraryRemovals = MutableStateFlow<Set<MediaKey>>(emptySet())
+    private val pendingTrashRemovals = MutableStateFlow<Set<MediaKey>>(emptySet())
+
+    private fun <T : Any> Flow<PagingData<T>>.withoutPending(
+        pending: MutableStateFlow<Set<MediaKey>>,
+        key: (T) -> MediaKey?,
+    ): Flow<PagingData<T>> = combine(this, pending) { data, hidden ->
+        if (hidden.isEmpty()) data else data.filter { item -> key(item)?.let { it !in hidden } ?: true }
+    }
+
     val timeline: Flow<PagingData<TimelineEntry>> by lazy {
         combine(gallerySettings.map { it.library }, selection.map {
             it !is SelectionSpec.Explicit || it.keys.isNotEmpty()
@@ -591,6 +607,7 @@ class GalleryViewModel @Inject constructor(
                     }
                 }
             }.cachedIn(viewModelScope)
+            .withoutPending(pendingLibraryRemovals) { (it as? TimelineEntry.Media)?.value?.key }
     }
     private var previousTimelineLibrary: com.librestatic.lightforge.core.preferences.LibrarySettings? = null
 
@@ -661,11 +678,13 @@ class GalleryViewModel @Inject constructor(
     val trash: Flow<PagingData<TimelineMedia>> = runtime.filterNotNull()
         .flatMapLatest { it.trash.trash() }
         .cachedIn(viewModelScope)
+        .withoutPending(pendingTrashRemovals) { it.key }
     val trashCount = runtime.filterNotNull().flatMapLatest { it.trash.countFlow() }
         .stateIn(viewModelScope, SharingStarted.Eagerly, 0L)
     val archive: Flow<PagingData<TimelineMedia>> = runtime.filterNotNull()
         .flatMapLatest { it.archive.media() }
         .cachedIn(viewModelScope)
+        .withoutPending(pendingLibraryRemovals) { it.key }
     val memoryExclusionRepository = runtime.map { active ->
         active?.let { com.librestatic.lightforge.core.data.MemoryExclusionRepository(it.database) }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
@@ -728,6 +747,7 @@ class GalleryViewModel @Inject constructor(
             mutableSelectedHighlight.filterNotNull().flatMapLatest { active.queryMedia.media(it.query) }
         }
         .cachedIn(viewModelScope)
+        .withoutPending(pendingLibraryRemovals) { it.key }
     val momentSummaries = runtime.filterNotNull().flatMapLatest { it.moments.summaries() }
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList<MomentSummaryRow>())
     private val albumRequest = MutableStateFlow<AlbumRequest?>(null)
@@ -737,6 +757,7 @@ class GalleryViewModel @Inject constructor(
                 active.albums.media(request.key, request.filter, request.sort)
             }
         }.cachedIn(viewModelScope)
+        .withoutPending(pendingLibraryRemovals) { it.key }
     private val mutableCurrentMedia = MutableStateFlow<TimelineMedia?>(null)
     val currentMedia = mutableCurrentMedia.asStateFlow()
     private val mutableViewerState = MutableStateFlow(ViewerUiState())
@@ -6221,14 +6242,20 @@ class GalleryViewModel @Inject constructor(
             val approvedTargets = (coordinator.snapshot.value.phase as?
                 com.librestatic.lightforge.core.mediastore.MediaActionPhase.AwaitingSystem)?.targets.orEmpty()
             val approvedAction = coordinator.snapshot.value.progress.action
+            val removedKeys = approvedTargets.mapTo(HashSet()) { it.key }
+            val removals = if (approved) pendingRemovalsFor(approvedAction) else emptyList()
+            if (removals.isNotEmpty() && removedKeys.isNotEmpty()) {
+                removals.forEach { pending -> pending.update { it + removedKeys } }
+                if (pendingLibraryRemovals in removals) dropFromSearchHits(removedKeys)
+                // A single request is the whole action; chunked ones keep the selection that drives them.
+                if (bulkCursor == null && favoriteImportCursor == null) clearSelection()
+            }
             val snapshot = coordinator.onSystemResult(requestId, approved)
             if (approved && approvedAction == MediaAction.Write) {
                 applyPendingWriteMutation(approvedTargets.singleOrNull())
             }
             if (approved) approvedTargets.forEach { runtime.value?.synchronizer?.applyRowHint(it.key) }
-            if (approved && ((approvedAction is MediaAction.Trash && approvedAction.enabled) || approvedAction == MediaAction.Delete)) {
-                dropFromSearchHits(approvedTargets.map { it.key }.toSet())
-            }
+            if (removals.isNotEmpty() && removedKeys.isNotEmpty()) releasePendingRemovals(removals, removedKeys)
             if (snapshot?.phase == com.librestatic.lightforge.core.mediastore.MediaActionPhase.ReadyForChunk) {
                 when {
                     bulkCursor != null -> stageNextBulkChunk()
@@ -6257,6 +6284,25 @@ class GalleryViewModel @Inject constructor(
                 favoriteImportCursor = null
                 savedStateHandle[FavoriteImportStateKey] = null
             }
+        }
+    }
+
+    /** The grids an approved action takes its targets out of: trash leaves the library, restore leaves the trash. */
+    private fun pendingRemovalsFor(action: MediaAction): List<MutableStateFlow<Set<MediaKey>>> = when (action) {
+        is MediaAction.Trash -> listOf(if (action.enabled) pendingLibraryRemovals else pendingTrashRemovals)
+        MediaAction.Delete -> listOf(pendingLibraryRemovals, pendingTrashRemovals)
+        else -> emptyList()
+    }
+
+    /**
+     * The row hints have written the real outcome by now; the pagers reload it shortly after, so
+     * the keys are released once that reload has landed. Items the system did not remove come
+     * back then, and a later restore is not hidden by a stale entry.
+     */
+    private fun releasePendingRemovals(removals: List<MutableStateFlow<Set<MediaKey>>>, keys: Set<MediaKey>) {
+        viewModelScope.launch {
+            delay(PendingRemovalReleaseDelayMillis)
+            removals.forEach { pending -> pending.update { it - keys } }
         }
     }
 
@@ -6860,6 +6906,7 @@ class GalleryViewModel @Inject constructor(
         const val SelectedMomentStateKey = "selected_moment_id"
         const val ActionStateKey = "media_action_state"
         const val WidgetRefreshDebounceMillis = 1_500L
+        const val PendingRemovalReleaseDelayMillis = 2_000L
         const val BulkStateKey = "bulk_action_state"
         const val FavoriteImportStateKey = "favorite_import_state"
         const val WriteMutationStateKey = "pending_write_mutation"
