@@ -2032,6 +2032,10 @@ private fun SettingsSwitchRow(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             selectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             selectedContentColor = MaterialTheme.colorScheme.onSurface,
+            // The checked state otherwise falls back to an inverse supporting
+            // colour that is unreadable on surfaceContainerHigh.
+            supportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            selectedSupportingContentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         ),
         checked = checked,
         onCheckedChange = onCheckedChange,
