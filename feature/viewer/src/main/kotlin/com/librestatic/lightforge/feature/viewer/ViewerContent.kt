@@ -45,7 +45,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -910,21 +909,6 @@ fun ViewerContent(
                                 leadingIcon = { Icon(GalleryIcons.Archive, contentDescription = null) },
                             )
                         }
-                        onTrash?.let { action ->
-                            HorizontalDivider()
-                            DropdownMenuItem(
-                                text = { Text(trashActionLabel ?: stringResource(R.string.viewer_trash), color = MaterialTheme.colorScheme.error) },
-                                onClick = { menuExpanded = false; action() },
-                                leadingIcon = { Icon(GalleryIcons.Trash, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                            )
-                        }
-                        if (onDelete != null && deleteActionLabel != null) {
-                            DropdownMenuItem(
-                                text = { Text(deleteActionLabel, color = MaterialTheme.colorScheme.error) },
-                                onClick = { menuExpanded = false; onDelete() },
-                                leadingIcon = { Icon(GalleryIcons.Trash, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
-                            )
-                        }
                     }
                 }
             }
@@ -980,6 +964,11 @@ fun ViewerContent(
                     onEdit = onEdit,
                     onToggleFavorite = onToggleFavorite,
                     isFavorite = isFavorite,
+                    // Trash and delete sit in the pill, as in Google Photos, not in the ⋮ menu.
+                    onRestore = onTrash.takeIf { trashActionLabel != null },
+                    restoreLabel = trashActionLabel,
+                    onDelete = deleteKeyAction,
+                    deleteLabel = deleteKeyLabel,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                 )
             }

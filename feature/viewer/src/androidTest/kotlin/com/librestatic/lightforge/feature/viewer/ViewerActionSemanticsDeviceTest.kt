@@ -62,7 +62,7 @@ class ViewerActionSemanticsDeviceTest {
                     onSetAs = {},
                     onPrint = {},
                     onRepairDate = {},
-                    onTrash = {},
+                    onTrash = { clicks += "trash" },
                     onSelectMedia = {},
                 )
             }
@@ -74,6 +74,7 @@ class ViewerActionSemanticsDeviceTest {
             context.getString(R.string.viewer_edit) to "edit",
             context.getString(R.string.viewer_favorite) to "favorite",
             context.getString(R.string.viewer_details) to "details",
+            context.getString(R.string.viewer_trash) to "trash",
         )
         expected.forEach { (label, _) ->
             compose.onNodeWithContentDescription(label).assertHasClickAction()

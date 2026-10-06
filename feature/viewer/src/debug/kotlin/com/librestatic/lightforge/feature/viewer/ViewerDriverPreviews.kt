@@ -53,6 +53,11 @@ fun ViewerVideoPreview() = ViewerPreviewFrame(selected = 12, detailsOpen = false
 @Composable
 fun ViewerMotionPhotoPreview() = ViewerPreviewFrame(selected = 13, detailsOpen = false, motion = true)
 
+/** A photo opened from the trash: the pill offers Restore and Delete permanently only. */
+@Preview
+@Composable
+fun ViewerTrashPreview() = ViewerPreviewFrame(selected = 13, detailsOpen = false, trashed = true)
+
 private data class PreviewMedia(
     val id: Long,
     override val kind: MediaKind,
@@ -108,7 +113,7 @@ private class PreviewVideoEngine : VideoEngine {
 }
 
 @Composable
-private fun ViewerPreviewFrame(selected: Int, detailsOpen: Boolean, motion: Boolean = false) = LightforgeTheme {
+private fun ViewerPreviewFrame(selected: Int, detailsOpen: Boolean, motion: Boolean = false, trashed: Boolean = false) = LightforgeTheme {
     val items = previewItems
     var current by remember { mutableStateOf(items[selected]) }
     var favorite by remember { mutableStateOf(false) }
@@ -145,21 +150,24 @@ private fun ViewerPreviewFrame(selected: Int, detailsOpen: Boolean, motion: Bool
                 thumbnailLoader = thumbnails,
                 isFavorite = favorite,
                 onBack = {},
-                onToggleFavorite = { favorite = !favorite },
-                onShare = {},
-                onShareSanitized = {},
+                onToggleFavorite = if (trashed) null else ({ favorite = !favorite }),
+                onShare = if (trashed) null else ({}),
+                onShareSanitized = if (trashed) null else ({}),
                 onDetails = { showDetails = true },
-                onEdit = {},
+                onEdit = if (trashed) null else ({}),
                 onMotionPhoto = if (motion) ({}) else null,
                 motionPhotoLabel = if (motion) "Motion" else null,
-                onRename = {},
-                onCopy = {},
-                onMove = {},
-                onOpenWith = {},
-                onSetAs = {},
-                onPrint = {},
-                onRepairDate = {},
+                onRename = if (trashed) null else ({}),
+                onCopy = if (trashed) null else ({}),
+                onMove = if (trashed) null else ({}),
+                onOpenWith = if (trashed) null else ({}),
+                onSetAs = if (trashed) null else ({}),
+                onPrint = if (trashed) null else ({}),
+                onRepairDate = if (trashed) null else ({}),
                 onTrash = {},
+                trashActionLabel = if (trashed) "Restore" else null,
+                onDelete = if (trashed) ({}) else null,
+                deleteActionLabel = if (trashed) "Delete permanently" else null,
                 onSelectMedia = { current = it },
                 detailsState = detailsState,
                 modifier = Modifier.fillMaxSize(),
