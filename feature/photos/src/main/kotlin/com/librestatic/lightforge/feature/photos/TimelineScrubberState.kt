@@ -129,7 +129,7 @@ fun formatScrubberMonth(
     bestPattern: (String) -> String,
 ): String = formatWithSkeleton(LocalDate.ofEpochDay(epochDay), locale, "MMMy", bestPattern)
 
-private fun formatWithSkeleton(
+internal fun formatWithSkeleton(
     date: LocalDate,
     locale: Locale,
     skeleton: String,

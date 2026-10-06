@@ -27,6 +27,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material.icons.rounded.Collections
 import androidx.compose.material.icons.rounded.Crop
@@ -281,6 +282,7 @@ val GalleryIconMinus: ImageVector get() = Icons.Rounded.Remove
 val GalleryIconPictureAsPdf: ImageVector get() = Icons.Rounded.PictureAsPdf
 val GalleryIconSort: ImageVector get() = Icons.Rounded.Sort
 val GalleryIconExpandMore: ImageVector get() = Icons.Rounded.ExpandMore
+val GalleryIconCalendarMonth: ImageVector get() = Icons.Rounded.CalendarMonth
 val GalleryIconUnchecked: ImageVector get() = Icons.Rounded.RadioButtonUnchecked
 val GalleryIconRename: ImageVector get() = Icons.Rounded.DriveFileRenameOutline
 val GalleryIconContentCopy: ImageVector get() = Icons.Rounded.ContentCopy
@@ -439,6 +441,7 @@ object GalleryIcons {
     val FormatAlignCenter get() = GalleryIconFormatAlignCenter
     val FormatAlignRight get() = GalleryIconFormatAlignRight
     val ExpandMore get() = GalleryIconExpandMore
+    val CalendarMonth get() = GalleryIconCalendarMonth
     val Unchecked get() = GalleryIconUnchecked
     val AdjustExposure get() = GalleryIconAdjustExposure
     val AdjustContrast get() = GalleryIconAdjustContrast

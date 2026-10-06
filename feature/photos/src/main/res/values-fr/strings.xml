@@ -57,4 +57,13 @@
         <item quantity="many">%d éléments</item>
         <item quantity="other">%d éléments</item>
     </plurals>
+    <string name="scrubber_pick_date">Aller à une date, %1$s</string>
+    <string name="date_picker_title">Aller à une date</string>
+    <string name="date_picker_today">Aujourd’hui</string>
+    <string name="date_picker_no_media">%1$s, aucun élément</string>
+    <plurals name="date_picker_day_description">
+        <item quantity="one">%1$s, %2$d élément</item>
+        <item quantity="many">%1$s, %2$d éléments</item>
+        <item quantity="other">%1$s, %2$d éléments</item>
+    </plurals>
 </resources>

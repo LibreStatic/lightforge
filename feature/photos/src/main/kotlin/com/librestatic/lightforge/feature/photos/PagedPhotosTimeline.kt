@@ -201,6 +201,7 @@ fun AdaptivePagedPhotosTimeline(
                 onJump = onScrubberJump,
                 onScrubbingChange = { scrubbing = it },
                 onFastScrubChange = { fastScrub = it },
+                thumbnailLoader = thumbnailLoader,
             )
         }
     }

@@ -20,6 +20,7 @@ import com.librestatic.lightforge.core.model.LibraryAccess
 import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.core.model.MediaKind
 import com.librestatic.lightforge.core.model.TimelineDayBucket
+import com.librestatic.lightforge.core.model.TimelineDayCover
 import com.librestatic.lightforge.core.model.TimelineEntry
 import com.librestatic.lightforge.core.model.TimelineIndex
 import com.librestatic.lightforge.core.model.TimelineMedia
@@ -49,6 +50,29 @@ fun PhotosSelectionPreview() = PhotosFrame(initialSelection = setOf(3L, 4L, 10L)
 fun PhotosFilterEmptyPreview() = PhotosFrame(initialFilter = PhotosFilter.Raw, days = emptyList())
 
 /**
+ * "Go to date": the calendar the date pill opens, over two years of media with gaps, each day
+ * showing its first item. Rendered as the sheet's content so the driver sees it without a window.
+ */
+@Preview
+@Composable
+fun PhotosDatePickerPreview() {
+    val loader = remember { previewThumbnailLoader() }
+    DisposableEffect(loader) { onDispose { loader.close() } }
+    val index = remember { sampleIndex(sampleTimeline(PickerDays)) }
+    LightforgeTheme {
+        Surface(Modifier.fillMaxSize()) {
+            TimelineDatePickerContent(
+                index = index,
+                loader = loader,
+                shownDay = LocalDate.of(2026, 9, 27).toEpochDay(),
+                onPick = {},
+                today = LocalDate.of(2026, 9, 28),
+            )
+        }
+    }
+}
+
+/**
  * A cold start that indexes for a while: the status pill turns into a "Library ready"
  * confirmation that stays until "Got it". */
 @Preview
@@ -76,9 +100,7 @@ private fun PhotosFrame(
     DisposableEffect(loader) { onDispose { loader.close() } }
     val timeline = remember(days) { sampleTimeline(days) }
     val entries = remember(timeline) { flowOf(PagingData.from(timeline)) }.collectAsLazyPagingItems()
-    val index = remember(days) {
-        TimelineIndex(days.map { (day, count) -> TimelineDayBucket(day.toEpochDay(), count) })
-    }
+    val index = remember(timeline) { sampleIndex(timeline) }
     val media = timeline.filterIsInstance<TimelineEntry.Media>().map { it.value }
     LightforgeTheme {
         Surface(Modifier.fillMaxSize()) {
@@ -115,6 +137,39 @@ private val SampleDays = listOf(
     LocalDate.of(2026, 9, 27) to 7,
     LocalDate.of(2026, 9, 20) to 12,
 )
+
+/** Days with media for the date picker: busy and sparse months across a year boundary. */
+private val PickerDays = buildList {
+    listOf(4, 5, 6, 8, 9, 10, 12, 14, 15, 17, 18, 20, 22, 24, 25, 26, 27, 28)
+        .reversed().forEach { add(LocalDate.of(2026, 9, it) to (it % 6) + 1) }
+    listOf(30, 21, 7, 3, 1).forEach { add(LocalDate.of(2026, 8, it) to 3) }
+    add(LocalDate.of(2026, 6, 14) to 4)
+    listOf(31, 24, 2).forEach { add(LocalDate.of(2025, 12, it) to 5) }
+}
+
+/** The scrubber index of a sample timeline; each day's cover is its earliest (last listed) item. */
+private fun sampleIndex(timeline: List<TimelineEntry>): TimelineIndex {
+    val buckets = mutableListOf<TimelineDayBucket>()
+    var day: Long? = null
+    var items = emptyList<TimelineMedia>()
+    fun flush() {
+        val current = day ?: return
+        val first = items.minByOrNull { it.timelineSortMillis }
+        buckets += TimelineDayBucket(
+            current,
+            items.size,
+            first?.let { TimelineDayCover(it.key, it.generationModified) },
+        )
+    }
+    for (entry in timeline) {
+        when (entry) {
+            is TimelineEntry.DayHeader -> { flush(); day = entry.epochDay; items = emptyList() }
+            is TimelineEntry.Media -> items = items + entry.value
+        }
+    }
+    flush()
+    return TimelineIndex(buckets)
+}
 
 private fun sampleTimeline(days: List<Pair<LocalDate, Int>>): List<TimelineEntry> {
     var id = 0L

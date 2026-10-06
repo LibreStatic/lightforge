@@ -62,4 +62,12 @@
         <item quantity="one">%d item</item>
         <item quantity="other">%d items</item>
     </plurals>
+    <string name="scrubber_pick_date">Jump to date, %1$s</string>
+    <string name="date_picker_title">Go to date</string>
+    <string name="date_picker_today">Today</string>
+    <string name="date_picker_no_media">%1$s, no items</string>
+    <plurals name="date_picker_day_description">
+        <item quantity="one">%1$s, %2$d item</item>
+        <item quantity="other">%1$s, %2$d items</item>
+    </plurals>
 </resources>

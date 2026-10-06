@@ -11,6 +11,15 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.Icon
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -343,6 +352,7 @@ internal fun TimelineScrubber(
     onJump: (TimelineAnchor?) -> Unit,
     onScrubbingChange: (Boolean) -> Unit,
     onFastScrubChange: (Boolean) -> Unit,
+    thumbnailLoader: ThumbnailLoader,
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
@@ -371,7 +381,11 @@ internal fun TimelineScrubber(
         fastScrubState.value(false)
     }
 
-    val active = gridState.isScrollInProgress || controller.scrubbing || controller.jumping
+    var pickerOpen by remember { mutableStateOf(false) }
+    val pillInteraction = remember { MutableInteractionSource() }
+    val pillPressed by pillInteraction.collectIsPressedAsState()
+    val active = gridState.isScrollInProgress || controller.scrubbing || controller.jumping ||
+        pickerOpen || pillPressed
     var lingering by remember { mutableStateOf(false) }
     LaunchedEffect(active) {
         if (active) {
@@ -405,7 +419,6 @@ internal fun TimelineScrubber(
     val handleOffsetPx = scrubberHandleOffset(handleFraction, travelPx)
     val handleFractionState = rememberUpdatedState(handleFraction)
     val surface = MaterialTheme.colorScheme.surfaceBright
-    val onSurface = MaterialTheme.colorScheme.onSurface
 
     Box(modifier.fillMaxSize()) {
         AnimatedVisibility(
@@ -414,24 +427,38 @@ internal fun TimelineScrubber(
             exit = fadeOut() + scaleOut(targetScale = 0.9f),
             modifier = Modifier.align(Alignment.TopCenter),
         ) {
+            val pickLabel = stringResource(R.string.scrubber_pick_date, pillText.orEmpty())
             Surface(
-                color = surface,
-                contentColor = onSurface,
+                onClick = { pickerOpen = true },
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                 shape = CircleShape,
                 shadowElevation = FloatingElevation,
+                interactionSource = pillInteraction,
                 modifier = Modifier
                     .padding(top = 12.dp)
                     .widthIn(max = 300.dp)
                     .testTag("timeline_scrub_date")
-                    .clearAndSetSemantics { },
+                    .clearAndSetSemantics {
+                        contentDescription = pickLabel
+                        role = Role.Button
+                        onClick { pickerOpen = true; true }
+                    },
             ) {
-                Text(
-                    text = pillText.orEmpty(),
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(start = 16.dp, end = 14.dp, top = 12.dp, bottom = 12.dp),
+                ) {
+                    Icon(GalleryIcons.CalendarMonth, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Text(
+                        text = pillText.orEmpty(),
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(horizontal = 10.dp).weight(1f, fill = false),
+                    )
+                    Icon(GalleryIcons.ExpandMore, contentDescription = null, modifier = Modifier.size(18.dp))
+                }
             }
         }
         Box(
@@ -510,6 +537,15 @@ internal fun TimelineScrubber(
                 }
             }
         }
+    }
+    if (pickerOpen) {
+        TimelineDatePickerSheet(
+            index = index,
+            loader = thumbnailLoader,
+            shownDay = shownDay,
+            onPick = { day -> controller.seekTo(index.fractionOf(day)) },
+            onDismiss = { pickerOpen = false },
+        )
     }
 }
 
