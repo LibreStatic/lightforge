@@ -575,7 +575,7 @@ internal fun ProductionGalleryApp(
         val fragmentActivity = context as? FragmentActivity ?: return
         if (!BiometricGate.canAuthenticate(context)) {
             // No biometrics or device credential left to ask for: say so instead of failing silently.
-            android.widget.Toast.makeText(context, context.getString(R.string.destructive_auth_unavailable), android.widget.Toast.LENGTH_LONG).show()
+            android.widget.Toast.makeText(context, resources.getString(R.string.destructive_auth_unavailable), android.widget.Toast.LENGTH_LONG).show()
             return
         }
         BiometricGate.authenticate(
@@ -1221,7 +1221,7 @@ internal fun ProductionGalleryApp(
             val trackName = runCatching {
                 context.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
                     ?.use { if (it.moveToFirst()) it.getString(0) else null }
-            }.getOrNull()?.takeIf(String::isNotBlank) ?: context.getString(R.string.video_music_untitled)
+            }.getOrNull()?.takeIf(String::isNotBlank) ?: resources.getString(R.string.video_music_untitled)
             viewModel.setVideoMusic(uri, trackName)
         }
     }
@@ -4202,6 +4202,7 @@ private fun ViewerRoute(
     onMoveToPrivate: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    val resources = androidx.compose.ui.platform.LocalResources.current
     val viewerSnapshot by viewModel.viewerRestoreSnapshot.collectAsState()
     val recoveredViewer by viewModel.viewerRecovered.collectAsState()
     val currentSnapshot = viewerSnapshot?.takeIf { it.key == media.key && it.generationModified == media.generationModified }
@@ -4239,7 +4240,7 @@ private fun ViewerRoute(
         val fragmentActivity = context as? FragmentActivity ?: return
         if (!BiometricGate.canAuthenticate(context)) {
             // No biometrics or device credential left to ask for: say so instead of failing silently.
-            android.widget.Toast.makeText(context, context.getString(R.string.destructive_auth_unavailable), android.widget.Toast.LENGTH_LONG).show()
+            android.widget.Toast.makeText(context, resources.getString(R.string.destructive_auth_unavailable), android.widget.Toast.LENGTH_LONG).show()
             return
         }
         BiometricGate.authenticate(
