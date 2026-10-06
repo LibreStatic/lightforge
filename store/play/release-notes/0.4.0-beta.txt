@@ -1,0 +1,48 @@
+<en-US>
+• New Appearance page in Settings: pick a theme (Material You, Neutral, Rounded, Crisp, Warm or Minimalist Black) and a theme mode (follow system, light or dark).
+• Pure black (AMOLED): a fully black background for any dark theme. Minimalist Black is always pure black.
+• The photo picker and the widget follow your theme too.
+Report problems at github.com/LibreStatic/lightforge/issues
+</en-US>
+<es-419>
+• Nueva página Apariencia en Ajustes: elegí un tema (Material You, Neutro, Redondeado, Nítido, Cálido o Negro minimalista) y el modo del tema (seguir al sistema, claro u oscuro).
+• Negro puro (AMOLED): fondo totalmente negro en cualquier tema oscuro. Negro minimalista siempre es negro puro.
+• El selector de fotos y el widget también siguen tu tema.
+Reportá problemas en github.com/LibreStatic/lightforge/issues
+</es-419>
+<es-ES>
+• Nueva página Apariencia en Ajustes: elige un tema (Material You, Neutro, Redondeado, Nítido, Cálido o Negro minimalista) y el modo del tema (seguir al sistema, claro u oscuro).
+• Negro puro (AMOLED): fondo totalmente negro en cualquier tema oscuro. Negro minimalista siempre es negro puro.
+• El selector de fotos y el widget también siguen tu tema.
+Informa de problemas en github.com/LibreStatic/lightforge/issues
+</es-ES>
+<pt-BR>
+• Nova página Aparência em Configurações: escolha um tema (Material You, Neutro, Arredondado, Nítido, Quente ou Preto minimalista) e o modo do tema (seguir o sistema, claro ou escuro).
+• Preto puro (AMOLED): fundo totalmente preto em qualquer tema escuro. O Preto minimalista é sempre preto puro.
+• O seletor de fotos e o widget também seguem seu tema.
+Relate problemas em github.com/LibreStatic/lightforge/issues
+</pt-BR>
+<pt-PT>
+• Nova página Aparência nas Configurações: escolha um tema (Material You, Neutro, Arredondado, Nítido, Quente ou Preto minimalista) e o modo do tema (seguir o sistema, claro ou escuro).
+• Preto puro (AMOLED): fundo totalmente preto em qualquer tema escuro. O Preto minimalista é sempre preto puro.
+• O seletor de fotos e o widget também seguem o seu tema.
+Comunique problemas em github.com/LibreStatic/lightforge/issues
+</pt-PT>
+<fr-FR>
+• Nouvelle page Apparence dans les Paramètres : choisissez un thème (Material You, Neutre, Arrondi, Net, Chaleureux ou Noir minimaliste) et le mode du thème (système, clair ou sombre).
+• Noir pur (AMOLED) : un fond entièrement noir pour tout thème sombre. Noir minimaliste est toujours en noir pur.
+• Le sélecteur de photos et le widget suivent aussi votre thème.
+Signalez les problèmes sur github.com/LibreStatic/lightforge/issues
+</fr-FR>
+<de-DE>
+• Neue Seite „Darstellung“ in den Einstellungen: Wähle ein Design (Material You, Neutral, Abgerundet, Klar, Warm oder Minimalistisches Schwarz) und den Designmodus (System, hell oder dunkel).
+• Reines Schwarz (AMOLED): komplett schwarzer Hintergrund für jedes dunkle Design. Minimalistisches Schwarz ist immer rein schwarz.
+• Die Fotoauswahl und das Widget folgen ebenfalls deinem Design.
+Probleme melden: github.com/LibreStatic/lightforge/issues
+</de-DE>
+<it-IT>
+• Nuova pagina Aspetto nelle Impostazioni: scegli un tema (Material You, Neutro, Arrotondato, Nitido, Caldo o Nero minimalista) e la modalità tema (sistema, chiaro o scuro).
+• Nero puro (AMOLED): sfondo completamente nero per qualsiasi tema scuro. Nero minimalista è sempre nero puro.
+• Anche il selettore di foto e il widget seguono il tuo tema.
+Segnala i problemi su github.com/LibreStatic/lightforge/issues
+</it-IT>
