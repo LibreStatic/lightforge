@@ -58,6 +58,7 @@ import com.librestatic.lightforge.core.designsystem.MediaSelectionOverlay
 import com.librestatic.lightforge.core.designsystem.RetainGridThumbnailViewport
 import com.librestatic.lightforge.core.designsystem.MediaTileBadges
 import com.librestatic.lightforge.core.designsystem.VideoDurationBadge
+import com.librestatic.lightforge.core.designsystem.galleryGridItemAnimation
 import com.librestatic.lightforge.core.designsystem.lazyGridDragSelection
 import com.librestatic.lightforge.core.model.MediaKind
 import com.librestatic.lightforge.core.model.TimelineMedia
@@ -124,21 +125,23 @@ fun TrashContent(
                     contentType = { "trash-media" },
                 ) { index ->
                     val media = items[index]
-                    if (media == null) {
-                        Box(Modifier.fillMaxWidth().aspectRatio(1f).background(MaterialTheme.colorScheme.surfaceVariant))
-                    } else TrashCell(
-                        media = media,
-                        loader = thumbnailLoader,
-                        sizePx = thumbnailSizePx,
-                        selected = isSelected(media),
-                        onClick = {
-                            if (selectionMode) onSelectionChange(media, !isSelected(media)) else onOpen(media)
-                        },
-                        onLongClick = {
-                            if (!selectionMode) onSelectionModeChange(true)
-                            onSelectionChange(media, !isSelected(media))
-                        },
-                    )
+                    Box(galleryGridItemAnimation()) {
+                        if (media == null) {
+                            Box(Modifier.fillMaxWidth().aspectRatio(1f).background(MaterialTheme.colorScheme.surfaceVariant))
+                        } else TrashCell(
+                            media = media,
+                            loader = thumbnailLoader,
+                            sizePx = thumbnailSizePx,
+                            selected = isSelected(media),
+                            onClick = {
+                                if (selectionMode) onSelectionChange(media, !isSelected(media)) else onOpen(media)
+                            },
+                            onLongClick = {
+                                if (!selectionMode) onSelectionModeChange(true)
+                                onSelectionChange(media, !isSelected(media))
+                            },
+                        )
+                    }
                 }
                 if (items.loadState.append is LoadState.Loading) item(span = { GridItemSpan(maxLineSpan) }) {
                     Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) {

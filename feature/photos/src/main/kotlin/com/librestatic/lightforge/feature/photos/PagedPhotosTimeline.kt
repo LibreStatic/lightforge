@@ -106,6 +106,7 @@ import com.librestatic.lightforge.core.designsystem.mediaTileInput
 import com.librestatic.lightforge.core.designsystem.mediaTileSemantics
 import com.librestatic.lightforge.core.designsystem.rememberMediaTileMenuState
 import com.librestatic.lightforge.core.designsystem.selectionRange
+import com.librestatic.lightforge.core.designsystem.galleryGridItemAnimation
 
 /** One-shot input-focus request. Real TalkBack focus requires separate device acceptance. */
 data class TimelineFocusReturn(val key: MediaKey, val token: Long)
@@ -340,7 +341,7 @@ fun PagedPhotosTimeline(
             },
             contentType = { index -> entries.itemSnapshotList.getOrNull(index)?.javaClass?.simpleName ?: "unloaded" },
         ) { index ->
-            Box(Modifier.gridEntrance(entrance, index)) {
+            Box(galleryGridItemAnimation().gridEntrance(entrance, index)) {
                 // A previous layout can still request an index after Paging publishes fewer rows.
                 when (val entry = if (index in 0 until entries.itemCount) entries[index] else null) {
                     is TimelineEntry.DayHeader -> {

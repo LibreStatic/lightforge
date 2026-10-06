@@ -69,6 +69,7 @@ import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import com.librestatic.lightforge.core.designsystem.MediaSelectionOverlay
 import com.librestatic.lightforge.core.designsystem.RetainGridThumbnailViewport
 import com.librestatic.lightforge.core.designsystem.VideoDurationBadge
+import com.librestatic.lightforge.core.designsystem.galleryGridItemAnimation
 import com.librestatic.lightforge.core.designsystem.lazyGridDragSelection
 import com.librestatic.lightforge.core.designsystem.videoDurationDescription
 import com.librestatic.lightforge.core.model.AlbumAvailability
@@ -213,27 +214,29 @@ fun AlbumContent(
                 items(items.itemCount, key = { index ->
                     items.itemSnapshotList.getOrNull(index)?.key?.let { "${it.volumeName}:${it.mediaStoreId}" } ?: "pending:$index"
                 }, contentType = { "media" }) { index ->
-                    items[index]?.let { media ->
-                        AlbumCell(
-                            media,
-                            thumbnails,
-                            thumbnailSizePx,
-                            selected = if (picking) reviewedCover?.key == media.key else SelectionReducer.isSelected(selection, media.key),
-                            enabled = !coverWorking,
-                            onClick = {
-                                if (!coverWorking) {
-                                    if (picking) { reviewedCover = media; confirmCover = true }
-                                    else onMediaClick(media)
-                                }
-                            },
-                            onLongClick = if (picking || coverWorking) null else { {
-                                onMediaSelectionChange(
-                                    media,
-                                    !SelectionReducer.isSelected(selection, media.key),
-                                )
-                            } },
-                        )
-                    } ?: Box(Modifier.fillMaxWidth().aspectRatio(1f))
+                    Box(galleryGridItemAnimation()) {
+                        items[index]?.let { media ->
+                            AlbumCell(
+                                media,
+                                thumbnails,
+                                thumbnailSizePx,
+                                selected = if (picking) reviewedCover?.key == media.key else SelectionReducer.isSelected(selection, media.key),
+                                enabled = !coverWorking,
+                                onClick = {
+                                    if (!coverWorking) {
+                                        if (picking) { reviewedCover = media; confirmCover = true }
+                                        else onMediaClick(media)
+                                    }
+                                },
+                                onLongClick = if (picking || coverWorking) null else { {
+                                    onMediaSelectionChange(
+                                        media,
+                                        !SelectionReducer.isSelected(selection, media.key),
+                                    )
+                                } },
+                            )
+                        } ?: Box(Modifier.fillMaxWidth().aspectRatio(1f))
+                    }
                 }
             }
             RetainGridThumbnailViewport(

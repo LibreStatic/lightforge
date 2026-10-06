@@ -41,6 +41,7 @@ import com.librestatic.lightforge.core.designsystem.VideoDurationBadge
 import com.librestatic.lightforge.core.designsystem.GalleryShapes
 import androidx.compose.ui.draw.clip
 import com.librestatic.lightforge.core.designsystem.lazyGridDragSelection
+import com.librestatic.lightforge.core.designsystem.galleryGridItemAnimation
 import com.librestatic.lightforge.core.model.MediaKind
 import com.librestatic.lightforge.core.model.TimelineMedia
 import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
@@ -103,7 +104,7 @@ fun MediaCollectionGrid(
                         isVideo = isVideo,
                     )
                     Box(
-                        Modifier.fillMaxWidth().aspectRatio(1f).clip(GalleryShapes.Thumbnail).clearAndSetSemantics {
+                        galleryGridItemAnimation().fillMaxWidth().aspectRatio(1f).clip(GalleryShapes.Thumbnail).clearAndSetSemantics {
                             contentDescription = description
                             selected = isSelected(media)
                             onClick {
