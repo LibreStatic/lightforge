@@ -95,6 +95,7 @@ import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.effect.Presentation
 import com.librestatic.lightforge.feature.viewer.VideoViewerController
 import com.librestatic.lightforge.core.designsystem.GalleryFoldInfo
@@ -251,6 +252,7 @@ private data class VideoAnnotationActions(
     val cancelTracking: () -> Unit,
 )
 
+@androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun VideoEditorContent(
