@@ -186,9 +186,11 @@ internal object GalleryTimelineQuery {
             }
         val select = if (collapsed) "SELECT * FROM ($projection)$cursor" else projection
         if (dayCounts) {
+            // With a lone MIN() aggregate SQLite takes the bare columns from that row: the day's earliest item.
             return SimpleSQLiteQuery(
                 "SELECT strftime('%Y-%m-%d', timelineSortMillis/1000, 'unixepoch', 'localtime') AS day, " +
-                    "COUNT(*) AS count FROM ($select) GROUP BY day ORDER BY day $direction",
+                    "COUNT(*) AS count, MIN(timelineSortMillis) AS firstMillis, mediaStoreId, volumeName, generationModified " +
+                    "FROM ($select) GROUP BY day ORDER BY day $direction",
                 args.toTypedArray(),
             )
         }

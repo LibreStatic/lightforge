@@ -9,6 +9,7 @@ import com.librestatic.lightforge.core.database.StackTimelineRow
 import com.librestatic.lightforge.core.database.TimelineKeyset
 import com.librestatic.lightforge.core.model.TimelineAnchor
 import com.librestatic.lightforge.core.model.TimelineDayBucket
+import com.librestatic.lightforge.core.model.TimelineDayCover
 import com.librestatic.lightforge.core.model.TimelineIndex
 import com.librestatic.lightforge.core.preferences.LibrarySort
 import java.time.LocalDate
@@ -158,7 +159,16 @@ class GalleryTimelineRepository(private val database: GalleryDatabase) {
             .debounce(IndexDebounceMillis)
             .map { rows ->
                 TimelineIndex(
-                    rows.map { TimelineDayBucket(LocalDate.parse(it.day).toEpochDay(), it.count) },
+                    rows.map { row ->
+                        val id = row.mediaStoreId
+                        val volume = row.volumeName
+                        val cover = if (id != null && id >= 0 && !volume.isNullOrBlank()) {
+                            TimelineDayCover(MediaKey(volume, id), (row.generationModified ?: 0L).coerceAtLeast(0L))
+                        } else {
+                            null
+                        }
+                        TimelineDayBucket(LocalDate.parse(row.day).toEpochDay(), row.count, cover)
+                    },
                     settings.ascending,
                 )
             }

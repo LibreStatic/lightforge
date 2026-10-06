@@ -86,6 +86,12 @@ class TimelineScrubberQueryTest {
         assertTrue(sql.contains("ORDER BY day DESC"))
     }
 
+    @Test fun `day counts carry the key of each day's earliest row`() {
+        val sql = GalleryTimelineQuery.dayCounts(LibrarySettings(), collapsed = true).sql
+        assertTrue(sql.contains("MIN(timelineSortMillis) AS firstMillis, mediaStoreId, volumeName, generationModified"))
+        assertFalse(sql.contains("MAX(timelineSortMillis)"))
+    }
+
     @Test fun `ascending day counts follow display order`() {
         val sql = GalleryTimelineQuery.dayCounts(LibrarySettings(ascending = true), collapsed = false).sql
         assertTrue(sql.contains("ORDER BY day ASC"))

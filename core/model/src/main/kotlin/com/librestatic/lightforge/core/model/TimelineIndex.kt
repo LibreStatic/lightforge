@@ -2,8 +2,11 @@ package com.librestatic.lightforge.core.model
 
 import java.time.LocalDate
 
-/** Rows the timeline shows for one local calendar day. */
-data class TimelineDayBucket(val epochDay: Long, val count: Int)
+/** Rows the timeline shows for one local calendar day; [cover] is the day's earliest row. */
+data class TimelineDayBucket(val epochDay: Long, val count: Int, val cover: TimelineDayCover? = null)
+
+/** What the date picker needs to draw a day's thumbnail. */
+data class TimelineDayCover(val key: MediaKey, val generationModified: Long)
 
 /** A jump target: the timeline restarts at the first row of this local day. */
 data class TimelineAnchor(val epochDay: Long)
