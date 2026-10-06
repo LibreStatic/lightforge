@@ -1,24 +1,31 @@
 package com.librestatic.lightforge.core.designsystem
 
-import android.os.Build
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.graphics.drawable.ColorDrawable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MotionScheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.expressiveLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
+import com.librestatic.lightforge.core.preferences.AppearanceSettings
+import com.librestatic.lightforge.core.preferences.ThemePalette
 
 object GallerySpacing {
     val Xs = 4.dp
@@ -261,20 +268,16 @@ val LocalGallerySuccessColors = staticCompositionLocalOf { SuccessLight }
 fun LightforgeTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
+    palette: ThemePalette = ThemePalette.MaterialYou,
+    pureBlack: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
-    val colors = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && darkTheme -> {
-            dynamicDarkColorScheme(context)
-        }
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            dynamicLightColorScheme(context)
-        }
-        darkTheme -> darkColorScheme()
-        else -> expressiveLightColorScheme()
+    val dark = darkTheme || palette == ThemePalette.MinimalistBlack
+    val colors = remember(context, palette, dark, pureBlack, dynamicColor) {
+        lightforgeColorScheme(context, palette, dark, pureBlack, dynamicColor)
     }
-    CompositionLocalProvider(LocalGallerySuccessColors provides if (darkTheme) SuccessDark else SuccessLight) {
+    CompositionLocalProvider(LocalGallerySuccessColors provides if (dark) SuccessDark else SuccessLight) {
         MaterialExpressiveTheme(
             colorScheme = colors,
             motionScheme = MotionScheme.expressive(),
@@ -282,4 +285,50 @@ fun LightforgeTheme(
             content = content,
         )
     }
+}
+
+/** Applies the user's [appearance] choice, resolving "follow system" against the current mode. */
+@Composable
+fun LightforgeTheme(
+    appearance: AppearanceSettings,
+    content: @Composable () -> Unit,
+) {
+    val systemDark = isSystemInDarkTheme()
+    val dark = appearance.isDark(systemDark)
+    LightforgeTheme(
+        darkTheme = dark,
+        palette = appearance.palette,
+        pureBlack = appearance.isPureBlack(systemDark),
+    ) {
+        WindowMatchesTheme(dark = dark, background = MaterialTheme.colorScheme.background)
+        content()
+    }
+}
+
+/**
+ * Edge-to-edge picks bar icon colours from the system mode once; a forced light or dark theme
+ * needs them flipped, and the window background matched so no other colour flashes through.
+ */
+@Composable
+private fun WindowMatchesTheme(dark: Boolean, background: Color) {
+    val view = LocalView.current
+    if (view.isInEditMode) return
+    // A DisposableEffect, not a LaunchedEffect: it applies before the content's own effects, so
+    // screens that restyle the bars (the viewer) still get the last word.
+    DisposableEffect(view, dark, background) {
+        view.context.findActivity()?.window?.let { window ->
+            WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = !dark
+                isAppearanceLightNavigationBars = !dark
+            }
+            window.setBackgroundDrawable(ColorDrawable(background.toArgb()))
+        }
+        onDispose { }
+    }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

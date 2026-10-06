@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.librestatic.lightforge.core.preferences.ThemePalette
 
 // Debug-only, zero-argument entry points for tools/compose-driver and Android Studio previews.
 // They render the shared foundations and components so a change to a token is visible at once.
@@ -183,6 +184,37 @@ private fun demoActions() = listOf(
     GallerySelectionAction("Archive", GalleryIcons.Archive, {}, inline = false),
     GallerySelectionAction("Select all", GalleryIcons.SelectAll, {}, inline = false),
 )
+
+/**
+ * Every palette in light, dark and pure black, each with its role contrasts. Material You shows
+ * the wallpaper colours of the host (the baseline scheme under Robolectric).
+ */
+@Composable
+fun ThemePaletteCataloguePreview() {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        ThemePalette.entries.forEach { palette ->
+            val variants = if (palette == ThemePalette.MinimalistBlack) {
+                listOf("dark" to (true to true))
+            } else {
+                listOf("light" to (false to false), "dark" to (true to false), "pure black" to (true to true))
+            }
+            variants.forEach { (label, variant) ->
+                LightforgeTheme(darkTheme = variant.first, palette = palette, pureBlack = variant.second) {
+                    Surface(Modifier.fillMaxWidth().testTag("palette-${palette.name}-$label")) {
+                        Column(Modifier.padding(vertical = GallerySpacing.Md)) {
+                            Text(
+                                "${palette.name} · $label",
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.padding(horizontal = GallerySpacing.Lg),
+                            )
+                            ColorRoles()
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

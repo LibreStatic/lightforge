@@ -23,6 +23,8 @@ android {
 
 dependencies {
     implementation(project(":core:thumbnail"))
+    api(project(":core:preferences"))
+    implementation(libs.androidx.core.ktx)
     implementation(platform(libs.compose.bom))
     implementation("androidx.compose.animation:animation")
     implementation("androidx.compose.ui:ui")
