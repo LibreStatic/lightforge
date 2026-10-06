@@ -106,7 +106,8 @@ class MainActivity : FragmentActivity() {
                 galleryViewModel.onboardingCompleted.value == null
         }
         setContent {
-            LightforgeTheme {
+            val appearance = galleryViewModel.gallerySettings.collectAsState().value.appearance
+            LightforgeTheme(appearance) {
                 if (!usesProductionRuntime) {
                     val benchmarkMlRunning = if (benchmarkMlLoad) {
                         galleryViewModel.benchmarkMlRunning.collectAsState().value

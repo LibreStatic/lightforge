@@ -3,27 +3,30 @@ package com.librestatic.lightforge.feature.widget
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Bitmap
-import android.os.Build
 import android.view.View
 import android.widget.RemoteViews
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.expressiveLightColorScheme
 import androidx.compose.ui.graphics.toArgb
+import com.librestatic.lightforge.core.designsystem.lightforgeColorScheme
+import com.librestatic.lightforge.core.preferences.AppearanceSettings
 
 /** Complete RemoteViews state: reapply never depends on the host's previous content. */
 internal object GalleryWidgetRenderer {
-    fun render(context: Context, bitmap: Bitmap?, dynamicColor: Boolean = true): RemoteViews {
-        val dark = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK ==
+    fun render(
+        context: Context,
+        bitmap: Bitmap?,
+        dynamicColor: Boolean = true,
+        appearance: AppearanceSettings = AppearanceSettings(),
+    ): RemoteViews {
+        val systemDark = context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK ==
             Configuration.UI_MODE_NIGHT_YES
-        // Keep the same defaults and paired roles as LightforgeTheme, without a Compose host.
-        val colors = when {
-            dynamicColor && Build.VERSION.SDK_INT >= 31 && dark -> dynamicDarkColorScheme(context)
-            dynamicColor && Build.VERSION.SDK_INT >= 31 -> dynamicLightColorScheme(context)
-            dark -> darkColorScheme()
-            else -> expressiveLightColorScheme()
-        }
+        // The same scheme LightforgeTheme builds, without a Compose host.
+        val colors = lightforgeColorScheme(
+            context = context,
+            palette = appearance.palette,
+            darkTheme = appearance.isDark(systemDark),
+            pureBlack = appearance.isPureBlack(systemDark),
+            dynamicColor = dynamicColor,
+        )
         return RemoteViews(context.packageName, R.layout.widget_gallery).apply {
             // ImageView.setColorFilter(int) is remotable on API30 too; the rounded shape survives.
             setInt(R.id.widget_background, "setColorFilter", colors.surface.toArgb())

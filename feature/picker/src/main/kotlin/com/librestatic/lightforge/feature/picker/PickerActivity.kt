@@ -20,6 +20,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.librestatic.lightforge.core.designsystem.LightforgeTheme
+import com.librestatic.lightforge.core.preferences.AppearanceSettings
 import com.librestatic.lightforge.core.designsystem.LocalShowVideoDuration
 import com.librestatic.lightforge.core.designsystem.LocalThumbnailTileSettings
 import com.librestatic.lightforge.core.designsystem.ThumbnailTileSettings
@@ -52,8 +53,8 @@ class PickerActivity : FragmentActivity() {
         enableEdgeToEdge()
         setResult(Activity.RESULT_CANCELED)
         setContent {
-            LightforgeTheme {
-                val settings by viewModel.settings.collectAsState()
+            val settings by viewModel.settings.collectAsState()
+            LightforgeTheme(settings?.appearance ?: AppearanceSettings()) {
                 val thumbnails = settings?.thumbnails
                 CompositionLocalProvider(
                     LocalShowVideoDuration provides (thumbnails?.showVideoDuration ?: true),

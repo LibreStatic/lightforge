@@ -25,6 +25,7 @@ dependencies {
     implementation(project(":core:database"))
     implementation(project(":core:thumbnail"))
     implementation(project(":core:designsystem"))
+    implementation(project(":core:preferences"))
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.core)

@@ -11,12 +11,18 @@ import android.os.Bundle
 import android.os.CancellationSignal
 import android.util.Log
 import android.util.Size
+import com.librestatic.lightforge.core.preferences.AppearanceSettings
+import com.librestatic.lightforge.core.preferences.GallerySettingsRepository
 import com.librestatic.lightforge.core.thumbnail.NativeImageDecoder
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** Local photo rotation. Receiver callbacks only enqueue; selection, decoding and delivery are worker-owned. */
 class GalleryWidgetProvider : AppWidgetProvider() {
     companion object {
         private const val TAG = "GalleryWidget"
+        private const val APPEARANCE_READ_MILLIS = 1_000L
         const val ACTION_NEXT_PHOTO = "com.librestatic.lightforge.widget.NEXT_PHOTO"
         const val EXTRA_WIDGET_IDS = "widget_ids"
         private val updates = WidgetUpdateDispatcher(onFailure = { Log.w(TAG, "Widget update failed", it) })
@@ -86,7 +92,10 @@ class GalleryWidgetProvider : AppWidgetProvider() {
             }
         }
         if (!ticket.isActive) return
-        val views = GalleryWidgetRenderer.render(context, bitmap)
+        val appearance = runCatching {
+            runBlocking { withTimeoutOrNull(APPEARANCE_READ_MILLIS) { GallerySettingsRepository(context).settings.first().appearance } }
+        }.getOrNull() ?: AppearanceSettings()
+        val views = GalleryWidgetRenderer.render(context, bitmap, appearance = appearance)
         val nextIntent = Intent(context, GalleryWidgetProvider::class.java).apply {
             action = ACTION_NEXT_PHOTO
             putExtra(EXTRA_WIDGET_IDS, intArrayOf(id))
