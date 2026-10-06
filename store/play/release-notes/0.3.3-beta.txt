@@ -1,0 +1,48 @@
+<en-US>
+• Smoother pinch-to-zoom and fling in the photo viewer, now closer to what you know from other gallery apps.
+• Photos and videos you move to Trash, restore or delete now disappear right after you confirm, with a short animation.
+• The library-ready message is better aligned.
+Report problems at github.com/LibreStatic/lightforge/issues
+</en-US>
+<es-419>
+• Zoom con pellizco y desplazamiento más fluidos en el visor de fotos.
+• Las fotos y videos que movés a la Papelera, restaurás o eliminás desaparecen apenas confirmás, con una animación breve.
+• El aviso de biblioteca lista está mejor alineado.
+Reportá problemas en github.com/LibreStatic/lightforge/issues
+</es-419>
+<es-ES>
+• Zoom con pellizco y desplazamiento más fluidos en el visor de fotos.
+• Las fotos y vídeos que mueves a la Papelera, restauras o eliminas desaparecen en cuanto confirmas, con una breve animación.
+• El aviso de biblioteca lista está mejor alineado.
+Informa de problemas en github.com/LibreStatic/lightforge/issues
+</es-ES>
+<pt-BR>
+• Zoom com pinça e rolagem mais suaves no visualizador de fotos.
+• Fotos e vídeos que você move para a Lixeira, restaura ou exclui desaparecem logo após a confirmação, com uma animação curta.
+• O aviso de biblioteca pronta está mais bem alinhado.
+Relate problemas em github.com/LibreStatic/lightforge/issues
+</pt-BR>
+<pt-PT>
+• Zoom com os dedos e deslocamento mais suaves no visualizador de fotos.
+• As fotos e vídeos que move para a Lixeira, restaura ou elimina desaparecem logo após confirmar, com uma animação curta.
+• O aviso de biblioteca pronta está melhor alinhado.
+Comunique problemas em github.com/LibreStatic/lightforge/issues
+</pt-PT>
+<fr-FR>
+• Zoom à deux doigts et défilement plus fluides dans la visionneuse.
+• Les photos et vidéos mises à la Corbeille, restaurées ou supprimées disparaissent dès votre confirmation, avec une courte animation.
+• Le message de bibliothèque prête est mieux aligné.
+Signalez les problèmes sur github.com/LibreStatic/lightforge/issues
+</fr-FR>
+<de-DE>
+• Flüssigeres Zoomen mit zwei Fingern und Wischen in der Fotoansicht.
+• Fotos und Videos, die du in den Papierkorb verschiebst, wiederherstellst oder löschst, verschwinden direkt nach der Bestätigung mit einer kurzen Animation.
+• Der Hinweis „Bibliothek bereit“ ist besser ausgerichtet.
+Probleme melden: github.com/LibreStatic/lightforge/issues
+</de-DE>
+<it-IT>
+• Zoom con due dita e scorrimento più fluidi nel visualizzatore di foto.
+• Le foto e i video che sposti nel Cestino, ripristini o elimini scompaiono subito dopo la conferma, con una breve animazione.
+• Il messaggio di libreria pronta è allineato meglio.
+Segnala i problemi su github.com/LibreStatic/lightforge/issues
+</it-IT>
