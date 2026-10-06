@@ -17,14 +17,17 @@ import com.librestatic.lightforge.core.preferences.GallerySettings
 // the real RecognitionSettingsContent; the window size picks one or two panes like the app does
 // (the preview has no navigation rail, so the whole width is content).
 
-/** Settings at the current window size. Open a category with `click text=…`. */
+/**
+ * Settings at the current window size. Open a category with `click text=…`; theme choices made
+ * under Appearance restyle the preview like they restyle the app.
+ */
 @Composable
 fun SettingsPreview() {
-    LightforgeTheme {
+    var settings by remember { mutableStateOf(GallerySettings()) }
+    LightforgeTheme(settings.appearance) {
         Surface(Modifier.fillMaxSize()) {
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 val adaptiveInfo = galleryAdaptiveLayoutInfo(maxWidth, height = maxHeight).copy(contentWidth = maxWidth)
-                var settings by remember { mutableStateOf(GallerySettings()) }
                 RecognitionSettingsContent(
                     state = FaceAnalysisUiState(),
                     onEnable = {},

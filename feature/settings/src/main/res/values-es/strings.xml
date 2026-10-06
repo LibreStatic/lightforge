@@ -188,4 +188,23 @@
     <string name="settings_lock_unavailable_title">Se requiere un bloqueo de pantalla</string>
     <string name="settings_lock_unavailable_body">Primero configura un bloqueo de pantalla, PIN o biometría en los ajustes del dispositivo. Sin uno, no se podría desbloquear Lightforge Studio.</string>
     <string name="settings_lock_unavailable_ok">Aceptar</string>
+    <string name="settings_appearance">Apariencia</string>
+    <string name="settings_theme">Tema</string>
+    <string name="settings_theme_neutral">Neutro</string>
+    <string name="settings_theme_rounded">Redondeado</string>
+    <string name="settings_theme_crisp">Nítido</string>
+    <string name="settings_theme_warm">Cálido</string>
+    <string name="settings_theme_minimalist_black">Negro minimalista</string>
+    <string name="settings_theme_mode">Modo del tema</string>
+    <string name="settings_theme_mode_system">Seguir al sistema</string>
+    <string name="settings_theme_mode_light">Claro</string>
+    <string name="settings_theme_mode_dark">Oscuro</string>
+    <string name="settings_theme_always_dark">Siempre oscuro con este tema</string>
+    <string name="settings_theme_pure_black">Negro puro (AMOLED)</string>
+    <string name="settings_theme_pure_black_short">AMOLED</string>
+    <string name="settings_theme_pure_black_summary">Usa un fondo totalmente negro en modo oscuro. Ahorra batería en pantallas OLED.</string>
+    <string name="settings_theme_pure_black_included">Siempre activado con Negro minimalista</string>
+    <string name="portable_preferences_field_palette">Tema</string>
+    <string name="portable_preferences_field_theme_mode">Modo del tema</string>
+    <string name="portable_preferences_field_pure_black">Negro puro</string>
 </resources>

@@ -188,4 +188,23 @@
     <string name="settings_lock_unavailable_title">Verrouillage d\'écran requis</string>
     <string name="settings_lock_unavailable_body">Configurez d\'abord un verrouillage d\'écran, un code PIN ou la biométrie dans les paramètres de l\'appareil. Sans cela, Lightforge Studio ne pourrait pas être déverrouillé.</string>
     <string name="settings_lock_unavailable_ok">OK</string>
+    <string name="settings_appearance">Apparence</string>
+    <string name="settings_theme">Thème</string>
+    <string name="settings_theme_neutral">Neutre</string>
+    <string name="settings_theme_rounded">Arrondi</string>
+    <string name="settings_theme_crisp">Net</string>
+    <string name="settings_theme_warm">Chaleureux</string>
+    <string name="settings_theme_minimalist_black">Noir minimaliste</string>
+    <string name="settings_theme_mode">Mode du thème</string>
+    <string name="settings_theme_mode_system">Suivre le système</string>
+    <string name="settings_theme_mode_light">Clair</string>
+    <string name="settings_theme_mode_dark">Sombre</string>
+    <string name="settings_theme_always_dark">Toujours sombre avec ce thème</string>
+    <string name="settings_theme_pure_black">Noir pur (AMOLED)</string>
+    <string name="settings_theme_pure_black_short">AMOLED</string>
+    <string name="settings_theme_pure_black_summary">Utilise un fond entièrement noir en mode sombre. Économise la batterie sur les écrans OLED.</string>
+    <string name="settings_theme_pure_black_included">Toujours activé avec Noir minimaliste</string>
+    <string name="portable_preferences_field_palette">Thème</string>
+    <string name="portable_preferences_field_theme_mode">Mode du thème</string>
+    <string name="portable_preferences_field_pure_black">Noir pur</string>
 </resources>

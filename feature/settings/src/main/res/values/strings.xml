@@ -191,4 +191,24 @@
     <string name="settings_lock_unavailable_title">Screen lock required</string>
     <string name="settings_lock_unavailable_body">Set up a screen lock, PIN or biometrics in your device settings first. Without one, Lightforge Studio could not be unlocked.</string>
     <string name="settings_lock_unavailable_ok">OK</string>
+    <string name="settings_theme_material_you" translatable="false">Material You</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_neutral">Neutral</string>
+    <string name="settings_theme_rounded">Rounded</string>
+    <string name="settings_theme_crisp">Crisp</string>
+    <string name="settings_theme_warm">Warm</string>
+    <string name="settings_theme_minimalist_black">Minimalist Black</string>
+    <string name="settings_theme_mode">Theme mode</string>
+    <string name="settings_theme_mode_system">Follow system</string>
+    <string name="settings_theme_mode_light">Light</string>
+    <string name="settings_theme_mode_dark">Dark</string>
+    <string name="settings_theme_always_dark">Always dark with this theme</string>
+    <string name="settings_theme_pure_black">Pure black (AMOLED)</string>
+    <string name="settings_theme_pure_black_short">AMOLED</string>
+    <string name="settings_theme_pure_black_summary">Use a fully black background in dark mode. Saves battery on OLED screens.</string>
+    <string name="settings_theme_pure_black_included">Always on with Minimalist Black</string>
+    <string name="portable_preferences_field_palette">Theme</string>
+    <string name="portable_preferences_field_theme_mode">Theme mode</string>
+    <string name="portable_preferences_field_pure_black">Pure black</string>
 </resources>

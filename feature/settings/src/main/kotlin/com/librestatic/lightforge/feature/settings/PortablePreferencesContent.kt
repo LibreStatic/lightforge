@@ -347,6 +347,9 @@ private fun fieldLabel(field: PortablePreferenceField): Int =
         PortablePreferenceField.FileType -> R.string.portable_preferences_field_filetype
         PortablePreferenceField.Favorites -> R.string.portable_preferences_field_favorites
         PortablePreferenceField.Columns -> R.string.portable_preferences_field_columns
+        PortablePreferenceField.Palette -> R.string.portable_preferences_field_palette
+        PortablePreferenceField.Mode -> R.string.portable_preferences_field_theme_mode
+        PortablePreferenceField.PureBlack -> R.string.portable_preferences_field_pure_black
         PortablePreferenceField.Autoplay -> R.string.portable_preferences_field_autoplay
         PortablePreferenceField.Muted -> R.string.portable_preferences_field_muted
         PortablePreferenceField.Loop -> R.string.portable_preferences_field_loop
@@ -388,5 +391,14 @@ private fun valueLabel(value: String): Int? =
         "None" -> R.string.portable_preferences_value_none
         "LegacySeekBar" -> R.string.portable_preferences_value_legacyseekbar
         "Filmstrip" -> R.string.portable_preferences_value_filmstrip
+        "MaterialYou" -> R.string.settings_theme_material_you
+        "Neutral" -> R.string.settings_theme_neutral
+        "Rounded" -> R.string.settings_theme_rounded
+        "Crisp" -> R.string.settings_theme_crisp
+        "Warm" -> R.string.settings_theme_warm
+        "MinimalistBlack" -> R.string.settings_theme_minimalist_black
+        "System" -> R.string.settings_theme_mode_system
+        "Light" -> R.string.settings_theme_mode_light
+        "Dark" -> R.string.settings_theme_mode_dark
         else -> null
     }

@@ -186,4 +186,23 @@
     <string name="settings_lock_unavailable_title">Bildschirmsperre erforderlich</string>
     <string name="settings_lock_unavailable_body">Richte zuerst in den Geräteeinstellungen eine Bildschirmsperre, PIN oder Biometrie ein. Ohne sie ließe sich Lightforge Studio nicht entsperren.</string>
     <string name="settings_lock_unavailable_ok">OK</string>
+    <string name="settings_appearance">Darstellung</string>
+    <string name="settings_theme">Design</string>
+    <string name="settings_theme_neutral">Neutral</string>
+    <string name="settings_theme_rounded">Abgerundet</string>
+    <string name="settings_theme_crisp">Klar</string>
+    <string name="settings_theme_warm">Warm</string>
+    <string name="settings_theme_minimalist_black">Minimalistisches Schwarz</string>
+    <string name="settings_theme_mode">Designmodus</string>
+    <string name="settings_theme_mode_system">System folgen</string>
+    <string name="settings_theme_mode_light">Hell</string>
+    <string name="settings_theme_mode_dark">Dunkel</string>
+    <string name="settings_theme_always_dark">Bei diesem Design immer dunkel</string>
+    <string name="settings_theme_pure_black">Reines Schwarz (AMOLED)</string>
+    <string name="settings_theme_pure_black_short">AMOLED</string>
+    <string name="settings_theme_pure_black_summary">Verwendet im dunklen Modus einen komplett schwarzen Hintergrund. Spart Akku auf OLED-Displays.</string>
+    <string name="settings_theme_pure_black_included">Bei Minimalistisches Schwarz immer an</string>
+    <string name="portable_preferences_field_palette">Design</string>
+    <string name="portable_preferences_field_theme_mode">Designmodus</string>
+    <string name="portable_preferences_field_pure_black">Reines Schwarz</string>
 </resources>

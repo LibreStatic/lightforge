@@ -73,6 +73,7 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.state.ToggleableState
+import com.librestatic.lightforge.core.preferences.AppearanceSettings
 import com.librestatic.lightforge.core.preferences.AutoGridColumns
 import com.librestatic.lightforge.core.preferences.GallerySettings
 import com.librestatic.lightforge.core.preferences.FolderSelectionMode
@@ -81,6 +82,8 @@ import com.librestatic.lightforge.core.preferences.FolderSelectionTarget
 import com.librestatic.lightforge.core.preferences.LibraryFilter
 import com.librestatic.lightforge.core.preferences.LibraryGrouping
 import com.librestatic.lightforge.core.preferences.LibrarySort
+import com.librestatic.lightforge.core.preferences.ThemeMode
+import com.librestatic.lightforge.core.preferences.ThemePalette
 import com.librestatic.lightforge.core.preferences.VideoScrubbingMode
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryShapeIllustration
@@ -163,7 +166,7 @@ data class SemanticModelSettingsUiState(
 )
 
 /** Nested settings destinations. [Root] lists categories; every other value is a detail page. */
-private enum class SettingsPage { Root, Library, LibraryFolders, Playback, Gestures, Thumbnails, Operations, Security, Backup, AiAnalysis }
+private enum class SettingsPage { Root, Library, LibraryFolders, Playback, Gestures, Thumbnails, Appearance, Operations, Security, Backup, AiAnalysis }
 
 @Composable
 fun RecognitionSettingsContent(
@@ -276,6 +279,9 @@ fun RecognitionSettingsContent(
             }
             SettingsPage.Thumbnails -> SettingsSubPage(embedded = twoPane, illustration = GalleryIcons.Image, title = stringResource(R.string.settings_thumbnails), onBack = { page = SettingsPage.Root }) {
                 ThumbnailsSection(settings, onSettingsChange)
+            }
+            SettingsPage.Appearance -> SettingsSubPage(embedded = twoPane, illustration = GalleryIcons.Palette, title = stringResource(R.string.settings_appearance), onBack = { page = SettingsPage.Root }) {
+                AppearanceSection(settings, onSettingsChange)
             }
             SettingsPage.Operations -> SettingsSubPage(embedded = twoPane, illustration = GalleryIcons.Folder, title = stringResource(R.string.settings_operations), onBack = { page = SettingsPage.Root }) {
                 OperationsSection(settings, onSettingsChange)
@@ -479,6 +485,18 @@ private fun SettingsCategoryList(
             SettingsCategoryRow(GalleryIcons.Folder, stringResource(R.string.settings_operations), enabledPattern.format(operationsCount, 3), 0, 3, selected = selected(SettingsPage.Operations), chevron = !twoPane) { onOpen(SettingsPage.Operations) }
             SettingsCategoryRow(GalleryIcons.Lock, stringResource(R.string.settings_security), if (securityOn) onLabel else offLabel, 1, 3, selected = selected(SettingsPage.Security), chevron = !twoPane) { onOpen(SettingsPage.Security) }
             SettingsCategoryRow(GalleryIcons.Download, stringResource(R.string.settings_backup), null, 2, 3, selected = selected(SettingsPage.Backup), chevron = !twoPane) { onOpen(SettingsPage.Backup) }
+        }
+        SettingsCategoryGroup(stringResource(R.string.settings_appearance)) {
+            SettingsCategoryRow(
+                GalleryIcons.Palette,
+                stringResource(R.string.settings_theme),
+                appearanceSummary(settings.appearance),
+                0,
+                1,
+                Modifier.testTag("settings_appearance_row"),
+                selected = selected(SettingsPage.Appearance),
+                chevron = !twoPane,
+            ) { onOpen(SettingsPage.Appearance) }
         }
         AppLanguageGroup(chevron = !twoPane)
         SettingsCategoryGroup(stringResource(R.string.settings_group_intelligence)) {
@@ -1325,6 +1343,107 @@ internal fun PlaybackSettingsTestContent(
     Column { PlaybackSection(settings, onSettingsChange) }
 }
 
+private val ThemePaletteLabels = mapOf(
+    ThemePalette.MaterialYou to R.string.settings_theme_material_you,
+    ThemePalette.Neutral to R.string.settings_theme_neutral,
+    ThemePalette.Rounded to R.string.settings_theme_rounded,
+    ThemePalette.Crisp to R.string.settings_theme_crisp,
+    ThemePalette.Warm to R.string.settings_theme_warm,
+    ThemePalette.MinimalistBlack to R.string.settings_theme_minimalist_black,
+)
+
+private val ThemeModeLabels = mapOf(
+    ThemeMode.System to R.string.settings_theme_mode_system,
+    ThemeMode.Light to R.string.settings_theme_mode_light,
+    ThemeMode.Dark to R.string.settings_theme_mode_dark,
+)
+
+@Composable
+private fun appearanceSummary(appearance: AppearanceSettings): String {
+    val palette = stringResource(ThemePaletteLabels.getValue(appearance.palette))
+    if (appearance.palette == ThemePalette.MinimalistBlack) return palette
+    val mode = stringResource(ThemeModeLabels.getValue(appearance.mode))
+    return if (appearance.pureBlack && appearance.mode != ThemeMode.Light) {
+        "$palette · $mode · " + stringResource(R.string.settings_theme_pure_black_short)
+    } else {
+        "$palette · $mode"
+    }
+}
+
+@Composable
+private fun AppearanceSection(
+    settings: GallerySettings,
+    onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit,
+) {
+    val appearance = settings.appearance
+    val minimalist = appearance.palette == ThemePalette.MinimalistBlack
+    var paletteDialogVisible by rememberSaveable { mutableStateOf(false) }
+    var modeDialogVisible by rememberSaveable { mutableStateOf(false) }
+    fun update(transform: (AppearanceSettings) -> AppearanceSettings) =
+        onSettingsChange { current -> current.copy(appearance = transform(current.appearance)) }
+    SettingsCard {
+        SettingsValueRow(
+            label = stringResource(R.string.settings_theme),
+            value = stringResource(ThemePaletteLabels.getValue(appearance.palette)),
+            modifier = Modifier.testTag("settings_theme_palette_row"),
+            onClick = { paletteDialogVisible = true },
+        )
+        if (minimalist) {
+            // Minimalist Black has no light variant: say so instead of offering a dead choice.
+            ListItem(
+                modifier = Modifier.clip(MaterialTheme.shapes.large).heightIn(min = settingsRowMinHeight()),
+                colors = if (LocalSettingsCards.current) {
+                    ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                } else ListItemDefaults.colors(),
+                supportingContent = { Text(stringResource(R.string.settings_theme_always_dark)) },
+            ) { Text(stringResource(R.string.settings_theme_mode)) }
+        } else {
+            SettingsValueRow(
+                label = stringResource(R.string.settings_theme_mode),
+                value = stringResource(ThemeModeLabels.getValue(appearance.mode)),
+                modifier = Modifier.testTag("settings_theme_mode_row"),
+                onClick = { modeDialogVisible = true },
+            )
+        }
+        SettingsSwitchRow(
+            label = stringResource(R.string.settings_theme_pure_black),
+            checked = minimalist || appearance.pureBlack,
+            modifier = Modifier.testTag("settings_theme_pure_black"),
+            supporting = stringResource(
+                if (minimalist) R.string.settings_theme_pure_black_included
+                else R.string.settings_theme_pure_black_summary,
+            ),
+            enabled = !minimalist && appearance.mode != ThemeMode.Light,
+        ) { checked -> update { it.copy(pureBlack = checked) } }
+    }
+    if (paletteDialogVisible) {
+        val palettes = ThemePalette.entries
+        SettingsSingleChoiceDialog(
+            title = stringResource(R.string.settings_theme),
+            options = palettes.map(ThemePaletteLabels::getValue),
+            selectedOption = palettes.indexOf(appearance.palette),
+            optionTestTags = palettes.map { "settings_theme_palette_" + it.name },
+            onDismiss = { paletteDialogVisible = false },
+        ) { index ->
+            paletteDialogVisible = false
+            update { it.copy(palette = palettes[index]) }
+        }
+    }
+    if (modeDialogVisible) {
+        val modes = ThemeMode.entries
+        SettingsSingleChoiceDialog(
+            title = stringResource(R.string.settings_theme_mode),
+            options = modes.map(ThemeModeLabels::getValue),
+            selectedOption = modes.indexOf(appearance.mode),
+            optionTestTags = modes.map { "settings_theme_mode_" + it.name },
+            onDismiss = { modeDialogVisible = false },
+        ) { index ->
+            modeDialogVisible = false
+            update { it.copy(mode = modes[index]) }
+        }
+    }
+}
+
 @Composable
 private fun GesturesSection(
     settings: GallerySettings,
@@ -1901,6 +2020,8 @@ private fun SettingsSwitchRow(
     label: String,
     checked: Boolean,
     modifier: Modifier = Modifier,
+    supporting: String? = null,
+    enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     ListItem(
@@ -1914,11 +2035,14 @@ private fun SettingsSwitchRow(
         ),
         checked = checked,
         onCheckedChange = onCheckedChange,
+        enabled = enabled,
         modifier = modifier.fillMaxWidth().clip(MaterialTheme.shapes.large).heightIn(min = settingsRowMinHeight()),
+        supportingContent = supporting?.let { { Text(it) } },
         trailingContent = {
             Switch(
                 checked = checked,
                 onCheckedChange = null,
+                enabled = enabled,
                 modifier = Modifier.semantics { contentDescription = label },
                 colors = SwitchDefaults.colors(
                     checkedTrackColor = MaterialTheme.colorScheme.primary,
