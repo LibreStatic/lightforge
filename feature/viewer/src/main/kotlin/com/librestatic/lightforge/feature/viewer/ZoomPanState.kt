@@ -1,10 +1,10 @@
 package com.librestatic.lightforge.feature.viewer
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Easing
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.SpringSpec
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.DecayAnimationSpec
+import androidx.compose.animation.core.exponentialDecay
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.TweenSpec
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.Density
@@ -19,12 +19,11 @@ import kotlinx.coroutines.launch
  * Animated zoom and pan state for viewer surfaces.
  *
  * - Pinch/drag frames are snapped directly ([applyGesture]) so content tracks fingers exactly.
- * - Programmatic moves (double-tap, settle back to 1x) run as concurrent spring animations on
- *   scale and both offset axes ([zoomTo]).
- * - On drag release, [fling] uses the gallery motion model: velocity chooses a shared
- *   duration and destination, the destination is constrained by the current zoom bounds, and a
- *   quadratic deceleration animates both axes. At low zoom the nearby bounds shorten the travel
- *   without shortening its duration; deeper zoom exposes more range and therefore more momentum.
+ * - Programmatic moves (double-tap, settle back to 1x) run scale and both offset axes on one
+ *   shared FastOutSlowIn tween ([zoomTo]), matching the double-tap curve measured on Google Photos.
+ * - On drag release, [fling] continues at the finger's release velocity and decays it
+ *   exponentially (Google Photos' model, measured on device: τ ≈ 0.55 s on both axes). Each axis
+ *   stops on its own when it reaches the pan bounds of the current zoom while the other glides on.
  *
  * The owner computes [containerCenter] from its own layout size and provides [maxOffsets] so the
  * same state works for fit-scaled images and plain surface scaling alike.
@@ -81,7 +80,7 @@ internal class ZoomPanState(
     }
 
     /**
-     * Smoothly animates scale and offset (parallel springs) to [targetScale]. When [focus] is
+     * Smoothly animates scale and offset (one shared eased tween) to [targetScale]. When [focus] is
      * provided (the double-tap position), the zoom converges toward that point. A target of 1f
      * recenters the content.
      */
@@ -101,17 +100,16 @@ internal class ZoomPanState(
         val target =
             if (targetScale == 1f) Offset.Zero else clamp(currentOffset + correction, targetScale)
         scale.updateBounds(1f, maxScale.coerceAtLeast(1f))
-        // Clear stale offset bounds from a previous gesture/scale: springs must be free to
+        // Clear stale offset bounds from a previous gesture/scale: the tween must be free to
         // travel, the final position below re-clamps against the target-scale bounds.
         offsetX.updateBounds(null, null)
         offsetY.updateBounds(null, null)
         coroutineScope {
-            launch { scale.animateTo(targetScale, ZOOM_SPRING) }
-            launch { offsetX.animateTo(target.x, ZOOM_SPRING) }
-            launch { offsetY.animateTo(target.y, ZOOM_SPRING) }
+            launch { scale.animateTo(targetScale, ZOOM_TWEEN) }
+            launch { offsetX.animateTo(target.x, ZOOM_TWEEN) }
+            launch { offsetY.animateTo(target.y, ZOOM_TWEEN) }
         }
-        // Springs settle within a visibility threshold of the target; land exactly on it unless
-        // a newer gesture/transition already took over while the springs were running.
+        // Land exactly on the target unless a newer gesture/transition took over meanwhile.
         if (session == transitionSession) {
             scale.snapTo(targetScale)
             snapOffsetTo(target, targetScale)
@@ -119,41 +117,22 @@ internal class ZoomPanState(
     }
 
     /**
-     * Launches a velocity-driven fling using the gallery duration/destination model.
-     *
-     * Unlike a spline decay that runs unchanged until it collides with an edge, this computes the
-     * unconstrained motion first and then clamps its destination to the pan range available at the
-     * current zoom. Duration remains velocity-driven. The same release therefore eases gently over
-     * a short distance near 1x and carries farther as zoom exposes a larger canvas.
+     * Launches a velocity-driven fling: an exponential decay per axis that starts at the release
+     * velocity and is stopped by that axis' pan bounds at the current zoom.
      */
     fun fling(velocity: Offset, scope: CoroutineScope) {
         if (!isZoomed) return
         val bounds = maxOffsets(scale.value)
         if (bounds.x <= 0f && bounds.y <= 0f) return
         val minimumFling = 50.dp.toPx()
-        val plan = createFlingPlan(
-            current = Offset(offsetX.value, offsetY.value),
-            velocityPxPerSecond = velocity,
-            bounds = bounds,
-            minimumVelocityPxPerSecond = minimumFling,
-        ) ?: return
+        if (abs(velocity.x) < minimumFling && abs(velocity.y) < minimumFling) return
         flingJob?.cancel()
         flingJob = scope.launch {
             offsetX.updateBounds(-bounds.x.coerceAtLeast(0f), bounds.x.coerceAtLeast(0f))
             offsetY.updateBounds(-bounds.y.coerceAtLeast(0f), bounds.y.coerceAtLeast(0f))
             coroutineScope {
-                launch {
-                    offsetX.animateTo(
-                        plan.target.x,
-                        tween(plan.durationMillis, easing = FLING_EASING),
-                    )
-                }
-                launch {
-                    offsetY.animateTo(
-                        plan.target.y,
-                        tween(plan.durationMillis, easing = FLING_EASING),
-                    )
-                }
+                launch { offsetX.animateDecay(velocity.x, FLING_DECAY) }
+                launch { offsetY.animateDecay(velocity.y, FLING_DECAY) }
             }
         }
     }
@@ -179,55 +158,24 @@ internal class ZoomPanState(
     companion object {
         const val ZOOMED_THRESHOLD = 1.01f
 
-        private val ZOOM_SPRING: SpringSpec<Float> = spring(
-            dampingRatio = 0.9f,
-            stiffness = Spring.StiffnessMediumLow,
+        /**
+         * Google Photos' double-tap zoom, measured frame by frame on device: a standard
+         * FastOutSlowIn (0.4, 0, 0.2, 1) curve over ~290 ms, linear in scale.
+         */
+        private val ZOOM_TWEEN: TweenSpec<Float> = tween(
+            durationMillis = 290,
+            easing = FastOutSlowInEasing,
         )
 
-        /** Android's DecelerateInterpolator with its default factor of 1. */
-        private val FLING_EASING = Easing { fraction ->
-            1f - (1f - fraction) * (1f - fraction)
-        }
+        /** Release-velocity decay with Google Photos' measured time constant. */
+        val FLING_DECAY: DecayAnimationSpec<Float> = exponentialDecay(
+            frictionMultiplier = 1f / (EXPONENTIAL_DECAY_FRICTION * FLING_TIME_CONSTANT_SECONDS),
+        )
     }
 }
 
-internal data class FlingPlan(
-    val target: Offset,
-    val durationMillis: Int,
-)
+/** Seconds for a fling's velocity to fall to 1/e; distance travelled is velocity × this. */
+internal const val FLING_TIME_CONSTANT_SECONDS = 0.55f
 
-/**
- * Reproduces gallery' fling geometry in screen pixels.
- *
- * Photos first scales detector velocity by 0.5, converts it to px/ms, derives a shared duration
- * from a constant 0.002 px/ms² deceleration, and clamps the resulting destination to the image
- * bounds. Keeping that duration after clamping is what makes the apparent acceleration adapt to
- * the amount of zoom rather than stopping abruptly at a nearby edge.
- */
-internal fun createFlingPlan(
-    current: Offset,
-    velocityPxPerSecond: Offset,
-    bounds: Offset,
-    minimumVelocityPxPerSecond: Float,
-): FlingPlan? {
-    if (abs(velocityPxPerSecond.x) < minimumVelocityPxPerSecond &&
-        abs(velocityPxPerSecond.y) < minimumVelocityPxPerSecond
-    ) {
-        return null
-    }
-    val velocityPxPerMillisecond = velocityPxPerSecond * FLING_INITIAL_VELOCITY_FACTOR / 1_000f
-    val speed = velocityPxPerMillisecond.getDistance()
-    if (speed == 0f) return null
-    val duration = speed / FLING_DECELERATION_PX_PER_MS_SQUARED
-    val durationMillis = duration.toInt().coerceAtLeast(1)
-    val target = Offset(
-        (current.x + velocityPxPerMillisecond.x * duration)
-            .coerceIn(-bounds.x.coerceAtLeast(0f), bounds.x.coerceAtLeast(0f)),
-        (current.y + velocityPxPerMillisecond.y * duration)
-            .coerceIn(-bounds.y.coerceAtLeast(0f), bounds.y.coerceAtLeast(0f)),
-    )
-    return FlingPlan(target, durationMillis)
-}
-
-private const val FLING_INITIAL_VELOCITY_FACTOR = 0.5f
-private const val FLING_DECELERATION_PX_PER_MS_SQUARED = 0.002f
+/** Compose's base friction for [exponentialDecay] (velocity ∝ e^(-4.2 · multiplier · t)). */
+private const val EXPONENTIAL_DECAY_FRICTION = 4.2f

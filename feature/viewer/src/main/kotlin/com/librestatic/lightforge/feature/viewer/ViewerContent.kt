@@ -1461,7 +1461,7 @@ private fun PhotoSurfaceState(
                     onZoomedChange(false)
                 } else {
                     onZoomedChange(true)
-                    zoom.zoomTo(center, minOf(2f, settings.photoMaxZoom), zoomTapPosition, settings.photoMaxZoom)
+                    zoom.zoomTo(center, minOf(DOUBLE_TAP_ZOOM, settings.photoMaxZoom), zoomTapPosition, settings.photoMaxZoom)
                 }
             }
             val selection = remember(state.drawable, textRecognizer) {
@@ -1482,13 +1482,9 @@ private fun PhotoSurfaceState(
             Box(
                 modifier = Modifier.fillMaxSize()
                     .onSizeChanged { containerSize = it }
-                    .graphicsLayer(
-                        scaleX = zoom.scale.value * rotationFit.value,
-                        scaleY = zoom.scale.value * rotationFit.value,
-                        translationX = zoom.offsetX.value,
-                        translationY = zoom.offsetY.value,
-                        rotationZ = rotation.value,
-                    )
+                    // Transform gestures sit outside the layer so pan, centroid and velocity are
+                    // in screen pixels; inside it they would be divided by the zoom, leaving the
+                    // finger sliding over the photo and flings 1/scale as strong.
                     .pointerInput(state.drawable, settings.pinchZoom, settings.photoMaxZoom, settings.rotatePhotos) {
                         detectViewerTransformGestures(
                             isZoomed = { zoom.isZoomed },
@@ -1538,6 +1534,13 @@ private fun PhotoSurfaceState(
                             },
                         )
                     }
+                    .graphicsLayer(
+                        scaleX = zoom.scale.value * rotationFit.value,
+                        scaleY = zoom.scale.value * rotationFit.value,
+                        translationX = zoom.offsetX.value,
+                        translationY = zoom.offsetY.value,
+                        rotationZ = rotation.value,
+                    )
                     .then(
                         if (selection == null) Modifier else Modifier.pointerInput(selection) {
                             detectTextSelectionGestures(
@@ -1691,6 +1694,9 @@ internal fun snapRotationDegrees(degrees: Float): Float = (degrees / 90f).roundT
 
 private const val ROTATE_SLOP_DEGREES = 15f
 
+/** Double-tap zoom level, matching Google Photos (measured 2.5x in both orientations). */
+private const val DOUBLE_TAP_ZOOM = 2.5f
+
 @Composable
 private fun VideoSurface(
     controller: VideoViewerController?,
@@ -1744,7 +1750,7 @@ private fun VideoSurface(
             onZoomedChange(false)
         } else {
             onZoomedChange(true)
-            zoom.zoomTo(center, minOf(2f, settings.videoMaxZoom), zoomTapPosition, settings.videoMaxZoom)
+            zoom.zoomTo(center, minOf(DOUBLE_TAP_ZOOM, settings.videoMaxZoom), zoomTapPosition, settings.videoMaxZoom)
         }
     }
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -1753,12 +1759,7 @@ private fun VideoSurface(
                 factory = { context -> android.view.SurfaceView(context).also(controller::attachSurface) },
                 modifier = (resolvedAspectRatio?.let { Modifier.aspectRatio(it) } ?: Modifier.fillMaxSize())
                     .onSizeChanged { videoContainerSize = it }
-                    .graphicsLayer(
-                        scaleX = zoom.scale.value,
-                        scaleY = zoom.scale.value,
-                        translationX = zoom.offsetX.value,
-                        translationY = zoom.offsetY.value,
-                    )
+                    // Outside the layer: gestures must see screen pixels, not zoomed ones.
                     .pointerInput(controller, settings.pinchZoom, settings.videoMaxZoom) {
                         detectViewerTransformGestures(
                             isZoomed = { zoom.isZoomed },
@@ -1786,6 +1787,12 @@ private fun VideoSurface(
                             },
                         )
                     }
+                    .graphicsLayer(
+                        scaleX = zoom.scale.value,
+                        scaleY = zoom.scale.value,
+                        translationX = zoom.offsetX.value,
+                        translationY = zoom.offsetY.value,
+                    )
                     .semantics { contentDescription = description },
             )
         }
