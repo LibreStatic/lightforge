@@ -20,6 +20,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.media3.common.Effect
+import androidx.media3.common.util.UnstableApi
 import com.librestatic.lightforge.core.designsystem.LightforgeTheme
 import com.librestatic.lightforge.core.designsystem.galleryAdaptiveLayoutInfo
 import com.librestatic.lightforge.core.model.MediaKey
@@ -91,6 +92,7 @@ private fun fakePhoto(width: Int, height: Int, seed: Long): Bitmap {
 }
 
 /** Paused at 4 s of a 13 s clip; play/pause only flips the reported state. */
+@androidx.annotation.OptIn(UnstableApi::class)
 private class PreviewVideoEngine : VideoEngine {
     override var listener: VideoEngine.Listener? = null
     private var playing = false
