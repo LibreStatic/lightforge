@@ -34,7 +34,7 @@ private fun OnboardingFrame(initial: OnboardingStep) {
     // renderer go idle; with animations off (as on the test emulator) they render their still frame.
     remember(context) {
         listOf(Settings.Global.ANIMATOR_DURATION_SCALE, Settings.Global.TRANSITION_ANIMATION_SCALE, Settings.Global.WINDOW_ANIMATION_SCALE)
-            .forEach { Settings.Global.putFloat(context.contentResolver, it, 0f) }
+            .onEach { Settings.Global.putFloat(context.contentResolver, it, 0f) }
     }
     val permissions = remember(context) { PermissionCoordinator(context) }
     var step by remember { mutableStateOf(initial) }
