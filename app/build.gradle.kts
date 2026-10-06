@@ -47,7 +47,7 @@ android {
                 it + (providers.gradleProperty("lightforge.versionCodeOffset").orNull?.toInt() ?: 100)
             }
             ?: 3
-        versionName = "0.3.1-beta"
+        versionName = "0.3.2-beta"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
