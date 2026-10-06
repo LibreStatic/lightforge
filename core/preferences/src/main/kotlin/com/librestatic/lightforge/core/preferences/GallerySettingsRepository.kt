@@ -349,6 +349,14 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                         fullAnalysisMinimumBatteryPercent = p[Keys.FullAnalysisMinimumBattery] ?: 20,
                         modelDownloadsOnMobileData = p[Keys.ModelDownloadsOnMobileData] ?: false,
                     ),
+                appearance =
+                    AppearanceSettings(
+                        palette =
+                            p[Keys.AppearancePalette]?.enumOrDefault(ThemePalette.MaterialYou)
+                                ?: ThemePalette.MaterialYou,
+                        mode = p[Keys.AppearanceMode]?.enumOrDefault(ThemeMode.System) ?: ThemeMode.System,
+                        pureBlack = p[Keys.PureBlack] ?: false,
+                    ),
             )
             .normalized()
 
@@ -397,6 +405,9 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         p[Keys.RelockTimeout] = s.security.relockTimeoutMinutes
         p[Keys.FullAnalysisMinimumBattery] = s.analysis.fullAnalysisMinimumBatteryPercent
         p[Keys.ModelDownloadsOnMobileData] = s.analysis.modelDownloadsOnMobileData
+        p[Keys.AppearancePalette] = s.appearance.palette.name
+        p[Keys.AppearanceMode] = s.appearance.mode.name
+        p[Keys.PureBlack] = s.appearance.pureBlack
     }
 
     private fun GallerySettings.toJson() =
@@ -488,6 +499,14 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     put("modelDownloadsOnMobileData", analysis.modelDownloadsOnMobileData)
                 },
             )
+            put(
+                "appearance",
+                JSONObject().apply {
+                    put("palette", appearance.palette.name)
+                    put("mode", appearance.mode.name)
+                    put("pureBlack", appearance.pureBlack)
+                },
+            )
         }
 
     private fun JSONObject.toSettings(): GallerySettings {
@@ -500,6 +519,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         val o = optJSONObject("operations") ?: JSONObject()
         val s = optJSONObject("security") ?: JSONObject()
         val a = optJSONObject("analysis") ?: JSONObject()
+        val ap = optJSONObject("appearance") ?: JSONObject()
         return GallerySettings(
             schemaVersion = optInt("schemaVersion", 1),
             library =
@@ -579,6 +599,12 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     a.optInt("fullAnalysisMinimumBatteryPercent", 20),
                     a.bool("modelDownloadsOnMobileData", false),
                 ),
+            appearance =
+                AppearanceSettings(
+                    palette = ap.optString("palette").enumOrDefault(ThemePalette.MaterialYou),
+                    mode = ap.optString("mode").enumOrDefault(ThemeMode.System),
+                    pureBlack = ap.bool("pureBlack", false),
+                ),
         )
     }
 
@@ -628,6 +654,9 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         val RelockTimeout = intPreferencesKey("security.relock_timeout")
         val FullAnalysisMinimumBattery = intPreferencesKey("analysis.full_minimum_battery_percent")
         val ModelDownloadsOnMobileData = booleanPreferencesKey("analysis.model_downloads_on_mobile_data")
+        val AppearancePalette = stringPreferencesKey("appearance.palette")
+        val AppearanceMode = stringPreferencesKey("appearance.mode")
+        val PureBlack = booleanPreferencesKey("appearance.pure_black")
     }
 
     private inline fun <reified T : Enum<T>> String.enumOrDefault(default: T): T =

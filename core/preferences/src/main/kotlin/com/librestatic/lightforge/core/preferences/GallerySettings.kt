@@ -11,6 +11,7 @@ data class GallerySettings(
     val operations: OperationSettings = OperationSettings(),
     val security: SecuritySettings = SecuritySettings(),
     val analysis: AnalysisSettings = AnalysisSettings(),
+    val appearance: AppearanceSettings = AppearanceSettings(),
 ) {
     companion object {
         const val CurrentSchemaVersion = 5
@@ -123,6 +124,34 @@ data class PlaybackSettings(
 )
 
 enum class VideoScrubbingMode { LegacySeekBar, Filmstrip }
+
+/**
+ * App colour palette. [MaterialYou] follows the wallpaper on Android 12+; the others are fixed
+ * palettes in the style of popular galleries; [MinimalistBlack] is a monochrome, always-dark,
+ * pure-black theme.
+ */
+enum class ThemePalette { MaterialYou, Neutral, Rounded, Crisp, Warm, MinimalistBlack }
+
+enum class ThemeMode { System, Light, Dark }
+
+data class AppearanceSettings(
+    val palette: ThemePalette = ThemePalette.MaterialYou,
+    val mode: ThemeMode = ThemeMode.System,
+    /** Pure-black (AMOLED) backgrounds whenever the effective theme is dark. */
+    val pureBlack: Boolean = false,
+) {
+    /** Whether the theme is dark, given whether the system is in dark mode. */
+    fun isDark(systemDark: Boolean): Boolean = when {
+        palette == ThemePalette.MinimalistBlack -> true
+        mode == ThemeMode.Light -> false
+        mode == ThemeMode.Dark -> true
+        else -> systemDark
+    }
+
+    /** Whether surfaces are pure black, given whether the system is in dark mode. */
+    fun isPureBlack(systemDark: Boolean): Boolean =
+        palette == ThemePalette.MinimalistBlack || (pureBlack && isDark(systemDark))
+}
 
 data class GestureSettings(
     val doubleTapZoom: Boolean = true,

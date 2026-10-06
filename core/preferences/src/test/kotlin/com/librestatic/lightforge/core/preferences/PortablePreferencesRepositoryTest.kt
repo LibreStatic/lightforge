@@ -263,4 +263,37 @@ class PortablePreferencesRepositoryTest {
         repo.update { it.copy(library = it.library.copy(albumSidePanelOpen = null)) }
         assertNull(repo.settings.first().library.albumSidePanelOpen)
     }
+
+    @Test
+    fun appearancePersistsRoundTripsAndFallsBackOnUnknownValues() = test { repo, _ ->
+        assertEquals(AppearanceSettings(), repo.settings.first().appearance)
+        val chosen = AppearanceSettings(ThemePalette.Warm, ThemeMode.Dark, pureBlack = true)
+        repo.update { it.copy(appearance = chosen) }
+        assertEquals(chosen, repo.settings.first().appearance)
+        val exported = repo.exportJson()
+        repo.reset()
+        assertEquals(AppearanceSettings(), repo.settings.first().appearance)
+        repo.importJson(exported)
+        assertEquals(chosen, repo.settings.first().appearance)
+        repo.importJson(
+            org.json.JSONObject(
+                """{"schemaVersion":5,"appearance":{"palette":"Sepia","mode":"Dusk","pureBlack":true}}"""
+            )
+        )
+        assertEquals(
+            AppearanceSettings(ThemePalette.MaterialYou, ThemeMode.System, pureBlack = true),
+            repo.settings.first().appearance,
+        )
+    }
+
+    @Test
+    fun minimalistBlackIsAlwaysDarkAndPureBlack() {
+        val minimalist = AppearanceSettings(ThemePalette.MinimalistBlack, ThemeMode.Light)
+        assertEquals(true, minimalist.isDark(systemDark = false))
+        assertEquals(true, minimalist.isPureBlack(systemDark = false))
+        val amoled = AppearanceSettings(pureBlack = true)
+        assertEquals(false, amoled.isPureBlack(systemDark = false))
+        assertEquals(true, amoled.isPureBlack(systemDark = true))
+        assertEquals(false, amoled.copy(mode = ThemeMode.Light).isPureBlack(systemDark = true))
+    }
 }

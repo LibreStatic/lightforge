@@ -36,6 +36,9 @@ enum class PortablePreferenceField(
     FileType(PortablePreferenceGroup.Presentation, "thumbnails", "showFileType"),
     Favorites(PortablePreferenceGroup.Presentation, "thumbnails", "markFavorites"),
     Columns(PortablePreferenceGroup.Presentation, "thumbnails", "gridColumns"),
+    Palette(PortablePreferenceGroup.Presentation, "appearance", "palette"),
+    Mode(PortablePreferenceGroup.Presentation, "appearance", "mode"),
+    PureBlack(PortablePreferenceGroup.Presentation, "appearance", "pureBlack"),
     Autoplay(PortablePreferenceGroup.Playback, "playback", "autoplayVideos"),
     Muted(PortablePreferenceGroup.Playback, "playback", "startVideosMuted"),
     Loop(PortablePreferenceGroup.Playback, "playback", "loopVideos"),
@@ -67,6 +70,8 @@ enum class PortablePreferenceField(
                 Filter -> LibraryFilter.entries.map { it.name }
                 Grouping -> LibraryGrouping.entries.map { it.name }
                 Scrubbing -> VideoScrubbingMode.entries.map { it.name }
+                Palette -> ThemePalette.entries.map { it.name }
+                Mode -> ThemeMode.entries.map { it.name }
                 else -> null
             }
         if (allowed != null) {
@@ -94,7 +99,7 @@ enum class PortablePreferenceField(
             Sort,
             Filter,
             Grouping,
-            Scrubbing, CollectionOrder, HiddenCollections -> value
+            Scrubbing, Palette, Mode, CollectionOrder, HiddenCollections -> value
             Columns,
             SkipSeconds -> value.toInt()
             PhotoZoom,
