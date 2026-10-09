@@ -22,14 +22,25 @@ import java.util.concurrent.atomic.AtomicReference
  * shader program therefore gets its own [ProgramLut] with its own texture: releasing a replaced
  * chain must not delete the texture, or end the lifetime, of the chain that replaced it. Sharing a
  * single texture failed every chain after the first with "The realtime LUT has not been uploaded".
+ *
+ * Media3's LUT shader rejects HDR frames, and the player runs an HDR graph for HLG and PQ sources.
+ * There the grade itself is applied with the float [HdrVideoColorGradeShaderProgram] used by the
+ * HDR export, so callers pass the grade along with its cube to [update].
  */
 class RealtimeColorLut(initialCube: Array<Array<IntArray>>) : ColorLut {
     /** An immutable LUT revision; its bitmap is never recycled while programs may still upload it. */
     private class LutRevision(val bitmap: Bitmap, val length: Int, val revision: Long)
 
     private val latest = AtomicReference(cubeToRevision(initialCube, revision = 0))
+    private val latestHdr = AtomicReference(HdrGradeInput(VideoColorGrade(), customLut = null))
 
-    fun updateCube(cube: Array<Array<IntArray>>) {
+    /** Replaces the SDR [cube] and the HDR [grade] it was built from, for the next drawn frame. */
+    fun update(cube: Array<Array<IntArray>>, grade: VideoColorGrade, customLut: CubeLut?) {
+        latestHdr.set(HdrGradeInput(grade, customLut))
+        updateCube(cube)
+    }
+
+    private fun updateCube(cube: Array<Array<IntArray>>) {
         // Superseded bitmaps are left to the GC: another chain's GL thread may be uploading one.
         // A preview cube is a few kilobytes, so this costs nothing measurable.
         while (true) {
@@ -40,7 +51,11 @@ class RealtimeColorLut(initialCube: Array<Array<IntArray>>) : ColorLut {
     }
 
     override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram =
-        ProgramLut().toGlShaderProgram(context, useHdr)
+        if (useHdr) {
+            HdrVideoColorGradeShaderProgram(context, latestHdr::get)
+        } else {
+            ProgramLut().toGlShaderProgram(context, useHdr)
+        }
 
     // Media3 only talks to the per-program [ProgramLut]s created above. These members exist to
     // satisfy the interface and answer with the latest revision's metadata.

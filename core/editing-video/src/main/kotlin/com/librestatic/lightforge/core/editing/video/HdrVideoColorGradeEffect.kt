@@ -6,6 +6,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.opengl.GLES20
+import androidx.media3.common.Format
 import androidx.media3.common.VideoFrameProcessingException
 import androidx.media3.common.util.GlProgram
 import androidx.media3.common.util.GlUtil
@@ -15,39 +16,39 @@ import androidx.media3.effect.GlEffect
 
 /** Float-processing color grade used when the final surface is BT.2020 HLG or PQ. */
 class HdrVideoColorGradeEffect(
-    private val grade: VideoColorGrade,
-    private val customLut: CubeLut?,
+    grade: VideoColorGrade,
+    customLut: CubeLut?,
 ) : GlEffect {
+    private val input = HdrGradeInput(grade, customLut)
+
     override fun isNoOp(inputWidth: Int, inputHeight: Int): Boolean = false
 
     override fun toGlShaderProgram(context: Context, useHdr: Boolean): BaseGlShaderProgram {
         check(useHdr) { "HDR color grading requires an HDR frame-processing surface" }
-        return HdrVideoColorGradeShaderProgram(context, grade, customLut)
+        return HdrVideoColorGradeShaderProgram(context) { input }
     }
 }
 
-private class HdrVideoColorGradeShaderProgram(
+/** One immutable grade for [HdrVideoColorGradeShaderProgram]; a new instance means new uniforms. */
+internal class HdrGradeInput(val grade: VideoColorGrade, val customLut: CubeLut?)
+
+/**
+ * Applies the grade returned by [gradeSource] on every frame. The source is read on the GL thread,
+ * and uniforms and the custom LUT texture are only rewritten when it returns a different instance,
+ * so a live preview can swap grades without rebuilding the effect chain.
+ */
+internal class HdrVideoColorGradeShaderProgram(
     context: Context,
-    private val grade: VideoColorGrade,
-    customLut: CubeLut?,
+    private val gradeSource: () -> HdrGradeInput,
 ) : BaseGlShaderProgram(/* useHdr= */ true, /* texturePoolCapacity= */ 1) {
     private val program = try {
         GlProgram(context, R.raw.video_hdr_grade_vertex, R.raw.video_hdr_grade_fragment)
     } catch (failure: Exception) {
         throw VideoFrameProcessingException(failure)
     }
-    // GlProgram requires every active sampler to be bound even when the shader branch that reads
-    // it is disabled. Keep a real identity texture for built-in looks and grading without a .cube.
-    private val lutBitmap = customLut?.toAtlasBitmap() ?: Bitmap.createBitmap(
-        1,
-        1,
-        Bitmap.Config.ARGB_8888,
-    ).apply { eraseColor(Color.WHITE) }
-    private val lutTexture = try {
-        GlUtil.createTexture(lutBitmap)
-    } catch (failure: GlUtil.GlException) {
-        throw VideoFrameProcessingException(failure)
-    }
+    private var appliedInput: HdrGradeInput? = null
+    private var appliedLut: CubeLut? = null
+    private var lutTexture = Format.NO_VALUE
 
     init {
         program.setBufferAttribute(
@@ -58,6 +59,29 @@ private class HdrVideoColorGradeShaderProgram(
         val identity = GlUtil.create4x4IdentityMatrix()
         program.setFloatsUniform("uTransformationMatrix", identity)
         program.setFloatsUniform("uTexTransformationMatrix", identity)
+    }
+
+    private fun apply(input: HdrGradeInput) {
+        val grade = input.grade
+        val customLut = input.customLut
+        if (lutTexture == Format.NO_VALUE || customLut !== appliedLut) {
+            // GlProgram requires every active sampler to be bound even when the shader branch that
+            // reads it is disabled. Keep a real identity texture for built-in looks and grading
+            // without a .cube.
+            val bitmap = customLut?.toAtlasBitmap() ?: Bitmap.createBitmap(
+                1,
+                1,
+                Bitmap.Config.ARGB_8888,
+            ).apply { eraseColor(Color.WHITE) }
+            val replacement = try {
+                GlUtil.createTexture(bitmap)
+            } finally {
+                bitmap.recycle()
+            }
+            if (lutTexture != Format.NO_VALUE) GlUtil.deleteTexture(lutTexture)
+            lutTexture = replacement
+            appliedLut = customLut
+        }
         program.setIntUniform("uInputProfile", grade.inputProfile.ordinal)
         program.setIntUniform("uBypass", if (grade.bypass) 1 else 0)
         program.setFloatUniform("uExposure", grade.exposureEv)
@@ -84,12 +108,15 @@ private class HdrVideoColorGradeShaderProgram(
         program.setFloatUniform("uLutSize", customLut?.size?.toFloat() ?: 1f)
         program.setFloatsUniform("uLutDomainMin", customLut?.domainMin ?: floatArrayOf(0f, 0f, 0f))
         program.setFloatsUniform("uLutDomainMax", customLut?.domainMax ?: floatArrayOf(1f, 1f, 1f))
+        appliedInput = input
     }
 
     override fun configure(inputWidth: Int, inputHeight: Int): Size = Size(inputWidth, inputHeight)
 
     override fun drawFrame(inputTexId: Int, presentationTimeUs: Long) {
         try {
+            val input = gradeSource()
+            if (input !== appliedInput) apply(input)
             program.use()
             program.setSamplerTexIdUniform("uTexSampler", inputTexId, 0)
             program.setSamplerTexIdUniform("uLutSampler", lutTexture, 1)
@@ -102,9 +129,9 @@ private class HdrVideoColorGradeShaderProgram(
 
     override fun release() {
         super.release()
-        lutBitmap.recycle()
         try {
-            GlUtil.deleteTexture(lutTexture)
+            if (lutTexture != Format.NO_VALUE) GlUtil.deleteTexture(lutTexture)
+            lutTexture = Format.NO_VALUE
             program.delete()
         } catch (failure: GlUtil.GlException) {
             throw VideoFrameProcessingException(failure)

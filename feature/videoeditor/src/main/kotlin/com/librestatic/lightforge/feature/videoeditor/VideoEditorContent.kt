@@ -503,7 +503,7 @@ fun VideoEditorContent(
                         size = PreviewCubeSize,
                     )
                 }
-                realtimeColorLut.updateCube(cube)
+                realtimeColorLut.update(cube, request.grade, request.customLut)
                 controller.refreshVideoFrame()
             }
         }
