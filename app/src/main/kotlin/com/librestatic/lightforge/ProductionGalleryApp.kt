@@ -1,6 +1,7 @@
 package com.librestatic.lightforge
 
 import androidx.compose.runtime.key
+import com.librestatic.lightforge.core.designsystem.GalleryInlineEmpty
 
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.stateDescription
@@ -4036,7 +4037,7 @@ private fun ChooseAlbumDialog(
         text = {
             // Scrolls so a long album list stays reachable inside the dialog's bounded height.
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                if (albums.isEmpty()) Text(stringResource(R.string.selection_no_albums))
+                if (albums.isEmpty()) GalleryInlineEmpty(stringResource(R.string.selection_no_albums))
                 albums.forEach { album ->
                     TextButton(onClick = { onSelect(album) }) {
                         Text(album.name ?: stringResource(com.librestatic.lightforge.feature.album.R.string.album_untitled))

@@ -3,6 +3,7 @@
     <string name="local_backup_task_queued">En cola</string>
     <string name="local_backup_task_durable_hint">Las tareas continúan fuera de esta pantalla. Pausar conserva las fases completas y los archivos restaurados verificados. Preparar una copia de seguridad reinicia la creación del archivo; un archivo de destino interrumpido se reinicia tras verificarlo. Los archivos privados se conservan hasta quitar su historial.</string>
     <string name="local_backup_tasks_empty">Todavía no hay tareas de copia de seguridad.</string>
+    <string name="local_backup_tasks_empty_body">Las copias de seguridad que inicies aparecerán aquí con su progreso.</string>
     <string name="local_backup_task_action_failed">La acción falló. Revisa el acceso y elige el destino original.</string>
     <string name="local_backup_task_review_hint">Los archivos y registros modificados o ambiguos se conservan para revisión. No se reemplazan archivos existentes.</string>
     <string name="local_backup_task_permission_hint">Restablece el acceso al mismo destino y reanuda. Un archivo ausente o inaccesible nunca implica borrarlo.</string>

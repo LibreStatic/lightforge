@@ -1,6 +1,8 @@
 package com.librestatic.lightforge
 
 import android.content.ClipData
+import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.designsystem.GalleryEmptyState
 import android.content.Intent
 import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
@@ -94,7 +96,14 @@ fun PublicationRecoveriesContent(onBack: () -> Unit, modifier: Modifier = Modifi
                     }
                 } }
                 if (state.initialized && !state.busy && state.entries.isEmpty() && state.message == null) item("empty") {
-                    Text(stringResource(R.string.publication_recoveries_empty), Modifier.testTag("publication-recoveries-empty"))
+                    GalleryEmptyState(
+                        title = stringResource(R.string.publication_recoveries_empty),
+                        body = stringResource(R.string.publication_recoveries_empty_body),
+                        icon = GalleryIcons.History,
+                        hero = true,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 320.dp)
+                            .testTag("publication-recoveries-empty"),
+                    )
                 }
                 items(state.entries, key = { it.key }) { entry ->
                     val selected = entry.key == state.selectedKey

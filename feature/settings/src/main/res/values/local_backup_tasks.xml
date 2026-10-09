@@ -3,6 +3,7 @@
     <string name="local_backup_task_queued">Queued</string>
     <string name="local_backup_task_durable_hint">Tasks continue outside this screen. Pause keeps completed phases and verified restored files. Preparing a backup restarts archive creation; an interrupted destination file restarts after verification. Private archives remain until you remove their history entry.</string>
     <string name="local_backup_tasks_empty">No backup tasks yet.</string>
+    <string name="local_backup_tasks_empty_body">Backups you start will appear here with their progress.</string>
     <string name="local_backup_task_action_failed">The action failed. Check access and choose the original destination.</string>
     <string name="local_backup_task_review_hint">Changed or ambiguous files and journals are retained for review. Existing files are not replaced.</string>
     <string name="local_backup_task_permission_hint">Restore access to the same destination, then resume. No missing or inaccessible file implies deletion.</string>

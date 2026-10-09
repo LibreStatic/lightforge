@@ -22,6 +22,7 @@
     <string name="settings_folder_include_mode">Somente pastas selecionadas</string>
     <string name="settings_folders">Pastas</string>
     <string name="settings_folders_empty">Nenhuma pasta de mídia</string>
+    <string name="settings_folders_empty_body">As pastas com fotos e vídeos aparecem aqui depois que a biblioteca for verificada.</string>
     <string name="settings_folders_enabled_summary">%1$d/%2$d</string>
     <string name="settings_internal_storage">Armazenamento interno</string>
     <string name="settings_storage_volume">Armazenamento %1$s</string>

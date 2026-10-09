@@ -86,6 +86,7 @@ fun TrashContent(
             body = stringResource(R.string.trash_empty_state),
             illustrationDescription = stringResource(R.string.trash_empty_description),
             modifier = modifier.fillMaxSize(),
+            heroIcon = GalleryIcons.Trash,
         )
         thumbnailLoader == null || items.loadState.refresh is LoadState.Loading && items.itemCount == 0 -> {
             Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) { GalleryLoadingIndicator() }

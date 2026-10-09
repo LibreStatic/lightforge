@@ -237,6 +237,7 @@ internal fun DeviceFoldersContent(
             stringResource(R.string.device_folders_title),
             stringResource(R.string.device_folders_title),
             modifier.fillMaxSize(),
+            heroIcon = GalleryIcons.Folder,
         )
         return
     }

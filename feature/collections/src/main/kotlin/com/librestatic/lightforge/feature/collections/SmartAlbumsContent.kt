@@ -1,6 +1,7 @@
 package com.librestatic.lightforge.feature.collections
 
 import android.graphics.Bitmap
+import com.librestatic.lightforge.core.designsystem.GalleryInlineEmpty
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -952,7 +953,7 @@ private fun SmartPending(
     ) {
         item {
             Text(stringResource(R.string.smart_pending_hint))
-            if (keys.isEmpty()) Text(stringResource(R.string.smart_empty_exclusions))
+            if (keys.isEmpty()) GalleryInlineEmpty(stringResource(R.string.smart_empty_exclusions))
         }
         items(keys, key = { it.tag() }) { key ->
             SmartExcludedRow(repository, loader, key, false, onInclude)

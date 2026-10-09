@@ -1,6 +1,7 @@
 package com.librestatic.lightforge.feature.collections
 
 import androidx.activity.compose.BackHandler
+import com.librestatic.lightforge.core.designsystem.GalleryInlineEmpty
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -202,7 +203,7 @@ fun DocumentAutoArchiveContent(
                         Text(stringResource(R.string.document_auto_future))
                         if (snapshot.hasMore) Text(stringResource(R.string.document_auto_more))
                         if (snapshot.items.isEmpty())
-                            Text(stringResource(R.string.document_auto_empty))
+                            GalleryInlineEmpty(stringResource(R.string.document_auto_empty))
                     }
                     items(snapshot.items, key = { "${it.volumeName}:${it.mediaStoreId}" }) { row ->
                         val key = row.key()

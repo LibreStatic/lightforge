@@ -3,6 +3,7 @@
     <string name="local_backup_task_queued">En attente</string>
     <string name="local_backup_task_durable_hint">Les tâches continuent hors de cet écran. La pause conserve les phases terminées et les fichiers restaurés vérifiés. La préparation recommence la création de l’archive ; un fichier de destination interrompu recommence après vérification. Les archives privées restent jusqu’à la suppression de leur historique.</string>
     <string name="local_backup_tasks_empty">Aucune tâche de sauvegarde.</string>
+    <string name="local_backup_tasks_empty_body">Les sauvegardes que vous lancez apparaîtront ici avec leur progression.</string>
     <string name="local_backup_task_action_failed">Échec de l’action. Vérifiez l’accès et choisissez la destination d’origine.</string>
     <string name="local_backup_task_review_hint">Les fichiers et journaux modifiés ou ambigus sont conservés pour examen. Aucun fichier existant n’est remplacé.</string>
     <string name="local_backup_task_permission_hint">Rétablissez l’accès à la même destination, puis reprenez. Un fichier absent ou inaccessible ne justifie jamais sa suppression.</string>

@@ -3,6 +3,7 @@
     <string name="local_backup_task_queued">Na fila</string>
     <string name="local_backup_task_durable_hint">As tarefas continuam fora desta tela. Pausar mantém fases completas e arquivos restaurados verificados. A preparação reinicia a criação do backup; um arquivo de destino interrompido reinicia após verificação. Arquivos privados ficam até remover o histórico.</string>
     <string name="local_backup_tasks_empty">Nenhuma tarefa de backup.</string>
+    <string name="local_backup_tasks_empty_body">Os backups que você iniciar aparecerão aqui com o progresso.</string>
     <string name="local_backup_task_action_failed">A ação falhou. Verifique o acesso e escolha o destino original.</string>
     <string name="local_backup_task_review_hint">Arquivos e registros alterados ou ambíguos são mantidos para revisão. Arquivos existentes não são substituídos.</string>
     <string name="local_backup_task_permission_hint">Restaure o acesso ao mesmo destino e retome. Um arquivo ausente ou inacessível nunca implica exclusão.</string>

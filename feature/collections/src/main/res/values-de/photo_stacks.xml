@@ -9,7 +9,8 @@
     <string name="stacks_suggestions_hint">Prüfe Gruppen aus der vorhandenen lokalen Ähnlichkeitsanalyse. Ein gespeicherter Stapel bewahrt deine Auswahl unabhängig von der Analyse.</string>
     <string name="stacks_separated_hint">Getrennte Fotos bleiben von Stapelvorschlägen ausgeschlossen, bis du sie wieder zulässt.</string>
     <string name="stacks_analysis">Einstellungen der lokalen Analyse</string>
-    <string name="stacks_empty">Hier gibt es noch keine Stapel.</string>
+    <string name="stacks_empty">Hier gibt es noch keine Stapel</string>
+    <string name="stacks_empty_body">Stapel gruppieren fast identische Fotos, damit du das beste behalten kannst.</string>
     <string name="stacks_retry">Erneut versuchen</string>
     <string name="stacks_default_title">Fotostapel</string>
     <string name="stacks_available">Verfügbar: %1$d / %2$d</string>

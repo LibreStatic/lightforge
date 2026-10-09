@@ -1,6 +1,7 @@
 package com.librestatic.lightforge.feature.collections
 
 import android.graphics.Bitmap
+import com.librestatic.lightforge.core.designsystem.GalleryEmptyState
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -112,12 +113,14 @@ fun MemoriesBrowserContent(
                             }
                         if (pages.loadState.refresh is LoadState.NotLoading && pages.itemCount == 0)
                             item("empty") {
-                                Text(
-                                    stringResource(R.string.memories_browser_empty),
-                                    Modifier.testTag("memories-browser-empty"),
-                                    style = MaterialTheme.typography.titleMedium,
+                                GalleryEmptyState(
+                                    title = stringResource(R.string.memories_browser_empty),
+                                    body = stringResource(R.string.memories_browser_empty_body),
+                                    icon = GalleryIcons.AutoAwesome,
+                                    hero = true,
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 320.dp)
+                                        .testTag("memories-browser-empty"),
                                 )
-                                Text(stringResource(R.string.memories_browser_empty_body))
                             }
                         items(pages.itemCount, key = pages.itemKey { it.moment.momentId }) { index
                             ->

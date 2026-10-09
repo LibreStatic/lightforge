@@ -1,6 +1,7 @@
 package com.librestatic.lightforge.feature.settings
 
 import android.app.LocaleManager
+import com.librestatic.lightforge.core.designsystem.GalleryEmptyState
 import android.os.Build
 import android.os.LocaleList
 import androidx.biometric.BiometricManager
@@ -912,7 +913,15 @@ private fun FolderSelectionPage(
             ) {
                 if (currentNode == null) {
                     if (roots.isEmpty()) {
-                        item { Text(stringResource(R.string.settings_folders_empty)) }
+                        item {
+                            GalleryEmptyState(
+                                title = stringResource(R.string.settings_folders_empty),
+                                body = stringResource(R.string.settings_folders_empty_body),
+                                icon = GalleryIcons.Folder,
+                                hero = true,
+                                modifier = Modifier.fillParentMaxSize(),
+                            )
+                        }
                     } else {
                         roots.groupBy(FolderTreeNode::volumeName).forEach { (volume, nodes) ->
                             item(key = "volume:$volume") {

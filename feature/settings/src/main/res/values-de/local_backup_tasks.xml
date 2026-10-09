@@ -3,6 +3,7 @@
     <string name="local_backup_task_queued">Eingereiht</string>
     <string name="local_backup_task_durable_hint">Aufgaben laufen außerhalb dieser Ansicht weiter. Pausieren erhält abgeschlossene Phasen und verifizierte wiederhergestellte Dateien. Die Vorbereitung beginnt die Archiverstellung erneut; eine unterbrochene Zieldatei wird nach Prüfung neu geschrieben. Private Archive bleiben bis zum Entfernen des Verlaufseintrags.</string>
     <string name="local_backup_tasks_empty">Noch keine Sicherungsaufgaben.</string>
+    <string name="local_backup_tasks_empty_body">Sicherungen, die du startest, erscheinen hier mit ihrem Fortschritt.</string>
     <string name="local_backup_task_action_failed">Aktion fehlgeschlagen. Zugriff prüfen und das ursprüngliche Ziel wählen.</string>
     <string name="local_backup_task_review_hint">Veränderte oder mehrdeutige Dateien und Journale bleiben zur Prüfung erhalten. Vorhandene Dateien werden nicht ersetzt.</string>
     <string name="local_backup_task_permission_hint">Zugriff auf dasselbe Ziel wiederherstellen und fortsetzen. Fehlende oder unzugängliche Dateien führen niemals zur Löschung.</string>

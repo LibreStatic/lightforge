@@ -9,7 +9,8 @@
     <string name="stacks_suggestions_hint">Revise grupos da análise local de similaridade existente. Salvar uma pilha preserva suas escolhas independentemente da análise.</string>
     <string name="stacks_separated_hint">Fotos separadas ficam fora das sugestões até que você as permita novamente.</string>
     <string name="stacks_analysis">Configurações da análise local</string>
-    <string name="stacks_empty">Ainda não há pilhas aqui.</string>
+    <string name="stacks_empty">Ainda não há pilhas aqui</string>
+    <string name="stacks_empty_body">As pilhas agrupam fotos quase idênticas para você manter a melhor.</string>
     <string name="stacks_retry">Tentar novamente</string>
     <string name="stacks_default_title">Pilha de fotos</string>
     <string name="stacks_available">Disponibilidade: %1$d / %2$d</string>

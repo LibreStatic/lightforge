@@ -14,6 +14,8 @@
     <string name="documents_clear_selection">Limpiar selección</string>
     <string name="documents_selection_hint">Selecciona hasta 24 fotos en orden de página. Para agregar fotos, selecciónalas en Fotos y elige Documentos.</string>
     <string name="documents_empty">No hay documentos coincidentes. Clasifica fotos manualmente o revisa resultados del análisis de texto local opcional.</string>
+    <string name="documents_empty_body">Clasifica fotos manualmente o revisa resultados del análisis de texto local opcional.</string>
+    <string name="documents_empty_title">Aún no hay documentos</string>
     <string name="documents_back">Volver</string>
     <string name="documents_retry">Reintentar</string>
     <string name="documents_error">El documento cambió o no está disponible. Actualiza y reintenta.</string>

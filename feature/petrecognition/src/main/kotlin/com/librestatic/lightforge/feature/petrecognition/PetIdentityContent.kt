@@ -1,6 +1,7 @@
 package com.librestatic.lightforge.feature.petrecognition
 
 import android.content.Context
+import com.librestatic.lightforge.core.designsystem.GalleryInlineEmpty
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
@@ -196,7 +197,7 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
             } }
             item { TextButton(enabled = !working, onClick = { cursor = null; refresh++; selected = emptySet(); selectedGroups = emptySet() }, modifier = Modifier.testTag("pet-refresh")) { Text(stringResource(R.string.pet_refresh)) } }
             if (section == "groups") {
-                if (identities.items.isEmpty()) item { Text(stringResource(R.string.pet_no_items)) }
+                if (identities.items.isEmpty()) item { GalleryInlineEmpty(stringResource(R.string.pet_no_items)) }
                 items(identities.items, key = { it.id }) { identity ->
                     Card(Modifier.fillMaxWidth().testTag("pet-group-${identity.id}")) {
                         Column(Modifier.padding(12.dp)) {
@@ -210,7 +211,7 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
                 item { Button(enabled = !working && selectedGroups.size >= 2, onClick = { edit(PetEdit.Merge(selectedGroups.first(), selectedGroups.drop(1).toSet())) }, modifier = Modifier.testTag("pet-merge")) { Text(stringResource(R.string.pet_merge)) } }
             } else {
                 item { Text(pluralStringResource(R.plurals.pet_selected, selected.size, selected.size)) }
-                if (observations.items.isEmpty()) item { Text(stringResource(R.string.pet_no_items)) }
+                if (observations.items.isEmpty()) item { GalleryInlineEmpty(stringResource(R.string.pet_no_items)) }
                 items(observations.items, key = { it.id }) { observation ->
                     Card(Modifier.fillMaxWidth().testTag("pet-observation-${observation.id}")) {
                         Column(Modifier.padding(12.dp)) {

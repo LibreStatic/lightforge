@@ -266,6 +266,7 @@ fun LibraryPhotosRoute(
                 body = stringResource(R.string.photos_filter_empty_body),
                 actionLabel = stringResource(R.string.photos_filter_empty_action),
                 onAction = { onFilterChange(PhotosFilter.All) },
+                hero = true,
                 modifier = Modifier.fillMaxSize(),
             )
             entries.itemCount == 0 && engineState == LibraryUiState.Ready -> EmptyLibrary(Modifier.fillMaxSize())

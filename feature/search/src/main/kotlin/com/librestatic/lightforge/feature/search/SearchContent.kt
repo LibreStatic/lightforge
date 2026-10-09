@@ -1,6 +1,7 @@
 package com.librestatic.lightforge.feature.search
 
 import androidx.compose.foundation.Image
+import com.librestatic.lightforge.core.designsystem.GalleryEmptyState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -269,18 +270,18 @@ fun SearchContent(
                         }
                     }
                 } else {
-                    Text(stringResource(R.string.search_empty))
-                    if (!detectedContentEnabled) {
-                        // Content queries (people, places, topics) find nothing until analysis has run.
-                        Text(
-                            stringResource(R.string.search_empty_analysis_hint),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        TextButton(onClick = { showDetectedContent = true }) {
-                            Text(stringResource(R.string.search_local_analysis))
-                        }
-                    }
+                    // Content queries (people, places, topics) find nothing until analysis has run.
+                    GalleryEmptyState(
+                        title = stringResource(R.string.search_empty),
+                        body = stringResource(
+                            if (detectedContentEnabled) R.string.search_empty_body else R.string.search_empty_analysis_hint,
+                        ),
+                        icon = GalleryIcons.Search,
+                        hero = true,
+                        actionLabel = if (detectedContentEnabled) null else stringResource(R.string.search_local_analysis),
+                        onAction = if (detectedContentEnabled) null else ({ showDetectedContent = true }),
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                    )
                 }
             }
             else -> SearchResultsGrid(

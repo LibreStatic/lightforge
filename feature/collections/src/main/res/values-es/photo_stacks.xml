@@ -9,7 +9,8 @@
     <string name="stacks_suggestions_hint">Revisa grupos del análisis local de similitud existente. Al guardar una pila, tus decisiones se conservan independientemente del análisis.</string>
     <string name="stacks_separated_hint">Las fotos separadas quedan fuera de las sugerencias hasta que vuelvas a permitirlas.</string>
     <string name="stacks_analysis">Configuración del análisis local</string>
-    <string name="stacks_empty">Todavía no hay pilas aquí.</string>
+    <string name="stacks_empty">Todavía no hay pilas aquí</string>
+    <string name="stacks_empty_body">Las pilas agrupan fotos casi idénticas para que conserves la mejor.</string>
     <string name="stacks_retry">Reintentar</string>
     <string name="stacks_default_title">Pila de fotos</string>
     <string name="stacks_available">Disponibilidad: %1$d / %2$d</string>

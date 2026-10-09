@@ -1,6 +1,7 @@
 package com.librestatic.lightforge.feature.collections
 
 import android.text.format.Formatter
+import com.librestatic.lightforge.core.designsystem.GalleryInlineEmpty
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -169,7 +170,7 @@ fun CleanupContent(
             }
 
             sectionHeader("duplicates", duplicatesTitle, duplicatesSummary)
-            if (duplicateGroups.isEmpty()) item { Text(stringResource(R.string.cleanup_empty)) }
+            if (duplicateGroups.isEmpty()) item { GalleryInlineEmpty(stringResource(R.string.cleanup_empty)) }
             items(duplicateGroups, key = { "group:${it.id}" }) { group ->
                 Card(Modifier.fillMaxWidth().testTag("cleanup-group-${group.id}")) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -273,7 +274,7 @@ private fun LazyListScope.section(
 ) {
     sectionHeader(key, title, summary)
     item(key = "$key-items") {
-        if (items.isEmpty()) Text(stringResource(R.string.cleanup_empty))
+        if (items.isEmpty()) GalleryInlineEmpty(stringResource(R.string.cleanup_empty))
         else Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             ThumbnailRow(items, loader, keep = null, onOpen = onOpen)
             OutlinedButton(onClick = onTrash, enabled = count > 0, modifier = Modifier.testTag("cleanup-trash-$key")) {

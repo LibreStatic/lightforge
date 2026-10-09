@@ -14,6 +14,8 @@
     <string name="documents_clear_selection">Auswahl aufheben</string>
     <string name="documents_selection_hint">Wähle bis zu 24 Fotos in Seitenreihenfolge. Zum Hinzufügen Fotos auswählen und Dokumente wählen.</string>
     <string name="documents_empty">Keine passenden Dokumente. Fotos manuell zuordnen oder Ergebnisse der optionalen lokalen Texterkennung prüfen.</string>
+    <string name="documents_empty_body">Fotos manuell zuordnen oder Ergebnisse der optionalen lokalen Texterkennung prüfen.</string>
+    <string name="documents_empty_title">Noch keine Dokumente</string>
     <string name="documents_back">Zurück</string>
     <string name="documents_retry">Erneut versuchen</string>
     <string name="documents_error">Das Dokument wurde geändert oder ist nicht verfügbar. Aktualisieren und erneut versuchen.</string>

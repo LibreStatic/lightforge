@@ -10,6 +10,7 @@
     <string name="publication_recoveries_failed">Die Operation konnte nicht bestätigt werden. Prüfe den aktualisierten Zustand vor einer weiteren Aktion.</string>
     <string name="publication_recoveries_completed">Operation abgeschlossen.</string>
     <string name="publication_recoveries_empty">Keine Veröffentlichungen zur Wiederherstellung.</string>
+    <string name="publication_recoveries_empty_body">Unterbrochene Veröffentlichungen, die geprüft werden müssen, erscheinen hier.</string>
     <string name="publication_recoveries_review">Diese Veröffentlichung prüfen</string>
     <string name="publication_recoveries_id">ID: %1$s</string>
     <string name="publication_recoveries_no_destination">Kein Ziel aufgezeichnet</string>

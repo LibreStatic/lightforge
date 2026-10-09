@@ -3,6 +3,7 @@
 package com.librestatic.lightforge.feature.remotebackup
 
 import android.app.Activity
+import com.librestatic.lightforge.core.designsystem.GalleryInlineEmpty
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -306,7 +307,7 @@ fun RemoteBackupContent(
                     }
                 }
                 if (remoteEntries?.isEmpty() == true)
-                    item { Text(stringResource(R.string.remote_empty)) }
+                    item { GalleryInlineEmpty(stringResource(R.string.remote_empty)) }
                 items(remoteEntries.orEmpty(), key = { "remote-${it.name}" }) { entry ->
                     Surface(
                         color = MaterialTheme.colorScheme.surfaceContainer,
@@ -335,7 +336,7 @@ fun RemoteBackupContent(
                     style = MaterialTheme.typography.titleLarge,
                 )
                 Text(stringResource(R.string.remote_resume_hint))
-                if (tasks.isEmpty()) Text(stringResource(R.string.remote_history_empty))
+                if (tasks.isEmpty()) GalleryInlineEmpty(stringResource(R.string.remote_history_empty))
             }
             items(tasks, key = { "task-${it.id}" }) { task ->
                 Surface(

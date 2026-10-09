@@ -10,6 +10,7 @@
     <string name="publication_recoveries_failed">Non è stato possibile confermare l’operazione. Verifica lo stato aggiornato prima di un’altra azione.</string>
     <string name="publication_recoveries_completed">Operazione completata.</string>
     <string name="publication_recoveries_empty">Nessuna pubblicazione da recuperare.</string>
+    <string name="publication_recoveries_empty_body">Le pubblicazioni interrotte da rivedere appariranno qui.</string>
     <string name="publication_recoveries_review">Esamina questa pubblicazione</string>
     <string name="publication_recoveries_id">ID: %1$s</string>
     <string name="publication_recoveries_no_destination">Nessuna destinazione registrata</string>

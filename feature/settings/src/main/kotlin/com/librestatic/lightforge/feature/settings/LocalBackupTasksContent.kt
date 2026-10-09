@@ -1,6 +1,9 @@
 package com.librestatic.lightforge.feature.settings
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.heightIn
+import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.designsystem.GalleryEmptyState
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -83,7 +86,13 @@ fun LocalBackupTasksContent(
             )
             Text(stringResource(R.string.local_backup_task_durable_hint))
             if (error) Text(stringResource(R.string.local_backup_task_action_failed))
-            if (tasks.isEmpty()) Text(stringResource(R.string.local_backup_tasks_empty))
+            if (tasks.isEmpty()) GalleryEmptyState(
+                title = stringResource(R.string.local_backup_tasks_empty),
+                body = stringResource(R.string.local_backup_tasks_empty_body),
+                icon = GalleryIcons.Checklist,
+                hero = true,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 320.dp),
+            )
             tasks.forEach { task ->
                 Surface(
                     color = MaterialTheme.colorScheme.surfaceContainer,

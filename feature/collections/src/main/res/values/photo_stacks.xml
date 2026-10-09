@@ -9,7 +9,8 @@
     <string name="stacks_suggestions_hint">Review groups from existing local similarity analysis. Saving a stack preserves your choices independently of analysis.</string>
     <string name="stacks_separated_hint">Separated photos stay out of stack suggestions until you allow them again.</string>
     <string name="stacks_analysis">Local analysis settings</string>
-    <string name="stacks_empty">No stacks here yet.</string>
+    <string name="stacks_empty">No stacks here yet</string>
+    <string name="stacks_empty_body">Stacks group near-identical shots so you can keep the best one.</string>
     <string name="stacks_retry">Retry</string>
     <string name="stacks_default_title">Photo stack</string>
     <string name="stacks_available">Available: %1$d / %2$d</string>

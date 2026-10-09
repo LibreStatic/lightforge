@@ -1,6 +1,8 @@
 package com.librestatic.lightforge.feature.collections
 
 import android.content.ClipData
+import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.designsystem.GalleryEmptyState
 import android.content.ClipboardManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
@@ -244,7 +246,13 @@ fun DocumentsContent(
                             }
                         if (rows.itemCount == 0 && rows.loadState.refresh is LoadState.NotLoading)
                             item(span = { GridItemSpan(maxLineSpan) }) {
-                                Text(stringResource(R.string.documents_empty), Modifier.padding(vertical = 24.dp))
+                                GalleryEmptyState(
+                                    title = stringResource(R.string.documents_empty_title),
+                                    body = stringResource(R.string.documents_empty_body),
+                                    icon = GalleryIcons.Description,
+                                    hero = true,
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 320.dp).testTag("documents-empty"),
+                                )
                             }
                         items(rows.itemCount, key = rows.itemKey { it.key().saved() }) { index ->
                             rows[index]?.let { row ->

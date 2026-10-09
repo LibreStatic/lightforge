@@ -546,9 +546,7 @@ internal fun PrivateAlbumEmptyState(onAddRequest: () -> Unit, modifier: Modifier
         body = stringResource(R.string.private_empty_body),
         illustrationDescription = stringResource(R.string.private_empty_illustration),
         modifier = modifier,
-        illustration = {
-            Icon(GalleryIcons.Lock, contentDescription = null, modifier = Modifier.size(36.dp))
-        },
+        heroIcon = GalleryIcons.Lock,
         action = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 GalleryExpressiveButton(onClick = onAddRequest) {

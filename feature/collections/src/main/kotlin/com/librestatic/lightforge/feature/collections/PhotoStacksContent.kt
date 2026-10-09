@@ -1,6 +1,7 @@
 package com.librestatic.lightforge.feature.collections
 
 import android.graphics.Bitmap
+import com.librestatic.lightforge.core.designsystem.GalleryEmptyState
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -217,7 +218,15 @@ fun PhotoStacksContent(
                     }
                 if (load.refresh is LoadState.Loading && count == 0) item { GalleryIndeterminateProgressIndicator() }
                 if (load.refresh is LoadState.NotLoading && count == 0)
-                    item { Text(stringResource(R.string.stacks_empty)) }
+                    item {
+                        GalleryEmptyState(
+                            title = stringResource(R.string.stacks_empty),
+                            body = stringResource(R.string.stacks_empty_body),
+                            icon = GalleryIcons.Layers,
+                            hero = true,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 320.dp),
+                        )
+                    }
                 if (load.refresh is LoadState.Error || load.append is LoadState.Error)
                     item {
                         TextButton(

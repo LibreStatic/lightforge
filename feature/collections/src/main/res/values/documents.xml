@@ -14,6 +14,8 @@
     <string name="documents_clear_selection">Clear selection</string>
     <string name="documents_selection_hint">Select up to 24 photos in page order. More photos: select them in Photos, then choose Documents.</string>
     <string name="documents_empty">No matching documents. Classify selected photos manually, or review results from optional on-device text analysis.</string>
+    <string name="documents_empty_body">Classify selected photos manually, or review results from optional on-device text analysis.</string>
+    <string name="documents_empty_title">No documents yet</string>
     <string name="documents_back">Back</string>
     <string name="documents_retry">Retry</string>
     <string name="documents_error">Document changed or is unavailable. Refresh and try again.</string>

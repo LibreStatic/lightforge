@@ -22,6 +22,7 @@
     <string name="settings_folder_include_mode">Solo cartelle selezionate</string>
     <string name="settings_folders">Cartelle</string>
     <string name="settings_folders_empty">Nessuna cartella multimediale</string>
+    <string name="settings_folders_empty_body">Le cartelle con foto e video appaiono qui dopo la scansione della libreria.</string>
     <string name="settings_folders_enabled_summary">%1$d/%2$d</string>
     <string name="settings_internal_storage">Memoria interna</string>
     <string name="settings_storage_volume">Memoria %1$s</string>

@@ -9,7 +9,8 @@
     <string name="stacks_suggestions_hint">Examinez les groupes de l’analyse locale de similarité existante. Enregistrer une pile conserve vos choix indépendamment de l’analyse.</string>
     <string name="stacks_separated_hint">Les photos séparées sont exclues des suggestions jusqu’à votre nouvelle autorisation.</string>
     <string name="stacks_analysis">Réglages de l’analyse locale</string>
-    <string name="stacks_empty">Aucune pile ici pour le moment.</string>
+    <string name="stacks_empty">Aucune pile ici pour le moment</string>
+    <string name="stacks_empty_body">Les piles regroupent des photos quasi identiques pour conserver la meilleure.</string>
     <string name="stacks_retry">Réessayer</string>
     <string name="stacks_default_title">Pile de photos</string>
     <string name="stacks_available">Disponibilité : %1$d / %2$d</string>

@@ -42,6 +42,7 @@ import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.designsystem.GalleryGridMetrics
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
+import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryStateContent
 
 private val densityColumns = intArrayOf(3, 4, 5, 7)
@@ -155,6 +156,7 @@ internal fun EmptyLibrary(modifier: Modifier = Modifier) {
         body = stringResource(R.string.empty_library_body),
         illustrationDescription = stringResource(R.string.empty_library_title),
         modifier = modifier,
+        heroIcon = GalleryIcons.PhotoLibrary,
     )
 }
 

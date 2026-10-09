@@ -22,6 +22,7 @@
     <string name="settings_folder_include_mode">Nur ausgewählte Ordner</string>
     <string name="settings_folders">Ordner</string>
     <string name="settings_folders_empty">Keine Medienordner</string>
+    <string name="settings_folders_empty_body">Ordner mit Fotos und Videos erscheinen hier, sobald deine Mediathek durchsucht wurde.</string>
     <string name="settings_folders_enabled_summary">%1$d/%2$d</string>
     <string name="settings_internal_storage">Interner Speicher</string>
     <string name="settings_storage_volume">Speicher %1$s</string>

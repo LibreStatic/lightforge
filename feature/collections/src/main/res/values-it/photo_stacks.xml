@@ -9,7 +9,8 @@
     <string name="stacks_suggestions_hint">Esamina i gruppi dell’analisi locale di somiglianza esistente. Salvare una pila conserva le tue scelte indipendentemente dall’analisi.</string>
     <string name="stacks_separated_hint">Le foto separate restano escluse dai suggerimenti finché non le autorizzi di nuovo.</string>
     <string name="stacks_analysis">Impostazioni analisi locale</string>
-    <string name="stacks_empty">Nessuna pila qui per ora.</string>
+    <string name="stacks_empty">Nessuna pila qui per ora</string>
+    <string name="stacks_empty_body">Le pile raggruppano scatti quasi identici per tenere il migliore.</string>
     <string name="stacks_retry">Riprova</string>
     <string name="stacks_default_title">Pila di foto</string>
     <string name="stacks_available">Disponibilità: %1$d / %2$d</string>

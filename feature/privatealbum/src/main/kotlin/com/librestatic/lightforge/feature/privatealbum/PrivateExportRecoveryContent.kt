@@ -1,6 +1,8 @@
 package com.librestatic.lightforge.feature.privatealbum
 
 import android.content.ClipData
+import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.designsystem.GalleryEmptyState
 import android.content.Intent
 import android.webkit.MimeTypeMap
 import androidx.activity.compose.BackHandler
@@ -189,8 +191,14 @@ internal fun PrivateExportRecoveryContent(
                     error?.let { value -> item { RecoveryNotice(value, true) } }
                     message?.let { value -> item { RecoveryNotice(value, false) } }
                     if (loaded && rows.isEmpty()) item {
-                        Text(stringResource(R.string.private_export_recovery_empty),
-                            modifier = Modifier.testTag("private-export-recovery-empty"))
+                        GalleryEmptyState(
+                            title = stringResource(R.string.private_export_recovery_empty_title),
+                            body = stringResource(R.string.private_export_recovery_empty),
+                            icon = GalleryIcons.Lock,
+                            hero = true,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 320.dp)
+                                .testTag("private-export-recovery-empty"),
+                        )
                     }
                     items(rows, key = { it.id }) { row ->
                         OutlinedCard(onClick = { if (!working && hasAccess()) { selected = row; confirmation = null } },

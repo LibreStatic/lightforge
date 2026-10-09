@@ -183,6 +183,7 @@ fun AlbumContent(
                     stringResource(state.second),
                     stringResource(state.third),
                     Modifier.fillMaxWidth().heightIn(min = (paneHeight - 160.dp).coerceAtLeast(0.dp)),
+                    heroIcon = if (album.availability == AlbumAvailability.VolumeUnavailable) GalleryIcons.Warning else GalleryIcons.PhotoLibrary,
                 )
             }
         } else {
