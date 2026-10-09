@@ -4,13 +4,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -22,9 +23,16 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.constrainHeight
+import androidx.compose.ui.unit.constrainWidth
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
+import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 private val UNIT_LABELS = listOf("mm", "cm", "in", "px")
 
@@ -101,45 +109,25 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
     // secondaryContainer) card — the only allowed color source for the paper swatch is
     // PdfPaperTokens, never a literal.
     Text(stringResource(R.string.pdf_paper), style = MaterialTheme.typography.labelLarge)
-    // D2 review fix: a LazyRow inside a sheet clipped its trailing card ("Custom") at the sheet's
-    // edge with no scroll affordance, and card labels ("Letter", "10 × 15", "Square") clipped at
-    // narrow widths. A wrapping FlowRow means every card is always fully visible, at any width or
-    // font scale, with no horizontal-scroll discoverability problem.
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-    ) {
-        PdfPaperPresets.presets.forEach { preset ->
-            val selected = preset.id == selectedPreset
-            PdfPaperCard(
-                label = if (preset.id == PdfPaperPresets.SQUARE) stringResource(R.string.pdf_export_square) else preset.label,
-                widthMm = if (landscape) preset.heightMm else preset.widthMm,
-                heightMm = if (landscape) preset.widthMm else preset.heightMm,
-                selected = selected,
-                enabled = !s.editorLocked,
-            ) {
-                val w = if (landscape) preset.heightMm else preset.widthMm
-                val h = if (landscape) preset.widthMm else preset.heightMm
-                val m = min(page.margin, min(w, h) / 4)
-                applyPaperChange(w, h, m, p.gap) {
-                    vm.applyLayout(applyToAllPages) {
-                        val next = it.copy(width = w, height = h, margin = m)
-                        next.copy(images = it.images.map { image -> PdfGeometry.constrain(image, next) })
-                    }
+    PdfPaperCardRow(
+        landscape = landscape,
+        selectedPreset = selectedPreset,
+        customWidthMm = page.width,
+        customHeightMm = page.height,
+        enabled = !s.editorLocked,
+        onPreset = { preset ->
+            val w = if (landscape) preset.heightMm else preset.widthMm
+            val h = if (landscape) preset.widthMm else preset.heightMm
+            val m = min(page.margin, min(w, h) / 4)
+            applyPaperChange(w, h, m, p.gap) {
+                vm.applyLayout(applyToAllPages) {
+                    val next = it.copy(width = w, height = h, margin = m)
+                    next.copy(images = it.images.map { image -> PdfGeometry.constrain(image, next) })
                 }
             }
-        }
-        PdfPaperCard(
-            label = stringResource(R.string.pdf_paper_custom),
-            widthMm = page.width,
-            heightMm = page.height,
-            selected = selectedPreset == PdfPaperPresets.CUSTOM,
-            enabled = !s.editorLocked,
-        ) {
-            showCustomSize = true
-        }
-    }
+        },
+        onCustom = { showCustomSize = true },
+    )
 
     if (showCustomSize) {
         PdfCustomSizeSheet(
@@ -309,6 +297,58 @@ internal fun PdfLayoutPanel(vm: PdfStudioViewModel, s: PdfStudioState) {
     }
 }
 
+/**
+ * The paper-size cards (presets, plus Custom when [includeCustom]). D2 review fix: a LazyRow
+ * inside a sheet clipped its trailing card at the sheet's edge and a fixed-width FlowRow wrapped
+ * "Personalizado" onto a second row. Now a [PdfEqualTileGrid]: every card has the same width and
+ * height, balanced rows, and as many columns as fit at 52dp * fontScale (so 5 cards share one row
+ * on ~380dp phones). Labels are single-line (scaled to fit, never split mid-word); cards narrower
+ * than 72dp * fontScale are "tight" (reduced padding, smaller label floor), decided inside the
+ * card's own layout from its constraints so no subcomposition is needed.
+ */
+@Composable
+internal fun PdfPaperCardRow(
+    landscape: Boolean,
+    selectedPreset: String?,
+    enabled: Boolean,
+    onPreset: (PdfPaperPreset) -> Unit,
+    modifier: Modifier = Modifier,
+    includeCustom: Boolean = true,
+    customWidthMm: Double = 0.0,
+    customHeightMm: Double = 0.0,
+    onCustom: () -> Unit = {},
+) {
+    val fontScale = LocalDensity.current.fontScale.coerceIn(1f, 1.6f)
+    val presets = PdfPaperPresets.presets
+    val count = presets.size + if (includeCustom) 1 else 0
+    val minTile = 52.dp * fontScale
+    val maxTile = 140.dp * fontScale
+    PdfEqualTileGrid(count, minTile, maxTile, modifier.fillMaxWidth().padding(vertical = 4.dp), uniformHeight = true) { index, tileModifier ->
+        val preset = presets.getOrNull(index)
+        if (preset != null)
+            PdfPaperCard(
+                label = if (preset.id == PdfPaperPresets.SQUARE) stringResource(R.string.pdf_export_square) else preset.label,
+                widthMm = if (landscape) preset.heightMm else preset.widthMm,
+                heightMm = if (landscape) preset.widthMm else preset.heightMm,
+                selected = preset.id == selectedPreset,
+                enabled = enabled,
+                modifier = tileModifier,
+            ) {
+                onPreset(preset)
+            }
+        else
+            PdfPaperCard(
+                label = stringResource(R.string.pdf_paper_custom),
+                widthMm = customWidthMm,
+                heightMm = customHeightMm,
+                selected = selectedPreset == PdfPaperPresets.CUSTOM,
+                enabled = enabled,
+                modifier = tileModifier,
+                onClick = onCustom,
+            )
+    }
+}
+
 /** A small role-colored card with a proportional white-paper preview (Phase D visual paper
  * cards). Only [PdfPaperTokens.Paper] supplies the literal white; the card itself is a Material
  * role pair (secondaryContainer/onSecondaryContainer when selected, surfaceContainer otherwise). */
@@ -319,6 +359,7 @@ internal fun PdfPaperCard(
     heightMm: Double,
     selected: Boolean,
     enabled: Boolean,
+    modifier: Modifier = Modifier.widthIn(min = 64.dp * LocalDensity.current.fontScale.coerceIn(1f, 1.6f)),
     onClick: () -> Unit,
 ) {
     val container =
@@ -326,36 +367,69 @@ internal fun PdfPaperCard(
     val content =
         if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
     // D2/R6 review fix: fixed 72dp clipped labels ("Lette", "10 ×", "Squa") once font scale grew
-    // past 1x. The card grows with font scale and the label gets a second line + shrink-to-fit
-    // instead of a hard truncation.
+    // past 1x. The card now sizes from its caller (equal weight in the one-row layout, content
+    // width with a font-scaled minimum in the wrapping fallback) and the label is a single line
+    // that scales to fit: a second line only ever broke words mid-token ("Personali|zado").
     val fontScale = LocalDensity.current.fontScale.coerceIn(1f, 1.6f)
+    val labelStyle = MaterialTheme.typography.labelSmall
     Surface(
         color = container,
         contentColor = content,
         shape = RoundedCornerShape(12.dp),
         modifier =
-            Modifier.width(76.dp * fontScale)
+            modifier
                 .heightIn(min = 96.dp * fontScale)
                 .selectableTile(label, selected, enabled, onClick),
     ) {
-        Column(
-            Modifier.padding(8.dp).fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            val ratio = (widthMm / heightMm).toFloat().let { if (it.isFinite() && it > 0) it else 1f }
+        val ratio = (widthMm / heightMm).toFloat().let { if (it.isFinite() && it > 0) it else 1f }
+        PdfPaperCardLayout(tightBelow = 72.dp * fontScale, normalFloor = 8.sp, tightFloor = 6.sp, baseSize = labelStyle.fontSize) {
             Box(
                 Modifier.height(40.dp)
                     .width(40.dp * ratio.coerceIn(0.4f, 1.6f))
                     .background(PdfPaperTokens.Paper, RoundedCornerShape(1.dp)),
             )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                label,
-                style = MaterialTheme.typography.labelSmall,
-                maxLines = 2,
-                textAlign = TextAlign.Center,
-                autoSize = TextAutoSize.StepBased(minFontSize = 8.sp, maxFontSize = MaterialTheme.typography.labelSmall.fontSize),
-            )
+            // Single text layout per measure: it is scaled down (never wrapped) when wider than the
+            // card, instead of TextAutoSize's several trial layouts.
+            Text(label, style = labelStyle, maxLines = 1, softWrap = false)
+        }
+    }
+}
+
+/**
+ * Content of [PdfPaperCard]: paper swatch, 4dp gap, one-line label, centered. Cards narrower than
+ * [tightBelow] are "tight" (4dp instead of 8dp side padding, label may shrink to [tightFloor]
+ * rather than [normalFloor]). The label is laid out once at its natural size and drawn scaled
+ * down to fit, never below floor/[baseSize]; this replaces a BoxWithConstraints plus
+ * TextAutoSize.StepBased (subcomposition and repeated text layouts on every measure).
+ */
+@Composable
+private fun PdfPaperCardLayout(
+    tightBelow: Dp,
+    normalFloor: TextUnit,
+    tightFloor: TextUnit,
+    baseSize: TextUnit,
+    content: @Composable () -> Unit,
+) {
+    Layout(content) { measurables, constraints ->
+        val tight = constraints.maxWidth < tightBelow.roundToPx()
+        val padX = (if (tight) 4.dp else 8.dp).roundToPx()
+        val padY = 8.dp.roundToPx()
+        val gap = 4.dp.roundToPx()
+        val floor = (if (tight) tightFloor else normalFloor).value / baseSize.value
+        val swatch = measurables[0].measure(Constraints())
+        val label = measurables[1].measure(Constraints())
+        val avail = (constraints.maxWidth - 2 * padX).coerceAtLeast(1)
+        val scale = if (label.width > avail) (avail.toFloat() / label.width).coerceAtLeast(floor) else 1f
+        val labelH = (label.height * scale).roundToInt()
+        val width = constraints.constrainWidth(max(swatch.width, (label.width * scale).roundToInt()) + 2 * padX)
+        val height = constraints.constrainHeight(swatch.height + gap + labelH + 2 * padY)
+        layout(width, height) {
+            swatch.placeRelative((width - swatch.width) / 2, padY)
+            label.placeWithLayer((width - label.width) / 2, padY + swatch.height + gap) {
+                scaleX = scale
+                scaleY = scale
+                transformOrigin = TransformOrigin(0.5f, 0f)
+            }
         }
     }
 }
@@ -418,6 +492,7 @@ internal fun PdfTemplateCard(
     template: PdfTemplate,
     selected: Boolean,
     enabled: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     val container =
@@ -429,12 +504,12 @@ internal fun PdfTemplateCard(
     val label =
         if (selected) "$name, $description, ${stringResource(R.string.pdf_template_selected_suffix)}"
         else "$name, $description"
-    val fontScale = LocalDensity.current.fontScale.coerceIn(1f, 1.6f)
+    // Size comes from the caller ([PdfEqualTileGrid]) so every card in a row/grid is identical.
     Surface(
         color = container,
         contentColor = content,
         shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.width(104.dp * fontScale).selectableTile(label, selected, enabled, onClick),
+        modifier = modifier.selectableTile(label, selected, enabled, onClick),
     ) {
         Column(
             Modifier.padding(10.dp).fillMaxWidth(),
@@ -492,6 +567,24 @@ internal fun PdfTemplateCard(
                 textAlign = TextAlign.Center,
             )
         }
+    }
+}
+
+/** [templates] as a [PdfEqualTileGrid] of [PdfTemplateCard]s (identical width and height,
+ * balanced rows), shared by the library first-run states and the New-project sheet. */
+@Composable
+internal fun PdfTemplateCardGrid(
+    templates: List<PdfTemplate>,
+    selected: PdfTemplate?,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    gap: Dp = 8.dp,
+    onClick: (PdfTemplate) -> Unit,
+) {
+    val fontScale = LocalDensity.current.fontScale.coerceIn(1f, 1.6f)
+    PdfEqualTileGrid(templates.size, 104.dp * fontScale, 200.dp * fontScale, modifier.fillMaxWidth(), gap) { i, tileModifier ->
+        val t = templates[i]
+        PdfTemplateCard(t, selected == t, enabled, tileModifier) { onClick(t) }
     }
 }
 

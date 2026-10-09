@@ -17,7 +17,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -333,11 +336,7 @@ private fun ColumnScope.PdfLibraryEmptyState(
             }
         }
         Spacer(Modifier.height(20.dp))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            PdfTemplate.LIBRARY_SHORTCUTS.forEach { template ->
-                PdfTemplateCard(template = template, selected = false, enabled = !busy) { onTemplate(template) }
-            }
-        }
+        PdfTemplateCardGrid(PdfTemplate.LIBRARY_SHORTCUTS, selected = null, enabled = !busy, onClick = onTemplate)
     }
 }
 
@@ -390,15 +389,14 @@ private fun ColumnScope.PdfLibraryWideEmptyState(
             )
         }
         }
-        FlowRow(
-            Modifier.widthIn(max = GalleryContentWidths.Browsing).fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            PdfTemplate.LIBRARY_SHORTCUTS.forEach { template ->
-                PdfTemplateCard(template = template, selected = false, enabled = !busy) { onTemplate(template) }
-            }
-        }
+        PdfTemplateCardGrid(
+            PdfTemplate.LIBRARY_SHORTCUTS,
+            selected = null,
+            enabled = !busy,
+            modifier = Modifier.widthIn(max = GalleryContentWidths.Browsing),
+            gap = 12.dp,
+            onClick = onTemplate,
+        )
     }
 }
 
@@ -593,6 +591,56 @@ private fun PdfNewProjectSheet(
         placementMode: PdfFit,
     ) -> Unit,
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // Only the title, template grid, name, paper row and orientation are composed in the sheet's
+    // first frame; everything below them joins one frame later (see PdfNewProjectSheetContent).
+    var belowFoldReady by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        withFrameNanos {}
+        belowFoldReady = true
+    }
+    SettledSheetMotion { restoreMotion ->
+        ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+            restoreMotion { PdfNewProjectSheetContent(defaultName, template, belowFoldReady, onCreate) }
+        }
+    }
+}
+
+/**
+ * Cached height of the below-the-fold block ([PdfNewProjectSheetContent]) from its last
+ * composition, used to reserve its space while it is still deferred. It is only an estimate for the
+ * next open (the real height depends on print size and font scale), hence [BelowFoldKey].
+ */
+private data class BelowFoldKey(val density: Float, val fontScale: Float, val widthPx: Int)
+
+private var belowFoldCache: Pair<BelowFoldKey, Int>? = null
+
+/**
+ * The sheet body. [belowFoldReady] = false composes only what is visible in the sheet's first
+ * frame and reserves the space of the rest with a [Spacer], so the Column's height (and hence the
+ * ModalBottomSheet's expanded anchor, which follows the content size) does not change when the
+ * deferred block arrives: the cached height of the last real composition when there is one, else
+ * the window height, which makes the sheet full height (capped by the sheet's maximum, whose
+ * content is taller than the screen on phones anyway). Its own state is saveable and lives here,
+ * not in the deferral, so rotation and process death restore it unchanged.
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+internal fun PdfNewProjectSheetContent(
+    defaultName: String,
+    template: PdfTemplate?,
+    belowFoldReady: Boolean,
+    onCreate: (
+        name: String,
+        paper: String,
+        landscape: Boolean,
+        columns: Int,
+        margin: Double,
+        gap: Double,
+        printSize: String?,
+        placementMode: PdfFit,
+    ) -> Unit,
+) {
     var selectedProjectTemplate by rememberSaveable(template) { mutableStateOf(template ?: PdfTemplate.Blank) }
     var name by rememberSaveable(template) { mutableStateOf("") }
     var paper by rememberSaveable(template) { mutableStateOf(selectedProjectTemplate.paper) }
@@ -640,120 +688,120 @@ private fun PdfNewProjectSheet(
             }
         }
 
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        // Narrow widths (320-360dp) wrap the paper-card/template FlowRows onto extra lines, and
-        // 200% font grows every label; either can push Create's height requirement past the
-        // sheet's available space. Unlike PdfExportSheet, Create isn't a separate sticky row here
-        // (just the Column's last item), so a plain verticalScroll — reachable by scrolling
-        // rather than a sticky footer — is the minimal fix: Create was previously unreachable
-        // whenever the sheet's content grew taller than the screen, with no way to scroll to it.
-        Column(
-            Modifier.padding(horizontal = 20.dp)
-                .padding(bottom = 20.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
-            Text(stringResource(R.string.pdf_new_project_title), style = MaterialTheme.typography.headlineSmall)
-            Spacer(Modifier.height(16.dp))
-            Text(stringResource(R.string.pdf_new_project_template_label), style = MaterialTheme.typography.labelLarge)
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-            ) {
-                PdfTemplate.NEW_PROJECT_TILES.forEach { t ->
-                    PdfTemplateCard(
-                        template = t,
-                        selected = selectedProjectTemplate == t,
-                        enabled = true,
-                    ) { applyProjectTemplate(t) }
+    // Narrow widths (320-360dp) wrap the paper-card/template FlowRows onto extra lines, and
+    // 200% font grows every label; either can push Create's height requirement past the
+    // sheet's available space. Unlike PdfExportSheet, Create isn't a separate sticky row here
+    // (just the Column's last item), so a plain verticalScroll — reachable by scrolling
+    // rather than a sticky footer — is the minimal fix: Create was previously unreachable
+    // whenever the sheet's content grew taller than the screen, with no way to scroll to it.
+    Column(
+        Modifier.padding(horizontal = 20.dp)
+            .padding(bottom = 20.dp)
+            .verticalScroll(rememberScrollState())
+    ) {
+        Text(stringResource(R.string.pdf_new_project_title), style = MaterialTheme.typography.headlineSmall)
+        Spacer(Modifier.height(16.dp))
+        Text(stringResource(R.string.pdf_new_project_template_label), style = MaterialTheme.typography.labelLarge)
+        PdfTemplateCardGrid(
+            PdfTemplate.NEW_PROJECT_TILES,
+            selected = selectedProjectTemplate,
+            enabled = true,
+            modifier = Modifier.padding(vertical = 4.dp),
+            onClick = { applyProjectTemplate(it) },
+        )
+        Spacer(Modifier.height(16.dp))
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it },
+            singleLine = true,
+            label = { Text(stringResource(R.string.pdf_name)) },
+            placeholder = { Text(defaultName) },
+            // Projects reject names over 80 characters; say so here instead of failing on Create.
+            isError = name.length > 80,
+            supportingText = if (name.length > 80) {
+                { Text(stringResource(R.string.pdf_library_rename_too_long)) }
+            } else null,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(16.dp))
+        Text(stringResource(R.string.pdf_paper), style = MaterialTheme.typography.labelLarge)
+        PdfPaperCardRow(
+            landscape = landscape,
+            selectedPreset = paper,
+            enabled = true,
+            onPreset = { paper = it.id },
+            includeCustom = false,
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(stringResource(R.string.pdf_orientation), style = MaterialTheme.typography.labelLarge)
+        GalleryExpressiveChoiceGroupCompat(
+            labels = listOf(stringResource(R.string.pdf_export_portrait), stringResource(R.string.pdf_export_landscape)),
+            selectedIndex = if (landscape) 1 else 0,
+            onSelect = { landscape = it == 1 },
+            enabled = true,
+        )
+        Spacer(Modifier.height(12.dp))
+        if (belowFoldReady) {
+            val density = LocalDensity.current
+            Column(
+                Modifier.onSizeChanged {
+                    belowFoldCache = BelowFoldKey(density.density, density.fontScale, it.width) to it.height
                 }
-            }
-            Spacer(Modifier.height(16.dp))
-            OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                singleLine = true,
-                label = { Text(stringResource(R.string.pdf_name)) },
-                placeholder = { Text(defaultName) },
-                // Projects reject names over 80 characters; say so here instead of failing on Create.
-                isError = name.length > 80,
-                supportingText = if (name.length > 80) {
-                    { Text(stringResource(R.string.pdf_library_rename_too_long)) }
-                } else null,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(16.dp))
-            Text(stringResource(R.string.pdf_paper), style = MaterialTheme.typography.labelLarge)
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
             ) {
-                PdfPaperPresets.presets.forEach { preset ->
-                    PdfPaperCard(
-                        label = if (preset.id == PdfPaperPresets.SQUARE) stringResource(R.string.pdf_export_square) else preset.label,
-                        widthMm = if (landscape) preset.heightMm else preset.widthMm,
-                        heightMm = if (landscape) preset.widthMm else preset.heightMm,
-                        selected = preset.id == paper,
-                        enabled = true,
-                    ) { paper = preset.id }
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-            Text(stringResource(R.string.pdf_orientation), style = MaterialTheme.typography.labelLarge)
-            GalleryExpressiveChoiceGroupCompat(
-                labels = listOf(stringResource(R.string.pdf_export_portrait), stringResource(R.string.pdf_export_landscape)),
-                selectedIndex = if (landscape) 1 else 0,
-                onSelect = { landscape = it == 1 },
-                enabled = true,
-            )
-            Spacer(Modifier.height(12.dp))
-            // Feedback item B: "Print size" — a photo print size laid out at exact physical
-            // dimensions on the paper above, independent of the paper choice, with the per-page
-            // count COMPUTED (never hardcoded). "Free grid" (null) keeps the pre-existing
-            // columns/photos-per-page tiles.
-            Text(stringResource(R.string.pdf_print_size_label), style = MaterialTheme.typography.labelLarge)
-            PdfPrintSizeSelector(selected = printSize, enabled = true) { printSize = it }
-            val fit = slotFit
-            val slotFitValid = if (fit != null) PdfPrintSizeCountLine(fit) else true
-            if (printSize == null) {
-                Spacer(Modifier.height(12.dp))
-                Text(stringResource(R.string.pdf_grid_template), style = MaterialTheme.typography.labelLarge)
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                ) {
-                    PdfLayoutTemplates.TEMPLATES.forEach { count ->
-                        val templateColumns = PdfLayoutTemplates.columnsFor(count, landscape)
-                        PdfTemplateTile(count, templateColumns, landscape, selectedTemplate == count, true) {
-                            selectedTemplate = count
+                // Feedback item B: "Print size" — a photo print size laid out at exact physical
+                // dimensions on the paper above, independent of the paper choice, with the per-page
+                // count COMPUTED (never hardcoded). "Free grid" (null) keeps the pre-existing
+                // columns/photos-per-page tiles.
+                Text(stringResource(R.string.pdf_print_size_label), style = MaterialTheme.typography.labelLarge)
+                PdfPrintSizeSelector(selected = printSize, enabled = true) { printSize = it }
+                val fit = slotFit
+                val slotFitValid = if (fit != null) PdfPrintSizeCountLine(fit) else true
+                if (printSize == null) {
+                    Spacer(Modifier.height(12.dp))
+                    Text(stringResource(R.string.pdf_grid_template), style = MaterialTheme.typography.labelLarge)
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    ) {
+                        PdfLayoutTemplates.TEMPLATES.forEach { count ->
+                            val templateColumns = PdfLayoutTemplates.columnsFor(count, landscape)
+                            PdfTemplateTile(count, templateColumns, landscape, selectedTemplate == count, true) {
+                                selectedTemplate = count
+                            }
                         }
                     }
                 }
+                Spacer(Modifier.height(12.dp))
+                Text(stringResource(R.string.pdf_placement_mode_label), style = MaterialTheme.typography.labelLarge)
+                PdfPlacementModeSelector(mode = placementMode, enabled = true) { placementMode = it }
+                Spacer(Modifier.height(20.dp))
+                Button(
+                    onClick = {
+                        onCreate(
+                            name.ifBlank { defaultName },
+                            paper,
+                            landscape,
+                            columns,
+                            margin,
+                            gap,
+                            printSize?.id,
+                            placementMode,
+                        )
+                    },
+                    enabled = slotFitValid && name.length <= 80,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.pdf_new_project_create))
+                }
             }
-            Spacer(Modifier.height(12.dp))
-            Text(stringResource(R.string.pdf_placement_mode_label), style = MaterialTheme.typography.labelLarge)
-            PdfPlacementModeSelector(mode = placementMode, enabled = true) { placementMode = it }
-            Spacer(Modifier.height(20.dp))
-            Button(
-                onClick = {
-                    onCreate(
-                        name.ifBlank { defaultName },
-                        paper,
-                        landscape,
-                        columns,
-                        margin,
-                        gap,
-                        printSize?.id,
-                        placementMode,
-                    )
-                },
-                enabled = slotFitValid && name.length <= 80,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(R.string.pdf_new_project_create))
+        } else {
+            val density = LocalDensity.current
+            val windowHeight = LocalWindowInfo.current.containerSize.height
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val key = BelowFoldKey(density.density, density.fontScale, constraints.maxWidth)
+                val reserved = remember(key) { belowFoldCache?.takeIf { it.first == key }?.second ?: windowHeight }
+                Spacer(Modifier.height(with(density) { reserved.toDp() }))
             }
         }
     }

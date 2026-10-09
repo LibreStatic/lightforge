@@ -76,36 +76,35 @@ internal fun PdfPlacementModeSelector(
     enabled: Boolean,
     onSelect: (PdfFit) -> Unit,
 ) {
-    // Two equal-width cards on one row (equal height via IntrinsicSize.Min) so neither wraps
-    // alone and leaves half the sheet empty; stacked full-width only at very large font scales.
+    // Two equal-width, equal-height cards on one row (a PdfEqualTileGrid, no intrinsics) so neither
+    // wraps alone and leaves half the sheet empty; stacked full-width only at very large font scales.
     val stacked = LocalDensity.current.fontScale > 1.5f
-    val cards: @Composable (Modifier) -> Unit = { cardModifier ->
-        PdfPlacementModeCard(
-            label = stringResource(R.string.pdf_placement_fill_label),
-            description = stringResource(R.string.pdf_placement_fill_desc),
-            selected = mode == PdfFit.Cover,
-            enabled = enabled,
-            modifier = cardModifier,
-        ) { onSelect(PdfFit.Cover) }
-        PdfPlacementModeCard(
-            label = stringResource(R.string.pdf_placement_fit_label),
-            description = stringResource(R.string.pdf_placement_fit_desc),
-            selected = mode == PdfFit.Contain,
-            enabled = enabled,
-            modifier = cardModifier,
-        ) { onSelect(PdfFit.Contain) }
+    val card: @Composable (Int, Modifier) -> Unit = { index, cardModifier ->
+        if (index == 0)
+            PdfPlacementModeCard(
+                label = stringResource(R.string.pdf_placement_fill_label),
+                description = stringResource(R.string.pdf_placement_fill_desc),
+                selected = mode == PdfFit.Cover,
+                enabled = enabled,
+                modifier = cardModifier,
+            ) { onSelect(PdfFit.Cover) }
+        else
+            PdfPlacementModeCard(
+                label = stringResource(R.string.pdf_placement_fit_label),
+                description = stringResource(R.string.pdf_placement_fit_desc),
+                selected = mode == PdfFit.Contain,
+                enabled = enabled,
+                modifier = cardModifier,
+            ) { onSelect(PdfFit.Contain) }
     }
     if (stacked) {
         Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            cards(Modifier.fillMaxWidth())
+            card(0, Modifier.fillMaxWidth())
+            card(1, Modifier.fillMaxWidth())
         }
     } else {
-        Row(
-            Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            cards(Modifier.weight(1f).fillMaxHeight())
-        }
+        // minTile 1dp always fits two columns; maxTile is only a cap, so cards split the full width.
+        PdfEqualTileGrid(2, 1.dp, 4000.dp, Modifier.fillMaxWidth().padding(vertical = 4.dp), tile = card)
     }
 }
 
