@@ -29,7 +29,7 @@ swap the build of a release that Google has not approved yet. Any remaining word
    - You are on `main` and in sync with `origin/main`.
    - The working tree usually holds many uncommitted user files. Stage explicit paths only; never `git add -A`
      or `commit -a`.
-   - Run `free -h`, and check swap as well. The gate needs about 5 GB with the flags below. Stop if less is free,
+   - Run `free -h`, and check swap as well. The gate needs about 10 GB with the flags below. With less free, drop to `--max-workers=2` without `--parallel` (about 5 GB); stop below that,
      or if another Gradle build is running.
 
 2. **Version.**
@@ -53,7 +53,7 @@ swap the build of a release that Google has not approved yet. Any remaining word
    - Create a clean worktree:
      `git worktree add --detach ~/.cache/claude-tmp/ugallery/release-wt main`. Never use /tmp or /dev/shm.
    - The worktree has no `local.properties`, so export `ANDROID_HOME=ANDROID_SDK_ROOT=$HOME/Android/Sdk`.
-   - Run the CI gate there with `--continue -Plightforge.versionCode=<code> --max-workers=2`,
+   - Run the CI gate there with `--continue -Plightforge.versionCode=<code> --max-workers=4 --parallel`,
      `-Dorg.gradle.jvmargs="-Xmx3g -XX:MaxMetaspaceSize=768m"` and `-Pkotlin.compiler.execution.strategy=in-process`.
    - Run it from a script file in the background; the context-mode hook blocks raw `./gradlew` in Bash.
    - Redirect output to a log and print `exit=$?`. Never pipe Gradle through `rtk err`, which hides failures.
