@@ -50,5 +50,5 @@ Renderable entry points are zero-argument `*DriverPreviews.kt` files in a featur
 - Run `--dry-run` first: it validates the edit and discards it.
 - If the commit says the changes cannot be sent automatically, rerun with `--no-review`, then send them from Publishing overview.
 - The package is read from `applicationId` (`com.librestatic.lightforge`).
-- Check the closed track id with `status` before the first publish.
+- The closed track is `alpha`.
 - If the API answers 403, the service account lacks access in Play Console > Users and permissions. Ask the user; do not grant it yourself.
