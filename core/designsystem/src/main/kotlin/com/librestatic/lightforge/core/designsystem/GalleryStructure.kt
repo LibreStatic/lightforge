@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
@@ -173,6 +174,8 @@ fun GalleryEmptyState(
     icon: ImageVector = GalleryIcons.PhotoLibrary,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
+    /** Use for a state that fills a whole screen: draws the decorative shape illustration. */
+    hero: Boolean = false,
 ) = GalleryStateContent(
     title = title,
     body = body,
@@ -180,7 +183,23 @@ fun GalleryEmptyState(
     modifier = modifier,
     illustration = { Icon(icon, contentDescription = null, modifier = Modifier.size(36.dp)) },
     action = stateAction(actionLabel, onAction),
+    heroIcon = if (hero) icon else null,
 )
+
+/**
+ * Empty message for a small section inside a larger screen or dialog, where a full
+ * [GalleryEmptyState] would be oversized: centered `bodyMedium` text in the muted content color.
+ */
+@Composable
+fun GalleryInlineEmpty(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text,
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        modifier = modifier.fillMaxWidth().padding(vertical = GallerySpacing.Lg, horizontal = GallerySpacing.Md),
+    )
+}
 
 /** Work in progress with no content yet. Long waits should say what is happening in [body]. */
 @Composable

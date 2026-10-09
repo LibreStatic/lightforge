@@ -36,9 +36,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.ButtonGroup
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.ButtonDefaults
@@ -487,12 +489,25 @@ fun GalleryExpressiveChoiceGroup(
         val chips: @Composable () -> Unit = {
             labels.forEachIndexed { index, label ->
                 val icon = icons.getOrNull(index)
+                // M3 chips lay their content out from the start edge, so a short label sat left in
+                // a chip stretched to minimumItemWidth. Icon + label live together in the label
+                // slot instead, in a Row with the chip's own horizontal padding (16dp a side with
+                // no leadingIcon) subtracted from the minimum width, centered when there is slack.
                 FilterChip(
                     selected = selectedIndex == index,
                     onClick = { onSelect(index) },
-                    label = { Text(label, maxLines = 1) },
-                    leadingIcon = icon?.let { imageVector ->
-                        { Icon(imageVector, contentDescription = null) }
+                    label = {
+                        Row(
+                            modifier = Modifier.widthIn(min = (minimumItemWidth - 32.dp).coerceAtLeast(0.dp)),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            if (icon != null) {
+                                Icon(icon, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize))
+                                Spacer(Modifier.width(8.dp))
+                            }
+                            Text(label, maxLines = 1)
+                        }
                     },
                     enabled = isEnabled(index),
                     modifier = Modifier.widthIn(min = minimumItemWidth).heightIn(min = 48.dp),
@@ -639,14 +654,24 @@ fun GalleryStateContent(
         )
     },
     action: (@Composable () -> Unit)? = null,
+    /** When set, replaces the icon plate with the decorative shape illustration (full-screen states). */
+    heroIcon: ImageVector? = null,
 ) {
-    Box(modifier = modifier.padding(GallerySpacing.Xxl), contentAlignment = Alignment.Center) {
+    BoxWithConstraints(modifier = modifier.padding(GallerySpacing.Xxl), contentAlignment = Alignment.Center) {
+        val heroSize = if (maxHeight < 480.dp) 112.dp else 168.dp
         Column(
             modifier = Modifier.widthIn(max = 480.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            Surface(
+            if (heroIcon != null) {
+                GalleryShapeIllustration(
+                    heroIcon,
+                    size = heroSize,
+                    animateEntrance = true,
+                    modifier = Modifier.semantics { contentDescription = illustrationDescription },
+                )
+            } else Surface(
                 modifier = Modifier
                     .size(72.dp)
                     .galleryFadeRise()

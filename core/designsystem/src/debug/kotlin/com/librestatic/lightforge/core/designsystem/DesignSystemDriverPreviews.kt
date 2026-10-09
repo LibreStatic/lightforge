@@ -124,6 +124,19 @@ fun DesignSystemStatesPreview() = Frame {
     }
 }
 
+/** A full-screen empty state with the shape illustration. Driver: `GalleryHeroEmptyStatePreview`. */
+@Preview
+@Composable
+fun GalleryHeroEmptyStatePreview() = Frame {
+    GalleryEmptyState(
+        title = "No exports yet",
+        body = "PDFs you export from your projects show up here, ready to open, share or save again.",
+        icon = GalleryIcons.PictureAsPdf,
+        hero = true,
+        modifier = Modifier.fillMaxSize(),
+    )
+}
+
 /**
  * The selection bar over an adaptive grid of placeholder cells. Tap cells to change the count;
  * resize (`--qualifiers`) to see actions move into the overflow menu.
