@@ -54,3 +54,6 @@ store/play/raw/*
 !store/play/raw/MEDIA_LICENSES.md
 __pycache__/
 *.pyc
+
+# Local UI review reports (large screenshot sets)
+docs/ui-review/
