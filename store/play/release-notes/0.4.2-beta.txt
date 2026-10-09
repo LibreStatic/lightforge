@@ -1,0 +1,32 @@
+<en-US>
+• Edit video: Color adjustments, looks and LUTs now show in the live preview for HDR (HLG and PQ) videos too, not only in the export.
+Report problems at github.com/LibreStatic/lightforge/issues
+</en-US>
+<es-419>
+• Editar video: los ajustes de Color, los looks y los LUTs ahora se ven en la vista previa también en videos HDR (HLG y PQ), no solo al exportar.
+Reportá problemas en github.com/LibreStatic/lightforge/issues
+</es-419>
+<es-ES>
+• Editar vídeo: los ajustes de Color, los looks y los LUTs ahora se ven en la vista previa también en vídeos HDR (HLG y PQ), no solo al exportar.
+Informa de problemas en github.com/LibreStatic/lightforge/issues
+</es-ES>
+<pt-BR>
+• Editar vídeo: os ajustes de Cor, os looks e os LUTs agora aparecem na pré-visualização também em vídeos HDR (HLG e PQ), não só na exportação.
+Relate problemas em github.com/LibreStatic/lightforge/issues
+</pt-BR>
+<pt-PT>
+• Editar vídeo: os ajustes de Cor, os looks e os LUTs aparecem agora na pré-visualização também em vídeos HDR (HLG e PQ), não só na exportação.
+Comunique problemas em github.com/LibreStatic/lightforge/issues
+</pt-PT>
+<fr-FR>
+• Modifier la vidéo : les réglages Couleur, les looks et les LUT s'affichent désormais dans l'aperçu des vidéos HDR (HLG et PQ), pas seulement à l'export.
+Signalez les problèmes sur github.com/LibreStatic/lightforge/issues
+</fr-FR>
+<de-DE>
+• Videoeditor: Farbe-Anpassungen, Looks und LUTs sind jetzt auch bei HDR-Videos (HLG und PQ) in der Live-Vorschau zu sehen, nicht nur beim Export.
+Melde Probleme unter github.com/LibreStatic/lightforge/issues
+</de-DE>
+<it-IT>
+• Modifica video: le regolazioni Colore, i look e le LUT ora si vedono nell'anteprima anche nei video HDR (HLG e PQ), non solo in esportazione.
+Segnala i problemi su github.com/LibreStatic/lightforge/issues
+</it-IT>
