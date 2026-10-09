@@ -1,0 +1,48 @@
+<en-US>
+• PDF Studio: the Crop focus editor for Fill now shows the whole photo; drag or tap to choose what stays in the frame.
+• PDF Studio: tidier paper, template and media controls, clearer Duplicate and Delete page buttons, and a faster New project sheet.
+• Empty screens across the app now show a clear illustration and a short hint.
+Report problems at github.com/LibreStatic/lightforge/issues
+</en-US>
+<es-419>
+• Estudio PDF: el editor de Foco de recorte para Rellenar ahora muestra la foto completa; arrastrá o tocá para elegir qué queda en el marco.
+• Estudio PDF: controles de papel, plantillas y multimedia más prolijos, botones Duplicar y Eliminar página más claros y una hoja Nuevo proyecto más rápida.
+• Las pantallas vacías de la app ahora muestran una ilustración y una pista breve.
+Reportá problemas en github.com/LibreStatic/lightforge/issues
+</es-419>
+<es-ES>
+• Estudio PDF: el editor de Foco de recorte para Rellenar ahora muestra la foto completa; arrastra o toca para elegir qué queda en el marco.
+• Estudio PDF: controles de papel, plantillas y multimedia más ordenados, botones Duplicar y Eliminar página más claros y una hoja Nuevo proyecto más rápida.
+• Las pantallas vacías de la app ahora muestran una ilustración y una pista breve.
+Informa de problemas en github.com/LibreStatic/lightforge/issues
+</es-ES>
+<pt-BR>
+• Estúdio PDF: o editor de Foco de corte para Preencher agora mostra a foto inteira; arraste ou toque para escolher o que fica no quadro.
+• Estúdio PDF: controles de papel, modelos e mídia mais organizados, botões Duplicar e Excluir página mais claros e a tela Novo projeto mais rápida.
+• As telas vazias do app agora mostram uma ilustração e uma dica curta.
+Relate problemas em github.com/LibreStatic/lightforge/issues
+</pt-BR>
+<pt-PT>
+• Estúdio PDF: o editor de Foco de corte para Preencher mostra agora a fotografia inteira; arraste ou toque para escolher o que fica no quadro.
+• Estúdio PDF: controlos de papel, modelos e multimédia mais arrumados, botões Duplicar e Eliminar página mais claros e o painel Novo projeto mais rápido.
+• Os ecrãs vazios da app mostram agora uma ilustração e uma dica curta.
+Comunique problemas em github.com/LibreStatic/lightforge/issues
+</pt-PT>
+<fr-FR>
+• Studio PDF : l'éditeur Point de recadrage pour Remplir affiche maintenant la photo entière ; faites glisser ou touchez pour choisir ce qui reste dans le cadre.
+• Studio PDF : réglages de papier, de modèles et de médias plus soignés, boutons Dupliquer et Supprimer la page plus clairs, et feuille Nouveau projet plus rapide.
+• Les écrans vides de l'app affichent désormais une illustration et une courte indication.
+Signalez les problèmes sur github.com/LibreStatic/lightforge/issues
+</fr-FR>
+<de-DE>
+• PDF-Studio: Der Editor für den Zuschnittfokus bei Füllen zeigt jetzt das ganze Foto; ziehe oder tippe, um den sichtbaren Ausschnitt zu wählen.
+• PDF-Studio: aufgeräumte Papier-, Vorlagen- und Medienauswahl, klarere Schaltflächen zum Duplizieren und Löschen von Seiten und ein schnelleres Neues Projekt.
+• Leere Bildschirme zeigen jetzt eine Illustration und einen kurzen Hinweis.
+Melde Probleme unter github.com/LibreStatic/lightforge/issues
+</de-DE>
+<it-IT>
+• Studio PDF: l'editor Fuoco ritaglio per Riempi ora mostra la foto intera; trascina o tocca per scegliere cosa resta nella cornice.
+• Studio PDF: controlli per carta, modelli e contenuti più ordinati, pulsanti Duplica ed Elimina pagina più chiari e un foglio Nuovo progetto più veloce.
+• Le schermate vuote dell'app ora mostrano un'illustrazione e un breve suggerimento.
+Segnala i problemi su github.com/LibreStatic/lightforge/issues
+</it-IT>
