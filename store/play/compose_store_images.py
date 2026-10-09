@@ -15,10 +15,10 @@ LISTINGS, RAW, OUT = ROOT / "listings", ROOT / "raw", ROOT / "images"
 LOCALES = ["en-US", "es-419", "es-ES", "pt-BR", "pt-PT", "fr-FR", "de-DE", "it-IT"]
 RAW_ALIAS = {"es-ES": "es-419", "pt-PT": "pt-BR"}     # reuse captures taken in the sibling locale
 CHROME = "/usr/bin/google-chrome-stable"
-# Brand: launcher-star palette on the promo video's deep violet-black
-BG, FG, SUB = "#0d0b12", "#F4EFF8", "#CAC4D0"
-GRAD = "linear-gradient(90deg,#FFC247,#F2607A,#7B61F0)"
-BLOBS = [("#7B61F0", .42), ("#F2607A", .30), ("#FFC247", .22)]
+# Brand: light "Google-ish" canvas with Material 3 Expressive shapes in the launcher star's tonal containers
+BG, FG, SUB = "#FFFFFF", "#1B1B1F", "#47464F"
+FONTS = "https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,400..800&family=Roboto+Flex:opsz,wght@8..144,400..800&display=block"
+TONES = ["#E8DEFF", "#FFD9DF", "#FFE7B3", "#D3E3FD", "#C9EED6"]   # violet, coral, amber, blue, green containers
 TAGLINES = {  # feature-graphic tagline (from the locale short descriptions' message)
 }
 
@@ -33,54 +33,95 @@ def read(loc, name):
     p = LISTINGS / loc / name
     return p.read_text(encoding="utf-8").strip() if p.exists() else ""
 
+def _polar(n, amp, r=100, steps=720, rot=0.0):
+    """Closed SVG path for r(t) = R(1 + amp*cos(n t)): cookies/flowers/clovers of the M3 Expressive shape set."""
+    import math
+    pts = []
+    for k in range(steps):
+        t = 2 * math.pi * k / steps
+        rr = r * (1 + amp * math.cos(n * (t + rot))) / (1 + amp)
+        pts.append(f"{100 + rr*math.cos(t):.2f},{100 + rr*math.sin(t):.2f}")
+    return "M" + " L".join(pts) + "Z"
+
+SHAPES = {
+    "cookie9": _polar(9, .07), "cookie12": _polar(12, .05), "clover4": _polar(4, .22, rot=.39),
+    "flower8": _polar(8, .12), "sunny": _polar(16, .035),
+    "pill": "M60,20 H140 A40,40 0 0 1 140,180 H60 A40,40 0 0 1 60,20Z",
+    "arch": "M20,190 V100 A80,80 0 0 1 180,100 V190Z",
+    "semi": "M10,140 A90,90 0 0 1 190,140Z",
+    "circle": _polar(1, 0),
+}
+
+def shape(name, color, x, y, size, rot=0):
+    return (f'<svg class="shp" viewBox="0 0 200 200" style="left:{x}px;top:{y}px;width:{size}px;height:{size}px;'
+            f'transform:rotate({rot}deg)"><path d="{SHAPES[name]}" fill="{color}"/></svg>')
+
+# Per-shot layouts (fractions of the canvas): (shape, tone index, x, y, size as a fraction of width, rotation).
+# One large shape sits centred behind the device and peeks out on both sides; two small ones accent the corners.
+_BIG = ["cookie9", "clover4", "flower8", "sunny", "cookie12", "clover4", "flower8", "cookie9"]
+_SMALL = [("pill", "circle"), ("semi", "cookie12"), ("circle", "arch"), ("clover4", "pill"),
+          ("arch", "circle"), ("cookie9", "semi"), ("pill", "flower8"), ("circle", "clover4")]
+LAYOUTS = [
+    [(_BIG[i], i % 5, None, .30, 1.12, i * 11),
+     (_SMALL[i][0], (i + 1) % 5, .80, .06, .24, -30 + i * 9),
+     (_SMALL[i][1], (i + 2) % 5, -.08, .84, .30, 20 - i * 7)]
+    for i in range(8)
+]
+
 BASE_CSS = f"""
 *{{box-sizing:border-box;margin:0;padding:0}}
 html,body{{background:{BG};overflow:hidden}}
-body{{font-family:'Open Sans','Adwaita Sans','Noto Sans',sans-serif;color:{FG};-webkit-font-smoothing:antialiased}}
-.blob{{position:absolute;border-radius:50%;filter:blur(120px)}}
-.bar{{height:8px;border-radius:4px;background:{GRAD}}}
+body{{font-family:'Google Sans Flex','Roboto Flex','Noto Sans',sans-serif;color:{FG};-webkit-font-smoothing:antialiased}}
+.shp{{position:absolute;overflow:visible}}
 """
 
-def screenshot_html(w, h, caption, shot, kind):
+def head(extra):
+    return f'<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="{FONTS}"><style>{BASE_CSS}{extra}</style></head>'
+
+def backdrop(w, h, idx, scale_ref):
+    # x=None centres the shape horizontally
+    return "".join(shape(n, TONES[c], (w - s * scale_ref) / 2 if x is None else x * w, y * h, s * scale_ref, r)
+                   for n, c, x, y, s, r in LAYOUTS[idx % len(LAYOUTS)])
+
+def screenshot_html(w, h, caption, shot, kind, idx=0):
     if kind == "phone":
-        fs, pad, top_h = 72, 60, 350
-        dev_w = 960; dev_x = (w - dev_w) // 2; dev_y = top_h - 10
-        radius, bez = 60, 14
+        fs, pad, top_h = 76, 70, 360
+        dev_w = 800; dev_x = (w - dev_w) // 2; dev_y = top_h
+        radius, bez = 64, 12
+        bg = backdrop(w, h, idx, w)
     else:
-        fs, pad, top_h = 82, 120, 300
-        dev_w = 2060; dev_x = (w - dev_w) // 2; dev_y = top_h - 10
-        radius, bez = 60, 18
-    blobs = "".join(f'<div class="blob" style="background:{c};opacity:{o};width:{w*0.55}px;height:{w*0.55}px;left:{l}px;top:{t}px"></div>'
-                    for (c, o), l, t in zip(BLOBS, (-w*.15, w*.55, w*.2), (-w*.25, -w*.2, h*.75)))
-    return f"""<!doctype html><html><head><meta charset="utf-8"><style>{BASE_CSS}
+        fs, pad, top_h = 84, 140, 290
+        dev_w = 2000; dev_x = (w - dev_w) // 2; dev_y = top_h
+        radius, bez = 56, 16
+        bg = backdrop(w, h, idx, h * 1.1)
+    return head(f"""
 html,body{{width:{w}px;height:{h}px}}
-#cap{{position:absolute;left:{pad}px;right:{pad}px;top:{60 if kind=='phone' else 50}px;height:{top_h-110}px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center}}
-#cap .bar{{width:120px;margin-bottom:28px}}
-#cap h1{{font-size:{fs}px;line-height:1.08;font-weight:800;letter-spacing:-1.5px;color:{FG};text-wrap:balance}}
-#dev{{position:absolute;left:{dev_x}px;top:{dev_y}px;width:{dev_w}px;padding:{bez}px;border-radius:{radius}px;background:linear-gradient(145deg,#2c2933,#15131a);
-  box-shadow:0 0 0 2px #46424f inset,0 0 0 1px #000,0 40px 120px rgba(0,0,0,.6)}}
+#cap{{position:absolute;left:{pad}px;right:{pad}px;top:{50 if kind=='phone' else 30}px;height:{top_h-70}px;display:flex;align-items:center;justify-content:center;text-align:center}}
+#cap h1{{font-size:{fs}px;line-height:1.08;font-weight:700;letter-spacing:-1px;color:{FG};text-wrap:balance;font-variation-settings:"opsz" 144}}
+#dev{{position:absolute;left:{dev_x}px;top:{dev_y}px;width:{dev_w}px;padding:{bez}px;border-radius:{radius}px;background:#1B1B1F;
+  box-shadow:0 0 0 2px #3a3940 inset,0 30px 80px rgba(27,27,31,.22),0 6px 18px rgba(27,27,31,.12)}}
 #dev img{{display:block;width:100%;border-radius:{radius-bez}px}}
-</style></head><body>{blobs}
-<div id="cap"><div class="bar"></div><h1>{html.escape(caption)}</h1></div>
+""") + f"""<body>{bg}
+<div id="cap"><h1>{html.escape(caption)}</h1></div>
 <div id="dev"><img src="{shot}"></div></body></html>"""
 
 def feature_html(loc, title, tagline, icon):
     w, h = 1024, 500
-    blobs = "".join(f'<div class="blob" style="background:{c};opacity:{o};width:520px;height:520px;left:{l}px;top:{t}px"></div>'
-                    for (c, o), l, t in zip(BLOBS, (-120, 640, 380), (-200, -160, 300)))
-    return f"""<!doctype html><html><head><meta charset="utf-8"><style>{BASE_CSS}
+    bg = (shape("cookie12", TONES[0], 640, -150, 520, 0) + shape("clover4", TONES[1], 860, 260, 300, 18)
+          + shape("pill", TONES[2], -90, 360, 260, -28) + shape("circle", TONES[3], 560, 380, 120, 0))
+    return head(f"""
 html,body{{width:{w}px;height:{h}px}}
-#icon{{position:absolute;left:70px;top:134px;width:232px;height:232px;border-radius:52px;box-shadow:0 18px 60px rgba(0,0,0,.55)}}
-#t{{position:absolute;left:340px;right:50px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center}}
-#t .bar{{width:84px;margin-bottom:22px}}
-#t h1{{font-size:58px;line-height:1.05;font-weight:800;letter-spacing:-1.5px}}
-#t p{{margin-top:18px;font-size:26px;line-height:1.3;color:{SUB};max-width:620px}}
-</style></head><body>{blobs}<img id="icon" src="{icon}">
-<div id="t"><div class="bar"></div><h1>{html.escape(title)}</h1><p>{html.escape(tagline)}</p></div></body></html>"""
+#icon{{position:absolute;left:70px;top:134px;width:232px;height:232px;border-radius:52px;box-shadow:0 18px 50px rgba(27,27,31,.22)}}
+#t{{position:absolute;left:340px;right:60px;top:0;bottom:0;display:flex;flex-direction:column;justify-content:center}}
+#t h1{{font-size:60px;line-height:1.05;font-weight:700;letter-spacing:-1px;font-variation-settings:"opsz" 144}}
+#t p{{margin-top:18px;font-size:26px;line-height:1.3;color:{SUB};max-width:600px}}
+""") + f"""<body>{bg}<img id="icon" src="{icon}">
+<div id="t"><h1>{html.escape(title)}</h1><p>{html.escape(tagline)}</p></div></body></html>"""
 
 def render(page, html_str, w, h, out, fmt="PNG"):
     page.set_viewport_size({"width": w, "height": h})
-    page.set_content(html_str, wait_until="load")
+    page.set_content(html_str, wait_until="networkidle")
+    page.evaluate("document.fonts.ready")
     page.wait_for_timeout(150)
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = page.screenshot(type="png", clip={"x": 0, "y": 0, "width": w, "height": h})
@@ -108,7 +149,7 @@ def main():
                         print(f"[{loc}] missing raw {src}"); continue
                     # tablet raw frames are scaled to the device width used in the layout (saves memory)
                     shot = b64(src, "JPEG", 94, max_w=2000 if kind == "phone" else 2100)
-                    render(page, screenshot_html(w, h, caps[i], shot, kind), w, h, OUT / loc / sub / f"{i+1:02d}.png")
+                    render(page, screenshot_html(w, h, caps[i], shot, kind, i), w, h, OUT / loc / sub / f"{i+1:02d}.png")
             title = read(loc, "title.txt").split(":")[0].strip() or "Lightforge Studio"
             tag = read(loc, "short_description.txt")
             render(page, feature_html(loc, title, tag, icon_b64), 1024, 500, OUT / loc / "featureGraphic.png")
