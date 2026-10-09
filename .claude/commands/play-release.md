@@ -33,7 +33,7 @@ swap the build of a release that Google has not approved yet. Any remaining word
      or if another Gradle build is running.
 
 2. **Version.**
-   - Find the last `versionCode` uploaded to Play: the track page, or Test and release > Latest releases and bundles.
+   - Find the last `versionCode` uploaded to Play with `tools/play-publish.py status` ("highest uploaded versionCode").
    - Find the latest CI code with `gh release list --limit 3`.
    - New code: above both, and equal to the next CI run number + 100 when the Release workflow is enabled
      (`gh workflow list --all`).
