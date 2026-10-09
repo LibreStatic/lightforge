@@ -46,8 +46,8 @@ android {
             ?: System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull()?.let {
                 it + (providers.gradleProperty("lightforge.versionCodeOffset").orNull?.toInt() ?: 100)
             }
-            ?: 127
-        versionName = "0.4.1-beta"
+            ?: 128
+        versionName = "0.4.2-beta"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
