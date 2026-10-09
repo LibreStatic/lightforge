@@ -35,3 +35,20 @@ scripts/compose-driver.sh stop
 ```
 
 Renderable entry points are zero-argument `*DriverPreviews.kt` files in a feature's `src/debug` source set that feed fake state into the real production composable. Add one there for the screen you are changing (never duplicate production UI, never put fake state in `src/main`) and list the feature in `tools/compose-driver/build.gradle.kts`.
+
+# Publishing to Google Play
+
+`tools/play-publish.py` publishes through the Play Developer API, so a release needs no Console clicks and no manual upload.
+
+- The key is the organisation-wide LibreStatic service account `play-publisher@librestatic-publisher.iam.gserviceaccount.com`. Its JSON key lives in `~/.android/librestatic/` (override the path with `LIBRESTATIC_PLAY_KEY`). Never copy it into a repository, print it or paste it anywhere.
+- The script only needs the standard library and the system `openssl`.
+- `tools/play-publish.py status` lists every track with its releases.
+- `tools/play-publish.py publish --aab <offline release aab> --mapping app/build/outputs/mapping/offlineRelease/mapping.txt [--track alpha] [--dry-run] [--no-review]` does the following:
+  1. uploads the bundle and its R8 mapping;
+  2. puts one release named `<versionCode> (<versionName>)` on the track, with the notes from `store/play/release-notes/<versionName>.txt`;
+  3. commits the edit, which sends it for review.
+- Run `--dry-run` first: it validates the edit and discards it.
+- If the commit says the changes cannot be sent automatically, rerun with `--no-review`, then send them from Publishing overview.
+- The package is read from `applicationId` (`com.librestatic.lightforge`).
+- Check the closed track id with `status` before the first publish.
+- If the API answers 403, the service account lacks access in Play Console > Users and permissions. Ask the user; do not grant it yourself.
