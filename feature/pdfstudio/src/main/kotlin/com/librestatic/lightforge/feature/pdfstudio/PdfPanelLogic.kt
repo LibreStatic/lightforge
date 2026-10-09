@@ -192,6 +192,46 @@ internal object PdfCropFocus {
     fun move(current: Double, delta: Double): Double = (current + delta).coerceIn(0.0, 1.0)
 
     fun percent(focus: Double): Int = (focus * 100).roundToInt().coerceIn(0, 100)
+
+    /** The part of the source image a Fill (Cover) frame shows, as 0..1 fractions of the image. */
+    data class Window(val left: Double, val top: Double, val width: Double, val height: Double)
+
+    /** Below this the axis is fully visible, so the focus has no effect on it. */
+    private const val EPS = 1e-6
+
+    /**
+     * Visible window of the content for a Cover fit, derived from the exact [PdfPrintLayout.contentRect]
+     * the canvas and exporter use. [contentWidth]/[contentHeight] are the displayed (already
+     * rotated) bitmap size.
+     */
+    fun window(
+        frameWidth: Double,
+        frameHeight: Double,
+        contentWidth: Double,
+        contentHeight: Double,
+        focusX: Double,
+        focusY: Double,
+    ): Window {
+        val r = PdfPrintLayout.contentRect(frameWidth, frameHeight, contentWidth, contentHeight, PdfFit.Cover, focusX, focusY)
+        val visW = (frameWidth / r.width).coerceIn(0.0, 1.0)
+        val visH = (frameHeight / r.height).coerceIn(0.0, 1.0)
+        return Window(
+            left = (-r.x / r.width).coerceIn(0.0, 1.0 - visW),
+            top = (-r.y / r.height).coerceIn(0.0, 1.0 - visH),
+            width = visW,
+            height = visH,
+        )
+    }
+
+    /** Focus after dragging the window by [dragPx] on one axis (1:1 with the finger). */
+    fun focusForDrag(current: Double, dragPx: Double, displayedPx: Double, visible: Double): Double {
+        val travel = displayedPx * (1 - visible)
+        return if (travel < EPS || displayedPx <= 0.0) current else move(current, dragPx / travel)
+    }
+
+    /** Focus that centers the window on [point] (0..1 of the image) on one axis, clamped. */
+    fun focusCenteredAt(current: Double, point: Double, visible: Double): Double =
+        if (1 - visible < EPS) current else ((point - visible / 2) / (1 - visible)).coerceIn(0.0, 1.0)
 }
 
 /** The hard per-project page cap shared by the strip, the Pages panel and the view model. */

@@ -38,6 +38,27 @@ private enum class PdfMediaChip {
     InProject,
 }
 
+/** The Media tab's source chips (order matches [PdfMediaChip]). */
+@Composable
+internal fun PdfMediaFilterChips(selectedIndex: Int, onSelect: (Int) -> Unit) {
+    val labels =
+        listOf(
+            stringResource(R.string.pdf_media_all),
+            stringResource(R.string.pdf_media_photos),
+            stringResource(R.string.pdf_media_documents),
+            stringResource(R.string.pdf_media_in_project),
+        )
+    GalleryExpressiveChoiceGroup(
+        labels = labels,
+        selectedIndex = selectedIndex,
+        onSelect = onSelect,
+        icons =
+            listOf(GalleryIcons.PhotoLibrary, GalleryIcons.Photo, GalleryIcons.Description, GalleryIcons.PictureAsPdf),
+        minimumItemWidth = 84.dp,
+        wrap = true,
+    )
+}
+
 /**
  * Media tab (Phase F item 3): chips All / Photos / Documents / In this project, a thumbnail grid
  * and tap-to-insert into the current page. "In this project" never touches [PdfMediaSource]: it
@@ -57,20 +78,7 @@ internal fun PdfMediaPanel(vm: PdfStudioViewModel, s: PdfStudioState, mediaSourc
     Column(Modifier.fillMaxSize()) {
         Text(stringResource(R.string.pdf_media), style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp))
-        val labels =
-            listOf(
-                stringResource(R.string.pdf_media_all),
-                stringResource(R.string.pdf_media_photos),
-                stringResource(R.string.pdf_media_documents),
-                stringResource(R.string.pdf_media_in_project),
-            )
-        GalleryExpressiveChoiceGroup(
-            labels = labels,
-            selectedIndex = chip.ordinal,
-            onSelect = { chip = PdfMediaChip.entries[it] },
-            minimumItemWidth = 84.dp,
-            wrap = true,
-        )
+        PdfMediaFilterChips(selectedIndex = chip.ordinal, onSelect = { chip = PdfMediaChip.entries[it] })
         Spacer(Modifier.height(8.dp))
         if (chip == PdfMediaChip.InProject) {
             val ownItems = project.assets.filter { it.mime.startsWith("image/") }

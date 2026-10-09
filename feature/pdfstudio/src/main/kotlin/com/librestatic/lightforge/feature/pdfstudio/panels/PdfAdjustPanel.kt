@@ -3,18 +3,24 @@ package com.librestatic.lightforge.feature.pdfstudio
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -24,6 +30,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
@@ -319,90 +326,169 @@ private fun alignEntries() =
     )
 
 /**
- * 2D crop-focus viewport (Phase D item 5), replacing the old Crop X/Y sliders: a draggable focus
- * point over the image preview. Keyboard/TalkBack adjustable via custom actions that nudge the
- * focus 5% in each direction; the merged accessibility value reads "Focus 50%, 50%" style text
- * ([R.string.pdf_crop_focus_value]).
+ * 2D crop-focus viewport (Phase D item 5), replacing the old Crop X/Y sliders. Loads the image
+ * exactly like the canvas does (same rotation, same shared bitmap cache) and wires
+ * [PdfCropFocusEditor] to the view model.
  */
 @Composable
 private fun PdfCropFocusViewport(vm: PdfStudioViewModel, image: PdfImage, enabled: Boolean) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val file = vm.repository.file(image.asset)
+    val bitmap by
+        produceState<ImageBitmap?>(null, file.path, image.rotation) {
+            value =
+                try {
+                    PdfBitmapStore.get(context).load(file, image.rotation, 1024, immutable = true).asImageBitmap()
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null
+                }
+        }
+    PdfCropFocusEditor(
+        bitmap = bitmap,
+        frameWidth = image.width,
+        frameHeight = image.height,
+        focusX = image.focusX,
+        focusY = image.focusY,
+        enabled = enabled,
+        onFocusCommitted = vm::setSelectedImageFocus,
+        onNudge = vm::moveSelectedImageFocus,
+    )
+}
+
+/**
+ * Stateless crop-focus editor: the whole image aspect-fit, with the part that will actually be
+ * visible in the Fill frame outlined and the rest dimmed. Dragging moves that window 1:1 with the
+ * finger; a tap centers it there. The geometry is [PdfCropFocus.window], i.e. the same
+ * [PdfPrintLayout.contentRect] math the canvas and exporter use. [bitmap] is the displayed
+ * (already rotated) image, so its size is the content size. Keyboard/TalkBack adjustable via
+ * custom actions that nudge the focus [PdfCropFocus.NUDGE] in each direction; the merged
+ * accessibility value reads "Focus 50%, 50%" style text ([R.string.pdf_crop_focus_value]).
+ */
+@Composable
+internal fun PdfCropFocusEditor(
+    bitmap: ImageBitmap?,
+    frameWidth: Double,
+    frameHeight: Double,
+    focusX: Double,
+    focusY: Double,
+    enabled: Boolean,
+    onFocusCommitted: (Double, Double) -> Unit,
+    onNudge: (Double, Double) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val left = stringResource(R.string.pdf_crop_focus_left)
     val right = stringResource(R.string.pdf_crop_focus_right)
     val up = stringResource(R.string.pdf_crop_focus_up)
     val down = stringResource(R.string.pdf_crop_focus_down)
     val focusValue =
-        stringResource(
-            R.string.pdf_crop_focus_value,
-            PdfCropFocus.percent(image.focusX),
-            PdfCropFocus.percent(image.focusY),
-        )
+        stringResource(R.string.pdf_crop_focus_value, PdfCropFocus.percent(focusX), PdfCropFocus.percent(focusY))
     val label = stringResource(R.string.pdf_crop_focus)
     // Live drag position for visual feedback only; the actual undo-tracked commit happens once,
     // at drag end/cancel (R2 review fix) — a per-pointer-event commit was flooding undo with one
     // step per frame, the same trap `moveImage`'s own live overlay + `moveImageTo` on release
     // avoids on the canvas.
-    var liveFocusX by remember(image.asset) { mutableStateOf(image.focusX) }
-    var liveFocusY by remember(image.asset) { mutableStateOf(image.focusY) }
+    var liveFocusX by remember { mutableStateOf(focusX) }
+    var liveFocusY by remember { mutableStateOf(focusY) }
     var dragging by remember { mutableStateOf(false) }
-    val shownFocusX = if (dragging) liveFocusX else image.focusX
-    val shownFocusY = if (dragging) liveFocusY else image.focusY
-    Column {
+    val shownFocusX = if (dragging) liveFocusX else focusX
+    val shownFocusY = if (dragging) liveFocusY else focusY
+    val currentFocusX by rememberUpdatedState(focusX)
+    val currentFocusY by rememberUpdatedState(focusY)
+    val commit by rememberUpdatedState(onFocusCommitted)
+    val bmpW = bitmap?.width?.toDouble() ?: 0.0
+    val bmpH = bitmap?.height?.toDouble() ?: 0.0
+    val valid = bmpW > 0 && bmpH > 0 && frameWidth > 0 && frameHeight > 0
+    // Visible fraction per axis does not depend on the focus, so it is stable during a drag.
+    val visible = if (valid) PdfCropFocus.window(frameWidth, frameHeight, bmpW, bmpH, .5, .5) else null
+    val scrim = MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)
+    Column(modifier) {
         Text(label, style = MaterialTheme.typography.labelLarge)
+        // The image box is as wide as fits but never taller than 240dp (a panorama just gets
+        // less height); the surrounding container shows through beside a tall image.
         Box(
             Modifier.fillMaxWidth()
-                .height(140.dp)
-                .clipToBounds()
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest, RoundedCornerShape(8.dp))
-                .semantics {
-                    contentDescription = label
-                    stateDescription = focusValue
-                    if (enabled)
-                        customActions =
-                            listOf(
-                                CustomAccessibilityAction(left) {
-                                    vm.moveSelectedImageFocus(-PdfCropFocus.NUDGE, 0.0)
-                                    true
-                                },
-                                CustomAccessibilityAction(right) {
-                                    vm.moveSelectedImageFocus(PdfCropFocus.NUDGE, 0.0)
-                                    true
-                                },
-                                CustomAccessibilityAction(up) {
-                                    vm.moveSelectedImageFocus(0.0, -PdfCropFocus.NUDGE)
-                                    true
-                                },
-                                CustomAccessibilityAction(down) {
-                                    vm.moveSelectedImageFocus(0.0, PdfCropFocus.NUDGE)
-                                    true
-                                },
-                            )
-                }
-                .pointerInput(image.asset, enabled) {
-                    if (!enabled) return@pointerInput
-                    detectDragGestures(
-                        onDragStart = {
-                            liveFocusX = image.focusX
-                            liveFocusY = image.focusY
-                            dragging = true
-                        },
-                        onDragEnd = {
-                            dragging = false
-                            if (liveFocusX != image.focusX || liveFocusY != image.focusY)
-                                vm.setSelectedImageFocus(liveFocusX, liveFocusY)
-                        },
-                        onDragCancel = { dragging = false },
-                    ) { change, dragAmount ->
-                        change.consume()
-                        liveFocusX = PdfCropFocus.move(liveFocusX, dragAmount.x / size.width.toFloat().toDouble())
-                        liveFocusY = PdfCropFocus.move(liveFocusY, dragAmount.y / size.height.toFloat().toDouble())
-                    }
-                },
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+            contentAlignment = Alignment.Center,
         ) {
-            PdfBitmap(vm.repository.file(image.asset), 0, PdfFit.Cover, .5, .5, Modifier.fillMaxSize())
-            androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-                val center = Offset(shownFocusX.toFloat() * size.width, shownFocusY.toFloat() * size.height)
-                drawCircle(PdfPaperTokens.GuideOuter, radius = 14f, center = center, style = Stroke(width = 5f))
-                drawCircle(PdfPaperTokens.GuideInner, radius = 14f, center = center, style = Stroke(width = 2f))
+            Box(
+                Modifier.heightIn(max = 240.dp)
+                    .aspectRatio(if (valid) (bmpW / bmpH).toFloat() else 1.5f)
+                    .clipToBounds()
+                    .testTag("pdf-crop-focus")
+                    .semantics {
+                        contentDescription = label
+                        stateDescription = focusValue
+                        if (enabled)
+                            customActions =
+                                listOf(
+                                    CustomAccessibilityAction(left) {
+                                        onNudge(-PdfCropFocus.NUDGE, 0.0)
+                                        true
+                                    },
+                                    CustomAccessibilityAction(right) {
+                                        onNudge(PdfCropFocus.NUDGE, 0.0)
+                                        true
+                                    },
+                                    CustomAccessibilityAction(up) {
+                                        onNudge(0.0, -PdfCropFocus.NUDGE)
+                                        true
+                                    },
+                                    CustomAccessibilityAction(down) {
+                                        onNudge(0.0, PdfCropFocus.NUDGE)
+                                        true
+                                    },
+                                )
+                    }
+                    .pointerInput(enabled, visible) {
+                        if (!enabled || visible == null) return@pointerInput
+                        detectTapGestures { tap ->
+                            val x = PdfCropFocus.focusCenteredAt(currentFocusX, tap.x / size.width.toDouble(), visible.width)
+                            val y = PdfCropFocus.focusCenteredAt(currentFocusY, tap.y / size.height.toDouble(), visible.height)
+                            if (x != currentFocusX || y != currentFocusY) commit(x, y)
+                        }
+                    }
+                    .pointerInput(enabled, visible) {
+                        if (!enabled || visible == null) return@pointerInput
+                        detectDragGestures(
+                            onDragStart = {
+                                liveFocusX = currentFocusX
+                                liveFocusY = currentFocusY
+                                dragging = true
+                            },
+                            onDragEnd = {
+                                dragging = false
+                                if (liveFocusX != currentFocusX || liveFocusY != currentFocusY)
+                                    commit(liveFocusX, liveFocusY)
+                            },
+                            onDragCancel = { dragging = false },
+                        ) { change, dragAmount ->
+                            change.consume()
+                            liveFocusX = PdfCropFocus.focusForDrag(liveFocusX, dragAmount.x.toDouble(), size.width.toDouble(), visible.width)
+                            liveFocusY = PdfCropFocus.focusForDrag(liveFocusY, dragAmount.y.toDouble(), size.height.toDouble(), visible.height)
+                        }
+                    }
+            ) {
+                if (bitmap != null && valid) {
+                    Image(bitmap, contentDescription = null, contentScale = ContentScale.FillBounds, modifier = Modifier.fillMaxSize())
+                    androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                        val win = PdfCropFocus.window(frameWidth, frameHeight, bmpW, bmpH, shownFocusX, shownFocusY)
+                        val wl = (win.left * size.width).toFloat()
+                        val wt = (win.top * size.height).toFloat()
+                        val ww = (win.width * size.width).toFloat()
+                        val wh = (win.height * size.height).toFloat()
+                        // Dim everything outside the window with four rects around it.
+                        drawRect(scrim, Offset.Zero, androidx.compose.ui.geometry.Size(size.width, wt))
+                        drawRect(scrim, Offset(0f, wt + wh), androidx.compose.ui.geometry.Size(size.width, size.height - wt - wh))
+                        drawRect(scrim, Offset(0f, wt), androidx.compose.ui.geometry.Size(wl, wh))
+                        drawRect(scrim, Offset(wl + ww, wt), androidx.compose.ui.geometry.Size(size.width - wl - ww, wh))
+                        val outline = androidx.compose.ui.geometry.Size(ww, wh)
+                        drawRect(PdfPaperTokens.GuideOuter, Offset(wl, wt), outline, style = Stroke(width = 3.dp.toPx()))
+                        drawRect(PdfPaperTokens.GuideInner, Offset(wl, wt), outline, style = Stroke(width = 1.dp.toPx()))
+                    }
+                }
             }
         }
     }

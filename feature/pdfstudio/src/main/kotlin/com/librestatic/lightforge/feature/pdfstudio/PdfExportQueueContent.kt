@@ -24,6 +24,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.librestatic.lightforge.core.designsystem.GalleryEmptyState
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
@@ -138,12 +139,14 @@ internal fun PdfExportQueueContent(
     onSave: (PdfExportJob) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    if (jobs.isEmpty()) {
+        PdfExportQueueEmpty(modifier)
+        return
+    }
     val context = LocalContext.current
     val today = jobs.filter { DateUtils.isToday(it.created) }
     val earlier = jobs.filterNot { DateUtils.isToday(it.created) }
     Column(modifier.fillMaxWidth().padding(16.dp)) {
-        if (jobs.isEmpty())
-            Text(stringResource(R.string.pdf_queue_empty), Modifier.padding(vertical = 16.dp))
         LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (today.isNotEmpty()) {
                 item(key = "today") {
@@ -164,6 +167,16 @@ internal fun PdfExportQueueContent(
         }
     }
 }
+
+/** Exports history with no jobs: the shared Material empty state, centered in the free space. */
+@Composable
+internal fun PdfExportQueueEmpty(modifier: Modifier = Modifier) = GalleryEmptyState(
+    title = stringResource(R.string.pdf_queue_empty),
+    body = stringResource(R.string.pdf_queue_empty_body),
+    icon = GalleryIcons.PictureAsPdf,
+    hero = true,
+    modifier = modifier.fillMaxSize(),
+)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

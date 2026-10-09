@@ -34,6 +34,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.designsystem.GallerySpacing
 
 /**
  * Pages panel (Phase D item 1): a grid of page thumbnails with numbers, the current page
@@ -103,6 +104,8 @@ internal fun PdfPagesPanel(
                         s.selectedPages.isNotEmpty() &&
                         PdfPageLimit.canAdd(p.pages.size, s.selectedPages.size),
             ) {
+                Icon(GalleryIcons.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.pdf_duplicatepage))
             }
             OutlinedButton(onClick = vm::rotateSelectedPages, enabled = !s.editorLocked && s.selectedPages.isNotEmpty()) {
@@ -341,13 +344,48 @@ internal fun PdfPagesPanel(
     if (!selectionMode) {
         // "Select" already lives in the header (D3 review fix) — only the directly reachable
         // per-current-page actions belong here.
-        FlowRow(Modifier.padding(top = 8.dp)) {
-            TextButton(onClick = vm::duplicatePage, enabled = !s.editorLocked && p.pages.size < 100) {
-                Text(stringResource(R.string.pdf_duplicatepage))
-            }
-            TextButton(onClick = delete, enabled = !s.editorLocked) {
-                Text(stringResource(R.string.pdf_removepage))
-            }
+        PdfPageActionButtons(
+            onDuplicate = vm::duplicatePage,
+            duplicateEnabled = !s.editorLocked && p.pages.size < 100,
+            onDelete = delete,
+            deleteEnabled = !s.editorLocked,
+        )
+    }
+}
+
+/** Same icon+label tonal buttons as the Adjust panel's action row, with the destructive one in
+ * the errorContainer/onErrorContainer pair; as bare TextButtons with no spacing the two labels
+ * read as a single run of text. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun PdfPageActionButtons(
+    onDuplicate: () -> Unit,
+    duplicateEnabled: Boolean,
+    onDelete: () -> Unit,
+    deleteEnabled: Boolean,
+) {
+    FlowRow(
+        modifier = Modifier.padding(top = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+    ) {
+        FilledTonalButton(onClick = onDuplicate, enabled = duplicateEnabled) {
+            Icon(GalleryIcons.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(stringResource(R.string.pdf_duplicatepage))
+        }
+        FilledTonalButton(
+            onClick = onDelete,
+            enabled = deleteEnabled,
+            colors =
+                ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                ),
+        ) {
+            Icon(GalleryIcons.Trash, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(stringResource(R.string.pdf_removepage))
         }
     }
 }

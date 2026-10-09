@@ -106,6 +106,66 @@ class PdfPanelLogicTest {
         assertEquals(33, PdfCropFocus.percent(0.333))
     }
 
+    @Test fun cropWindowCenteredOnTallImageInWideFrame() {
+        // 1080x2400 into a 93x60 frame: the width fits exactly, the height is cropped.
+        val w = PdfCropFocus.window(93.0, 60.0, 1080.0, 2400.0, .5, .5)
+        assertEquals(1.0, w.width, 1e-9)
+        assertEquals(60.0 / (2400.0 * 93.0 / 1080.0), w.height, 1e-9)
+        assertEquals(0.0, w.left, 1e-9)
+        assertEquals((1 - w.height) / 2, w.top, 1e-9)
+    }
+
+    @Test fun cropWindowEdgesFollowFocusZeroAndOne() {
+        val a = PdfCropFocus.window(93.0, 60.0, 1080.0, 2400.0, .5, 0.0)
+        assertEquals(0.0, a.top, 1e-9)
+        val b = PdfCropFocus.window(93.0, 60.0, 1080.0, 2400.0, .5, 1.0)
+        assertEquals(1 - b.height, b.top, 1e-9)
+        assertEquals(1.0, b.top + b.height, 1e-9)
+    }
+
+    @Test fun cropWindowFocusHasNoEffectOnFullyVisibleAxis() {
+        val a = PdfCropFocus.window(93.0, 60.0, 1080.0, 2400.0, 0.0, .5)
+        val b = PdfCropFocus.window(93.0, 60.0, 1080.0, 2400.0, 1.0, .5)
+        assertEquals(0.0, a.left, 1e-9)
+        assertEquals(0.0, b.left, 1e-9)
+        assertEquals(1.0, b.width, 1e-9)
+    }
+
+    @Test fun cropWindowOfRotatedAssetUsesSwappedBitmapSize() {
+        // A 2400x1080 asset rotated 90 degrees is displayed as a 1080x2400 bitmap.
+        val rotated = PdfCropFocus.window(93.0, 60.0, 1080.0, 2400.0, .5, .5)
+        val unrotated = PdfCropFocus.window(93.0, 60.0, 2400.0, 1080.0, .5, .5)
+        assertEquals(1.0, unrotated.height, 1e-9)
+        assertTrue(unrotated.width < 1.0)
+        assertTrue(rotated.height < 1.0)
+        assertEquals(1.0, rotated.width, 1e-9)
+    }
+
+    @Test fun cropWindowMatchesContentRect() {
+        val r = PdfPrintLayout.contentRect(60.0, 93.0, 2400.0, 1080.0, PdfFit.Cover, .3, .7)
+        val w = PdfCropFocus.window(60.0, 93.0, 2400.0, 1080.0, .3, .7)
+        assertEquals(-r.x / r.width, w.left, 1e-9)
+        assertEquals(60.0 / r.width, w.width, 1e-9)
+    }
+
+    @Test fun focusForDragMovesWindowOneToOne() {
+        // Window shows 25% of a 400px-tall display: 300px of travel; dragging 30px -> +0.1 focus.
+        assertEquals(0.6, PdfCropFocus.focusForDrag(0.5, 30.0, 400.0, 0.25), 1e-9)
+        assertEquals(1.0, PdfCropFocus.focusForDrag(0.9, 3000.0, 400.0, 0.25), 1e-9)
+        // Fully visible axis: no movement.
+        assertEquals(0.5, PdfCropFocus.focusForDrag(0.5, 30.0, 400.0, 1.0), 1e-9)
+    }
+
+    @Test fun focusCenteredAtClampsAndIgnoresFullyVisibleAxis() {
+        assertEquals(0.5, PdfCropFocus.focusCenteredAt(0.0, 0.5, 0.25), 1e-9)
+        assertEquals(0.0, PdfCropFocus.focusCenteredAt(0.5, 0.05, 0.25), 1e-9)
+        assertEquals(1.0, PdfCropFocus.focusCenteredAt(0.5, 0.99, 0.25), 1e-9)
+        assertEquals(0.3, PdfCropFocus.focusCenteredAt(0.3, 0.9, 1.0), 1e-9)
+        // Round trip: the window centered at p starts at p - vis/2.
+        val f = PdfCropFocus.focusCenteredAt(0.5, 0.4, 0.25)
+        assertEquals(0.275, (1 - 0.25) * f, 1e-9)
+    }
+
     @Test fun dragReorderFindsNearestCenterAmongCandidates() {
         val order = listOf("a", "b", "c")
         val centers =

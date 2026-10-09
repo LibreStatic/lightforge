@@ -73,7 +73,8 @@
     <string name="pdf_image_label">Imagem %1$d</string>
     <string name="pdf_resize_label">Redimensionar imagem %1$d</string>
     <string name="pdf_queue">Exportações</string>
-    <string name="pdf_queue_empty">Nenhuma exportação.</string>
+    <string name="pdf_queue_empty">Ainda não há exportações</string>
+    <string name="pdf_queue_empty_body">Os PDFs que você exportar dos seus projetos aparecem aqui, prontos para abrir, compartilhar ou salvar de novo.</string>
     <string name="pdf_queue_queued">Na fila · retomada automática</string>
     <string name="pdf_queue_running">Preparando páginas do PDF</string>
     <string name="pdf_queue_ready">Pronto para salvar</string>
@@ -269,7 +270,7 @@
     <string name="pdf_template_blank_desc">Começar do zero</string>
     <string name="pdf_template_photo_grid_desc">4 fotos por página, A4</string>
     <string name="pdf_template_receipts_desc">Um recibo por linha, A4</string>
-    <string name="pdf_template_prints_desc">Impressões 10 × 15 cm, 2 por página A4</string>
+    <string name="pdf_template_prints_desc">2 por página, A4</string>
     <string name="pdf_template_selected_suffix">selecionado</string>
     <string name="pdf_library_rename">Renomear</string>
     <string name="pdf_library_rename_title">Renomear projeto</string>

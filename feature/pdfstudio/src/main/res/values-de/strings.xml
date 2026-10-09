@@ -73,7 +73,8 @@
     <string name="pdf_image_label">Bild %1$d</string>
     <string name="pdf_resize_label">Bild %1$d skalieren</string>
     <string name="pdf_queue">Exporte</string>
-    <string name="pdf_queue_empty">Keine Exporte.</string>
+    <string name="pdf_queue_empty">Noch keine Exporte</string>
+    <string name="pdf_queue_empty_body">PDFs, die du aus deinen Projekten exportierst, erscheinen hier – bereit zum Öffnen, Teilen oder erneuten Speichern.</string>
     <string name="pdf_queue_queued">Wartend · automatische Fortsetzung</string>
     <string name="pdf_queue_running">PDF-Seiten werden vorbereitet</string>
     <string name="pdf_queue_ready">Bereit zum Speichern</string>
@@ -264,7 +265,7 @@
     <string name="pdf_template_blank_desc">Von vorn beginnen</string>
     <string name="pdf_template_photo_grid_desc">4 Fotos pro Seite, A4</string>
     <string name="pdf_template_receipts_desc">Ein Beleg pro Zeile, A4</string>
-    <string name="pdf_template_prints_desc">10 × 15 cm Abzüge, 2 pro A4-Seite</string>
+    <string name="pdf_template_prints_desc">2 Abzüge pro Seite, A4</string>
     <string name="pdf_template_selected_suffix">ausgewählt</string>
     <string name="pdf_library_rename">Umbenennen</string>
     <string name="pdf_library_rename_title">Projekt umbenennen</string>
