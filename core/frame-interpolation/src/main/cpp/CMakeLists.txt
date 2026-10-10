@@ -36,10 +36,13 @@ endforeach()
 
 add_library(lightforge_frame_interpolation SHARED
     frame_interpolation_jni.cpp
+    guided_compose.cpp
     rife/rife.cpp
     rife/warp.cpp
     ${SHADER_HEADERS}
 )
+# The per-pixel compose loop is too slow unoptimised, so keep it at -O3 even in debug builds.
+set_source_files_properties(guided_compose.cpp PROPERTIES COMPILE_OPTIONS "-O3")
 target_include_directories(lightforge_frame_interpolation PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/rife

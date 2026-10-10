@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 #include "rife/rife.h"
+#include "guided_compose.h"
 
 namespace {
 constexpr const char* TAG = "LightforgeRife";
@@ -149,6 +150,63 @@ Java_com_librestatic_lightforge_core_frameinterpolation_RifeFrameInterpolator_na
     const int status = engine->rife->process(first_rgb, second_rgb, timestep, result);
     if (status != 0) return status;
     return rgb_to_bitmap(env, result, output) ? 0 : -3;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_com_librestatic_lightforge_core_frameinterpolation_RifeFrameInterpolator_nativeInterpolateGuided(
+    JNIEnv* env, jobject, jlong handle, jobject low_first, jobject low_second,
+    jobject high_first, jobject high_second, jfloat timestep, jobject output
+) {
+    auto* engine = reinterpret_cast<Engine*>(handle);
+    if (!engine || !engine->vulkan || timestep <= 0.f || timestep >= 1.f) return -1;
+    AndroidBitmapInfo low_a{}, low_b{}, high_a{}, high_b{}, out_info{};
+    ncnn::Mat first_rgb, second_rgb, flow, mask;
+    if (!bitmap_to_rgb(env, low_first, first_rgb, low_a) ||
+        !bitmap_to_rgb(env, low_second, second_rgb, low_b) ||
+        low_a.width != low_b.width || low_a.height != low_b.height) return -2;
+    if (AndroidBitmap_getInfo(env, high_first, &high_a) != ANDROID_BITMAP_RESULT_SUCCESS ||
+        AndroidBitmap_getInfo(env, high_second, &high_b) != ANDROID_BITMAP_RESULT_SUCCESS ||
+        AndroidBitmap_getInfo(env, output, &out_info) != ANDROID_BITMAP_RESULT_SUCCESS ||
+        high_a.format != ANDROID_BITMAP_FORMAT_RGBA_8888 ||
+        high_b.format != ANDROID_BITMAP_FORMAT_RGBA_8888 ||
+        out_info.format != ANDROID_BITMAP_FORMAT_RGBA_8888 ||
+        high_a.width != high_b.width || high_a.height != high_b.height ||
+        out_info.width != high_a.width || out_info.height != high_a.height) return -3;
+    const int status = engine->rife->process_v4_flow(first_rgb, second_rgb, timestep, flow, mask);
+    if (status != 0) return status;
+
+    void* pa = nullptr; void* pb = nullptr; void* po = nullptr;
+    if (AndroidBitmap_lockPixels(env, high_first, &pa) != ANDROID_BITMAP_RESULT_SUCCESS) return -4;
+    if (AndroidBitmap_lockPixels(env, high_second, &pb) != ANDROID_BITMAP_RESULT_SUCCESS) {
+        AndroidBitmap_unlockPixels(env, high_first);
+        return -4;
+    }
+    if (AndroidBitmap_lockPixels(env, output, &po) != ANDROID_BITMAP_RESULT_SUCCESS) {
+        AndroidBitmap_unlockPixels(env, high_first);
+        AndroidBitmap_unlockPixels(env, high_second);
+        return -4;
+    }
+    GuidedComposeParams params{};
+    params.first = static_cast<const uint8_t*>(pa);
+    params.second = static_cast<const uint8_t*>(pb);
+    params.output = static_cast<uint8_t*>(po);
+    params.first_stride = high_a.stride;
+    params.second_stride = high_b.stride;
+    params.output_stride = out_info.stride;
+    params.width = static_cast<int>(high_a.width);
+    params.height = static_cast<int>(high_a.height);
+    params.low_width = static_cast<int>(low_a.width);
+    params.low_height = static_cast<int>(low_a.height);
+    params.flow = static_cast<const float*>(flow.data);
+    params.flow_cstep = flow.cstep;
+    params.flow_stride = static_cast<size_t>(flow.w);
+    params.mask = static_cast<const float*>(mask.data);
+    params.mask_stride = static_cast<size_t>(mask.w);
+    guided_compose(params);
+    AndroidBitmap_unlockPixels(env, output);
+    AndroidBitmap_unlockPixels(env, high_second);
+    AndroidBitmap_unlockPixels(env, high_first);
+    return 0;
 }
 
 extern "C" JNIEXPORT void JNICALL

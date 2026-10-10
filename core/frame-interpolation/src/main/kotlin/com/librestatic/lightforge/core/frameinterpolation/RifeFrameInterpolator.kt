@@ -5,6 +5,8 @@ import android.graphics.Bitmap
 import java.io.Closeable
 import java.io.File
 import java.io.FileOutputStream
+import java.util.concurrent.locks.ReentrantReadWriteLock
+import kotlin.concurrent.withLock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -21,6 +23,7 @@ class RifeFrameInterpolator(
     preferVulkan: Boolean = true,
 ) : Closeable {
     private var handle: Long
+    private val lifecycle = ReentrantReadWriteLock()
 
     val capability: FrameInterpolationCapability
 
@@ -48,12 +51,46 @@ class RifeFrameInterpolator(
         return output
     }
 
+    /**
+     * Runs RIFE on [lowFirst]/[lowSecond] but composes the intermediate frame at the
+     * resolution of [highFirst]/[highSecond] using the network's flow and mask.
+     * Requires the Vulkan backend.
+     */
+    fun interpolateGuided(
+        lowFirst: Bitmap,
+        lowSecond: Bitmap,
+        highFirst: Bitmap,
+        highSecond: Bitmap,
+        timestep: Float,
+    ): Bitmap = lifecycle.readLock().withLock {
+        // Shared lock: several timesteps of one pair may run at once so the CPU compose of one frame
+        // overlaps the GPU network pass of the next. [close] takes the exclusive lock.
+        check(handle != 0L) { "Interpolator is closed" }
+        check(capability.backend == FrameInterpolationBackend.Vulkan) { "Guided interpolation requires Vulkan" }
+        require(lowFirst.width == lowSecond.width && lowFirst.height == lowSecond.height)
+        require(highFirst.width == highSecond.width && highFirst.height == highSecond.height)
+        require(timestep > 0f && timestep < 1f)
+        val lowA = lowFirst.asArgb8888()
+        val lowB = lowSecond.asArgb8888()
+        val highA = highFirst.asArgb8888()
+        val highB = highSecond.asArgb8888()
+        val output = Bitmap.createBitmap(highA.width, highA.height, Bitmap.Config.ARGB_8888)
+        val status = nativeInterpolateGuided(handle, lowA, lowB, highA, highB, timestep, output)
+        if (lowA !== lowFirst) lowA.recycle()
+        if (lowB !== lowSecond) lowB.recycle()
+        if (highA !== highFirst) highA.recycle()
+        if (highB !== highSecond) highB.recycle()
+        if (status != 0) output.recycle()
+        check(status == 0) { "RIFE guided interpolation failed ($status)" }
+        output
+    }
+
     suspend fun interpolateAsync(first: Bitmap, second: Bitmap, timestep: Float): Bitmap =
         withContext(Dispatchers.Default) { interpolate(first, second, timestep) }
 
     @Synchronized
-    override fun close() {
-        if (handle == 0L) return
+    override fun close() = lifecycle.writeLock().withLock {
+        if (handle == 0L) return@withLock
         nativeClose(handle)
         handle = 0L
     }
@@ -64,6 +101,15 @@ class RifeFrameInterpolator(
         handle: Long,
         first: Bitmap,
         second: Bitmap,
+        timestep: Float,
+        output: Bitmap,
+    ): Int
+    private external fun nativeInterpolateGuided(
+        handle: Long,
+        lowFirst: Bitmap,
+        lowSecond: Bitmap,
+        highFirst: Bitmap,
+        highSecond: Bitmap,
         timestep: Float,
         output: Bitmap,
     ): Int

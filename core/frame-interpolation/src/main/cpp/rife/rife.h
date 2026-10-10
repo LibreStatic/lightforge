@@ -26,6 +26,10 @@ public:
 
     int process_v4(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float timestep, ncnn::Mat& outimage) const;
 
+    // Guided mode: runs the network and returns the final flow (padded w x h x 4, planar fp32)
+    // and the fusion mask (padded w x h x 1) instead of the low-res image. Vulkan only.
+    int process_v4_flow(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float timestep, ncnn::Mat& flow, ncnn::Mat& mask) const;
+
     int process_v4_cpu(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float timestep, ncnn::Mat& outimage) const;
 
 private:

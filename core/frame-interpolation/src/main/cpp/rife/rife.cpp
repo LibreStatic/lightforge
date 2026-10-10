@@ -3209,6 +3209,139 @@ int RIFE::process_v4(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float
     return 0;
 }
 
+int RIFE::process_v4_flow(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float timestep, ncnn::Mat& flow, ncnn::Mat& mask) const
+{
+    // Guided mode needs the GPU path; the CPU backend is not supported.
+    if (!vkdev || !rife_v4) return -100;
+    if (timestep <= 0.f || timestep >= 1.f) return -101;
+
+    const unsigned char* pixel0data = (const unsigned char*)in0image.data;
+    const unsigned char* pixel1data = (const unsigned char*)in1image.data;
+    const int w = in0image.w;
+    const int h = in0image.h;
+
+    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
+    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
+
+    ncnn::Option opt = flownet.opt;
+    opt.blob_vkallocator = blob_vkallocator;
+    opt.workspace_vkallocator = blob_vkallocator;
+    opt.staging_vkallocator = staging_vkallocator;
+
+    const int w_padded = (w + 31) / 32 * 32;
+    const int h_padded = (h + 31) / 32 * 32;
+    const size_t in_out_tile_elemsize = opt.use_fp16_storage ? 2u : 4u;
+
+    ncnn::Mat in0;
+    ncnn::Mat in1;
+    if (opt.use_fp16_storage && opt.use_int8_storage)
+    {
+        in0 = ncnn::Mat(w, h, (unsigned char*)pixel0data, (size_t)3, 1);
+        in1 = ncnn::Mat(w, h, (unsigned char*)pixel1data, (size_t)3, 1);
+    }
+    else
+    {
+        in0 = ncnn::Mat::from_pixels(pixel0data, ncnn::Mat::PIXEL_RGB, w, h);
+        in1 = ncnn::Mat::from_pixels(pixel1data, ncnn::Mat::PIXEL_RGB, w, h);
+    }
+
+    ncnn::VkCompute cmd(vkdev);
+
+    ncnn::VkMat in0_gpu;
+    ncnn::VkMat in1_gpu;
+    cmd.record_clone(in0, in0_gpu, opt);
+    cmd.record_clone(in1, in1_gpu, opt);
+
+    ncnn::VkMat in0_gpu_padded;
+    ncnn::VkMat in1_gpu_padded;
+    ncnn::VkMat timestep_gpu_padded;
+    {
+        in0_gpu_padded.create(w_padded, h_padded, 3, in_out_tile_elemsize, 1, blob_vkallocator);
+        std::vector<ncnn::VkMat> bindings(2);
+        bindings[0] = in0_gpu;
+        bindings[1] = in0_gpu_padded;
+        std::vector<ncnn::vk_constant_type> constants(6);
+        constants[0].i = in0_gpu.w;
+        constants[1].i = in0_gpu.h;
+        constants[2].i = in0_gpu.cstep;
+        constants[3].i = in0_gpu_padded.w;
+        constants[4].i = in0_gpu_padded.h;
+        constants[5].i = in0_gpu_padded.cstep;
+        cmd.record_pipeline(rife_preproc, bindings, constants, in0_gpu_padded);
+    }
+    {
+        in1_gpu_padded.create(w_padded, h_padded, 3, in_out_tile_elemsize, 1, blob_vkallocator);
+        std::vector<ncnn::VkMat> bindings(2);
+        bindings[0] = in1_gpu;
+        bindings[1] = in1_gpu_padded;
+        std::vector<ncnn::vk_constant_type> constants(6);
+        constants[0].i = in1_gpu.w;
+        constants[1].i = in1_gpu.h;
+        constants[2].i = in1_gpu.cstep;
+        constants[3].i = in1_gpu_padded.w;
+        constants[4].i = in1_gpu_padded.h;
+        constants[5].i = in1_gpu_padded.cstep;
+        cmd.record_pipeline(rife_preproc, bindings, constants, in1_gpu_padded);
+    }
+    {
+        timestep_gpu_padded.create(w_padded, h_padded, 1, in_out_tile_elemsize, 1, blob_vkallocator);
+        std::vector<ncnn::VkMat> bindings(1);
+        bindings[0] = timestep_gpu_padded;
+        std::vector<ncnn::vk_constant_type> constants(4);
+        constants[0].i = timestep_gpu_padded.w;
+        constants[1].i = timestep_gpu_padded.h;
+        constants[2].i = timestep_gpu_padded.cstep;
+        constants[3].f = timestep;
+        cmd.record_pipeline(rife_v4_timestep, bindings, constants, timestep_gpu_padded);
+    }
+
+    ncnn::VkMat flow_gpu;
+    ncnn::VkMat mask_gpu;
+    {
+        ncnn::Extractor ex = flownet.create_extractor();
+        ex.set_blob_vkallocator(blob_vkallocator);
+        ex.set_workspace_vkallocator(blob_vkallocator);
+        ex.set_staging_vkallocator(staging_vkallocator);
+
+        ex.input("in0", in0_gpu_padded);
+        ex.input("in1", in1_gpu_padded);
+        ex.input("in2", timestep_gpu_padded);
+        // Final flow (4 channels) and the sigmoid fusion mask of rife-v4.6.
+        ex.extract("327", flow_gpu, cmd);
+        ex.extract("332", mask_gpu, cmd);
+    }
+
+    ncnn::Mat flow_raw;
+    ncnn::Mat mask_raw;
+    cmd.record_clone(flow_gpu, flow_raw, opt);
+    cmd.record_clone(mask_gpu, mask_raw, opt);
+    cmd.submit_and_wait();
+
+    vkdev->reclaim_blob_allocator(blob_vkallocator);
+    vkdev->reclaim_staging_allocator(staging_vkallocator);
+
+    const auto to_planar_fp32 = [](const ncnn::Mat& src, ncnn::Mat& dst) {
+        ncnn::Mat unpacked = src;
+        if (unpacked.elempack != 1)
+        {
+            ncnn::Mat converted;
+            ncnn::convert_packing(unpacked, converted, 1);
+            unpacked = converted;
+        }
+        if (unpacked.elembits() == 16)
+        {
+            ncnn::Mat converted;
+            ncnn::cast_float16_to_float32(unpacked, converted);
+            unpacked = converted;
+        }
+        dst = unpacked;
+    };
+    to_planar_fp32(flow_raw, flow);
+    to_planar_fp32(mask_raw, mask);
+    if (flow.c != 4 || mask.c != 1 || flow.w != w_padded || flow.h != h_padded) return -102;
+    return 0;
+}
+
 int RIFE::process_v4_cpu(const ncnn::Mat& in0image, const ncnn::Mat& in1image, float timestep, ncnn::Mat& outimage) const
 {
     if (timestep == 0.f)
