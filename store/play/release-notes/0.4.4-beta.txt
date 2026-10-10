@@ -1,0 +1,48 @@
+<en-US>
+• Details now shows much more: codec, resolution, frame rate, bitrate, HDR and audio tracks for videos, and flash, white balance, metering, color space and more for photos.
+• Details no longer goes blank when you swipe to another photo with the panel open.
+• Wide color now follows the screen in use on foldables.
+Report problems at github.com/LibreStatic/lightforge/issues
+</en-US>
+<es-419>
+• Detalles ahora muestra mucho más: códec, resolución, fotogramas por segundo, tasa de bits, HDR y pistas de audio en los videos, y flash, balance de blancos, medición, espacio de color y más en las fotos.
+• Detalles ya no queda vacío cuando pasás a otra foto con el panel abierto.
+• En plegables, el color amplio sigue a la pantalla en uso.
+Reportá problemas en github.com/LibreStatic/lightforge/issues
+</es-419>
+<es-ES>
+• Detalles ahora muestra mucho más: códec, resolución, fotogramas por segundo, tasa de bits, HDR y pistas de audio en los vídeos, y flash, balance de blancos, medición, espacio de color y más en las fotos.
+• Detalles ya no se queda vacío al pasar a otra foto con el panel abierto.
+• En plegables, el color amplio sigue a la pantalla en uso.
+Informa de problemas en github.com/LibreStatic/lightforge/issues
+</es-ES>
+<pt-BR>
+• Detalhes agora mostra muito mais: codec, resolução, quadros por segundo, taxa de bits, HDR e faixas de áudio nos vídeos, e flash, balanço de branco, medição, espaço de cor e mais nas fotos.
+• Detalhes não fica mais vazio ao passar para outra foto com o painel aberto.
+• Em dobráveis, a cor ampla acompanha a tela em uso.
+Relate problemas em github.com/LibreStatic/lightforge/issues
+</pt-BR>
+<pt-PT>
+• Os Detalhes mostram agora muito mais: codec, resolução, fotogramas por segundo, taxa de bits, HDR e faixas de áudio nos vídeos, e flash, equilíbrio de brancos, medição, espaço de cor e mais nas fotos.
+• Os Detalhes já não ficam vazios ao passar para outra foto com o painel aberto.
+• Em dobráveis, a cor ampla acompanha o ecrã em uso.
+Comunique problemas em github.com/LibreStatic/lightforge/issues
+</pt-PT>
+<fr-FR>
+• Les Détails en montrent bien plus : codec, résolution, images par seconde, débit, HDR et pistes audio pour les vidéos, et flash, balance des blancs, mesure, espace colorimétrique et plus pour les photos.
+• Les Détails ne restent plus vides quand vous passez à une autre photo avec le panneau ouvert.
+• Sur les pliables, les couleurs étendues suivent l'écran utilisé.
+Signalez les problèmes sur github.com/LibreStatic/lightforge/issues
+</fr-FR>
+<de-DE>
+• Details zeigt jetzt viel mehr: Codec, Auflösung, Bildrate, Bitrate, HDR und Audiospuren bei Videos sowie Blitz, Weißabgleich, Belichtungsmessung, Farbraum und mehr bei Fotos.
+• Details bleibt nicht mehr leer, wenn du bei geöffnetem Bereich zum nächsten Foto wischst.
+• Auf Foldables folgt der erweiterte Farbraum dem genutzten Display.
+Probleme melden unter github.com/LibreStatic/lightforge/issues
+</de-DE>
+<it-IT>
+• Dettagli ora mostra molto di più: codec, risoluzione, fotogrammi al secondo, bitrate, HDR e tracce audio nei video, e flash, bilanciamento del bianco, esposimetro, spazio colore e altro nelle foto.
+• Dettagli non resta più vuoto quando passi a un'altra foto con il pannello aperto.
+• Sui pieghevoli, la gamma cromatica estesa segue lo schermo in uso.
+Segnala i problemi su github.com/LibreStatic/lightforge/issues
+</it-IT>
