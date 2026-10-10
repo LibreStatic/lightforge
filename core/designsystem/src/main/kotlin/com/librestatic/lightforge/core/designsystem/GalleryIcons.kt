@@ -58,6 +58,10 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.SlowMotionVideo
+import androidx.compose.material.icons.rounded.FastForward
+import androidx.compose.material.icons.automirrored.rounded.Login
+import androidx.compose.material.icons.automirrored.rounded.Logout
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Videocam
@@ -169,6 +173,10 @@ val GalleryIconRepeat: ImageVector get() = Icons.Rounded.Repeat
 val GalleryIconUndo: ImageVector get() = Icons.AutoMirrored.Rounded.Undo
 val GalleryIconRedo: ImageVector get() = Icons.AutoMirrored.Rounded.Redo
 val GalleryIconDownload: ImageVector get() = Icons.Rounded.Download
+val GalleryIconSlowMotion: ImageVector get() = Icons.Rounded.SlowMotionVideo
+val GalleryIconFastForward: ImageVector get() = Icons.Rounded.FastForward
+val GalleryIconMarkIn: ImageVector get() = Icons.AutoMirrored.Rounded.Login
+val GalleryIconMarkOut: ImageVector get() = Icons.AutoMirrored.Rounded.Logout
 val GalleryIconSpeed: ImageVector get() = Icons.Rounded.Speed
 val GalleryIconVolume: ImageVector get() = Icons.AutoMirrored.Rounded.VolumeUp
 val GalleryIconVolumeOff: ImageVector get() = Icons.Rounded.VolumeOff
@@ -386,7 +394,11 @@ object GalleryIcons {
     val Undo get() = GalleryIconUndo
     val Redo get() = GalleryIconRedo
     val Download get() = GalleryIconDownload
+    val SlowMotion get() = GalleryIconSlowMotion
     val Speed get() = GalleryIconSpeed
+    val FastForward get() = GalleryIconFastForward
+    val MarkIn get() = GalleryIconMarkIn
+    val MarkOut get() = GalleryIconMarkOut
     val Volume get() = GalleryIconVolume
     val VolumeOff get() = GalleryIconVolumeOff
     val Music get() = GalleryIconMusic

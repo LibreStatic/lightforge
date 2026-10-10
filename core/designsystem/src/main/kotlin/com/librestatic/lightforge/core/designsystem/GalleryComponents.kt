@@ -21,6 +21,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
@@ -437,6 +438,7 @@ fun GalleryExpressiveButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     content: @Composable RowScope.() -> Unit,
 ) {
     Button(
@@ -444,6 +446,7 @@ fun GalleryExpressiveButton(
         shapes = ButtonDefaults.shapes(),
         modifier = modifier,
         enabled = enabled,
+        contentPadding = contentPadding,
         content = content,
     )
 }
