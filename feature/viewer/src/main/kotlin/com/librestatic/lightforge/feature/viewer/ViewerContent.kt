@@ -32,6 +32,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
@@ -43,6 +45,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledIconButton
@@ -248,6 +251,15 @@ fun ViewerContent(
         gestureFeedback = slowMotionSavedMessage
         delay(2_000L)
         gestureFeedback = null
+    }
+    // An unsaved clip offer or a failure message fades out on its own instead of sticking around;
+    // a save in progress keeps the offer up so Cancel stays reachable.
+    val slowMotionOfferIdle = (slowMotionState is HoldSlowMotionState.ReadyToSave && slowMotionSaveProgress == null) ||
+        slowMotionState is HoldSlowMotionState.Failure
+    LaunchedEffect(slowMotionState, slowMotionOfferIdle) {
+        if (!slowMotionOfferIdle) return@LaunchedEffect
+        delay(SLOW_MOTION_OFFER_TIMEOUT_MILLIS)
+        slowMotionSession?.discardSavedClip()
     }
     val context = LocalContext.current
     val view = LocalView.current
@@ -772,65 +784,13 @@ fun ViewerContent(
                     .padding(horizontal = 16.dp, vertical = 10.dp),
             )
         }
-        when (val slow = slowMotionState) {
-            HoldSlowMotionState.Buffering -> Box(
-                Modifier.fillMaxSize().background(GalleryOverlayTokens.SoftVeil),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    GalleryLoadingIndicator(color = GalleryOverlayTokens.Content)
-                    Text(stringResource(R.string.viewer_slow_motion_buffering), color = GalleryOverlayTokens.Content)
-                }
-            }
-            is HoldSlowMotionState.Playing -> {
-                Image(
-                    bitmap = slow.frame.asImageBitmap(),
-                    contentDescription = stringResource(R.string.viewer_slow_motion_preview),
-                    modifier = Modifier.fillMaxSize().background(Color.Black),
-                    contentScale = ContentScale.Fit,
-                )
-                Text(
-                    "0.25×",
-                    color = GalleryOverlayTokens.Content,
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.align(Alignment.TopEnd)
-                        .padding(top = 72.dp, end = 16.dp)
-                        .background(GalleryOverlayTokens.TimelineSurface, RoundedCornerShape(16.dp))
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                )
-            }
-            is HoldSlowMotionState.ReadyToSave -> Row(
-                modifier = Modifier.align(Alignment.TopStart).padding(top = 72.dp, start = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                GalleryExpressiveButton(
-                    onClick = { onSaveSlowMotionClip(slow.clip) },
-                    enabled = slowMotionSaveProgress == null,
-                ) {
-                    if (slowMotionSaveProgress != null) {
-                        GalleryLoadingIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = LocalContentColor.current,
-                        )
-                    } else Text(stringResource(R.string.viewer_save_slow_motion_clip))
-                }
-                if (slowMotionSaveProgress != null) {
-                    GalleryExpressiveButton(onClick = onCancelSlowMotionSave) {
-                        Text(stringResource(R.string.viewer_cancel))
-                    }
-                }
-            }
-            is HoldSlowMotionState.Failure -> Text(
-                slow.message,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-                modifier = Modifier.align(Alignment.TopCenter)
-                    .padding(top = 72.dp)
-                    .background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(12.dp))
-                    .padding(12.dp),
-            )
-            HoldSlowMotionState.Idle -> Unit
-        }
+        SlowMotionOverlay(
+            state = slowMotionState,
+            saveProgress = slowMotionSaveProgress,
+            onSave = onSaveSlowMotionClip,
+            onDismiss = { slowMotionSession?.discardSavedClip() },
+            onCancelSave = onCancelSlowMotionSave,
+        )
         GalleryAnimatedVisibility(
             visible = chromeVisible,
             edge = GalleryMotionEdge.Top,
@@ -1925,6 +1885,110 @@ private fun ViewerChromeScrim(visible: Boolean, modifier: Modifier = Modifier) {
     }
 }
 
+
+/** Hold-to-slow-motion layers: buffering veil, the 0.25× preview, the save offer and failures. */
+@Composable
+internal fun BoxScope.SlowMotionOverlay(
+    state: HoldSlowMotionState,
+    saveProgress: Float?,
+    onSave: (SlowMotionClip) -> Unit,
+    onDismiss: () -> Unit,
+    onCancelSave: () -> Unit,
+) {
+    when (val slow = state) {
+        HoldSlowMotionState.Buffering -> Box(
+            Modifier.fillMaxSize().background(GalleryOverlayTokens.SoftVeil),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                GalleryLoadingIndicator(color = GalleryOverlayTokens.Content)
+                Text(stringResource(R.string.viewer_slow_motion_buffering), color = GalleryOverlayTokens.Content)
+            }
+        }
+        is HoldSlowMotionState.Playing -> {
+            Image(
+                bitmap = slow.frame.asImageBitmap(),
+                contentDescription = stringResource(R.string.viewer_slow_motion_preview),
+                modifier = Modifier.fillMaxSize().background(Color.Black),
+                contentScale = ContentScale.Fit,
+            )
+            Row(
+                modifier = Modifier.align(Alignment.TopCenter)
+                    .slowMotionOverlayTopPadding()
+                    .background(GalleryOverlayTokens.TimelineSurface, RoundedCornerShape(16.dp))
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    GalleryIcons.SlowMotion,
+                    contentDescription = null,
+                    tint = GalleryOverlayTokens.Content,
+                    modifier = Modifier.size(20.dp),
+                )
+                Text("0.25×", color = GalleryOverlayTokens.Content, style = MaterialTheme.typography.titleMedium)
+            }
+        }
+        is HoldSlowMotionState.ReadyToSave -> Row(
+            modifier = Modifier.align(Alignment.TopCenter).slowMotionOverlayTopPadding(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val saving = saveProgress != null
+            GalleryExpressiveButton(
+                onClick = { onSave(slow.clip) },
+                enabled = !saving,
+                contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
+            ) {
+                if (saving) {
+                    GalleryLoadingIndicator(
+                        modifier = Modifier.size(ButtonDefaults.IconSize),
+                        color = LocalContentColor.current,
+                    )
+                } else {
+                    Icon(
+                        GalleryIcons.SlowMotion,
+                        contentDescription = null,
+                        modifier = Modifier.size(ButtonDefaults.IconSize),
+                    )
+                }
+                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                Text(stringResource(R.string.viewer_save_slow_motion_clip))
+            }
+            if (saving) {
+                androidx.compose.material3.FilledTonalButton(
+                    onClick = onCancelSave,
+                    shapes = ButtonDefaults.shapes(),
+                ) {
+                    Text(stringResource(R.string.viewer_cancel))
+                }
+            } else {
+                val dismissLabel = stringResource(R.string.viewer_dismiss_slow_motion_clip)
+                androidx.compose.material3.FilledTonalIconButton(
+                    onClick = onDismiss,
+                    shapes = androidx.compose.material3.IconButtonDefaults.shapes(),
+                ) {
+                    Icon(GalleryIcons.Close, contentDescription = dismissLabel)
+                }
+            }
+        }
+        is HoldSlowMotionState.Failure -> Text(
+            slow.message,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+            modifier = Modifier.align(Alignment.TopCenter)
+                .slowMotionOverlayTopPadding()
+                .background(MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(12.dp))
+                .padding(12.dp),
+        )
+        HoldSlowMotionState.Idle -> Unit
+    }
+}
+
+/** Places slow-motion overlays just under the top bar so they never cover Back, Details or More. */
+@Composable
+private fun Modifier.slowMotionOverlayTopPadding() =
+    windowInsetsPadding(viewerTopInsets()).padding(top = 76.dp, start = 16.dp, end = 16.dp)
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun viewerTopInsets() = WindowInsets.statusBarsIgnoringVisibility
@@ -1960,6 +2024,7 @@ private const val VIDEO_POSITION_UPDATE_MILLIS = 200L
 private const val CHROME_FADE_MILLIS = 150
 /** Auto-hide fade; the chrome keeps its position and stays tappable until it ends. */
 private const val VIDEO_CHROME_AUTO_HIDE_FADE_MILLIS = 700
+private const val SLOW_MOTION_OFFER_TIMEOUT_MILLIS = 8_000L
 internal const val VIEWER_CHROME_SCRIM_TEST_TAG = "viewer_chrome_scrim"
 internal const val VIDEO_LEGACY_SEEK_BAR_TEST_TAG = "video_legacy_seek_bar"
 internal const val VIDEO_FRAME_SCRUBBER_TEST_TAG = "video_frame_scrubber"

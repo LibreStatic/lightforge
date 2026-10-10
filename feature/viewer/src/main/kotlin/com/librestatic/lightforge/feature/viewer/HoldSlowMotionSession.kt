@@ -9,6 +9,7 @@ import com.librestatic.lightforge.core.frameinterpolation.FrameInterpolationBack
 import com.librestatic.lightforge.core.frameinterpolation.RifeFrameInterpolator
 import com.librestatic.lightforge.core.frameinterpolation.VideoFrameReader
 import com.librestatic.lightforge.core.frameinterpolation.interpolateFactor
+import com.librestatic.lightforge.core.frameinterpolation.interpolateFactorGuided
 import java.io.Closeable
 import java.io.File
 import java.io.FileOutputStream
@@ -17,6 +18,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -48,7 +51,7 @@ sealed interface HoldSlowMotionState {
 }
 
 /**
- * Maintains a persistent low-resolution RIFE buffer ahead of playback once the user first touches
+ * Maintains a persistent reduced-resolution RIFE buffer ahead of playback once the user first touches
  * the video ([warmUp] on pointer-down) or holds; until then [prepare] is a no-op, so merely viewing
  * a video never runs interpolation.
  * Export still reads the original media at full quality.
@@ -64,7 +67,8 @@ class HoldSlowMotionSession(
 
     private val bufferLock = Any()
     private val bufferedFrames = ArrayList<BufferedFrame>()
-    private val cacheRoot = File(appContext.cacheDir, "hold-slow-motion/" + uri.cacheKey())
+    // Bump the suffix whenever the buffer's resolution or encoding changes so stale frames are not reused.
+    private val cacheRoot = File(appContext.cacheDir, "hold-slow-motion/" + uri.cacheKey() + "-v3")
     private var bufferedWindowStart = Long.MIN_VALUE
     private var bufferComplete = false
     private var bufferFailure: String? = null
@@ -242,14 +246,18 @@ class HoldSlowMotionSession(
             bufferFailure = null
         }
         trimOldCache(directory)
-        val reader = VideoFrameReader(appContext, uri, maxLongEdge = PreviewLongEdge)
-        val interpolator = try {
-            RifeFrameInterpolator(appContext)
+        val interpolator = RifeFrameInterpolator(appContext)
+        // Vulkan runs RIFE on a small copy only to get its flow and mask, then composes the
+        // frames from the high-resolution decode; the CPU backend interpolates at low resolution.
+        val guided = interpolator.capability.backend == FrameInterpolationBackend.Vulkan
+        val reader = try {
+            VideoFrameReader(appContext, uri, maxLongEdge = if (guided) HighLongEdge else CpuPreviewLongEdge)
         } catch (failure: Throwable) {
-            reader.close()
+            interpolator.close()
             throw failure
         }
         var left: DecodedVideoFrame? = null
+        var leftLow: Bitmap? = null
         try {
             val durationMillis = reader.durationMillis
             if (windowStart >= durationMillis) {
@@ -259,55 +267,90 @@ class HoldSlowMotionSession(
             val windowEnd = (windowStart + PrefetchWindowSourceMillis).coerceAtMost(durationMillis)
             reader.seekTo(windowStart)
             left = reader.next() ?: error("Could not decode the preview buffer")
+            leftLow = if (guided) left.bitmap.toLowResolution() else null
             var frameIndex = 0
             prefetchBackend = interpolator.capability.backend
-            FileOutputStream(File(directory, IndexFileName), false).bufferedWriter().use { writer ->
-                while (coroutineContext.isActive) {
-                    val currentLeft = left ?: break
-                    if (currentLeft.timeMillis >= windowEnd) break
-                    val right = reader.next() ?: break
-                    val gapMillis = right.timeMillis - currentLeft.timeMillis
-                    if (gapMillis <= 0 || right.bitmap.width != currentLeft.bitmap.width ||
-                        right.bitmap.height != currentLeft.bitmap.height
-                    ) {
-                        right.bitmap.recycle()
-                        continue
-                    }
-                    val factor = interpolationFactor(gapMillis)
-                    val generated = try {
-                        if (factor == 1) emptyList()
-                        else interpolator.interpolateFactor(currentLeft.bitmap, right.bitmap, factor)
-                    } catch (failure: Throwable) {
-                        right.bitmap.recycle()
-                        throw failure
-                    }
-                    val frames = listOf(currentLeft.bitmap) + generated
-                    try {
-                        frames.forEachIndexed { interpolationIndex, frame ->
-                            coroutineContext.ensureActive()
-                            val position = currentLeft.timeMillis + gapMillis * interpolationIndex / factor
-                            val name = "frame-" + frameIndex.toString().padStart(6, '0') + ".jpg"
-                            val file = File(directory, name)
-                            FileOutputStream(file).use { output ->
-                                check(frame.compress(Bitmap.CompressFormat.JPEG, PreviewJpegQuality, output))
-                            }
-                            writer.append(position.toString()).append(',').append(name).append('\n')
-                            writer.flush()
-                            synchronized(bufferLock) {
-                                if (bufferedWindowStart == windowStart) {
-                                    bufferedFrames += BufferedFrame(position, file)
+            val quality = if (guided) GuidedJpegQuality else CpuJpegQuality
+            // JPEG encoding of the high-resolution frames runs beside the next RIFE call; the single
+            // consumer keeps frame order, and the bounded queue throttles RIFE if encoding lags.
+            coroutineScope {
+                val queue = Channel<EncodeJob>(EncodeQueueCapacity) { it.bitmap.recycle() }
+                val encoder = launch(Dispatchers.IO) {
+                    FileOutputStream(File(directory, IndexFileName), false).bufferedWriter().use { writer ->
+                        for (job in queue) {
+                            try {
+                                val file = File(directory, job.name)
+                                FileOutputStream(file).use { output ->
+                                    check(job.bitmap.compress(Bitmap.CompressFormat.JPEG, quality, output))
                                 }
+                                writer.append(job.positionMillis.toString()).append(',').append(job.name).append('\n')
+                                writer.flush()
+                                synchronized(bufferLock) {
+                                    if (bufferedWindowStart == windowStart) {
+                                        bufferedFrames += BufferedFrame(job.positionMillis, file)
+                                    }
+                                }
+                            } finally {
+                                job.bitmap.recycle()
                             }
-                            frameIndex += 1
                         }
-                    } catch (failure: Throwable) {
-                        right.bitmap.recycle()
-                        throw failure
-                    } finally {
-                        generated.forEach { if (!it.isRecycled) it.recycle() }
                     }
-                    currentLeft.bitmap.recycle()
-                    left = right
+                }
+                try {
+                    while (coroutineContext.isActive) {
+                        val currentLeft = left ?: break
+                        if (currentLeft.timeMillis >= windowEnd) break
+                        val right = reader.next() ?: break
+                        val gapMillis = right.timeMillis - currentLeft.timeMillis
+                        if (gapMillis <= 0 || right.bitmap.width != currentLeft.bitmap.width ||
+                            right.bitmap.height != currentLeft.bitmap.height
+                        ) {
+                            right.bitmap.recycle()
+                            continue
+                        }
+                        val factor = interpolationFactor(gapMillis)
+                        var rightLow: Bitmap? = null
+                        val generated = try {
+                            if (guided) rightLow = right.bitmap.toLowResolution()
+                            when {
+                                factor == 1 -> emptyList()
+                                guided -> interpolator.interpolateFactorGuided(
+                                    leftLow!!, rightLow!!, currentLeft.bitmap, right.bitmap, factor,
+                                )
+                                else -> interpolator.interpolateFactor(currentLeft.bitmap, right.bitmap, factor)
+                            }
+                        } catch (failure: Throwable) {
+                            right.bitmap.recycle()
+                            rightLow?.recycle()
+                            throw failure
+                        }
+                        // Ownership of every sent bitmap passes to the encoder, which recycles it.
+                        val frames = listOf(currentLeft.bitmap) + generated
+                        left = null
+                        var sent = 0
+                        try {
+                            frames.forEachIndexed { interpolationIndex, frame ->
+                                val position = currentLeft.timeMillis + gapMillis * interpolationIndex / factor
+                                val name = "frame-" + frameIndex.toString().padStart(6, '0') + ".jpg"
+                                frameIndex += 1
+                                queue.send(EncodeJob(frame, position, name))
+                                sent += 1
+                            }
+                        } catch (failure: Throwable) {
+                            right.bitmap.recycle()
+                            rightLow?.recycle()
+                            frames.drop(sent).forEach { if (!it.isRecycled) it.recycle() }
+                            throw failure
+                        }
+                        leftLow?.recycle()
+                        leftLow = rightLow
+                        left = right
+                    }
+                    queue.close()
+                } catch (failure: Throwable) {
+                    // Cancelling (not closing) hands still-queued bitmaps to onUndeliveredElement.
+                    queue.cancel()
+                    throw failure
                 }
             }
             coroutineContext.ensureActive()
@@ -315,9 +358,19 @@ class HoldSlowMotionSession(
             trimOldCache(directory)
         } finally {
             left?.bitmap?.takeIf { !it.isRecycled }?.recycle()
+            leftLow?.takeIf { !it.isRecycled }?.recycle()
             reader.close()
             interpolator.close()
         }
+    }
+
+    /** Always a new, even-sized bitmap whose long edge is at most [LowLongEdge]. */
+    private fun Bitmap.toLowResolution(): Bitmap {
+        val scale = minOf(1f, LowLongEdge.toFloat() / maxOf(width, height))
+        val lowWidth = ((width * scale).toInt() and 1.inv()).coerceAtLeast(2)
+        val lowHeight = ((height * scale).toInt() and 1.inv()).coerceAtLeast(2)
+        val scaled = Bitmap.createScaledBitmap(this, lowWidth, lowHeight, true)
+        return if (scaled === this) copy(Bitmap.Config.ARGB_8888, false) else scaled
     }
 
     private fun markWindowComplete(directory: File, windowStart: Long, windowEnd: Long) {
@@ -354,19 +407,35 @@ class HoldSlowMotionSession(
 
     companion object {
         const val Speed = 0.25f
-        private const val PreviewLongEdge = 256
-        private const val PreviewJpegQuality = 82
+        /**
+         * Playback consumes one 30 fps source gap every 133 ms and needs three RIFE frames for it.
+         * RIFE cannot be made sharper by feeding it more pixels on the razr fold's GPU (warm latency:
+         * 256 px 18 ms, 320 px 25-31 ms, 352 px 40 ms, 480 px 48 ms, 640 px 82 ms), so on Vulkan it
+         * runs at [LowLongEdge] only to produce its flow and fusion mask, and each frame is composed
+         * from the [HighLongEdge] decode (320 -> 1280 px: ~41 ms per frame, of which ~14 ms is the
+         * CPU compose; 1280x720 JPEG q88 encodes in ~11-16 ms and takes 200-270 KB).
+         * Encoding runs beside the next RIFE call, so a pair costs about 3 x 41 ms.
+         */
+        private const val HighLongEdge = 1280
+        private const val LowLongEdge = 320
+        private const val CpuPreviewLongEdge = 256
+        // The buffer is shown full screen, so JPEG block artefacts get magnified.
+        private const val GuidedJpegQuality = 88
+        private const val CpuJpegQuality = 92
+        private const val EncodeQueueCapacity = 8
         private const val PrefetchWindowSourceMillis = 6_000L
         private const val OutputFrameMillis = 33L
         private const val MinimumOutputFrameMillis = 16L
         private const val MaximumOutputFrameMillis = 100L
         private const val BufferPollMillis = 40L
         private const val MinimumStartFrames = 24
-        private const val MaximumCacheBytes = 96L * 1024L * 1024L
+        private const val MaximumCacheBytes = 256L * 1024L * 1024L
         private const val IndexFileName = "frames.csv"
         private const val CompleteFileName = "complete"
     }
 }
+
+private class EncodeJob(val bitmap: Bitmap, val positionMillis: Long, val name: String)
 
 private data class BufferedFrame(val sourcePositionMillis: Long, val file: File)
 

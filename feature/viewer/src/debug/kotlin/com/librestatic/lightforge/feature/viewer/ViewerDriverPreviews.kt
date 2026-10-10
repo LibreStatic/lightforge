@@ -8,6 +8,8 @@ import android.graphics.Shader
 import android.net.Uri
 import android.os.CancellationSignal
 import android.view.SurfaceView
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -22,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.media3.common.Effect
 import androidx.media3.common.util.UnstableApi
 import com.librestatic.lightforge.core.designsystem.LightforgeTheme
+import com.librestatic.lightforge.core.frameinterpolation.FrameInterpolationBackend
 import com.librestatic.lightforge.core.designsystem.galleryAdaptiveLayoutInfo
 import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.core.model.MediaKind
@@ -58,6 +61,49 @@ fun ViewerMotionPhotoPreview() = ViewerPreviewFrame(selected = 13, detailsOpen =
 @Preview
 @Composable
 fun ViewerTrashPreview() = ViewerPreviewFrame(selected = 13, detailsOpen = false, trashed = true)
+
+/**
+ * The video with the save offer left by a finished hold. The overlay is stacked over the real
+ * viewer because the session state is not fakeable; production draws it in the same place.
+ */
+@Preview
+@Composable
+fun ViewerSlowMotionSavePreview() = ViewerPreviewFrame(selected = 12, detailsOpen = false) {
+    SlowMotionOverlay(
+        state = HoldSlowMotionState.ReadyToSave(SlowMotionClip(Uri.EMPTY, 4_000, 6_000)),
+        saveProgress = null,
+        onSave = {},
+        onDismiss = {},
+        onCancelSave = {},
+    )
+}
+
+/** The save offer while the clip is being written: a spinner and Cancel. */
+@Preview
+@Composable
+fun ViewerSlowMotionSavingPreview() = ViewerPreviewFrame(selected = 12, detailsOpen = false) {
+    SlowMotionOverlay(
+        state = HoldSlowMotionState.ReadyToSave(SlowMotionClip(Uri.EMPTY, 4_000, 6_000)),
+        saveProgress = 0.4f,
+        onSave = {},
+        onDismiss = {},
+        onCancelSave = {},
+    )
+}
+
+/** The 0.25× preview frame with its speed badge under the top bar. */
+@Preview
+@Composable
+fun ViewerSlowMotionPlayingPreview() = ViewerPreviewFrame(selected = 12, detailsOpen = false) {
+    val frame = remember { fakePhoto(320, 180, 12) }
+    SlowMotionOverlay(
+        state = HoldSlowMotionState.Playing(frame, 5_000, FrameInterpolationBackend.Vulkan),
+        saveProgress = null,
+        onSave = {},
+        onDismiss = {},
+        onCancelSave = {},
+    )
+}
 
 private data class PreviewMedia(
     val id: Long,
@@ -115,7 +161,13 @@ private class PreviewVideoEngine : VideoEngine {
 }
 
 @Composable
-private fun ViewerPreviewFrame(selected: Int, detailsOpen: Boolean, motion: Boolean = false, trashed: Boolean = false) = LightforgeTheme {
+private fun ViewerPreviewFrame(
+    selected: Int,
+    detailsOpen: Boolean,
+    motion: Boolean = false,
+    trashed: Boolean = false,
+    overlay: (@Composable BoxScope.() -> Unit)? = null,
+) = LightforgeTheme {
     val items = previewItems
     var current by remember { mutableStateOf(items[selected]) }
     var favorite by remember { mutableStateOf(false) }
@@ -144,36 +196,39 @@ private fun ViewerPreviewFrame(selected: Int, detailsOpen: Boolean, motion: Bool
         sidePanel = adaptive.supportsTwoPane,
         state = detailsState,
         viewer = {
-            ViewerContent(
-                media = current,
-                mediaItems = items,
-                photoState = if (current.kind == MediaKind.Image) photo else null,
-                videoController = video,
-                thumbnailLoader = thumbnails,
-                isFavorite = favorite,
-                onBack = {},
-                onToggleFavorite = if (trashed) null else ({ favorite = !favorite }),
-                onShare = if (trashed) null else ({}),
-                onShareSanitized = if (trashed) null else ({}),
-                onDetails = { showDetails = true },
-                onEdit = if (trashed) null else ({}),
-                onMotionPhoto = if (motion) ({}) else null,
-                motionPhotoLabel = if (motion) "Motion" else null,
-                onRename = if (trashed) null else ({}),
-                onCopy = if (trashed) null else ({}),
-                onMove = if (trashed) null else ({}),
-                onOpenWith = if (trashed) null else ({}),
-                onSetAs = if (trashed) null else ({}),
-                onPrint = if (trashed) null else ({}),
-                onRepairDate = if (trashed) null else ({}),
-                onTrash = {},
-                trashActionLabel = if (trashed) "Restore" else null,
-                onDelete = if (trashed) ({}) else null,
-                deleteActionLabel = if (trashed) "Delete permanently" else null,
-                onSelectMedia = { current = it },
-                detailsState = detailsState,
-                modifier = Modifier.fillMaxSize(),
-            )
+            Box(Modifier.fillMaxSize()) {
+                ViewerContent(
+                    media = current,
+                    mediaItems = items,
+                    photoState = if (current.kind == MediaKind.Image) photo else null,
+                    videoController = video,
+                    thumbnailLoader = thumbnails,
+                    isFavorite = favorite,
+                    onBack = {},
+                    onToggleFavorite = if (trashed) null else ({ favorite = !favorite }),
+                    onShare = if (trashed) null else ({}),
+                    onShareSanitized = if (trashed) null else ({}),
+                    onDetails = { showDetails = true },
+                    onEdit = if (trashed) null else ({}),
+                    onMotionPhoto = if (motion) ({}) else null,
+                    motionPhotoLabel = if (motion) "Motion" else null,
+                    onRename = if (trashed) null else ({}),
+                    onCopy = if (trashed) null else ({}),
+                    onMove = if (trashed) null else ({}),
+                    onOpenWith = if (trashed) null else ({}),
+                    onSetAs = if (trashed) null else ({}),
+                    onPrint = if (trashed) null else ({}),
+                    onRepairDate = if (trashed) null else ({}),
+                    onTrash = {},
+                    trashActionLabel = if (trashed) "Restore" else null,
+                    onDelete = if (trashed) ({}) else null,
+                    deleteActionLabel = if (trashed) "Delete permanently" else null,
+                    onSelectMedia = { current = it },
+                    detailsState = detailsState,
+                    modifier = Modifier.fillMaxSize(),
+                )
+                overlay?.invoke(this)
+            }
         },
         details = { padding ->
             val isVideo = current.kind == MediaKind.Video
