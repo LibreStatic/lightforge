@@ -148,6 +148,17 @@ class HoldSlowMotionSession(
         return clip
     }
 
+    /**
+     * Stops rendering the buffer and frees its decoder and interpolator. Frames already written stay
+     * cached; the next [warmUp] or [start] resumes the window from scratch.
+     */
+    fun suspendBuffering() {
+        prefetchJob?.cancel()
+        prefetchJob = null
+        preparingWindowStart = Long.MIN_VALUE
+        armed = false
+    }
+
     fun discardSavedClip() {
         if (playbackJob?.isActive != true) mutableState.replaceFrame(HoldSlowMotionState.Idle)
     }

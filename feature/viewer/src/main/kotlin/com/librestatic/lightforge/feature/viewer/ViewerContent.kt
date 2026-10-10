@@ -787,7 +787,12 @@ fun ViewerContent(
         SlowMotionOverlay(
             state = slowMotionState,
             saveProgress = slowMotionSaveProgress,
-            onSave = onSaveSlowMotionClip,
+            onSave = { clip ->
+                // The export needs its own 4K decoder and encoder; a buffer still rendering beside the
+                // player exhausts the hardware codecs and the export dies with NO_MEMORY.
+                slowMotionSession?.suspendBuffering()
+                onSaveSlowMotionClip(clip)
+            },
             onDismiss = { slowMotionSession?.discardSavedClip() },
             onCancelSave = onCancelSlowMotionSave,
         )
