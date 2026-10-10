@@ -4841,6 +4841,7 @@ class GalleryViewModel @Inject constructor(
                         trimStartMillis = recipe.startMillis,
                         trimEndMillis = recipe.endMillis ?: source.durationMillis,
                         speed = recipe.speed,
+                        interpolateSlowMotion = recipe.interpolateSlowMotion,
                         originalAudioVolume = recipe.originalAudioVolume,
                         selectedMusicName = recipe.musicUri?.let { uri -> musicDisplayName(uri) ?: uri.lastPathSegment },
                         selectedMusicUri = recipe.musicUri,
@@ -4936,6 +4937,16 @@ class GalleryViewModel @Inject constructor(
         mutableVideoEditor.value = session.copy(
             recipe = recipe,
             content = session.content.copy(speed = safeSpeed, isDirty = session.isDirty(recipe)),
+        )
+        persistVideoRecipe(recipe)
+    }
+
+    fun setVideoSlowMotionInterpolation(enabled: Boolean) {
+        val session = mutableVideoEditor.value ?: return
+        val recipe = session.recipe.copy(interpolateSlowMotion = enabled)
+        mutableVideoEditor.value = session.copy(
+            recipe = recipe,
+            content = session.content.copy(interpolateSlowMotion = enabled, isDirty = session.isDirty(recipe)),
         )
         persistVideoRecipe(recipe)
     }

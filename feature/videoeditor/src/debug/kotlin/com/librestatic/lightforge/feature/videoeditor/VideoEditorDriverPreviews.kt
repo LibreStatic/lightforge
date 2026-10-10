@@ -63,6 +63,34 @@ fun VideoEditorPreview() = DriverFrame {
     )
 }
 
+/** Speed tool at 0.5x with one slow-motion segment, so the interpolation toggle shows. Driver: `VideoSpeedControlsPreview`. */
+@Preview
+@Composable
+fun VideoSpeedControlsPreview() = DriverFrame {
+    var state by remember {
+        mutableStateOf(
+            VideoEditorContentState(
+                durationMillis = 18_000,
+                trimEndMillis = 18_000,
+                speed = 0.5f,
+                slowMotionSegments = listOf(SlowMotionSegment(id = "s1", startMillis = 6_000, endMillis = 8_500, speed = 0.25f)),
+                selectedSlowMotionSegmentId = "s1",
+            ),
+        )
+    }
+    SpeedControls(
+        state = state,
+        currentMillis = 4_000,
+        onSpeedChange = { state = state.copy(speed = it) },
+        onMarkIn = {},
+        onMarkOut = {},
+        onSelect = {},
+        onUpdate = {},
+        onDelete = {},
+        onInterpolateSlowMotionChange = { state = state.copy(interpolateSlowMotion = it) },
+    )
+}
+
 /** The filmstrip half loaded, coarse to fine: frames where decoded, placeholders elsewhere. */
 @Preview(heightDp = 200)
 @Composable

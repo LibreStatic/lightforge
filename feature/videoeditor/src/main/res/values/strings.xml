@@ -80,6 +80,10 @@
     <string name="video_editor_base_speed">Playback speed</string>
     <string name="video_editor_mark_in">Mark in</string>
     <string name="video_editor_mark_out">Mark out</string>
+    <string name="video_editor_mark_in_short">In</string>
+    <string name="video_editor_mark_out_short">Out</string>
+    <string name="video_editor_interpolate_frames">Interpolate frames</string>
+    <string name="video_editor_interpolate_frames_description">Generates in-between frames when slowing down for smooth motion. Export takes longer.</string>
     <string name="video_editor_marked_in_at">In marked at %1$s</string>
     <string name="video_editor_slow_segments">Slow-motion segments</string>
     <string name="video_editor_segment_speed">Segment speed</string>

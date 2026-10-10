@@ -128,6 +128,7 @@ internal class VideoEditHistory(private val limit: Int = DefaultLimit) {
         fun changeKey(old: VideoEditRecipe, new: VideoEditRecipe): String = buildList {
             if (old.startMillis != new.startMillis || old.endMillis != new.endMillis) add("trim")
             if (old.speed != new.speed) add("speed")
+            if (old.interpolateSlowMotion != new.interpolateSlowMotion) add("interpolate")
             if (old.originalAudioVolume != new.originalAudioVolume) add("audioVolume")
             if (old.musicUri != new.musicUri) add("music")
             if (old.musicVolume != new.musicVolume) add("musicVolume")
@@ -148,6 +149,7 @@ internal class VideoEditHistory(private val limit: Int = DefaultLimit) {
                 trimEndMillis = end,
                 currentMillis = currentMillis.takeIf { end > start && it in start until end } ?: start,
                 speed = from.speed,
+                interpolateSlowMotion = from.interpolateSlowMotion,
                 originalAudioVolume = from.originalAudioVolume,
                 selectedMusicName = from.selectedMusicName,
                 selectedMusicUri = from.selectedMusicUri,

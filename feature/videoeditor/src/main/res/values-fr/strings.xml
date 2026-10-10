@@ -69,6 +69,10 @@
     <string name="video_editor_base_speed">Vitesse de lecture</string>
     <string name="video_editor_mark_in">Marquer l’entrée</string>
     <string name="video_editor_mark_out">Marquer la sortie</string>
+    <string name="video_editor_mark_in_short">Début</string>
+    <string name="video_editor_mark_out_short">Fin</string>
+    <string name="video_editor_interpolate_frames">Interpoler les images</string>
+    <string name="video_editor_interpolate_frames_description">Crée des images intermédiaires au ralenti pour un mouvement fluide. L’exportation est plus longue.</string>
     <string name="video_editor_marked_in_at">Entrée marquée à %1$s</string>
     <string name="video_editor_slow_segments">Segments au ralenti</string>
     <string name="video_editor_segment_speed">Vitesse du segment</string>

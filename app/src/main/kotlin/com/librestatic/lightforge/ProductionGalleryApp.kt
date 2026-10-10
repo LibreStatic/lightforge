@@ -1828,6 +1828,7 @@ internal fun ProductionGalleryApp(
                         onBack = ::leaveVideoEditor,
                         onSaveCopy = ::startVideoExport,
                         onSpeedChange = viewModel::setVideoSpeed,
+                        onInterpolateSlowMotionChange = viewModel::setVideoSlowMotionInterpolation,
                         onOriginalVolumeChange = viewModel::setVideoOriginalVolume,
                         onChooseMusic = { musicPicker.launch(arrayOf("audio/*")) },
                         onRemoveMusic = viewModel::removeVideoMusic,

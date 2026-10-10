@@ -114,20 +114,22 @@ class VideoEditHistoryTest {
         assertEquals("speed", VideoEditHistory.changeKey(base, base.copy(speed = 2f)))
         assertEquals("trim", VideoEditHistory.changeKey(base, base.copy(startMillis = 500)))
         assertEquals("speed,musicVolume", VideoEditHistory.changeKey(base, base.copy(speed = 2f, musicVolume = 0.3f)))
+        assertEquals("interpolate", VideoEditHistory.changeKey(base, base.copy(interpolateSlowMotion = false)))
     }
 
     @Test
     fun restoringContentKeepsTransientSessionState() {
         val current = VideoEditorContentState(
             currentMillis = 1_000, durationMillis = 10_000, trimStartMillis = 0, trimEndMillis = 10_000,
-            speed = 2f, isExporting = true, statusMessage = "busy",
+            speed = 2f, interpolateSlowMotion = true, isExporting = true, statusMessage = "busy",
         )
         val saved = VideoEditorContentState(
-            durationMillis = 10_000, trimStartMillis = 0, trimEndMillis = 5_000, speed = 1f,
+            durationMillis = 10_000, trimStartMillis = 0, trimEndMillis = 5_000, speed = 1f, interpolateSlowMotion = false,
         )
         val restored = with(VideoEditHistory) { current.withRecipeFieldsFrom(saved) }
 
         assertEquals(1f, restored.speed)
+        assertFalse("Undo brings back the interpolation choice", restored.interpolateSlowMotion)
         assertEquals(5_000L, restored.trimEndMillis)
         assertEquals(1_000L, restored.currentMillis)
         assertTrue("Export progress is not part of the recipe", restored.isExporting)

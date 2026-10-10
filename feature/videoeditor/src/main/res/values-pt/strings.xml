@@ -69,6 +69,10 @@
     <string name="video_editor_base_speed">Velocidade de reprodução</string>
     <string name="video_editor_mark_in">Marcar entrada</string>
     <string name="video_editor_mark_out">Marcar saída</string>
+    <string name="video_editor_mark_in_short">Entrada</string>
+    <string name="video_editor_mark_out_short">Saída</string>
+    <string name="video_editor_interpolate_frames">Interpolar quadros</string>
+    <string name="video_editor_interpolate_frames_description">Cria quadros intermediários ao reduzir a velocidade para um movimento suave. A exportação demora mais.</string>
     <string name="video_editor_marked_in_at">Entrada marcada em %1$s</string>
     <string name="video_editor_slow_segments">Trechos em câmera lenta</string>
     <string name="video_editor_segment_speed">Velocidade do trecho</string>

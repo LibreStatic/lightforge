@@ -69,6 +69,10 @@
     <string name="video_editor_base_speed">Wiedergabegeschwindigkeit</string>
     <string name="video_editor_mark_in">Start markieren</string>
     <string name="video_editor_mark_out">Ende markieren</string>
+    <string name="video_editor_mark_in_short">Anfang</string>
+    <string name="video_editor_mark_out_short">Ende</string>
+    <string name="video_editor_interpolate_frames">Zwischenbilder berechnen</string>
+    <string name="video_editor_interpolate_frames_description">Erzeugt beim Verlangsamen Zwischenbilder für flüssige Bewegung. Der Export dauert länger.</string>
     <string name="video_editor_marked_in_at">Start bei %1$s markiert</string>
     <string name="video_editor_slow_segments">Zeitlupensegmente</string>
     <string name="video_editor_segment_speed">Segmentgeschwindigkeit</string>

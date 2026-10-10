@@ -1,9 +1,24 @@
 package com.librestatic.lightforge.feature.videoeditor
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -27,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveButton
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
@@ -36,6 +52,20 @@ import com.librestatic.lightforge.core.editing.video.SlowMotionSegment
 import kotlin.math.roundToInt
 
 private val BasePlaybackSpeeds = listOf(0.25f, 0.5f, 1f, 1.5f, 2f, 4f)
+
+/** Panel width from which the speed chips and the mark buttons may share one row (the foldable's inner screen). */
+private val WideSpeedPanelWidth = 600.dp
+
+// Fixed parts of a chip and a mark button around their measured label: padding, icon, gap and border.
+private val ChipChromeWidth = 52.dp
+// A label-only chip: 16dp padding on each side plus the outline.
+private val PlainChipChromeWidth = 36.dp
+private val MarkButtonChromeWidth = 74.dp
+private val MarkButtonMinWidth = 120.dp
+// The compact (short-label) buttons of the single row trade the 24dp side padding for 16dp.
+private val CompactMarkButtonChromeWidth = 58.dp
+private val CompactMarkButtonMinWidth = 104.dp
+private val CompactMarkButtonPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
 
 /**
  * Speed tool: a base speed for the whole clip (with the resulting length), plus optional
@@ -52,92 +82,305 @@ internal fun SpeedControls(
     onUpdate: (SlowMotionSegment) -> Unit,
     onDelete: (String) -> Unit,
     modifier: Modifier = Modifier,
+    onInterpolateSlowMotionChange: (Boolean) -> Unit = {},
 ) {
     val selected = state.slowMotionSegments.firstOrNull { it.id == state.selectedSlowMotionSegmentId }
-    Column(
-        modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(GallerySpacing.Md),
-        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
-    ) {
-        Text(stringResource(R.string.video_editor_base_speed), style = MaterialTheme.typography.titleSmall)
-        // Every speed stays visible: the chips wrap instead of scrolling off the panel (bug 6).
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
-            BasePlaybackSpeeds.forEach { speed ->
-                FilterChip(
-                    colors = editorFilterChipColors(),
-                    selected = state.speed == speed,
-                    onClick = { onSpeedChange(speed) },
-                    label = { Text(speedMultiplierLabel(speed)) },
-                    modifier = EditorChipModifier,
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val wide = maxWidth >= WideSpeedPanelWidth
+        // Panel padding is GallerySpacing.Md on each side.
+        val contentWidth = maxWidth - GallerySpacing.Md * 2
+        // Measured labels, so the layout holds in every language and font scale.
+        val measurer = rememberTextMeasurer()
+        val density = LocalDensity.current
+        val labelStyle = MaterialTheme.typography.labelLarge
+        fun labelWidth(text: String) = with(density) { measurer.measure(text, labelStyle).size.width.toDp() }
+        val chipWidths = BasePlaybackSpeeds.map { labelWidth(speedMultiplierLabel(it)) + ChipChromeWidth }
+        val chipGaps = GallerySpacing.Sm * (BasePlaybackSpeeds.size - 1)
+        // Equal columns need the widest label everywhere; the single row sizes each chip to its own label.
+        val chipsWidth = chipWidths.max() * BasePlaybackSpeeds.size + chipGaps
+        val chipsFittedWidth = chipWidths.sumOf { it.value.toDouble() }.dp + chipGaps
+        val markInFull = stringResource(R.string.video_editor_mark_in)
+        val markOutFull = stringResource(R.string.video_editor_mark_out)
+        val markInShort = stringResource(R.string.video_editor_mark_in_short)
+        val markOutShort = stringResource(R.string.video_editor_mark_out_short)
+        fun buttonsWidth(first: String, second: String, compact: Boolean) = listOf(first, second).sumOf {
+            val chrome = if (compact) CompactMarkButtonChromeWidth else MarkButtonChromeWidth
+            (labelWidth(it) + chrome).coerceAtLeast(if (compact) CompactMarkButtonMinWidth else MarkButtonMinWidth)
+                .value.toDouble()
+        }.dp + GallerySpacing.Sm
+        fun fitsOneRow(first: String, second: String, compact: Boolean) =
+            wide && contentWidth >= chipsFittedWidth + GallerySpacing.Md + buttonsWidth(first, second, compact)
+        // Short labels ("In"/"Out") keep the single row on narrower inner screens; the section title gives context.
+        val fullLabelsFit = fitsOneRow(markInFull, markOutFull, compact = false)
+        val singleRow = fullLabelsFit || fitsOneRow(markInShort, markOutShort, compact = true)
+        val compactButtons = singleRow && !fullLabelsFit
+        val markInLabel = if (singleRow && !fullLabelsFit) markInShort else markInFull
+        val markOutLabel = if (singleRow && !fullLabelsFit) markOutShort else markOutFull
+        val chipColumns = if (contentWidth >= chipsWidth) BasePlaybackSpeeds.size else 3
+        val chipWeights = if (singleRow) chipWidths.map { it.value } else List(BasePlaybackSpeeds.size) { 1f }
+        val speedChips: @Composable () -> Unit = { SpeedChipGrid(state.speed, chipColumns, chipWeights, onSpeedChange) }
+        val markButtons: @Composable () -> Unit = {
+            Row(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+                MarkButton(
+                    label = markInLabel,
+                    description = markInFull,
+                    compact = compactButtons,
+                    icon = GalleryIcons.MarkIn,
+                    enabled = true,
+                    onClick = { onMarkIn(currentMillis) },
+                )
+                MarkButton(
+                    label = markOutLabel,
+                    description = markOutFull,
+                    compact = compactButtons,
+                    icon = GalleryIcons.MarkOut,
+                    enabled = state.slowMotionMarkInMillis != null,
+                    onClick = { onMarkOut(currentMillis) },
                 )
             }
         }
-        Text(
-            stringResource(R.string.video_editor_speed_result, formatVideoEditorLengthTime(state.outputLengthMillis())),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Column(
+            Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(GallerySpacing.Md),
+            verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+        ) {
+            val resultText: @Composable () -> Unit = {
+                Text(
+                    stringResource(R.string.video_editor_speed_result, formatVideoEditorLengthTime(state.outputLengthMillis())),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            val markedInText: @Composable () -> Unit = {
+                state.slowMotionMarkInMillis?.let {
+                    Text(
+                        stringResource(R.string.video_editor_marked_in_at, formatMillis(it)),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            val interpolationToggle: @Composable () -> Unit = {
+                if (state.speed < 1f || state.slowMotionSegments.isNotEmpty()) {
+                    InterpolationToggle(state.interpolateSlowMotion, onInterpolateSlowMotionChange)
+                }
+            }
+            val segmentList: @Composable (iconOnlyDelete: Boolean) -> Unit = { iconOnlyDelete ->
+                if (state.slowMotionSegments.isNotEmpty()) {
+                    // Delete acts on the selected range, so it sits at the end of the range list.
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        FlowRow(
+                            Modifier.weight(1f),
+                            horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
+                            verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
+                        ) {
+                            state.slowMotionSegments.forEachIndexed { index, segment ->
+                                FilterChip(
+                                    colors = editorFilterChipColors(),
+                                    selected = segment.id == state.selectedSlowMotionSegmentId,
+                                    onClick = { onSelect(segment.id) },
+                                    label = { Text("${index + 1}: ${formatMillis(segment.startMillis)}–${formatMillis(segment.endMillis)}") },
+                                    modifier = EditorChipModifier,
+                                )
+                            }
+                        }
+                        selected?.let { segment ->
+                            val deleteLabel = stringResource(R.string.video_editor_delete_segment)
+                            if (iconOnlyDelete) {
+                                IconButton(onClick = { onDelete(segment.id) }) {
+                                    Icon(GalleryIcons.Trash, contentDescription = deleteLabel)
+                                }
+                            } else {
+                                TextButton(onClick = { onDelete(segment.id) }, modifier = Modifier.heightIn(min = 48.dp)) {
+                                    Icon(GalleryIcons.Trash, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Text(deleteLabel, modifier = Modifier.padding(start = GallerySpacing.Sm))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (singleRow) {
+                // Two columns: the whole clip on the left, the slow-motion ranges on the right.
+                Row(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Md), modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+                        Text(stringResource(R.string.video_editor_base_speed), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        speedChips()
+                        resultText()
+                        interpolationToggle()
+                    }
+                    // Sized by the mark buttons; more ranges wrap instead of widening the column.
+                    Column(Modifier.width(IntrinsicSize.Min), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+                        Text(stringResource(R.string.video_editor_slow_segments), style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        markButtons()
+                        markedInText()
+                        segmentList(true)
+                    }
+                }
+            } else {
+                Text(stringResource(R.string.video_editor_base_speed), style = MaterialTheme.typography.titleSmall)
+                speedChips()
+                resultText()
+                interpolationToggle()
+                Text(stringResource(R.string.video_editor_slow_segments), style = MaterialTheme.typography.titleSmall)
+                if (wide) {
+                    // The range list continues the mark buttons' row instead of starting one of its own.
+                    Row(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Md), verticalAlignment = Alignment.CenterVertically) {
+                        markButtons()
+                        Box(Modifier.weight(1f)) { segmentList(false) }
+                    }
+                } else {
+                    markButtons()
+                    segmentList(false)
+                }
+                markedInText()
+            }
+            selected?.let { segment ->
+                val segmentSpeeds = listOf(0.5f, 0.25f, 0.125f)
+                val audioModes = listOf(
+                    SlowMotionAudioMode.PreservePitch to stringResource(R.string.video_editor_audio_preserve_pitch),
+                    SlowMotionAudioMode.Muted to stringResource(R.string.video_editor_audio_muted),
+                    SlowMotionAudioMode.Varispeed to stringResource(R.string.video_editor_audio_varispeed),
+                )
+                // Equal chips per group on wide panels: the two groups share one row in proportion to what they
+                // need, or each takes a full row when they do not fit together.
+                val speedGroupWidth = (segmentSpeeds.maxOf { labelWidth(speedMultiplierLabel(it)) } + ChipChromeWidth) * 3 + GallerySpacing.Xs * 2
+                val audioGroupWidth = (audioModes.maxOf { labelWidth(it.second) } + PlainChipChromeWidth) * 3 + GallerySpacing.Xs * 2
+                val sideBySide = wide && contentWidth >= speedGroupWidth + GallerySpacing.Lg + audioGroupWidth
+                val speedGroup: @Composable (Modifier) -> Unit = { groupModifier ->
+                    Column(groupModifier, verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+                        Text(stringResource(R.string.video_editor_segment_speed), style = MaterialTheme.typography.titleSmall)
+                        ChipRow(stretch = wide) { chipModifier ->
+                            segmentSpeeds.forEach { speed ->
+                                FilterChip(
+                                    colors = editorFilterChipColors(),
+                                    selected = segment.speed == speed,
+                                    leadingIcon = {
+                                        Icon(GalleryIcons.SlowMotion, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize))
+                                    },
+                                    onClick = { onUpdate(segment.copy(speed = speed)) },
+                                    label = { Text(speedMultiplierLabel(speed), maxLines = 1, softWrap = false) },
+                                    modifier = chipModifier(),
+                                )
+                            }
+                        }
+                    }
+                }
+                val audioGroup: @Composable (Modifier) -> Unit = { groupModifier ->
+                    Column(groupModifier, verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+                        Text(stringResource(R.string.video_editor_segment_audio), style = MaterialTheme.typography.titleSmall)
+                        ChipRow(stretch = wide) { chipModifier ->
+                            audioModes.forEach { (mode, label) ->
+                                FilterChip(
+                                    colors = editorFilterChipColors(),
+                                    selected = segment.audioMode == mode,
+                                    onClick = { onUpdate(segment.copy(audioMode = mode)) },
+                                    label = { Text(label, maxLines = 1, softWrap = false) },
+                                    modifier = chipModifier(),
+                                )
+                            }
+                        }
+                    }
+                }
+                if (sideBySide) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Lg)) {
+                        speedGroup(Modifier.weight(speedGroupWidth.value))
+                        audioGroup(Modifier.weight(audioGroupWidth.value))
+                    }
+                } else {
+                    speedGroup(Modifier)
+                    audioGroup(Modifier)
+                }
+            }
+        }
+    }
+}
 
-        Text(stringResource(R.string.video_editor_slow_segments), style = MaterialTheme.typography.titleSmall)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
-            GalleryExpressiveButton(
-                onClick = { onMarkIn(currentMillis) },
-                modifier = Modifier.widthIn(min = 104.dp).heightIn(min = 48.dp),
-            ) { Text(stringResource(R.string.video_editor_mark_in)) }
-            GalleryExpressiveButton(
-                onClick = { onMarkOut(currentMillis) },
-                enabled = state.slowMotionMarkInMillis != null,
-                modifier = Modifier.widthIn(min = 104.dp).heightIn(min = 48.dp),
-            ) { Text(stringResource(R.string.video_editor_mark_out)) }
+/** Chips in one stretched row of equal widths, or a wrapping flow at their natural width. */
+@Composable
+private fun ChipRow(stretch: Boolean, content: @Composable (chipModifier: @Composable () -> Modifier) -> Unit) {
+    if (stretch) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
+            content { Modifier.weight(1f).heightIn(min = 48.dp) }
         }
-        state.slowMotionMarkInMillis?.let {
-            Text(stringResource(R.string.video_editor_marked_in_at, formatMillis(it)))
+    } else {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
+            content { EditorChipModifier }
         }
-        if (state.slowMotionSegments.isNotEmpty()) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
-                state.slowMotionSegments.forEachIndexed { index, segment ->
+    }
+}
+
+@Composable
+private fun SpeedChipGrid(speed: Float, columns: Int, weights: List<Float>, onSpeedChange: (Float) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
+        BasePlaybackSpeeds.chunked(columns).forEach { rowSpeeds ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+                rowSpeeds.forEach { value ->
                     FilterChip(
                         colors = editorFilterChipColors(),
-                        selected = segment.id == state.selectedSlowMotionSegmentId,
-                        onClick = { onSelect(segment.id) },
-                        label = { Text("${index + 1}: ${formatMillis(segment.startMillis)}–${formatMillis(segment.endMillis)}") },
-                        modifier = EditorChipModifier,
+                        selected = speed == value,
+                        onClick = { onSpeedChange(value) },
+                        leadingIcon = {
+                            Icon(speedIcon(value), contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize))
+                        },
+                        label = { Text(speedMultiplierLabel(value), maxLines = 1, softWrap = false) },
+                        modifier = Modifier.weight(weights[BasePlaybackSpeeds.indexOf(value)]).heightIn(min = 48.dp),
                     )
                 }
+                // A short last row keeps the same column width instead of stretching its chips.
+                repeat(columns - rowSpeeds.size) { Spacer(Modifier.weight(1f)) }
             }
         }
-        selected?.let { segment ->
-            Text(stringResource(R.string.video_editor_segment_speed), style = MaterialTheme.typography.titleSmall)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
-                listOf(0.5f, 0.25f, 0.125f).forEach { speed ->
-                    FilterChip(
-                        colors = editorFilterChipColors(),
-                        selected = segment.speed == speed,
-                        onClick = { onUpdate(segment.copy(speed = speed)) },
-                        label = { Text(speedMultiplierLabel(speed)) },
-                        modifier = EditorChipModifier,
-                    )
-                }
-            }
-            Text(stringResource(R.string.video_editor_segment_audio), style = MaterialTheme.typography.titleSmall)
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
-                listOf(
-                    SlowMotionAudioMode.PreservePitch to R.string.video_editor_audio_preserve_pitch,
-                    SlowMotionAudioMode.Muted to R.string.video_editor_audio_muted,
-                    SlowMotionAudioMode.Varispeed to R.string.video_editor_audio_varispeed,
-                ).forEach { (mode, label) ->
-                    FilterChip(
-                        colors = editorFilterChipColors(),
-                        selected = segment.audioMode == mode,
-                        onClick = { onUpdate(segment.copy(audioMode = mode)) },
-                        label = { Text(stringResource(label)) },
-                        modifier = EditorChipModifier,
-                    )
-                }
-            }
-            TextButton(onClick = { onDelete(segment.id) }) {
-                Text(stringResource(R.string.video_editor_delete_segment))
-            }
+    }
+}
+
+private fun speedIcon(speed: Float): ImageVector = when {
+    speed < 1f -> GalleryIcons.SlowMotion
+    speed > 1f -> GalleryIcons.FastForward
+    else -> GalleryIcons.Play
+}
+
+@Composable
+private fun MarkButton(
+    label: String,
+    description: String,
+    icon: ImageVector,
+    enabled: Boolean,
+    compact: Boolean,
+    onClick: () -> Unit,
+) {
+    GalleryExpressiveButton(
+        onClick = onClick,
+        enabled = enabled,
+        contentPadding = if (compact) CompactMarkButtonPadding else ButtonDefaults.ContentPadding,
+        modifier = Modifier.widthIn(min = if (compact) CompactMarkButtonMinWidth else MarkButtonMinWidth).heightIn(min = 48.dp)
+            .semantics(mergeDescendants = true) { contentDescription = description },
+    ) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+        Text(label, modifier = Modifier.padding(start = GallerySpacing.Sm))
+    }
+}
+
+/** One toggleable row: the whole row is the switch's touch target. */
+@Composable
+private fun InterpolationToggle(checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Md),
+    ) {
+        Icon(GalleryIcons.AutoAwesome, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.video_editor_interpolate_frames), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                stringResource(R.string.video_editor_interpolate_frames_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
+        Switch(checked = checked, onCheckedChange = null)
     }
 }
 
