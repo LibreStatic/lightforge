@@ -5066,7 +5066,10 @@ class GalleryViewModel @Inject constructor(
                     endMillis = safeEnd,
                     speed = 0.25f,
                 )
-                Media3VideoExporter(getApplication<Application>()).export(
+                Media3VideoExporter(
+                    getApplication<Application>(),
+                    gallerySettings.value.playback.frameInterpolationEngine.toInterpolationEngine(),
+                ).export(
                     VideoExportRequest(
                         input = mediaUri(media),
                         output = temp,

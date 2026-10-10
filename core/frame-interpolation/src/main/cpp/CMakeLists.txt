@@ -37,15 +37,25 @@ endforeach()
 add_library(lightforge_frame_interpolation SHARED
     frame_interpolation_jni.cpp
     guided_compose.cpp
+    hvx_jni.cpp
+    lfrife/hvx_weights.cpp
     rife/rife.cpp
     rife/warp.cpp
     ${SHADER_HEADERS}
 )
-# The per-pixel compose loop is too slow unoptimised, so keep it at -O3 even in debug builds.
-set_source_files_properties(guided_compose.cpp PROPERTIES COMPILE_OPTIONS "-O3")
+# The per-pixel compose and HVX resample loops are too slow unoptimised, so keep them at -O3 even in debug builds.
+set_source_files_properties(guided_compose.cpp hvx_jni.cpp PROPERTIES COMPILE_OPTIONS "-O3")
 target_include_directories(lightforge_frame_interpolation PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/rife
 )
 target_compile_definitions(lightforge_frame_interpolation PRIVATE NCNN_VULKAN=1)
+# Hexagon HVX backend: the lfrife C library only builds for arm64 (it dlopens libcdsprpc.so, so it needs just
+# libdl). Other ABIs get the stubs in hvx_jni.cpp that report the backend as unavailable.
+if(ANDROID_ABI STREQUAL "arm64-v8a")
+    target_sources(lightforge_frame_interpolation PRIVATE lfrife/lfrife.c)
+    set_source_files_properties(lfrife/lfrife.c PROPERTIES COMPILE_OPTIONS "-O2")
+    target_include_directories(lightforge_frame_interpolation PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/lfrife)
+    target_link_libraries(lightforge_frame_interpolation dl)
+endif()
 target_link_libraries(lightforge_frame_interpolation ncnn android jnigraphics log vulkan)

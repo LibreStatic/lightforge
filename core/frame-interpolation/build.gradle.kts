@@ -31,7 +31,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     packaging { jniLibs.useLegacyPackaging = false }
-    androidResources.noCompress += listOf("bin", "param")
+    androidResources.noCompress += listOf("bin", "param", "so")
 }
 
 dependencies {

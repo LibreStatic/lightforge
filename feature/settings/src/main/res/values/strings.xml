@@ -46,6 +46,13 @@
     <string name="settings_video_scrubbing_mode">Video scrubbing</string>
     <string name="settings_video_scrubbing_legacy">Legacy seek bar</string>
     <string name="settings_video_scrubbing_filmstrip">Filmstrip</string>
+    <string name="settings_frame_interpolation">Frame interpolation</string>
+    <string name="settings_frame_interpolation_automatic">Automatic</string>
+    <string name="settings_frame_interpolation_gpu">GPU</string>
+    <string name="settings_frame_interpolation_dsp">DSP (HVX)</string>
+    <string name="settings_frame_interpolation_automatic_hint">DSP when available, otherwise GPU</string>
+    <string name="settings_frame_interpolation_gpu_hint">Fastest previews, uses more battery</string>
+    <string name="settings_frame_interpolation_dsp_hint">Uses less battery</string>
     <string name="settings_autoplay_videos">Autoplay videos</string>
     <string name="settings_start_muted">Start videos muted</string>
     <string name="settings_loop_videos">Loop videos</string>

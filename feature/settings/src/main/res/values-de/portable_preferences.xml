@@ -50,6 +50,7 @@
     <string name="portable_preferences_field_rememberposition">Videoposition merken</string>
     <string name="portable_preferences_field_maximumbrightness">Maximale Helligkeit</string>
     <string name="portable_preferences_field_scrubbing">Videonavigation</string>
+    <string name="portable_preferences_field_frame_interpolation">Zwischenbildberechnung</string>
     <string name="portable_preferences_field_doubletap">Zoom durch Doppeltippen</string>
     <string name="portable_preferences_field_pinch">Zoom durch Aufziehen</string>
     <string name="portable_preferences_field_swipedown">Zum Schließen nach unten wischen</string>

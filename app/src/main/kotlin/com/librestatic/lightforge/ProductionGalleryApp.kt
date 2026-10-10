@@ -71,6 +71,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.mutableStateMapOf
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.remember
@@ -2240,119 +2241,126 @@ internal fun ProductionGalleryApp(
                         onSelectionChange = viewModel::setMediaSelected,
                     )
                 }
-                SurfaceRoute.Settings -> RecognitionSettingsContent(
-                    adaptiveInfo = adaptiveInfo,
-                    state = FaceAnalysisUiState(
-                        consentGranted = peopleAnalysis.consentGranted,
-                        paused = peopleAnalysis.paused,
-                        completedItems = peopleAnalysis.completedItems,
-                        status = peopleAnalysis.status?.let {
-                            when (it) {
-                                com.librestatic.lightforge.core.ml.MlCheckpoint.Status.Ready -> AnalysisStatus.Ready
-                                com.librestatic.lightforge.core.ml.MlCheckpoint.Status.Running -> AnalysisStatus.Running
-                                com.librestatic.lightforge.core.ml.MlCheckpoint.Status.Paused -> AnalysisStatus.Paused
-                                com.librestatic.lightforge.core.ml.MlCheckpoint.Status.Complete -> AnalysisStatus.Complete
-                            }
-                        },
-                    ),
-                    onEnable = { viewModel.setPeopleAnalysisEnabled(true) },
-                    onPause = viewModel::pausePeopleRecognition,
-                    onResume = viewModel::resumePeopleRecognition,
-                    onAnalyzeAll = viewModel::analyzeAllPeople,
-                    onDelete = viewModel::deleteAllLocalAnalysisData,
-                    petCollectionsEnabled = petCollectionsEnabled,
-                    petAnalysisState = FaceAnalysisUiState(
-                        consentGranted = petAnalysis.consentGranted,
-                        paused = petAnalysis.paused,
-                        completedItems = petAnalysis.completedItems,
-                        status = when {
-                            petAnalysis.requested -> AnalysisStatus.Running
-                            else -> petAnalysis.status?.let {
+                SurfaceRoute.Settings -> {
+                    // Probed only here: the first call opens a DSP session and can take seconds; the choice stays hidden until then.
+                    val dspAvailable by produceState(false, context) {
+                        value = com.librestatic.lightforge.core.frameinterpolation.FrameInterpolationEngines.isDspAvailable(context)
+                    }
+                    RecognitionSettingsContent(
+                        adaptiveInfo = adaptiveInfo,
+                        state = FaceAnalysisUiState(
+                            consentGranted = peopleAnalysis.consentGranted,
+                            paused = peopleAnalysis.paused,
+                            completedItems = peopleAnalysis.completedItems,
+                            status = peopleAnalysis.status?.let {
                                 when (it) {
                                     com.librestatic.lightforge.core.ml.MlCheckpoint.Status.Ready -> AnalysisStatus.Ready
                                     com.librestatic.lightforge.core.ml.MlCheckpoint.Status.Running -> AnalysisStatus.Running
                                     com.librestatic.lightforge.core.ml.MlCheckpoint.Status.Paused -> AnalysisStatus.Paused
                                     com.librestatic.lightforge.core.ml.MlCheckpoint.Status.Complete -> AnalysisStatus.Complete
                                 }
-                            }
+                            },
+                        ),
+                        onEnable = { viewModel.setPeopleAnalysisEnabled(true) },
+                        onPause = viewModel::pausePeopleRecognition,
+                        onResume = viewModel::resumePeopleRecognition,
+                        onAnalyzeAll = viewModel::analyzeAllPeople,
+                        onDelete = viewModel::deleteAllLocalAnalysisData,
+                        petCollectionsEnabled = petCollectionsEnabled,
+                        petAnalysisState = FaceAnalysisUiState(
+                            consentGranted = petAnalysis.consentGranted,
+                            paused = petAnalysis.paused,
+                            completedItems = petAnalysis.completedItems,
+                            status = when {
+                                petAnalysis.requested -> AnalysisStatus.Running
+                                else -> petAnalysis.status?.let {
+                                    when (it) {
+                                        com.librestatic.lightforge.core.ml.MlCheckpoint.Status.Ready -> AnalysisStatus.Ready
+                                        com.librestatic.lightforge.core.ml.MlCheckpoint.Status.Running -> AnalysisStatus.Running
+                                        com.librestatic.lightforge.core.ml.MlCheckpoint.Status.Paused -> AnalysisStatus.Paused
+                                        com.librestatic.lightforge.core.ml.MlCheckpoint.Status.Complete -> AnalysisStatus.Complete
+                                    }
+                                }
+                            },
+                        ),
+                        onPetCollectionsEnabledChange = {
+                            if (it) viewModel.enablePetCollections() else viewModel.disablePetCollections()
                         },
-                    ),
-                    onPetCollectionsEnabledChange = {
-                        if (it) viewModel.enablePetCollections() else viewModel.disablePetCollections()
-                    },
-                    onHideDogResults = { viewModel.suppressPetType(com.librestatic.lightforge.core.ml.PetType.Dog) },
-                    onHideCatResults = { viewModel.suppressPetType(com.librestatic.lightforge.core.ml.PetType.Cat) },
-                    onRestorePetResults = {
-                        viewModel.restorePetType(com.librestatic.lightforge.core.ml.PetType.Dog)
-                        viewModel.restorePetType(com.librestatic.lightforge.core.ml.PetType.Cat)
-                    },
-                    settings = gallerySettings,
-                    folderOptions = galleryFolderOptions,
-                    onSettingsChange = viewModel::updateGallerySettings,
-                    onExportSettings = { exportSettingsLauncher.launch("lightforge-backup.json") },
-                    onLocalBackup = { backupTasksReturnRemote = false; route = SurfaceRoute.LocalBackup },
-                    onRemoteBackup = { route = SurfaceRoute.RemoteBackup },
-                    onLocalSharing = { route = SurfaceRoute.LocalSharing },
-                    onPetIdentity = { route = SurfaceRoute.PetIdentity },
-                    onOwnSync = { route = SurfaceRoute.OwnSync },
-                    onOfflinePlaces = ::openOfflinePlaces,
-                    onImportSettings = { importSettingsLauncher.launch("application/json") },
-                    onResetSettings = { confirmResetSettings = true },
-                    onBack = { route = SurfaceRoute.Root },
-                    peopleAnalysisEnabled = localAnalysisSwitches.isActive(com.librestatic.lightforge.core.ml.LocalAnalysisFeature.People),
-                    contentAnalysisEnabled = localAnalysisSwitches.isActive(com.librestatic.lightforge.core.ml.LocalAnalysisFeature.Content),
-                    localAnalysisEnabled = localAnalysisSwitches.master,
-                    onAllAnalysisEnabledChange = viewModel::setAllLocalAnalysisEnabled,
-                    onPeopleAnalysisEnabledChange = viewModel::setPeopleAnalysisEnabled,
-                    onContentAnalysisEnabledChange = viewModel::setContentAnalysisEnabled,
-                    cleanupAnalysisEnabled = cleanupAnalysisEnabled,
-                    onCleanupAnalysisEnabledChange = viewModel::setCleanupAnalysisEnabled,
-                    semanticModels = SemanticModelSettingsUiState(
-                        enabled = semanticModels.enabled,
-                        automaticSelection = semanticModels.selectionMode == com.librestatic.lightforge.feature.semanticsearch.SemanticSelectionMode.Automatic,
-                        activeModelId = semanticModels.activeModelId,
-                        buildingModelId = semanticModels.buildingModelId,
-                        indexError = semanticModels.indexError,
-                        models = semanticModels.models.map { model ->
-                            SemanticModelSettingsItemUi(
-                                id = model.descriptor.id,
-                                name = model.descriptor.displayName,
-                                version = model.descriptor.version,
-                                sizeBytes = model.descriptor.packageBytes,
-                                quality = stringResource(
-                                    if (model.descriptor.id == "tinyclip-quality") com.librestatic.lightforge.feature.settings.R.string.semantic_quality_higher
-                                    else com.librestatic.lightforge.feature.settings.R.string.semantic_quality_balanced,
-                                ),
-                                languages = stringResource(com.librestatic.lightforge.feature.settings.R.string.semantic_language_english_focused),
-                                compatibility = when (model.compatibility) {
-                                    com.librestatic.lightforge.feature.semanticsearch.SemanticModelCompatibility.Recommended -> SemanticModelCompatibilityUi.Recommended
-                                    com.librestatic.lightforge.feature.semanticsearch.SemanticModelCompatibility.Supported -> SemanticModelCompatibilityUi.Supported
-                                    com.librestatic.lightforge.feature.semanticsearch.SemanticModelCompatibility.TechnicallyUnsupported -> SemanticModelCompatibilityUi.Unsupported
-                                },
-                                installed = model.installed,
-                                active = model.active,
-                                downloading = model.downloading,
-                                downloadedBytes = model.downloadedBytes,
-                                waiting = when (model.waiting) {
-                                    com.librestatic.lightforge.core.ml.ModelDownloadWait.Network -> com.librestatic.lightforge.feature.settings.ModelDownloadWaitUi.Network
-                                    com.librestatic.lightforge.core.ml.ModelDownloadWait.WiFi -> com.librestatic.lightforge.feature.settings.ModelDownloadWaitUi.WiFi
-                                    com.librestatic.lightforge.core.ml.ModelDownloadWait.Battery -> com.librestatic.lightforge.feature.settings.ModelDownloadWaitUi.Battery
-                                    null -> null
-                                },
-                                error = model.error,
-                            )
+                        onHideDogResults = { viewModel.suppressPetType(com.librestatic.lightforge.core.ml.PetType.Dog) },
+                        onHideCatResults = { viewModel.suppressPetType(com.librestatic.lightforge.core.ml.PetType.Cat) },
+                        onRestorePetResults = {
+                            viewModel.restorePetType(com.librestatic.lightforge.core.ml.PetType.Dog)
+                            viewModel.restorePetType(com.librestatic.lightforge.core.ml.PetType.Cat)
                         },
-                    ),
-                    onSemanticEnabledChange = viewModel::setSemanticSearchEnabled,
-                    onSemanticDownload = viewModel::downloadSemanticModel,
-                    onSemanticCancelDownload = viewModel::cancelSemanticModelDownload,
-                    onSemanticActivate = viewModel::activateSemanticModel,
-                    onSemanticDelete = viewModel::deleteSemanticModel,
-                    onSemanticDeleteAll = viewModel::deleteAllSemanticModels,
-                    onSemanticAutomaticSelection = viewModel::useAutomaticSemanticModel,
-                    onOpenAbout = { route = SurfaceRoute.About },
-                    showHeader = false,
-                )
+                        settings = gallerySettings,
+                        dspAvailable = dspAvailable,
+                        folderOptions = galleryFolderOptions,
+                        onSettingsChange = viewModel::updateGallerySettings,
+                        onExportSettings = { exportSettingsLauncher.launch("lightforge-backup.json") },
+                        onLocalBackup = { backupTasksReturnRemote = false; route = SurfaceRoute.LocalBackup },
+                        onRemoteBackup = { route = SurfaceRoute.RemoteBackup },
+                        onLocalSharing = { route = SurfaceRoute.LocalSharing },
+                        onPetIdentity = { route = SurfaceRoute.PetIdentity },
+                        onOwnSync = { route = SurfaceRoute.OwnSync },
+                        onOfflinePlaces = ::openOfflinePlaces,
+                        onImportSettings = { importSettingsLauncher.launch("application/json") },
+                        onResetSettings = { confirmResetSettings = true },
+                        onBack = { route = SurfaceRoute.Root },
+                        peopleAnalysisEnabled = localAnalysisSwitches.isActive(com.librestatic.lightforge.core.ml.LocalAnalysisFeature.People),
+                        contentAnalysisEnabled = localAnalysisSwitches.isActive(com.librestatic.lightforge.core.ml.LocalAnalysisFeature.Content),
+                        localAnalysisEnabled = localAnalysisSwitches.master,
+                        onAllAnalysisEnabledChange = viewModel::setAllLocalAnalysisEnabled,
+                        onPeopleAnalysisEnabledChange = viewModel::setPeopleAnalysisEnabled,
+                        onContentAnalysisEnabledChange = viewModel::setContentAnalysisEnabled,
+                        cleanupAnalysisEnabled = cleanupAnalysisEnabled,
+                        onCleanupAnalysisEnabledChange = viewModel::setCleanupAnalysisEnabled,
+                        semanticModels = SemanticModelSettingsUiState(
+                            enabled = semanticModels.enabled,
+                            automaticSelection = semanticModels.selectionMode == com.librestatic.lightforge.feature.semanticsearch.SemanticSelectionMode.Automatic,
+                            activeModelId = semanticModels.activeModelId,
+                            buildingModelId = semanticModels.buildingModelId,
+                            indexError = semanticModels.indexError,
+                            models = semanticModels.models.map { model ->
+                                SemanticModelSettingsItemUi(
+                                    id = model.descriptor.id,
+                                    name = model.descriptor.displayName,
+                                    version = model.descriptor.version,
+                                    sizeBytes = model.descriptor.packageBytes,
+                                    quality = stringResource(
+                                        if (model.descriptor.id == "tinyclip-quality") com.librestatic.lightforge.feature.settings.R.string.semantic_quality_higher
+                                        else com.librestatic.lightforge.feature.settings.R.string.semantic_quality_balanced,
+                                    ),
+                                    languages = stringResource(com.librestatic.lightforge.feature.settings.R.string.semantic_language_english_focused),
+                                    compatibility = when (model.compatibility) {
+                                        com.librestatic.lightforge.feature.semanticsearch.SemanticModelCompatibility.Recommended -> SemanticModelCompatibilityUi.Recommended
+                                        com.librestatic.lightforge.feature.semanticsearch.SemanticModelCompatibility.Supported -> SemanticModelCompatibilityUi.Supported
+                                        com.librestatic.lightforge.feature.semanticsearch.SemanticModelCompatibility.TechnicallyUnsupported -> SemanticModelCompatibilityUi.Unsupported
+                                    },
+                                    installed = model.installed,
+                                    active = model.active,
+                                    downloading = model.downloading,
+                                    downloadedBytes = model.downloadedBytes,
+                                    waiting = when (model.waiting) {
+                                        com.librestatic.lightforge.core.ml.ModelDownloadWait.Network -> com.librestatic.lightforge.feature.settings.ModelDownloadWaitUi.Network
+                                        com.librestatic.lightforge.core.ml.ModelDownloadWait.WiFi -> com.librestatic.lightforge.feature.settings.ModelDownloadWaitUi.WiFi
+                                        com.librestatic.lightforge.core.ml.ModelDownloadWait.Battery -> com.librestatic.lightforge.feature.settings.ModelDownloadWaitUi.Battery
+                                        null -> null
+                                    },
+                                    error = model.error,
+                                )
+                            },
+                        ),
+                        onSemanticEnabledChange = viewModel::setSemanticSearchEnabled,
+                        onSemanticDownload = viewModel::downloadSemanticModel,
+                        onSemanticCancelDownload = viewModel::cancelSemanticModelDownload,
+                        onSemanticActivate = viewModel::activateSemanticModel,
+                        onSemanticDelete = viewModel::deleteSemanticModel,
+                        onSemanticDeleteAll = viewModel::deleteAllSemanticModels,
+                        onSemanticAutomaticSelection = viewModel::useAutomaticSemanticModel,
+                        onOpenAbout = { route = SurfaceRoute.About },
+                        showHeader = false,
+                    )
+                }
                 SurfaceRoute.About -> AboutContent(
                     versionName = BuildConfig.VERSION_NAME,
                     onBack = { route = SurfaceRoute.Settings },
@@ -4315,8 +4323,13 @@ private fun ViewerRoute(
             viewModel.saveVideoPosition(media, controller.currentPositionMillis())
         }
     }
-    val slowMotionSession = if (media.kind == MediaKind.Video) remember(media.key) {
-        com.librestatic.lightforge.feature.viewer.HoldSlowMotionSession(context, viewModel.mediaUri(media))
+    val interpolationEngine = gallerySettings.playback.frameInterpolationEngine.toInterpolationEngine()
+    val slowMotionSession = if (media.kind == MediaKind.Video) remember(media.key, interpolationEngine) {
+        com.librestatic.lightforge.feature.viewer.HoldSlowMotionSession(
+            context,
+            viewModel.mediaUri(media),
+            interpolationEngine,
+        )
     } else null
     LaunchedEffect(slowMotionSession, videoController) {
         val session = slowMotionSession ?: return@LaunchedEffect

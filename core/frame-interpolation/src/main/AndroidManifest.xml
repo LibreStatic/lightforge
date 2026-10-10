@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- The HVX backend dlopens the vendor FastRPC client; apps targeting API 31+ must declare it. Optional, so
+             devices without a Qualcomm DSP still install the app. -->
+        <uses-native-library android:name="libcdsprpc.so" android:required="false" />
+    </application>
+</manifest>

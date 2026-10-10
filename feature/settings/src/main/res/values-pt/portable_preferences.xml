@@ -52,6 +52,7 @@
     <string name="portable_preferences_field_rememberposition">Lembrar posição do vídeo</string>
     <string name="portable_preferences_field_maximumbrightness">Brilho máximo</string>
     <string name="portable_preferences_field_scrubbing">Navegação do vídeo</string>
+    <string name="portable_preferences_field_frame_interpolation">Interpolação de quadros</string>
     <string name="portable_preferences_field_doubletap">Zoom com toque duplo</string>
     <string name="portable_preferences_field_pinch">Zoom por pinça</string>
     <string name="portable_preferences_field_swipedown">Deslizar para baixo para fechar</string>

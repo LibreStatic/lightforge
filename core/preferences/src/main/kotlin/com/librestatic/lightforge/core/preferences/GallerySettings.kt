@@ -121,9 +121,13 @@ data class PlaybackSettings(
     val rememberVideoPosition: Boolean = true,
     val maximumBrightness: Boolean = false,
     val videoScrubbingMode: VideoScrubbingMode = VideoScrubbingMode.LegacySeekBar,
+    val frameInterpolationEngine: FrameInterpolationEngine = FrameInterpolationEngine.Automatic,
 )
 
 enum class VideoScrubbingMode { LegacySeekBar, Filmstrip }
+
+/** Which backend synthesizes in-between frames; the app maps it to the frame-interpolation module. */
+enum class FrameInterpolationEngine { Automatic, Dsp, Gpu }
 
 /**
  * App colour palette. [MaterialYou] follows the wallpaper on Android 12+; the others are fixed

@@ -223,6 +223,7 @@ dependencies {
     implementation(project(":core:editing-image"))
     implementation(project(":core:raw"))
     implementation(project(":core:editing-video"))
+    implementation(project(":core:frame-interpolation"))
     implementation(project(":core:security"))
     implementation(project(":feature:photoeditor"))
     implementation(project(":feature:objecteraser"))

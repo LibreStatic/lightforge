@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import com.librestatic.lightforge.core.frameinterpolation.DecodedVideoFrame
 import com.librestatic.lightforge.core.frameinterpolation.FrameInterpolationBackend
+import com.librestatic.lightforge.core.frameinterpolation.FrameInterpolationEngine
 import com.librestatic.lightforge.core.frameinterpolation.RifeFrameInterpolator
 import com.librestatic.lightforge.core.frameinterpolation.VideoFrameReader
 import com.librestatic.lightforge.core.frameinterpolation.interpolateFactor
@@ -59,6 +60,7 @@ sealed interface HoldSlowMotionState {
 class HoldSlowMotionSession(
     context: Context,
     private val uri: Uri,
+    private val engine: FrameInterpolationEngine = FrameInterpolationEngine.Automatic,
 ) : Closeable {
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -246,10 +248,10 @@ class HoldSlowMotionSession(
             bufferFailure = null
         }
         trimOldCache(directory)
-        val interpolator = RifeFrameInterpolator(appContext)
+        val interpolator = RifeFrameInterpolator(appContext, engine = engine)
         // Vulkan runs RIFE on a small copy only to get its flow and mask, then composes the
         // frames from the high-resolution decode; the CPU backend interpolates at low resolution.
-        val guided = interpolator.capability.backend == FrameInterpolationBackend.Vulkan
+        val guided = interpolator.capability.supportsGuided
         val reader = try {
             VideoFrameReader(appContext, uri, maxLongEdge = if (guided) HighLongEdge else CpuPreviewLongEdge)
         } catch (failure: Throwable) {

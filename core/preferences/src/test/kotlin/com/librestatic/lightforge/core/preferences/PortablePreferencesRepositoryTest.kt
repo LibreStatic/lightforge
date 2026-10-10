@@ -73,6 +73,33 @@ class PortablePreferencesRepositoryTest {
         }
 
     @Test
+    fun frameInterpolationEngineRestoresFromBackupAndRejectsUnknownNames() = test { repo, _ ->
+        val bytes = payload("""{"playback":{"frameInterpolationEngine":"Gpu"}}""")
+        val review = repo.review(bytes, UUID.randomUUID().toString())
+        repo.apply(bytes, review, review.availableGroups)
+        assertEquals(FrameInterpolationEngine.Gpu, repo.settings.first().playback.frameInterpolationEngine)
+
+        // Unknown names are rejected by the strict backup path, as for the other enum fields.
+        failure(PortablePreferencesFailure.InvalidPayload) {
+            repo.review(
+                payload("""{"playback":{"frameInterpolationEngine":"Quantum"}}"""),
+                UUID.randomUUID().toString(),
+            )
+        }
+        assertEquals(FrameInterpolationEngine.Gpu, repo.settings.first().playback.frameInterpolationEngine)
+    }
+
+    @Test
+    fun fullImportFallsBackToAutomaticForMissingOrUnknownEngine() = test { repo, _ ->
+        repo.update { it.copy(playback = it.playback.copy(frameInterpolationEngine = FrameInterpolationEngine.Gpu)) }
+        repo.importJson(org.json.JSONObject("""{"playback":{"frameInterpolationEngine":"Quantum"}}"""))
+        assertEquals(FrameInterpolationEngine.Automatic, repo.settings.first().playback.frameInterpolationEngine)
+        repo.update { it.copy(playback = it.playback.copy(frameInterpolationEngine = FrameInterpolationEngine.Gpu)) }
+        repo.importJson(org.json.JSONObject("""{"playback":{"loopVideos":true}}"""))
+        assertEquals(FrameInterpolationEngine.Automatic, repo.settings.first().playback.frameInterpolationEngine)
+    }
+
+    @Test
     fun playbackAndGesturesApplyOnlyPresentFieldsAndRestoreOldToggleKeys() = test { repo, _ ->
         repo.update { it.copy(gestures = it.gestures.copy(videoSkipSeconds = 30)) }
         // onboardingShown was removed and is ignored; the thumbnail and rotate toggles keep their

@@ -40,6 +40,13 @@
     <string name="settings_video_scrubbing_mode">Desplazamiento del video</string>
     <string name="settings_video_scrubbing_legacy">Barra de búsqueda clásica</string>
     <string name="settings_video_scrubbing_filmstrip">Tira de fotogramas</string>
+    <string name="settings_frame_interpolation">Interpolación de fotogramas</string>
+    <string name="settings_frame_interpolation_automatic">Automático</string>
+    <string name="settings_frame_interpolation_gpu">GPU</string>
+    <string name="settings_frame_interpolation_dsp">DSP (HVX)</string>
+    <string name="settings_frame_interpolation_automatic_hint">DSP si está disponible; si no, GPU</string>
+    <string name="settings_frame_interpolation_gpu_hint">Vista previa más fluida, consume más batería</string>
+    <string name="settings_frame_interpolation_dsp_hint">Consume menos batería</string>
     <string name="settings_autoplay_videos">Reproducir videos automáticamente</string>
     <string name="settings_start_muted">Iniciar videos silenciados</string>
     <string name="settings_loop_videos">Repetir videos</string>

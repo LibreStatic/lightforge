@@ -24,6 +24,8 @@ import com.librestatic.lightforge.core.designsystem.LightforgeTheme
 import com.librestatic.lightforge.core.designsystem.galleryAdaptiveLayoutInfo
 import com.librestatic.lightforge.core.preferences.GallerySettings
 import com.librestatic.lightforge.core.preferences.FolderSelectionTarget
+import com.librestatic.lightforge.core.preferences.FrameInterpolationEngine
+import com.librestatic.lightforge.core.preferences.PlaybackSettings
 import com.librestatic.lightforge.core.preferences.VideoScrubbingMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -144,6 +146,53 @@ class RecognitionSettingsContentDeviceTest {
 
         assertEquals(VideoScrubbingMode.Filmstrip, settings.playback.videoScrubbingMode)
         compose.onNode(hasText(context.getString(R.string.settings_video_scrubbing_filmstrip))).assertIsDisplayed()
+    }
+
+    @Test
+    fun playbackLetsUsersChooseTheFrameInterpolationEngine() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        var settings by mutableStateOf(GallerySettings())
+
+        compose.setContent {
+            LightforgeTheme(darkTheme = false) {
+                PlaybackSettingsTestContent(
+                    settings = settings,
+                    onSettingsChange = { transform -> settings = transform(settings) },
+                    dspAvailable = true,
+                )
+            }
+        }
+
+        compose.onNode(hasTestTag("frame_interpolation_row")).assertIsDisplayed().performClick()
+        compose.onNode(hasTestTag("frame_interpolation_dialog")).assertExists()
+        compose.onNode(hasTestTag("frame_interpolation_Dsp")).assertExists()
+        compose.onNode(hasTestTag("frame_interpolation_Gpu")).performClick()
+        compose.waitForIdle()
+
+        assertEquals(FrameInterpolationEngine.Gpu, settings.playback.frameInterpolationEngine)
+        compose.onNode(hasText(context.getString(R.string.settings_frame_interpolation_gpu))).assertIsDisplayed()
+    }
+
+    @Test
+    fun frameInterpolationHidesDspAndShowsAutomaticWhenUnavailable() {
+        var settings by mutableStateOf(
+            GallerySettings(playback = PlaybackSettings(frameInterpolationEngine = FrameInterpolationEngine.Dsp)),
+        )
+
+        compose.setContent {
+            LightforgeTheme(darkTheme = false) {
+                PlaybackSettingsTestContent(
+                    settings = settings,
+                    onSettingsChange = { transform -> settings = transform(settings) },
+                    dspAvailable = false,
+                )
+            }
+        }
+
+        compose.onNode(hasTestTag("frame_interpolation_row")).performClick()
+        compose.onNode(hasTestTag("frame_interpolation_Dsp")).assertDoesNotExist()
+        compose.onNode(hasTestTag("frame_interpolation_Automatic")).assertExists()
+        assertEquals(FrameInterpolationEngine.Dsp, settings.playback.frameInterpolationEngine)
     }
 
     @Test

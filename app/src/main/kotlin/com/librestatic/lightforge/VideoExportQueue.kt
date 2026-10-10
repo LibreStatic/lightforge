@@ -34,6 +34,7 @@ import com.librestatic.lightforge.core.editing.video.videoExportDiagnostic
 import com.librestatic.lightforge.core.mediastore.MediaWriteSpec
 import com.librestatic.lightforge.core.mediastore.PendingMediaWriter
 import com.librestatic.lightforge.core.ml.MlScheduler
+import com.librestatic.lightforge.core.preferences.GallerySettingsRepository
 import com.librestatic.lightforge.core.ml.UserHardwareWorkload
 import com.librestatic.lightforge.core.ml.UserHardwareWorkloadGate
 import com.librestatic.lightforge.core.model.MediaKind
@@ -45,6 +46,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import org.json.JSONObject
@@ -255,7 +257,10 @@ class VideoExportWorker(context: Context, parameters: WorkerParameters) : Corout
                         ),
                     )
                 }
-            val exportResult = Media3VideoExporter(applicationContext).export(
+            // Read when the export starts, so a changed setting applies to the next export.
+            val interpolationEngine = GallerySettingsRepository(applicationContext).settings.first()
+                .playback.frameInterpolationEngine.toInterpolationEngine()
+            val exportResult = Media3VideoExporter(applicationContext, interpolationEngine).export(
                 VideoExportRequest(original.inputUri.toUri(), output, recipe, customLut = customLut) { progress ->
                     val renderBase = if (recipe.slowMotionSegments.isEmpty()) 100 else 350
                     val permille = when (progress.phase) {

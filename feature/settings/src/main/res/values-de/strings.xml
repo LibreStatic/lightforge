@@ -39,6 +39,13 @@
     <string name="settings_video_scrubbing_mode">Videonavigation</string>
     <string name="settings_video_scrubbing_legacy">Klassische Fortschrittsleiste</string>
     <string name="settings_video_scrubbing_filmstrip">Filmstreifen</string>
+    <string name="settings_frame_interpolation">Zwischenbildberechnung</string>
+    <string name="settings_frame_interpolation_automatic">Automatisch</string>
+    <string name="settings_frame_interpolation_gpu">GPU</string>
+    <string name="settings_frame_interpolation_dsp">DSP (HVX)</string>
+    <string name="settings_frame_interpolation_automatic_hint">DSP, falls verfügbar, sonst GPU</string>
+    <string name="settings_frame_interpolation_gpu_hint">Flüssigste Vorschau, höherer Akkuverbrauch</string>
+    <string name="settings_frame_interpolation_dsp_hint">Geringerer Akkuverbrauch</string>
     <string name="settings_autoplay_videos">Videos automatisch abspielen</string>
     <string name="settings_start_muted">Videos stumm starten</string>
     <string name="settings_loop_videos">Videos wiederholen</string>

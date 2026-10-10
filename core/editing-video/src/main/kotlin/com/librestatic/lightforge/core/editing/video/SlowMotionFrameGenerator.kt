@@ -5,7 +5,7 @@ import android.graphics.Bitmap
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.net.Uri
-import com.librestatic.lightforge.core.frameinterpolation.FrameInterpolationBackend
+import com.librestatic.lightforge.core.frameinterpolation.FrameInterpolationEngine
 import com.librestatic.lightforge.core.frameinterpolation.RifeFrameInterpolator
 import com.librestatic.lightforge.core.frameinterpolation.VideoFrameReader
 import com.librestatic.lightforge.core.frameinterpolation.interpolateFactor
@@ -34,6 +34,7 @@ internal data class GeneratedRange(
  */
 internal class SlowMotionFrameGenerator(
     private val context: Context,
+    private val engine: FrameInterpolationEngine = FrameInterpolationEngine.Automatic,
 ) {
     private var interpolator: RifeFrameInterpolator? = null
 
@@ -62,7 +63,7 @@ internal class SlowMotionFrameGenerator(
         )
         try {
             // One interpolator for all ranges: creating it loads the model and the Vulkan pipelines.
-            interpolator = RifeFrameInterpolator(context)
+            interpolator = RifeFrameInterpolator(context, engine = engine)
             ranges.mapIndexed { index, range ->
                 val file = File(destination, "range-$index.mp4")
                 val durationMillis = renderRange(reader, range, fps, file) { pairs ->
@@ -144,7 +145,7 @@ internal class SlowMotionFrameGenerator(
         // Some GPU drivers (emulated ones in particular) run RIFE "successfully" yet return blank
         // frames. Redo the pair on the CPU backend, and stay there, instead of exporting a
         // slow-motion clip where most frames are black.
-        if (rife.capability.backend == FrameInterpolationBackend.Vulkan &&
+        if (rife.capability.supportsGuided &&
             intermediates.any { it.isBlankComparedTo(left, right) }
         ) {
             intermediates.forEach(Bitmap::recycle)
@@ -158,7 +159,7 @@ internal class SlowMotionFrameGenerator(
 
     /** Low-resolution copy for the guided flow pass; null on a backend that cannot run it. */
     private fun lowResolutionOrNull(frame: Bitmap): Bitmap? =
-        if (interpolator?.capability?.backend == FrameInterpolationBackend.Vulkan) frame.toLowResolution() else null
+        if (interpolator?.capability?.supportsGuided == true) frame.toLowResolution() else null
 
     /** Always a new, even-sized bitmap whose long edge is at most [FlowLongEdge]. */
     private fun Bitmap.toLowResolution(): Bitmap {

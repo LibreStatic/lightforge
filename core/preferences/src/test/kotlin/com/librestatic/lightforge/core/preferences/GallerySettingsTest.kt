@@ -8,6 +8,7 @@ import org.junit.Test
 class GallerySettingsTest {
     @Test fun `legacy seek bar is the default video scrubbing mode`() {
         assertEquals(VideoScrubbingMode.LegacySeekBar, GallerySettings().playback.videoScrubbingMode)
+        assertEquals(FrameInterpolationEngine.Automatic, GallerySettings().playback.frameInterpolationEngine)
         assertEquals(20, GallerySettings().analysis.fullAnalysisMinimumBatteryPercent)
         assertEquals(5, GallerySettings.CurrentSchemaVersion)
     }

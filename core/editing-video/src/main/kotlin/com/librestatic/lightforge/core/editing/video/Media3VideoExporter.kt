@@ -35,6 +35,7 @@ import androidx.media3.transformer.AudioEncoderSettings
 import androidx.media3.effect.FrameDropEffect
 import androidx.media3.effect.Presentation
 import androidx.media3.transformer.TransformationRequest
+import com.librestatic.lightforge.core.frameinterpolation.FrameInterpolationEngine
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -77,7 +78,10 @@ internal fun freshExportMetadataProvider(
 }
 
 /** Media3 Transformer wrapper with trim, speed and PCM volume processing. */
-class Media3VideoExporter(private val context: Context) {
+class Media3VideoExporter(
+    private val context: Context,
+    private val frameInterpolationEngine: FrameInterpolationEngine = FrameInterpolationEngine.Automatic,
+) {
     suspend fun export(request: VideoExportRequest): VideoExportResult {
         if (request.recipe.dynamicRange != VideoDynamicRange.SdrRec709) {
             val capabilities = VideoOutputCapabilities.hdr(context.applicationContext)
@@ -109,7 +113,7 @@ class Media3VideoExporter(private val context: Context) {
                 request.onProgress(VideoExportProgress(VideoExportPhase.GeneratingFrames, 0f))
                 val frameRate = VideoSourceInfoReader.read(context, request.input)?.frameRate
                     ?: DefaultSourceFrameRate
-                SlowMotionFrameGenerator(context.applicationContext).generate(
+                SlowMotionFrameGenerator(context.applicationContext, frameInterpolationEngine).generate(
                     input = request.input,
                     ranges = interpolated,
                     frameRate = frameRate,

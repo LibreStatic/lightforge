@@ -50,6 +50,7 @@
     <string name="portable_preferences_field_rememberposition">Remember video position</string>
     <string name="portable_preferences_field_maximumbrightness">Maximum brightness</string>
     <string name="portable_preferences_field_scrubbing">Video scrubbing</string>
+    <string name="portable_preferences_field_frame_interpolation">Frame interpolation</string>
     <string name="portable_preferences_field_doubletap">Double-tap zoom</string>
     <string name="portable_preferences_field_pinch">Pinch zoom</string>
     <string name="portable_preferences_field_swipedown">Swipe down to close</string>

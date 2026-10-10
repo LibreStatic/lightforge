@@ -45,6 +45,7 @@ enum class PortablePreferenceField(
     RememberPosition(PortablePreferenceGroup.Playback, "playback", "rememberVideoPosition"),
     MaximumBrightness(PortablePreferenceGroup.Playback, "playback", "maximumBrightness"),
     Scrubbing(PortablePreferenceGroup.Playback, "playback", "videoScrubbingMode"),
+    InterpolationEngine(PortablePreferenceGroup.Playback, "playback", "frameInterpolationEngine"),
     DoubleTap(PortablePreferenceGroup.Gestures, "gestures", "doubleTapZoom"),
     Pinch(PortablePreferenceGroup.Gestures, "gestures", "pinchZoom"),
     SwipeDown(PortablePreferenceGroup.Gestures, "gestures", "swipeDownToClose"),
@@ -70,6 +71,7 @@ enum class PortablePreferenceField(
                 Filter -> LibraryFilter.entries.map { it.name }
                 Grouping -> LibraryGrouping.entries.map { it.name }
                 Scrubbing -> VideoScrubbingMode.entries.map { it.name }
+                InterpolationEngine -> FrameInterpolationEngine.entries.map { it.name }
                 Palette -> ThemePalette.entries.map { it.name }
                 Mode -> ThemeMode.entries.map { it.name }
                 else -> null
@@ -99,7 +101,7 @@ enum class PortablePreferenceField(
             Sort,
             Filter,
             Grouping,
-            Scrubbing, Palette, Mode, CollectionOrder, HiddenCollections -> value
+            Scrubbing, InterpolationEngine, Palette, Mode, CollectionOrder, HiddenCollections -> value
             Columns,
             SkipSeconds -> value.toInt()
             PhotoZoom,

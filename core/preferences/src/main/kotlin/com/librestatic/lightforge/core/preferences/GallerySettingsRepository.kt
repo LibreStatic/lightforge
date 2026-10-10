@@ -307,6 +307,10 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                             p[Keys.VideoScrubbingMode]?.enumOrDefault(
                                 VideoScrubbingMode.LegacySeekBar
                             ) ?: VideoScrubbingMode.LegacySeekBar,
+                        frameInterpolationEngine =
+                            p[Keys.FrameInterpolationEngine]?.enumOrDefault(
+                                FrameInterpolationEngine.Automatic
+                            ) ?: FrameInterpolationEngine.Automatic,
                     ),
                 gestures =
                     GestureSettings(
@@ -379,6 +383,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         p[Keys.RememberPosition] = s.playback.rememberVideoPosition
         p[Keys.MaximumBrightness] = s.playback.maximumBrightness
         p[Keys.VideoScrubbingMode] = s.playback.videoScrubbingMode.name
+        p[Keys.FrameInterpolationEngine] = s.playback.frameInterpolationEngine.name
         p[Keys.DoubleTapZoom] = s.gestures.doubleTapZoom
         p[Keys.PinchZoom] = s.gestures.pinchZoom
         p[Keys.SwipeDown] = s.gestures.swipeDownToClose
@@ -443,6 +448,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     put("rememberVideoPosition", playback.rememberVideoPosition)
                     put("maximumBrightness", playback.maximumBrightness)
                     put("videoScrubbingMode", playback.videoScrubbingMode.name)
+                    put("frameInterpolationEngine", playback.frameInterpolationEngine.name)
                 },
             )
             put(
@@ -557,6 +563,9 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     videoScrubbingMode =
                         p.optString("videoScrubbingMode")
                             .enumOrDefault(VideoScrubbingMode.LegacySeekBar),
+                    frameInterpolationEngine =
+                        p.optString("frameInterpolationEngine")
+                            .enumOrDefault(FrameInterpolationEngine.Automatic),
                 ),
             gestures =
                 GestureSettings(
@@ -626,6 +635,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         val RememberPosition = booleanPreferencesKey("playback.remember_position")
         val MaximumBrightness = booleanPreferencesKey("playback.maximum_brightness")
         val VideoScrubbingMode = stringPreferencesKey("playback.video_scrubbing_mode")
+        val FrameInterpolationEngine = stringPreferencesKey("playback.frame_interpolation_engine")
         val DoubleTapZoom = booleanPreferencesKey("gestures.double_tap_zoom")
         val PinchZoom = booleanPreferencesKey("gestures.pinch_zoom")
         val SwipeDown = booleanPreferencesKey("gestures.swipe_down")

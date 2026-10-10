@@ -41,6 +41,7 @@ fun SettingsPreview() {
                     onHideCatResults = {},
                     onRestorePetResults = {},
                     settings = settings,
+                    dspAvailable = true,
                     onSettingsChange = { update -> settings = update(settings) },
                     onLocalBackup = {},
                     onRemoteBackup = {},

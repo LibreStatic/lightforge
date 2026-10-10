@@ -85,6 +85,7 @@ import com.librestatic.lightforge.core.preferences.LibraryGrouping
 import com.librestatic.lightforge.core.preferences.LibrarySort
 import com.librestatic.lightforge.core.preferences.ThemeMode
 import com.librestatic.lightforge.core.preferences.ThemePalette
+import com.librestatic.lightforge.core.preferences.FrameInterpolationEngine
 import com.librestatic.lightforge.core.preferences.VideoScrubbingMode
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryShapeIllustration
@@ -184,6 +185,7 @@ fun RecognitionSettingsContent(
     onHideCatResults: () -> Unit,
     onRestorePetResults: () -> Unit,
     settings: GallerySettings = GallerySettings(),
+    dspAvailable: Boolean = false,
     folderOptions: List<GalleryFolderOption> = emptyList(),
     onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit = {},
     onExportSettings: () -> Unit = {},
@@ -273,7 +275,7 @@ fun RecognitionSettingsContent(
                 onSettingsChange = onSettingsChange,
             )
             SettingsPage.Playback -> SettingsSubPage(embedded = twoPane, illustration = GalleryIcons.Play, title = stringResource(R.string.settings_playback), onBack = { page = SettingsPage.Root }) {
-                PlaybackSection(settings, onSettingsChange)
+                PlaybackSection(settings, onSettingsChange, dspAvailable)
             }
             SettingsPage.Gestures -> SettingsSubPage(embedded = twoPane, illustration = GalleryIcons.Tune, title = stringResource(R.string.settings_gestures), onBack = { page = SettingsPage.Root }) {
                 GesturesSection(settings, onSettingsChange)
@@ -1271,8 +1273,14 @@ private fun SettingsSingleChoiceDialog(
 private fun PlaybackSection(
     settings: GallerySettings,
     onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit,
+    dspAvailable: Boolean = false,
 ) {
     var scrubbingModeDialogVisible by rememberSaveable { mutableStateOf(false) }
+    var interpolationDialogVisible by rememberSaveable { mutableStateOf(false) }
+    // A stored Dsp choice is kept but shown as Automatic where the DSP is not available.
+    val effectiveEngine = settings.playback.frameInterpolationEngine
+        .takeUnless { it == FrameInterpolationEngine.Dsp && !dspAvailable }
+        ?: FrameInterpolationEngine.Automatic
     SettingsCard {
         SettingsValueRow(
             label = stringResource(R.string.settings_video_scrubbing_mode),
@@ -1284,6 +1292,12 @@ private fun PlaybackSection(
             ),
             modifier = Modifier.testTag("video_scrubbing_mode_row"),
             onClick = { scrubbingModeDialogVisible = true },
+        )
+        SettingsValueRow(
+            label = stringResource(R.string.settings_frame_interpolation),
+            value = stringResource(effectiveEngine.labelRes()),
+            modifier = Modifier.testTag("frame_interpolation_row"),
+            onClick = { interpolationDialogVisible = true },
         )
         SettingsSwitchRow(stringResource(R.string.settings_autoplay_videos), settings.playback.autoplayVideos) {
             onSettingsChange { current -> current.copy(playback = current.playback.copy(autoplayVideos = it)) }
@@ -1301,6 +1315,47 @@ private fun PlaybackSection(
             onSettingsChange { current -> current.copy(playback = current.playback.copy(maximumBrightness = it)) }
         }
     }
+    if (interpolationDialogVisible) AlertDialog(
+        modifier = Modifier.testTag("frame_interpolation_dialog"),
+        onDismissRequest = { interpolationDialogVisible = false },
+        title = { Text(stringResource(R.string.settings_frame_interpolation)) },
+        text = {
+            Column {
+                listOf(FrameInterpolationEngine.Automatic, FrameInterpolationEngine.Gpu, FrameInterpolationEngine.Dsp)
+                    .filter { it != FrameInterpolationEngine.Dsp || dspAvailable }
+                    .forEach { engine ->
+                        Row(
+                            Modifier.fillMaxWidth()
+                                .heightIn(min = 56.dp)
+                                .clickable {
+                                    onSettingsChange { current ->
+                                        current.copy(playback = current.playback.copy(frameInterpolationEngine = engine))
+                                    }
+                                    interpolationDialogVisible = false
+                                }
+                                .testTag("frame_interpolation_${engine.name}"),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            RadioButton(selected = effectiveEngine == engine, onClick = null)
+                            Column(Modifier.padding(start = 12.dp)) {
+                                Text(stringResource(engine.labelRes()))
+                                Text(
+                                    stringResource(engine.supportingRes()),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = { interpolationDialogVisible = false }) {
+                Text(stringResource(android.R.string.cancel))
+            }
+        },
+    )
     if (scrubbingModeDialogVisible) AlertDialog(
         modifier = Modifier.testTag("video_scrubbing_mode_dialog"),
         onDismissRequest = { scrubbingModeDialogVisible = false },
@@ -1344,12 +1399,25 @@ private fun PlaybackSection(
     )
 }
 
+private fun FrameInterpolationEngine.labelRes(): Int = when (this) {
+    FrameInterpolationEngine.Automatic -> R.string.settings_frame_interpolation_automatic
+    FrameInterpolationEngine.Gpu -> R.string.settings_frame_interpolation_gpu
+    FrameInterpolationEngine.Dsp -> R.string.settings_frame_interpolation_dsp
+}
+
+private fun FrameInterpolationEngine.supportingRes(): Int = when (this) {
+    FrameInterpolationEngine.Automatic -> R.string.settings_frame_interpolation_automatic_hint
+    FrameInterpolationEngine.Gpu -> R.string.settings_frame_interpolation_gpu_hint
+    FrameInterpolationEngine.Dsp -> R.string.settings_frame_interpolation_dsp_hint
+}
+
 @Composable
 internal fun PlaybackSettingsTestContent(
     settings: GallerySettings,
     onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit,
+    dspAvailable: Boolean = false,
 ) {
-    Column { PlaybackSection(settings, onSettingsChange) }
+    Column { PlaybackSection(settings, onSettingsChange, dspAvailable) }
 }
 
 private val ThemePaletteLabels = mapOf(

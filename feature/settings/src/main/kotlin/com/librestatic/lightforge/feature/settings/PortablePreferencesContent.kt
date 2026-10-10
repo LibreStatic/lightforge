@@ -358,6 +358,7 @@ private fun fieldLabel(field: PortablePreferenceField): Int =
         PortablePreferenceField.MaximumBrightness ->
             R.string.portable_preferences_field_maximumbrightness
         PortablePreferenceField.Scrubbing -> R.string.portable_preferences_field_scrubbing
+        PortablePreferenceField.InterpolationEngine -> R.string.portable_preferences_field_frame_interpolation
         PortablePreferenceField.DoubleTap -> R.string.portable_preferences_field_doubletap
         PortablePreferenceField.Pinch -> R.string.portable_preferences_field_pinch
         PortablePreferenceField.SwipeDown -> R.string.portable_preferences_field_swipedown
@@ -391,6 +392,9 @@ private fun valueLabel(value: String): Int? =
         "None" -> R.string.portable_preferences_value_none
         "LegacySeekBar" -> R.string.portable_preferences_value_legacyseekbar
         "Filmstrip" -> R.string.portable_preferences_value_filmstrip
+        "Automatic" -> R.string.settings_frame_interpolation_automatic
+        "Gpu" -> R.string.settings_frame_interpolation_gpu
+        "Dsp" -> R.string.settings_frame_interpolation_dsp
         "MaterialYou" -> R.string.settings_theme_material_you
         "Neutral" -> R.string.settings_theme_neutral
         "Rounded" -> R.string.settings_theme_rounded

@@ -35,7 +35,7 @@ class RifeResolutionBenchmarkTest {
     fun guidedAndEncodeCost() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         RifeFrameInterpolator(context).use { interpolator ->
-            if (interpolator.capability.backend != FrameInterpolationBackend.Vulkan) return
+            if (!interpolator.capability.supportsGuided) return
             val highA = texturedBitmap(1280, 720, 0f)
             val highB = texturedBitmap(1280, 720, 12f)
             val lowA = Bitmap.createScaledBitmap(highA, 320, 180, true)
