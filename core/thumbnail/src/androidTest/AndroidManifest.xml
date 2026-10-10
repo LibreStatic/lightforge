@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- HeifFallbackDeviceTest reads a pre-existing device photo; grant with `pm grant` before running. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+</manifest>

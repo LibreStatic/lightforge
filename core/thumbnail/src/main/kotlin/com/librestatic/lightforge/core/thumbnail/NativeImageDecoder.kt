@@ -13,6 +13,7 @@ import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Build
 import android.os.CancellationSignal
+import android.os.OperationCanceledException
 import android.os.ParcelFileDescriptor
 import android.util.Size
 import androidx.annotation.WorkerThread
@@ -22,9 +23,44 @@ import kotlin.math.ceil
 import kotlin.math.max
 
 class NativeImageDecoder(private val resolver: ContentResolver) {
+    private val heifFallback = HeifFallbackDecoder(resolver)
+
+    /**
+     * MediaProvider rejects some valid HEIFs (e.g. iOS HDR gain-map HEICs); those fall back to an
+     * in-app container parse + MediaCodec decode.
+     */
     @WorkerThread
-    fun thumbnail(uri: Uri, size: Size, signal: CancellationSignal): Bitmap =
-        resolver.loadThumbnail(uri, size, signal)
+    fun thumbnail(uri: Uri, size: Size, signal: CancellationSignal): Bitmap {
+        val key = uri.toString()
+        if (key in failedThumbnailUris) {
+            try {
+                return heifFallback.decodeThumbnail(uri, size, signal)
+            } catch (e: OperationCanceledException) {
+                throw e
+            } catch (_: IOException) {
+                // Fall through to the platform path to surface its error.
+            } catch (_: RuntimeException) {
+            }
+        }
+        try {
+            return resolver.loadThumbnail(uri, size, signal)
+        } catch (original: IOException) {
+            val fallback = try {
+                if (heifFallback.isHeif(uri)) heifFallback.decodeThumbnail(uri, size, signal) else null
+            } catch (e: OperationCanceledException) {
+                throw e
+            } catch (e: IOException) {
+                original.addSuppressed(e)
+                null
+            } catch (e: RuntimeException) {
+                original.addSuppressed(e)
+                null
+            }
+            if (fallback == null) throw original
+            failedThumbnailUris[key] = true
+            return fallback
+        }
+    }
 
     /** Sample before decode, then orient/fit the small preview; never materialize the full bitmap. */
     @WorkerThread
@@ -34,7 +70,9 @@ class NativeImageDecoder(private val resolver: ContentResolver) {
         resolver.openFileDescriptor(uri, "r")?.use {
             BitmapFactory.decodeFileDescriptor(it.fileDescriptor, null, bounds)
         }
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) throw IOException("Image bounds unavailable")
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+            return heifPreview(uri, targetWidth, targetHeight, IOException("Image bounds unavailable"))
+        }
         val requestedDivisor = max(1, max(bounds.outWidth / targetWidth, bounds.outHeight / targetHeight))
         var sampleSize = 1
         while (sampleSize * 2 <= requestedDivisor) sampleSize *= 2
@@ -47,7 +85,7 @@ class NativeImageDecoder(private val resolver: ContentResolver) {
                     inPreferredConfig = Bitmap.Config.ARGB_8888
                 },
             )
-        } ?: throw IOException("Image decode failed")
+        } ?: return heifPreview(uri, targetWidth, targetHeight, IOException("Image decode failed"))
         val oriented = applyExifOrientation(uri, decoded)
         val scale = minOf(
             1.0,
@@ -61,6 +99,20 @@ class NativeImageDecoder(private val resolver: ContentResolver) {
             (oriented.height * scale).toInt().coerceAtLeast(1),
             true,
         ).also { if (it !== oriented) oriented.recycle() }
+    }
+
+    /** HEIF fallback for the viewer; its orientation comes from irot/imir, so EXIF is not applied. */
+    private fun heifPreview(uri: Uri, targetWidth: Int, targetHeight: Int, original: IOException): Bitmap {
+        try {
+            if (heifFallback.isHeif(uri)) return heifFallback.decodePrimary(uri, targetWidth, targetHeight)
+        } catch (e: OperationCanceledException) {
+            throw e
+        } catch (e: IOException) {
+            original.addSuppressed(e)
+        } catch (e: RuntimeException) {
+            original.addSuppressed(e)
+        }
+        throw original
     }
 
     /** Animated GIF/WebP stay animated; static formats use the bounded preview path. */
@@ -124,6 +176,13 @@ class NativeImageDecoder(private val resolver: ContentResolver) {
             .also { if (it !== source) source.recycle() }
     }
 }
+
+/** URIs whose platform thumbnail failed but decoded through the HEIF fallback (skips ~1.5 s of codec churn). */
+private val failedThumbnailUris: MutableMap<String, Boolean> = java.util.Collections.synchronizedMap(
+    object : LinkedHashMap<String, Boolean>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Boolean>): Boolean = size > 256
+    },
+)
 
 /** Reuses one seekable descriptor/region decoder and closes both deterministically. */
 class LargeImageTileSource private constructor(
