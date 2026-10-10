@@ -1,0 +1,56 @@
+<en-US>
+• Smooth slow motion: slowing down a video in the editor now creates in-between frames at full resolution. Turn it off with "Interpolate frames".
+• Holding to play in slow motion is now sharp, and "Save slow-mo clip" has a clearer button.
+• The speed panel fits better on large screens and foldables.
+• Slow motion no longer shifts colors in HDR videos.
+Report problems at github.com/LibreStatic/lightforge/issues
+</en-US>
+<es-419>
+• Cámara lenta fluida: al ralentizar un video en el editor se crean fotogramas intermedios en resolución completa. Desactivalo con "Interpolar fotogramas".
+• Mantener presionado para ver en cámara lenta ahora se ve nítido, y "Guardar clip lento" tiene un botón más claro.
+• El panel de velocidad aprovecha mejor las pantallas grandes y los plegables.
+• La cámara lenta ya no altera los colores en videos HDR.
+Reportá problemas en github.com/LibreStatic/lightforge/issues
+</es-419>
+<es-ES>
+• Cámara lenta fluida: al ralentizar un vídeo en el editor se crean fotogramas intermedios a resolución completa. Desactívalo con "Interpolar fotogramas".
+• Mantener pulsado para ver a cámara lenta ahora se ve nítido, y "Guardar clip lento" tiene un botón más claro.
+• El panel de velocidad aprovecha mejor las pantallas grandes y los plegables.
+• La cámara lenta ya no altera los colores en vídeos HDR.
+Informa de problemas en github.com/LibreStatic/lightforge/issues
+</es-ES>
+<pt-BR>
+• Câmera lenta suave: ao reduzir a velocidade de um vídeo no editor, quadros intermediários são criados em resolução total. Desative em "Interpolar quadros".
+• Segurar para ver em câmera lenta agora fica nítido, e "Salvar clipe lento" tem um botão mais claro.
+• O painel de velocidade aproveita melhor telas grandes e dobráveis.
+• A câmera lenta não altera mais as cores em vídeos HDR.
+Relate problemas em github.com/LibreStatic/lightforge/issues
+</pt-BR>
+<pt-PT>
+• Câmara lenta suave: ao abrandar um vídeo no editor, são criados fotogramas intermédios em resolução total. Desative em "Interpolar quadros".
+• Manter premido para ver em câmara lenta fica agora nítido, e "Salvar clipe lento" tem um botão mais claro.
+• O painel de velocidade aproveita melhor ecrãs grandes e dobráveis.
+• A câmara lenta já não altera as cores em vídeos HDR.
+Comunique problemas em github.com/LibreStatic/lightforge/issues
+</pt-PT>
+<fr-FR>
+• Ralenti fluide : ralentir une vidéo dans l'éditeur crée désormais des images intermédiaires en pleine résolution. Désactivez-le avec « Interpoler les images ».
+• Le ralenti par appui long est désormais net, et « Enregistrer le clip au ralenti » a un bouton plus clair.
+• Le panneau de vitesse s'adapte mieux aux grands écrans et aux pliables.
+• Le ralenti ne modifie plus les couleurs des vidéos HDR.
+Signalez les problèmes sur github.com/LibreStatic/lightforge/issues
+</fr-FR>
+<de-DE>
+• Flüssige Zeitlupe: Wenn du ein Video im Editor verlangsamst, entstehen jetzt Zwischenbilder in voller Auflösung. Abschaltbar mit „Zwischenbilder berechnen“.
+• Gedrückt halten für Zeitlupe ist jetzt scharf, und „Zeitlupenclip speichern“ hat eine klarere Schaltfläche.
+• Der Geschwindigkeitsbereich passt besser auf große Displays und Foldables.
+• Zeitlupe verfälscht die Farben von HDR-Videos nicht mehr.
+Probleme melden unter github.com/LibreStatic/lightforge/issues
+</de-DE>
+<it-IT>
+• Rallentatore fluido: rallentando un video nell'editor ora si creano fotogrammi intermedi a piena risoluzione. Disattivalo con "Interpola i fotogrammi".
+• Tenere premuto per il rallentatore ora è nitido, e "Salva clip rallentato" ha un pulsante più chiaro.
+• Il pannello della velocità si adatta meglio a schermi grandi e pieghevoli.
+• Il rallentatore non altera più i colori dei video HDR.
+Segnala i problemi su github.com/LibreStatic/lightforge/issues
+</it-IT>
