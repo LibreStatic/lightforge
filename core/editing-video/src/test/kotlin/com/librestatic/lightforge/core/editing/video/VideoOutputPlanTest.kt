@@ -142,6 +142,16 @@ class VideoOutputPlanTest {
     }
 
     @Test
+    fun interpolatedSlowMotionKeepsTheSourceFrameRate() {
+        val slow = VideoEditRecipe(speed = 0.5f)
+
+        assertEquals(15f, plan(VideoOutputSettings(), recipe = slow).frameRate)
+        assertEquals(7.5f, plan(VideoOutputSettings(), recipe = slow.copy(interpolateSlowMotion = false)).frameRate)
+        // A 10 fps cap now has interpolated frames to drop.
+        assertEquals(10, plan(VideoOutputSettings(frameRate = VideoOutputFrameRate.Max(10)), recipe = slow).frameRateCap)
+    }
+
+    @Test
     fun frameRateCapAboveTheRealRateIsANoOp() {
         // The container claims 25 fps but delivers 15: a 25 cap must not drop anything.
         val plan = plan(VideoOutputSettings(frameRate = VideoOutputFrameRate.Max(25)))

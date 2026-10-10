@@ -50,6 +50,8 @@ data class VideoEditRecipe(
     val outputQuality: VideoOutputQuality = VideoOutputQuality.H264Compatible,
     val dynamicRange: VideoDynamicRange = VideoDynamicRange.SdrRec709,
     val slowMotionSegments: List<SlowMotionSegment> = emptyList(),
+    /** Synthesises in-between frames (RIFE) wherever the export slows the video down, instead of repeating frames. */
+    val interpolateSlowMotion: Boolean = true,
     val annotations: List<VideoAnnotationLayer> = emptyList(),
     val output: VideoOutputSettings = VideoOutputSettings(),
 ) {

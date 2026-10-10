@@ -13,6 +13,8 @@ object VideoEditRecipeCodec {
             setProperty("start", recipe.startMillis.toString())
             recipe.endMillis?.let { setProperty("end", it.toString()) }
             setProperty("speed", recipe.speed.toString())
+            // Written only when off, so recipes and restore snapshots from before the option stay canonical.
+            if (!recipe.interpolateSlowMotion) setProperty("interpolate", "false")
             setProperty("audio", recipe.originalAudioVolume.toString())
             recipe.musicUri?.let { setProperty("music", it.toString()) }
             setProperty("musicVolume", recipe.musicVolume.toString())
@@ -152,6 +154,7 @@ object VideoEditRecipeCodec {
                 enumValue(properties, "dynamicRange", VideoDynamicRange.SdrRec709)
             } else VideoDynamicRange.SdrRec709,
             slowMotionSegments = slowSegments,
+            interpolateSlowMotion = properties.getProperty("interpolate") != "false",
             annotations = annotations,
             output = decodeOutput(properties),
         )

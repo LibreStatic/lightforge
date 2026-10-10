@@ -218,4 +218,15 @@ class VideoEditRecipeCodecTest {
         assertEquals(0.1f, layer.transformAt(500).translationX, 0.0001f)
         assertEquals(180f, layer.transformAt(500).rotationDegrees, 0.0001f)
     }
+
+    @Test
+    fun interpolationFlagDefaultsToOnAndOnlyOffIsWritten() {
+        val default = VideoEditRecipe(startMillis = 100L)
+        assertEquals(false, VideoEditRecipeCodec.encode(default).contains("interpolate"))
+        assertEquals(true, VideoEditRecipeCodec.decode(VideoEditRecipeCodec.encode(default)).interpolateSlowMotion)
+
+        val off = default.copy(interpolateSlowMotion = false)
+        assertEquals(off, VideoEditRecipeCodec.decode(VideoEditRecipeCodec.encode(off)))
+        assertEquals(false, VideoEditRecipeCodec.decode(VideoEditRecipeCodec.encode(off)).interpolateSlowMotion)
+    }
 }

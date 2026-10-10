@@ -221,7 +221,9 @@ data class VideoOutputPlan(
             val geometryOnly = sizes.resizes.isEmpty()
 
             // Frame rate.
-            val speedFps = sourceFps * if (recipe.slowMotionSegments.isEmpty()) recipe.speed else 1f
+            // Interpolated slow motion keeps the source cadence: the synthesized frames fill the slowdown.
+            val interpolatedGlobal = recipe.interpolateSlowMotion && globalInterpolationFactor(recipe.speed) != null
+            val speedFps = sourceFps * if (recipe.slowMotionSegments.isEmpty() && !interpolatedGlobal) recipe.speed else 1f
             val frameRateCap = when (val rate = output.frameRate) {
                 VideoOutputFrameRate.Original -> null
                 is VideoOutputFrameRate.Max -> if (rate.fps < speedFps - 0.01f) {

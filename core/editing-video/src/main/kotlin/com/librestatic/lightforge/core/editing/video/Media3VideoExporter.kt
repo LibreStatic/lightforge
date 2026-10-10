@@ -46,6 +46,9 @@ import java.nio.ByteOrder
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
+/** The stretches of an export that is not a plain Transformer speed change, and the videos rendered for them. */
+internal class SlowMotionExport(val ranges: List<PlannedRange>, val generated: List<GeneratedRange>)
+
 enum class VideoExportPhase { Preparing, GeneratingFrames, Rendering, Publishing, Verifying, Completed }
 
 data class VideoExportProgress(
@@ -93,33 +96,34 @@ class Media3VideoExporter(private val context: Context) {
             }
         } ?: throw IllegalArgumentException("Video duration is unavailable")
         val plan = outputPlan(request)
-        if (request.recipe.slowMotionSegments.isEmpty()) {
+        val ranges = slowMotionRanges(request.recipe, clipEndMillis)
+        val interpolated = ranges.filter { it.interpolationFactor != null }
+        if (request.recipe.slowMotionSegments.isEmpty() && interpolated.isEmpty()) {
             return withContext(Dispatchers.Main.immediate) {
-                exportOnMain(request, clipEndMillis, emptyList(), plan)
+                exportOnMain(request, clipEndMillis, null, plan)
             }.also { request.onProgress(VideoExportProgress(VideoExportPhase.Completed, 1f)) }
         }
         val frameRoot = File(context.cacheDir, "rife-export-${System.nanoTime()}")
         return try {
-            val segments = request.recipe.slowMotionSegments.mapIndexed { index, segment ->
+            val generated = if (interpolated.isEmpty()) emptyList() else {
+                request.onProgress(VideoExportProgress(VideoExportPhase.GeneratingFrames, 0f))
+                val frameRate = VideoSourceInfoReader.read(context, request.input)?.frameRate
+                    ?: DefaultSourceFrameRate
                 SlowMotionFrameGenerator(context.applicationContext).generate(
                     input = request.input,
-                    segment = segment,
-                    destination = File(frameRoot, segment.id),
-                    onProgress = { segmentProgress ->
-                        request.onProgress(
-                            VideoExportProgress(
-                                VideoExportPhase.GeneratingFrames,
-                                (index + segmentProgress) / request.recipe.slowMotionSegments.size,
-                            ),
-                        )
+                    ranges = interpolated,
+                    frameRate = frameRate,
+                    destination = frameRoot,
+                    onProgress = { fraction ->
+                        request.onProgress(VideoExportProgress(VideoExportPhase.GeneratingFrames, fraction))
                     },
                 )
             }
             withContext(Dispatchers.Main.immediate) {
-                exportOnMain(request, clipEndMillis, segments, plan)
+                exportOnMain(request, clipEndMillis, SlowMotionExport(ranges, generated), plan)
             }.also { request.onProgress(VideoExportProgress(VideoExportPhase.Completed, 1f)) }
         } finally {
-            // NonCancellable: a cancelled export must still drop its full-size RIFE frames.
+            // NonCancellable: a cancelled export must still drop its intermediate videos.
             withContext(NonCancellable + Dispatchers.IO) { frameRoot.deleteRecursively() }
         }
     }
@@ -146,7 +150,7 @@ class Media3VideoExporter(private val context: Context) {
     private suspend fun exportOnMain(
         request: VideoExportRequest,
         clipEndMillis: Long,
-        generatedSlowSegments: List<GeneratedSlowSegment>,
+        slowMotion: SlowMotionExport?,
         plan: VideoOutputPlan?,
     ): VideoExportResult {
         request.output.parentFile?.mkdirs()
@@ -196,11 +200,10 @@ class Media3VideoExporter(private val context: Context) {
             .build()
         val clipDurationMillis = (clipEndMillis - request.recipe.startMillis).coerceAtLeast(0L)
         val outputDurationMillis = outputDurationMillis(request.recipe, clipEndMillis)
-        val composition = if (generatedSlowSegments.isNotEmpty()) {
+        val composition = if (slowMotion != null) {
             buildSlowMotionComposition(
                 request,
-                clipEndMillis,
-                generatedSlowSegments,
+                slowMotion,
                 outputDurationMillis,
                 videoEffects,
                 removeSourceAudio,
@@ -401,6 +404,7 @@ class Media3VideoExporter(private val context: Context) {
     private companion object {
         const val ProgressPollMillis = 250L
         const val Tag = "Media3VideoExporter"
+        const val DefaultSourceFrameRate = 30f
     }
 
     private fun requestedVideoMimeType(request: VideoExportRequest, plan: VideoOutputPlan?): String =
@@ -415,8 +419,7 @@ class Media3VideoExporter(private val context: Context) {
 
     private fun buildSlowMotionComposition(
         request: VideoExportRequest,
-        clipEndMillis: Long,
-        generated: List<GeneratedSlowSegment>,
+        slowMotion: SlowMotionExport,
         outputDurationMillis: Long,
         videoEffects: List<androidx.media3.common.Effect>,
         removeSourceAudio: Boolean,
@@ -425,43 +428,25 @@ class Media3VideoExporter(private val context: Context) {
         val audio = if (!removeSourceAudio && sourceHasAudio(request.input)) {
             EditedMediaItemSequence.Builder(setOf(C.TRACK_TYPE_AUDIO))
         } else null
-        var cursor = request.recipe.startMillis
-        generated.sortedBy { it.segment.startMillis }.forEach { generatedSegment ->
-            val segment = generatedSegment.segment
-            if (segment.startMillis > cursor) {
-                video.addItem(sourceVideoItem(request, cursor, segment.startMillis, request.recipe.speed, videoEffects))
-                audio?.addItem(sourceAudioItem(request, cursor, segment.startMillis, request.recipe.speed, true))
-            }
-            generatedSegment.frames.forEach { frame ->
-                val image = MediaItem.Builder()
-                    .setUri(Uri.fromFile(frame))
-                    .setMimeType("image/jpeg")
-                    .setImageDurationMs(generatedSegment.frameDurationMillis)
-                    .build()
-                video.addItem(
-                    EditedMediaItem.Builder(image)
-                        .setFrameRate(generatedSegment.frameRate)
-                        .setRemoveAudio(true)
-                        .setEffects(androidx.media3.transformer.Effects(emptyList(), videoEffects))
-                        .build(),
-                )
-            }
-            when (segment.audioMode) {
-                SlowMotionAudioMode.Muted -> audio?.addGap(
-                    ((segment.endMillis - segment.startMillis) / segment.speed * 1_000L).toLong(),
-                )
+        slowMotion.ranges.forEach { range ->
+            val generated = slowMotion.generated.firstOrNull { it.range == range }
+            video.addItem(
+                if (generated != null) {
+                    interpolatedVideoItem(generated, videoEffects)
+                } else {
+                    sourceVideoItem(request, range.startMillis, range.endMillis, range.speed, videoEffects)
+                },
+            )
+            when (range.audioMode) {
+                null -> audio?.addItem(sourceAudioItem(request, range.startMillis, range.endMillis, range.speed, true))
+                SlowMotionAudioMode.Muted -> audio?.addGap((range.outputMillis * 1_000L).toLong())
                 SlowMotionAudioMode.PreservePitch -> audio?.addItem(
-                    sourceAudioItem(request, segment.startMillis, segment.endMillis, segment.speed, true),
+                    sourceAudioItem(request, range.startMillis, range.endMillis, range.speed, true),
                 )
                 SlowMotionAudioMode.Varispeed -> audio?.addItem(
-                    sourceAudioItem(request, segment.startMillis, segment.endMillis, segment.speed, false),
+                    sourceAudioItem(request, range.startMillis, range.endMillis, range.speed, false),
                 )
             }
-            cursor = segment.endMillis
-        }
-        if (cursor < clipEndMillis) {
-            video.addItem(sourceVideoItem(request, cursor, clipEndMillis, request.recipe.speed, videoEffects))
-            audio?.addItem(sourceAudioItem(request, cursor, clipEndMillis, request.recipe.speed, true))
         }
         val sequences = mutableListOf(video.build())
         audio?.let { sequences += it.build() }
@@ -485,6 +470,31 @@ class Media3VideoExporter(private val context: Context) {
         return Composition.Builder(sequences)
             .setHdrMode(Composition.HDR_MODE_KEEP_HDR)
             .build()
+    }
+
+    /**
+     * The intermediate video already holds `factor` times the frames, so it plays at speed 1 (exact
+     * power-of-two slow-downs) and is cut to the length the range must have.
+     */
+    private fun interpolatedVideoItem(
+        generated: GeneratedRange,
+        videoEffects: List<androidx.media3.common.Effect>,
+    ): EditedMediaItem {
+        val range = generated.range
+        val wantedMillis = range.sourceMillis * checkNotNull(range.interpolationFactor)
+        val builder = MediaItem.Builder().setUri(Uri.fromFile(generated.file))
+        if (wantedMillis < generated.durationMillis) {
+            builder.setClippingConfiguration(
+                MediaItem.ClippingConfiguration.Builder().setEndPositionMs(wantedMillis).build(),
+            )
+        }
+        val item = EditedMediaItem.Builder(builder.build())
+            .setRemoveAudio(true)
+            .setEffects(androidx.media3.transformer.Effects(emptyList(), videoEffects))
+        if (range.needsVideoSpeedChange()) {
+            item.setSpeed(SpeedParameters(ConstantSpeedProvider(range.videoPlaybackSpeed), true))
+        }
+        return item.build()
     }
 
     private fun sourceVideoItem(
