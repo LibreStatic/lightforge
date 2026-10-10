@@ -351,9 +351,11 @@ private fun RailEntry(item: GalleryNavItem, showLabel: Boolean, compact: Boolean
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Box(
-                Modifier.size(width = 56.dp, height = 32.dp).clip(CircleShape).background(indicator),
+                Modifier.size(width = 56.dp, height = 32.dp),
                 contentAlignment = Alignment.Center,
             ) {
+                // Only the indicator is clipped to the pill: the badge sits partly outside it.
+                Box(Modifier.matchParentSize().clip(CircleShape).background(indicator))
                 CompositionLocalProvider(
                     LocalContentColor provides if (selected) MaterialTheme.colorScheme.onSecondaryContainer
                     else LocalContentColor.current,
