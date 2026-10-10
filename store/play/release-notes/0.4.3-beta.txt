@@ -1,0 +1,40 @@
+<en-US>
+• HEIC photos from recent iPhones now show previews and open on devices where Android could not decode them.
+• On screens that support it, photos open in wide color (Display P3), so they look as vivid as they were captured.
+Report problems at github.com/LibreStatic/lightforge/issues
+</en-US>
+<es-419>
+• Las fotos HEIC de iPhone recientes ahora muestran vista previa y se abren en dispositivos donde Android no podía decodificarlas.
+• En pantallas compatibles, las fotos se abren con color amplio (Display P3) y se ven tan vivas como se capturaron.
+Reportá problemas en github.com/LibreStatic/lightforge/issues
+</es-419>
+<es-ES>
+• Las fotos HEIC de iPhone recientes ahora muestran vista previa y se abren en dispositivos donde Android no podía decodificarlas.
+• En pantallas compatibles, las fotos se abren con color amplio (Display P3) y se ven tan vivas como se capturaron.
+Informa de problemas en github.com/LibreStatic/lightforge/issues
+</es-ES>
+<pt-BR>
+• Fotos HEIC de iPhones recentes agora mostram miniatura e abrem em aparelhos onde o Android não conseguia decodificá-las.
+• Em telas compatíveis, as fotos abrem com cor ampla (Display P3), tão vivas quanto foram capturadas.
+Relate problemas em github.com/LibreStatic/lightforge/issues
+</pt-BR>
+<pt-PT>
+• As fotos HEIC de iPhones recentes mostram agora miniatura e abrem em dispositivos onde o Android não as conseguia descodificar.
+• Em ecrãs compatíveis, as fotos abrem com cor ampla (Display P3), tão vivas como foram captadas.
+Comunique problemas em github.com/LibreStatic/lightforge/issues
+</pt-PT>
+<fr-FR>
+• Les photos HEIC des iPhone récents ont désormais un aperçu et s'ouvrent sur les appareils où Android ne pouvait pas les décoder.
+• Sur les écrans compatibles, les photos s'ouvrent en couleurs étendues (Display P3), aussi éclatantes qu'à la prise de vue.
+Signalez les problèmes sur github.com/LibreStatic/lightforge/issues
+</fr-FR>
+<de-DE>
+• HEIC-Fotos aktueller iPhones zeigen jetzt eine Vorschau und lassen sich auf Geräten öffnen, auf denen Android sie nicht dekodieren konnte.
+• Auf geeigneten Displays öffnen sich Fotos im erweiterten Farbraum (Display P3) und wirken so lebendig wie bei der Aufnahme.
+Probleme melden unter github.com/LibreStatic/lightforge/issues
+</de-DE>
+<it-IT>
+• Le foto HEIC degli iPhone recenti ora mostrano l'anteprima e si aprono sui dispositivi in cui Android non riusciva a decodificarle.
+• Sugli schermi compatibili, le foto si aprono con gamma cromatica estesa (Display P3), vivide come al momento dello scatto.
+Segnala i problemi su github.com/LibreStatic/lightforge/issues
+</it-IT>
