@@ -26,7 +26,7 @@ fun RifeFrameInterpolator.interpolateFactorGuided(
     require(factor == 2 || factor == 4 || factor == 8)
     val results = java.util.stream.IntStream.range(1, factor).parallel().mapToObj { index ->
         runCatching { interpolateGuided(lowFirst, lowSecond, highFirst, highSecond, index.toFloat() / factor) }
-    }.toList()
+    }.collect(java.util.stream.Collectors.toList())
     val failure = results.firstNotNullOfOrNull { it.exceptionOrNull() }
     if (failure != null) {
         results.forEach { it.getOrNull()?.recycle() }
