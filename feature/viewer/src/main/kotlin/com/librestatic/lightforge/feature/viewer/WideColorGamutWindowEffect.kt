@@ -3,6 +3,7 @@ package com.librestatic.lightforge.feature.viewer
 import android.content.pm.ActivityInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 
 /**
@@ -15,7 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 fun WideColorGamutWindowEffect(enabled: Boolean) {
     val context = LocalContext.current
     val activity = context.findViewerActivity()
-    val wideGamutScreen = context.resources.configuration.isScreenWideColorGamut
+    val wideGamutScreen = LocalConfiguration.current.isScreenWideColorGamut
     DisposableEffect(activity, enabled, wideGamutScreen) {
         val window = activity?.window
         if (!enabled || !wideGamutScreen || window == null) return@DisposableEffect onDispose {}
