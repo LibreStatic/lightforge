@@ -214,6 +214,8 @@ fun ViewerContent(
     detailsState: ViewerDetailsState? = null,
     modifier: Modifier = Modifier,
 ) {
+    // Held for the whole viewer route (photos and videos share the pager), not per page.
+    WideColorGamutWindowEffect(enabled = true)
     var textSelectionActive by remember(media.viewerId) { mutableStateOf(false) }
     var chromeVisible by rememberSaveable(media.viewerId) { mutableStateOf(true) }
     var menuExpanded by remember { mutableStateOf(false) }
