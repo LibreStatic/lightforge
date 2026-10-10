@@ -1,5 +1,8 @@
 package com.librestatic.lightforge.feature.details
 
+import androidx.annotation.StringRes
+import com.librestatic.lightforge.core.model.ColorStandard
+import com.librestatic.lightforge.core.model.ColorTransfer
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.time.Instant
@@ -138,6 +141,250 @@ object DetailsFormatting {
         val id = if (offset == ZoneOffset.UTC) "" else offset.id.replace('-', '−')
         return "$time · UTC$id"
     }
+
+    /** "12.4 Mb/s", "128 kb/s", "800 b/s"; null for unknown or non-positive rates. */
+    fun bitrate(bitsPerSecond: Long?, locale: Locale): String? {
+        val bps = bitsPerSecond?.takeIf { it > 0 } ?: return null
+        return when {
+            bps >= 1_000_000 -> decimal(bps / 1_000_000.0, 1, locale) + " Mb/s"
+            bps >= 1_000 -> decimal(bps / 1_000.0, 0, locale) + " kb/s"
+            else -> "$bps b/s"
+        }
+    }
+
+    /** "29.97 fps", "30 fps". */
+    fun frameRate(fps: Float?, locale: Locale): String? =
+        fps?.takeIf { it > 0f && it.isFinite() }?.let { decimal(it.toDouble(), 2, locale) + " fps" }
+
+    /** "48 kHz", "44.1 kHz". */
+    fun sampleRate(hz: Int?, locale: Locale): String? =
+        hz?.takeIf { it > 0 }?.let { decimal(it / 1_000.0, 1, locale) + " kHz" }
+
+    /** "H.264 / AVC", "AAC"; unknown codecs fall back to the upper-cased subtype. */
+    fun codecName(mime: String?): String? {
+        val key = mime?.trim()?.lowercase(Locale.ROOT)?.takeIf { it.isNotEmpty() } ?: return null
+        KnownCodecs[key]?.let { return it }
+        val subtype = key.substringAfter('/', "").removePrefix("x-").removePrefix("vnd.")
+        return subtype.takeIf { it.isNotEmpty() }?.uppercase(Locale.ROOT) ?: key
+    }
+
+    /** Human label for subtitle or metadata tracks; the raw MIME type when unknown. */
+    fun otherStreamName(mime: String?): String? {
+        val key = mime?.trim()?.lowercase(Locale.ROOT)?.takeIf { it.isNotEmpty() } ?: return null
+        return OtherStreamNames[key] ?: codecName(key)
+    }
+
+    fun isSubtitleMime(mime: String?): Boolean {
+        val key = mime?.trim()?.lowercase(Locale.ROOT).orEmpty()
+        return key.startsWith("text/") || key in SubtitleMimes
+    }
+
+    enum class ChannelLayout { Mono, Stereo, Surround51, Surround71, Other }
+
+    fun channelLayout(count: Int): ChannelLayout = when (count) {
+        1 -> ChannelLayout.Mono
+        2 -> ChannelLayout.Stereo
+        6 -> ChannelLayout.Surround51
+        8 -> ChannelLayout.Surround71
+        else -> ChannelLayout.Other
+    }
+
+    fun colorStandardName(standard: ColorStandard): String = when (standard) {
+        ColorStandard.Bt601 -> "BT.601"
+        ColorStandard.Bt709 -> "BT.709"
+        ColorStandard.Bt2020 -> "BT.2020"
+    }
+
+    /** Null for [ColorTransfer.Linear], which has a localized label. */
+    fun colorTransferName(transfer: ColorTransfer): String? = when (transfer) {
+        ColorTransfer.Sdr -> "SDR"
+        ColorTransfer.Hlg -> "HLG"
+        ColorTransfer.Pq -> "PQ (HDR10)"
+        ColorTransfer.Linear -> null
+    }
+
+    /** Display language for an ISO 639 code, or the code itself when the platform cannot name it. */
+    fun languageName(code: String?, locale: Locale): String? {
+        val tag = code?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        val name = Locale.forLanguageTag(tag).getDisplayLanguage(locale)
+        return name.takeIf { it.isNotBlank() && !it.equals(tag, ignoreCase = true) } ?: tag
+    }
+
+    /** "+0.7 EV", "0 EV", "−1.3 EV". */
+    fun exposureBias(ev: Double?, locale: Locale): String? {
+        val value = ev?.takeIf { it.isFinite() } ?: return null
+        val rounded = Math.round(value * 10) / 10.0
+        val sign = when {
+            rounded > 0 -> "+"
+            rounded < 0 -> "−"
+            else -> ""
+        }
+        return sign + decimal(abs(rounded), 1, locale) + " EV"
+    }
+
+    /** "26 mm" for the 35 mm equivalent focal length. */
+    fun focalLength35(mm: Int?): String? = mm?.takeIf { it > 0 }?.let { "$it mm" }
+
+    /** "1.5×"; a ratio of about 1 means no digital zoom was applied, so it is dropped. */
+    fun digitalZoom(ratio: Double?, locale: Locale): String? =
+        ratio?.takeIf { it.isFinite() && it > 1.05 }?.let { decimal(it, 1, locale) + "×" }
+
+    /** "72 dpi", "300 × 150 dpi", "118 dpcm"; EXIF unit 3 is centimetres, anything else inches. */
+    fun printResolution(x: Double?, y: Double?, unit: Int?, locale: Locale): String? {
+        val horizontal = x?.takeIf { it > 0 && it.isFinite() } ?: return null
+        val vertical = y?.takeIf { it > 0 && it.isFinite() } ?: horizontal
+        val suffix = if (unit == 3) " dpcm" else " dpi"
+        val first = decimal(horizontal, 0, locale)
+        val second = decimal(vertical, 0, locale)
+        return (if (first == second) first else "$first × $second") + suffix
+    }
+
+    /** "35 m"; GPS altitude below sea level is shown with a minus sign. */
+    fun altitude(meters: Double?, locale: Locale): String? {
+        val value = meters?.takeIf { it.isFinite() } ?: return null
+        val text = decimal(abs(value), 0, locale)
+        return (if (value < 0 && text != "0") "−" else "") + text + " m"
+    }
+
+    /** "HH:mm:ss.SSS" from an EXIF wall-clock moment and its subsecond digits. */
+    fun preciseTime(moment: Moment?, subsecond: String?): String? {
+        val digits = subsecond?.trim()?.takeIf { it.isNotEmpty() && it.all(Char::isDigit) } ?: return null
+        val local = moment?.local ?: return null
+        val millis = digits.padEnd(3, '0').take(3)
+        return "%02d:%02d:%02d.%s".format(Locale.ROOT, local.hour, local.minute, local.second, millis)
+    }
+
+    /** Medium date plus short time, for secondary timestamps such as the digitized date. */
+    fun dateTime(moment: Moment, locale: Locale): String =
+        DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT).withLocale(locale).format(moment.local)
+
+    /** Degrees for EXIF orientations that are pure rotations or flips; null for undefined values. */
+    data class OrientationInfo(val rotationDegrees: Int, val mirrored: Boolean)
+
+    fun orientation(value: Int?): OrientationInfo? = when (value) {
+        1 -> OrientationInfo(0, false)
+        2 -> OrientationInfo(0, true)
+        3 -> OrientationInfo(180, false)
+        4 -> OrientationInfo(180, true)
+        5 -> OrientationInfo(270, true)
+        6 -> OrientationInfo(90, false)
+        7 -> OrientationInfo(90, true)
+        8 -> OrientationInfo(270, false)
+        else -> null
+    }
+
+    @StringRes
+    fun flashLabel(value: Int?): Int? {
+        if (value == null || value < 0) return null
+        if (value and 0x20 != 0) return R.string.details_flash_none
+        val fired = value and 0x01 != 0
+        return when ((value shr 3) and 0x03) {
+            1 -> if (fired) R.string.details_flash_fired_forced else null
+            2 -> R.string.details_flash_off_forced
+            3 -> if (fired) R.string.details_flash_fired_auto else R.string.details_flash_off_auto
+            else -> if (fired) R.string.details_flash_fired else R.string.details_flash_off
+        }
+    }
+
+    @StringRes
+    fun whiteBalanceLabel(value: Int?): Int? = when (value) {
+        0 -> R.string.details_wb_auto
+        1 -> R.string.details_wb_manual
+        else -> null
+    }
+
+    @StringRes
+    fun meteringLabel(value: Int?): Int? = when (value) {
+        1 -> R.string.details_metering_average
+        2 -> R.string.details_metering_center
+        3 -> R.string.details_metering_spot
+        4 -> R.string.details_metering_multi_spot
+        5 -> R.string.details_metering_pattern
+        6 -> R.string.details_metering_partial
+        else -> null
+    }
+
+    @StringRes
+    fun exposureProgramLabel(value: Int?): Int? = when (value) {
+        1 -> R.string.details_program_manual
+        2 -> R.string.details_program_normal
+        3 -> R.string.details_program_aperture
+        4 -> R.string.details_program_shutter
+        5 -> R.string.details_program_creative
+        6 -> R.string.details_program_action
+        7 -> R.string.details_program_portrait
+        8 -> R.string.details_program_landscape
+        else -> null
+    }
+
+    @StringRes
+    fun sceneCaptureLabel(value: Int?): Int? = when (value) {
+        0 -> R.string.details_scene_standard
+        1 -> R.string.details_scene_landscape
+        2 -> R.string.details_scene_portrait
+        3 -> R.string.details_scene_night
+        else -> null
+    }
+
+    /** JPEG variants all read as "JPEG"; null for values that carry no useful label. */
+    fun compressionName(value: Int?): String? = when (value) {
+        6, 7, 34892 -> "JPEG"
+        else -> null
+    }
+
+    @StringRes
+    fun compressionLabel(value: Int?): Int? = if (value == 1) R.string.details_compression_none else null
+
+    private val SubtitleMimes = setOf(
+        "application/x-subrip", "application/x-quicktime-tx3g", "application/ttml+xml",
+        "application/x-media3-cues", "application/cea-608", "application/cea-708", "application/dvbsubs",
+    )
+
+    private val OtherStreamNames = mapOf(
+        "text/vtt" to "WebVTT",
+        "text/3gpp-tt" to "3GPP Timed Text",
+        "application/x-subrip" to "SubRip",
+        "application/x-quicktime-tx3g" to "QuickTime Text",
+        "application/ttml+xml" to "TTML",
+        "application/x-camera-motion" to "Camera motion",
+        "application/x-android-camera-motion" to "Camera motion",
+        "application/gyro" to "Gyroscope",
+        "application/x-gyro" to "Gyroscope",
+        "application/mp4" to "MP4 metadata",
+        "application/x-mpegurl" to "HLS",
+        "application/id3" to "ID3",
+        "application/x-emsg" to "Event messages",
+    )
+
+    private val KnownCodecs = mapOf(
+        "video/avc" to "H.264 / AVC",
+        "video/hevc" to "H.265 / HEVC",
+        "video/dolby-vision" to "Dolby Vision",
+        "video/av01" to "AV1",
+        "video/x-vnd.on2.vp9" to "VP9",
+        "video/x-vnd.on2.vp8" to "VP8",
+        "video/mp4v-es" to "MPEG-4 Visual",
+        "video/mpeg2" to "MPEG-2",
+        "video/3gpp" to "H.263",
+        "video/mjpeg" to "Motion JPEG",
+        "audio/mp4a-latm" to "AAC",
+        "audio/mpeg" to "MP3",
+        "audio/opus" to "Opus",
+        "audio/vorbis" to "Vorbis",
+        "audio/flac" to "FLAC",
+        "audio/raw" to "PCM",
+        "audio/3gpp" to "AMR-NB",
+        "audio/amr-wb" to "AMR-WB",
+        "audio/ac3" to "AC-3",
+        "audio/eac3" to "E-AC-3",
+        "audio/eac3-joc" to "E-AC-3 JOC (Atmos)",
+        "audio/ac4" to "AC-4",
+        "audio/vnd.dts" to "DTS",
+        "audio/vnd.dts.hd" to "DTS-HD",
+        "audio/g711-alaw" to "G.711 A-law",
+        "audio/g711-mlaw" to "G.711 µ-law",
+        "audio/alac" to "ALAC",
+    )
 
     private fun decimal(value: Double, maxFractionDigits: Int, locale: Locale): String =
         DecimalFormat("0", DecimalFormatSymbols.getInstance(locale))

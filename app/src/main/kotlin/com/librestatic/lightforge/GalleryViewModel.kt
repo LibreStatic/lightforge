@@ -101,6 +101,7 @@ import com.librestatic.lightforge.core.model.MediaKind
 import com.librestatic.lightforge.core.model.TimelineAnchor
 import com.librestatic.lightforge.core.model.TimelineEntry
 import com.librestatic.lightforge.core.model.TimelineIndex
+import com.librestatic.lightforge.core.model.TechnicalMediaDetails
 import com.librestatic.lightforge.core.model.TimelineMedia
 import com.librestatic.lightforge.core.model.EditHistory
 import com.librestatic.lightforge.core.model.EditOperation
@@ -794,6 +795,8 @@ class GalleryViewModel @Inject constructor(
     val cheapDetails = mutableCheapDetails.asStateFlow()
     private val mutableExifDetails = MutableStateFlow<ExifLoadResult?>(null)
     val exifDetails = mutableExifDetails.asStateFlow()
+    private val mutableTechnicalDetails = MutableStateFlow<TechnicalMediaDetails?>(null)
+    val technicalDetails = mutableTechnicalDetails.asStateFlow()
     private val mutableDetectedText = MutableStateFlow<String?>(null)
     val detectedText = mutableDetectedText.asStateFlow()
     private val mutableSystemAction = MutableStateFlow(savedStateHandle[ActionStateKey] as? MediaActionSnapshot)
@@ -3527,6 +3530,7 @@ class GalleryViewModel @Inject constructor(
         savedStateHandle[SelectedMomentStateKey] = null
         mutableCheapDetails.value = null
         mutableExifDetails.value = null
+        mutableTechnicalDetails.value = null
         mutableDetectedText.value = null
         val adjacentPreview = mutableAdjacentPhotoStates.value[media.key]
         mutablePhotoState.value = adjacentPreview
@@ -5991,6 +5995,12 @@ class GalleryViewModel @Inject constructor(
             )
             if (!stillCurrent()) return@launch
             mutableExifDetails.value = exif
+            val technical = active.metadata.technicalDetails(
+                media.key,
+                permissions.access.value.unredactedLocation,
+            )
+            if (!stillCurrent()) return@launch
+            mutableTechnicalDetails.value = technical
             val text = DetectedContentRepository(active.database)
                 .ocr(media.key)
                 ?.rawText

@@ -106,4 +106,104 @@ class DetailsFormattingTest {
         val date = DetailsFormatting.date(moment, Locale.GERMANY)
         assertTrue(date, date.contains("2026") && date.contains("September"))
     }
+
+    @Test fun `bitrate switches between Mb and kb`() {
+        assertEquals("12.4 Mb/s", DetailsFormatting.bitrate(12_400_000, Locale.US))
+        assertEquals("12,4 Mb/s", DetailsFormatting.bitrate(12_400_000, Locale.GERMANY))
+        assertEquals("128 kb/s", DetailsFormatting.bitrate(128_000, Locale.US))
+        assertEquals("800 b/s", DetailsFormatting.bitrate(800, Locale.US))
+        assertNull(DetailsFormatting.bitrate(0, Locale.US))
+        assertNull(DetailsFormatting.bitrate(null, Locale.US))
+    }
+
+    @Test fun `frame and sample rates drop trailing zeros`() {
+        assertEquals("29.97 fps", DetailsFormatting.frameRate(29.97f, Locale.US))
+        assertEquals("30 fps", DetailsFormatting.frameRate(30f, Locale.US))
+        assertNull(DetailsFormatting.frameRate(0f, Locale.US))
+        assertEquals("48 kHz", DetailsFormatting.sampleRate(48_000, Locale.US))
+        assertEquals("44.1 kHz", DetailsFormatting.sampleRate(44_100, Locale.US))
+        assertNull(DetailsFormatting.sampleRate(null, Locale.US))
+    }
+
+    @Test fun `codec names are friendly with a subtype fallback`() {
+        assertEquals("H.264 / AVC", DetailsFormatting.codecName("video/avc"))
+        assertEquals("H.265 / HEVC", DetailsFormatting.codecName("video/hevc"))
+        assertEquals("AV1", DetailsFormatting.codecName("video/av01"))
+        assertEquals("VP9", DetailsFormatting.codecName("video/x-vnd.on2.vp9"))
+        assertEquals("AAC", DetailsFormatting.codecName("audio/mp4a-latm"))
+        assertEquals("OPUS-FOO", DetailsFormatting.codecName("audio/x-opus-foo"))
+        assertNull(DetailsFormatting.codecName(" "))
+    }
+
+    @Test fun `channel layouts`() {
+        assertEquals(DetailsFormatting.ChannelLayout.Mono, DetailsFormatting.channelLayout(1))
+        assertEquals(DetailsFormatting.ChannelLayout.Stereo, DetailsFormatting.channelLayout(2))
+        assertEquals(DetailsFormatting.ChannelLayout.Surround51, DetailsFormatting.channelLayout(6))
+        assertEquals(DetailsFormatting.ChannelLayout.Other, DetailsFormatting.channelLayout(4))
+    }
+
+    @Test fun `exposure bias keeps its sign`() {
+        assertEquals("+0.7 EV", DetailsFormatting.exposureBias(0.67, Locale.US))
+        assertEquals("−1.3 EV", DetailsFormatting.exposureBias(-1.33, Locale.US))
+        assertEquals("0 EV", DetailsFormatting.exposureBias(-0.01, Locale.US))
+        assertNull(DetailsFormatting.exposureBias(null, Locale.US))
+    }
+
+    @Test fun `digital zoom hides the no-zoom ratio`() {
+        assertEquals("1.5×", DetailsFormatting.digitalZoom(1.5, Locale.US))
+        assertNull(DetailsFormatting.digitalZoom(1.0, Locale.US))
+        assertNull(DetailsFormatting.digitalZoom(0.0, Locale.US))
+    }
+
+    @Test fun `print resolution and altitude`() {
+        assertEquals("72 dpi", DetailsFormatting.printResolution(72.0, 72.0, 2, Locale.US))
+        assertEquals("300 × 150 dpi", DetailsFormatting.printResolution(300.0, 150.0, null, Locale.US))
+        assertEquals("118 dpcm", DetailsFormatting.printResolution(118.0, null, 3, Locale.US))
+        assertNull(DetailsFormatting.printResolution(0.0, 72.0, 2, Locale.US))
+        assertEquals("25 m", DetailsFormatting.altitude(25.0, Locale.US))
+        assertEquals("−12 m", DetailsFormatting.altitude(-12.0, Locale.US))
+        assertNull(DetailsFormatting.altitude(Double.NaN, Locale.US))
+    }
+
+    @Test fun `precise time pads subseconds`() {
+        val moment = DetailsFormatting.exifMoment("2026:09:03 15:56:07", null)
+        assertEquals("15:56:07.120", DetailsFormatting.preciseTime(moment, "12"))
+        assertEquals("15:56:07.123", DetailsFormatting.preciseTime(moment, "123456"))
+        assertNull(DetailsFormatting.preciseTime(moment, "x"))
+        assertNull(DetailsFormatting.preciseTime(null, "123"))
+    }
+
+    @Test fun `flash value is decoded from its bit fields`() {
+        assertEquals(R.string.details_flash_off, DetailsFormatting.flashLabel(0))
+        assertEquals(R.string.details_flash_fired, DetailsFormatting.flashLabel(1))
+        assertEquals(R.string.details_flash_fired_auto, DetailsFormatting.flashLabel(0x19))
+        assertEquals(R.string.details_flash_off_auto, DetailsFormatting.flashLabel(0x18))
+        assertEquals(R.string.details_flash_fired_forced, DetailsFormatting.flashLabel(0x09))
+        assertEquals(R.string.details_flash_off_forced, DetailsFormatting.flashLabel(0x10))
+        assertEquals(R.string.details_flash_none, DetailsFormatting.flashLabel(0x20))
+        assertNull(DetailsFormatting.flashLabel(null))
+    }
+
+    @Test fun `exif enums map to labels or null`() {
+        assertEquals(R.string.details_wb_auto, DetailsFormatting.whiteBalanceLabel(0))
+        assertNull(DetailsFormatting.whiteBalanceLabel(7))
+        assertEquals(R.string.details_metering_pattern, DetailsFormatting.meteringLabel(5))
+        assertNull(DetailsFormatting.meteringLabel(255))
+        assertEquals(R.string.details_program_aperture, DetailsFormatting.exposureProgramLabel(3))
+        assertNull(DetailsFormatting.exposureProgramLabel(0))
+        assertEquals(R.string.details_scene_night, DetailsFormatting.sceneCaptureLabel(3))
+        assertEquals("JPEG", DetailsFormatting.compressionName(6))
+        assertNull(DetailsFormatting.compressionName(99))
+    }
+
+    @Test fun `orientation reports rotation and mirroring`() {
+        assertEquals(DetailsFormatting.OrientationInfo(90, false), DetailsFormatting.orientation(6))
+        assertEquals(DetailsFormatting.OrientationInfo(0, true), DetailsFormatting.orientation(2))
+        assertNull(DetailsFormatting.orientation(0))
+    }
+
+    @Test fun `language falls back to the code`() {
+        assertNull(DetailsFormatting.languageName(" ", Locale.US))
+        assertEquals("zzz", DetailsFormatting.languageName("zzz", Locale.US))
+    }
 }

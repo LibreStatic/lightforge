@@ -4217,6 +4217,7 @@ private fun ViewerRoute(
     val cheap by viewModel.cheapDetails.collectAsState()
     val exif by viewModel.exifDetails.collectAsState()
     val detectedText by viewModel.detectedText.collectAsState()
+    val technical by viewModel.technicalDetails.collectAsState()
     // Swiping clears the previous item's details, so reload them for the new one while the panel is open.
     LaunchedEffect(media.key, media.generationModified, showDetails) {
         if (showDetails) viewModel.loadDetails()
@@ -4477,6 +4478,7 @@ private fun ViewerRoute(
                     viewModel::loadDetails,
                     detectedText,
                     modifier = Modifier.fillMaxSize(),
+                    technical = technical,
                     placeName = placeName,
                     showTitle = false,
                     contentPadding = padding,

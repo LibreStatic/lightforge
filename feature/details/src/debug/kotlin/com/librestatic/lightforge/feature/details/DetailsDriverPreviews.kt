@@ -7,12 +7,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.librestatic.lightforge.core.designsystem.LightforgeTheme
+import com.librestatic.lightforge.core.model.AudioStream
 import com.librestatic.lightforge.core.model.CheapMediaDetails
+import com.librestatic.lightforge.core.model.ColorRange
+import com.librestatic.lightforge.core.model.ColorStandard
+import com.librestatic.lightforge.core.model.ColorTransfer
+import com.librestatic.lightforge.core.model.ContainerInfo
+import com.librestatic.lightforge.core.model.ImageTechnicalInfo
 import com.librestatic.lightforge.core.model.ExifLoadResult
 import com.librestatic.lightforge.core.model.ExifMediaDetails
 import com.librestatic.lightforge.core.model.LocationAccessState
 import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.core.model.MediaLocation
+import com.librestatic.lightforge.core.model.OtherStream
+import com.librestatic.lightforge.core.model.TechnicalMediaDetails
+import com.librestatic.lightforge.core.model.VideoStream
 
 // Debug-only, zero-argument entry points for tools/compose-driver and Android Studio previews.
 // Each one feeds fake details into the real DetailsContent.
@@ -58,6 +67,80 @@ object DetailsPreviewData {
         locationState = LocationAccessState.Available,
     )
 
+    /** A 4K HEVC Main 10 HLG clip with stereo AAC and a camera-motion track. */
+    val videoTechnical = TechnicalMediaDetails(
+        container = ContainerInfo(
+            mimeType = "video/mp4",
+            bitrate = 49_800_000,
+            durationMillis = 13_400,
+            captureFrameRate = 59.94f,
+            encoder = "Google Pixel 8 Pro camera, com.google.android.GoogleCamera/Pixel 8 Pro",
+            trackCount = 3,
+        ),
+        videoStreams = listOf(
+            VideoStream(
+                trackIndex = 0,
+                mimeType = "video/hevc",
+                profile = "Main 10",
+                level = "5.1 (High tier)",
+                width = 3840,
+                height = 2160,
+                rotationDegrees = 90,
+                frameRate = 29.97f,
+                bitrate = 48_600_000,
+                colorStandard = ColorStandard.Bt2020,
+                colorTransfer = ColorTransfer.Hlg,
+                colorRange = ColorRange.Limited,
+                hasHdrStaticInfo = true,
+                bitDepth = 10,
+                language = "eng",
+            ),
+        ),
+        audioStreams = listOf(
+            AudioStream(
+                trackIndex = 1,
+                mimeType = "audio/mp4a-latm",
+                profile = "LC",
+                channels = 2,
+                sampleRate = 48_000,
+                bitrate = 256_000,
+                language = "eng",
+            ),
+        ),
+        otherStreams = listOf(OtherStream(trackIndex = 2, mimeType = "application/x-camera-motion")),
+    )
+
+    /** A Display P3 photo with flash, white balance and metering. */
+    val photoTechnical = TechnicalMediaDetails(
+        image = ImageTechnicalInfo(
+            whiteBalance = 0,
+            flash = 0x19,
+            exposureProgram = 2,
+            meteringMode = 2,
+            exposureBias = -0.67,
+            focalLength35mm = 24,
+            digitalZoomRatio = 1.5,
+            sceneCaptureType = 0,
+            lensMake = "Google",
+            software = "HDR+ 1.0.612345678zd",
+            artist = "Facundo",
+            copyright = "© 2026 LibreStatic",
+            description = "Plaza de Mayo at golden hour, looking towards the Casa Rosada",
+            dateTimeDigitized = "2026:09:03 15:56:00",
+            subsecondTime = "123",
+            gpsAltitudeMeters = 25.0,
+            xResolution = 72.0,
+            yResolution = 72.0,
+            resolutionUnit = 2,
+            compression = 6,
+            exifColorSpace = 65535,
+            orientation = 6,
+            decodedColorSpace = "Display P3",
+            bitDepth = 8,
+            hasGainMap = true,
+        ),
+    )
+
     val withLocation: ExifLoadResult = ExifLoadResult.Ready(camera, fromCache = true)
 
     val withoutLocation: ExifLoadResult = ExifLoadResult.Ready(
@@ -69,7 +152,7 @@ object DetailsPreviewData {
 /** A phone photo with camera settings and a location. */
 @Preview
 @Composable
-fun DetailsPhotoPreview() = DetailsFrame { DetailsContent(DetailsPreviewData.photo, DetailsPreviewData.withLocation, false, {}, placeName = "Buenos Aires") }
+fun DetailsPhotoPreview() = DetailsFrame { DetailsContent(DetailsPreviewData.photo, DetailsPreviewData.withLocation, false, {}, technical = DetailsPreviewData.photoTechnical, placeName = "Buenos Aires") }
 
 /** No location in the file: the Location card shows its empty state. */
 @Preview
@@ -79,7 +162,7 @@ fun DetailsNoLocationPreview() = DetailsFrame { DetailsContent(DetailsPreviewDat
 /** A video: no EXIF, so the Camera card explains why and Location is empty. */
 @Preview
 @Composable
-fun DetailsVideoPreview() = DetailsFrame { DetailsContent(DetailsPreviewData.video, ExifLoadResult.NotAnImage, false, {}) }
+fun DetailsVideoPreview() = DetailsFrame { DetailsContent(DetailsPreviewData.video, ExifLoadResult.NotAnImage, false, {}, technical = DetailsPreviewData.videoTechnical) }
 
 /** EXIF still loading. */
 @Preview

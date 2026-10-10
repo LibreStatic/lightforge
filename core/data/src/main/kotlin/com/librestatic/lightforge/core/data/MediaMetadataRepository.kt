@@ -14,6 +14,7 @@ import com.librestatic.lightforge.core.model.ExifMediaDetails
 import com.librestatic.lightforge.core.model.LocationAccessState
 import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.core.model.MediaLocation
+import com.librestatic.lightforge.core.model.TechnicalMediaDetails
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -87,6 +88,45 @@ class MediaMetadataRepository(
         val entity = read.entity(key, media.generationModified, nowMillis())
         dao.upsertExif(entity)
         ExifLoadResult.Ready(entity.details(allowUnredactedLocation && read.locationWasAuthorized), false)
+    }
+
+    /**
+     * Format-level data (streams, codecs, colour, extra EXIF), read on demand and never cached.
+     * Location-bearing fields follow the same rules as [exifDetails]. Returns null when the media
+     * is gone or nothing could be read.
+     */
+    suspend fun technicalDetails(
+        key: MediaKey,
+        allowUnredactedLocation: Boolean,
+    ): TechnicalMediaDetails? = withContext(ioDispatcher) {
+        val media = dao.media(key.volumeName, key.mediaStoreId) ?: return@withContext null
+        val reader = TechnicalMetadataReader(resolver)
+        val baseUri = media.uri()
+        try {
+            when (media.mediaType) {
+                MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO -> reader.video(baseUri)
+                MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE -> {
+                    if (allowUnredactedLocation) {
+                        try {
+                            reader.image(MediaStore.setRequireOriginal(baseUri), media.mimeType, true)
+                        } catch (_: SecurityException) {
+                            reader.image(baseUri, media.mimeType, false)
+                        }
+                    } else {
+                        reader.image(baseUri, media.mimeType, false)
+                    }
+                }
+                else -> null
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: SecurityException) {
+            null
+        } catch (_: IOException) {
+            null
+        } catch (_: RuntimeException) {
+            null
+        }
     }
 
     private fun readExif(uri: Uri, locationWasAuthorized: Boolean): ReadExif {
