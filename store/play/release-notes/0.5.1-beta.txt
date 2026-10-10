@@ -1,0 +1,40 @@
+<en-US>
+• On supported phones, slow motion can run on the DSP, which uses less battery. Choose it in Settings > Video playback > "Frame interpolation"; "Automatic" uses the DSP when available, otherwise the GPU.
+• "Save slow-mo clip" no longer fails when the hold ends early in the video.
+Report problems at github.com/LibreStatic/lightforge/issues
+</en-US>
+<es-419>
+• En teléfonos compatibles, la cámara lenta puede usar el DSP, que consume menos batería. Elegilo en Ajustes > Reproducción de video > "Interpolación de fotogramas"; "Automático" usa el DSP si está disponible y, si no, la GPU.
+• "Guardar clip lento" ya no falla cuando soltás antes del final del video.
+Reportá problemas en github.com/LibreStatic/lightforge/issues
+</es-419>
+<es-ES>
+• En teléfonos compatibles, la cámara lenta puede usar el DSP, que consume menos batería. Elígelo en Ajustes > Reproducción de video > "Interpolación de fotogramas"; "Automático" usa el DSP si está disponible y, si no, la GPU.
+• "Guardar clip lento" ya no falla cuando sueltas antes del final del vídeo.
+Informa de problemas en github.com/LibreStatic/lightforge/issues
+</es-ES>
+<pt-BR>
+• Em celulares compatíveis, a câmera lenta pode usar o DSP, que gasta menos bateria. Escolha em Configurações > Reprodução de vídeo > "Interpolação de quadros"; "Automático" usa o DSP quando disponível e, senão, a GPU.
+• "Salvar clipe lento" não falha mais quando você solta antes do fim do vídeo.
+Relate problemas em github.com/LibreStatic/lightforge/issues
+</pt-BR>
+<pt-PT>
+• Em telemóveis compatíveis, a câmara lenta pode usar o DSP, que gasta menos bateria. Escolha em Configurações > Reprodução de vídeo > "Interpolação de quadros"; "Automático" usa o DSP quando disponível e, caso contrário, a GPU.
+• "Salvar clipe lento" já não falha quando solta antes do fim do vídeo.
+Comunique problemas em github.com/LibreStatic/lightforge/issues
+</pt-PT>
+<fr-FR>
+• Sur les téléphones compatibles, le ralenti peut utiliser le DSP, qui consomme moins de batterie. Choisissez-le dans Paramètres > Lecture vidéo > « Interpolation d’images » ; « Automatique » utilise le DSP si disponible, sinon le GPU.
+• « Enregistrer le clip au ralenti » n’échoue plus quand vous relâchez avant la fin de la vidéo.
+Signalez les problèmes sur github.com/LibreStatic/lightforge/issues
+</fr-FR>
+<de-DE>
+• Auf unterstützten Handys kann die Zeitlupe den DSP nutzen, der weniger Akku verbraucht. Wähle ihn unter Einstellungen > Videowiedergabe > „Zwischenbildberechnung“; „Automatisch“ nutzt den DSP, falls verfügbar, sonst die GPU.
+• „Zeitlupenclip speichern“ schlägt nicht mehr fehl, wenn du vor dem Videoende loslässt.
+Probleme melden unter github.com/LibreStatic/lightforge/issues
+</de-DE>
+<it-IT>
+• Sui telefoni compatibili, il rallentatore può usare il DSP, che consuma meno batteria. Sceglilo in Impostazioni > Riproduzione video > "Interpolazione dei fotogrammi"; "Automatico" usa il DSP se disponibile, altrimenti la GPU.
+• "Salva clip rallentato" non fallisce più quando rilasci prima della fine del video.
+Segnala i problemi su github.com/LibreStatic/lightforge/issues
+</it-IT>
