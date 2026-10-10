@@ -541,6 +541,7 @@ class GalleryViewModel @Inject constructor(
     private val mutableMe = MutableStateFlow<LocalMeUiState?>(null)
     val me = mutableMe.asStateFlow()
     private var faceProgressJob: Job? = null
+    private var detailsJob: Job? = null
     private var peopleProgressJob: Job? = null
     private var petProgressJob: Job? = null
     private val mutableBenchmarkMlRunning = MutableStateFlow(false)
@@ -5976,16 +5977,26 @@ class GalleryViewModel @Inject constructor(
     fun loadDetails() {
         val media = mutableCurrentMedia.value ?: return
         val active = runtime.value ?: return
-        viewModelScope.launch {
-            mutableCheapDetails.value = active.metadata.cheapDetails(media.key)
-            mutableExifDetails.value = active.metadata.exifDetails(
+        detailsJob?.cancel()
+        detailsJob = viewModelScope.launch {
+            // A swipe clears the details and starts a new load; a slow read for the previous item
+            // must not land on the new one.
+            fun stillCurrent() = mutableCurrentMedia.value?.key == media.key
+            val cheap = active.metadata.cheapDetails(media.key)
+            if (!stillCurrent()) return@launch
+            mutableCheapDetails.value = cheap
+            val exif = active.metadata.exifDetails(
                 media.key,
                 permissions.access.value.unredactedLocation,
             )
-            mutableDetectedText.value = DetectedContentRepository(active.database)
+            if (!stillCurrent()) return@launch
+            mutableExifDetails.value = exif
+            val text = DetectedContentRepository(active.database)
                 .ocr(media.key)
                 ?.rawText
                 ?.takeIf(String::isNotBlank)
+            if (!stillCurrent()) return@launch
+            mutableDetectedText.value = text
         }
     }
 

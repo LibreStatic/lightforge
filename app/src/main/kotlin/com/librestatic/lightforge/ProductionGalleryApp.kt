@@ -1740,7 +1740,7 @@ internal fun ProductionGalleryApp(
                             if (viewModel.prepareTreeOperation(media, move)) treeLauncher.launch(null)
                             else Toast.makeText(context, treeActionUnavailable, Toast.LENGTH_SHORT).show()
                         },
-                        onShowDetails = { showDetails = true; viewModel.loadDetails() },
+                        onShowDetails = { showDetails = true },
                         onHideDetails = { showDetails = false },
                         onBack = ::handleBack,
                         onEdit = {
@@ -4217,6 +4217,10 @@ private fun ViewerRoute(
     val cheap by viewModel.cheapDetails.collectAsState()
     val exif by viewModel.exifDetails.collectAsState()
     val detectedText by viewModel.detectedText.collectAsState()
+    // Swiping clears the previous item's details, so reload them for the new one while the panel is open.
+    LaunchedEffect(media.key, media.generationModified, showDetails) {
+        if (showDetails) viewModel.loadDetails()
+    }
     val quickSlowMotionSave by viewModel.quickSlowMotionSave.collectAsState()
     val gallerySettings by viewModel.gallerySettings.collectAsState()
     val destructiveAuthTitle = stringResource(R.string.destructive_auth_title)
