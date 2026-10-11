@@ -14,7 +14,6 @@ internal data class RawPreviewHardware(
 
 internal data class RawPreviewProfile(
     val maxDimension: Int,
-    val minimumIntervalMillis: Long,
     val continuous: Boolean,
 )
 
@@ -41,9 +40,9 @@ internal object RawPreviewPolicy {
             ),
         ) == DevicePerformanceTier.Flagship
         return when {
-            capable -> RawPreviewProfile(maxDimension = 1_024, minimumIntervalMillis = 0, continuous = true)
-            hardware.lowRam -> RawPreviewProfile(maxDimension = 512, minimumIntervalMillis = 500, continuous = false)
-            else -> RawPreviewProfile(maxDimension = 640, minimumIntervalMillis = 250, continuous = false)
+            capable -> RawPreviewProfile(maxDimension = 1_024, continuous = true)
+            hardware.lowRam -> RawPreviewProfile(maxDimension = 512, continuous = false)
+            else -> RawPreviewProfile(maxDimension = 640, continuous = false)
         }
     }
 }

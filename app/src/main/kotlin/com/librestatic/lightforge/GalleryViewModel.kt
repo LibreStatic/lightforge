@@ -296,7 +296,7 @@ private data class RawPreviewRequest(
     val settings: RawDevelopmentSettings,
     val recipe: EditRecipe,
     val maxDimension: Int,
-    val minimumIntervalMillis: Long,
+    val approximate: Boolean,
     val final: Boolean,
 )
 
@@ -4430,15 +4430,14 @@ class GalleryViewModel @Inject constructor(
         val requests = Channel<RawPreviewRequest>(Channel.CONFLATED)
         rawPreviewRequests = requests
         rawPreviewJob = viewModelScope.launch {
-            var lastStartedAt = 0L
+            // The conflated channel keeps only the newest request, so one render at a time is the
+            // only throttle needed and results arrive in request order.
             for (request in requests) {
-                val remaining = request.minimumIntervalMillis -
-                    (SystemClock.elapsedRealtime() - lastStartedAt)
-                if (remaining > 0) delay(remaining)
-                lastStartedAt = SystemClock.elapsedRealtime()
                 var cropSource: Bitmap? = null
                 val rendered = try {
-                    val developed = stagedRaw.renderPreview(request.settings, request.maxDimension)
+                    val developed = stagedRaw.renderPreview(
+                        request.settings, request.maxDimension, request.approximate,
+                    )
                     val cropOperations = request.recipe.operations.filter {
                         it is EditOperation.Rotate || it is EditOperation.Flip
                     }
@@ -4474,10 +4473,7 @@ class GalleryViewModel @Inject constructor(
                     continue
                 }
                 val current = mutablePhotoEditor.value
-                if (
-                    request.generation == rawPreviewGeneration &&
-                    current?.source?.stableId == source.stableId
-                ) {
+                if (current?.source?.stableId == source.stableId) {
                     current.content.preview?.takeIf { old ->
                         old !== rendered && old !== current.content.originalPreview &&
                             old !== current.content.cropSourcePreview
@@ -4492,7 +4488,8 @@ class GalleryViewModel @Inject constructor(
                         content = current.content.copy(
                             preview = rendered,
                             cropSourcePreview = cropSource ?: current.content.cropSourcePreview,
-                            isRendering = false,
+                            // A newer request is still pending while the user keeps dragging.
+                            isRendering = request.generation != rawPreviewGeneration,
                             statusMessage = null,
                         ),
                     )
@@ -4517,7 +4514,7 @@ class GalleryViewModel @Inject constructor(
                 settings = settings,
                 recipe = recipe,
                 maxDimension = if (final) 1_600 else profile.maxDimension,
-                minimumIntervalMillis = if (final) 0 else profile.minimumIntervalMillis,
+                approximate = !final,
                 final = final,
             ),
         )

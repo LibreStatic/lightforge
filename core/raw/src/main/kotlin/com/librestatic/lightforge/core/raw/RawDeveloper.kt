@@ -41,6 +41,11 @@ internal object LibRawBridge {
     init { System.loadLibrary("lightforge_raw") }
     external fun nativeInspect(source: String): String
     external fun nativeRender(source: String, settings: FloatArray, maxDimension: Int): RawNativeImage?
+    external fun nativeOpenPreview(source: String): Long
+    external fun nativeRenderPreview(
+        handle: Long, settings: FloatArray, maxDimension: Int, approximate: Boolean,
+    ): RawNativeImage?
+    external fun nativeClosePreview(handle: Long)
     external fun nativeExportTiff(source: String, destination: String, settings: FloatArray): String
 }
 
@@ -182,15 +187,51 @@ class RawPreviewSession internal constructor(
         parseRawMetadata(LibRawBridge.nativeInspect(source.absolutePath))
     }
 
-    suspend fun renderPreview(settings: RawDevelopmentSettings, maxDimension: Int): Bitmap =
-        withContext(ioDispatcher) {
-            require(maxDimension in 256..4_096)
-            val native = LibRawBridge.nativeRender(source.absolutePath, settings.nativeValues(), maxDimension)
-                ?: throw IOException("RAW preview could not be developed")
-            Bitmap.createBitmap(native.argb, native.width, native.height, Bitmap.Config.ARGB_8888)
-        }
+    private val lock = Any()
+    private var handle = 0L
+    private var closed = false
+    private var rendering = false
+
+    /**
+     * [approximate] lets exposure and white balance be corrected on the cached development
+     * instead of re-developing, for live feedback while a slider is dragged.
+     */
+    suspend fun renderPreview(
+        settings: RawDevelopmentSettings,
+        maxDimension: Int,
+        approximate: Boolean = false,
+    ): Bitmap = withContext(ioDispatcher) {
+        require(maxDimension in 256..4_096)
+        val native = synchronized(lock) {
+            if (closed) throw IOException("RAW preview session is closed")
+            if (handle == 0L) handle = LibRawBridge.nativeOpenPreview(source.absolutePath)
+            if (handle == 0L) throw IOException("RAW preview could not be developed")
+            rendering = true
+            handle
+        }.let { current ->
+            try {
+                LibRawBridge.nativeRenderPreview(current, settings.nativeValues(), maxDimension, approximate)
+            } finally {
+                synchronized(lock) {
+                    rendering = false
+                    if (closed) releaseHandle()
+                }
+            }
+        } ?: throw IOException("RAW preview could not be developed")
+        Bitmap.createBitmap(native.argb, native.width, native.height, Bitmap.Config.ARGB_8888)
+    }
 
     override fun close() {
+        // Called from the main thread: a render in flight releases the handle when it finishes.
+        synchronized(lock) {
+            closed = true
+            if (!rendering) releaseHandle()
+        }
+    }
+
+    private fun releaseHandle() {
+        if (handle != 0L) LibRawBridge.nativeClosePreview(handle)
+        handle = 0L
         source.delete()
     }
 }
