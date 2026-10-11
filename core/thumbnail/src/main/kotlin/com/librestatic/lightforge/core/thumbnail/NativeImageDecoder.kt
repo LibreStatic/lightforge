@@ -33,6 +33,7 @@ class NativeImageDecoder(private val resolver: ContentResolver) {
     @WorkerThread
     fun thumbnail(uri: Uri, size: Size, signal: CancellationSignal): Bitmap {
         val key = uri.toString()
+        if (key in rawFallbackThumbnailUris) return rawThumbnail(uri, size)
         if (key in failedThumbnailUris) {
             try {
                 return heifFallback.decodeThumbnail(uri, size, signal)
@@ -57,9 +58,19 @@ class NativeImageDecoder(private val resolver: ContentResolver) {
                 original.addSuppressed(e)
                 null
             }
-            if (fallback == null) throw original
-            failedThumbnailUris[key] = true
-            return fallback
+            if (fallback != null) {
+                failedThumbnailUris[key] = true
+                return fallback
+            }
+            if (!isCameraRaw(uri)) throw original
+            val raw = try {
+                rawThumbnail(uri, size)
+            } catch (e: IOException) {
+                original.addSuppressed(e)
+                throw original
+            }
+            rawFallbackThumbnailUris[key] = true
+            return raw
         }
     }
 
@@ -180,6 +191,39 @@ class NativeImageDecoder(private val resolver: ContentResolver) {
             .also { if (it !== thumbnail) thumbnail.recycle() }
     }
 
+    /**
+     * Skia's DNG codec only scales some DefaultCrop sizes by some ratios ("invalid scale"), which
+     * fails MediaProvider's thumbnail; retry the sampled decode with less subsampling until it works.
+     */
+    private fun rawThumbnail(uri: Uri, size: Size): Bitmap {
+        var failure: IOException? = null
+        for (factor in intArrayOf(1, 2, 4, 8)) {
+            val decoded = try {
+                screenPreview(uri, size.width * factor, size.height * factor)
+            } catch (e: IOException) {
+                failure?.let(e::addSuppressed)
+                failure = e
+                continue
+            }
+            val scale = minOf(1.0, size.width.toDouble() / decoded.width, size.height.toDouble() / decoded.height)
+            if (scale >= 1.0) return decoded
+            return Bitmap.createScaledBitmap(
+                decoded,
+                (decoded.width * scale).toInt().coerceAtLeast(1),
+                (decoded.height * scale).toInt().coerceAtLeast(1),
+                true,
+            ).also { if (it !== decoded) decoded.recycle() }
+        }
+        throw failure ?: IOException("RAW thumbnail decode failed")
+    }
+
+    private fun isCameraRaw(uri: Uri): Boolean = try {
+        // Camera RAW types are all image/x-*; BMP and ICO never reach this fallback in practice.
+        resolver.getType(uri).orEmpty().lowercase().startsWith("image/x-")
+    } catch (_: RuntimeException) {
+        false
+    }
+
     private fun applyExifOrientation(uri: Uri, source: Bitmap): Bitmap {
         val orientation = try {
             resolver.openFileDescriptor(uri, "r")?.use {
@@ -210,6 +254,13 @@ class NativeImageDecoder(private val resolver: ContentResolver) {
 
 /** URIs whose platform thumbnail failed but decoded through the HEIF fallback (skips ~1.5 s of codec churn). */
 private val failedThumbnailUris: MutableMap<String, Boolean> = java.util.Collections.synchronizedMap(
+    object : LinkedHashMap<String, Boolean>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Boolean>): Boolean = size > 256
+    },
+)
+
+/** Camera RAW URIs whose platform thumbnail fails (Skia "invalid scale"); they go straight to the sampled decode. */
+private val rawFallbackThumbnailUris: MutableMap<String, Boolean> = java.util.Collections.synchronizedMap(
     object : LinkedHashMap<String, Boolean>(64, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Boolean>): Boolean = size > 256
     },
