@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -1430,6 +1431,17 @@ private fun VideoExportSheet(
     }
 }
 
+// SegmentedButton measures its label at the full button width and adds the selected checkmark
+// beside it, so long labels ("H.264 · compatible de 8 bits") ran past the border on phones. These
+// rows drop the checkmark (the filled container and Selected semantics mark the choice) and use a
+// tighter horizontal padding so every locale fits on one line at ~400 dp; larger fonts wrap.
+private val ExportSegmentPadding = PaddingValues(horizontal = GallerySpacing.Sm, vertical = GallerySpacing.Sm)
+
+@Composable
+private fun ExportSegmentLabel(text: String) {
+    Text(text, maxLines = 3, textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium)
+}
+
 @Composable
 private fun ExportControls(
     state: VideoEditorContentState,
@@ -1475,7 +1487,9 @@ private fun ExportControls(
                         onClick = { onQualitySelected(quality) },
                         enabled = quality != VideoOutputQuality.HevcMain10 || state.isHevcMain10Available,
                         shape = SegmentedButtonDefaults.itemShape(index, qualities.size),
-                        label = { Text(stringResource(qualityLabel(quality)), maxLines = 2, textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium) },
+                        icon = {},
+                        contentPadding = ExportSegmentPadding,
+                        label = { ExportSegmentLabel(stringResource(qualityLabel(quality))) },
                     )
                 }
             }
@@ -1506,7 +1520,9 @@ private fun ExportControls(
                         VideoDynamicRange.Hdr10Pq -> state.isHdr10ExportAvailable
                     },
                     shape = SegmentedButtonDefaults.itemShape(index, ranges.size),
-                    label = { Text(stringResource(rangeLabel(dynamicRange)), maxLines = 2, textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium) },
+                    icon = {},
+                    contentPadding = ExportSegmentPadding,
+                    label = { ExportSegmentLabel(stringResource(rangeLabel(dynamicRange))) },
                 )
             }
         }
