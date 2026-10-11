@@ -15,6 +15,7 @@ import android.os.Build
 import android.os.CancellationSignal
 import android.os.OperationCanceledException
 import android.os.ParcelFileDescriptor
+import android.provider.MediaStore
 import android.util.Size
 import androidx.annotation.WorkerThread
 import androidx.exifinterface.media.ExifInterface
@@ -43,7 +44,7 @@ class NativeImageDecoder(private val resolver: ContentResolver) {
             }
         }
         try {
-            return resolver.loadThumbnail(uri, size, signal)
+            return orientRawThumbnail(uri, resolver.loadThumbnail(uri, size, signal))
         } catch (original: IOException) {
             val fallback = try {
                 if (heifFallback.isHeif(uri)) heifFallback.decodeThumbnail(uri, size, signal) else null
@@ -148,6 +149,36 @@ class NativeImageDecoder(private val resolver: ContentResolver) {
     @WorkerThread
     fun tile(uri: Uri, region: Rect, sampleSize: Int): Bitmap? =
         openTileSource(uri)?.use { it.decode(region, sampleSize) }
+
+    /**
+     * MediaProvider builds RAW thumbnails from the embedded preview without applying the DNG/TIFF
+     * orientation, so a portrait DNG shows sideways in the grid while the viewer (which reads EXIF)
+     * is upright. MediaStore already indexes that orientation; apply it here. Only landscape
+     * bitmaps are checked: an unrotated sensor-sized preview is always landscape, and this keeps
+     * the extra query off every other thumbnail.
+     */
+    private fun orientRawThumbnail(uri: Uri, thumbnail: Bitmap): Bitmap {
+        if (thumbnail.width <= thumbnail.height) return thumbnail
+        val (mimeType, orientation) = try {
+            resolver.query(
+                uri,
+                arrayOf(MediaStore.MediaColumns.MIME_TYPE, MediaStore.MediaColumns.ORIENTATION),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                if (!cursor.moveToFirst()) return thumbnail
+                cursor.getString(0).orEmpty().lowercase() to cursor.getInt(1)
+            } ?: return thumbnail
+        } catch (_: RuntimeException) {
+            return thumbnail
+        }
+        // Camera RAW types are all image/x-*; the other image/x-* formats (BMP, ICO) carry no orientation.
+        if (!mimeType.startsWith("image/x-") || orientation % 360 == 0) return thumbnail
+        val matrix = Matrix().apply { setRotate(orientation.toFloat()) }
+        return Bitmap.createBitmap(thumbnail, 0, 0, thumbnail.width, thumbnail.height, matrix, true)
+            .also { if (it !== thumbnail) thumbnail.recycle() }
+    }
 
     private fun applyExifOrientation(uri: Uri, source: Bitmap): Bitmap {
         val orientation = try {
