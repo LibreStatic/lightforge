@@ -346,7 +346,9 @@ ORDER BY m.volumeName,m.mediaStoreId""",
                     }
                     PortablePhotoRecipe(
                         binding.sourceId, c.int("revision"), c.long("createdAtMillis"),
-                        c.long("updatedAtMillis"), operations.map { it.second },
+                        c.long("updatedAtMillis"),
+                        // Custom looks reference on-device LUTs that a backup cannot carry.
+                        operations.map { it.second }.filterNot { it.startsWith("look,1,custom:") },
                     )
                 }
             }.filterNotNull()

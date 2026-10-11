@@ -13,12 +13,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import com.librestatic.lightforge.core.designsystem.LightforgeTheme
 import com.librestatic.lightforge.core.ml.ModelDownloadWait
+import com.librestatic.lightforge.core.model.AdjustKey
+import com.librestatic.lightforge.core.model.ColorMixBand
+import com.librestatic.lightforge.core.model.ColorMixHue
+import com.librestatic.lightforge.core.model.EditOperation
 import com.librestatic.lightforge.feature.objecteraser.InpaintModelStatus
 
 // Debug-only, zero-argument entry points for tools/compose-driver and Android Studio previews.
@@ -73,6 +78,112 @@ fun EraserModelPanelStatesPreview() = DriverFrame {
             InpaintModelStatus.Installed,
         ).forEach { EraserModelPanel(it) }
     }
+}
+
+private val previewLooks = listOf(
+    "builtin:vivid", "builtin:natural", "builtin:warm", "builtin:cool", "builtin:golden", "builtin:film",
+    "builtin:fade", "builtin:teal_orange", "builtin:pastel", "builtin:dramatic", "builtin:mono", "builtin:noir",
+)
+private const val CustomA = "custom:123e4567-e89b-12d3-a456-426614174000"
+private const val CustomB = "custom:123e4567-e89b-12d3-a456-426614174001"
+
+/** The fake photo tinted differently per look, standing in for graded 256 px thumbnails. */
+private fun fakeLookThumbnails(photo: Bitmap, ids: List<String>): Map<String, Bitmap> = ids.withIndex().associate { (i, id) ->
+    val hue = i * 30f
+    val thumbnail = Bitmap.createBitmap(256, 192, Bitmap.Config.ARGB_8888)
+    val paint = Paint().apply {
+        colorFilter = android.graphics.ColorMatrixColorFilter(android.graphics.ColorMatrix().apply {
+            setRotate(0, hue); postConcat(android.graphics.ColorMatrix().apply { setRotate(1, hue / 2f) })
+        })
+    }
+    Canvas(thumbnail).drawBitmap(Bitmap.createScaledBitmap(photo, 256, 192, true), 0f, 0f, paint)
+    id to thumbnail
+}
+
+@Composable
+private fun EditorAt(
+    initial: PhotoEditorInitialUi,
+    state: (Bitmap) -> PhotoEditorContentState,
+) = DriverFrame {
+    val photo = remember { fakePhoto() }
+    CompositionLocalProvider(LocalPhotoEditorInitialUi provides initial) {
+        PhotoEditorContent(
+            state = state(photo),
+            onBack = {},
+            onSaveCopy = {},
+            onApply = {},
+            onUndo = {},
+            onRedo = {},
+            onOpenWith = {},
+        )
+    }
+}
+
+/** Adjust tab with Highlights selected and two edited tiles. */
+@Preview
+@Composable
+fun PhotoAdjustPreview() = EditorAt(PhotoEditorInitialUi(tool = PhotoEditorTool.Adjust, adjustTile = PhotoAdjustTile.Highlights)) { photo ->
+    PhotoEditorContentState(
+        preview = photo, originalPreview = photo, isDirty = true, canUndo = true,
+        adjust = EditOperation.Adjust(mapOf(AdjustKey.Highlights to 0.35f, AdjustKey.Contrast to -0.2f)),
+    )
+}
+
+/** Adjust tab, Color mix: eight swatches and the Hue / Saturation / Luminance sliders. */
+@Preview
+@Composable
+fun PhotoColorMixPreview() = EditorAt(PhotoEditorInitialUi(tool = PhotoEditorTool.Adjust, adjustTile = PhotoAdjustTile.ColorMix)) { photo ->
+    PhotoEditorContentState(
+        preview = photo, originalPreview = photo, isDirty = true, canUndo = true,
+        colorMix = EditOperation.ColorMix.Neutral.withBand(ColorMixHue.Blue, ColorMixBand(hue = 0.2f, saturation = 0.45f)),
+    )
+}
+
+/** Filters tab with graded thumbnails and a selected look at 60 % intensity. */
+@Preview
+@Composable
+fun PhotoFiltersPreview() = EditorAt(PhotoEditorInitialUi(tool = PhotoEditorTool.Filters)) { photo ->
+    PhotoEditorContentState(
+        preview = photo, originalPreview = photo, isDirty = true, canUndo = true,
+        look = EditOperation.Look("builtin:warm", 0.6f),
+        lookThumbnails = fakeLookThumbnails(photo, previewLooks),
+    )
+}
+
+/** My filters: the create card and two saved looks, one selected. */
+@Preview
+@Composable
+fun PhotoMyFiltersPreview() = EditorAt(PhotoEditorInitialUi(tool = PhotoEditorTool.Filters, looksTab = PhotoLooksTab.Mine)) { photo ->
+    PhotoEditorContentState(
+        preview = photo, originalPreview = photo, isDirty = true, canUndo = true,
+        look = EditOperation.Look(CustomA, 0.8f),
+        customLooks = listOf(PhotoCustomLook(CustomA, "Sunset"), PhotoCustomLook(CustomB, "Moody forest walk")),
+        lookThumbnails = fakeLookThumbnails(photo, listOf(CustomA, CustomB)),
+    )
+}
+
+/** Crop tool in Perspective mode: draggable corners over the photo plus the keystone sliders. */
+@Preview
+@Composable
+fun PhotoCropPerspectivePreview() = EditorAt(PhotoEditorInitialUi(tool = PhotoEditorTool.Crop, cropTool = PhotoCropTool.Perspective)) { photo ->
+    PhotoEditorContentState(
+        preview = photo, originalPreview = photo, cropSourcePreview = photo,
+        perspective = EditOperation.Perspective(withHorizontalKeystone(withVerticalKeystone(IdentityCorners, 0.5f), -0.2f)),
+    )
+}
+
+/** Crop tool with the aspect ratio chips. */
+@Preview
+@Composable
+fun PhotoCropPreview() = EditorAt(PhotoEditorInitialUi(tool = PhotoEditorTool.Crop)) { photo ->
+    PhotoEditorContentState(preview = photo, originalPreview = photo, cropSourcePreview = photo)
+}
+
+/** The tool search sheet open over the Adjust tab. */
+@Preview
+@Composable
+fun PhotoToolSearchPreview() = EditorAt(PhotoEditorInitialUi(tool = PhotoEditorTool.Adjust, searchOpen = true)) { photo ->
+    PhotoEditorContentState(preview = photo, originalPreview = photo)
 }
 
 @Composable

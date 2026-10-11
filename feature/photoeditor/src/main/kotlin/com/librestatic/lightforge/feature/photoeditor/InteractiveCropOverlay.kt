@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntSize
+import com.librestatic.lightforge.core.model.NormalizedPoint
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -29,9 +30,20 @@ internal data class PhotoCropDraft(
     val bottom: Float = 1f,
     val aspectRatio: Float? = null,
     val straightenDegrees: Float = 0f,
+    /** Perspective source corners ([IdentityCorners] when none); see [PhotoPerspective]. */
+    val perspective: List<NormalizedPoint> = IdentityCorners,
 ) {
     val width: Float get() = right - left
     val height: Float get() = bottom - top
+    val hasPerspective: Boolean get() = perspective != IdentityCorners
+
+    /**
+     * The draft with new perspective corners. The crop rectangle is expressed in the corrected
+     * frame, so it starts over (full frame, free ratio) whenever the corners move.
+     */
+    fun withPerspective(corners: List<NormalizedPoint>): PhotoCropDraft =
+        if (corners == perspective) this
+        else copy(perspective = corners, left = 0f, top = 0f, right = 1f, bottom = 1f, aspectRatio = null)
 }
 
 internal enum class CropHandle { Move, Left, Top, Right, Bottom, TopLeft, TopRight, BottomLeft, BottomRight }

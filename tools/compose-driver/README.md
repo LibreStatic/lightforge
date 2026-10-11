@@ -19,7 +19,7 @@ scripts/compose-driver.sh list
 scripts/compose-driver.sh start PhotoEditorPreview     # returns once GET /status answers "ok"
 scripts/compose-driver.sh tree                         # semantics tree, unmerged=false
 scripts/compose-driver.sh shot editor                  # build/compose-driver/screenshots/editor.png
-scripts/compose-driver.sh swipe LEFT tag=photo-editor-tool-adjust
+scripts/compose-driver.sh swipe LEFT tag=photo-editor-tab-adjust
 scripts/compose-driver.sh click tag=photo-editor-tool-objecteraser
 scripts/compose-driver.sh shot eraser
 scripts/compose-driver.sh reset                        # recreate state, same composable
@@ -73,7 +73,9 @@ The raw HTTP API is also available at `http://localhost:8137` (`/printTree`, `/s
 5. Prefer existing text and test tags in selectors; add `Modifier.testTag("feature-thing")` only where
    a control or container cannot be selected reliably otherwise.
 
-Current previews: `PhotoEditorPreview`, `PhotoEditorLoadingPreview`, `EraserModelPanelStatesPreview`
+Current previews: `PhotoEditorPreview`, `PhotoEditorLoadingPreview`, `EraserModelPanelStatesPreview`, `PhotoAdjustPreview`,
+`PhotoColorMixPreview`, `PhotoFiltersPreview`, `PhotoMyFiltersPreview`, `PhotoCropPreview`, `PhotoCropPerspectivePreview`,
+`PhotoToolSearchPreview`
 (`feature/photoeditor`), `CleanupPreview`, `CleanupAnalysisOffPreview`, `CleanupEmptyPreview`,
 `CleanupLoadingPreview` (`feature/collections`), `PhotosTimelinePreview`, `PhotosSelectionPreview`,
 `PhotosFilterEmptyPreview` (`feature/photos`), `PickerGridPreview`, `PickerSingleGridPreview`

@@ -6,12 +6,14 @@ import android.graphics.BitmapFactory
 import android.graphics.BitmapRegionDecoder
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.ColorMatrixColorFilter
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
 import android.net.Uri
+import com.librestatic.lightforge.core.editing.image.grade.PhotoGradeParams
+import com.librestatic.lightforge.core.editing.image.grade.PhotoGrader
+import com.librestatic.lightforge.core.editing.image.grade.PhotoLocalBase
 import com.librestatic.lightforge.core.model.EditOperation
 import com.librestatic.lightforge.core.model.EditRecipe
 import kotlinx.coroutines.ensureActive
@@ -48,8 +50,12 @@ internal class TiledPngPhotoExporter(
         recipe: EditRecipe,
         destination: File,
         onProgress: suspend (Long) -> Unit,
+        grader: PhotoGrader,
+        gradeParams: PhotoGradeParams,
     ): TiledPngExportResult {
         val plan = TiledTransformPlan(sourceWidth, sourceHeight, recipe.operations)
+        // The local base covers the whole output frame, so it is built once from a small decode.
+        val base = if (gradeParams.needsLocalBase) buildLocalBase(uri, plan) else null
         destination.parentFile?.mkdirs()
         val input = resolver.openInputStream(uri) ?: throw IOException("Unable to open source image")
         val decoder = BitmapRegionDecoder.newInstance(input, false)
@@ -72,8 +78,16 @@ internal class TiledPngPhotoExporter(
                                 inPreferredConfig = Bitmap.Config.ARGB_8888
                                 inScaled = false
                             }) ?: throw IOException("Unable to decode source tile $sourceRect")
-                            renderedTiles += plan.renderTile(decoded, sourceRect, outputRect)
+                            val geometry = plan.renderTile(decoded, sourceRect, outputRect)
                             if (!decoded.isRecycled) decoded.recycle()
+                            renderedTiles += if (gradeParams.isIdentity) {
+                                geometry
+                            } else {
+                                grader.grade(
+                                    geometry, gradeParams, base,
+                                    outputRect.left, outputRect.top, plan.outputWidth, plan.outputHeight,
+                                ).also { if (!geometry.isRecycled) geometry.recycle() }
+                            }
                             tileLeft += tileWidth
                         }
 
@@ -97,6 +111,31 @@ internal class TiledPngPhotoExporter(
         check(destination.isFile && destination.length() > 0) { "Tiled PNG export is empty" }
         return TiledPngExportResult(plan.outputWidth, plan.outputHeight, destination)
     }
+
+    /** Decodes the full frame at about [BaseDecodeSide] px, runs the plan's geometry on it and builds the base. */
+    private fun buildLocalBase(uri: Uri, plan: TiledTransformPlan): PhotoLocalBase {
+        val sample = Integer.highestOneBit(
+            ceil(max(plan.sourceWidth, plan.sourceHeight).toDouble() / BaseDecodeSide).toInt().coerceAtLeast(1),
+        )
+        val small = resolver.openInputStream(uri)?.use { stream ->
+            BitmapFactory.decodeStream(stream, null, BitmapFactory.Options().apply {
+                inSampleSize = sample
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+            })
+        } ?: throw IOException("Unable to decode source for the local base")
+        try {
+            val frame = plan.renderScaledFrame(small, BaseDecodeSide)
+            try {
+                return PhotoLocalBase.from(frame)
+            } finally {
+                frame.recycle()
+            }
+        } finally {
+            small.recycle()
+        }
+    }
+
+    private companion object { const val BaseDecodeSide = 1_024 }
 }
 
 internal data class TiledPngExportResult(
@@ -106,8 +145,8 @@ internal data class TiledPngExportResult(
 )
 
 private class TiledTransformPlan(
-    private val sourceWidth: Int,
-    private val sourceHeight: Int,
+    val sourceWidth: Int,
+    val sourceHeight: Int,
     operations: List<EditOperation>,
 ) {
     var outputWidth: Int = sourceWidth
@@ -116,7 +155,7 @@ private class TiledTransformPlan(
         private set
 
     private val sourceToOutput = Matrix()
-    private val colorOperations = operations.filter { it is EditOperation.Tone || it is EditOperation.Filter }
+    private var hasPerspective = false
 
     init {
         operations.forEach { operation ->
@@ -195,7 +234,17 @@ private class TiledTransformPlan(
                     outputHeight = safeHeight.coerceAtMost(rotatedHeight)
                 }
 
-                is EditOperation.Tone, is EditOperation.Filter, is EditOperation.RawDevelop -> Unit
+                is EditOperation.Perspective -> {
+                    if (operation.isIdentity) return@forEach
+                    // Maps the source quad onto the full current frame; the frame size is unchanged.
+                    PerspectiveGeometry.matrixValues(operation.corners, outputWidth, outputHeight)?.let {
+                        hasPerspective = true
+                        concat(Matrix().apply { setValues(it) })
+                    }
+                }
+
+                is EditOperation.Tone, is EditOperation.Filter, is EditOperation.RawDevelop,
+                is EditOperation.Adjust, is EditOperation.ColorMix, is EditOperation.Look -> Unit
             }
         }
     }
@@ -233,24 +282,26 @@ private class TiledTransformPlan(
         val sourceLocalToGlobal = Matrix().apply { setTranslate(sourceRect.left.toFloat(), sourceRect.top.toFloat()) }
         localToOutput.setConcat(sourceToOutput, sourceLocalToGlobal)
         localToOutput.postTranslate(-outputRect.left.toFloat(), -outputRect.top.toFloat())
-        Canvas(tile).drawBitmap(source, localToOutput, Paint(Paint.ANTI_ALIAS_FLAG))
-        return colorize(tile)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { isFilterBitmap = hasPerspective }
+        Canvas(tile).drawBitmap(source, localToOutput, paint)
+        return tile
     }
 
-    private fun colorize(source: Bitmap): Bitmap {
-        var current = source
-        colorOperations.forEach { operation ->
-            val matrix = PhotoColorTransform.matrixFor(operation)
-            val next = Bitmap.createBitmap(current.width, current.height, Bitmap.Config.ARGB_8888)
-            Canvas(next).drawBitmap(current, 0f, 0f, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                colorFilter = ColorMatrixColorFilter(matrix)
-            })
-            if (!current.isRecycled) current.recycle()
-            current = next
-        }
-        return current
+    /**
+     * Renders the whole output frame from a downsampled copy of the source ([small] covers the full
+     * source), scaled so the frame's long side is at most [maxSide] px.
+     */
+    fun renderScaledFrame(small: Bitmap, maxSide: Int): Bitmap {
+        val scale = min(1f, maxSide.toFloat() / max(outputWidth, outputHeight))
+        val width = (outputWidth * scale).roundToInt().coerceAtLeast(1)
+        val height = (outputHeight * scale).roundToInt().coerceAtLeast(1)
+        val matrix = Matrix(sourceToOutput)
+        matrix.preScale(sourceWidth.toFloat() / small.width, sourceHeight.toFloat() / small.height)
+        matrix.postScale(width.toFloat() / outputWidth, height.toFloat() / outputHeight)
+        val frame = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        Canvas(frame).drawBitmap(small, matrix, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
+        return frame
     }
-
 }
 
 private class PngStreamEncoder(

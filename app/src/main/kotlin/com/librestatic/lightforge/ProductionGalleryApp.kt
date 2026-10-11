@@ -21,6 +21,7 @@ import android.view.WindowManager
 import android.widget.Toast
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.compose.BackHandler
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -1239,6 +1240,9 @@ internal fun ProductionGalleryApp(
             viewModel.saveVideoEditorCopy()
         }
     }
+    val lookReferencePicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) viewModel.createCustomLook(uri)
+    }
     val lutPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             runCatching {
@@ -1794,6 +1798,23 @@ internal fun ProductionGalleryApp(
                         onClearObjectErase = viewModel::clearObjectErase,
                         onPreviewSubjectClip = viewModel::previewSubjectClip,
                         onSaveSubjectClip = viewModel::saveSubjectClip,
+                        onAdjustPreview = viewModel::previewPhotoAdjust,
+                        onAdjustChangeFinished = viewModel::commitPhotoAdjust,
+                        onColorMixPreview = viewModel::previewPhotoColorMix,
+                        onColorMixChangeFinished = viewModel::commitPhotoColorMix,
+                        onLookPreview = viewModel::previewPhotoLook,
+                        onLookChangeFinished = viewModel::commitPhotoLook,
+                        onCreateCustomLook = {
+                            lookReferencePicker.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                            )
+                        },
+                        onRenameCustomLook = viewModel::renameCustomLook,
+                        onDeleteCustomLook = viewModel::deleteCustomLook,
+                        onAutoStraighten = viewModel::requestAutoStraighten,
+                        onOpenWith = {
+                            viewModel.photoOpenWithIntent()?.let { runCatching { context.startActivity(it) } }
+                        },
                     )
                     }
                 }

@@ -6,6 +6,11 @@ import android.graphics.Color
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import com.librestatic.lightforge.core.editing.image.grade.PhotoGraders
+import com.librestatic.lightforge.core.model.EditRecipe
+import com.librestatic.lightforge.core.model.MediaKey
+import kotlinx.coroutines.runBlocking
 import com.librestatic.lightforge.core.model.EditOperation
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -38,6 +43,41 @@ class PhotoColorTransformDeviceTest {
             assertTrue(kotlin.math.abs(Color.green(expected) - Color.green(actual)) <= 1)
             assertTrue(kotlin.math.abs(Color.blue(expected) - Color.blue(actual)) <= 1)
         }
+    }
+
+    /** Legacy tone/filter recipes now go through the baked legacy LUT; they must stay close to the old matrices. */
+    @Test
+    fun legacyRecipesRenderWithinAFewLevelsOfTheColorMatrixPipeline() = runBlocking {
+        val operations = listOf(
+            EditOperation.Filter("vivid"),
+            EditOperation.Tone(brightness = 0.12f, contrast = 1.15f, saturation = 0.8f),
+        )
+        val width = 64
+        val height = 48
+        val source = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        for (y in 0 until height) for (x in 0 until width) {
+            source.setPixel(x, y, Color.rgb(x * 4, y * 5, (x * y) % 256))
+        }
+        var expected = source
+        operations.forEach { operation ->
+            expected = drawWithMatrix(expected, PhotoColorTransform.matrixFor(operation).array)
+        }
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val recipe = operations.fold(EditRecipe.forSource(MediaKey("external_primary", 1L), 0)) { r, op -> r.append(op) }
+        val renderer = PhotoImageRenderer(context.contentResolver, grader = PhotoGraders.default(context))
+        val actual = renderer.renderDecoded(source.copy(Bitmap.Config.ARGB_8888, false), recipe)
+        var worst = 0
+        for (y in 0 until height) for (x in 0 until width) {
+            val e = expected.getPixel(x, y)
+            val a = actual.getPixel(x, y)
+            worst = maxOf(
+                worst,
+                kotlin.math.abs(Color.red(e) - Color.red(a)),
+                kotlin.math.abs(Color.green(e) - Color.green(a)),
+                kotlin.math.abs(Color.blue(e) - Color.blue(a)),
+            )
+        }
+        assertTrue("legacy recipe differs from the ColorMatrix pipeline by $worst levels", worst <= 4)
     }
 
     private fun drawWithMatrix(source: Bitmap, values: FloatArray): Bitmap =

@@ -2,7 +2,10 @@ package com.librestatic.lightforge.core.editing.image
 
 import android.graphics.Bitmap
 import android.graphics.Color
+import com.librestatic.lightforge.core.editing.image.grade.PhotoGradeMath
+import com.librestatic.lightforge.core.model.AdjustKey
 import com.librestatic.lightforge.core.model.EditOperation
+import kotlin.math.ln
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
@@ -11,6 +14,9 @@ import kotlin.math.sqrt
 data class PhotoAutoEnhancementSuggestions(
     val enhance: EditOperation.Tone,
     val dynamic: EditOperation.Tone,
+    /** The same two suggestions expressed as ADR-045 [EditOperation.Adjust] values. */
+    val enhanceAdjust: EditOperation.Adjust = EditOperation.Adjust(emptyMap()),
+    val dynamicAdjust: EditOperation.Adjust = EditOperation.Adjust(emptyMap()),
 )
 
 /** Deterministic, local-only tone suggestions derived from a bounded preview sample. */
@@ -29,6 +35,8 @@ object PhotoAutoEnhancementAnalyzer {
         )
         var sampleCount = 0
         var saturationSum = 0f
+        var redSum = 0f
+        var blueSum = 0f
         var y = 0
         while (y < bitmap.height) {
             var x = 0
@@ -41,6 +49,8 @@ object PhotoAutoEnhancementAnalyzer {
                     luminance[sampleCount++] = 0.2126f * red + 0.7152f * green + 0.0722f * blue
                     val maximum = max(red, max(green, blue))
                     val minimum = min(red, min(green, blue))
+                    redSum += red
+                    blueSum += blue
                     saturationSum += if (maximum <= 0f) 0f else (maximum - minimum) / maximum
                 }
                 x += stride
@@ -72,7 +82,51 @@ object PhotoAutoEnhancementAnalyzer {
             contrast = dynamicFit,
             saturation = saturationFor(meanSaturation, target = 0.42f, minimum = 1f, maximum = 1.30f),
         )
-        return PhotoAutoEnhancementSuggestions(enhance, dynamic)
+        val levels = Levels(p05, p50, p95, redSum / sampleCount, blueSum / sampleCount)
+        return PhotoAutoEnhancementSuggestions(
+            enhance = enhance,
+            dynamic = dynamic,
+            enhanceAdjust = adjustFor(levels, strength = 1f, contrast = 0f, saturation = enhance.saturation),
+            dynamicAdjust = adjustFor(levels, strength = 1.4f, contrast = 0.15f, saturation = dynamic.saturation),
+        )
+    }
+
+    /** Percentiles and channel means of the encoded sample, all 0..1. */
+    private class Levels(val p05: Float, val p50: Float, val p95: Float, val meanRed: Float, val meanBlue: Float)
+
+    /**
+     * Black/white point from the percentiles, highlights/shadows from how crowded the extremes
+     * are, brightness from the median, warmth from the gray-world red/blue balance.
+     */
+    private fun adjustFor(levels: Levels, strength: Float, contrast: Float, saturation: Float): EditOperation.Adjust {
+        val black = PhotoGradeMath.lin(levels.p05)
+        val white = PhotoGradeMath.lin(levels.p95)
+        val blackPoint = (black / 0.05f).coerceIn(0f, 1f) * 0.8f
+        val whitePoint = if (white > 0.05f) ((1f - white / 0.9f) / 0.35f).coerceIn(0f, 0.8f) * 0.7f else 0f
+        val shadows = ((0.18f - levels.p05) / 0.18f).coerceIn(0f, 1f) * 0.5f
+        val highlights = -((levels.p95 - 0.85f) / 0.15f).coerceIn(0f, 1f) * 0.5f
+        // Y^(2^(-0.8b)) lands the median on mid-grey.
+        val median = PhotoGradeMath.lin(levels.p50).coerceIn(0.01f, 0.99f)
+        val target = PhotoGradeMath.lin(0.5f)
+        val brightness = (-ln(ln(target) / ln(median)) / ln(2f) / 0.8f) * 0.6f
+        val warmth = if (levels.meanRed > 0.02f && levels.meanBlue > 0.02f) {
+            ((levels.meanBlue / levels.meanRed - 1f) / 0.2f) * 0.5f
+        } else {
+            0f
+        }
+        fun scaled(value: Float, limit: Float) = (value * strength).takeIf { it.isFinite() }?.coerceIn(-limit, limit) ?: 0f
+        return EditOperation.Adjust(
+            mapOf(
+                AdjustKey.Brightness to scaled(brightness, 0.4f),
+                AdjustKey.Contrast to contrast,
+                AdjustKey.WhitePoint to scaled(whitePoint, 0.8f),
+                AdjustKey.Highlights to scaled(highlights, 0.7f),
+                AdjustKey.Shadows to scaled(shadows, 0.7f),
+                AdjustKey.BlackPoint to scaled(blackPoint, 0.8f),
+                AdjustKey.Saturation to (saturation - 1f).coerceIn(-1f, 1f),
+                AdjustKey.Warmth to scaled(warmth, 0.4f),
+            ),
+        )
     }
 
     private fun percentile(sorted: FloatArray, fraction: Float): Float {
