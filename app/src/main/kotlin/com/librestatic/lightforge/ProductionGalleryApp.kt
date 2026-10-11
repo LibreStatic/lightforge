@@ -1725,6 +1725,7 @@ internal fun ProductionGalleryApp(
                         media = externalMedia,
                         photo = externalPhoto,
                         shareWithoutLocation = gallerySettings.operations.shareWithoutLocationByDefault,
+                        viewModel = viewModel,
                         onClose = ::handleBack,
                         onEdit = {
                             viewModel.openExternalEditor()
@@ -4089,10 +4090,13 @@ private fun ExternalViewer(
     media: GalleryViewModel.ExternalMedia,
     photo: com.librestatic.lightforge.feature.viewer.PhotoLoadState?,
     shareWithoutLocation: Boolean,
+    viewModel: GalleryViewModel,
     onClose: () -> Unit,
     onEdit: () -> Unit,
 ) {
     val context = LocalContext.current
+    val gallerySettings by viewModel.gallerySettings.collectAsState()
+    val quickSlowMotionSave by viewModel.quickSlowMotionSave.collectAsState()
     if (!media.available) {
         Column(Modifier.fillMaxSize().padding(24.dp)) {
             Text(stringResource(R.string.external_grant_expired), color = MaterialTheme.colorScheme.error)
@@ -4104,6 +4108,22 @@ private fun ExternalViewer(
         VideoViewerController(context).also { it.select(media.uri, autoplay = true) }
     } else null
     DisposableEffect(video) { onDispose { video?.close() } }
+    // Same hold-to-slow-motion wiring as ViewerRoute, reading frames straight from the granted URI.
+    val interpolationEngine = gallerySettings.playback.frameInterpolationEngine.toInterpolationEngine()
+    val slowMotionSession = if (media.kind == MediaKind.Video) remember(media.uri, interpolationEngine) {
+        com.librestatic.lightforge.feature.viewer.HoldSlowMotionSession(context, media.uri, interpolationEngine)
+    } else null
+    LaunchedEffect(slowMotionSession, video) {
+        val session = slowMotionSession ?: return@LaunchedEffect
+        val controller = video ?: return@LaunchedEffect
+        while (true) {
+            session.prepare(controller.currentPositionMillis())
+            delay(1_000L)
+        }
+    }
+    DisposableEffect(slowMotionSession) {
+        onDispose { slowMotionSession?.close() }
+    }
     val scope = rememberCoroutineScope()
     val copyComplete = stringResource(R.string.viewer_copy_complete)
     val actionUnavailable = stringResource(R.string.viewer_action_unavailable)
@@ -4174,6 +4194,13 @@ private fun ExternalViewer(
         onRepairDate = null,
         onTrash = null,
         onSelectMedia = {},
+        slowMotionSession = slowMotionSession,
+        onSaveSlowMotionClip = { clip ->
+            viewModel.saveQuickSlowMotionClip(media, clip.startMillis, clip.endMillis)
+        },
+        slowMotionSaveProgress = quickSlowMotionSave.progress,
+        onCancelSlowMotionSave = viewModel::cancelQuickSlowMotionSave,
+        slowMotionSaveCompletionGeneration = quickSlowMotionSave.completionGeneration,
         textRecognizer = rememberViewerTextRecognizer(),
         modifier = Modifier.fillMaxSize(),
     )

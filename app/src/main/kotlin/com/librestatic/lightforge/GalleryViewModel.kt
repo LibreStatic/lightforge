@@ -5447,9 +5447,24 @@ class GalleryViewModel @Inject constructor(
     }
 
     fun saveQuickSlowMotionClip(media: TimelineMedia, startMillis: Long, endMillis: Long) {
-        val safeStart = startMillis.coerceIn(0L, (media.durationMillis - 1L).coerceAtLeast(0L))
-        val safeEnd = endMillis.coerceAtMost(media.durationMillis)
-        if (media.kind != MediaKind.Video || safeEnd <= safeStart || slowMotionSaveJob?.isActive == true) return
+        if (media.kind != MediaKind.Video) return
+        saveQuickSlowMotionClip(mediaUri(media), media.durationMillis, startMillis, endMillis)
+    }
+
+    fun saveQuickSlowMotionClip(media: ExternalMedia, startMillis: Long, endMillis: Long) {
+        if (media.kind != MediaKind.Video || !media.available) return
+        saveQuickSlowMotionClip(media.uri, media.durationMillis, startMillis, endMillis)
+    }
+
+    /** [durationMillis] may be 0 for external providers that do not report it; then only the start is clamped. */
+    private fun saveQuickSlowMotionClip(input: Uri, durationMillis: Long, startMillis: Long, endMillis: Long) {
+        val safeStart = if (durationMillis > 0L) {
+            startMillis.coerceIn(0L, durationMillis - 1L)
+        } else {
+            startMillis.coerceAtLeast(0L)
+        }
+        val safeEnd = if (durationMillis > 0L) endMillis.coerceAtMost(durationMillis) else endMillis
+        if (safeEnd <= safeStart || slowMotionSaveJob?.isActive == true) return
         slowMotionSaveJob = viewModelScope.launch {
             val temp = java.io.File(getApplication<Application>().cacheDir, "instant-slow-${System.nanoTime()}.mp4")
             mutableQuickSlowMotionSave.value = mutableQuickSlowMotionSave.value.copy(progress = 0f)
@@ -5464,7 +5479,7 @@ class GalleryViewModel @Inject constructor(
                     gallerySettings.value.playback.frameInterpolationEngine.toInterpolationEngine(),
                 ).export(
                     VideoExportRequest(
-                        input = mediaUri(media),
+                        input = input,
                         output = temp,
                         recipe = VideoEditRecipe(
                             startMillis = safeStart,
