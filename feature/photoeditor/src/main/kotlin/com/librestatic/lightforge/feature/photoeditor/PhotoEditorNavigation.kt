@@ -7,11 +7,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -24,6 +27,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
@@ -38,7 +43,6 @@ import com.librestatic.lightforge.core.model.EditOperation
 /** Sub-selections inside the Adjust, Crop and Filters tabs, owned by the editor so search can move them. */
 internal class PhotoToolNav(
     val adjustTile: PhotoAdjustTile,
-    val onAdjustTile: (PhotoAdjustTile) -> Unit,
     val cropTool: PhotoCropTool,
     val onCropTool: (PhotoCropTool) -> Unit,
     val looksTab: PhotoLooksTab,
@@ -83,6 +87,18 @@ internal fun tabLabel(tab: PhotoEditorTab): String = when (tab) {
     PhotoEditorTab.Export -> stringResource(R.string.photo_editor_export_tab)
 }
 
+internal val PhotoEditorTab.icon: ImageVector
+    get() = when (this) {
+        PhotoEditorTab.Automatic -> GalleryIcons.AutoAwesome
+        PhotoEditorTab.Crop -> GalleryIcons.Crop
+        PhotoEditorTab.Adjust -> GalleryIcons.Tune
+        PhotoEditorTab.Actions -> GalleryIcons.Cleanup
+        PhotoEditorTab.Filters -> GalleryIcons.Palette
+        PhotoEditorTab.More -> GalleryIcons.More
+        PhotoEditorTab.Raw -> GalleryIcons.AdjustExposure
+        PhotoEditorTab.Export -> GalleryIcons.Download
+    }
+
 @Composable
 internal fun toolLabel(tool: PhotoEditorTool): String = when (tool) {
     PhotoEditorTool.ObjectEraser -> stringResource(
@@ -96,14 +112,13 @@ internal fun toolLabel(tool: PhotoEditorTool): String = when (tool) {
     else -> tabLabel(tool.tab())
 }
 
-/** Search button followed by the pill tabs. */
+/** Stacked layout: search button followed by one scrolling row of pill tabs. */
 @Composable
 internal fun PhotoToolNavigation(
     tabs: List<PhotoEditorTab>,
     selectedTab: PhotoEditorTab,
     onSelectTab: (PhotoEditorTab) -> Unit,
     onSearch: () -> Unit,
-    wrap: Boolean,
 ) {
     Row(
         Modifier.padding(start = GallerySpacing.Sm),
@@ -117,16 +132,99 @@ internal fun PhotoToolNavigation(
                 MediaEditorToolChip(
                     key = tab.name,
                     label = tabLabel(tab),
-                    icon = null,
+                    icon = tab.icon,
                     testTag = "photo-editor-tab-${tab.name.lowercase()}",
                 )
             },
             selectedKey = selectedTab.name,
             onSelect = { key -> onSelectTab(PhotoEditorTab.valueOf(key)) },
-            wrap = wrap,
+            wrap = false,
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(horizontal = GallerySpacing.Sm),
         )
+    }
+}
+
+/**
+ * Inspector header beside the media: a full-width search button over an even grid of
+ * icon-over-label tabs, closed by a divider so the tabs read apart from the active panel. The grid
+ * keeps one column count whatever the inspector width, so square foldables get tidy rows instead
+ * of ragged wrapped chips.
+ */
+@Composable
+internal fun PhotoToolNavigationPanel(
+    tabs: List<PhotoEditorTab>,
+    selectedTab: PhotoEditorTab,
+    onSelectTab: (PhotoEditorTab) -> Unit,
+    onSearch: () -> Unit,
+) {
+    val columns = if (tabs.size <= 4) tabs.size else 3
+    Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Md)) {
+        Column(
+            Modifier.padding(horizontal = GallerySpacing.Lg),
+            verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+        ) {
+            Surface(
+                onClick = onSearch,
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("photo-tool-search"),
+            ) {
+                Row(
+                    Modifier.padding(horizontal = GallerySpacing.Md, vertical = GallerySpacing.Sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+                ) {
+                    Icon(GalleryIcons.Search, contentDescription = null)
+                    Text(
+                        stringResource(R.string.photo_editor_search_tools),
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            tabs.chunked(columns).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+                    row.forEach { tab ->
+                        PhotoTabTile(tab, tab == selectedTab, { onSelectTab(tab) }, Modifier.weight(1f))
+                    }
+                    repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    }
+}
+
+@Composable
+private fun PhotoTabTile(tab: PhotoEditorTab, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
+    Surface(
+        selected = selected,
+        onClick = onClick,
+        shape = MaterialTheme.shapes.large,
+        color = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+        modifier = modifier
+            .heightIn(min = 64.dp)
+            .testTag("photo-editor-tab-${tab.name.lowercase()}")
+            .semantics { role = Role.Tab },
+    ) {
+        Column(
+            Modifier.padding(horizontal = GallerySpacing.Xs, vertical = GallerySpacing.Sm),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs, Alignment.CenterVertically),
+        ) {
+            Icon(tab.icon, contentDescription = null)
+            Text(
+                tabLabel(tab),
+                style = MaterialTheme.typography.labelLarge,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 

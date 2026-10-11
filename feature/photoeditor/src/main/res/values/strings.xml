@@ -110,6 +110,9 @@
     <string name="photo_editor_adjust_skin_tone">Skin tone</string>
     <string name="photo_editor_adjust_blue_tone">Blue tone</string>
     <string name="photo_editor_adjust_vignette">Vignette</string>
+    <string name="photo_editor_adjust_section_light">Light</string>
+    <string name="photo_editor_adjust_section_color">Color</string>
+    <string name="photo_editor_adjust_section_effects">Effects</string>
     <string name="photo_editor_adjust_color_mix">Color mix</string>
     <string name="photo_editor_adjust_modified">Adjusted</string>
     <string name="photo_editor_mix_hue">Hue</string>

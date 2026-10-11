@@ -94,6 +94,9 @@
     <string name="photo_editor_adjust_skin_tone">Tono della pelle</string>
     <string name="photo_editor_adjust_blue_tone">Tono blu</string>
     <string name="photo_editor_adjust_vignette">Vignettatura</string>
+    <string name="photo_editor_adjust_section_light">Luce</string>
+    <string name="photo_editor_adjust_section_color">Colore</string>
+    <string name="photo_editor_adjust_section_effects">Effetti</string>
     <string name="photo_editor_adjust_color_mix">Mix colori</string>
     <string name="photo_editor_adjust_modified">Modificato</string>
     <string name="photo_editor_mix_hue">Tonalità</string>

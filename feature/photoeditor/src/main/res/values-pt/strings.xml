@@ -94,6 +94,9 @@
     <string name="photo_editor_adjust_skin_tone">Tom de pele</string>
     <string name="photo_editor_adjust_blue_tone">Tom azul</string>
     <string name="photo_editor_adjust_vignette">Vinheta</string>
+    <string name="photo_editor_adjust_section_light">Luz</string>
+    <string name="photo_editor_adjust_section_color">Cor</string>
+    <string name="photo_editor_adjust_section_effects">Efeitos</string>
     <string name="photo_editor_adjust_color_mix">Mistura de cores</string>
     <string name="photo_editor_adjust_modified">Ajustado</string>
     <string name="photo_editor_mix_hue">Matiz</string>

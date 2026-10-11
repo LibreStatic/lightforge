@@ -51,6 +51,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.IntSize
@@ -177,7 +178,7 @@ fun PhotoEditorContent(
     var cropTool by rememberSaveable(key = "photo-editor-crop-tool") { mutableStateOf(initialUi.cropTool) }
     var looksTab by rememberSaveable(key = "photo-editor-looks-tab") { mutableStateOf(initialUi.looksTab) }
     var searchOpen by rememberSaveable(key = "photo-editor-search-open") { mutableStateOf(initialUi.searchOpen) }
-    val nav = PhotoToolNav(adjustTile, { adjustTile = it }, cropTool, { cropTool = it }, looksTab, { looksTab = it })
+    val nav = PhotoToolNav(adjustTile, cropTool, { cropTool = it }, looksTab, { looksTab = it })
     val panelActions = PhotoPanelActions(
         onAdjustPreview = onAdjustPreview,
         onAdjustChangeFinished = onAdjustChangeFinished,
@@ -500,8 +501,8 @@ private fun PhotoTools(
         Modifier.padding(vertical = GallerySpacing.Md),
         verticalArrangement = Arrangement.spacedBy(GallerySpacing.Md),
     ) {
-        // Beside the media the tools wrap at the top of the inspector, so none is ever clipped (bug 35).
-        if (sideBySide) PhotoToolNavigation(tabs, selectedTab, onSelectTab, onSearch, wrap = true)
+        // Beside the media the tabs sit in an even grid at the top of the inspector, so none is ever clipped (bug 35).
+        if (sideBySide) PhotoToolNavigationPanel(tabs, selectedTab, onSelectTab, onSearch)
         Row(Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg)) {
             Text(tabLabel(selectedTab), style = MaterialTheme.typography.titleMedium)
         }
@@ -513,7 +514,7 @@ private fun PhotoTools(
             verticalArrangement = Arrangement.spacedBy(GallerySpacing.Md),
         ) {
             when (selectedTool) {
-                PhotoEditorTool.Automatic -> AutomaticControls(state, onApplyAutoSuggestion)
+                PhotoEditorTool.Automatic -> AutomaticControls(state, onApplyAutoSuggestion, fillWidth = sideBySide)
                 PhotoEditorTool.Crop -> cropDraft?.let { draft ->
                     CropControls(
                         draft = draft,
@@ -537,7 +538,7 @@ private fun PhotoTools(
                         },
                     )
                 }
-                PhotoEditorTool.Adjust -> AdjustControls(state, nav.adjustTile, nav.onAdjustTile, actions)
+                PhotoEditorTool.Adjust -> AdjustControls(state, nav.adjustTile, actions)
                 PhotoEditorTool.Filters -> FiltersControls(state, nav.looksTab, nav.onLooksTab, actions)
                 PhotoEditorTool.ObjectEraser -> {
                     ActionsTools(selectedTool, onSelectTool)
@@ -586,7 +587,7 @@ private fun PhotoTools(
             }
         }
 
-        if (!sideBySide) PhotoToolNavigation(tabs, selectedTab, onSelectTab, onSearch, wrap = false)
+        if (!sideBySide) PhotoToolNavigation(tabs, selectedTab, onSelectTab, onSearch)
     }
     }
 }
@@ -595,6 +596,7 @@ private fun PhotoTools(
 private fun AutomaticControls(
     state: PhotoEditorContentState,
     onApply: (EditOperation.Tone?) -> Unit,
+    fillWidth: Boolean,
 ) {
     val source = state.originalPreview ?: state.preview
     if (source == null) {
@@ -602,8 +604,8 @@ private fun AutomaticControls(
         return
     }
     val suggestions = state.autoEnhancementSuggestions
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
-        item {
+    val cards: List<@Composable (Modifier) -> Unit> = listOf(
+        { cardModifier ->
             AutoSuggestionCard(
                 tag = "photo-editor-auto-original",
                 source = source,
@@ -612,9 +614,10 @@ private fun AutomaticControls(
                 selected = state.tone == EditOperation.Tone() && state.selectedFilter == "none",
                 enabled = true,
                 onClick = { onApply(null) },
+                modifier = cardModifier,
             )
-        }
-        item {
+        },
+        { cardModifier ->
             AutoSuggestionCard(
                 tag = "photo-editor-auto-enhance",
                 source = source,
@@ -623,9 +626,10 @@ private fun AutomaticControls(
                 selected = suggestions?.enhance == state.tone && state.selectedFilter == "none",
                 enabled = suggestions != null,
                 onClick = { suggestions?.enhance?.let(onApply) },
+                modifier = cardModifier,
             )
-        }
-        item {
+        },
+        { cardModifier ->
             AutoSuggestionCard(
                 tag = "photo-editor-auto-dynamic",
                 source = source,
@@ -634,7 +638,18 @@ private fun AutomaticControls(
                 selected = suggestions?.dynamic == state.tone && state.selectedFilter == "none",
                 enabled = suggestions != null,
                 onClick = { suggestions?.dynamic?.let(onApply) },
+                modifier = cardModifier,
             )
+        },
+    )
+    if (fillWidth) {
+        // Beside the media the three cards share the inspector width instead of scrolling off its edge.
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+            cards.forEach { it(Modifier.weight(1f)) }
+        }
+    } else {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+            items(cards) { it(Modifier.width(120.dp)) }
         }
     }
     if (state.isAutoEnhancementAnalyzing) {
@@ -654,6 +669,7 @@ private fun AutoSuggestionCard(
     selected: Boolean,
     enabled: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier,
 ) {
     val matrix = remember(tone) {
         tone?.let { ColorFilter.colorMatrix(ColorMatrix(
@@ -669,7 +685,7 @@ private fun AutoSuggestionCard(
             if (selected) 2.dp else 1.dp,
             if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
         ),
-        modifier = Modifier.width(120.dp).testTag(tag),
+        modifier = modifier.testTag(tag),
     ) {
         Column {
             Image(
@@ -679,7 +695,13 @@ private fun AutoSuggestionCard(
                 colorFilter = matrix,
                 modifier = Modifier.fillMaxWidth().height(64.dp),
             )
-            Text(label, Modifier.padding(GallerySpacing.Sm), style = MaterialTheme.typography.labelLarge)
+            Text(
+                label,
+                Modifier.padding(GallerySpacing.Sm),
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }

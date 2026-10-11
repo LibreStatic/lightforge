@@ -4,14 +4,12 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
@@ -67,46 +65,47 @@ private fun Float.percent(): Float = (this * 100f).roundToInt() / 100f
 internal fun ColorMixControls(mix: EditOperation.ColorMix, actions: PhotoPanelActions) {
     var selected by rememberSaveable { mutableStateOf(ColorMixHue.Red) }
     val band = mix[selected]
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
-        contentPadding = PaddingValues(vertical = GallerySpacing.Xs, horizontal = 2.dp),
-    ) {
-        items(ColorMixHue.entries, key = { it.name }) { hue ->
-            val isSelected = hue == selected
-            val name = stringResource(hue.labelRes)
-            val modifiedText = stringResource(R.string.photo_editor_adjust_modified)
+    val swatch: @Composable (ColorMixHue) -> Unit = { hue ->
+        val isSelected = hue == selected
+        val name = stringResource(hue.labelRes)
+        val modifiedText = stringResource(R.string.photo_editor_adjust_modified)
+        Box(
+            Modifier
+                .size(48.dp)
+                .testTag("photo-colormix-${hue.token}")
+                .selectable(selected = isSelected, role = Role.RadioButton, onClick = { selected = hue })
+                .semantics {
+                    contentDescription = name
+                    if (!mix[hue].isNeutral) stateDescription = modifiedText
+                },
+            contentAlignment = Alignment.Center,
+        ) {
             Box(
                 Modifier
-                    .size(48.dp)
-                    .testTag("photo-colormix-${hue.token}")
-                    .selectable(selected = isSelected, role = Role.RadioButton, onClick = { selected = hue })
-                    .semantics {
-                        contentDescription = name
-                        if (!mix[hue].isNeutral) stateDescription = modifiedText
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
+                    .size(if (isSelected) 40.dp else 32.dp)
+                    .background(hue.swatchColor(), CircleShape)
+                    .border(
+                        width = if (isSelected) 3.dp else 1.dp,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                        shape = CircleShape,
+                    ),
+            )
+            if (!mix[hue].isNeutral) {
                 Box(
                     Modifier
-                        .size(if (isSelected) 40.dp else 32.dp)
-                        .background(hue.swatchColor(), CircleShape)
-                        .border(
-                            width = if (isSelected) 3.dp else 1.dp,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                            shape = CircleShape,
-                        ),
+                        .align(Alignment.TopEnd)
+                        .padding(2.dp)
+                        .size(10.dp)
+                        .background(MaterialTheme.colorScheme.primary, CircleShape)
+                        .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
                 )
-                if (!mix[hue].isNeutral) {
-                    Box(
-                        Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(2.dp)
-                            .size(10.dp)
-                            .background(MaterialTheme.colorScheme.primary, CircleShape)
-                            .border(1.5.dp, MaterialTheme.colorScheme.surface, CircleShape),
-                    )
-                }
             }
+        }
+    }
+    // The eight swatches sit in two even rows instead of scrolling off the panel's edge.
+    Column(Modifier.fillMaxWidth().padding(vertical = GallerySpacing.Xs)) {
+        ColorMixHue.entries.chunked(4).forEach { row ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) { row.forEach { swatch(it) } }
         }
     }
     Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm), modifier = Modifier.fillMaxWidth()) {

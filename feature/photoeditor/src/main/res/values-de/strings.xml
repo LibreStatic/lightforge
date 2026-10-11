@@ -94,6 +94,9 @@
     <string name="photo_editor_adjust_skin_tone">Hautton</string>
     <string name="photo_editor_adjust_blue_tone">Blauton</string>
     <string name="photo_editor_adjust_vignette">Vignettierung</string>
+    <string name="photo_editor_adjust_section_light">Licht</string>
+    <string name="photo_editor_adjust_section_color">Farbe</string>
+    <string name="photo_editor_adjust_section_effects">Effekte</string>
     <string name="photo_editor_adjust_color_mix">Farbmischer</string>
     <string name="photo_editor_adjust_modified">Angepasst</string>
     <string name="photo_editor_mix_hue">Farbton</string>

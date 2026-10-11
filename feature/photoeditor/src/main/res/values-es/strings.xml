@@ -96,6 +96,9 @@
     <string name="photo_editor_adjust_skin_tone">Tono de piel</string>
     <string name="photo_editor_adjust_blue_tone">Tono azul</string>
     <string name="photo_editor_adjust_vignette">Viñeta</string>
+    <string name="photo_editor_adjust_section_light">Luz</string>
+    <string name="photo_editor_adjust_section_color">Color</string>
+    <string name="photo_editor_adjust_section_effects">Efectos</string>
     <string name="photo_editor_adjust_color_mix">Mezcla de color</string>
     <string name="photo_editor_adjust_modified">Ajustado</string>
     <string name="photo_editor_mix_hue">Tono de color</string>

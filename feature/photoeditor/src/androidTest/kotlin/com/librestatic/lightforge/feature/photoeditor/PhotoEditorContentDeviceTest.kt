@@ -8,17 +8,20 @@ import androidx.compose.ui.test.ForcedSize
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasScrollToNodeAction
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasStateDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
-import androidx.compose.ui.test.SemanticsMatcher
-import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.runtime.mutableStateOf
@@ -41,16 +44,16 @@ import org.junit.runner.RunWith
 class PhotoEditorContentDeviceTest {
     @get:Rule val compose = createComposeRule()
 
-    private val adjusted = SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Adjusted")
 
     /** Tabs and tool carousels are lazy rows, so off-screen items must be scrolled into view first. */
     private fun scrolledTo(tag: String): SemanticsNodeInteraction {
         val target = hasTestTag(tag)
         val containers = compose.onAllNodes(hasScrollToNodeAction())
         for (index in containers.fetchSemanticsNodes().indices) {
-            if (runCatching { containers[index].performScrollToNode(target) }.isSuccess) break
+            if (runCatching { containers[index].performScrollToNode(target) }.isSuccess) return compose.onNode(target)
         }
-        return compose.onNode(target)
+        // Not inside a lazy list: scroll the panel's plain vertical scroll instead.
+        return compose.onNode(target).performScrollTo()
     }
 
     @Test
@@ -140,6 +143,33 @@ class PhotoEditorContentDeviceTest {
         val applyBounds = compose.onNode(hasText("Apply")).assertIsDisplayed().fetchSemanticsNode().boundsInRoot
 
         assertTrue("Apply must not collapse into a vertical pill", applyBounds.width > applyBounds.height)
+    }
+
+    @Test
+    fun sideBySideAdjustReachesEverySlider() {
+        var adjust: EditOperation.Adjust? = null
+        compose.setContent {
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(900.dp, 900.dp))) {
+                LightforgeTheme {
+                    PhotoEditorContent(
+                        state = PhotoEditorContentState(),
+                        onBack = {},
+                        onSaveCopy = {},
+                        onApply = {},
+                        onUndo = {},
+                        onRedo = {},
+                        onAdjustPreview = { adjust = it },
+                    )
+                }
+            }
+        }
+
+        compose.onNode(hasTestTag("photo-editor-tab-adjust")).performClick()
+        scrolledTo("photo-adjust-slider-vignette")
+            .performSemanticsAction(SemanticsActions.SetProgress) { it(-40f) }
+        scrolledTo("photo-colormix-blue").assertIsDisplayed()
+
+        compose.runOnIdle { assertEquals(-0.4f, adjust!![AdjustKey.Vignette], 0.011f) }
     }
 
     @Test
@@ -294,7 +324,7 @@ class PhotoEditorContentDeviceTest {
     }
 
     @Test
-    fun adjustTilesSwitchTheSliderAndMarkEditedTiles() {
+    fun adjustStacksEverySliderAndShowsEditedValues() {
         compose.setContent {
             LightforgeTheme {
                 PhotoEditorContent(
@@ -311,11 +341,39 @@ class PhotoEditorContentDeviceTest {
         }
 
         compose.onNode(hasTestTag("photo-editor-tab-adjust")).performClick()
-        compose.onNode(hasTestTag("photo-adjust-contrast")).performClick()
-        compose.onNode(hasContentDescription("Contrast")).assertIsDisplayed()
-        compose.onNode(hasTestTag("photo-adjust-contrast")).assertIsDisplayed()
-        compose.onNode(hasTestTag("photo-adjust-contrast") and adjusted).assertExists()
-        compose.onNode(hasTestTag("photo-adjust-brightness") and adjusted).assertDoesNotExist()
+        compose.onNode(hasTestTag("photo-adjust-contrast")).assertDoesNotExist()
+        scrolledTo("photo-adjust-slider-contrast").assertIsDisplayed()
+        compose.onNode(hasTestTag("photo-adjust-slider-contrast") and hasStateDescription("+30")).assertExists()
+        compose.onNode(hasTestTag("photo-adjust-slider-brightness") and hasStateDescription("0")).assertExists()
+    }
+
+    @Test
+    fun verticalSwipeOverASliderScrollsTheListWithoutChangingIt() {
+        val previews = mutableListOf<EditOperation.Adjust>()
+        compose.setContent {
+            LightforgeTheme {
+                PhotoEditorContent(
+                    state = PhotoEditorContentState(),
+                    onBack = {},
+                    onSaveCopy = {},
+                    onApply = {},
+                    onUndo = {},
+                    onRedo = {},
+                    onAdjustPreview = { previews += it },
+                )
+            }
+        }
+
+        compose.onNode(hasTestTag("photo-editor-tab-adjust")).performClick()
+        val slider = compose.onNode(hasTestTag("photo-adjust-slider-contrast"))
+        val before = slider.fetchSemanticsNode().boundsInRoot.top
+        // Start a little off the thumb, as a thumb resting on a slider while scrolling would.
+        slider.performTouchInput { swipe(Offset(width * 0.8f, centerY), Offset(width * 0.8f, centerY - 600f), 300) }
+        compose.waitForIdle()
+
+        val after = slider.fetchSemanticsNode().boundsInRoot.top
+        assertTrue("list must scroll: before=$before after=$after", after < before - 200f)
+        assertTrue("slider must not change while scrolling: $previews", previews.isEmpty())
     }
 
     @Test
@@ -336,9 +394,8 @@ class PhotoEditorContentDeviceTest {
         }
 
         compose.onNode(hasTestTag("photo-editor-tab-adjust")).performClick()
-        scrolledTo("photo-adjust-colormix").performClick()
         scrolledTo("photo-colormix-blue").performClick()
-        compose.onNode(hasContentDescription("Saturation"))
+        scrolledTo("photo-colormix-saturation")
             .performSemanticsAction(SemanticsActions.SetProgress) { it(50f) }
 
         compose.runOnIdle {

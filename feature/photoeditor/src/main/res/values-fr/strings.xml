@@ -94,6 +94,9 @@
     <string name="photo_editor_adjust_skin_tone">Teint</string>
     <string name="photo_editor_adjust_blue_tone">Tons bleus</string>
     <string name="photo_editor_adjust_vignette">Vignettage</string>
+    <string name="photo_editor_adjust_section_light">Lumière</string>
+    <string name="photo_editor_adjust_section_color">Couleur</string>
+    <string name="photo_editor_adjust_section_effects">Effets</string>
     <string name="photo_editor_adjust_color_mix">Mélange des couleurs</string>
     <string name="photo_editor_adjust_modified">Ajusté</string>
     <string name="photo_editor_mix_hue">Teinte</string>
