@@ -1,5 +1,6 @@
 package com.librestatic.lightforge.feature.pdfstudio
 
+import com.tom_roush.pdfbox.pdmodel.encryption.InvalidPasswordException
 import java.io.FileNotFoundException
 import java.io.IOException
 
@@ -35,7 +36,8 @@ enum class PdfFailure(val message: Int) {
             chain.filterIsInstance<PdfOperationFailure>().firstOrNull()?.let {
                 return it.failure
             }
-            if (chain.any { it.javaClass.simpleName == "InvalidPasswordException" })
+            // A type check, not a class-name match: R8 merges this exception away in release builds.
+            if (chain.any { it is InvalidPasswordException })
                 return EncryptedPdf
             if (
                 chain.any {

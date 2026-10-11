@@ -46,4 +46,13 @@ class PdfStorageBudgetTest {
         assertEquals(PdfFailure.InvalidPdf, PdfFailure.remote("Unknown", PdfFailure.InvalidPdf))
         assertEquals(PdfFailure.Unknown, PdfFailure.remote("private engine path and exception"))
     }
+
+    @Test
+    fun wrappedPasswordFailureIsEncryptedPdf() {
+        // PDFBox's constructor is package-private; the parser is the only thing that throws it.
+        val password = com.tom_roush.pdfbox.pdmodel.encryption.InvalidPasswordException::class.java
+            .getDeclaredConstructor(String::class.java).apply { isAccessible = true }.newInstance("x")
+        val wrapped = IllegalStateException("load", password)
+        assertEquals(PdfFailure.EncryptedPdf, PdfFailure.from(wrapped))
+    }
 }
