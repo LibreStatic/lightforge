@@ -16,4 +16,5 @@
     <string name="media_tile_action_open">Abrir</string>
     <!-- Media editors -->
     <string name="editor_slider_reset">Redefinir %1$s</string>
+    <string name="editor_zoom_reset">Redefinir zoom</string>
 </resources>

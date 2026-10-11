@@ -1,4 +1,4 @@
-package com.librestatic.lightforge.feature.viewer
+package com.librestatic.lightforge.core.designsystem
 
 import androidx.compose.animation.core.calculateTargetValue
 import androidx.compose.ui.geometry.Offset

@@ -245,12 +245,22 @@ internal fun ExperimentalPreviewOverlay(
                 if (erasing) {
                     awaitEachGesture {
                         val down = awaitFirstDown()
-                        var strokes = currentStrokes
+                        val strokesBeforeGesture = currentStrokes
+                        var strokes = strokesBeforeGesture
                         imagePointAt(down.position, bounds)?.let { strokes = appendBrushPoint(strokes, it, aspect, connect = false) }
                         onEraseStrokesChange(strokes)
                         down.consume()
                         do {
                             val event = awaitPointerEvent()
+                            // A second finger or a change consumed by the zoom layer makes this a
+                            // pinch or pan: drop what this gesture painted and wait for release.
+                            if (event.changes.count { it.pressed } >= 2 || event.changes.any { it.isConsumed }) {
+                                onEraseStrokesChange(strokesBeforeGesture)
+                                do {
+                                    val rest = awaitPointerEvent()
+                                } while (rest.changes.any { it.pressed })
+                                break
+                            }
                             event.changes.forEach { change ->
                                 if (change.pressed) {
                                     imagePointAt(change.position, bounds)?.let {

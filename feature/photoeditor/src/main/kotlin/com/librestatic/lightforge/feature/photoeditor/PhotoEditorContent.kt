@@ -32,6 +32,7 @@ import androidx.compose.material3.TextButton
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,6 +54,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.toSize
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.layout.onSizeChanged
 import com.librestatic.lightforge.core.model.EditOperation
 import com.librestatic.lightforge.core.editing.image.PhotoAutoEnhancementSuggestions
 import com.librestatic.lightforge.core.model.RawDevelopmentSettings
@@ -62,6 +66,10 @@ import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import com.librestatic.lightforge.core.designsystem.GalleryLoadingIndicator
 import com.librestatic.lightforge.core.designsystem.MediaEditorHistory
+import com.librestatic.lightforge.core.designsystem.MediaEditorZoomResetChip
+import com.librestatic.lightforge.core.designsystem.mediaEditorZoomGestures
+import com.librestatic.lightforge.core.designsystem.mediaEditorZoomLayer
+import com.librestatic.lightforge.core.designsystem.rememberMediaEditorZoomState
 import com.librestatic.lightforge.core.designsystem.EditorAdjustmentSlider
 import com.librestatic.lightforge.core.designsystem.EditorAdjustmentSliderRules
 import com.librestatic.lightforge.core.designsystem.MediaEditorScaffold
@@ -273,10 +281,25 @@ private fun PreviewStage(
     experimental: ExperimentalToolActions,
     modifier: Modifier,
 ) {
+    val zoom = rememberMediaEditorZoomState(state.geometry)
+    // The crop handles live in unzoomed stage space, so cropping always works at 1x.
+    val zoomEnabled = cropDraft == null
+    LaunchedEffect(zoom, zoomEnabled) { if (!zoomEnabled) zoom.resetImmediately() }
+    var stageSize by remember { mutableStateOf(IntSize.Zero) }
     Box(
         modifier
             .testTag("photo-editor-preview")
-            .background(MaterialTheme.colorScheme.surfaceContainerLowest),
+            .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+            .clipToBounds()
+            .onSizeChanged { stageSize = it }
+            .mediaEditorZoomGestures(
+                zoom,
+                enabled = zoomEnabled,
+                // One finger paints with the eraser, so only two fingers move the photo there.
+                singleFingerPan = selectedTool != PhotoEditorTool.ObjectEraser,
+                doubleTapZoom = selectedTool != PhotoEditorTool.ObjectEraser &&
+                    selectedTool != PhotoEditorTool.SubjectClip,
+            ),
         contentAlignment = Alignment.Center,
     ) {
         val erasing = selectedTool == PhotoEditorTool.ObjectEraser && cropDraft == null
@@ -287,6 +310,10 @@ private fun PreviewStage(
             clipping && state.subjectClipPreview != null -> state.subjectClipPreview
             else -> state.erasePreview ?: state.preview
         }
+        SideEffect {
+            val bitmapSize = preview?.let { IntSize(it.width, it.height) } ?: IntSize.Zero
+            zoom.updateSizes(fittedImageBounds(stageSize, bitmapSize).size, stageSize.toSize())
+        }
         if (preview != null) {
             val description = stringResource(R.string.photo_editor_preview_description)
             val colorFilter = remember(state.colorOperations, cropDraft, compareOriginal) {
@@ -295,6 +322,7 @@ private fun PreviewStage(
                     com.librestatic.lightforge.core.editing.image.PhotoColorTransform.combinedValues(state.colorOperations),
                 ))
             }
+            Box(Modifier.fillMaxSize().mediaEditorZoomLayer(zoom)) {
             Image(
                 bitmap = preview.asImageBitmap(),
                 contentDescription = description,
@@ -308,9 +336,17 @@ private fun PreviewStage(
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         onCompareOriginalChange(true)
+                        var comparing = true
                         try {
                             do {
                                 val event = awaitPointerEvent()
+                                // A pinch or pan is not a compare press: end it, then wait for release.
+                                if (comparing && (event.changes.any { it.isConsumed } ||
+                                        event.changes.count { it.pressed } >= 2)
+                                ) {
+                                    comparing = false
+                                    onCompareOriginalChange(false)
+                                }
                             } while (event.changes.any { it.pressed })
                         } finally {
                             onCompareOriginalChange(false)
@@ -338,6 +374,7 @@ private fun PreviewStage(
                     modifier = Modifier.fillMaxSize(),
                 )
             }
+            }
             if (state.isExperimentalProcessing) GalleryLoadingIndicator()
         } else if (state.isRendering) {
             GalleryLoadingIndicator()
@@ -347,6 +384,7 @@ private fun PreviewStage(
                 color = MaterialTheme.colorScheme.onSurface,
             )
         }
+        MediaEditorZoomResetChip(zoom, Modifier.align(Alignment.TopEnd).padding(12.dp))
         state.statusMessage?.let { message ->
             // Drawn over the photo, so it carries its own container instead of bare text.
             Surface(

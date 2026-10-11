@@ -110,6 +110,7 @@ import com.librestatic.lightforge.core.model.MediaKind
 import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.core.designsystem.GalleryAnimatedVisibility
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.designsystem.ZoomPanState
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveIconButton
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveButton
 import com.librestatic.lightforge.core.designsystem.GalleryLoadingIndicator

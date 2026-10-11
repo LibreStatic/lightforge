@@ -1,4 +1,4 @@
-package com.librestatic.lightforge.feature.viewer
+package com.librestatic.lightforge.core.designsystem
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.DecayAnimationSpec
@@ -28,7 +28,7 @@ import kotlinx.coroutines.launch
  * The owner computes [containerCenter] from its own layout size and provides [maxOffsets] so the
  * same state works for fit-scaled images and plain surface scaling alike.
  */
-internal class ZoomPanState(
+class ZoomPanState(
     density: Density,
     /** Max absolute offset allowed on each axis for a given scale. A zero component locks that axis. */
     private val maxOffsets: (scale: Float) -> Offset,
@@ -175,7 +175,7 @@ internal class ZoomPanState(
 }
 
 /** Seconds for a fling's velocity to fall to 1/e; distance travelled is velocity × this. */
-internal const val FLING_TIME_CONSTANT_SECONDS = 0.55f
+const val FLING_TIME_CONSTANT_SECONDS = 0.55f
 
 /** Compose's base friction for [exponentialDecay] (velocity ∝ e^(-4.2 · multiplier · t)). */
 private const val EXPONENTIAL_DECAY_FRICTION = 4.2f

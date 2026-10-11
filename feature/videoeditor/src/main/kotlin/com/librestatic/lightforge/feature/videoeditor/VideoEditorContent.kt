@@ -59,6 +59,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -79,6 +80,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -109,6 +114,10 @@ import com.librestatic.lightforge.core.designsystem.GalleryLoadingIndicator
 import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
 import com.librestatic.lightforge.core.designsystem.GalleryMonoTypography
 import com.librestatic.lightforge.core.designsystem.MediaEditorHistory
+import com.librestatic.lightforge.core.designsystem.MediaEditorZoomResetChip
+import com.librestatic.lightforge.core.designsystem.mediaEditorZoomGestures
+import com.librestatic.lightforge.core.designsystem.mediaEditorZoomLayer
+import com.librestatic.lightforge.core.designsystem.rememberMediaEditorZoomState
 import com.librestatic.lightforge.core.designsystem.EditorAdjustmentSlider
 import com.librestatic.lightforge.core.designsystem.EditorAdjustmentSliderRules
 import com.librestatic.lightforge.core.designsystem.EditorColorSwatch
@@ -879,6 +888,12 @@ private fun VideoPreview(
     onEraseAnnotations: (List<NormalizedPoint>) -> Unit,
     modifier: Modifier,
 ) {
+    // A new controller or geometry (rotate, flip, crop applied) starts over at 1x.
+    val zoom = rememberMediaEditorZoomState(controller, state.geometry)
+    // The crop handles live in unzoomed stage space, so cropping always works at 1x.
+    val zoomEnabled = !cropActive
+    LaunchedEffect(zoom, zoomEnabled) { if (!zoomEnabled) zoom.resetImmediately() }
+    var contentSize by remember { mutableStateOf(IntSize.Zero) }
     Box(
         modifier
             .testTag(VideoEditorPreviewTag)
@@ -907,7 +922,29 @@ private fun VideoPreview(
             if (ready != null && !ready.videoEffectsActive) plainPlayback = true
         }
         key(controller) {
-            BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            BoxWithConstraints(
+                Modifier
+                    .fillMaxSize()
+                    .clipToBounds()
+                    .mediaEditorZoomGestures(
+                        zoom,
+                        enabled = zoomEnabled,
+                        // One finger draws annotations, so only two fingers move the video there.
+                        singleFingerPan = !annotationsActive,
+                        doubleTapZoom = !annotationsActive,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                SideEffect {
+                    zoom.updateSizes(
+                        contentSize.toSize(),
+                        Size(constraints.maxWidth.toFloat(), constraints.maxHeight.toFloat()),
+                    )
+                }
+                val stageWidth = maxWidth
+                val stageHeight = maxHeight
+                // Everything that must stay aligned with the picture zooms together.
+                Box(Modifier.fillMaxSize().mediaEditorZoomLayer(zoom), contentAlignment = Alignment.Center) {
                 // While cropping, the surface must be exactly the whole source frame: the overlay maps
                 // its own bounds onto the source, and the player's reported size can lag or differ
                 // (effects rebuild), which letterboxes the frame inside a larger surface.
@@ -916,9 +953,9 @@ private fun VideoPreview(
                 } else null
                 val videoAspectRatio = sourceFrameAspect
                     ?: (viewerState as? VideoViewerState.Ready)?.aspectRatio
-                val containerAspectRatio = maxWidth.value / maxHeight.value.coerceAtLeast(1f)
+                val containerAspectRatio = stageWidth.value / stageHeight.value.coerceAtLeast(1f)
                 // A forced output aspect reshapes the frame; crop editing keeps the untouched one.
-                val outputBoxes = if (cropActive) null else videoOutputPreviewBoxes(state, videoAspectRatio, maxWidth.value, maxHeight.value)
+                val outputBoxes = if (cropActive) null else videoOutputPreviewBoxes(state, videoAspectRatio, stageWidth.value, stageHeight.value)
                 val baseSurfaceModifier = if (outputBoxes != null) {
                     Modifier.size(outputBoxes.videoWidth.dp, outputBoxes.videoHeight.dp)
                 } else if (videoAspectRatio != null && videoAspectRatio > 0f) {
@@ -945,10 +982,10 @@ private fun VideoPreview(
                     // A TextureView, unlike a SurfaceView, follows the layer's rotation and mirror.
                     val geometry = if (cropActive) VideoGeometry() else state.geometry
                     val aspect = videoAspectRatio?.takeIf { it > 0f } ?: containerAspectRatio
-                    val frameWidth = if (aspect >= containerAspectRatio) maxWidth.value else maxHeight.value * aspect
-                    val frameHeight = if (aspect >= containerAspectRatio) maxWidth.value / aspect else maxHeight.value
+                    val frameWidth = if (aspect >= containerAspectRatio) stageWidth.value else stageHeight.value * aspect
+                    val frameHeight = if (aspect >= containerAspectRatio) stageWidth.value / aspect else stageHeight.value
                     val transform = fallbackPreviewTransform(
-                        geometry, frameWidth, frameHeight, maxWidth.value, maxHeight.value,
+                        geometry, frameWidth, frameHeight, stageWidth.value, stageHeight.value,
                     )
                     val textureModifier = Modifier
                         .graphicsLayer {
@@ -960,7 +997,7 @@ private fun VideoPreview(
                     if (geometry.rotationDegrees % 90f == 0f) {
                         AndroidView(
                             factory = { context -> TextureView(context).also(controller::attachTextureView) },
-                            modifier = surfaceModifier.then(textureModifier),
+                            modifier = surfaceModifier.onSizeChanged { contentSize = it }.then(textureModifier),
                         )
                     } else {
                         // Straightening zooms past the frame's edges; clip to the frame like the export.
@@ -970,14 +1007,16 @@ private fun VideoPreview(
                         ) {
                             AndroidView(
                                 factory = { context -> TextureView(context).also(controller::attachTextureView) },
-                                modifier = Modifier.requiredSize(frameWidth.dp, frameHeight.dp).then(textureModifier),
+                                modifier = Modifier.onSizeChanged { contentSize = it }.requiredSize(frameWidth.dp, frameHeight.dp).then(textureModifier),
                             )
                         }
                     }
                 } else {
                     AndroidView(
                         factory = { context -> SurfaceView(context).also(controller::attachSurface) },
-                        modifier = surfaceModifier.semantics { contentDescription = description },
+                        modifier = surfaceModifier
+                            .onSizeChanged { contentSize = it }
+                            .semantics { contentDescription = description },
                     )
                 }
                 // The annotation effect draws into the edited frame (display aspect, after crop and
@@ -1016,6 +1055,8 @@ private fun VideoPreview(
                         modifier = surfaceModifier,
                     )
                 }
+                }
+                MediaEditorZoomResetChip(zoom, Modifier.align(Alignment.TopEnd).padding(12.dp))
             }
         }
         when (val current = viewerState) {
