@@ -1,0 +1,64 @@
+<en-US>
+• Editing RAW photos no longer closes the app.
+• RAW photos now appear upright in the grid, as in the viewer.
+• The video Export options fit on small screens.
+• Password-protected PDFs show the right message again.
+• Progress bars move smoothly.
+Report problems at github.com/LibreStatic/lightforge/issues
+</en-US>
+<es-419>
+• Editar fotos RAW ya no cierra la app.
+• Las fotos RAW ahora se ven derechas en la cuadrícula, igual que en el visor.
+• Las opciones de Exportar video entran en pantallas chicas.
+• Los PDF protegidos con contraseña vuelven a mostrar el aviso correcto.
+• Las barras de progreso avanzan con suavidad.
+Reportá problemas en github.com/LibreStatic/lightforge/issues
+</es-419>
+<es-ES>
+• Editar fotos RAW ya no cierra la app.
+• Las fotos RAW ahora se ven derechas en la cuadrícula, igual que en el visor.
+• Las opciones de Exportar vídeo caben en pantallas pequeñas.
+• Los PDF protegidos con contraseña vuelven a mostrar el aviso correcto.
+• Las barras de progreso avanzan con suavidad.
+Informa de problemas en github.com/LibreStatic/lightforge/issues
+</es-ES>
+<pt-BR>
+• Editar fotos RAW não fecha mais o app.
+• As fotos RAW agora aparecem na posição certa na grade, como no visualizador.
+• As opções de Exportar vídeo cabem em telas pequenas.
+• PDFs protegidos por senha voltam a mostrar o aviso correto.
+• As barras de progresso avançam com suavidade.
+Relate problemas em github.com/LibreStatic/lightforge/issues
+</pt-BR>
+<pt-PT>
+• Editar fotos RAW já não fecha a app.
+• As fotos RAW aparecem agora na posição certa na grelha, como no visualizador.
+• As opções de Exportar vídeo cabem em ecrãs pequenos.
+• Os PDF protegidos por palavra-passe voltam a mostrar o aviso correto.
+• As barras de progresso avançam com suavidade.
+Comunique problemas em github.com/LibreStatic/lightforge/issues
+</pt-PT>
+<fr-FR>
+• Modifier une photo RAW ne ferme plus l’application.
+• Les photos RAW s’affichent désormais à l’endroit dans la grille, comme dans la visionneuse.
+• Les options Exporter de la vidéo tiennent sur les petits écrans.
+• Les PDF protégés par mot de passe affichent à nouveau le bon message.
+• Les barres de progression avancent en douceur.
+Signalez les problèmes sur github.com/LibreStatic/lightforge/issues
+</fr-FR>
+<de-DE>
+• Das Bearbeiten von RAW-Fotos schließt die App nicht mehr.
+• RAW-Fotos stehen im Raster jetzt aufrecht, wie in der Ansicht.
+• Die Export-Optionen für Videos passen auf kleine Bildschirme.
+• Passwortgeschützte PDFs zeigen wieder die richtige Meldung.
+• Fortschrittsbalken bewegen sich flüssig.
+Probleme melden unter github.com/LibreStatic/lightforge/issues
+</de-DE>
+<it-IT>
+• Modificare le foto RAW non chiude più l'app.
+• Le foto RAW ora appaiono dritte nella griglia, come nel visualizzatore.
+• Le opzioni Esporta del video stanno negli schermi piccoli.
+• I PDF protetti da password mostrano di nuovo il messaggio corretto.
+• Le barre di avanzamento scorrono in modo fluido.
+Segnala i problemi su github.com/LibreStatic/lightforge/issues
+</it-IT>
