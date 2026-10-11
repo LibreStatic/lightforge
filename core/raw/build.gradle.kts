@@ -9,6 +9,7 @@ android {
 
     defaultConfig {
         minSdk = 30
+        consumerProguardFiles("consumer-rules.pro")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake { cppFlags += listOf("-std=c++17", "-fexceptions", "-frtti") }
