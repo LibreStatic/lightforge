@@ -1,5 +1,6 @@
 package com.librestatic.lightforge.feature.viewer
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
@@ -12,7 +13,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -50,6 +51,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -67,11 +69,9 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import androidx.core.view.WindowCompat
-import com.librestatic.lightforge.core.designsystem.GalleryAnimatedVisibility
 import com.librestatic.lightforge.core.designsystem.GalleryExpressiveIconButton
 import com.librestatic.lightforge.core.designsystem.GalleryFoldInfo
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
-import com.librestatic.lightforge.core.designsystem.GalleryMotionEdge
 import com.librestatic.lightforge.core.designsystem.rememberGalleryReducedMotion
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
@@ -208,24 +208,34 @@ private fun SidePanelLayout(
     modifier: Modifier,
 ) {
     val verticalFold = foldInfo?.takeIf { it.enablesSideBySide }
+    val reducedMotion = rememberGalleryReducedMotion()
+    // The panel's reserved width animates (instead of the panel sliding over a fixed slot) so the
+    // media resizes together with the panel while it opens and closes.
+    val progress = remember { Animatable(if (open) 1f else 0f) }
+    val spatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+    LaunchedEffect(open, reducedMotion) {
+        val target = if (open) 1f else 0f
+        if (reducedMotion) progress.snapTo(target) else progress.animateTo(target, spatialSpec)
+    }
     BoxWithConstraints(modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim)) {
         val panelWidth = if (verticalFold != null) {
             (maxWidth - verticalFold.right).coerceAtLeast(0.dp)
         } else {
             detailsPanelWidth(maxWidth)
         }
-        val containerWidth = maxWidth
+        // At a vertical fold the hinge gap belongs to the panel, so the media ends at the fold.
+        val slotWidth = panelWidth + (verticalFold?.hingeWidth ?: 0.dp)
+        val shown = progress.value.coerceIn(0f, 1f)
         Row(Modifier.fillMaxSize()) {
-            Box(
-                if (open && verticalFold != null) Modifier.width(verticalFold.left.coerceIn(0.dp, containerWidth)).fillMaxHeight()
-                else Modifier.weight(1f).fillMaxHeight(),
-            ) { viewer() }
-            if (open && verticalFold != null) Spacer(Modifier.width(verticalFold.hingeWidth))
-            GalleryAnimatedVisibility(visible = open, edge = GalleryMotionEdge.End) {
+            Box(Modifier.weight(1f).fillMaxHeight()) { viewer() }
+            if (shown > 0f || open) {
                 // The strip above the panel stays dark so the light status-bar icons that the
                 // viewer uses remain readable across the whole bar (bug 33/21).
                 Box(
-                    Modifier.width(panelWidth).fillMaxHeight()
+                    Modifier.width(slotWidth * shown).fillMaxHeight().clipToBounds()
+                        .wrapContentWidth(Alignment.Start, unbounded = true)
+                        .width(slotWidth)
+                        .padding(start = slotWidth - panelWidth)
                         .windowInsetsPadding(WindowInsets.statusBarsIgnoringVisibility.union(WindowInsets.displayCutout).only(WindowInsetsSides.Top)),
                 ) {
                     Surface(
