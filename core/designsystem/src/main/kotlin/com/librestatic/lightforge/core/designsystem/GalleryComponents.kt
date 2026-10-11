@@ -9,6 +9,9 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -64,10 +67,13 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -83,6 +89,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
+import kotlinx.coroutines.flow.collectLatest
 
 enum class GalleryMotionEdge { Top, Bottom, Start, End }
 
@@ -571,7 +578,7 @@ fun GalleryProgressIndicator(
     trackColor: Color = MaterialTheme.colorScheme.surfaceVariant,
 ) {
     LinearWavyProgressIndicator(
-        progress = progress,
+        progress = rememberSpringProgress(progress),
         modifier = modifier.fillMaxWidth(),
         color = color,
         trackColor = trackColor,
@@ -616,7 +623,7 @@ fun GalleryCircularProgressIndicator(
         )
     } else {
         CircularWavyProgressIndicator(
-            progress = progress,
+            progress = rememberSpringProgress(progress),
             modifier = modifier,
             color = color,
             trackColor = trackColor,
@@ -625,6 +632,27 @@ fun GalleryCircularProgressIndicator(
         )
     }
 }
+
+/**
+ * Follows [progress] with a slightly bouncy spring, so the indicator grows smoothly from zero and
+ * glides between the coarse steps that long-running work reports instead of jumping.
+ */
+@Composable
+private fun rememberSpringProgress(progress: () -> Float): () -> Float {
+    val target by rememberUpdatedState(progress)
+    val animatable = remember { Animatable(0f) }
+    LaunchedEffect(animatable) {
+        snapshotFlow { target().takeUnless { it.isNaN() }?.coerceIn(0f, 1f) ?: 0f }
+            .collectLatest { animatable.animateTo(it, GalleryProgressSpring) }
+    }
+    return remember(animatable) { { animatable.value.coerceIn(0f, 1f) } }
+}
+
+private val GalleryProgressSpring = spring<Float>(
+    dampingRatio = 0.6f,
+    stiffness = Spring.StiffnessLow,
+    visibilityThreshold = 1f / 1000f,
+)
 
 /**
  * Reserves the height of a wavy progress bar whether or not it is shown. Toggling a busy state
