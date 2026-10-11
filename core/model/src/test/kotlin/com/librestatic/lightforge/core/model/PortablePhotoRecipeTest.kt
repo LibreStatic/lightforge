@@ -195,6 +195,8 @@ class PortablePhotoRecipeTest {
                 "tone,0.0,1.0,1.0",
                 "filter,mono",
                 raw,
+                raw.removeSuffix(",1"),
+                raw.removeSuffix(",1") + ",0",
             )
             .forEach { recipe(listOf(it)).validate() }
     }

@@ -79,4 +79,7 @@
     <string name="photo_editor_experimental_too_large">Cette photo est trop grande pour l’outil expérimental</string>
     <string name="photo_editor_eraser_reset">Les zones effacées ont été retirées car la géométrie de la photo a changé</string>
     <string name="photo_editor_clip_no_subject">Aucun sujet trouvé à cet endroit. Touchez un objet ou une zone nettement distincte.</string>
+    <string name="photo_editor_raw_camera_framing">Cadrage de l’appareil</string>
+    <string name="photo_editor_raw_full_sensor">Capteur entier</string>
+    <string name="photo_editor_raw_framing_summary">Cadré %1$d × %2$d sur le capteur %3$d × %4$d</string>
 </resources>

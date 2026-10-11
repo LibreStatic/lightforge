@@ -110,4 +110,27 @@
         <item quantity="many">%1$d canais</item>
         <item quantity="other">%1$d canais</item>
     </plurals>
+    <string name="details_virtual_crop_title">Corte virtual</string>
+    <string name="virtual_crop_shows">Mostra %1$s da imagem completa do sensor (%2$s).</string>
+    <string name="details_virtual_crop_body">O arquivo guarda a imagem completa. Quem receber o original pode descobrir o que está fora do enquadramento, sem precisar do seu consentimento. Exportar um JPEG, PNG ou TIFF é a única forma de compartilhar só a parte enquadrada.</string>
+    <plurals name="virtual_crop_dialog_title">
+        <item quantity="one">Esta foto tem um corte virtual</item>
+        <item quantity="many">Estas fotos têm um corte virtual</item>
+        <item quantity="other">Estas fotos têm um corte virtual</item>
+    </plurals>
+    <plurals name="virtual_crop_dialog_count">
+        <item quantity="one">%1$d foto RAW tem um corte virtual.</item>
+        <item quantity="many">%1$d fotos RAW têm um corte virtual.</item>
+        <item quantity="other">%1$d fotos RAW têm um corte virtual.</item>
+    </plurals>
+    <plurals name="virtual_crop_dialog_body">
+        <item quantity="one">O arquivo RAW contém a imagem completa. Quem receber o original pode ver o que está fora do enquadramento, sem precisar do seu consentimento. Para compartilhar só a parte enquadrada, compartilhe um JPEG final.</item>
+        <item quantity="many">Estes arquivos RAW contêm as imagens completas. Quem receber os originais pode ver o que está fora do enquadramento, sem precisar do seu consentimento. Para compartilhar só as partes enquadradas, compartilhe JPEGs finais.</item>
+        <item quantity="other">Estes arquivos RAW contêm as imagens completas. Quem receber os originais pode ver o que está fora do enquadramento, sem precisar do seu consentimento. Para compartilhar só as partes enquadradas, compartilhe JPEGs finais.</item>
+    </plurals>
+    <string name="virtual_crop_dont_show_again">Não mostrar novamente</string>
+    <string name="virtual_crop_share_jpeg">Compartilhar JPEG cortado</string>
+    <string name="virtual_crop_share_original">Compartilhar original</string>
+    <string name="virtual_crop_cancel">Cancelar</string>
+    <string name="virtual_crop_working">Preparando o JPEG…</string>
 </resources>

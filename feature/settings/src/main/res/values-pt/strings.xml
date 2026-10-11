@@ -215,4 +215,10 @@
     <string name="portable_preferences_field_palette">Tema</string>
     <string name="portable_preferences_field_theme_mode">Modo do tema</string>
     <string name="portable_preferences_field_pure_black">Preto puro</string>
+    <string name="settings_warnings">Avisos</string>
+    <string name="settings_warning_virtual_crop">Corte virtual ao compartilhar fotos RAW</string>
+    <string name="settings_warning_virtual_crop_supporting">Avisa que um arquivo RAW mantém a imagem fora do corte.</string>
+    <string name="settings_warning_virtual_crop_portable">Corte virtual ao exportar o álbum privado</string>
+    <string name="settings_warning_virtual_crop_portable_supporting">Avisa que um backup do álbum privado mantém as fotos RAW completas, inclusive a imagem fora do corte.</string>
+    <string name="settings_warnings_show_all">Mostrar todos os avisos novamente</string>
 </resources>

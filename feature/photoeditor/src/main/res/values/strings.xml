@@ -95,4 +95,7 @@
     <string name="photo_editor_experimental_too_large">This photo is too large for the experimental tool</string>
     <string name="photo_editor_eraser_reset">Erased areas were cleared because the photo geometry changed</string>
     <string name="photo_editor_clip_no_subject">No subject found at that point. Tap a clearly separated object or area.</string>
+    <string name="photo_editor_raw_camera_framing">Camera framing</string>
+    <string name="photo_editor_raw_full_sensor">Full sensor</string>
+    <string name="photo_editor_raw_framing_summary">Framed %1$d × %2$d of the %3$d × %4$d sensor</string>
 </resources>

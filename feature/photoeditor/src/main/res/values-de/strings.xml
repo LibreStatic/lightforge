@@ -79,4 +79,7 @@
     <string name="photo_editor_experimental_too_large">Dieses Foto ist zu groß für das experimentelle Werkzeug</string>
     <string name="photo_editor_eraser_reset">Die radierten Bereiche wurden entfernt, weil sich die Fotogeometrie geändert hat</string>
     <string name="photo_editor_clip_no_subject">An dieser Stelle wurde kein Motiv gefunden. Tippe auf ein klar abgegrenztes Objekt oder einen Bereich.</string>
+    <string name="photo_editor_raw_camera_framing">Kamerabildausschnitt</string>
+    <string name="photo_editor_raw_full_sensor">Ganzer Sensor</string>
+    <string name="photo_editor_raw_framing_summary">Ausschnitt %1$d × %2$d von %3$d × %4$d Sensor</string>
 </resources>

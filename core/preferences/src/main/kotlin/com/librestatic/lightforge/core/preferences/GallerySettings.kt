@@ -190,7 +190,21 @@ data class OperationSettings(
     val shareWithoutLocationByDefault: Boolean = false,
     val keepLastModifiedWhenPossible: Boolean = true,
     val skipAppDeleteConfirmation: Boolean = false,
+    /** Warnings the user chose not to see again; empty means every warning is shown. */
+    val dismissedWarnings: Set<DismissibleWarning> = emptySet(),
 )
+
+/** Confirmation dialogs the user can silence, and bring back from Settings. [key] is persisted: never rename it. */
+enum class DismissibleWarning(val key: String) {
+    VirtualCropShare("virtual_crop_share"),
+    VirtualCropPortableExport("virtual_crop_portable_export");
+
+    companion object {
+        /** Unknown keys (from a newer app version or a damaged backup) are ignored. */
+        fun fromKeys(keys: Collection<String>): Set<DismissibleWarning> =
+            entries.filterTo(linkedSetOf()) { it.key in keys }
+    }
+}
 
 data class SecuritySettings(
     val appLockEnabled: Boolean = false,

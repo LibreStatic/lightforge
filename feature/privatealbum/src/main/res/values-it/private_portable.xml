@@ -18,4 +18,12 @@
     <string name="private_portable_cancel_title">Annullare questa operazione?</string>
     <string name="private_portable_cancel_body">I file cifrati temporanei non confermati verranno rimossi. Gli originali e gli elementi già ripristinati restano intatti.</string>
     <string name="private_portable_continue">Continua</string>
+    <string name="private_portable_crop_title">Foto con ritaglio virtuale</string>
+    <string name="private_portable_crop_body">Il backup conserva i file RAW originali completi. Chi lo apre con la password può scoprire l’immagine completa del sensore dietro il ritaglio virtuale. Per evitarlo, esporta la foto come JPEG o PNG finale dall’editor e aggiungila all’album al suo posto, oppure lasciala fuori dal backup.</string>
+    <string name="private_portable_crop_dont_show">Non mostrare più questo avviso</string>
+    <plurals name="private_portable_crop_count">
+        <item quantity="one">%d foto RAW dell’album privato ha un ritaglio virtuale.</item>
+        <item quantity="many">%d foto RAW dell’album privato hanno un ritaglio virtuale.</item>
+        <item quantity="other">%d foto RAW dell’album privato hanno un ritaglio virtuale.</item>
+    </plurals>
 </resources>

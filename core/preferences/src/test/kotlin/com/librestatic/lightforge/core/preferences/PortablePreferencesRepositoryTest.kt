@@ -323,4 +323,43 @@ class PortablePreferencesRepositoryTest {
         assertEquals(true, amoled.isPureBlack(systemDark = true))
         assertEquals(false, amoled.copy(mode = ThemeMode.Light).isPureBlack(systemDark = true))
     }
+
+    @Test
+    fun dismissedWarningsPersistAndRoundTripThroughTheBackup() = test { repo, _ ->
+        val all = DismissibleWarning.entries.toSet()
+        assertTrue(DismissibleWarning.VirtualCropPortableExport in all)
+        assertEquals(emptySet<DismissibleWarning>(), repo.settings.first().operations.dismissedWarnings)
+        repo.update {
+            it.copy(operations = it.operations.copy(dismissedWarnings = all))
+        }
+        assertEquals(
+            all,
+            repo.settings.first().operations.dismissedWarnings,
+        )
+        val exported = repo.exportJson()
+        repo.reset()
+        assertEquals(emptySet<DismissibleWarning>(), repo.settings.first().operations.dismissedWarnings)
+        repo.importJson(exported)
+        assertEquals(
+            all,
+            repo.settings.first().operations.dismissedWarnings,
+        )
+    }
+
+    @Test
+    fun backupsWithoutDismissedWarningsDismissNothingAndUnknownKeysAreIgnored() = test { repo, _ ->
+        repo.update {
+            it.copy(operations = it.operations.copy(dismissedWarnings = setOf(DismissibleWarning.VirtualCropShare)))
+        }
+        repo.importJson(org.json.JSONObject("""{"operations":{"skipAppDeleteConfirmation":true}}"""))
+        assertEquals(emptySet<DismissibleWarning>(), repo.settings.first().operations.dismissedWarnings)
+
+        repo.importJson(
+            org.json.JSONObject("""{"operations":{"dismissedWarnings":["from_the_future","virtual_crop_share","virtual_crop_portable_export"]}}"""),
+        )
+        assertEquals(
+            setOf(DismissibleWarning.VirtualCropShare, DismissibleWarning.VirtualCropPortableExport),
+            repo.settings.first().operations.dismissedWarnings,
+        )
+    }
 }

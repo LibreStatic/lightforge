@@ -13,12 +13,18 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import com.librestatic.lightforge.core.designsystem.LightforgeTheme
 import com.librestatic.lightforge.core.ml.ModelDownloadWait
+import com.librestatic.lightforge.core.model.RawCameraCrop
+import com.librestatic.lightforge.core.model.RawDevelopmentSettings
+import com.librestatic.lightforge.core.model.RawMetadata
 import com.librestatic.lightforge.feature.objecteraser.InpaintModelStatus
 
 // Debug-only, zero-argument entry points for tools/compose-driver and Android Studio previews.
@@ -50,6 +56,74 @@ fun PhotoEditorLoadingPreview() = DriverFrame {
         onApply = {},
         onUndo = {},
         onRedo = {},
+    )
+}
+
+/** RAW editor whose file declares a 4.6x digital zoom: the camera framing / full sensor choice is shown. */
+@Preview
+@Composable
+fun RawCameraFramingPreview() = DriverFrame {
+    RawEditorPreview(RawCameraCrop(left = 1_564, top = 1_173, width = 873, height = 654))
+}
+
+/** RAW editor with only the 8 px margins plain DNG writers declare: no framing choice is offered. */
+@Preview
+@Composable
+fun RawSmallMarginPreview() = DriverFrame {
+    RawEditorPreview(RawCameraCrop(left = 8, top = 8, width = 3_984, height = 2_984))
+}
+
+/**
+ * RAW editor whose file declares a camera frame (3600x2700 at 200,150 of a 4000x3000 sensor), with the
+ * full-sensor crop source already published. Open the Crop tool (`click tag=photo-editor-tool-crop`) to see
+ * the whole image with the camera frame as the crop rectangle.
+ */
+@Preview
+@Composable
+fun RawCropToolFullSensorPreview() = DriverFrame {
+    val photo = remember { fakePhoto() }
+    val crop = RawCameraCrop(left = 200, top = 150, width = 3_600, height = 2_700)
+    val metadata = remember {
+        RawMetadata(
+            make = "OpenCineCam", model = "Sensor", width = crop.width, height = crop.height,
+            bitsPerSample = 12, blackLevel = 64, whiteLevel = 4_095,
+            fullWidth = 4_000, fullHeight = 3_000, cameraCrop = crop,
+        )
+    }
+    PhotoEditorContent(
+        state = PhotoEditorContentState(
+            preview = photo, originalPreview = photo, cropSourcePreview = fakePhoto(), cropSourceFullSensor = true,
+            isRaw = true, rawMetadata = metadata,
+        ),
+        onBack = {},
+        onSaveCopy = {},
+        onApply = {},
+        onUndo = {},
+        onRedo = {},
+    )
+}
+
+@Composable
+private fun RawEditorPreview(crop: RawCameraCrop) {
+    val photo = remember { fakePhoto() }
+    val metadata = remember {
+        RawMetadata(
+            make = "OpenCineCam", model = "Sensor", width = crop.width, height = crop.height,
+            bitsPerSample = 12, blackLevel = 64, whiteLevel = 4_095,
+            fullWidth = 4_000, fullHeight = 3_000, cameraCrop = crop,
+        )
+    }
+    var settings by remember { mutableStateOf(RawDevelopmentSettings()) }
+    PhotoEditorContent(
+        state = PhotoEditorContentState(
+            preview = photo, originalPreview = photo, isRaw = true, rawMetadata = metadata, rawSettings = settings,
+        ),
+        onBack = {},
+        onSaveCopy = {},
+        onApply = {},
+        onUndo = {},
+        onRedo = {},
+        onRawSettingsChange = { settings = it },
     )
 }
 

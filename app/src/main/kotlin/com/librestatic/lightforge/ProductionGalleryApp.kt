@@ -12,6 +12,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.clickable
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import com.librestatic.lightforge.core.preferences.DismissibleWarning
 import android.Manifest
 import android.app.Activity
 import android.content.pm.PackageManager
@@ -168,7 +170,12 @@ import com.librestatic.lightforge.feature.collections.MomentContent
 import com.librestatic.lightforge.feature.collections.PeopleContent
 import com.librestatic.lightforge.feature.collections.PeopleUiState
 import com.librestatic.lightforge.feature.collections.formatMomentDateRange
+import com.librestatic.lightforge.core.raw.DngCameraFramingReader
+import com.librestatic.lightforge.core.raw.isRawMimeOrName
 import com.librestatic.lightforge.feature.details.DetailsContent
+import com.librestatic.lightforge.feature.details.VirtualCropInfo
+import com.librestatic.lightforge.feature.details.VirtualCropNote
+import com.librestatic.lightforge.feature.details.VirtualCropShareDialog
 import com.librestatic.lightforge.feature.permissions.PermissionCoordinator
 import com.librestatic.lightforge.feature.photos.TimelineFocusReturn
 import com.librestatic.lightforge.feature.photos.LibraryPhotosRoute
@@ -643,6 +650,10 @@ internal fun ProductionGalleryApp(
             onClose = { showPrivatePortable = false },
             isUnlocked = privateAlbumUnlocked && (!gallerySettings.security.appLockEnabled || appUnlocked),
             onAuthenticationRequired = { privateSession.revoke() },
+            virtualCropWarning = privateVirtualCropWarning(
+                dismissed = DismissibleWarning.VirtualCropPortableExport in gallerySettings.operations.dismissedWarnings,
+                onDismiss = { viewModel.dismissWarning(DismissibleWarning.VirtualCropPortableExport) },
+            ),
         )
     }
     if (gallerySettings.security.appLockEnabled && !appUnlocked) {
@@ -1356,6 +1367,16 @@ internal fun ProductionGalleryApp(
             Toast.makeText(context, message, Toast.LENGTH_LONG).show()
         }
     }
+    val virtualCropPrompt by viewModel.virtualCropPrompt.collectAsState()
+    virtualCropPrompt?.let { prompt ->
+        VirtualCropShareDialog(
+            items = prompt.crops.map { it.info() },
+            working = prompt.working,
+            onShareCropped = { dontShowAgain -> viewModel.confirmVirtualCropShare(cropped = true, dontShowAgain = dontShowAgain) },
+            onShareOriginal = { dontShowAgain -> viewModel.confirmVirtualCropShare(cropped = false, dontShowAgain = dontShowAgain) },
+            onCancel = viewModel::cancelVirtualCropShare,
+        )
+    }
     LaunchedEffect(Unit) {
         viewModel.editorCopyOpened.collect {
             route = SurfaceRoute.Viewer
@@ -1721,6 +1742,8 @@ internal fun ProductionGalleryApp(
                         media = externalMedia,
                         photo = externalPhoto,
                         shareWithoutLocation = gallerySettings.operations.shareWithoutLocationByDefault,
+                        virtualCropWarningDismissed = DismissibleWarning.VirtualCropShare in gallerySettings.operations.dismissedWarnings,
+                        onDismissVirtualCropWarning = { viewModel.dismissWarning(DismissibleWarning.VirtualCropShare) },
                         onClose = ::handleBack,
                         onEdit = {
                             viewModel.openExternalEditor()
@@ -1782,6 +1805,8 @@ internal fun ProductionGalleryApp(
                         onBack = ::handleBack,
                         onSaveCopy = viewModel::savePhotoEditorCopy,
                         onApply = viewModel::applyPhotoEdit,
+                        onApplyFullSensorCrop = viewModel::applyPhotoFullSensorCrop,
+                        onCropToolActiveChange = viewModel::setPhotoCropToolActive,
                         onUndo = viewModel::undoPhotoEdit,
                         onRedo = viewModel::redoPhotoEdit,
                         onRawSettingsChange = viewModel::previewRawDevelopment,
@@ -4068,6 +4093,8 @@ private fun ExternalViewer(
     media: GalleryViewModel.ExternalMedia,
     photo: com.librestatic.lightforge.feature.viewer.PhotoLoadState?,
     shareWithoutLocation: Boolean,
+    virtualCropWarningDismissed: Boolean,
+    onDismissVirtualCropWarning: () -> Unit,
     onClose: () -> Unit,
     onEdit: () -> Unit,
 ) {
@@ -4106,6 +4133,31 @@ private fun ExternalViewer(
             .onFailure { Toast.makeText(context, actionUnavailable, Toast.LENGTH_SHORT).show() }
     }
     val mime = media.mimeType ?: if (media.kind == MediaKind.Image) "image/*" else "video/*"
+    val isRaw = media.kind == MediaKind.Image && isRawMimeOrName(media.mimeType, media.displayName)
+    // A RAW's DNG framing, when it hides part of the sensor image the original still carries.
+    val virtualCrop by produceState<com.librestatic.lightforge.core.raw.DngCameraFraming?>(null, media.uri, isRaw) {
+        value = if (isRaw) DngCameraFramingReader.read(context.contentResolver, media.uri)?.takeIf { it.isMeaningful } else null
+    }
+    var cropPromptVisible by remember(media.viewerId) { mutableStateOf(false) }
+    var cropWorking by remember(media.viewerId) { mutableStateOf(false) }
+    var cropJob by remember(media.viewerId) { mutableStateOf<Job?>(null) }
+    fun shareOriginal() {
+        launchExternal(Intent(Intent.ACTION_SEND).apply {
+            type = mime
+            putExtra(Intent.EXTRA_STREAM, media.uri)
+            clipData = android.content.ClipData.newUri(context.contentResolver, media.displayName, media.uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        })
+    }
+    fun requestShareOriginal() {
+        if (isRaw && !virtualCropWarningDismissed) {
+            scope.launch {
+                // The reader is cached, so a tap right after opening does not wait twice.
+                val framing = DngCameraFramingReader.read(context.contentResolver, media.uri)?.takeIf { it.isMeaningful }
+                if (framing != null) cropPromptVisible = true else shareOriginal()
+            }
+        } else shareOriginal()
+    }
     fun shareSanitized() {
         scope.launch {
             runCatching { LocalShareSanitizer(context).prepare(media.uri, media.kind) }
@@ -4130,16 +4182,7 @@ private fun ExternalViewer(
         onBack = onClose,
         onToggleFavorite = null,
         onShare = {
-            if (shareWithoutLocation) {
-                shareSanitized()
-            } else {
-                launchExternal(Intent(Intent.ACTION_SEND).apply {
-                    type = mime
-                    putExtra(Intent.EXTRA_STREAM, media.uri)
-                    clipData = android.content.ClipData.newUri(context.contentResolver, media.displayName, media.uri)
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                })
-            }
+            if (shareWithoutLocation) shareSanitized() else requestShareOriginal()
         },
         onShareSanitized = ::shareSanitized,
         onDetails = { showDetails = true },
@@ -4156,10 +4199,48 @@ private fun ExternalViewer(
         textRecognizer = rememberViewerTextRecognizer(),
         modifier = Modifier.fillMaxSize(),
     )
+    val cropped = virtualCrop
+    if (cropPromptVisible && cropped != null) VirtualCropShareDialog(
+        items = listOf(VirtualCropInfo(cropped.fullWidth, cropped.fullHeight, cropped.cropWidth, cropped.cropHeight)),
+        working = cropWorking,
+        onShareCropped = { dontShowAgain ->
+            if (dontShowAgain) onDismissVirtualCropWarning()
+            cropWorking = true
+            cropJob = scope.launch {
+                try {
+                    val asset = CroppedRawJpegExporter(context).develop(media.uri)
+                    launchExternal(Intent(Intent.ACTION_SEND).apply {
+                        type = asset.mimeType
+                        putExtra(Intent.EXTRA_STREAM, asset.uri)
+                        clipData = android.content.ClipData.newUri(context.contentResolver, media.displayName, asset.uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    })
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (failure: Throwable) {
+                    Toast.makeText(context, context.croppedShareFailureMessage(failure), Toast.LENGTH_LONG).show()
+                } finally {
+                    cropWorking = false
+                    cropPromptVisible = false
+                }
+            }
+        },
+        onShareOriginal = { dontShowAgain ->
+            if (dontShowAgain) onDismissVirtualCropWarning()
+            cropPromptVisible = false
+            shareOriginal()
+        },
+        onCancel = {
+            cropJob?.cancel()
+            cropWorking = false
+            cropPromptVisible = false
+        },
+    )
     if (showDetails) AlertDialog(
         onDismissRequest = { showDetails = false },
         title = { Text(media.displayName ?: stringResource(R.string.external_unavailable)) },
         text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(buildString {
                 append(mime)
                 if (media.width > 0 && media.height > 0) append("\n${media.width} × ${media.height}")
@@ -4170,6 +4251,8 @@ private fun ExternalViewer(
                     append("\n${android.text.format.Formatter.formatFileSize(context, media.sizeBytes)}")
                 }
             })
+            cropped?.let { VirtualCropNote(VirtualCropInfo(it.fullWidth, it.fullHeight, it.cropWidth, it.cropHeight)) }
+            }
         },
         confirmButton = { TextButton(onClick = { showDetails = false }) { Text(stringResource(R.string.details_close)) } },
     )
@@ -4402,7 +4485,7 @@ private fun ViewerRoute(
                 if (gallerySettings.operations.shareWithoutLocationByDefault) {
                     onShareSanitized()
                 } else {
-                    context.startActivity(Intent.createChooser(viewModel.originalShareIntent(media), null))
+                    viewModel.shareOriginal(media)
                 }
             }),
             onDetails = onShowDetails,
@@ -4485,6 +4568,15 @@ private fun ViewerRoute(
             if (details == null) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { GalleryLoadingIndicator() }
             } else {
+                // Only a RAW can carry a DNG virtual crop; the note stays whatever the warning setting says.
+                val virtualCrop by produceState<VirtualCropInfo?>(null, media.key, details.key, details.mimeType, details.displayName) {
+                    value = null
+                    if (details.key == media.key && media.kind == MediaKind.Image && isRawMimeOrName(details.mimeType, details.displayName)) {
+                        value = DngCameraFramingReader.read(context.contentResolver, viewModel.mediaUri(media))
+                            ?.takeIf { it.isMeaningful }
+                            ?.let { VirtualCropInfo(it.fullWidth, it.fullHeight, it.cropWidth, it.cropHeight) }
+                    }
+                }
                 DetailsContent(
                     details,
                     exif,
@@ -4496,6 +4588,7 @@ private fun ViewerRoute(
                     placeName = placeName,
                     showTitle = false,
                     contentPadding = padding,
+                    virtualCrop = virtualCrop,
                 )
             }
         },

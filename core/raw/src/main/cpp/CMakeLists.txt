@@ -15,4 +15,4 @@ target_compile_definitions(lightforge_raw PRIVATE
     LIBRAW_NO_OPENMP
 )
 target_compile_options(lightforge_raw PRIVATE -O2 -Wno-deprecated-declarations -Wno-unused-parameter)
-target_link_libraries(lightforge_raw android log z)
+target_link_libraries(lightforge_raw android jnigraphics log z)

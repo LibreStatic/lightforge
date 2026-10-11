@@ -18,4 +18,12 @@
     <string name="private_portable_cancel_title">Cancelar esta operação?</string>
     <string name="private_portable_cancel_body">Os arquivos criptografados temporários não confirmados serão removidos. Seus originais e os itens já restaurados permanecem intactos.</string>
     <string name="private_portable_continue">Continuar</string>
+    <string name="private_portable_crop_title">Fotos com corte virtual</string>
+    <string name="private_portable_crop_body">O backup mantém os arquivos RAW originais completos. Quem abri-lo com a senha poderá descobrir a imagem completa do sensor por trás do corte virtual. Para evitar isso, exporte a foto como JPEG ou PNG final pelo editor e adicione-a ao álbum no lugar, ou deixe-a fora do backup.</string>
+    <string name="private_portable_crop_dont_show">Não mostrar este aviso novamente</string>
+    <plurals name="private_portable_crop_count">
+        <item quantity="one">%d foto RAW do álbum privado tem um corte virtual.</item>
+        <item quantity="many">%d fotos RAW do álbum privado têm um corte virtual.</item>
+        <item quantity="other">%d fotos RAW do álbum privado têm um corte virtual.</item>
+    </plurals>
 </resources>

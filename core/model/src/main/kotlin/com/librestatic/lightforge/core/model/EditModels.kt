@@ -171,15 +171,50 @@ data class EditHistory(
         }
     }
 
-    fun applyRawDevelopment(settings: RawDevelopmentSettings): EditHistory {
+    /**
+     * Applies [settings] as one undo step. When [metadata] declares a camera frame and the camera
+     * framing switch flips, an existing Crop is remapped so the same content stays selected.
+     */
+    fun applyRawDevelopment(settings: RawDevelopmentSettings, metadata: RawMetadata? = null): EditHistory {
         val operation = EditOperation.RawDevelop(settings)
+        val previousFraming = present.operations.filterIsInstance<EditOperation.RawDevelop>()
+            .firstOrNull()?.settings?.cameraFraming ?: true
+        val frame = metadata?.takeIf { previousFraming != settings.cameraFraming }?.cameraFrame(present.operations)
+        val remapped = if (frame == null) {
+            present.operations
+        } else {
+            present.operations.mapNotNull { existing ->
+                if (existing !is EditOperation.Crop) return@mapNotNull existing
+                if (settings.cameraFraming) existing.relativeTo(frame) else existing.within(frame)
+            }
+        }
         val updated = present.copy(
-            operations = present.operations.filterNot { it is EditOperation.RawDevelop } + operation,
+            operations = remapped.filterNot { it is EditOperation.RawDevelop } + operation,
             revision = present.revision + 1,
         )
         return copy(
             past = (past + present).takeLast(maxEntries),
             present = updated,
+            future = emptyList(),
+        )
+    }
+
+    /**
+     * One undo step that develops the full sensor area ([settings] with camera framing off) and
+     * sets the crop (null or full frame removes it) and straighten slots of the crop tool.
+     */
+    fun applyFullSensorCrop(
+        settings: RawDevelopmentSettings,
+        crop: EditOperation.Crop?,
+        straighten: EditOperation.Straighten,
+    ): EditHistory {
+        val operations = applyRawDevelopment(settings.copy(cameraFraming = false))
+            .apply(crop ?: EditOperation.Crop(0, 0, 1_000, 1_000))
+            .apply(straighten)
+            .present.operations
+        return copy(
+            past = (past + present).takeLast(maxEntries),
+            present = present.copy(operations = operations, revision = present.revision + 1),
             future = emptyList(),
         )
     }
@@ -268,6 +303,7 @@ object EditOperationCodec {
                 value.chromaNoiseReduction, value.sharpening,
                 if (value.chromaticAberrationCorrection) 1 else 0,
                 if (value.lensCorrection) 1 else 0,
+                if (value.cameraFraming) 1 else 0,
             ).joinToString(","))
         }
     }
@@ -299,6 +335,8 @@ object EditOperationCodec {
                     sharpening = parts[15].toFloat(),
                     chromaticAberrationCorrection = parts[16] == "1",
                     lensCorrection = parts[17] == "1",
+                    // Recipes written before camera framing existed have no 19th field: framing on.
+                    cameraFraming = parts.getOrNull(18)?.let { it == "1" } ?: true,
                 ),
             )
             else -> error("Unknown edit operation: $encoded")

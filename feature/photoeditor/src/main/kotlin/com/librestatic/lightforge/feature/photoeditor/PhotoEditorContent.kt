@@ -25,6 +25,9 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -58,6 +61,7 @@ import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.onSizeChanged
 import com.librestatic.lightforge.core.model.EditOperation
+import com.librestatic.lightforge.core.model.cameraFrame
 import com.librestatic.lightforge.core.editing.image.PhotoAutoEnhancementSuggestions
 import com.librestatic.lightforge.core.model.RawDevelopmentSettings
 import com.librestatic.lightforge.core.model.RawMetadata
@@ -86,6 +90,8 @@ data class PhotoEditorContentState(
     val preview: Bitmap? = null,
     val originalPreview: Bitmap? = null,
     val cropSourcePreview: Bitmap? = null,
+    /** True when [cropSourcePreview] shows the full sensor area instead of the camera framing. */
+    val cropSourceFullSensor: Boolean = false,
     val isRendering: Boolean = false,
     val isExporting: Boolean = false,
     val isDirty: Boolean = false,
@@ -133,6 +139,10 @@ fun PhotoEditorContent(
         onApply(tone ?: EditOperation.Tone())
     },
     onRawOutputFormatChange: (RawOutputFormat) -> Unit = {},
+    /** A crop drawn on the full sensor area that leaves the camera frame (null removes the crop). */
+    onApplyFullSensorCrop: (EditOperation.Crop?, Float) -> Unit = { _, _ -> },
+    /** The crop tool opened or closed; a RAW then develops the full sensor area as the crop source. */
+    onCropToolActiveChange: (Boolean) -> Unit = {},
     onApplyObjectErase: (List<PhotoPoint>) -> Unit = {},
     onClearObjectErase: () -> Unit = {},
     onPreviewSubjectClip: (PhotoPoint) -> Unit = {},
@@ -170,8 +180,26 @@ fun PhotoEditorContent(
         onPreviewSubjectClip = onPreviewSubjectClip,
         onSaveSubjectClip = onSaveSubjectClip,
     )
+    // The camera frame inside the full sensor image; the crop tool draws it as the starting crop.
+    val cameraFrame = state.rawMetadata?.takeIf { state.isRaw && state.rawSettings.cameraFraming }
+        ?.cameraFrame(state.geometry)
+    val fullSensorSource = cameraFrame != null && state.cropSourceFullSensor
+    // Switch the draft's coordinates together with the crop source bitmap, in the same frame.
+    cropDraft?.let { draft ->
+        if (fullSensorSource && !draft.fullSensor) cropDraft = draft.toFullSensor(cameraFrame!!)
+        else if (!fullSensorSource && draft.fullSensor) cropDraft = draft.toFramed(cameraFrame)
+    }
+    val cropToolOpen = selectedTool == PhotoEditorTool.Crop
+    LaunchedEffect(cropToolOpen) { onCropToolActiveChange(cropToolOpen) }
+    fun cropOutcomeOf(draft: PhotoCropDraft) = cropOutcome(draft, cameraFrame, state.crop)
+    fun applyCropDraft(draft: PhotoCropDraft) {
+        val outcome = cropOutcomeOf(draft)
+        if (outcome.needsFullSensor) {
+            onApplyFullSensorCrop(outcome.crop.takeUnless { it.isFullFrame }, outcome.straightenDegrees)
+        } else outcome.operations.forEach(onApply)
+    }
     fun commitCropDraft() {
-        cropDraft?.let { cropEditOperations(it).forEach(onApply) }
+        cropDraft?.let(::applyCropDraft)
         cropDraft = null
     }
     fun selectTool(tool: PhotoEditorTool) {
@@ -192,7 +220,8 @@ fun PhotoEditorContent(
     }
     fun backFromCropDraft() {
         val draft = cropDraft ?: return
-        if (cropEditOperations(draft) != cropEditOperations(cropDraftFromState(state))) {
+        val outcome = cropOutcomeOf(draft)
+        if (outcome.needsFullSensor || outcome.operations != cropEditOperations(cropDraftFromState(state))) {
             commitCropDraft()
             backAfterCropCommit = true
         } else cropDraft = null
@@ -233,7 +262,7 @@ fun PhotoEditorContent(
             )
         },
         media = { mediaModifier ->
-            PreviewStage(state, cropDraft, compareOriginal, { compareOriginal = it }, { cropDraft = it }, selectedTool, experimental, mediaModifier)
+            PreviewStage(state, cropDraft, cameraFrame, compareOriginal, { compareOriginal = it }, { cropDraft = it }, selectedTool, experimental, mediaModifier)
         },
         inspector = { inspectorModifier, layout ->
             PhotoTools(
@@ -242,6 +271,8 @@ fun PhotoEditorContent(
                 ::selectTool,
                 cropDraft,
                 { cropDraft = it },
+                cameraFrame,
+                ::applyCropDraft,
                 onApply,
                 onRawSettingsChange,
                 onRawSettingsChangeFinished,
@@ -274,6 +305,7 @@ fun PhotoEditorContent(
 private fun PreviewStage(
     state: PhotoEditorContentState,
     cropDraft: PhotoCropDraft?,
+    cameraFrame: EditOperation.Crop?,
     compareOriginal: Boolean,
     onCompareOriginalChange: (Boolean) -> Unit,
     onCropDraftChange: (PhotoCropDraft) -> Unit,
@@ -361,6 +393,7 @@ private fun PreviewStage(
                     draft = it,
                     onChange = onCropDraftChange,
                     modifier = Modifier.fillMaxSize(),
+                    referenceFrame = cameraFrame?.takeIf { _ -> it.fullSensor }?.toDraft(),
                 )
             }
             if (erasing || clipping) {
@@ -410,6 +443,8 @@ private fun PhotoTools(
     onSelectTool: (PhotoEditorTool) -> Unit,
     cropDraft: PhotoCropDraft?,
     onCropDraftChange: (PhotoCropDraft?) -> Unit,
+    cameraFrame: EditOperation.Crop?,
+    onApplyCrop: (PhotoCropDraft) -> Unit,
     onApply: (EditOperation) -> Unit,
     onRawSettingsChange: (RawDevelopmentSettings) -> Unit,
     onRawSettingsChangeFinished: () -> Unit,
@@ -476,8 +511,11 @@ private fun PhotoTools(
                             onCropDraftChange(null)
                             onSelectTool(if (state.isRaw) PhotoEditorTool.Raw else PhotoEditorTool.Automatic)
                         },
+                        onCameraFraming = cameraFrame?.takeIf { draft.fullSensor }?.let { frame ->
+                            { onCropDraftChange(draft.resetToFrame(frame)) }
+                        },
                         onApply = {
-                            cropEditOperations(draft).forEach(onApply)
+                            onApplyCrop(draft)
                             onCropDraftChange(null)
                             onSelectTool(if (state.isRaw) PhotoEditorTool.Raw else PhotoEditorTool.Automatic)
                         },
@@ -751,6 +789,8 @@ private fun CropControls(
     onFlip: () -> Unit,
     onCancel: () -> Unit,
     onApply: () -> Unit,
+    /** Puts the crop back on the camera frame; null unless the draft covers the full sensor area. */
+    onCameraFraming: (() -> Unit)? = null,
 ) {
     Row(
         Modifier.fillMaxWidth(),
@@ -761,6 +801,11 @@ private fun CropControls(
         }
         OutlinedButton(onClick = onFlip, modifier = Modifier.weight(1f)) {
             Text(stringResource(R.string.photo_editor_flip), maxLines = 1)
+        }
+    }
+    if (onCameraFraming != null) {
+        OutlinedButton(onClick = onCameraFraming, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.photo_editor_raw_camera_framing), maxLines = 1)
         }
     }
     LazyRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
@@ -783,7 +828,8 @@ private fun CropControls(
         horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
     ) {
         TextButton(
-            onClick = { onChange(PhotoCropDraft()) },
+            // On a full-sensor draft this uncovers the whole sensor, i.e. removes the camera framing.
+            onClick = { onChange(PhotoCropDraft(fullSensor = draft.fullSensor)) },
             modifier = Modifier.weight(1f),
         ) { Text(stringResource(R.string.photo_editor_reset_crop), maxLines = 1) }
         TextButton(onClick = onCancel, modifier = Modifier.weight(1f)) {
@@ -797,7 +843,7 @@ private fun CropControls(
 
 private val PhotoCropDraftSaver = listSaver<PhotoCropDraft?, Float>(
     save = { draft ->
-        draft?.let { listOf(it.left, it.top, it.right, it.bottom, it.aspectRatio ?: 0f, it.straightenDegrees) }
+        draft?.let { listOf(it.left, it.top, it.right, it.bottom, it.aspectRatio ?: 0f, it.straightenDegrees, if (it.fullSensor) 1f else 0f) }
             ?: emptyList()
     },
     restore = { values ->
@@ -808,6 +854,7 @@ private val PhotoCropDraftSaver = listSaver<PhotoCropDraft?, Float>(
             bottom = values[3],
             aspectRatio = values[4].takeIf { it > 0f },
             straightenDegrees = values[5],
+            fullSensor = values.getOrNull(6) == 1f,
         )
     },
 )
@@ -882,7 +929,8 @@ private fun RawControls(
 ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
         TextButton(onClick = {
-            onChange(RawDevelopmentSettings())
+            // Framing is a choice about the frame, not an adjustment, so reset keeps it.
+            onChange(RawDevelopmentSettings(cameraFraming = settings.cameraFraming))
             onChangeFinished()
         }) {
             Text(stringResource(R.string.photo_editor_reset_raw))
@@ -893,11 +941,16 @@ private fun RawControls(
             stringResource(
                 R.string.photo_editor_raw_metadata,
                 listOf(it.make, it.model).filter(String::isNotBlank).joinToString(" "),
-                it.width, it.height, it.bitsPerSample,
+                it.dimensions(settings.cameraFraming).width,
+                it.dimensions(settings.cameraFraming).height,
+                it.bitsPerSample,
             ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (it.hasMeaningfulCameraCrop) {
+            RawFramingChoice(settings, it, onChange, onChangeFinished)
+        }
     }
     RawSlider(stringResource(R.string.photo_editor_exposure), settings.exposureEv, -5f..5f, onChangeFinished) {
         onChange(settings.copy(exposureEv = it))
@@ -924,6 +977,46 @@ private fun RawControls(
     }
     RawSlider(stringResource(R.string.photo_editor_sharpening), settings.sharpening, 0f..1f, onChangeFinished) {
         onChange(settings.copy(sharpening = it))
+    }
+}
+
+@Composable
+private fun RawFramingChoice(
+    settings: RawDevelopmentSettings,
+    metadata: RawMetadata,
+    onChange: (RawDevelopmentSettings) -> Unit,
+    onChangeFinished: () -> Unit,
+) {
+    val options = listOf(true to R.string.photo_editor_raw_camera_framing, false to R.string.photo_editor_raw_full_sensor)
+    Column(
+        Modifier.fillMaxWidth().testTag("raw-camera-framing"),
+        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
+    ) {
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            options.forEachIndexed { index, (framing, label) ->
+                SegmentedButton(
+                    selected = settings.cameraFraming == framing,
+                    onClick = {
+                        if (settings.cameraFraming != framing) {
+                            onChange(settings.copy(cameraFraming = framing))
+                            onChangeFinished()
+                        }
+                    },
+                    shape = SegmentedButtonDefaults.itemShape(index, options.size),
+                    modifier = Modifier.testTag(if (framing) "raw-framing-camera" else "raw-framing-full"),
+                ) {
+                    Text(stringResource(label))
+                }
+            }
+        }
+        Text(
+            stringResource(
+                R.string.photo_editor_raw_framing_summary,
+                metadata.width, metadata.height, metadata.fullWidth, metadata.fullHeight,
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

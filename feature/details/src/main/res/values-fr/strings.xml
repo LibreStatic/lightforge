@@ -110,4 +110,27 @@
         <item quantity="many">%1$d canaux</item>
         <item quantity="other">%1$d canaux</item>
     </plurals>
+    <string name="details_virtual_crop_title">Recadrage virtuel</string>
+    <string name="virtual_crop_shows">Affiche %1$s sur l\'image complète du capteur (%2$s).</string>
+    <string name="details_virtual_crop_body">Le fichier conserve l\'image complète. Quiconque reçoit l\'original peut découvrir ce qui se trouve hors du cadre, sans avoir besoin de votre accord. Exporter un JPEG, PNG ou TIFF est le seul moyen de ne partager que la partie cadrée.</string>
+    <plurals name="virtual_crop_dialog_title">
+        <item quantity="one">Cette photo a un recadrage virtuel</item>
+        <item quantity="many">Ces photos ont un recadrage virtuel</item>
+        <item quantity="other">Ces photos ont un recadrage virtuel</item>
+    </plurals>
+    <plurals name="virtual_crop_dialog_count">
+        <item quantity="one">%1$d photo RAW a un recadrage virtuel.</item>
+        <item quantity="many">%1$d photos RAW ont un recadrage virtuel.</item>
+        <item quantity="other">%1$d photos RAW ont un recadrage virtuel.</item>
+    </plurals>
+    <plurals name="virtual_crop_dialog_body">
+        <item quantity="one">Le fichier RAW contient l\'image complète. Quiconque reçoit l\'original peut voir ce qui se trouve hors du cadre, sans avoir besoin de votre accord. Pour ne partager que la partie cadrée, partagez plutôt un JPEG final.</item>
+        <item quantity="many">Ces fichiers RAW contiennent les images complètes. Quiconque reçoit les originaux peut voir ce qui se trouve hors du cadre, sans avoir besoin de votre accord. Pour ne partager que les parties cadrées, partagez plutôt des JPEG finaux.</item>
+        <item quantity="other">Ces fichiers RAW contiennent les images complètes. Quiconque reçoit les originaux peut voir ce qui se trouve hors du cadre, sans avoir besoin de votre accord. Pour ne partager que les parties cadrées, partagez plutôt des JPEG finaux.</item>
+    </plurals>
+    <string name="virtual_crop_dont_show_again">Ne plus afficher ce message</string>
+    <string name="virtual_crop_share_jpeg">Partager le JPEG recadré</string>
+    <string name="virtual_crop_share_original">Partager l\'original</string>
+    <string name="virtual_crop_cancel">Annuler</string>
+    <string name="virtual_crop_working">Préparation du JPEG…</string>
 </resources>

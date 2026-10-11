@@ -18,4 +18,11 @@
     <string name="private_portable_cancel_title">Diesen Vorgang abbrechen?</string>
     <string name="private_portable_cancel_body">Nicht bestätigte verschlüsselte Zwischendateien werden entfernt. Deine Originale und zuvor wiederhergestellten Elemente bleiben unverändert.</string>
     <string name="private_portable_continue">Fortsetzen</string>
+    <string name="private_portable_crop_title">Fotos mit virtuellem Zuschnitt</string>
+    <string name="private_portable_crop_body">Das Backup enthält die vollständigen RAW-Originaldateien. Wer es mit dem Passwort öffnet, kann das vollständige Sensorbild hinter dem virtuellen Zuschnitt sichtbar machen. Um das zu vermeiden, exportiere das Foto im Editor als fertiges JPEG oder PNG und füge dieses stattdessen dem Album hinzu, oder lass es aus dem Backup heraus.</string>
+    <string name="private_portable_crop_dont_show">Diese Warnung nicht mehr anzeigen</string>
+    <plurals name="private_portable_crop_count">
+        <item quantity="one">%d RAW-Foto im privaten Album hat einen virtuellen Zuschnitt.</item>
+        <item quantity="other">%d RAW-Fotos im privaten Album haben einen virtuellen Zuschnitt.</item>
+    </plurals>
 </resources>

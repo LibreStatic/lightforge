@@ -110,4 +110,27 @@
         <item quantity="many">%1$d canali</item>
         <item quantity="other">%1$d canali</item>
     </plurals>
+    <string name="details_virtual_crop_title">Ritaglio virtuale</string>
+    <string name="virtual_crop_shows">Mostra %1$s dell\'immagine completa del sensore (%2$s).</string>
+    <string name="details_virtual_crop_body">Il file conserva l\'immagine completa. Chi riceve l\'originale può scoprire ciò che si trova fuori dall\'inquadratura, senza bisogno del tuo consenso. Esportare un JPEG, PNG o TIFF è l\'unico modo per condividere solo la parte inquadrata.</string>
+    <plurals name="virtual_crop_dialog_title">
+        <item quantity="one">Questa foto ha un ritaglio virtuale</item>
+        <item quantity="many">Queste foto hanno un ritaglio virtuale</item>
+        <item quantity="other">Queste foto hanno un ritaglio virtuale</item>
+    </plurals>
+    <plurals name="virtual_crop_dialog_count">
+        <item quantity="one">%1$d foto RAW ha un ritaglio virtuale.</item>
+        <item quantity="many">%1$d foto RAW hanno un ritaglio virtuale.</item>
+        <item quantity="other">%1$d foto RAW hanno un ritaglio virtuale.</item>
+    </plurals>
+    <plurals name="virtual_crop_dialog_body">
+        <item quantity="one">Il file RAW contiene l\'immagine completa. Chi riceve l\'originale può vedere ciò che si trova fuori dall\'inquadratura, senza bisogno del tuo consenso. Per condividere solo la parte inquadrata, condividi invece un JPEG finale.</item>
+        <item quantity="many">Questi file RAW contengono le immagini complete. Chi riceve gli originali può vedere ciò che si trova fuori dall\'inquadratura, senza bisogno del tuo consenso. Per condividere solo le parti inquadrate, condividi invece dei JPEG finali.</item>
+        <item quantity="other">Questi file RAW contengono le immagini complete. Chi riceve gli originali può vedere ciò che si trova fuori dall\'inquadratura, senza bisogno del tuo consenso. Per condividere solo le parti inquadrate, condividi invece dei JPEG finali.</item>
+    </plurals>
+    <string name="virtual_crop_dont_show_again">Non mostrare più</string>
+    <string name="virtual_crop_share_jpeg">Condividi JPEG ritagliato</string>
+    <string name="virtual_crop_share_original">Condividi originale</string>
+    <string name="virtual_crop_cancel">Annulla</string>
+    <string name="virtual_crop_working">Preparazione del JPEG…</string>
 </resources>

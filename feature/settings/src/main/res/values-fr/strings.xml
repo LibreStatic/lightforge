@@ -215,4 +215,10 @@
     <string name="portable_preferences_field_palette">Thème</string>
     <string name="portable_preferences_field_theme_mode">Mode du thème</string>
     <string name="portable_preferences_field_pure_black">Noir pur</string>
+    <string name="settings_warnings">Avertissements</string>
+    <string name="settings_warning_virtual_crop">Recadrage virtuel lors du partage de photos RAW</string>
+    <string name="settings_warning_virtual_crop_supporting">Rappelle qu\'un fichier RAW conserve l\'image en dehors du recadrage.</string>
+    <string name="settings_warning_virtual_crop_portable">Recadrage virtuel lors de l\'export de l\'album privé</string>
+    <string name="settings_warning_virtual_crop_portable_supporting">Rappelle qu\'une sauvegarde de l\'album privé conserve les photos RAW en entier, y compris l\'image en dehors du recadrage.</string>
+    <string name="settings_warnings_show_all">Réafficher tous les avertissements</string>
 </resources>

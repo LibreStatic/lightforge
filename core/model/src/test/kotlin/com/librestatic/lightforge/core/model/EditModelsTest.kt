@@ -52,6 +52,18 @@ class EditModelsTest {
     }
 
     @Test
+    fun rawCameraFramingRoundTripsOffAndOnAndDefaultsToOnForOlderRecipes() {
+        val off = EditOperation.RawDevelop(RawDevelopmentSettings(cameraFraming = false))
+        val on = EditOperation.RawDevelop(RawDevelopmentSettings(cameraFraming = true))
+        assertEquals(off, EditOperationCodec.decode(EditOperationCodec.encode(off)))
+        assertEquals(on, EditOperationCodec.decode(EditOperationCodec.encode(on)))
+        assertTrue(EditOperationCodec.encode(off).endsWith(",0"))
+        assertTrue(EditOperationCodec.encode(on).startsWith("raw,1,"))
+        val old = EditOperationCodec.encode(on).removeSuffix(",1")
+        assertEquals(on, EditOperationCodec.decode(old))
+    }
+
+    @Test
     fun adjustmentSlotsReplacePreviousValuesAndOriginalRemovesFilter() {
         val history = EditHistory.initial(EditRecipe.forSource(source, 7))
             .apply(EditOperation.Filter("natural"))

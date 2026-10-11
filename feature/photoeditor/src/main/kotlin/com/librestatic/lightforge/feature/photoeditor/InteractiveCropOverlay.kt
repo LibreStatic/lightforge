@@ -15,6 +15,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntSize
@@ -29,6 +30,8 @@ internal data class PhotoCropDraft(
     val bottom: Float = 1f,
     val aspectRatio: Float? = null,
     val straightenDegrees: Float = 0f,
+    /** The rectangle is in full-sensor image coordinates (RAW with a camera frame), not the framed image. */
+    val fullSensor: Boolean = false,
 ) {
     val width: Float get() = right - left
     val height: Float get() = bottom - top
@@ -42,6 +45,8 @@ internal fun InteractiveCropOverlay(
     draft: PhotoCropDraft,
     onChange: (PhotoCropDraft) -> Unit,
     modifier: Modifier = Modifier,
+    /** The camera frame, outlined dashed while the draft differs from it. */
+    referenceFrame: PhotoCropDraft? = null,
 ) {
     val currentDraft by rememberUpdatedState(draft)
     BoxWithConstraints(modifier) {
@@ -122,6 +127,22 @@ internal fun InteractiveCropOverlay(
                 moveTo(crop.left + corner, crop.bottom); lineTo(crop.left, crop.bottom); lineTo(crop.left, crop.bottom - corner)
             }
             drawPath(path, Color.White, style = Stroke(width = 8f))
+            if (referenceFrame != null && referenceFrame.copy(straightenDegrees = 0f, aspectRatio = null) !=
+                draft.copy(straightenDegrees = 0f, aspectRatio = null)
+            ) {
+                drawRect(
+                    Color.White.copy(alpha = 0.8f),
+                    topLeft = Offset(
+                        imageRect.left + referenceFrame.left * imageRect.width,
+                        imageRect.top + referenceFrame.top * imageRect.height,
+                    ),
+                    size = androidx.compose.ui.geometry.Size(
+                        referenceFrame.width * imageRect.width,
+                        referenceFrame.height * imageRect.height,
+                    ),
+                    style = Stroke(width = 2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(16f, 10f))),
+                )
+            }
         }
     }
 }

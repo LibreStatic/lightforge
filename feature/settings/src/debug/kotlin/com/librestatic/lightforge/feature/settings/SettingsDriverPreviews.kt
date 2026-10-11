@@ -11,6 +11,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.librestatic.lightforge.core.designsystem.LightforgeTheme
 import com.librestatic.lightforge.core.designsystem.galleryAdaptiveLayoutInfo
+import com.librestatic.lightforge.core.preferences.DismissibleWarning
 import com.librestatic.lightforge.core.preferences.GallerySettings
 
 // Debug-only, zero-argument entry point for tools/compose-driver. It feeds default settings into
@@ -22,8 +23,19 @@ import com.librestatic.lightforge.core.preferences.GallerySettings
  * under Appearance restyle the preview like they restyle the app.
  */
 @Composable
-fun SettingsPreview() {
-    var settings by remember { mutableStateOf(GallerySettings()) }
+fun SettingsPreview() = SettingsPreviewFrame(GallerySettings())
+
+/** Settings with the virtual crop warning dismissed, so the Warnings page offers "Show all warnings again". */
+@Composable
+fun SettingsDismissedWarningsPreview() = SettingsPreviewFrame(
+    GallerySettings().let {
+        it.copy(operations = it.operations.copy(dismissedWarnings = setOf(DismissibleWarning.VirtualCropShare)))
+    },
+)
+
+@Composable
+private fun SettingsPreviewFrame(initial: GallerySettings) {
+    var settings by remember { mutableStateOf(initial) }
     LightforgeTheme(settings.appearance) {
         Surface(Modifier.fillMaxSize()) {
             BoxWithConstraints(Modifier.fillMaxSize()) {

@@ -18,4 +18,11 @@
     <string name="private_portable_cancel_title">Cancel this operation?</string>
     <string name="private_portable_cancel_body">Uncommitted encrypted staging files will be removed. Your originals and previously restored items stay unchanged.</string>
     <string name="private_portable_continue">Continue</string>
+    <string name="private_portable_crop_title">Photos with a virtual crop</string>
+    <string name="private_portable_crop_body">The backup keeps the complete original RAW files. Anyone who opens it with the password can uncover the full sensor image behind the virtual crop. To avoid that, export the photo as a final JPEG or PNG from the editor and add that to the album instead, or leave it out of the backup.</string>
+    <string name="private_portable_crop_dont_show">Don’t show this warning again</string>
+    <plurals name="private_portable_crop_count">
+        <item quantity="one">%d RAW photo in the private album has a virtual crop.</item>
+        <item quantity="other">%d RAW photos in the private album have a virtual crop.</item>
+    </plurals>
 </resources>

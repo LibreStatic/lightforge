@@ -40,6 +40,7 @@ dependencies {
     testImplementation(project(":feature:videoeditor"))
     testImplementation(project(":feature:pdfstudio"))
     testImplementation(project(":feature:collage"))
+    testImplementation(project(":feature:privatealbum"))
 
     testImplementation(libs.compose.driver)
     testImplementation(libs.robolectric)

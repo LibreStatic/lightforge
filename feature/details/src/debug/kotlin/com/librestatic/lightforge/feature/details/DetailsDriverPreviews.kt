@@ -164,6 +164,47 @@ fun DetailsNoLocationPreview() = DetailsFrame { DetailsContent(DetailsPreviewDat
 @Composable
 fun DetailsVideoPreview() = DetailsFrame { DetailsContent(DetailsPreviewData.video, ExifLoadResult.NotAnImage, false, {}, technical = DetailsPreviewData.videoTechnical) }
 
+/** A DNG framed at 4.6x digital zoom: the note warns that the file keeps the full sensor image. */
+@Preview
+@Composable
+fun DetailsVirtualCropPreview() = DetailsFrame {
+    DetailsContent(
+        DetailsPreviewData.photo.copy(displayName = "OCC_20260903_185600.dng", mimeType = "image/x-adobe-dng"),
+        DetailsPreviewData.withLocation, false, {},
+        virtualCrop = VirtualCropInfo(fullWidth = 4000, fullHeight = 3000, cropWidth = 873, cropHeight = 654),
+    )
+}
+
+/** The dialog shown before sharing one RAW original that has a virtual crop. */
+@Preview
+@Composable
+fun VirtualCropShareDialogPreview() = DetailsFrame {
+    VirtualCropShareDialog(
+        items = listOf(VirtualCropInfo(4000, 3000, 873, 654)),
+        working = false, onShareCropped = {}, onShareOriginal = {}, onCancel = {},
+    )
+}
+
+/** The same dialog for several photos. */
+@Preview
+@Composable
+fun VirtualCropShareDialogManyPreview() = DetailsFrame {
+    VirtualCropShareDialog(
+        items = List(3) { VirtualCropInfo(4000, 3000, 873, 654) },
+        working = false, onShareCropped = {}, onShareOriginal = {}, onCancel = {},
+    )
+}
+
+/** The dialog while the cropped JPEG is being developed. */
+@Preview
+@Composable
+fun VirtualCropShareDialogWorkingPreview() = DetailsFrame {
+    VirtualCropShareDialog(
+        items = listOf(VirtualCropInfo(4000, 3000, 873, 654)),
+        working = true, onShareCropped = {}, onShareOriginal = {}, onCancel = {},
+    )
+}
+
 /** EXIF still loading. */
 @Preview
 @Composable

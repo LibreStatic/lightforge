@@ -18,4 +18,12 @@
     <string name="private_portable_cancel_title">Annuler cette opération ?</string>
     <string name="private_portable_cancel_body">Les fichiers chiffrés temporaires non validés seront supprimés. Vos originaux et les éléments déjà restaurés restent intacts.</string>
     <string name="private_portable_continue">Continuer</string>
+    <string name="private_portable_crop_title">Photos avec recadrage virtuel</string>
+    <string name="private_portable_crop_body">La sauvegarde conserve les fichiers RAW originaux en entier. Toute personne qui l’ouvre avec le mot de passe peut retrouver l’image complète du capteur derrière le recadrage virtuel. Pour l’éviter, exportez la photo en JPEG ou PNG final depuis l’éditeur et ajoutez-la à l’album à la place, ou laissez-la hors de la sauvegarde.</string>
+    <string name="private_portable_crop_dont_show">Ne plus afficher cet avertissement</string>
+    <plurals name="private_portable_crop_count">
+        <item quantity="one">%d photo RAW de l’album privé a un recadrage virtuel.</item>
+        <item quantity="many">%d photos RAW de l’album privé ont un recadrage virtuel.</item>
+        <item quantity="other">%d photos RAW de l’album privé ont un recadrage virtuel.</item>
+    </plurals>
 </resources>

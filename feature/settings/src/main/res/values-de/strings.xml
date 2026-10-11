@@ -213,4 +213,10 @@
     <string name="portable_preferences_field_palette">Design</string>
     <string name="portable_preferences_field_theme_mode">Designmodus</string>
     <string name="portable_preferences_field_pure_black">Reines Schwarz</string>
+    <string name="settings_warnings">Warnungen</string>
+    <string name="settings_warning_virtual_crop">Virtueller Zuschnitt beim Teilen von RAW-Fotos</string>
+    <string name="settings_warning_virtual_crop_supporting">Weist darauf hin, dass eine RAW-Datei das Bild außerhalb des Zuschnitts weiterhin enthält.</string>
+    <string name="settings_warning_virtual_crop_portable">Virtueller Zuschnitt beim Exportieren des privaten Albums</string>
+    <string name="settings_warning_virtual_crop_portable_supporting">Weist darauf hin, dass ein Backup des privaten Albums RAW-Fotos vollständig enthält, auch das Bild außerhalb des Zuschnitts.</string>
+    <string name="settings_warnings_show_all">Alle Warnungen wieder anzeigen</string>
 </resources>

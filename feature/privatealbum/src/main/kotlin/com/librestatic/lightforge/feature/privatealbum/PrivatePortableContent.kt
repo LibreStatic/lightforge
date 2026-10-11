@@ -58,6 +58,7 @@ fun PrivatePortableContent(
     onClose: () -> Unit,
     isUnlocked: Boolean,
     onAuthenticationRequired: () -> Unit = {},
+    virtualCropWarning: PrivateVirtualCropWarning? = null,
 ) {
     val unlockedNow by rememberUpdatedState(isUnlocked)
     val transfer = remember(repository) { repository.portableTransfers() }
@@ -81,6 +82,7 @@ fun PrivatePortableContent(
     var result by remember { mutableStateOf<PrivatePortableTransfer.Result?>(null) }
     var error by remember { mutableStateOf(false) }
     var cancelConfirm by remember { mutableStateOf(false) }
+    var virtualCropCount by remember { mutableStateOf(0) }
     fun cleanupAndClose() {
         password = ""
         confirmation = ""
@@ -168,6 +170,7 @@ fun PrivatePortableContent(
             password = ""
             confirmation = ""
             cancelConfirm = false
+            virtualCropCount = 0
             val running = job
             val finishingCiphertext = operationKind == "publish"
             if (!finishingCiphertext) running?.cancel()
@@ -284,7 +287,16 @@ fun PrivatePortableContent(
                     when (mode) {
                         "choose" -> {
                             Button(
-                                onClick = { mode = "export" },
+                                onClick = {
+                                    val warning = virtualCropWarning
+                                    if (warning == null || warning.dismissed) mode = "export"
+                                    else
+                                        // Decided before any password or archive work exists.
+                                        runOperation("inspect-export") {
+                                            val found = repository.countRawsWithVirtualCrop(warning)
+                                            if (found > 0) virtualCropCount = found else mode = "export"
+                                        }
+                                },
                                 enabled = hasItems,
                                 modifier = Modifier.testTag("private-portable-export"),
                             ) {
@@ -469,6 +481,16 @@ fun PrivatePortableContent(
             }
         },
     )
+    if (virtualCropCount > 0 && !busy)
+        PrivatePortableVirtualCropDialog(
+            count = virtualCropCount,
+            onContinue = { dontShowAgain ->
+                virtualCropCount = 0
+                if (dontShowAgain) virtualCropWarning?.onDismiss()
+                mode = "export"
+            },
+            onCancel = { virtualCropCount = 0 },
+        )
     if (cancelConfirm)
         AlertDialog(
             onDismissRequest = { cancelConfirm = false },

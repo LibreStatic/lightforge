@@ -109,4 +109,24 @@
         <item quantity="one">%1$d Kanal</item>
         <item quantity="other">%1$d Kanäle</item>
     </plurals>
+    <string name="details_virtual_crop_title">Virtueller Zuschnitt</string>
+    <string name="virtual_crop_shows">Zeigt %1$s vom vollständigen Sensorbild (%2$s).</string>
+    <string name="details_virtual_crop_body">Die Datei enthält weiterhin das vollständige Bild. Wer das Original erhält, kann sehen, was außerhalb des Ausschnitts liegt – ohne dass du zustimmen musst. Nur der Export als JPEG, PNG oder TIFF teilt ausschließlich den gewählten Ausschnitt.</string>
+    <plurals name="virtual_crop_dialog_title">
+        <item quantity="one">Dieses Foto hat einen virtuellen Zuschnitt</item>
+        <item quantity="other">Diese Fotos haben einen virtuellen Zuschnitt</item>
+    </plurals>
+    <plurals name="virtual_crop_dialog_count">
+        <item quantity="one">%1$d RAW-Foto hat einen virtuellen Zuschnitt.</item>
+        <item quantity="other">%1$d RAW-Fotos haben einen virtuellen Zuschnitt.</item>
+    </plurals>
+    <plurals name="virtual_crop_dialog_body">
+        <item quantity="one">Die RAW-Datei enthält das vollständige Bild. Wer das Original erhält, kann sehen, was außerhalb des Ausschnitts liegt – ohne dass du zustimmen musst. Um nur den Ausschnitt zu teilen, teile stattdessen ein fertiges JPEG.</item>
+        <item quantity="other">Diese RAW-Dateien enthalten die vollständigen Bilder. Wer die Originale erhält, kann sehen, was außerhalb der Ausschnitte liegt – ohne dass du zustimmen musst. Um nur die Ausschnitte zu teilen, teile stattdessen fertige JPEGs.</item>
+    </plurals>
+    <string name="virtual_crop_dont_show_again">Nicht mehr anzeigen</string>
+    <string name="virtual_crop_share_jpeg">Zugeschnittenes JPEG teilen</string>
+    <string name="virtual_crop_share_original">Original teilen</string>
+    <string name="virtual_crop_cancel">Abbrechen</string>
+    <string name="virtual_crop_working">JPEG wird vorbereitet…</string>
 </resources>

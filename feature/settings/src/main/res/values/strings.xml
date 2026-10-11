@@ -219,4 +219,10 @@
     <string name="portable_preferences_field_palette">Theme</string>
     <string name="portable_preferences_field_theme_mode">Theme mode</string>
     <string name="portable_preferences_field_pure_black">Pure black</string>
+    <string name="settings_warnings">Warnings</string>
+    <string name="settings_warning_virtual_crop">Virtual crop when sharing RAW photos</string>
+    <string name="settings_warning_virtual_crop_supporting">Explains that a RAW file still holds the image outside its crop.</string>
+    <string name="settings_warning_virtual_crop_portable">Virtual crop when exporting the private album</string>
+    <string name="settings_warning_virtual_crop_portable_supporting">Explains that a private album backup keeps RAW photos complete, including the image outside their crop.</string>
+    <string name="settings_warnings_show_all">Show all warnings again</string>
 </resources>

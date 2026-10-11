@@ -63,4 +63,6 @@ dependencies {
     androidTestImplementation(libs.androidx.test.espresso)
     androidTestImplementation(libs.androidx.uiautomator)
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+    // Driver previews in src/debug (tools/compose-driver); never part of release builds.
+    debugImplementation("androidx.compose.ui:ui-tooling-preview")
 }

@@ -91,6 +91,7 @@ fun DetailsContent(
     placeName: String? = null,
     showTitle: Boolean = true,
     contentPadding: PaddingValues = PaddingValues(16.dp),
+    virtualCrop: VirtualCropInfo? = null,
 ) {
     val context = LocalContext.current
     val locale = LocalConfiguration.current.locales[0]
@@ -115,6 +116,8 @@ fun DetailsContent(
                 modifier = Modifier.semantics { heading() },
             )
         }
+
+        if (virtualCrop != null) VirtualCropNote(virtualCrop)
 
         if (moment != null) {
             DetailsSection("captured", Icons.Rounded.Event, stringResource(R.string.details_section_captured)) {

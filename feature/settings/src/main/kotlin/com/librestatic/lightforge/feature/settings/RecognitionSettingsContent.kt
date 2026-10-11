@@ -76,6 +76,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.state.ToggleableState
 import com.librestatic.lightforge.core.preferences.AppearanceSettings
 import com.librestatic.lightforge.core.preferences.AutoGridColumns
+import com.librestatic.lightforge.core.preferences.DismissibleWarning
 import com.librestatic.lightforge.core.preferences.GallerySettings
 import com.librestatic.lightforge.core.preferences.FolderSelectionMode
 import com.librestatic.lightforge.core.preferences.FolderSelectionPolicy
@@ -168,7 +169,7 @@ data class SemanticModelSettingsUiState(
 )
 
 /** Nested settings destinations. [Root] lists categories; every other value is a detail page. */
-private enum class SettingsPage { Root, Library, LibraryFolders, Playback, Gestures, Thumbnails, Appearance, Operations, Security, Backup, AiAnalysis }
+private enum class SettingsPage { Root, Library, LibraryFolders, Playback, Gestures, Thumbnails, Appearance, Operations, Security, Backup, AiAnalysis, Warnings }
 
 @Composable
 fun RecognitionSettingsContent(
@@ -288,6 +289,9 @@ fun RecognitionSettingsContent(
             }
             SettingsPage.Operations -> SettingsSubPage(embedded = twoPane, illustration = GalleryIcons.Folder, title = stringResource(R.string.settings_operations), onBack = { page = SettingsPage.Root }) {
                 OperationsSection(settings, onSettingsChange)
+            }
+            SettingsPage.Warnings -> SettingsSubPage(embedded = twoPane, illustration = GalleryIcons.Warning, title = stringResource(R.string.settings_warnings), onBack = { page = SettingsPage.Root }) {
+                WarningsSection(settings, onSettingsChange)
             }
             SettingsPage.Security -> SettingsSubPage(embedded = twoPane, illustration = GalleryIcons.Lock, title = stringResource(R.string.settings_security), onBack = { page = SettingsPage.Root }) {
                 SecuritySection(settings, onSettingsChange)
@@ -485,9 +489,10 @@ private fun SettingsCategoryList(
             SettingsCategoryRow(GalleryIcons.Image, stringResource(R.string.settings_thumbnails), "$columnsSummary · " + enabledPattern.format(thumbnailCount, 5), 3, 4, selected = selected(SettingsPage.Thumbnails), chevron = !twoPane) { onOpen(SettingsPage.Thumbnails) }
         }
         SettingsCategoryGroup(stringResource(R.string.settings_group_management)) {
-            SettingsCategoryRow(GalleryIcons.Folder, stringResource(R.string.settings_operations), enabledPattern.format(operationsCount, 3), 0, 3, selected = selected(SettingsPage.Operations), chevron = !twoPane) { onOpen(SettingsPage.Operations) }
-            SettingsCategoryRow(GalleryIcons.Lock, stringResource(R.string.settings_security), if (securityOn) onLabel else offLabel, 1, 3, selected = selected(SettingsPage.Security), chevron = !twoPane) { onOpen(SettingsPage.Security) }
-            SettingsCategoryRow(GalleryIcons.Download, stringResource(R.string.settings_backup), null, 2, 3, selected = selected(SettingsPage.Backup), chevron = !twoPane) { onOpen(SettingsPage.Backup) }
+            SettingsCategoryRow(GalleryIcons.Folder, stringResource(R.string.settings_operations), enabledPattern.format(operationsCount, 3), 0, 4, selected = selected(SettingsPage.Operations), chevron = !twoPane) { onOpen(SettingsPage.Operations) }
+            SettingsCategoryRow(GalleryIcons.Lock, stringResource(R.string.settings_security), if (securityOn) onLabel else offLabel, 1, 4, selected = selected(SettingsPage.Security), chevron = !twoPane) { onOpen(SettingsPage.Security) }
+            SettingsCategoryRow(GalleryIcons.Warning, stringResource(R.string.settings_warnings), enabledPattern.format(DismissibleWarning.entries.size - settings.operations.dismissedWarnings.size, DismissibleWarning.entries.size), 2, 4, selected = selected(SettingsPage.Warnings), chevron = !twoPane) { onOpen(SettingsPage.Warnings) }
+            SettingsCategoryRow(GalleryIcons.Download, stringResource(R.string.settings_backup), null, 3, 4, selected = selected(SettingsPage.Backup), chevron = !twoPane) { onOpen(SettingsPage.Backup) }
         }
         SettingsCategoryGroup(stringResource(R.string.settings_appearance)) {
             SettingsCategoryRow(
@@ -1624,6 +1629,52 @@ private fun OperationsSection(
             onSettingsChange { current -> current.copy(operations = current.operations.copy(skipAppDeleteConfirmation = it)) }
         }
     }
+}
+
+/** One switch per dismissible warning: on means the warning is shown. */
+@Composable
+private fun WarningsSection(
+    settings: GallerySettings,
+    onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit,
+) {
+    val dismissed = settings.operations.dismissedWarnings
+    SettingsCard {
+        DismissibleWarning.entries.forEach { warning ->
+            SettingsSwitchRow(
+                label = stringResource(warning.settingsLabel()),
+                checked = warning !in dismissed,
+                supporting = stringResource(warning.settingsSupporting()),
+                modifier = Modifier.testTag("settings-warning-${warning.key}"),
+            ) { shown ->
+                onSettingsChange { current ->
+                    val updated = if (shown) current.operations.dismissedWarnings - warning
+                    else current.operations.dismissedWarnings + warning
+                    current.copy(operations = current.operations.copy(dismissedWarnings = updated))
+                }
+            }
+        }
+    }
+    if (dismissed.isNotEmpty()) {
+        SettingsActionRow(
+            icon = GalleryIcons.History,
+            label = stringResource(R.string.settings_warnings_show_all),
+            modifier = Modifier.testTag("settings-warnings-show-all"),
+        ) {
+            onSettingsChange { current ->
+                current.copy(operations = current.operations.copy(dismissedWarnings = emptySet()))
+            }
+        }
+    }
+}
+
+private fun DismissibleWarning.settingsLabel() = when (this) {
+    DismissibleWarning.VirtualCropShare -> R.string.settings_warning_virtual_crop
+    DismissibleWarning.VirtualCropPortableExport -> R.string.settings_warning_virtual_crop_portable
+}
+
+private fun DismissibleWarning.settingsSupporting() = when (this) {
+    DismissibleWarning.VirtualCropShare -> R.string.settings_warning_virtual_crop_supporting
+    DismissibleWarning.VirtualCropPortableExport -> R.string.settings_warning_virtual_crop_portable_supporting
 }
 
 @Composable

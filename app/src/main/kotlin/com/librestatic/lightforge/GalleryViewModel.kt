@@ -55,6 +55,7 @@ import com.librestatic.lightforge.core.mediastore.MediaActionReducer
 import com.librestatic.lightforge.core.mediastore.MediaActionSnapshot
 import com.librestatic.lightforge.core.mediastore.MediaActionTarget
 import com.librestatic.lightforge.core.mediastore.MediaStoreActionCoordinator
+import com.librestatic.lightforge.core.mediastore.PreparedShareAsset
 import com.librestatic.lightforge.core.mediastore.ShareCandidate
 import com.librestatic.lightforge.core.mediastore.ShareCoordinator
 import com.librestatic.lightforge.core.mediastore.PendingMediaWriter
@@ -112,6 +113,7 @@ import com.librestatic.lightforge.core.preferences.GallerySettings
 import com.librestatic.lightforge.core.preferences.GallerySettingsRepository
 import com.librestatic.lightforge.core.preferences.VideoResumePolicy
 import com.librestatic.lightforge.core.preferences.FavoriteBackupRecord
+import com.librestatic.lightforge.core.preferences.DismissibleWarning
 import com.librestatic.lightforge.core.preferences.GalleryBackupCodec
 import com.librestatic.lightforge.core.editing.image.PhotoExportOutcome
 import com.librestatic.lightforge.core.editing.image.PhotoAutoEnhancementAnalyzer
@@ -145,6 +147,7 @@ import com.librestatic.lightforge.core.database.VideoEditRecipeEntity
 import com.librestatic.lightforge.core.database.VideoPlaybackPositionEntity
 import com.librestatic.lightforge.core.database.MediaItemEntity
 import com.librestatic.lightforge.core.database.PhysicalAlbumRow
+import com.librestatic.lightforge.core.raw.DngCameraFramingReader
 import com.librestatic.lightforge.core.raw.RawDeveloper
 import com.librestatic.lightforge.core.raw.RawExportFailureKind
 import com.librestatic.lightforge.core.raw.RawExportOutcome
@@ -298,6 +301,8 @@ private data class RawPreviewRequest(
     val maxDimension: Int,
     val approximate: Boolean,
     val final: Boolean,
+    /** Develop the full sensor area as the crop tool's source, so the camera frame can be moved. */
+    val fullSensorCropSource: Boolean = false,
 )
 
 data class VideoEditorSession(
@@ -823,6 +828,9 @@ class GalleryViewModel @Inject constructor(
     private var rawPreviewSession: RawPreviewSession? = null
     private var rawPreviewRequests: Channel<RawPreviewRequest>? = null
     private var rawPreviewGeneration = 0L
+    /** Camera framing the editor's "original" comparison preview was developed with. */
+    private var rawOriginalFraming: Boolean? = null
+    private var rawCropToolActive = false
     private var rawPreviewProfile: RawPreviewProfile? = null
     private var videoEditorJob: Job? = null
     private var videoRecipeJob: Job? = null
@@ -3283,12 +3291,95 @@ class GalleryViewModel @Inject constructor(
     fun shareSelectionOriginals() {
         viewModelScope.launch {
             val targets = selectionShareTargets() ?: return@launch
-            mutableSanitizedShare.emit(
-                ShareCoordinator(getApplication<Application>().contentResolver).original(
-                    targets.map { ShareCandidate(it, mediaMime(it.kind)) },
-                ).intent,
-            )
+            shareOriginals(targets.map { ShareCandidate(it, mediaMime(it.kind)) })
         }
+    }
+
+    /** Shares the original of one viewer item, warning first when it is a RAW with a virtual crop. */
+    fun shareOriginal(media: TimelineMedia) {
+        viewModelScope.launch {
+            shareOriginals(listOf(ShareCandidate(MediaActionTarget(media.key, media.kind), mediaMime(media.kind))))
+        }
+    }
+
+    private val mutableVirtualCropPrompt = MutableStateFlow<VirtualCropSharePrompt?>(null)
+    internal val virtualCropPrompt = mutableVirtualCropPrompt.asStateFlow()
+    private var virtualCropJob: Job? = null
+
+    private suspend fun shareOriginals(candidates: List<ShareCandidate>) {
+        val crops = virtualCropsToWarnAbout(candidates)
+        if (crops.isEmpty()) emitOriginalShare(candidates)
+        else mutableVirtualCropPrompt.value = VirtualCropSharePrompt(candidates, crops)
+    }
+
+    private suspend fun emitOriginalShare(candidates: List<ShareCandidate>) {
+        mutableSanitizedShare.emit(
+            ShareCoordinator(getApplication<Application>().contentResolver).original(candidates).intent,
+        )
+    }
+
+    /** Empty when the warning is dismissed, or when no RAW among [candidates] has a meaningful virtual crop. */
+    private suspend fun virtualCropsToWarnAbout(candidates: List<ShareCandidate>): List<VirtualCropShareItem> {
+        if (DismissibleWarning.VirtualCropShare in gallerySettings.value.operations.dismissedWarnings) return emptyList()
+        val database = runtime.value?.database ?: return emptyList()
+        val resolver = getApplication<Application>().contentResolver
+        return withContext(Dispatchers.IO) {
+            val probes = candidates.filter { it.target.kind == MediaKind.Image }.mapNotNull { candidate ->
+                val key = candidate.target.key
+                database.libraryDao().media(key.volumeName, key.mediaStoreId)
+                    ?.let { RawShareProbe(candidate.target, it.displayName, it.mimeType) }
+            }
+            virtualCropsAmong(probes) { DngCameraFramingReader.read(resolver, it.uri()) }
+        }
+    }
+
+    /**
+     * The answer to the virtual crop dialog. [cropped] shares a developed JPEG in place of each
+     * affected RAW; otherwise the originals go out as before. Cancelling is [cancelVirtualCropShare].
+     */
+    internal fun confirmVirtualCropShare(cropped: Boolean, dontShowAgain: Boolean) {
+        val prompt = mutableVirtualCropPrompt.value ?: return
+        if (prompt.working) return
+        if (dontShowAgain) dismissWarning(DismissibleWarning.VirtualCropShare)
+        if (!cropped) {
+            mutableVirtualCropPrompt.value = null
+            viewModelScope.launch { emitOriginalShare(prompt.candidates) }
+            return
+        }
+        mutableVirtualCropPrompt.value = prompt.copy(working = true)
+        virtualCropJob = viewModelScope.launch {
+            try {
+                val exporter = CroppedRawJpegExporter(getApplication<Application>())
+                val developed = HashMap<MediaKey, PreparedShareAsset>()
+                for (crop in prompt.crops) developed[crop.target.key] = exporter.develop(crop.target.uri())
+                val assets = assembleCroppedShare(prompt.candidates, developed) {
+                    PreparedShareAsset(it.target.uri(), it.mimeType ?: mediaMime(it.target.kind))
+                }
+                mutableSanitizedShare.emit(
+                    ShareCoordinator(getApplication<Application>().contentResolver)
+                        .sanitized(assets, excludedPrivateCount = 0).intent,
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Throwable) {
+                mutableShareError.emit(getApplication<Application>().croppedShareFailureMessage(failure))
+            } finally {
+                mutableVirtualCropPrompt.value = null
+            }
+        }
+    }
+
+    /** Stops showing [warning] until the user turns it back on in Settings. */
+    fun dismissWarning(warning: DismissibleWarning) {
+        updateGallerySettings {
+            it.copy(operations = it.operations.copy(dismissedWarnings = it.operations.dismissedWarnings + warning))
+        }
+    }
+
+    internal fun cancelVirtualCropShare() {
+        virtualCropJob?.cancel()
+        virtualCropJob = null
+        mutableVirtualCropPrompt.value = null
     }
 
     /** Explicit keys, or a select-all query resolved page by page; null when empty or over the share limit. */
@@ -3780,7 +3871,7 @@ class GalleryViewModel @Inject constructor(
             enqueueRawPreview(session.content.rawSettings, session.history.present, final = true)
             return
         }
-        val updated = session.history.applyRawDevelopment(session.content.rawSettings)
+        val updated = session.history.applyRawDevelopment(session.content.rawSettings, session.content.rawMetadata)
         if (updated == session.history) return
         mutablePhotoEditor.value = session.copy(
             history = updated,
@@ -3789,10 +3880,54 @@ class GalleryViewModel @Inject constructor(
                 isDirty = true,
                 canUndo = updated.past.isNotEmpty(),
                 canRedo = false,
+                // The framing switch can remap the crop to keep the same content selected.
+                crop = selectedCrop(updated.present),
+                straightenDegrees = selectedStraighten(updated.present),
+                geometry = photoGeometryOperations(updated.present.operations),
             ),
         )
         persistPhotoRecipe(updated.present)
         enqueueRawPreview(session.content.rawSettings, updated.present, final = true)
+    }
+
+    /** The crop tool shows the full sensor area (not the camera framing) while it is open on a RAW. */
+    fun setPhotoCropToolActive(active: Boolean) {
+        if (rawCropToolActive == active) return
+        rawCropToolActive = active
+        val session = mutablePhotoEditor.value ?: return
+        if (!active || !session.content.isRaw || !session.content.rawSettings.cameraFraming) return
+        if (session.content.rawMetadata?.hasMeaningfulCameraCrop != true) return
+        enqueueRawPreview(session.content.rawSettings, session.history.present, final = true)
+    }
+
+    /**
+     * Applies a crop drawn on the full sensor area that leaves the camera frame: develops the full
+     * area and sets the crop and straighten angle as one undo step.
+     */
+    fun applyPhotoFullSensorCrop(crop: EditOperation.Crop?, straightenDegrees: Float) {
+        val session = mutablePhotoEditor.value ?: return
+        if (!session.content.isRaw) return
+        val settings = session.content.rawSettings.copy(cameraFraming = false)
+        val updated = session.history.applyFullSensorCrop(
+            session.content.rawSettings, crop, EditOperation.Straighten(straightenDegrees),
+        )
+        if (updated == session.history) return
+        mutablePhotoEditor.value = session.copy(
+            history = updated,
+            content = session.content.copy(
+                rawSettings = settings,
+                isRendering = true,
+                isDirty = true,
+                canUndo = updated.past.isNotEmpty(),
+                canRedo = false,
+                crop = selectedCrop(updated.present),
+                straightenDegrees = selectedStraighten(updated.present),
+                geometry = photoGeometryOperations(updated.present.operations),
+                statusMessage = null,
+            ),
+        )
+        persistPhotoRecipe(updated.present)
+        enqueueRawPreview(settings, updated.present, final = true)
     }
 
     fun setRawOutputFormat(format: RawOutputFormat) {
@@ -4417,6 +4552,8 @@ class GalleryViewModel @Inject constructor(
         rawPreviewSession?.close()
         rawPreviewSession = null
         rawPreviewProfile = null
+        rawOriginalFraming = null
+        rawCropToolActive = false
         rawPreviewGeneration++
     }
 
@@ -4434,17 +4571,40 @@ class GalleryViewModel @Inject constructor(
             // only throttle needed and results arrive in request order.
             for (request in requests) {
                 var cropSource: Bitmap? = null
+                var fullSensorSource = false
+                var refreshedOriginal: Bitmap? = null
                 val rendered = try {
-                    val developed = stagedRaw.renderPreview(
-                        request.settings, request.maxDimension, request.approximate,
-                    )
+                    // Before/after compare the same frame: a framing change re-develops the original.
+                    if (request.final && request.settings.cameraFraming != rawOriginalFraming) {
+                        refreshedOriginal = stagedRaw.renderPreview(
+                            RawDevelopmentSettings(cameraFraming = request.settings.cameraFraming), 1_600,
+                        )
+                    }
                     val cropOperations = request.recipe.operations.filter {
                         it is EditOperation.Rotate || it is EditOperation.Flip
                     }
-                    val cropInput = if (request.final) developed.copy(Bitmap.Config.ARGB_8888, false) else null
-                    cropSource = cropInput?.let {
-                        PhotoImageRenderer(getApplication<Application>().contentResolver).renderDecoded(
-                            it,
+                    if (request.final && request.fullSensorCropSource) {
+                        // Full area first: the native handle reopens on a framing change, so the
+                        // framed develop below leaves the session on the framing the editor shows.
+                        val full = stagedRaw.renderPreview(
+                            request.settings.copy(cameraFraming = false), request.maxDimension,
+                        )
+                        cropSource = PhotoImageRenderer(getApplication<Application>().contentResolver).renderDecoded(
+                            full,
+                            request.recipe.copy(operations = cropOperations),
+                        )
+                        if (cropSource !== full) full.recycle()
+                        fullSensorSource = true
+                    }
+                    val developed = stagedRaw.renderPreview(
+                        request.settings, request.maxDimension, request.approximate,
+                    )
+                    val cropInput = if (request.final && cropSource == null) {
+                        developed.copy(Bitmap.Config.ARGB_8888, false)
+                    } else null
+                    if (cropInput != null) {
+                        cropSource = PhotoImageRenderer(getApplication<Application>().contentResolver).renderDecoded(
+                            cropInput,
                             request.recipe.copy(operations = cropOperations),
                         )
                     }
@@ -4457,9 +4617,11 @@ class GalleryViewModel @Inject constructor(
                     )
                 } catch (cancelled: CancellationException) {
                     cropSource?.recycle()
+                    refreshedOriginal?.recycle()
                     throw cancelled
                 } catch (failure: Throwable) {
                     cropSource?.recycle()
+                    refreshedOriginal?.recycle()
                     if (request.generation == rawPreviewGeneration) {
                         mutablePhotoEditor.value = mutablePhotoEditor.value?.let { current ->
                             current.copy(content = current.content.copy(
@@ -4484,10 +4646,22 @@ class GalleryViewModel @Inject constructor(
                                 old !== cropSource
                         }?.recycle()
                     }
+                    if (refreshedOriginal != null) {
+                        current.content.originalPreview?.takeIf { old ->
+                            old !== rendered && old !== cropSource && old !== refreshedOriginal
+                        }?.recycle()
+                        rawOriginalFraming = request.settings.cameraFraming
+                    }
                     mutablePhotoEditor.value = current.copy(
                         content = current.content.copy(
                             preview = rendered,
+                            originalPreview = refreshedOriginal ?: current.content.originalPreview,
                             cropSourcePreview = cropSource ?: current.content.cropSourcePreview,
+                            cropSourceFullSensor = if (cropSource != null) {
+                                fullSensorSource
+                            } else {
+                                current.content.cropSourceFullSensor
+                            },
                             // A newer request is still pending while the user keeps dragging.
                             isRendering = request.generation != rawPreviewGeneration,
                             statusMessage = null,
@@ -4496,6 +4670,7 @@ class GalleryViewModel @Inject constructor(
                 } else {
                     rendered.recycle()
                     cropSource?.takeIf { it !== rendered }?.recycle()
+                    refreshedOriginal?.recycle()
                 }
             }
         }
@@ -4516,6 +4691,8 @@ class GalleryViewModel @Inject constructor(
                 maxDimension = if (final) 1_600 else profile.maxDimension,
                 approximate = !final,
                 final = final,
+                fullSensorCropSource = final && rawCropToolActive && settings.cameraFraming &&
+                    mutablePhotoEditor.value?.content?.rawMetadata?.hasMeaningfulCameraCrop == true,
             ),
         )
     }
@@ -4559,11 +4736,14 @@ class GalleryViewModel @Inject constructor(
         val originalPreview = if (currentBeforeRender?.content?.originalPreview == null) {
             runCatching {
                 if (currentBeforeRender?.content?.isRaw == true) {
-                    rawPreviewSession?.renderPreview(RawDevelopmentSettings(), 1_600)
+                    // Same frame as the edit, so before/after compare like with like.
+                    val framing = currentBeforeRender.content.rawSettings.cameraFraming
+                    val original = RawDevelopmentSettings(cameraFraming = framing)
+                    (rawPreviewSession?.renderPreview(original, 1_600)
                         ?: RawDeveloper(
                             getApplication<Application>().contentResolver,
                             java.io.File(getApplication<Application>().cacheDir, "raw-scratch"),
-                        ).renderPreview(source.uri, RawDevelopmentSettings(), 1_600)
+                        ).renderPreview(source.uri, original, 1_600)).also { rawOriginalFraming = framing }
                 } else {
                     PhotoImageRenderer(getApplication<Application>().contentResolver).renderPreview(
                         source.uri,
@@ -4606,6 +4786,7 @@ class GalleryViewModel @Inject constructor(
                     preview = preview,
                     originalPreview = originalPreview,
                     cropSourcePreview = cropSourcePreview,
+                    cropSourceFullSensor = false,
                     isRendering = false,
                 ),
             )
@@ -6020,12 +6201,6 @@ class GalleryViewModel @Inject constructor(
             mutableDetectedText.value = text
         }
     }
-
-    fun originalShareIntent(media: TimelineMedia): Intent = ShareCoordinator(
-        getApplication<Application>().contentResolver,
-    ).original(
-        listOf(ShareCandidate(MediaActionTarget(media.key, media.kind), mediaMime(media.kind))),
-    ).intent
 
     fun sanitizedShare(media: TimelineMedia) {
         viewModelScope.launch {

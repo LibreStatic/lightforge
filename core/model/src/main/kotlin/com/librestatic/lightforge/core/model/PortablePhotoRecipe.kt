@@ -22,7 +22,12 @@ data class PortablePhotoRecipe(
             // The local persistence decoder tolerates old or extra tokens. Portable input must
             // be exactly a current known operation, including flags, raw version and float form.
             val decoded = EditOperationCodec.decode(encoded)
-            require(EditOperationCodec.encode(decoded) == encoded) {
+            val canonical = EditOperationCodec.encode(decoded)
+            // RAW operations exported before camera framing existed lack the trailing flag, which
+            // means framing on; they stay importable.
+            val legacyRaw = decoded is EditOperation.RawDevelop && decoded.settings.cameraFraming &&
+                canonical.removeSuffix(",1") == encoded
+            require(canonical == encoded || legacyRaw) {
                 "Noncanonical photo operation"
             }
         }

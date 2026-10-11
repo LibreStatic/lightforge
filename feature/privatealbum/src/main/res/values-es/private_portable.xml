@@ -18,4 +18,12 @@
     <string name="private_portable_cancel_title">¿Cancelar esta operación?</string>
     <string name="private_portable_cancel_body">Se eliminarán los archivos cifrados temporales sin confirmar. Tus originales y los elementos restaurados anteriormente quedan intactos.</string>
     <string name="private_portable_continue">Continuar</string>
+    <string name="private_portable_crop_title">Fotos con recorte virtual</string>
+    <string name="private_portable_crop_body">La copia conserva los archivos RAW originales completos. Quien la abra con la contraseña podrá descubrir la imagen completa del sensor detrás del recorte virtual. Para evitarlo, exporta la foto como JPEG o PNG final desde el editor y agrégala al álbum en su lugar, o déjala fuera de la copia.</string>
+    <string name="private_portable_crop_dont_show">No volver a mostrar esta advertencia</string>
+    <plurals name="private_portable_crop_count">
+        <item quantity="one">%d foto RAW del álbum privado tiene un recorte virtual.</item>
+        <item quantity="many">%d fotos RAW del álbum privado tienen un recorte virtual.</item>
+        <item quantity="other">%d fotos RAW del álbum privado tienen un recorte virtual.</item>
+    </plurals>
 </resources>

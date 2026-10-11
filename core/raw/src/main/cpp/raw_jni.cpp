@@ -1,3 +1,4 @@
+#include <android/bitmap.h>
 #include <jni.h>
 #include <libraw/libraw.h>
 #include <algorithm>
@@ -25,11 +26,30 @@ std::string clean(const char* value) {
     return result;
 }
 
-bool open(LibRaw& raw, const std::string& path, std::string& error) {
+// Settings index 16: develop the camera framing (DNG DefaultCrop). Missing means on.
+constexpr int FramingIndex = 16;
+constexpr int SettingsCount = 17;
+
+bool framingOf(const float* values, jsize length) {
+    return length <= FramingIndex || values[FramingIndex] >= 0.5f;
+}
+
+// Narrows the visible area to the DNG DefaultCrop. Mask 1 selects DefaultCrop only (index 1,
+// DefaultUserCrop, is out of scope) and maxcrop 0 accepts the 4-5x digital zooms some recorders
+// store. Non-DNG maker-note inset crops are deliberately left alone. LibRaw's open_file already
+// rounds the crop origin up to an even pixel, so the Bayer phase stays valid; nothing to do here.
+void applyCameraFraming(LibRaw& raw) {
+    if (raw.imgdata.idata.dng_version != 0) raw.adjust_to_raw_inset_crop(1, 0.0f);
+}
+
+bool open(LibRaw& raw, const std::string& path, bool cameraFraming, std::string& error) {
     const int code = raw.open_file(path.c_str());
-    if (code == LIBRAW_SUCCESS) return true;
-    error = libraw_strerror(code);
-    return false;
+    if (code != LIBRAW_SUCCESS) {
+        error = libraw_strerror(code);
+        return false;
+    }
+    if (cameraFraming) applyCameraFraming(raw);
+    return true;
 }
 
 void configure(LibRaw& raw, const float* values, int maxDimension, bool sixteenBit) {
@@ -69,72 +89,97 @@ void configure(LibRaw& raw, const float* values, int maxDimension, bool sixteenB
 }
 
 // Contrast, tone, saturation and sharpening on an 8-bit RGB buffer; shared by the stateless
-// render and the persistent preview so both finish identically.
-void finish(const uint8_t* rgb, int stride, int width, int height, const float* values,
-            std::vector<jint>& argb) {
-    const int pixels = width * height;
-    argb.assign(pixels, 0);
+// render, the persistent preview and the bitmap export so all finish identically. Rows are
+// produced one at a time (0xAARRGGBB) and handed to [emit], so callers choose the destination
+// and the sharpening only ever needs a three-row window instead of a copy of the frame.
+template <typename Emit>
+void finishRows(const uint8_t* rgb, int stride, int width, int height, const float* values,
+                Emit emit) {
     const float contrast = std::pow(2.0f, values[7]);
     const float saturation = 1.0f + values[8];
     const float vibrance = values[9];
-    for (int i = 0; i < pixels; ++i) {
-        float r = rgb[i * stride] / 255.0f;
-        float g = rgb[i * stride + 1] / 255.0f;
-        float b = rgb[i * stride + 2] / 255.0f;
-        r = (r - 0.5f) * contrast + 0.5f;
-        g = (g - 0.5f) * contrast + 0.5f;
-        b = (b - 0.5f) * contrast + 0.5f;
-        float luma = r * 0.2126f + g * 0.7152f + b * 0.0722f;
-        const float shadowWeight = std::pow(std::clamp(1.0f - luma, 0.0f, 1.0f), 2.0f);
-        const float highlightWeight = std::pow(std::clamp(luma, 0.0f, 1.0f), 2.0f);
-        const float toneScale = 1.0f + values[4] * shadowWeight + values[3] * highlightWeight;
-        r *= toneScale;
-        g *= toneScale;
-        b *= toneScale;
-        // Whites and blacks operate on opposite ends of the tonal range without moving
-        // mid-grey as aggressively as exposure.
-        r += values[5] * 0.25f * highlightWeight + values[6] * 0.20f * shadowWeight;
-        g += values[5] * 0.25f * highlightWeight + values[6] * 0.20f * shadowWeight;
-        b += values[5] * 0.25f * highlightWeight + values[6] * 0.20f * shadowWeight;
-        luma = r * 0.2126f + g * 0.7152f + b * 0.0722f;
-        const float chroma = std::max(r, std::max(g, b)) - std::min(r, std::min(g, b));
-        const float vibranceScale = 1.0f + vibrance * (1.0f - std::clamp(chroma, 0.0f, 1.0f));
-        const float totalSaturation = saturation * vibranceScale;
-        r = luma + (r - luma) * totalSaturation;
-        g = luma + (g - luma) * totalSaturation;
-        b = luma + (b - luma) * totalSaturation;
-        const int ri = std::clamp(static_cast<int>(r * 255.0f), 0, 255);
-        const int gi = std::clamp(static_cast<int>(g * 255.0f), 0, 255);
-        const int bi = std::clamp(static_cast<int>(b * 255.0f), 0, 255);
-        argb[i] = static_cast<jint>(0xff000000u | (ri << 16) | (gi << 8) | bi);
-    }
-    const float sharpening = std::clamp(values[13], 0.0f, 1.0f);
-    if (sharpening > 0.0f && width > 2 && height > 2) {
-        const std::vector<jint> original = argb;
-        for (int y = 1; y < height - 1; ++y) {
-            for (int x = 1; x < width - 1; ++x) {
-                const int index = y * width + x;
-                const jint center = original[index];
-                int outputChannels[3];
-                const int shifts[3] = {16, 8, 0};
-                for (int channel = 0; channel < 3; ++channel) {
-                    const int shift = shifts[channel];
-                    const int value = (center >> shift) & 0xff;
-                    const int neighbours = ((original[index - 1] >> shift) & 0xff)
-                        + ((original[index + 1] >> shift) & 0xff)
-                        + ((original[index - width] >> shift) & 0xff)
-                        + ((original[index + width] >> shift) & 0xff);
-                    outputChannels[channel] = std::clamp(
-                        static_cast<int>(value + sharpening * 1.5f * (value - neighbours / 4.0f)),
-                        0,
-                        255
-                    );
-                }
-                argb[index] = static_cast<jint>(0xff000000u | (outputChannels[0] << 16)
-                    | (outputChannels[1] << 8) | outputChannels[2]);
-            }
+    auto toneRow = [&](int y, uint32_t* out) {
+        const uint8_t* row = rgb + static_cast<size_t>(y) * width * stride;
+        for (int x = 0; x < width; ++x) {
+            const uint8_t* pixel = row + static_cast<size_t>(x) * stride;
+            float r = pixel[0] / 255.0f;
+            float g = pixel[1] / 255.0f;
+            float b = pixel[2] / 255.0f;
+            r = (r - 0.5f) * contrast + 0.5f;
+            g = (g - 0.5f) * contrast + 0.5f;
+            b = (b - 0.5f) * contrast + 0.5f;
+            float luma = r * 0.2126f + g * 0.7152f + b * 0.0722f;
+            const float shadowWeight = std::pow(std::clamp(1.0f - luma, 0.0f, 1.0f), 2.0f);
+            const float highlightWeight = std::pow(std::clamp(luma, 0.0f, 1.0f), 2.0f);
+            const float toneScale = 1.0f + values[4] * shadowWeight + values[3] * highlightWeight;
+            r *= toneScale;
+            g *= toneScale;
+            b *= toneScale;
+            // Whites and blacks operate on opposite ends of the tonal range without moving
+            // mid-grey as aggressively as exposure.
+            r += values[5] * 0.25f * highlightWeight + values[6] * 0.20f * shadowWeight;
+            g += values[5] * 0.25f * highlightWeight + values[6] * 0.20f * shadowWeight;
+            b += values[5] * 0.25f * highlightWeight + values[6] * 0.20f * shadowWeight;
+            luma = r * 0.2126f + g * 0.7152f + b * 0.0722f;
+            const float chroma = std::max(r, std::max(g, b)) - std::min(r, std::min(g, b));
+            const float vibranceScale = 1.0f + vibrance * (1.0f - std::clamp(chroma, 0.0f, 1.0f));
+            const float totalSaturation = saturation * vibranceScale;
+            r = luma + (r - luma) * totalSaturation;
+            g = luma + (g - luma) * totalSaturation;
+            b = luma + (b - luma) * totalSaturation;
+            const int ri = std::clamp(static_cast<int>(r * 255.0f), 0, 255);
+            const int gi = std::clamp(static_cast<int>(g * 255.0f), 0, 255);
+            const int bi = std::clamp(static_cast<int>(b * 255.0f), 0, 255);
+            out[x] = 0xff000000u | (static_cast<uint32_t>(ri) << 16) | (static_cast<uint32_t>(gi) << 8)
+                | static_cast<uint32_t>(bi);
         }
+    };
+    const float sharpening = std::clamp(values[13], 0.0f, 1.0f);
+    if (!(sharpening > 0.0f && width > 2 && height > 2)) {
+        std::vector<uint32_t> row(width);
+        for (int y = 0; y < height; ++y) {
+            toneRow(y, row.data());
+            emit(y, row.data());
+        }
+        return;
     }
+    // Sharpen from the unsharpened rows above and below; the one-pixel border stays untouched.
+    std::vector<uint32_t> previous(width), current(width), next(width), output(width);
+    toneRow(0, current.data());
+    emit(0, current.data());
+    toneRow(1, next.data());
+    for (int y = 1; y < height - 1; ++y) {
+        std::swap(previous, current);
+        std::swap(current, next);
+        toneRow(y + 1, next.data());
+        output = current;
+        const int shifts[3] = {16, 8, 0};
+        for (int x = 1; x < width - 1; ++x) {
+            uint32_t packed = 0xff000000u;
+            for (int channel = 0; channel < 3; ++channel) {
+                const int shift = shifts[channel];
+                const int value = (current[x] >> shift) & 0xff;
+                const int neighbours = ((current[x - 1] >> shift) & 0xff)
+                    + ((current[x + 1] >> shift) & 0xff)
+                    + ((previous[x] >> shift) & 0xff)
+                    + ((next[x] >> shift) & 0xff);
+                const int sharpened = std::clamp(
+                    static_cast<int>(value + sharpening * 1.5f * (value - neighbours / 4.0f)), 0, 255);
+                packed |= static_cast<uint32_t>(sharpened) << shift;
+            }
+            output[x] = packed;
+        }
+        emit(y, output.data());
+    }
+    emit(height - 1, next.data());
+}
+
+void finish(const uint8_t* rgb, int stride, int width, int height, const float* values,
+            std::vector<jint>& argb) {
+    argb.assign(static_cast<size_t>(width) * height, 0);
+    finishRows(rgb, stride, width, height, values, [&](int y, const uint32_t* row) {
+        std::copy(row, row + width, reinterpret_cast<uint32_t*>(argb.data()) + static_cast<size_t>(y) * width);
+    });
 }
 
 
@@ -159,6 +204,8 @@ struct PreviewHandle {
     int width = 0;
     int height = 0;
     bool valid = false;
+    std::string path;
+    bool cameraFraming = true;
 };
 
 void channelScales(const float* values, float* scales) {
@@ -275,15 +322,25 @@ extern "C" JNIEXPORT jstring JNICALL
 Java_com_librestatic_lightforge_core_raw_LibRawBridge_nativeInspect(JNIEnv* env, jobject, jstring source) {
     std::unique_ptr<LibRaw, RawCloser> raw(new LibRaw());
     std::string error;
-    if (!open(*raw, utf(env, source), error)) return env->NewStringUTF(("ERROR|" + error).c_str());
+    if (!open(*raw, utf(env, source), false, error)) return env->NewStringUTF(("ERROR|" + error).c_str());
     const auto& data = raw->imgdata;
+    // Report the full visible area first, then the camera framing relative to it.
+    const int fullWidth = data.sizes.width;
+    const int fullHeight = data.sizes.height;
+    const int fullLeft = data.sizes.left_margin;
+    const int fullTop = data.sizes.top_margin;
+    applyCameraFraming(*raw);
+    const int cropLeft = data.sizes.left_margin - fullLeft;
+    const int cropTop = data.sizes.top_margin - fullTop;
     const char* layout = data.idata.filters == 9 ? "XTrans" : (data.idata.filters ? "Bayer" : "Unknown");
     std::ostringstream output;
     output << clean(data.idata.make) << '|' << clean(data.idata.model) << '|'
            << clean(data.lens.Lens) << '|' << data.sizes.width << '|' << data.sizes.height << '|'
            << data.color.maximum << '|' << data.color.black << '|' << data.other.iso_speed << '|'
            << data.other.shutter << '|' << data.other.aperture << '|' << data.other.focal_len << '|'
-           << layout << '|' << clean(data.idata.cdesc);
+           << layout << '|' << clean(data.idata.cdesc) << '|'
+           << fullWidth << '|' << fullHeight << '|' << cropLeft << '|' << cropTop << '|'
+           << data.sizes.width << '|' << data.sizes.height << '|' << data.sizes.flip;
     return env->NewStringUTF(output.str().c_str());
 }
 
@@ -292,8 +349,12 @@ Java_com_librestatic_lightforge_core_raw_LibRawBridge_nativeRender(
     JNIEnv* env, jobject, jstring source, jfloatArray settings, jint maxDimension) {
     std::unique_ptr<LibRaw, RawCloser> raw(new LibRaw());
     std::string error;
-    if (!open(*raw, utf(env, source), error)) return nullptr;
     jfloat* values = env->GetFloatArrayElements(settings, nullptr);
+    const bool framing = framingOf(values, env->GetArrayLength(settings));
+    if (!open(*raw, utf(env, source), framing, error)) {
+        env->ReleaseFloatArrayElements(settings, values, JNI_ABORT);
+        return nullptr;
+    }
     configure(*raw, values, maxDimension, false);
     if (process(*raw, error) != LIBRAW_SUCCESS) {
         env->ReleaseFloatArrayElements(settings, values, JNI_ABORT);
@@ -314,12 +375,75 @@ Java_com_librestatic_lightforge_core_raw_LibRawBridge_nativeRender(
     return result;
 }
 
+// Returns the developed ARGB_8888 Bitmap, or a String with the error ("OutOfMemory" when the
+// bitmap cannot be allocated). The bitmap is created here from LibRaw's actual output size, which
+// can differ from the inspected one (odd DefaultCrop origins, orientation, LibRaw margins).
+extern "C" JNIEXPORT jobject JNICALL
+Java_com_librestatic_lightforge_core_raw_LibRawBridge_nativeRenderToBitmap(
+    JNIEnv* env, jobject, jstring source, jfloatArray settings, jint maxDimension) {
+    std::string error;
+    std::unique_ptr<LibRaw, RawCloser> raw(new LibRaw());
+    jfloat* values = env->GetFloatArrayElements(settings, nullptr);
+    const bool framing = framingOf(values, env->GetArrayLength(settings));
+    auto fail = [&](const std::string& message) -> jobject {
+        env->ReleaseFloatArrayElements(settings, values, JNI_ABORT);
+        return env->NewStringUTF(message.c_str());
+    };
+    if (!open(*raw, utf(env, source), framing, error)) return fail(error);
+    configure(*raw, values, maxDimension, false);
+    if (process(*raw, error) != LIBRAW_SUCCESS) return fail(error);
+    int code = 0;
+    libraw_processed_image_t* image = raw->dcraw_make_mem_image(&code);
+    // The demosaiced working buffers are the largest allocation: release them before converting.
+    raw->recycle();
+    if (!image || code != LIBRAW_SUCCESS || image->type != LIBRAW_IMAGE_BITMAP || image->colors < 3) {
+        if (image) LibRaw::dcraw_clear_mem(image);
+        return fail("RAW render failed (" + std::to_string(code) + ")");
+    }
+    jclass bitmapClass = env->FindClass("android/graphics/Bitmap");
+    jclass configClass = env->FindClass("android/graphics/Bitmap$Config");
+    jfieldID argbField = env->GetStaticFieldID(configClass, "ARGB_8888", "Landroid/graphics/Bitmap$Config;");
+    jobject argb = env->GetStaticObjectField(configClass, argbField);
+    jmethodID create = env->GetStaticMethodID(
+        bitmapClass, "createBitmap", "(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;");
+    jobject bitmap = env->CallStaticObjectMethod(
+        bitmapClass, create, static_cast<jint>(image->width), static_cast<jint>(image->height), argb);
+    if (env->ExceptionCheck() || !bitmap) {
+        env->ExceptionClear();
+        LibRaw::dcraw_clear_mem(image);
+        return fail("OutOfMemory");
+    }
+    AndroidBitmapInfo info;
+    void* pixels = nullptr;
+    if (AndroidBitmap_getInfo(env, bitmap, &info) != ANDROID_BITMAP_RESULT_SUCCESS
+        || AndroidBitmap_lockPixels(env, bitmap, &pixels) != ANDROID_BITMAP_RESULT_SUCCESS || !pixels) {
+        LibRaw::dcraw_clear_mem(image);
+        return fail("Bitmap pixels cannot be locked");
+    }
+    // ARGB_8888 is RGBA bytes in memory, i.e. 0xAABBGGRR as a little-endian word.
+    finishRows(image->data, image->colors, image->width, image->height, values,
+               [&](int y, const uint32_t* row) {
+        auto* out = reinterpret_cast<uint32_t*>(static_cast<uint8_t*>(pixels) + static_cast<size_t>(y) * info.stride);
+        for (uint32_t x = 0; x < info.width; ++x) {
+            const uint32_t p = row[x];
+            out[x] = (p & 0xff00ff00u) | ((p >> 16) & 0xffu) | ((p & 0xffu) << 16);
+        }
+    });
+    AndroidBitmap_unlockPixels(env, bitmap);
+    LibRaw::dcraw_clear_mem(image);
+    env->ReleaseFloatArrayElements(settings, values, JNI_ABORT);
+    return bitmap;
+}
+
 extern "C" JNIEXPORT jlong JNICALL
-Java_com_librestatic_lightforge_core_raw_LibRawBridge_nativeOpenPreview(JNIEnv* env, jobject, jstring source) {
+Java_com_librestatic_lightforge_core_raw_LibRawBridge_nativeOpenPreview(
+    JNIEnv* env, jobject, jstring source, jboolean cameraFraming) {
     auto handle = std::make_unique<PreviewHandle>();
     handle->raw.reset(new LibRaw());
     std::string error;
-    if (!open(*handle->raw, utf(env, source), error)) return 0;
+    handle->path = utf(env, source);
+    handle->cameraFraming = cameraFraming == JNI_TRUE;
+    if (!open(*handle->raw, handle->path, handle->cameraFraming, error)) return 0;
     if (handle->raw->unpack() != LIBRAW_SUCCESS) return 0;
     return reinterpret_cast<jlong>(handle.release());
 }
@@ -329,9 +453,23 @@ Java_com_librestatic_lightforge_core_raw_LibRawBridge_nativeRenderPreview(
     JNIEnv* env, jobject, jlong pointer, jfloatArray settings, jint maxDimension, jboolean approximate) {
     auto* handle = reinterpret_cast<PreviewHandle*>(pointer);
     if (!handle || env->GetArrayLength(settings) < 14) return nullptr;
-    float values[16] = {};
-    env->GetFloatArrayRegion(settings, 0, std::min<jsize>(env->GetArrayLength(settings), 16), values);
+    float values[SettingsCount] = {};
+    values[FramingIndex] = 1.0f;
+    const jsize length = env->GetArrayLength(settings);
+    env->GetFloatArrayRegion(settings, 0, std::min<jsize>(length, SettingsCount), values);
     std::lock_guard<std::mutex> guard(handle->lock);
+    const bool framing = framingOf(values, length);
+    if (framing != handle->cameraFraming) {
+        // The unpacked raw and the developed base are both tied to the visible area: reopen it.
+        std::unique_ptr<LibRaw, RawCloser> reopened(new LibRaw());
+        std::string error;
+        if (!open(*reopened, handle->path, framing, error) || reopened->unpack() != LIBRAW_SUCCESS) {
+            return nullptr;
+        }
+        handle->raw = std::move(reopened);
+        handle->cameraFraming = framing;
+        handle->valid = false;
+    }
     bool keyChanged = false;
     bool qualityChanged = false;
     for (int i = 0; i < 6; ++i) {
@@ -375,8 +513,12 @@ Java_com_librestatic_lightforge_core_raw_LibRawBridge_nativeExportTiff(
     JNIEnv* env, jobject, jstring source, jstring destination, jfloatArray settings) {
     std::unique_ptr<LibRaw, RawCloser> raw(new LibRaw());
     std::string error;
-    if (!open(*raw, utf(env, source), error)) return env->NewStringUTF(error.c_str());
     jfloat* values = env->GetFloatArrayElements(settings, nullptr);
+    const bool framing = framingOf(values, env->GetArrayLength(settings));
+    if (!open(*raw, utf(env, source), framing, error)) {
+        env->ReleaseFloatArrayElements(settings, values, JNI_ABORT);
+        return env->NewStringUTF(error.c_str());
+    }
     configure(*raw, values, 0, true);
     raw->imgdata.params.output_tiff = 1;
     if (process(*raw, error) == LIBRAW_SUCCESS) {

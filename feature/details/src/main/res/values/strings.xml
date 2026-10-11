@@ -122,4 +122,24 @@
         <item quantity="one">%1$d channel</item>
         <item quantity="other">%1$d channels</item>
     </plurals>
+    <string name="details_virtual_crop_title">Virtual crop</string>
+    <string name="virtual_crop_shows">Shows %1$s of the full %2$s sensor image.</string>
+    <string name="details_virtual_crop_body">The file keeps the full image. Anyone who receives the original can uncover what is outside the frame, without needing your consent. Exporting a JPEG, PNG or TIFF is the only way to share just the framed part.</string>
+    <plurals name="virtual_crop_dialog_title">
+        <item quantity="one">This photo has a virtual crop</item>
+        <item quantity="other">These photos have a virtual crop</item>
+    </plurals>
+    <plurals name="virtual_crop_dialog_count">
+        <item quantity="one">%1$d RAW photo has a virtual crop.</item>
+        <item quantity="other">%1$d RAW photos have a virtual crop.</item>
+    </plurals>
+    <plurals name="virtual_crop_dialog_body">
+        <item quantity="one">The RAW file contains the full image. Anyone who receives the original can reveal what is outside the frame, without needing your consent. To share only the framed part, share a final JPEG instead.</item>
+        <item quantity="other">These RAW files contain the full images. Anyone who receives the originals can reveal what is outside the frames, without needing your consent. To share only the framed parts, share final JPEGs instead.</item>
+    </plurals>
+    <string name="virtual_crop_dont_show_again">Don\'t show this again</string>
+    <string name="virtual_crop_share_jpeg">Share cropped JPEG</string>
+    <string name="virtual_crop_share_original">Share original</string>
+    <string name="virtual_crop_cancel">Cancel</string>
+    <string name="virtual_crop_working">Preparing JPEG…</string>
 </resources>

@@ -42,6 +42,12 @@ class LocalShareSanitizer(
 
     fun cleanupExpired(): Int = registry.cleanupExpired()
 
+    /** A fresh file in the share cache, for a caller that produces the share copy itself; [cleanupExpired] removes it later. */
+    fun allocateShareFile(extension: String): File = registry.allocate(extension)
+
+    /** Exposes a file made with [allocateShareFile] to the receiving app through the FileProvider. */
+    fun shareAsset(file: File, mimeType: String): PreparedShareAsset = PreparedShareAsset(file.toUri(), mimeType)
+
     private suspend fun prepareImage(source: Uri, key: MediaKey?): PreparedShareAsset {
         val destination = registry.allocate("out")
         val recipe = if (key == null) EditRecipe.ephemeral(source.toString().hashCode().toUInt().toString(16)).copy(

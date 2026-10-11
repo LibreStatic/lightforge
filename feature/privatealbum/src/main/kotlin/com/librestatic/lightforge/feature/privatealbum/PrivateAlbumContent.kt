@@ -73,6 +73,7 @@ fun PrivateAlbumContent(
     onUnlocked: () -> Unit,
     onAddRequest: () -> Unit,
     onPortableRequest: ((Boolean) -> Unit)? = null,
+    virtualCropWarning: PrivateVirtualCropWarning? = null,
 ) {
     val scope = rememberCoroutineScope()
     var mediaList by remember(repository) { mutableStateOf(emptyList<PrivateMediaEntity>()) }
@@ -473,6 +474,7 @@ fun PrivateAlbumContent(
             mediaList.isNotEmpty(),
             onClose = { showPortable = false },
             isUnlocked = isUnlocked,
+            virtualCropWarning = virtualCropWarning,
         )
 
     if ((showSetupWarning || (showKeyProtection && isUnlocked)) && indexState != PrivateIndexUiState.Unavailable && (!repository.isSessionBacked || (isUnlocked && accessState == PrivateIndexAccessState.Ready))) {

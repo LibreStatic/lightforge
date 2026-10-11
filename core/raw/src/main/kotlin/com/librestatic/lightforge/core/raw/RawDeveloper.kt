@@ -3,6 +3,7 @@ package com.librestatic.lightforge.core.raw
 import android.content.ContentResolver
 import android.graphics.Bitmap
 import android.net.Uri
+import com.librestatic.lightforge.core.model.RawCameraCrop
 import com.librestatic.lightforge.core.model.RawDevelopmentSettings
 import com.librestatic.lightforge.core.model.RawMetadata
 import com.librestatic.lightforge.core.model.RawOutputFormat
@@ -41,7 +42,9 @@ internal object LibRawBridge {
     init { System.loadLibrary("lightforge_raw") }
     external fun nativeInspect(source: String): String
     external fun nativeRender(source: String, settings: FloatArray, maxDimension: Int): RawNativeImage?
-    external fun nativeOpenPreview(source: String): Long
+    /** Returns the developed ARGB_8888 [Bitmap], or a String error ("OutOfMemory" if it cannot be allocated). */
+    external fun nativeRenderToBitmap(source: String, settings: FloatArray, maxDimension: Int): Any
+    external fun nativeOpenPreview(source: String, cameraFraming: Boolean): Long
     external fun nativeRenderPreview(
         handle: Long, settings: FloatArray, maxDimension: Int, approximate: Boolean,
     ): RawNativeImage?
@@ -53,6 +56,7 @@ class RawDeveloper(
     private val resolver: ContentResolver,
     private val scratchDirectory: File,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val availableMemoryBytes: () -> Long = ::systemAvailableMemoryBytes,
 ) {
     suspend fun openPreviewSession(uri: Uri): RawPreviewSession = withContext(ioDispatcher) {
         scratchDirectory.mkdirs()
@@ -99,11 +103,13 @@ class RawDeveloper(
         destination: File,
     ): RawExportOutcome = withSource(uri) { source ->
         val metadata = parseMetadata(LibRawBridge.nativeInspect(source.absolutePath))
+        // Sizes of the frame that will actually be developed (framed or full sensor).
+        val frame = metadata.dimensions(settings.cameraFraming)
         destination.parentFile?.mkdirs()
         destination.delete()
         when (format) {
             RawOutputFormat.Tiff16Srgb -> {
-                val required = estimateScratchBytes(metadata)
+                val required = estimateScratchBytes(frame.width, frame.height)
                 if (scratchDirectory.usableSpace < required) {
                     return@withSource RawExportOutcome.Failure(
                         "RAW export needs ${required / (1_024 * 1_024)} MB of free temporary storage",
@@ -119,27 +125,48 @@ class RawDeveloper(
                 if (error.isNotBlank() || !destination.isFile || destination.length() == 0L) {
                     destination.delete()
                     RawExportOutcome.Failure(error.ifBlank { "RAW TIFF export failed" })
-                } else RawExportOutcome.Completed(
-                    destination, metadata.width, metadata.height, "image/tiff",
-                )
-            }
-            RawOutputFormat.JpegSrgb -> {
-                val pixels = metadata.width.toLong() * metadata.height.toLong()
-                if (pixels > MaxJpegPixels) {
-                    return@withSource RawExportOutcome.Failure(
-                        "This RAW is too large for bounded JPEG export; choose 16-bit TIFF",
-                        kind = RawExportFailureKind.TooLargeForJpeg,
+                } else {
+                    // LibRaw writes the TIFF pixels already rotated for the orientation flip.
+                    val transposed = metadata.flip and 4 != 0
+                    RawExportOutcome.Completed(
+                        destination,
+                        if (transposed) frame.height else frame.width,
+                        if (transposed) frame.width else frame.height,
+                        "image/tiff",
                     )
                 }
-                val native = LibRawBridge.nativeRender(
-                    source.absolutePath, settings.nativeValues(), maxOf(metadata.width, metadata.height),
-                ) ?: return@withSource RawExportOutcome.Failure("RAW JPEG render failed")
-                val bitmap = Bitmap.createBitmap(native.argb, native.width, native.height, Bitmap.Config.ARGB_8888)
+            }
+            RawOutputFormat.JpegSrgb -> {
+                // LibRaw's mem image is already rotated for the orientation flip.
+                val transposed = metadata.flip and 4 != 0
+                val width = if (transposed) frame.height else frame.width
+                val height = if (transposed) frame.width else frame.height
+                val required = estimateJpegBytes(width, height)
+                if (required + JpegMemoryMargin > availableMemoryBytes()) {
+                    return@withSource RawExportOutcome.Failure(
+                        "Not enough memory to develop this RAW as a JPEG; choose 16-bit TIFF",
+                        kind = RawExportFailureKind.TooLargeForJpeg,
+                        requiredMegabytes = required / (1_024 * 1_024),
+                    )
+                }
+                val bitmap = when (
+                    val result = LibRawBridge.nativeRenderToBitmap(
+                        source.absolutePath, settings.nativeValues(), maxOf(frame.width, frame.height),
+                    )
+                ) {
+                    is Bitmap -> result
+                    "OutOfMemory" -> return@withSource RawExportOutcome.Failure(
+                        "Not enough memory to develop this RAW as a JPEG; choose 16-bit TIFF",
+                        kind = RawExportFailureKind.TooLargeForJpeg,
+                        requiredMegabytes = required / (1_024 * 1_024),
+                    )
+                    else -> return@withSource RawExportOutcome.Failure("RAW JPEG render failed: $result")
+                }
                 try {
                     destination.outputStream().use { output ->
                         check(bitmap.compress(Bitmap.CompressFormat.JPEG, 95, output))
                     }
-                    RawExportOutcome.Completed(destination, native.width, native.height, "image/jpeg")
+                    RawExportOutcome.Completed(destination, bitmap.width, bitmap.height, "image/jpeg")
                 } finally {
                     bitmap.recycle()
                 }
@@ -172,10 +199,24 @@ class RawDeveloper(
 
     private fun parseMetadata(encoded: String): RawMetadata = parseRawMetadata(encoded)
 
-    private fun estimateScratchBytes(metadata: RawMetadata): Long =
-        metadata.width.toLong() * metadata.height.toLong() * 10L + 128L * 1_024 * 1_024
+    private fun estimateScratchBytes(width: Int, height: Int): Long =
+        width.toLong() * height.toLong() * 10L + 128L * 1_024 * 1_024
 
-    private companion object { const val MaxJpegPixels = 36_000_000L }
+    /** Bitmap (4) + LibRaw mem image (3) + LibRaw working buffers (8) bytes per pixel. */
+    private fun estimateJpegBytes(width: Int, height: Int): Long =
+        width.toLong() * height.toLong() * 15L
+
+    private companion object { const val JpegMemoryMargin = 256L * 1_024 * 1_024 }
+}
+
+/** MemAvailable from /proc/meminfo; unlimited when it cannot be read, leaving the OOM catch as the guard. */
+private fun systemAvailableMemoryBytes(): Long = try {
+    File("/proc/meminfo").useLines { lines ->
+        lines.firstOrNull { it.startsWith("MemAvailable:") }
+            ?.filter(Char::isDigit)?.toLongOrNull()?.times(1_024L)
+    } ?: Long.MAX_VALUE
+} catch (_: IOException) {
+    Long.MAX_VALUE
 }
 
 /** A staged RAW source that avoids copying the content URI for every interactive preview frame. */
@@ -204,7 +245,7 @@ class RawPreviewSession internal constructor(
         require(maxDimension in 256..4_096)
         val native = synchronized(lock) {
             if (closed) throw IOException("RAW preview session is closed")
-            if (handle == 0L) handle = LibRawBridge.nativeOpenPreview(source.absolutePath)
+            if (handle == 0L) handle = LibRawBridge.nativeOpenPreview(source.absolutePath, settings.cameraFraming)
             if (handle == 0L) throw IOException("RAW preview could not be developed")
             rendering = true
             handle
@@ -236,16 +277,31 @@ class RawPreviewSession internal constructor(
     }
 }
 
-private fun parseRawMetadata(encoded: String): RawMetadata {
+internal fun parseRawMetadata(encoded: String): RawMetadata {
     val values = encoded.split('|')
     if (values.firstOrNull() == "ERROR") throw IOException(values.drop(1).joinToString(" "))
     require(values.size >= 13) { "RAW metadata is incomplete" }
     val blackLevel = values[6].toInt().coerceAtLeast(0)
     val whiteLevel = values[5].toInt().coerceAtLeast(blackLevel + 1)
+    // Older builds emitted 13 fields; the framing fields follow as full size, crop rect and flip.
+    val hasFraming = values.size >= 20
+    val width = values[3].toInt()
+    val height = values[4].toInt()
+    val fullWidth = if (hasFraming) values[13].toInt() else width
+    val fullHeight = if (hasFraming) values[14].toInt() else height
+    val cameraCrop = if (hasFraming) {
+        val crop = RawCameraCrop(
+            left = values[15].toInt(), top = values[16].toInt(),
+            width = values[17].toInt(), height = values[18].toInt(),
+        )
+        crop.takeIf {
+            it.width > 0 && it.height > 0 && (it.width < fullWidth || it.height < fullHeight)
+        }
+    } else null
     val bitsPerSample = (32 - whiteLevel.countLeadingZeroBits()).coerceIn(1, 16)
     return RawMetadata(
         make = values[0], model = values[1], lens = values[2],
-        width = values[3].toInt(), height = values[4].toInt(), bitsPerSample = bitsPerSample,
+        width = width, height = height, bitsPerSample = bitsPerSample,
         whiteLevel = whiteLevel, blackLevel = blackLevel,
         iso = values[7].toFloatOrNull()?.toInt()?.takeIf { it > 0 },
         shutterSeconds = values[8].toDoubleOrNull()?.takeIf { it > 0.0 },
@@ -253,6 +309,8 @@ private fun parseRawMetadata(encoded: String): RawMetadata {
         focalLengthMm = values[10].toDoubleOrNull()?.takeIf { it > 0.0 },
         sensorLayout = runCatching { RawSensorLayout.valueOf(values[11]) }.getOrDefault(RawSensorLayout.Unknown),
         colorDescription = values[12],
+        fullWidth = fullWidth, fullHeight = fullHeight, cameraCrop = cameraCrop,
+        flip = if (hasFraming) values[19].toInt() else 0,
     )
 }
 
@@ -277,10 +335,11 @@ private val RawExtensions = setOf(
     "rwl", "rwz", "sr2", "srf", "srw", "x3f",
 )
 
-private fun RawDevelopmentSettings.nativeValues() = floatArrayOf(
+internal fun RawDevelopmentSettings.nativeValues() = floatArrayOf(
     exposureEv, temperatureKelvin.toFloat(), tint, highlights, shadows, whites, blacks,
     contrast, saturation, vibrance, highlightRecovery, luminanceNoiseReduction,
     chromaNoiseReduction, sharpening,
     if (chromaticAberrationCorrection) 1f else 0f,
     if (lensCorrection) 1f else 0f,
+    if (cameraFraming) 1f else 0f,
 )

@@ -81,4 +81,7 @@
     <string name="photo_editor_experimental_too_large">Esta foto es demasiado grande para la herramienta experimental</string>
     <string name="photo_editor_eraser_reset">Se quitaron las zonas borradas porque cambió la geometría de la foto</string>
     <string name="photo_editor_clip_no_subject">No se encontró ningún sujeto en ese punto. Toca un objeto o una zona bien diferenciada.</string>
+    <string name="photo_editor_raw_camera_framing">Encuadre de la cámara</string>
+    <string name="photo_editor_raw_full_sensor">Sensor completo</string>
+    <string name="photo_editor_raw_framing_summary">Encuadre de %1$d × %2$d sobre el sensor de %3$d × %4$d</string>
 </resources>

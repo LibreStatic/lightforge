@@ -421,6 +421,26 @@ class PrivateAlbumRepository private constructor(
         PrivateAlbumCrypto.decryptDataKey(encryptedDataKey, masterKey)
     }
 
+    /** The same rows a portable export would archive, reduced to what the pre-export checks need. */
+    internal suspend fun portableProbes(): List<PrivatePortableProbe> {
+        fun List<PrivateMediaEntity>.probes() = map {
+            PrivatePortableProbe(it.id, it.originalDisplayName, it.originalMimeType, it.mediaKind)
+        }
+        if (session != null) return session.withDatabase { worker(it).portableProbes() }
+        return withContext(ioDispatcher) { database.privateMediaDao().getPage(2001, 0).probes() }
+    }
+
+    /**
+     * How many RAW photos in the album carry a DNG virtual crop, as judged by [warning]. Items are
+     * decrypted in memory through the authenticated viewer reader and never written anywhere.
+     */
+    suspend fun countRawsWithVirtualCrop(warning: PrivateVirtualCropWarning): Int =
+        privateRawsWithVirtualCrop(portableProbes(), warning.isRaw) { mediaId ->
+            openViewerSource(mediaId).use { source ->
+                withContext(Dispatchers.IO) { warning.hidesSensorArea(PrivatePlainReader(source)) }
+            }
+        }
+
     suspend fun getMetadata(mediaId: Long): PrivateMediaEntity? {
         if (session != null) return session.withDatabase { worker(it).getMetadata(mediaId) }
         return withContext(ioDispatcher) { database.privateMediaDao().getById(mediaId) }
