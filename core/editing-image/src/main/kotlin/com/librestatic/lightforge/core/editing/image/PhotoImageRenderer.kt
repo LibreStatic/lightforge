@@ -2,13 +2,18 @@ package com.librestatic.lightforge.core.editing.image
 
 import android.content.ContentResolver
 import android.graphics.Bitmap
+import android.os.Trace
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.graphics.Matrix
 import android.net.Uri
+import com.librestatic.lightforge.core.editing.image.grade.CpuPhotoGrader
+import com.librestatic.lightforge.core.editing.image.grade.PhotoGradeParams
+import com.librestatic.lightforge.core.editing.image.grade.PhotoGrader
+import com.librestatic.lightforge.core.editing.image.grade.PhotoLocalBase
+import com.librestatic.lightforge.core.editing.image.grade.PhotoLut
+import com.librestatic.lightforge.core.editing.image.grade.PhotoLutBaker
 import com.librestatic.lightforge.core.model.EditOperation
 import com.librestatic.lightforge.core.model.EditRecipe
 import kotlinx.coroutines.CancellationException
@@ -41,6 +46,8 @@ sealed interface PhotoExportOutcome {
         val wasDownscaled: Boolean,
         val warnings: List<PhotoExportWarning> = emptyList(),
         val mimeType: String? = null,
+        /** Id of a look whose LUT could not be resolved; the export rendered without it. */
+        val missingLookId: String? = null,
     ) : PhotoExportOutcome
 
     /** [reason] is diagnostic English; the UI shows a localized message chosen by [kind]. */
@@ -62,6 +69,10 @@ class PhotoImageRenderer(
     private val resolver: ContentResolver,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val maxExportPixels: Long = 24_000_000L,
+    /** Runs the ADR-045 colour grade on the geometry result. Pass `PhotoGraders.default(context)` for the GPU. */
+    private val grader: PhotoGrader = CpuPhotoGrader(),
+    /** Resolves a look id to its LUT; null means the look is missing and is skipped. */
+    private val lookResolver: (String) -> PhotoLut? = PhotoLutBaker::bake,
 ) {
     init { require(maxExportPixels >= 1_000_000L) }
 
@@ -76,7 +87,7 @@ class PhotoImageRenderer(
             val sample = sampleForDimension(sourceBounds.width, sourceBounds.height, maxDimension)
             val decoded = decode(uri, sample)
                 ?: throw IOException("Unable to decode image preview")
-            applyRecipe(decoded, upright(uri, recipe))
+            applyRecipe(decoded, upright(uri, recipe).operations)
         }
 
     /**
@@ -88,8 +99,33 @@ class PhotoImageRenderer(
 
     /** Applies a recipe to an already decoded bitmap, consuming it when a transform replaces it. */
     suspend fun renderDecoded(source: Bitmap, recipe: EditRecipe): Bitmap = withContext(ioDispatcher) {
-        applyRecipe(source, recipe)
+        applyRecipe(source, recipe.operations)
     }
+
+    /**
+     * Applies only the geometry operations (crop, rotate, flip, straighten, perspective) of
+     * [recipe] to [source], in recipe order, consuming it when a transform replaces it. The colour
+     * stage is left to [grade], so a live preview can cache the geometry result.
+     */
+    suspend fun renderGeometry(source: Bitmap, recipe: EditRecipe): Bitmap = withContext(ioDispatcher) {
+        applyGeometry(source, recipe.operations)
+    }
+
+    /** The grade parameters [recipe] resolves to, including [PhotoGradeParams.missingLookId]. */
+    fun gradeParams(operations: List<EditOperation>): PhotoGradeParams =
+        PhotoGradeParams.from(operations, lookResolver)
+
+    /**
+     * Colour-grades the geometry-applied [frame] with [params] using this renderer's grader. The
+     * local base is built from [frame] when needed, unless the caller passes a [base] from
+     * [buildLocalBase]; the base is sampled by frame UV, so one built from a larger frame can grade
+     * a downscale of it. Does not recycle [frame]; identity params return [frame] itself.
+     */
+    suspend fun grade(frame: Bitmap, params: PhotoGradeParams, base: PhotoLocalBase? = null): Bitmap =
+        withContext(ioDispatcher) { gradeFrame(frame, params, recycleInput = false, suppliedBase = base) }
+
+    /** The blurred luma base of [frame], for callers that grade the same frame (or its downscales) repeatedly. */
+    suspend fun buildLocalBase(frame: Bitmap): PhotoLocalBase = withContext(ioDispatcher) { PhotoLocalBase.from(frame) }
 
     /**
      * Exports [recipe] applied to the upright source. [preserveMetadata] copies capture EXIF
@@ -102,6 +138,9 @@ class PhotoImageRenderer(
         onProgress: suspend (Long) -> Unit = {},
         preserveMetadata: Boolean = false,
     ): PhotoExportOutcome = withContext(ioDispatcher) {
+        // Async slice: the export suspends and may resume on another IO thread.
+        val traceCookie = System.identityHashCode(destination)
+        Trace.beginAsyncSection("PhotoExport", traceCookie)
         try {
             coroutineContext.ensureActive()
             val sourceBounds = decodeBounds(uri)
@@ -116,6 +155,7 @@ class PhotoImageRenderer(
                 )
             }
             val uprightRecipe = upright(uri, recipe)
+            val gradeParams = PhotoGradeParams.from(uprightRecipe.operations, lookResolver)
             val sourcePixels = sourceBounds.width.toLong() * sourceBounds.height.toLong()
             if (sourcePixels > maxExportPixels) {
                 // The tiled plan maps output tiles back through the leading orientation ops, so
@@ -127,6 +167,8 @@ class PhotoImageRenderer(
                     recipe = uprightRecipe,
                     destination = destination,
                     onProgress = onProgress,
+                    grader = grader,
+                    gradeParams = gradeParams,
                 )
                 if (preserveMetadata) {
                     PhotoExifMetadata.copy(resolver, uri, tiled.file, tiled.width, tiled.height)
@@ -145,6 +187,7 @@ class PhotoImageRenderer(
                             emptyList()
                         },
                     mimeType = "image/png",
+                    missingLookId = gradeParams.missingLookId,
                 )
             }
             // The > maxExportPixels branch above is the tiled path; regular exports stay at
@@ -156,7 +199,7 @@ class PhotoImageRenderer(
                     kind = PhotoExportFailureKind.DecodeFailed,
                 )
             val rendered = try {
-                applyRecipe(decoded, uprightRecipe)
+                applyRecipe(decoded, uprightRecipe.operations, gradeParams)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Throwable) {
@@ -192,6 +235,7 @@ class PhotoImageRenderer(
                     ) add(PhotoExportWarning.HdrMetadataNotCopied)
                 },
                 mimeType = compressMime(sourceBounds.mimeType),
+                missingLookId = gradeParams.missingLookId,
             )
         } catch (cancelled: CancellationException) {
             destination.delete()
@@ -199,6 +243,8 @@ class PhotoImageRenderer(
         } catch (failure: Throwable) {
             destination.delete()
             PhotoExportOutcome.Failure(failure.message ?: "Image export failed")
+        } finally {
+            Trace.endAsyncSection("PhotoExport", traceCookie)
         }
     }
 
@@ -247,17 +293,38 @@ class PhotoImageRenderer(
         check(total > 0) { "Source image is empty" }
     }
 
-    private fun applyRecipe(source: Bitmap, recipe: EditRecipe): Bitmap {
+    /** Geometry in recipe order, then the colour grade of the whole final frame. */
+    private fun applyRecipe(
+        source: Bitmap,
+        operations: List<EditOperation>,
+        params: PhotoGradeParams = PhotoGradeParams.from(operations, lookResolver),
+    ): Bitmap = gradeFrame(applyGeometry(source, operations), params, recycleInput = true)
+
+    private fun gradeFrame(
+        frame: Bitmap,
+        params: PhotoGradeParams,
+        recycleInput: Boolean,
+        suppliedBase: PhotoLocalBase? = null,
+    ): Bitmap {
+        if (params.isIdentity) return frame
+        val base = if (params.needsLocalBase) suppliedBase ?: PhotoLocalBase.from(frame) else null
+        val graded = grader.grade(frame, params, base, 0, 0, frame.width, frame.height)
+        if (recycleInput && graded !== frame && !frame.isRecycled) frame.recycle()
+        return graded
+    }
+
+    private fun applyGeometry(source: Bitmap, operations: List<EditOperation>): Bitmap {
         var current = source
-        recipe.operations.forEach { operation ->
+        operations.forEach { operation ->
             val next = when (operation) {
                 is EditOperation.Crop -> crop(current, operation)
                 is EditOperation.Rotate -> transform(current, Matrix().apply { postRotate(operation.degrees.toFloat()) })
                 is EditOperation.Flip -> transform(current, Matrix().apply { postScale(if (operation.horizontal) -1f else 1f, if (operation.horizontal) 1f else -1f) })
                 is EditOperation.Straighten -> straighten(current, operation.degrees)
-                is EditOperation.Tone, is EditOperation.Filter ->
-                    color(current, PhotoColorTransform.matrixFor(operation))
-                is EditOperation.RawDevelop -> current
+                is EditOperation.Perspective -> perspective(current, operation)
+                // Colour operations are applied once, after all geometry, by the grader.
+                is EditOperation.Tone, is EditOperation.Filter, is EditOperation.RawDevelop,
+                is EditOperation.Adjust, is EditOperation.ColorMix, is EditOperation.Look -> current
             }
             if (next !== current && !current.isRecycled) current.recycle()
             current = next
@@ -276,6 +343,20 @@ class PhotoImageRenderer(
     private fun transform(bitmap: Bitmap, matrix: Matrix): Bitmap =
         Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
 
+    /** Maps the quad of source corners onto the full frame, keeping the frame size. */
+    private fun perspective(bitmap: Bitmap, operation: EditOperation.Perspective): Bitmap {
+        if (operation.isIdentity) return bitmap
+        val values = PerspectiveGeometry.matrixValues(operation.corners, bitmap.width, bitmap.height)
+            ?: return bitmap
+        val output = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
+        Canvas(output).drawBitmap(
+            bitmap,
+            Matrix().apply { setValues(values) },
+            Paint(Paint.FILTER_BITMAP_FLAG),
+        )
+        return output
+    }
+
     private fun straighten(bitmap: Bitmap, degrees: Float): Bitmap {
         if (degrees == 0f) return bitmap
         val rotated = transform(bitmap, Matrix().apply { postRotate(degrees) })
@@ -291,14 +372,6 @@ class PhotoImageRenderer(
         )
         if (result !== rotated && !rotated.isRecycled) rotated.recycle()
         return result
-    }
-
-    private fun color(bitmap: Bitmap, matrix: ColorMatrix): Bitmap {
-        val output = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
-        Canvas(output).drawBitmap(bitmap, 0f, 0f, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            colorFilter = ColorMatrixColorFilter(matrix)
-        })
-        return output
     }
 
     private fun compressFormat(mimeType: String?): Bitmap.CompressFormat = when (mimeType?.lowercase()) {

@@ -163,7 +163,9 @@ class HoldSlowMotionSession(
         if (playbackJob?.isActive != true) mutableState.replaceFrame(HoldSlowMotionState.Idle)
     }
 
-    private suspend fun playBuffered(positionMillis: Long) = withContext(Dispatchers.Default) {
+    // Runs on the main thread like [stop]: a frame decoded on a worker thread could otherwise be
+    // published after [stop] had already moved to ReadyToSave, leaving the 0.25x overlay stuck.
+    private suspend fun playBuffered(positionMillis: Long) = coroutineScope {
         val windowStart = positionMillis.coerceAtLeast(0L).windowStart()
         while (isActive && synchronized(bufferLock) { bufferedWindowStart != windowStart }) {
             delay(BufferPollMillis)
@@ -189,7 +191,7 @@ class HoldSlowMotionSession(
                 delay(BufferPollMillis)
                 continue
             }
-            val frame = BitmapFactory.decodeFile(next.file.absolutePath)
+            val frame = withContext(Dispatchers.Default) { BitmapFactory.decodeFile(next.file.absolutePath) }
             if (frame == null) {
                 cursor += 1
                 continue

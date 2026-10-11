@@ -54,6 +54,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.IntSize
@@ -119,9 +120,19 @@ data class PhotoEditorContentState(
     val subjectClipSeed: PhotoPoint? = null,
     val subjectClipMethod: SubjectClipper.ClipMethod? = null,
     val isExperimentalProcessing: Boolean = false,
+    /** The photo with the whole colour grade applied by the GPU/CPU grader; wins over the legacy colour filter. */
+    val gradedPreview: Bitmap? = null,
+    val adjust: EditOperation.Adjust = EditOperation.Adjust(emptyMap()),
+    val colorMix: EditOperation.ColorMix = EditOperation.ColorMix.Neutral,
+    val look: EditOperation.Look? = null,
+    /** Look thumbnails of the current photo keyed by look id (`builtin:vivid`, `custom:<uuid>`). */
+    val lookThumbnails: Map<String, Bitmap> = emptyMap(),
+    val customLooks: List<PhotoCustomLook> = emptyList(),
+    /** The auto-straighten detector's answer in degrees, or null while unknown; clear it before each request. */
+    val autoStraightenDegrees: Float? = null,
+    /** The committed perspective correction, or null for none. */
+    val perspective: EditOperation.Perspective? = null,
 )
-
-private enum class PhotoEditorTool { Automatic, Crop, Adjust, Filters, ObjectEraser, SubjectClip, Raw, Export }
 
 @Composable
 fun PhotoEditorContent(
@@ -140,24 +151,57 @@ fun PhotoEditorContent(
     },
     onRawOutputFormatChange: (RawOutputFormat) -> Unit = {},
     /** A crop drawn on the full sensor area that leaves the camera frame (null removes the crop). */
-    onApplyFullSensorCrop: (EditOperation.Crop?, Float) -> Unit = { _, _ -> },
+    onApplyFullSensorCrop: (EditOperation.Crop?, Float, EditOperation.Perspective?) -> Unit = { _, _, _ -> },
     /** The crop tool opened or closed; a RAW then develops the full sensor area as the crop source. */
     onCropToolActiveChange: (Boolean) -> Unit = {},
     onApplyObjectErase: (List<PhotoPoint>) -> Unit = {},
     onClearObjectErase: () -> Unit = {},
     onPreviewSubjectClip: (PhotoPoint) -> Unit = {},
     onSaveSubjectClip: () -> Unit = {},
+    onAdjustPreview: (EditOperation.Adjust) -> Unit = { onApply(it) },
+    onAdjustChangeFinished: () -> Unit = {},
+    onColorMixPreview: (EditOperation.ColorMix) -> Unit = { onApply(it) },
+    onColorMixChangeFinished: () -> Unit = {},
+    onLookPreview: (EditOperation.Look?) -> Unit = { look -> look?.let(onApply) },
+    onLookChangeFinished: () -> Unit = {},
+    onCreateCustomLook: () -> Unit = {},
+    onRenameCustomLook: (id: String, name: String) -> Unit = { _, _ -> },
+    onDeleteCustomLook: (id: String) -> Unit = {},
+    onAutoStraighten: () -> Unit = {},
+    /** Hands the photo to another editor app; the More tab only exists while this is set. */
+    onOpenWith: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     // Tool and uncommitted crop survive rotation; the edit history already lives in the view model.
     // Explicit keys: the host composes this under a navigation rail in landscape and a bottom bar
     // in portrait, so positional keys would not match across the rotation (F-E2E-05).
+    val initialUi = LocalPhotoEditorInitialUi.current
     var cropDraft by rememberSaveable(stateSaver = PhotoCropDraftSaver, key = "photo-editor-crop-draft") {
-        mutableStateOf<PhotoCropDraft?>(null)
+        mutableStateOf<PhotoCropDraft?>(if (initialUi.tool == PhotoEditorTool.Crop) cropDraftFromState(state) else null)
     }
     var compareOriginal by remember { mutableStateOf(false) }
     val defaultTool = if (state.isRaw) PhotoEditorTool.Raw else PhotoEditorTool.Automatic
-    var selectedTool by rememberSaveable(state.isRaw, key = "photo-editor-tool") { mutableStateOf(defaultTool) }
+    var selectedTool by rememberSaveable(state.isRaw, key = "photo-editor-tool") {
+        mutableStateOf(initialUi.tool ?: defaultTool)
+    }
+    var adjustTile by rememberSaveable(key = "photo-editor-adjust-tile") { mutableStateOf(initialUi.adjustTile) }
+    var cropTool by rememberSaveable(key = "photo-editor-crop-tool") { mutableStateOf(initialUi.cropTool) }
+    var looksTab by rememberSaveable(key = "photo-editor-looks-tab") { mutableStateOf(initialUi.looksTab) }
+    var searchOpen by rememberSaveable(key = "photo-editor-search-open") { mutableStateOf(initialUi.searchOpen) }
+    val nav = PhotoToolNav(adjustTile, cropTool, { cropTool = it }, looksTab, { looksTab = it })
+    val panelActions = PhotoPanelActions(
+        onAdjustPreview = onAdjustPreview,
+        onAdjustChangeFinished = onAdjustChangeFinished,
+        onColorMixPreview = onColorMixPreview,
+        onColorMixChangeFinished = onColorMixChangeFinished,
+        onLookPreview = onLookPreview,
+        onLookChangeFinished = onLookChangeFinished,
+        onCreateCustomLook = onCreateCustomLook,
+        onRenameCustomLook = onRenameCustomLook,
+        onDeleteCustomLook = onDeleteCustomLook,
+        onAutoStraighten = onAutoStraighten,
+        onOpenWith = onOpenWith,
+    )
     // Brush dabs not yet applied; applied dabs live in the view model with the erased preview.
     var eraseStrokes by remember { mutableStateOf<List<PhotoPoint>>(emptyList()) }
     // Pending dabs are in edited-image coordinates: re-project them when crop/rotate/flip change.
@@ -195,7 +239,7 @@ fun PhotoEditorContent(
     fun applyCropDraft(draft: PhotoCropDraft) {
         val outcome = cropOutcomeOf(draft)
         if (outcome.needsFullSensor) {
-            onApplyFullSensorCrop(outcome.crop.takeUnless { it.isFullFrame }, outcome.straightenDegrees)
+            onApplyFullSensorCrop(outcome.crop.takeUnless { it.isFullFrame }, outcome.straightenDegrees, outcome.perspective)
         } else outcome.operations.forEach(onApply)
     }
     fun commitCropDraft() {
@@ -207,6 +251,16 @@ fun PhotoEditorContent(
         commitCropDraft()
         selectedTool = tool
         if (tool == PhotoEditorTool.Crop) cropDraft = cropDraftFromState(state)
+    }
+    fun selectTab(tab: PhotoEditorTab) {
+        if (tab != selectedTool.tab()) selectTool(tab.firstTool())
+    }
+    fun navigateTo(destination: PhotoToolDestination) {
+        destination.adjustTile?.let { adjustTile = it }
+        destination.cropTool?.let { cropTool = it }
+        destination.looksTab?.let { looksTab = it }
+        selectTool(destination.tool)
+        searchOpen = false
     }
     // A changed crop draft is an edit: Back commits it (so Undo sees it) and then asks the host,
     // which shows its discard confirmation once the committed history reports dirty (V-04).
@@ -262,13 +316,17 @@ fun PhotoEditorContent(
             )
         },
         media = { mediaModifier ->
-            PreviewStage(state, cropDraft, cameraFrame, compareOriginal, { compareOriginal = it }, { cropDraft = it }, selectedTool, experimental, mediaModifier)
+            PreviewStage(state, cropDraft, cameraFrame, compareOriginal, { compareOriginal = it }, { cropDraft = it }, selectedTool, cropTool, experimental, mediaModifier)
         },
         inspector = { inspectorModifier, layout ->
             PhotoTools(
                 state,
                 selectedTool,
                 ::selectTool,
+                ::selectTab,
+                { searchOpen = true },
+                nav,
+                panelActions,
                 cropDraft,
                 { cropDraft = it },
                 cameraFrame,
@@ -276,8 +334,6 @@ fun PhotoEditorContent(
                 onApply,
                 onRawSettingsChange,
                 onRawSettingsChangeFinished,
-                onTonePreview,
-                onToneChangeFinished,
                 onApplyAutoSuggestion,
                 onRawOutputFormatChange,
                 experimental,
@@ -294,11 +350,15 @@ fun PhotoEditorContent(
         // and suggestion cards that a smaller share cut down to a single visible row.
         stackedInspectorWeight = when {
             experimentalPanel -> null
-            selectedTool == PhotoEditorTool.Crop -> 1.1f
+            selectedTool == PhotoEditorTool.Crop || selectedTool == PhotoEditorTool.Adjust || selectedTool == PhotoEditorTool.Filters -> 1.5f
             else -> 0.8f
         },
         stackedInspectorMaxFraction = 0.5f,
     )
+    if (searchOpen) {
+        val entries = remember(state.isRaw, onOpenWith != null) { photoToolEntries(state.isRaw, onOpenWith != null) }
+        PhotoToolSearchSheet(entries, onDismiss = { searchOpen = false }, onSelect = ::navigateTo)
+    }
 }
 
 @Composable
@@ -310,6 +370,7 @@ private fun PreviewStage(
     onCompareOriginalChange: (Boolean) -> Unit,
     onCropDraftChange: (PhotoCropDraft) -> Unit,
     selectedTool: PhotoEditorTool,
+    cropTool: PhotoCropTool,
     experimental: ExperimentalToolActions,
     modifier: Modifier,
 ) {
@@ -340,7 +401,7 @@ private fun PreviewStage(
             cropDraft != null -> state.cropSourcePreview ?: state.originalPreview ?: state.preview
             compareOriginal -> state.originalPreview ?: state.preview
             clipping && state.subjectClipPreview != null -> state.subjectClipPreview
-            else -> state.erasePreview ?: state.preview
+            else -> state.gradedPreview ?: state.erasePreview ?: state.preview
         }
         SideEffect {
             val bitmapSize = preview?.let { IntSize(it.width, it.height) } ?: IntSize.Zero
@@ -348,18 +409,11 @@ private fun PreviewStage(
         }
         if (preview != null) {
             val description = stringResource(R.string.photo_editor_preview_description)
-            val colorFilter = remember(state.colorOperations, cropDraft, compareOriginal) {
-                if (cropDraft != null || compareOriginal || state.colorOperations.isEmpty()) null
-                else ColorFilter.colorMatrix(ColorMatrix(
-                    com.librestatic.lightforge.core.editing.image.PhotoColorTransform.combinedValues(state.colorOperations),
-                ))
-            }
             Box(Modifier.fillMaxSize().mediaEditorZoomLayer(zoom)) {
             Image(
                 bitmap = preview.asImageBitmap(),
                 contentDescription = description,
                 contentScale = ContentScale.Fit,
-                colorFilter = colorFilter,
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer(rotationZ = cropDraft?.straightenDegrees ?: 0f)
@@ -388,13 +442,25 @@ private fun PreviewStage(
                 },
             )
             cropDraft?.let {
-                InteractiveCropOverlay(
-                    bitmapSize = IntSize(preview.width, preview.height),
-                    draft = it,
-                    onChange = onCropDraftChange,
-                    modifier = Modifier.fillMaxSize(),
-                    referenceFrame = cameraFrame?.takeIf { _ -> it.fullSensor }?.toDraft(),
-                )
+                if (cropTool == PhotoCropTool.Perspective) {
+                    PhotoPerspectiveOverlay(
+                        bitmap = preview,
+                        corners = it.perspective,
+                        onChange = { corners -> onCropDraftChange(it.withPerspective(corners)) },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    InteractiveCropOverlay(
+                        bitmapSize = IntSize(preview.width, preview.height),
+                        draft = it,
+                        onChange = onCropDraftChange,
+                        modifier = Modifier.fillMaxSize(),
+                        referenceFrame = cameraFrame?.takeIf { _ -> it.fullSensor }?.toDraft(),
+                    )
+                    if (it.hasPerspective) {
+                        PerspectiveQuadOutline(IntSize(preview.width, preview.height), it.perspective, Modifier.fillMaxSize())
+                    }
+                }
             }
             if (erasing || clipping) {
                 ExperimentalPreviewOverlay(
@@ -441,6 +507,10 @@ private fun PhotoTools(
     state: PhotoEditorContentState,
     selectedTool: PhotoEditorTool,
     onSelectTool: (PhotoEditorTool) -> Unit,
+    onSelectTab: (PhotoEditorTab) -> Unit,
+    onSearch: () -> Unit,
+    nav: PhotoToolNav,
+    actions: PhotoPanelActions,
     cropDraft: PhotoCropDraft?,
     onCropDraftChange: (PhotoCropDraft?) -> Unit,
     cameraFrame: EditOperation.Crop?,
@@ -448,8 +518,6 @@ private fun PhotoTools(
     onApply: (EditOperation) -> Unit,
     onRawSettingsChange: (RawDevelopmentSettings) -> Unit,
     onRawSettingsChangeFinished: () -> Unit,
-    onTonePreview: (EditOperation.Tone) -> Unit,
-    onToneChangeFinished: () -> Unit,
     onApplyAutoSuggestion: (EditOperation.Tone?) -> Unit,
     onRawOutputFormatChange: (RawOutputFormat) -> Unit,
     experimental: ExperimentalToolActions,
@@ -457,6 +525,8 @@ private fun PhotoTools(
     sideBySide: Boolean,
     wrapPanel: Boolean = false,
 ) {
+    val tabs = photoEditorTabs(state.isRaw, canOpenWith = actions.onOpenWith != null)
+    val selectedTab = selectedTool.tab()
     Surface(
         modifier = modifier,
         color = if (sideBySide) MaterialTheme.colorScheme.surfaceContainer else MaterialTheme.colorScheme.surface,
@@ -466,22 +536,10 @@ private fun PhotoTools(
         Modifier.padding(vertical = GallerySpacing.Md),
         verticalArrangement = Arrangement.spacedBy(GallerySpacing.Md),
     ) {
-        // Beside the media the tools wrap at the top of the inspector, so none is ever clipped (bug 35).
-        if (sideBySide) PhotoToolNavigation(state.isRaw, selectedTool, onSelectTool, wrap = true)
+        // Beside the media the tabs sit in an even grid at the top of the inspector, so none is ever clipped (bug 35).
+        if (sideBySide) PhotoToolNavigationPanel(tabs, selectedTab, onSelectTab, onSearch)
         Row(Modifier.fillMaxWidth().padding(horizontal = GallerySpacing.Lg)) {
-            Text(
-                when {
-                    selectedTool == PhotoEditorTool.Automatic -> stringResource(R.string.photo_editor_automatic)
-                    selectedTool == PhotoEditorTool.Crop -> stringResource(R.string.photo_editor_crop)
-                    selectedTool == PhotoEditorTool.Adjust -> stringResource(R.string.photo_editor_adjust)
-                    selectedTool == PhotoEditorTool.Filters -> stringResource(R.string.photo_editor_filters)
-                    selectedTool == PhotoEditorTool.Raw -> stringResource(R.string.photo_editor_raw_title)
-                    selectedTool == PhotoEditorTool.ObjectEraser || selectedTool == PhotoEditorTool.SubjectClip ->
-                        toolLabel(selectedTool)
-                    else -> stringResource(R.string.photo_editor_export_tab)
-                },
-                style = MaterialTheme.typography.titleMedium,
-            )
+            Text(tabLabel(selectedTab), style = MaterialTheme.typography.titleMedium)
         }
         Column(
             Modifier
@@ -491,64 +549,44 @@ private fun PhotoTools(
             verticalArrangement = Arrangement.spacedBy(GallerySpacing.Md),
         ) {
             when (selectedTool) {
-                PhotoEditorTool.Automatic -> AutomaticControls(state, onApplyAutoSuggestion)
+                PhotoEditorTool.Automatic -> AutomaticControls(state, onApplyAutoSuggestion, fillWidth = sideBySide)
                 PhotoEditorTool.Crop -> cropDraft?.let { draft ->
                     CropControls(
                         draft = draft,
+                        cropTool = nav.cropTool,
+                        onCropToolChange = nav.onCropTool,
                         sourceAspectRatio = (state.cropSourcePreview ?: state.preview)
                             ?.let { it.width.toFloat() / it.height } ?: 1f,
+                        autoStraightenDegrees = state.autoStraightenDegrees,
+                        onAutoStraighten = actions.onAutoStraighten,
                         onChange = { onCropDraftChange(it) },
                         // The overlay frames the rotated image, so the draft turns with it.
-                        onRotate = {
-                            onCropDraftChange(draft.rotatedClockwise())
-                            onApply(EditOperation.Rotate(90))
+                        onRotate = { clockwise ->
+                            var turned = draft
+                            repeat(if (clockwise) 1 else 3) { turned = turned.rotatedClockwise() }
+                            onCropDraftChange(turned)
+                            onApply(EditOperation.Rotate(if (clockwise) 90 else 270))
                         },
-                        onFlip = {
-                            onCropDraftChange(draft.flippedHorizontally())
-                            onApply(EditOperation.Flip(horizontal = true))
-                        },
-                        onCancel = {
-                            onCropDraftChange(null)
-                            onSelectTool(if (state.isRaw) PhotoEditorTool.Raw else PhotoEditorTool.Automatic)
+                        onFlip = { horizontal ->
+                            onCropDraftChange(if (horizontal) draft.flippedHorizontally() else draft.flippedVertically())
+                            onApply(EditOperation.Flip(horizontal = horizontal))
                         },
                         onCameraFraming = cameraFrame?.takeIf { draft.fullSensor }?.let { frame ->
                             { onCropDraftChange(draft.resetToFrame(frame)) }
                         },
-                        onApply = {
-                            onApplyCrop(draft)
-                            onCropDraftChange(null)
-                            onSelectTool(if (state.isRaw) PhotoEditorTool.Raw else PhotoEditorTool.Automatic)
-                        },
                     )
                 }
-                PhotoEditorTool.Adjust -> {
-                    PhotoToneSlider(
-                        label = stringResource(R.string.photo_editor_brightness),
-                        value = state.tone.brightness,
-                        range = -1f..1f,
-                        onChange = { onTonePreview(state.tone.copy(brightness = it)) },
-                        onFinished = onToneChangeFinished,
-                    )
-                    PhotoToneSlider(
-                        label = stringResource(R.string.photo_editor_contrast),
-                        value = state.tone.contrast,
-                        range = 0f..2f,
-                        neutral = 1f,
-                        onChange = { onTonePreview(state.tone.copy(contrast = it)) },
-                        onFinished = onToneChangeFinished,
-                    )
-                    PhotoToneSlider(
-                        label = stringResource(R.string.photo_editor_saturation),
-                        value = state.tone.saturation,
-                        range = 0f..2f,
-                        neutral = 1f,
-                        onChange = { onTonePreview(state.tone.copy(saturation = it)) },
-                        onFinished = onToneChangeFinished,
-                    )
+                PhotoEditorTool.Adjust -> AdjustControls(state, nav.adjustTile, actions)
+                PhotoEditorTool.Filters -> FiltersControls(state, nav.looksTab, nav.onLooksTab, actions)
+                PhotoEditorTool.ObjectEraser -> {
+                    ActionsTools(selectedTool, onSelectTool)
+                    ObjectEraserControls(state, experimental)
                 }
-                PhotoEditorTool.Filters -> FilterControls(state, onApply)
-                PhotoEditorTool.ObjectEraser -> ObjectEraserControls(state, experimental)
-                PhotoEditorTool.SubjectClip -> SubjectClipControls(state, experimental)
+                PhotoEditorTool.SubjectClip -> {
+                    ActionsTools(selectedTool, onSelectTool)
+                    SubjectClipControls(state, experimental)
+                }
+                PhotoEditorTool.More -> MoreControls(actions.onOpenWith)
                 PhotoEditorTool.Raw -> RawControls(
                     state.rawSettings,
                     state.rawMetadata,
@@ -563,82 +601,41 @@ private fun PhotoTools(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        // Outside the scrolling panel so Apply/Clear and Save cut-out stay on screen (Z-03).
+        // Outside the scrolling panel so Apply/Clear, Save cut-out and crop Apply stay on screen (Z-03).
         Box(Modifier.padding(horizontal = GallerySpacing.Lg)) {
             when (selectedTool) {
                 PhotoEditorTool.ObjectEraser -> ObjectEraserActions(state, experimental)
                 PhotoEditorTool.SubjectClip -> SubjectClipActions(state, experimental)
+                PhotoEditorTool.Crop -> cropDraft?.let { draft ->
+                    val leaveCrop = { onSelectTool(if (state.isRaw) PhotoEditorTool.Raw else PhotoEditorTool.Automatic) }
+                    CropActions(
+                        draft = draft,
+                        onChange = { onCropDraftChange(it) },
+                        onCancel = {
+                            onCropDraftChange(null)
+                            leaveCrop()
+                        },
+                        onApply = {
+                            onApplyCrop(draft)
+                            onCropDraftChange(null)
+                            leaveCrop()
+                        },
+                    )
+                }
                 else -> Unit
             }
         }
 
-        if (!sideBySide) PhotoToolNavigation(state.isRaw, selectedTool, onSelectTool, wrap = false)
+        if (!sideBySide) PhotoToolNavigation(tabs, selectedTab, onSelectTab, onSearch)
     }
     }
-}
-
-@Composable
-private fun PhotoToolNavigation(
-    isRaw: Boolean,
-    selectedTool: PhotoEditorTool,
-    onSelectTool: (PhotoEditorTool) -> Unit,
-    wrap: Boolean,
-) {
-    val tools = if (isRaw) {
-        listOf(PhotoEditorTool.Raw, PhotoEditorTool.Crop, PhotoEditorTool.Export)
-    } else {
-        listOf(
-            PhotoEditorTool.Automatic,
-            PhotoEditorTool.Crop,
-            PhotoEditorTool.Adjust,
-            PhotoEditorTool.Filters,
-            PhotoEditorTool.ObjectEraser,
-            PhotoEditorTool.SubjectClip,
-        )
-    }
-    MediaEditorToolChips(
-        tools = tools.map { tool ->
-            MediaEditorToolChip(
-                key = tool.name,
-                label = toolLabel(tool),
-                icon = when (tool) {
-                    PhotoEditorTool.Crop -> GalleryIcons.Crop
-                    PhotoEditorTool.Adjust, PhotoEditorTool.Raw -> GalleryIcons.Tune
-                    PhotoEditorTool.Filters, PhotoEditorTool.Automatic -> GalleryIcons.Palette
-                    PhotoEditorTool.Export, PhotoEditorTool.ObjectEraser, PhotoEditorTool.SubjectClip -> null
-                },
-                testTag = "photo-editor-tool-${tool.name.lowercase()}",
-            )
-        },
-        selectedKey = selectedTool.name,
-        onSelect = { key -> onSelectTool(PhotoEditorTool.valueOf(key)) },
-        wrap = wrap,
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = GallerySpacing.Lg),
-    )
-}
-
-@Composable
-private fun toolLabel(tool: PhotoEditorTool): String = when (tool) {
-    PhotoEditorTool.Automatic -> stringResource(R.string.photo_editor_automatic)
-    PhotoEditorTool.Crop -> stringResource(R.string.photo_editor_crop)
-    PhotoEditorTool.Adjust -> stringResource(R.string.photo_editor_adjust)
-    PhotoEditorTool.Filters -> stringResource(R.string.photo_editor_filters)
-    PhotoEditorTool.ObjectEraser -> stringResource(
-        R.string.photo_editor_experimental_tool,
-        stringResource(R.string.photo_editor_object_eraser),
-    )
-    PhotoEditorTool.SubjectClip -> stringResource(
-        R.string.photo_editor_experimental_tool,
-        stringResource(R.string.photo_editor_subject_clip),
-    )
-    PhotoEditorTool.Raw -> stringResource(R.string.photo_editor_raw_title)
-    PhotoEditorTool.Export -> stringResource(R.string.photo_editor_export_tab)
 }
 
 @Composable
 private fun AutomaticControls(
     state: PhotoEditorContentState,
     onApply: (EditOperation.Tone?) -> Unit,
+    fillWidth: Boolean,
 ) {
     val source = state.originalPreview ?: state.preview
     if (source == null) {
@@ -646,8 +643,8 @@ private fun AutomaticControls(
         return
     }
     val suggestions = state.autoEnhancementSuggestions
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
-        item {
+    val cards: List<@Composable (Modifier) -> Unit> = listOf(
+        { cardModifier ->
             AutoSuggestionCard(
                 tag = "photo-editor-auto-original",
                 source = source,
@@ -656,9 +653,10 @@ private fun AutomaticControls(
                 selected = state.tone == EditOperation.Tone() && state.selectedFilter == "none",
                 enabled = true,
                 onClick = { onApply(null) },
+                modifier = cardModifier,
             )
-        }
-        item {
+        },
+        { cardModifier ->
             AutoSuggestionCard(
                 tag = "photo-editor-auto-enhance",
                 source = source,
@@ -667,9 +665,10 @@ private fun AutomaticControls(
                 selected = suggestions?.enhance == state.tone && state.selectedFilter == "none",
                 enabled = suggestions != null,
                 onClick = { suggestions?.enhance?.let(onApply) },
+                modifier = cardModifier,
             )
-        }
-        item {
+        },
+        { cardModifier ->
             AutoSuggestionCard(
                 tag = "photo-editor-auto-dynamic",
                 source = source,
@@ -678,7 +677,18 @@ private fun AutomaticControls(
                 selected = suggestions?.dynamic == state.tone && state.selectedFilter == "none",
                 enabled = suggestions != null,
                 onClick = { suggestions?.dynamic?.let(onApply) },
+                modifier = cardModifier,
             )
+        },
+    )
+    if (fillWidth) {
+        // Beside the media the three cards share the inspector width instead of scrolling off its edge.
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+            cards.forEach { it(Modifier.weight(1f)) }
+        }
+    } else {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+            items(cards) { it(Modifier.width(120.dp)) }
         }
     }
     if (state.isAutoEnhancementAnalyzing) {
@@ -698,6 +708,7 @@ private fun AutoSuggestionCard(
     selected: Boolean,
     enabled: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier,
 ) {
     val matrix = remember(tone) {
         tone?.let { ColorFilter.colorMatrix(ColorMatrix(
@@ -713,7 +724,7 @@ private fun AutoSuggestionCard(
             if (selected) 2.dp else 1.dp,
             if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
         ),
-        modifier = Modifier.width(120.dp).testTag(tag),
+        modifier = modifier.testTag(tag),
     ) {
         Column {
             Image(
@@ -723,201 +734,15 @@ private fun AutoSuggestionCard(
                 colorFilter = matrix,
                 modifier = Modifier.fillMaxWidth().height(64.dp),
             )
-            Text(label, Modifier.padding(GallerySpacing.Sm), style = MaterialTheme.typography.labelLarge)
-        }
-    }
-}
-
-@Composable
-private fun FilterControls(state: PhotoEditorContentState, onApply: (EditOperation) -> Unit) {
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
-        items(
-            listOf(
-                "none" to R.string.photo_editor_filter_original,
-                "natural" to R.string.photo_editor_filter_natural,
-                "vivid" to R.string.photo_editor_filter_vivid,
-                "mono" to R.string.photo_editor_filter_mono,
-            ),
-        ) { (name, label) ->
-            FilterChip(
-                selected = state.selectedFilter == name,
-                onClick = { onApply(EditOperation.Filter(name)) },
-                label = { Text(stringResource(label)) },
-                leadingIcon = { Icon(GalleryIcons.Palette, contentDescription = null) },
+            Text(
+                label,
+                Modifier.padding(GallerySpacing.Sm),
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
-}
-
-internal fun cropEditOperations(draft: PhotoCropDraft): List<EditOperation> = listOf(
-    EditOperation.Crop(
-        (draft.left * 1_000).toInt().coerceIn(0, 999),
-        (draft.top * 1_000).toInt().coerceIn(0, 999),
-        (draft.right * 1_000).toInt().coerceIn(1, 1_000),
-        (draft.bottom * 1_000).toInt().coerceIn(1, 1_000),
-    ),
-    EditOperation.Straighten(draft.straightenDegrees),
-)
-
-/** Tone adjustments are bidirectional around [neutral]: brightness 0, contrast and saturation 1. */
-@Composable
-private fun PhotoToneSlider(
-    label: String,
-    value: Float,
-    range: ClosedFloatingPointRange<Float>,
-    onChange: (Float) -> Unit,
-    onFinished: () -> Unit,
-    neutral: Float = 0f,
-) {
-    EditorAdjustmentSlider(
-        label = label,
-        value = value,
-        onValueChange = onChange,
-        onValueChangeFinished = onFinished,
-        valueRange = range,
-        neutral = neutral,
-        modifier = Modifier.fillMaxWidth(),
-    )
-}
-
-@Composable
-private fun CropControls(
-    draft: PhotoCropDraft,
-    sourceAspectRatio: Float,
-    onChange: (PhotoCropDraft) -> Unit,
-    onRotate: () -> Unit,
-    onFlip: () -> Unit,
-    onCancel: () -> Unit,
-    onApply: () -> Unit,
-    /** Puts the crop back on the camera frame; null unless the draft covers the full sensor area. */
-    onCameraFraming: (() -> Unit)? = null,
-) {
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
-    ) {
-        OutlinedButton(onClick = onRotate, modifier = Modifier.weight(1f)) {
-            Text(stringResource(R.string.photo_editor_rotate), maxLines = 1)
-        }
-        OutlinedButton(onClick = onFlip, modifier = Modifier.weight(1f)) {
-            Text(stringResource(R.string.photo_editor_flip), maxLines = 1)
-        }
-    }
-    if (onCameraFraming != null) {
-        OutlinedButton(onClick = onCameraFraming, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.photo_editor_raw_camera_framing), maxLines = 1)
-        }
-    }
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
-        items(cropAspectPresets) { (ratio, label) ->
-            FilterChip(
-                selected = draft.aspectRatio == ratio,
-                onClick = { onChange(cropForAspect(draft, ratio, sourceAspectRatio)) },
-                label = { Text(stringResource(label)) },
-            )
-        }
-    }
-    Text(stringResource(R.string.photo_editor_straighten), style = MaterialTheme.typography.labelLarge)
-    Slider(
-        value = draft.straightenDegrees,
-        onValueChange = { onChange(draft.copy(straightenDegrees = it)) },
-        valueRange = -45f..45f,
-    )
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs),
-    ) {
-        TextButton(
-            // On a full-sensor draft this uncovers the whole sensor, i.e. removes the camera framing.
-            onClick = { onChange(PhotoCropDraft(fullSensor = draft.fullSensor)) },
-            modifier = Modifier.weight(1f),
-        ) { Text(stringResource(R.string.photo_editor_reset_crop), maxLines = 1) }
-        TextButton(onClick = onCancel, modifier = Modifier.weight(1f)) {
-            Text(stringResource(R.string.photo_editor_cancel_crop), maxLines = 1)
-        }
-        Button(onClick = onApply, modifier = Modifier.weight(1f)) {
-            Text(stringResource(R.string.photo_editor_apply_crop), maxLines = 1)
-        }
-    }
-}
-
-private val PhotoCropDraftSaver = listSaver<PhotoCropDraft?, Float>(
-    save = { draft ->
-        draft?.let { listOf(it.left, it.top, it.right, it.bottom, it.aspectRatio ?: 0f, it.straightenDegrees, if (it.fullSensor) 1f else 0f) }
-            ?: emptyList()
-    },
-    restore = { values ->
-        if (values.size < 6) null else PhotoCropDraft(
-            left = values[0],
-            top = values[1],
-            right = values[2],
-            bottom = values[3],
-            aspectRatio = values[4].takeIf { it > 0f },
-            straightenDegrees = values[5],
-            fullSensor = values.getOrNull(6) == 1f,
-        )
-    },
-)
-
-private val cropAspectPresets = listOf(
-    null to R.string.photo_editor_crop_free,
-    1f to R.string.photo_editor_crop_square,
-    (4f / 3f) to R.string.photo_editor_crop_four_three,
-    (3f / 4f) to R.string.photo_editor_crop_three_four,
-    (16f / 9f) to R.string.photo_editor_crop_sixteen_nine,
-    (9f / 16f) to R.string.photo_editor_crop_nine_sixteen,
-)
-
-/** The draft after a clockwise quarter turn, matching how the edit history rotates a Crop. */
-internal fun PhotoCropDraft.rotatedClockwise(): PhotoCropDraft = copy(
-    left = 1f - bottom,
-    top = left,
-    right = 1f - top,
-    bottom = right,
-    aspectRatio = aspectRatio?.let { ratio ->
-        cropAspectPresets.firstNotNullOfOrNull { (preset, _) -> preset?.takeIf { abs(it * ratio - 1f) < 0.001f } }
-            ?: (1f / ratio)
-    },
-)
-
-/** The draft after a horizontal flip; straightening turns the other way in the mirrored frame. */
-internal fun PhotoCropDraft.flippedHorizontally(): PhotoCropDraft = copy(
-    left = 1f - right,
-    right = 1f - left,
-    straightenDegrees = -straightenDegrees,
-)
-
-internal fun cropForAspect(draft: PhotoCropDraft, ratio: Float?, sourceAspectRatio: Float): PhotoCropDraft {
-    if (ratio == null) return draft.copy(aspectRatio = null)
-    val normalizedRatio = ratio / sourceAspectRatio
-    val centerX = (draft.left + draft.right) / 2f
-    val centerY = (draft.top + draft.bottom) / 2f
-    var width = draft.width
-    var height = width / normalizedRatio
-    if (height > draft.height) {
-        height = draft.height
-        width = height * normalizedRatio
-    }
-    return draft.copy(
-        left = (centerX - width / 2f).coerceAtLeast(0f),
-        right = (centerX + width / 2f).coerceAtMost(1f),
-        top = (centerY - height / 2f).coerceAtLeast(0f),
-        bottom = (centerY + height / 2f).coerceAtMost(1f),
-        aspectRatio = ratio,
-    )
-}
-
-private fun cropDraftFromState(state: PhotoEditorContentState): PhotoCropDraft {
-    val crop = state.crop
-    return if (crop == null) {
-        PhotoCropDraft(straightenDegrees = state.straightenDegrees)
-    } else PhotoCropDraft(
-        left = crop.leftPermille / 1_000f,
-        top = crop.topPermille / 1_000f,
-        right = crop.rightPermille / 1_000f,
-        bottom = crop.bottomPermille / 1_000f,
-        straightenDegrees = state.straightenDegrees,
-    )
 }
 
 @Composable

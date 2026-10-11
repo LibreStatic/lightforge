@@ -120,6 +120,12 @@ import com.librestatic.lightforge.core.editing.image.PhotoAutoEnhancementAnalyze
 import com.librestatic.lightforge.core.editing.image.PhotoExportFailureKind
 import com.librestatic.lightforge.core.editing.image.PhotoExportWarning
 import com.librestatic.lightforge.core.editing.image.PhotoImageRenderer
+import com.librestatic.lightforge.core.editing.image.AutoStraighten
+import com.librestatic.lightforge.core.editing.image.grade.ColorTransferLutBuilder
+import com.librestatic.lightforge.core.editing.image.grade.PhotoGraders
+import com.librestatic.lightforge.core.editing.image.grade.PhotoLut
+import com.librestatic.lightforge.core.editing.image.grade.PhotoLutBaker
+import com.librestatic.lightforge.feature.photoeditor.PhotoCustomLook
 import com.librestatic.lightforge.core.editing.video.Media3VideoExporter
 import com.librestatic.lightforge.core.editing.video.VideoEditRecipe
 import com.librestatic.lightforge.core.editing.video.VideoGeometry
@@ -221,6 +227,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
+import android.content.ClipData
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.isActive
@@ -293,6 +301,10 @@ data class EditorMediaSource(
 
 /** The experimental eraser and subject clip decode one full-size bitmap; larger photos are refused. */
 private const val EXPERIMENTAL_PHOTO_MAX_PIXELS = 24_000_000L
+
+/** Long side of the Filters tab thumbnails, and of the reference photo decoded for My filters. */
+private const val LOOK_THUMBNAIL_PX = 160
+private const val REFERENCE_PHOTO_MAX_PX = 1_024
 
 private data class RawPreviewRequest(
     val generation: Long,
@@ -825,6 +837,21 @@ class GalleryViewModel @Inject constructor(
     private var photoRecipeJob: Job? = null
     private var photoRecipeDiscardJob: Job? = null
     private var rawPreviewJob: Job? = null
+    private var photoGradeController: PhotoEditorGradeController? = null
+    private var photoLookThumbnailJob: Job? = null
+    private var photoCustomLookJob: Job? = null
+    private var photoAutoStraightenJob: Job? = null
+    private val photoCustomLookStore by lazy {
+        PhotoCustomLookStore(java.io.File(getApplication<Application>().filesDir, "photo-filters"))
+    }
+    /** The one renderer for preview, save copy and export, so the saved copy matches the preview. */
+    private val photoRenderer: PhotoImageRenderer by lazy {
+        PhotoImageRenderer(
+            getApplication<Application>().contentResolver,
+            grader = PhotoGraders.default(getApplication<Application>()),
+            lookResolver = ::resolvePhotoLook,
+        )
+    }
     private var rawPreviewSession: RawPreviewSession? = null
     private var rawPreviewRequests: Channel<RawPreviewRequest>? = null
     private var rawPreviewGeneration = 0L
@@ -3766,6 +3793,7 @@ class GalleryViewModel @Inject constructor(
         photoAutoEnhancementJob?.cancel()
         photoAutoEnhancementGeneration++
         closeRawPreviewSession()
+        stopPhotoGradeWork()
         val generation = ++photoEditorOpenGeneration
         mutablePhotoEditorOpening.value = true
         photoEditorJob = viewModelScope.launch {
@@ -3797,6 +3825,7 @@ class GalleryViewModel @Inject constructor(
                 ).openPreviewSession(source.uri)
             }.getOrNull() else null
             rawPreviewSession = stagedRaw
+            val customLooks = withContext(Dispatchers.IO) { loadCustomLooks() }
             val rawMetadata = stagedRaw?.let { runCatching { it.inspect() }.getOrNull() }
             mutablePhotoEditor.value = PhotoEditorSession(
                 source = source,
@@ -3807,17 +3836,16 @@ class GalleryViewModel @Inject constructor(
                     isRendering = true,
                     isAutoEnhancementAnalyzing = !isRaw,
                     isDirty = initial.operations.isNotEmpty(),
-                    selectedFilter = selectedFilter(initial),
-                    tone = selectedTone(initial),
-                    colorOperations = photoColorOperations(initial),
                     crop = selectedCrop(initial),
                     straightenDegrees = selectedStraighten(initial),
                     geometry = photoGeometryOperations(initial.operations),
                     isRaw = isRaw,
                     rawMetadata = rawMetadata,
                     rawSettings = rawSettings,
-                ),
+                    customLooks = customLooks,
+                ).withColorGrade(initial),
             )
+            startPhotoGradeWorker()
             renderPhotoEditorPreview(active, source, initial)
             if (isRaw && stagedRaw != null) {
                 startRawPreviewWorker(source, stagedRaw)
@@ -3847,6 +3875,328 @@ class GalleryViewModel @Inject constructor(
     fun commitPhotoTone() {
         val session = mutablePhotoEditor.value ?: return
         commitPhotoEdit(session.content.tone, renderRequired = false)
+    }
+
+    // ---- ADR-045 colour grade: live preview, looks, My filters, auto straighten, open with ----
+
+    private fun resolvePhotoLook(id: String): PhotoLut? =
+        if (id.startsWith("custom:")) photoCustomLookStore.lut(id) else PhotoLutBaker.bake(id)
+
+    private fun loadCustomLooks(): List<PhotoCustomLook> =
+        photoCustomLookStore.list().map { PhotoCustomLook(it.id, it.name) }
+
+    private fun photoEditorString(id: Int, vararg args: Any): String =
+        getApplication<Application>().getString(id, *args)
+
+    private fun startPhotoGradeWorker() {
+        photoGradeController?.close()
+        photoGradeController = PhotoEditorGradeController(viewModelScope, photoRenderer, ::publishPhotoGrade)
+            .also { it.start() }
+    }
+
+    private fun stopPhotoGradeWork() {
+        photoGradeController?.close()
+        photoGradeController = null
+        photoLookThumbnailJob?.cancel()
+        photoCustomLookJob?.cancel()
+        photoAutoStraightenJob?.cancel()
+    }
+
+    /** Queues a grade of the displayed frame with the live adjust, colour mix and look. */
+    private fun requestPhotoGrade(final: Boolean) {
+        val session = mutablePhotoEditor.value ?: return
+        val frame = photoGradeFrame(session.content) ?: return
+        photoGradeController?.request(frame, liveOperationsOf(session), final)
+    }
+
+    private fun liveOperationsOf(session: PhotoEditorSession): List<EditOperation> =
+        liveGradeOperations(
+            session.history.present, session.content.adjust, session.content.colorMix, session.content.look,
+        )
+
+    /** The frame `gradedPreview` derives from: the erased preview while there is one. */
+    private fun photoGradeFrame(content: PhotoEditorContentState): Bitmap? = content.erasePreview ?: content.preview
+
+    /** Called on the main thread by the grade worker. */
+    private fun publishPhotoGrade(publication: PhotoGradePublication) {
+        val current = mutablePhotoEditor.value
+        if (current == null || photoGradeFrame(current.content) !== publication.frame) {
+            // The frame was replaced while grading; nothing displays this result.
+            publication.graded?.recycle()
+            return
+        }
+        val old = current.content.gradedPreview
+        mutablePhotoEditor.value = current.copy(
+            content = current.content.copy(
+                gradedPreview = publication.graded,
+                statusMessage = if (publication.missingLookId != null && current.content.statusMessage == null) {
+                    photoEditorString(com.librestatic.lightforge.feature.photoeditor.R.string.photo_editor_look_missing)
+                } else current.content.statusMessage,
+            ),
+        )
+        if (old !== publication.graded) retirePhotoBitmap(old)
+    }
+
+    /**
+     * Recycles [bitmap] after a delay and only when no session state still shows it: the stage may
+     * draw a replaced bitmap for a frame or two before it recomposes.
+     */
+    private fun retirePhotoBitmap(bitmap: Bitmap?) {
+        if (bitmap == null) return
+        viewModelScope.launch {
+            delay(1_000)
+            if (!isPhotoBitmapDisplayed(bitmap) && !bitmap.isRecycled) bitmap.recycle()
+        }
+    }
+
+    private fun isPhotoBitmapDisplayed(bitmap: Bitmap): Boolean {
+        val content = mutablePhotoEditor.value?.content ?: return false
+        return bitmap === content.preview || bitmap === content.originalPreview ||
+            bitmap === content.cropSourcePreview || bitmap === content.gradedPreview ||
+            bitmap === content.erasePreview || bitmap === content.subjectClipPreview ||
+            content.lookThumbnails.values.any { it === bitmap }
+    }
+
+    private class InlineGrade(val graded: Bitmap?, val operations: List<EditOperation>, val missingLookId: String?)
+
+    /**
+     * Grades a freshly rendered [frame] with the live colour operations so the frame and its graded
+     * copy are published together, without a flash of the ungraded photo.
+     */
+    private suspend fun gradeNewPhotoFrame(frame: Bitmap, recipe: EditRecipe): InlineGrade {
+        val session = mutablePhotoEditor.value
+        val operations = if (session != null) liveOperationsOf(session) else photoColorOperations(recipe)
+        return try {
+            val params = withContext(Dispatchers.Default) { photoRenderer.gradeParams(operations) }
+            val graded = if (params.isIdentity) null else photoRenderer.grade(frame, params).takeUnless { it === frame }
+            InlineGrade(graded, operations, params.missingLookId)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Throwable) {
+            InlineGrade(null, operations, null)
+        }
+    }
+
+    /** After publishing a graded frame: catch up when the sliders moved while it rendered. */
+    private fun afterPhotoFramePublished(grade: InlineGrade, final: Boolean) {
+        val session = mutablePhotoEditor.value ?: return
+        if (grade.missingLookId != null && session.content.statusMessage == null) {
+            mutablePhotoEditor.value = session.copy(content = session.content.copy(
+                statusMessage = photoEditorString(com.librestatic.lightforge.feature.photoeditor.R.string.photo_editor_look_missing),
+            ))
+        }
+        if (liveOperationsOf(session) != grade.operations) requestPhotoGrade(final = true)
+        if (final) scheduleLookThumbnails()
+    }
+
+    fun previewPhotoAdjust(adjust: EditOperation.Adjust) {
+        if (adjust == mutablePhotoEditor.value?.content?.adjust) return
+        updateLiveGrade { it.copy(adjust = adjust) }
+    }
+
+    fun commitPhotoAdjust() {
+        val session = mutablePhotoEditor.value ?: return
+        val recipe = session.history.present
+        val tone = recipe.operations.filterIsInstance<EditOperation.Tone>().lastOrNull()
+        val untouchedLegacy = tone != null && recipe.operations.none { it is EditOperation.Adjust } &&
+            session.content.adjust == legacyToneToAdjust(tone)
+        commitPhotoGrade(session.content.adjust.takeUnless { untouchedLegacy })
+        scheduleLookThumbnails()
+    }
+
+    fun previewPhotoColorMix(colorMix: EditOperation.ColorMix) {
+        if (colorMix == mutablePhotoEditor.value?.content?.colorMix) return
+        updateLiveGrade { it.copy(colorMix = colorMix) }
+    }
+
+    fun commitPhotoColorMix() {
+        val session = mutablePhotoEditor.value ?: return
+        commitPhotoGrade(session.content.colorMix)
+        scheduleLookThumbnails()
+    }
+
+    /** A null [look] is "None"; the commit clears the Look or legacy Filter slot. */
+    fun previewPhotoLook(look: EditOperation.Look?) {
+        if (look == mutablePhotoEditor.value?.content?.look) return
+        updateLiveGrade { it.copy(look = look) }
+    }
+
+    fun commitPhotoLook() {
+        val session = mutablePhotoEditor.value ?: return
+        val recipe = session.history.present
+        val look = session.content.look
+        val filter = recipe.operations.filterIsInstance<EditOperation.Filter>().lastOrNull()
+        val untouchedLegacy = look != null && filter != null && recipe.operations.none { it is EditOperation.Look } &&
+            look == legacyFilterToLook(filter)
+        // Intensity 0 removes the look slot, which is how "None" is committed.
+        commitPhotoGrade(if (untouchedLegacy) null else look ?: EditOperation.Look("builtin:natural", 0f))
+    }
+
+    private fun updateLiveGrade(transform: (PhotoEditorContentState) -> PhotoEditorContentState) {
+        val session = mutablePhotoEditor.value ?: return
+        mutablePhotoEditor.value = session.copy(
+            content = transform(session.content).copy(isDirty = true, statusMessage = null),
+        )
+        requestPhotoGrade(final = false)
+    }
+
+    /** Commits a colour operation without a geometry render; a no-op commit still re-grades at full size. */
+    private fun commitPhotoGrade(operation: EditOperation?) {
+        val before = mutablePhotoEditor.value?.history
+        if (operation != null) commitPhotoEdit(operation, renderRequired = false)
+        if (mutablePhotoEditor.value?.history == before) requestPhotoGrade(final = true)
+    }
+
+    private fun scheduleLookThumbnails() {
+        photoLookThumbnailJob?.cancel()
+        photoLookThumbnailJob = viewModelScope.launch {
+            delay(300)
+            val session = mutablePhotoEditor.value ?: return@launch
+            val frame = session.content.preview ?: return@launch
+            val base = liveGradeOperations(
+                session.history.present, session.content.adjust, session.content.colorMix, null,
+            )
+            val ids = PhotoLutBaker.ids + session.content.customLooks.map { it.id }
+            val thumbnails = withContext(Dispatchers.Default) {
+                val small = runCatching {
+                    val scale = LOOK_THUMBNAIL_PX.toFloat() / maxOf(frame.width, frame.height)
+                    if (scale >= 1f) frame.copy(Bitmap.Config.ARGB_8888, false)
+                    else Bitmap.createScaledBitmap(
+                        frame, (frame.width * scale).toInt().coerceAtLeast(1),
+                        (frame.height * scale).toInt().coerceAtLeast(1), true,
+                    )
+                }.getOrNull() ?: return@withContext null
+                try {
+                    ids.mapNotNull { id ->
+                        ensureActive()
+                        val params = photoRenderer.gradeParams(base + EditOperation.Look(id, 1f))
+                        val graded = try {
+                            photoRenderer.grade(small, params)
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Throwable) {
+                            null
+                        } ?: return@mapNotNull null
+                        id to if (graded === small) small.copy(Bitmap.Config.ARGB_8888, false) else graded
+                    }.toMap()
+                } finally {
+                    small.recycle()
+                }
+            } ?: return@launch
+            val current = mutablePhotoEditor.value
+            if (current == null || current.content.preview !== frame) {
+                thumbnails.values.forEach { it.recycle() }
+                return@launch
+            }
+            val old = current.content.lookThumbnails
+            mutablePhotoEditor.value = current.copy(content = current.content.copy(lookThumbnails = thumbnails))
+            old.values.forEach(::retirePhotoBitmap)
+        }
+    }
+
+    /** "My filters": builds a look from the colour statistics of the photo at [reference] and applies it. */
+    fun createCustomLook(reference: Uri) {
+        if (mutablePhotoEditor.value == null) return
+        photoCustomLookJob?.cancel()
+        photoCustomLookJob = viewModelScope.launch {
+            val created = try {
+                withContext(Dispatchers.IO) {
+                    val bitmap = decodePhotoReference(reference) ?: error("Reference photo cannot be decoded")
+                    try {
+                        val result = ColorTransferLutBuilder.build(bitmap)
+                        photoCustomLookStore.create(
+                            result.lut, result.stats,
+                            photoCustomLookStore.nextDefaultName { photoEditorString(com.librestatic.lightforge.feature.photoeditor.R.string.photo_editor_look_default_name, it) },
+                        )
+                    } finally {
+                        bitmap.recycle()
+                    }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Throwable) {
+                mutablePhotoEditor.value = mutablePhotoEditor.value?.let {
+                    it.copy(content = it.content.copy(statusMessage = photoEditorString(com.librestatic.lightforge.feature.photoeditor.R.string.photo_editor_look_create_failed)))
+                }
+                return@launch
+            }
+            val customLooks = withContext(Dispatchers.IO) { loadCustomLooks() }
+            if (mutablePhotoEditor.value == null) return@launch
+            updateLiveGrade { it.copy(customLooks = customLooks, look = EditOperation.Look(created.id, 1f)) }
+            commitPhotoLook()
+            scheduleLookThumbnails()
+        }
+    }
+
+    fun renameCustomLook(id: String, name: String) {
+        viewModelScope.launch {
+            val customLooks = withContext(Dispatchers.IO) {
+                photoCustomLookStore.rename(id, name)
+                loadCustomLooks()
+            }
+            mutablePhotoEditor.value = mutablePhotoEditor.value?.let { it.copy(content = it.content.copy(customLooks = customLooks)) }
+        }
+    }
+
+    fun deleteCustomLook(id: String) {
+        viewModelScope.launch {
+            val customLooks = withContext(Dispatchers.IO) {
+                photoCustomLookStore.delete(id)
+                loadCustomLooks()
+            }
+            val session = mutablePhotoEditor.value ?: return@launch
+            mutablePhotoEditor.value = session.copy(content = session.content.copy(customLooks = customLooks))
+            // A deleted filter that is still applied is removed from the recipe as one undoable edit.
+            if (session.content.look?.id == id) {
+                updateLiveGrade { it.copy(look = null) }
+                commitPhotoLook()
+            }
+            scheduleLookThumbnails()
+        }
+    }
+
+    /** Decodes [uri] to at most [REFERENCE_PHOTO_MAX_PX] on the long side. */
+    private fun decodePhotoReference(uri: Uri): Bitmap? {
+        val resolver = getApplication<Application>().contentResolver
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) } ?: return null
+        var sample = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= REFERENCE_PHOTO_MAX_PX) sample *= 2
+        val options = BitmapFactory.Options().apply {
+            inSampleSize = sample
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+        }
+        return resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
+    }
+
+    /** Detects a straighten angle on the rotated/flipped frame; the answer lands in `autoStraightenDegrees`. */
+    fun requestAutoStraighten() {
+        val session = mutablePhotoEditor.value ?: return
+        val source = session.content.cropSourcePreview ?: session.content.originalPreview ?: session.content.preview ?: return
+        mutablePhotoEditor.value = session.copy(content = session.content.copy(autoStraightenDegrees = null, statusMessage = null))
+        photoAutoStraightenJob?.cancel()
+        photoAutoStraightenJob = viewModelScope.launch {
+            val angle = withContext(Dispatchers.Default) { runCatching { AutoStraighten.detect(source) }.getOrNull() }
+            val current = mutablePhotoEditor.value ?: return@launch
+            mutablePhotoEditor.value = current.copy(
+                content = if (angle != null) current.content.copy(autoStraightenDegrees = angle)
+                else current.content.copy(
+                    statusMessage = photoEditorString(com.librestatic.lightforge.feature.photoeditor.R.string.photo_editor_straighten_none),
+                ),
+            )
+        }
+    }
+
+    /** A chooser that hands the source photo to another editor app, or null for a non-content source. */
+    fun photoOpenWithIntent(): Intent? {
+        val session = mutablePhotoEditor.value ?: return null
+        val uri = session.source.uri
+        if (uri.scheme != "content") return null
+        val edit = Intent(Intent.ACTION_EDIT)
+            .setDataAndType(uri, session.source.mimeType ?: "image/*")
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        edit.clipData = ClipData.newRawUri("", uri)
+        return Intent.createChooser(edit, null).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
 
     fun previewRawDevelopment(settings: RawDevelopmentSettings) {
@@ -3904,12 +4254,16 @@ class GalleryViewModel @Inject constructor(
      * Applies a crop drawn on the full sensor area that leaves the camera frame: develops the full
      * area and sets the crop and straighten angle as one undo step.
      */
-    fun applyPhotoFullSensorCrop(crop: EditOperation.Crop?, straightenDegrees: Float) {
+    fun applyPhotoFullSensorCrop(
+        crop: EditOperation.Crop?,
+        straightenDegrees: Float,
+        perspective: EditOperation.Perspective? = null,
+    ) {
         val session = mutablePhotoEditor.value ?: return
         if (!session.content.isRaw) return
         val settings = session.content.rawSettings.copy(cameraFraming = false)
         val updated = session.history.applyFullSensorCrop(
-            session.content.rawSettings, crop, EditOperation.Straighten(straightenDegrees),
+            session.content.rawSettings, crop, EditOperation.Straighten(straightenDegrees), perspective,
         )
         if (updated == session.history) return
         mutablePhotoEditor.value = session.copy(
@@ -3938,14 +4292,35 @@ class GalleryViewModel @Inject constructor(
     fun applyPhotoEdit(operation: EditOperation) {
         commitPhotoEdit(
             operation,
-            renderRequired = operation !is EditOperation.Tone && operation !is EditOperation.Filter,
+            renderRequired = operation !is EditOperation.Tone && operation !is EditOperation.Filter &&
+                operation !is EditOperation.Adjust && operation !is EditOperation.ColorMix &&
+                operation !is EditOperation.Look,
         )
     }
 
+    /**
+     * Applies an Automatic card. The card's legacy [tone] picks the matching ADR-045 suggestion; null
+     * is "Original" and resets the adjustments. The look and colour mix stay, and the swap is one undo.
+     */
     fun applyPhotoAutoSuggestion(tone: EditOperation.Tone?) {
         val session = mutablePhotoEditor.value ?: return
         if (session.content.isRaw) return
-        val updated = session.history.replaceColorOperations(tone)
+        val suggestions = session.content.autoEnhancementSuggestions
+        val adjust = when {
+            tone == null -> EditOperation.Adjust(emptyMap())
+            suggestions == null -> return
+            tone == suggestions.enhance -> suggestions.enhanceAdjust
+            tone == suggestions.dynamic -> suggestions.dynamicAdjust
+            else -> return
+        }
+        val present = session.history.present
+        val updated = session.history.replaceColorGrade(
+            adjust,
+            present.operations.filterIsInstance<EditOperation.ColorMix>().lastOrNull(),
+            present.operations.filterIsInstance<EditOperation.Look>().lastOrNull()
+                ?: present.operations.filterIsInstance<EditOperation.Filter>().lastOrNull()
+                    ?.let(::legacyFilterToLook),
+        )
         if (updated == session.history) return
         mutablePhotoEditor.value = session.copy(
             history = updated,
@@ -3954,13 +4329,12 @@ class GalleryViewModel @Inject constructor(
                 isDirty = updated.present.operations.isNotEmpty(),
                 canUndo = updated.past.isNotEmpty(),
                 canRedo = false,
-                selectedFilter = selectedFilter(updated.present),
-                tone = selectedTone(updated.present),
-                colorOperations = photoColorOperations(updated.present),
                 statusMessage = null,
-            ),
+            ).withColorGrade(updated.present),
         )
         persistPhotoRecipe(updated.present)
+        requestPhotoGrade(final = true)
+        scheduleLookThumbnails()
     }
 
     private fun commitPhotoEdit(operation: EditOperation, renderRequired: Boolean) {
@@ -3976,16 +4350,14 @@ class GalleryViewModel @Inject constructor(
                     mutablePhotoEditor.value?.eraseMarks?.isNotEmpty() == true,
                 canUndo = updated.past.isNotEmpty(),
                 canRedo = false,
-                selectedFilter = selectedFilter(updated.present),
-                tone = selectedTone(updated.present),
-                colorOperations = photoColorOperations(updated.present),
                 crop = selectedCrop(updated.present),
                 straightenDegrees = selectedStraighten(updated.present),
                 geometry = photoGeometryOperations(updated.present.operations),
                 statusMessage = null,
-            ),
+            ).withColorGrade(updated.present),
         )
         persistPhotoRecipe(updated.present)
+        if (!renderRequired) requestPhotoGrade(final = true)
         if (renderRequired && session.content.isRaw) {
             enqueueRawPreview(session.content.rawSettings, updated.present, final = true)
         } else if (renderRequired) {
@@ -4023,17 +4395,18 @@ class GalleryViewModel @Inject constructor(
                     mutablePhotoEditor.value?.eraseMarks?.isNotEmpty() == true,
                 canUndo = updated.past.isNotEmpty(),
                 canRedo = updated.future.isNotEmpty(),
-                selectedFilter = selectedFilter(updated.present),
-                tone = selectedTone(updated.present),
-                colorOperations = photoColorOperations(updated.present),
                 crop = selectedCrop(updated.present),
                 straightenDegrees = selectedStraighten(updated.present),
                 geometry = photoGeometryOperations(updated.present.operations),
                 rawSettings = selectedRawSettings(updated.present),
                 statusMessage = null,
-            ),
+            ).withColorGrade(updated.present),
         )
         persistPhotoRecipe(updated.present)
+        if (!renderRequired) {
+            requestPhotoGrade(final = true)
+            scheduleLookThumbnails()
+        }
         if (session.content.isRaw && renderRequired) {
             enqueueRawPreview(selectedRawSettings(updated.present), updated.present, final = true)
         } else if (renderRequired) {
@@ -4081,12 +4454,12 @@ class GalleryViewModel @Inject constructor(
                     ).export(session.source.uri, session.content.rawSettings, session.content.rawOutputFormat, temp)) {
                         is RawExportOutcome.Completed -> if (geometryRecipe.isIdentity) {
                             publishPhotoResult(result.file, result.mimeType, extension, emptyList())
-                        } else when (val transformed = PhotoImageRenderer(getApplication<Application>().contentResolver).export(
+                        } else when (val transformed = photoRenderer.export(
                             Uri.fromFile(result.file), geometryRecipe, transformedRaw, preserveMetadata = true,
                         )) {
                             is PhotoExportOutcome.Completed -> publishPhotoResult(
                                 transformed.file, transformed.mimeType ?: "image/jpeg", "jpg",
-                                transformed.warnings,
+                                transformed.warnings, transformed.missingLookId,
                             )
                             is PhotoExportOutcome.Failure -> updatePhotoExportFailure(photoExportFailureMessage(transformed))
                         }
@@ -4107,14 +4480,15 @@ class GalleryViewModel @Inject constructor(
                         erased.recycle()
                     }
                     // Same capture EXIF as a normal save copy; the pixels are already upright.
-                    PhotoImageRenderer(getApplication<Application>().contentResolver)
+                    photoRenderer
                         .copyCaptureMetadata(session.source.uri, temp, erasedWidth, erasedHeight)
                     publishPhotoResult(temp, outputMime, extension, emptyList())
-                } else when (val result = PhotoImageRenderer(getApplication<Application>().contentResolver).export(
+                } else when (val result = photoRenderer.export(
                     session.source.uri, session.history.present, temp, preserveMetadata = true,
                 )) {
                     is PhotoExportOutcome.Completed -> publishPhotoResult(
                         result.file, result.mimeType ?: outputMime, extension, result.warnings,
+                        result.missingLookId,
                     )
                     is PhotoExportOutcome.Failure -> updatePhotoExportFailure(photoExportFailureMessage(result))
                 }
@@ -4185,16 +4559,20 @@ class GalleryViewModel @Inject constructor(
                 return@launch
             }
             current.content.erasePreview?.recycle()
+            retirePhotoBitmap(current.content.gradedPreview)
             mutablePhotoEditor.value = current.copy(
                 eraseMarks = session.eraseMarks,
                 eraseGeometry = session.eraseGeometry,
                 content = current.content.copy(
                     erasePreview = erased.bitmap,
+                    // The graded copy now derives from the erased frame, so it is regraded below.
+                    gradedPreview = null,
                     eraseMethod = erased.method,
                     isExperimentalProcessing = false,
                     isDirty = true,
                 ),
             )
+            requestPhotoGrade(final = true)
         }
     }
 
@@ -4217,16 +4595,19 @@ class GalleryViewModel @Inject constructor(
         val session = mutablePhotoEditor.value ?: return
         photoExperimentalJob?.cancel()
         session.content.erasePreview?.recycle()
+        retirePhotoBitmap(session.content.gradedPreview)
         mutablePhotoEditor.value = session.copy(
             eraseMarks = emptyList(),
             eraseGeometry = null,
             content = session.content.copy(
                 erasePreview = null,
+                gradedPreview = null,
                 eraseMethod = null,
                 isExperimentalProcessing = false,
                 isDirty = session.history.present.operations.isNotEmpty(),
             ),
         )
+        requestPhotoGrade(final = true)
     }
 
     /** Experimental subject clip: previews the cut-out of the displayed photo around [seed]. */
@@ -4339,7 +4720,7 @@ class GalleryViewModel @Inject constructor(
         session: PhotoEditorSession,
         rendered: java.io.File,
     ): Bitmap? {
-        val renderer = PhotoImageRenderer(getApplication<Application>().contentResolver)
+        val renderer = photoRenderer
         val bounds = renderer.bounds(session.source.uri)
         if (bounds.width.toLong() * bounds.height.toLong() > EXPERIMENTAL_PHOTO_MAX_PIXELS) {
             updatePhotoExportFailure(getApplication<Application>().getString(
@@ -4396,9 +4777,11 @@ class GalleryViewModel @Inject constructor(
         photoExperimentalJob?.cancel()
         session.content.erasePreview?.recycle()
         session.content.subjectClipPreview?.recycle()
+        retirePhotoBitmap(session.content.gradedPreview)
         mutablePhotoEditor.value = session.copy(
             content = session.content.copy(
                 erasePreview = null,
+                gradedPreview = null,
                 subjectClipPreview = null,
                 subjectClipSeed = null,
                 subjectClipMethod = null,
@@ -4415,11 +4798,13 @@ class GalleryViewModel @Inject constructor(
         photoExperimentalJob?.cancel()
         session.content.erasePreview?.recycle()
         session.content.subjectClipPreview?.recycle()
+        retirePhotoBitmap(session.content.gradedPreview)
         mutablePhotoEditor.value = session.copy(
             eraseMarks = emptyList(),
             eraseGeometry = null,
             content = session.content.copy(
                 erasePreview = null,
+                gradedPreview = null,
                 eraseMethod = null,
                 subjectClipPreview = null,
                 subjectClipSeed = null,
@@ -4442,6 +4827,7 @@ class GalleryViewModel @Inject constructor(
         mimeType: String,
         fallbackExtension: String,
         warnings: List<PhotoExportWarning>,
+        missingLookId: String? = null,
     ) {
         val publishedExtension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: fallbackExtension
         val published = PendingMediaWriter(getApplication<Application>().contentResolver).publishFile(
@@ -4453,20 +4839,19 @@ class GalleryViewModel @Inject constructor(
             ),
         )
         finishEditorCopy(published, MediaKind.Image)
-        if (warnings.isNotEmpty()) {
-            mutableEditorCopyNotice.emit(
-                warnings.distinct().joinToString("\n") { warning ->
-                    getApplication<Application>().getString(
-                        when (warning) {
-                            PhotoExportWarning.FullResolutionPng ->
-                                com.librestatic.lightforge.feature.photoeditor.R.string.photo_editor_warning_png
-                            PhotoExportWarning.HdrMetadataNotCopied ->
-                                com.librestatic.lightforge.feature.photoeditor.R.string.photo_editor_warning_hdr_metadata
-                        },
-                    )
+        val notices = warnings.distinct().map { warning ->
+            getApplication<Application>().getString(
+                when (warning) {
+                    PhotoExportWarning.FullResolutionPng ->
+                        com.librestatic.lightforge.feature.photoeditor.R.string.photo_editor_warning_png
+                    PhotoExportWarning.HdrMetadataNotCopied ->
+                        com.librestatic.lightforge.feature.photoeditor.R.string.photo_editor_warning_hdr_metadata
                 },
             )
-        }
+        } + listOfNotNull(missingLookId?.let {
+            photoEditorString(com.librestatic.lightforge.feature.photoeditor.R.string.photo_editor_look_missing)
+        })
+        if (notices.isNotEmpty()) mutableEditorCopyNotice.emit(notices.joinToString("\n"))
     }
 
     private fun photoExportFailureMessage(failure: PhotoExportOutcome.Failure): String =
@@ -4505,6 +4890,7 @@ class GalleryViewModel @Inject constructor(
         photoEditorJob?.cancel()
         photoAutoEnhancementJob?.cancel()
         photoAutoEnhancementGeneration++
+        stopPhotoGradeWork()
         val pendingRecipeWrite = photoRecipeJob
         photoRecipeJob = null
         pendingRecipeWrite?.cancel()
@@ -4526,6 +4912,10 @@ class GalleryViewModel @Inject constructor(
             it !== session.content.preview && it !== session.content.originalPreview
         }?.recycle()
         mutablePhotoEditor.value = null
+        // Deferred: the stage may still be drawing them for a frame after the session is gone.
+        retirePhotoBitmap(session?.content?.gradedPreview)
+        session?.content?.lookThumbnails?.values?.forEach(::retirePhotoBitmap)
+        PhotoGraders.trim(getApplication())
     }
 
     private suspend fun restorePhotoRecipeEntry(session: PhotoEditorSession) {
@@ -4589,7 +4979,7 @@ class GalleryViewModel @Inject constructor(
                         val full = stagedRaw.renderPreview(
                             request.settings.copy(cameraFraming = false), request.maxDimension,
                         )
-                        cropSource = PhotoImageRenderer(getApplication<Application>().contentResolver).renderDecoded(
+                        cropSource = photoRenderer.renderDecoded(
                             full,
                             request.recipe.copy(operations = cropOperations),
                         )
@@ -4603,12 +4993,12 @@ class GalleryViewModel @Inject constructor(
                         developed.copy(Bitmap.Config.ARGB_8888, false)
                     } else null
                     if (cropInput != null) {
-                        cropSource = PhotoImageRenderer(getApplication<Application>().contentResolver).renderDecoded(
+                        cropSource = photoRenderer.renderDecoded(
                             cropInput,
                             request.recipe.copy(operations = cropOperations),
                         )
                     }
-                    PhotoImageRenderer(getApplication<Application>().contentResolver).renderDecoded(
+                    photoRenderer.renderDecoded(
                         developed,
                         request.recipe.copy(
                             operations = photoBaseOperations(request.recipe)
@@ -4634,8 +5024,10 @@ class GalleryViewModel @Inject constructor(
                     }
                     continue
                 }
+                val grade = gradeNewPhotoFrame(rendered, request.recipe)
                 val current = mutablePhotoEditor.value
                 if (current?.source?.stableId == source.stableId) {
+                    retirePhotoBitmap(current.content.gradedPreview)
                     current.content.preview?.takeIf { old ->
                         old !== rendered && old !== current.content.originalPreview &&
                             old !== current.content.cropSourcePreview
@@ -4656,6 +5048,7 @@ class GalleryViewModel @Inject constructor(
                         content = current.content.copy(
                             preview = rendered,
                             originalPreview = refreshedOriginal ?: current.content.originalPreview,
+                            gradedPreview = grade.graded,
                             cropSourcePreview = cropSource ?: current.content.cropSourcePreview,
                             cropSourceFullSensor = if (cropSource != null) {
                                 fullSensorSource
@@ -4667,7 +5060,9 @@ class GalleryViewModel @Inject constructor(
                             statusMessage = null,
                         ),
                     )
+                    afterPhotoFramePublished(grade, final = request.final)
                 } else {
+                    grade.graded?.recycle()
                     rendered.recycle()
                     cropSource?.takeIf { it !== rendered }?.recycle()
                     refreshedOriginal?.recycle()
@@ -4691,7 +5086,9 @@ class GalleryViewModel @Inject constructor(
                 maxDimension = if (final) 1_600 else profile.maxDimension,
                 approximate = !final,
                 final = final,
+                // A recorded perspective has its corners in the framed image, so it keeps the frame.
                 fullSensorCropSource = final && rawCropToolActive && settings.cameraFraming &&
+                    recipe.operations.none { it is EditOperation.Perspective } &&
                     mutablePhotoEditor.value?.content?.rawMetadata?.hasMeaningfulCameraCrop == true,
             ),
         )
@@ -4713,11 +5110,11 @@ class GalleryViewModel @Inject constructor(
                     getApplication<Application>().contentResolver,
                     java.io.File(getApplication<Application>().cacheDir, "raw-scratch"),
                 ).renderPreview(source.uri, currentBeforeRender.content.rawSettings, 1_600)
-                PhotoImageRenderer(getApplication<Application>().contentResolver).renderDecoded(
+                photoRenderer.renderDecoded(
                     developed,
                     baseRecipe.copy(operations = baseRecipe.operations.filterNot { it is EditOperation.RawDevelop }),
                 )
-            } else PhotoImageRenderer(getApplication<Application>().contentResolver)
+            } else photoRenderer
                 .renderPreview(source.uri, baseRecipe, 1_600)
         } catch (failure: Throwable) {
             val current = mutablePhotoEditor.value
@@ -4745,7 +5142,7 @@ class GalleryViewModel @Inject constructor(
                             java.io.File(getApplication<Application>().cacheDir, "raw-scratch"),
                         ).renderPreview(source.uri, original, 1_600)).also { rawOriginalFraming = framing }
                 } else {
-                    PhotoImageRenderer(getApplication<Application>().contentResolver).renderPreview(
+                    photoRenderer.renderPreview(
                         source.uri,
                         recipe.copy(operations = emptyList(), revision = 0),
                         1_600,
@@ -4767,29 +5164,33 @@ class GalleryViewModel @Inject constructor(
                     getApplication<Application>().contentResolver,
                     java.io.File(getApplication<Application>().cacheDir, "raw-scratch"),
                 ).renderPreview(source.uri, currentBeforeRender.content.rawSettings, 1_600)
-                PhotoImageRenderer(getApplication<Application>().contentResolver).renderDecoded(
+                photoRenderer.renderDecoded(
                     developed,
                     cropSourceRecipe,
                 )
-            } else PhotoImageRenderer(getApplication<Application>().contentResolver).renderPreview(
+            } else photoRenderer.renderPreview(
                 source.uri, cropSourceRecipe, 1_600,
             )
         }.getOrNull()
+        val grade = gradeNewPhotoFrame(preview, recipe)
         val current = mutablePhotoEditor.value
         if (current?.history?.present?.revision == recipe.revision) {
             current.content.preview?.takeIf { it !== preview }?.recycle()
             current.content.cropSourcePreview?.takeIf {
                 it !== preview && it !== originalPreview && it !== cropSourcePreview
             }?.recycle()
+            retirePhotoBitmap(current.content.gradedPreview)
             mutablePhotoEditor.value = current.copy(
                 content = current.content.copy(
                     preview = preview,
                     originalPreview = originalPreview,
                     cropSourcePreview = cropSourcePreview,
                     cropSourceFullSensor = false,
+                    gradedPreview = grade.graded,
                     isRendering = false,
                 ),
             )
+            afterPhotoFramePublished(grade, final = true)
             if (!current.content.isRaw && current.content.autoEnhancementSuggestions == null) {
                 startPhotoAutoEnhancementAnalysis(current.source.stableId, originalPreview ?: preview)
             }
@@ -4797,6 +5198,7 @@ class GalleryViewModel @Inject constructor(
             mutablePhotoEditor.value?.takeIf { it.eraseMarks.isNotEmpty() && it.content.erasePreview == null }
                 ?.let(::runObjectErase)
         } else {
+            grade.graded?.recycle()
             preview.recycle()
             cropSourcePreview?.takeIf { it !== originalPreview && it !== preview }?.recycle()
             originalPreview?.takeIf {
@@ -5232,9 +5634,24 @@ class GalleryViewModel @Inject constructor(
     }
 
     fun saveQuickSlowMotionClip(media: TimelineMedia, startMillis: Long, endMillis: Long) {
-        val safeStart = startMillis.coerceIn(0L, (media.durationMillis - 1L).coerceAtLeast(0L))
-        val safeEnd = endMillis.coerceAtMost(media.durationMillis)
-        if (media.kind != MediaKind.Video || safeEnd <= safeStart || slowMotionSaveJob?.isActive == true) return
+        if (media.kind != MediaKind.Video) return
+        saveQuickSlowMotionClip(mediaUri(media), media.durationMillis, startMillis, endMillis)
+    }
+
+    fun saveQuickSlowMotionClip(media: ExternalMedia, startMillis: Long, endMillis: Long) {
+        if (media.kind != MediaKind.Video || !media.available) return
+        saveQuickSlowMotionClip(media.uri, media.durationMillis, startMillis, endMillis)
+    }
+
+    /** [durationMillis] may be 0 for external providers that do not report it; then only the start is clamped. */
+    private fun saveQuickSlowMotionClip(input: Uri, durationMillis: Long, startMillis: Long, endMillis: Long) {
+        val safeStart = if (durationMillis > 0L) {
+            startMillis.coerceIn(0L, durationMillis - 1L)
+        } else {
+            startMillis.coerceAtLeast(0L)
+        }
+        val safeEnd = if (durationMillis > 0L) endMillis.coerceAtMost(durationMillis) else endMillis
+        if (safeEnd <= safeStart || slowMotionSaveJob?.isActive == true) return
         slowMotionSaveJob = viewModelScope.launch {
             val temp = java.io.File(getApplication<Application>().cacheDir, "instant-slow-${System.nanoTime()}.mp4")
             mutableQuickSlowMotionSave.value = mutableQuickSlowMotionSave.value.copy(progress = 0f)
@@ -5249,7 +5666,7 @@ class GalleryViewModel @Inject constructor(
                     gallerySettings.value.playback.frameInterpolationEngine.toInterpolationEngine(),
                 ).export(
                     VideoExportRequest(
-                        input = mediaUri(media),
+                        input = input,
                         output = temp,
                         recipe = VideoEditRecipe(
                             startMillis = safeStart,
@@ -6139,10 +6556,10 @@ class GalleryViewModel @Inject constructor(
             .firstOrNull()?.settings ?: RawDevelopmentSettings()
 
     private fun photoColorOperations(recipe: EditRecipe): List<EditOperation> =
-        recipe.operations.filter { it is EditOperation.Tone || it is EditOperation.Filter }
+        recipe.operations.filter(::isPhotoColorOperation)
 
     private fun photoBaseOperations(recipe: EditRecipe): List<EditOperation> =
-        recipe.operations.filterNot { it is EditOperation.Tone || it is EditOperation.Filter }
+        recipe.operations.filterNot(::isPhotoColorOperation)
 
     private fun replacePhotoColorOperation(
         operations: List<EditOperation>,

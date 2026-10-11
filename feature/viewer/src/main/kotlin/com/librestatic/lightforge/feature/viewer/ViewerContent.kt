@@ -668,13 +668,17 @@ fun ViewerContent(
                                 return@detectTapGestures
                             }
                             slowMotionSession.warmUp(videoController.currentPositionMillis())
-                            tryAwaitRelease()
-                            if (slowHoldConsumed) {
-                                val clip = slowMotionSession.stop()
-                                val resumeAt = clip?.endMillis ?: videoController.currentPositionMillis()
-                                videoController.seekTo(resumeAt)
-                                videoController.play()
-                                slowHoldConsumed = false
+                            // finally: a cancelled gesture or a restarted pointerInput must still end the hold.
+                            try {
+                                tryAwaitRelease()
+                            } finally {
+                                if (slowHoldConsumed) {
+                                    val clip = slowMotionSession.stop()
+                                    val resumeAt = clip?.endMillis ?: videoController.currentPositionMillis()
+                                    videoController.seekTo(resumeAt)
+                                    videoController.play()
+                                    slowHoldConsumed = false
+                                }
                             }
                         },
                         onLongPress = {

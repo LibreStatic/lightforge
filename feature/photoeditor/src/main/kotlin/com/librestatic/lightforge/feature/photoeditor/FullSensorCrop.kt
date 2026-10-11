@@ -7,14 +7,17 @@ import kotlin.math.roundToInt
 /** A draft rectangle that may extend past the camera frame is accepted within this many permille. */
 private const val FrameTolerancePermille = 2
 
-/** What applying a crop draft does: the crop and straighten to record, and whether it needs the full sensor. */
+/** What applying a crop draft does: the operations to record, and whether they need the full sensor. */
 internal data class CropOutcome(
     val crop: EditOperation.Crop,
     val straightenDegrees: Float,
     /** The crop leaves the camera frame, so the RAW must be developed without camera framing. */
     val needsFullSensor: Boolean,
+    val perspective: EditOperation.Perspective? = null,
 ) {
-    val operations: List<EditOperation> get() = listOf(crop, EditOperation.Straighten(straightenDegrees))
+    /** In [cropEditOperations] order, so an outcome compares equal to the operations already applied. */
+    val operations: List<EditOperation>
+        get() = listOfNotNull(perspective, crop, EditOperation.Straighten(straightenDegrees))
 }
 
 private fun PhotoCropDraft.toRoundedCrop(): EditOperation.Crop {
@@ -81,7 +84,8 @@ internal fun PhotoCropDraft.resetToFrame(frame: EditOperation.Crop): PhotoCropDr
  * Resolves [draft] to the edit it stands for. A full-sensor draft inside [cameraFrame] becomes a
  * normal crop of the framed image (framing stays on); [baseline], the crop recorded before the
  * draft was opened, absorbs the rounding drift of an untouched draft. A draft that leaves the
- * frame needs the full sensor area.
+ * frame needs the full sensor area, and so does a perspective drawn on the full sensor: its corners
+ * are positions in that image, not in the framed one.
  */
 internal fun cropOutcome(
     draft: PhotoCropDraft,
@@ -89,13 +93,19 @@ internal fun cropOutcome(
     baseline: EditOperation.Crop?,
 ): CropOutcome {
     if (!draft.fullSensor || cameraFrame == null) {
+        val operations = cropEditOperations(draft)
         return CropOutcome(
-            cropEditOperations(draft).first() as EditOperation.Crop,
+            operations.filterIsInstance<EditOperation.Crop>().single(),
             draft.straightenDegrees,
             needsFullSensor = false,
+            perspective = operations.filterIsInstance<EditOperation.Perspective>().singleOrNull(),
         )
     }
     val absolute = draft.toRoundedCrop()
+    val perspective = cropEditOperations(draft).filterIsInstance<EditOperation.Perspective>().singleOrNull()
+    if (perspective != null) {
+        return CropOutcome(absolute, draft.straightenDegrees, needsFullSensor = true, perspective = perspective)
+    }
     val tolerance = FrameTolerancePermille
     val inside = absolute.leftPermille >= cameraFrame.leftPermille - tolerance &&
         absolute.topPermille >= cameraFrame.topPermille - tolerance &&

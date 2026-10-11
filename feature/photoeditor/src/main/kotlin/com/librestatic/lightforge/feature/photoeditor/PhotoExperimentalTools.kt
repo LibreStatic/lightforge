@@ -110,7 +110,7 @@ fun eraseRegionsFor(points: List<PhotoPoint>, width: Int, height: Int): List<Obj
 fun photoGeometryOperations(operations: List<EditOperation>): List<EditOperation> =
     operations.filter {
         it is EditOperation.Crop || it is EditOperation.Rotate || it is EditOperation.Flip ||
-            (it is EditOperation.Straighten && it.degrees != 0f)
+            it is EditOperation.Perspective || (it is EditOperation.Straighten && it.degrees != 0f)
     }
 
 /**
@@ -118,7 +118,7 @@ fun photoGeometryOperations(operations: List<EditOperation>): List<EditOperation
  * crops by the intermediate aspect ratio, so marks drawn under it stay in edited coordinates.
  */
 fun photoGeometryProjectable(geometry: List<EditOperation>): Boolean =
-    geometry.none { it is EditOperation.Straighten }
+    geometry.none { it is EditOperation.Straighten || it is EditOperation.Perspective }
 
 /** Maps an upright-source point to the edited image; null when a crop leaves it out of frame. */
 fun projectToEdited(point: PhotoPoint, geometry: List<EditOperation>): PhotoPoint? {
@@ -139,7 +139,7 @@ fun projectToEdited(point: PhotoPoint, geometry: List<EditOperation>): PhotoPoin
                 x = rotatedX
             }
             is EditOperation.Flip -> if (operation.horizontal) x = 1f - x else y = 1f - y
-            is EditOperation.Straighten -> return null
+            is EditOperation.Straighten, is EditOperation.Perspective -> return null
             else -> Unit
         }
     }
@@ -162,7 +162,7 @@ fun projectToSource(point: PhotoPoint, geometry: List<EditOperation>): PhotoPoin
                 x = sourceX
             }
             is EditOperation.Flip -> if (operation.horizontal) x = 1f - x else y = 1f - y
-            is EditOperation.Straighten -> return null
+            is EditOperation.Straighten, is EditOperation.Perspective -> return null
             else -> Unit
         }
     }

@@ -61,3 +61,78 @@ class PhotoCropDraftTest {
         assertEquals(-4f, flipped.straightenDegrees, 0.001f)
     }
 }
+
+class PhotoCropOperationsTest {
+    private val tilted = withVerticalKeystone(IdentityCorners, 0.5f)
+
+    @Test
+    fun identityPerspectiveEmitsOnlyCropAndStraighten() {
+        val ops = cropEditOperations(PhotoCropDraft(straightenDegrees = 2f))
+
+        assertEquals(2, ops.size)
+        assertTrue(ops[0] is com.librestatic.lightforge.core.model.EditOperation.Crop)
+        assertTrue(ops[1] is com.librestatic.lightforge.core.model.EditOperation.Straighten)
+    }
+
+    @Test
+    fun perspectiveComesFirstThenCropThenStraighten() {
+        val ops = cropEditOperations(PhotoCropDraft(left = 0.1f, perspective = tilted, straightenDegrees = -3f))
+
+        assertEquals(3, ops.size)
+        assertEquals(com.librestatic.lightforge.core.model.EditOperation.Perspective(tilted), ops[0])
+        assertTrue(ops[1] is com.librestatic.lightforge.core.model.EditOperation.Crop)
+        assertTrue(ops[2] is com.librestatic.lightforge.core.model.EditOperation.Straighten)
+    }
+
+    @Test
+    fun anInvalidQuadIsDroppedInsteadOfCrashing() {
+        val bowtie = listOf(
+            com.librestatic.lightforge.core.model.NormalizedPoint(0f, 0f),
+            com.librestatic.lightforge.core.model.NormalizedPoint(1f, 1f),
+            com.librestatic.lightforge.core.model.NormalizedPoint(1f, 0f),
+            com.librestatic.lightforge.core.model.NormalizedPoint(0f, 1f),
+        )
+
+        assertEquals(2, cropEditOperations(PhotoCropDraft(perspective = bowtie)).size)
+    }
+
+    @Test
+    fun changingThePerspectiveResetsTheCropRectangle() {
+        val draft = PhotoCropDraft(left = 0.2f, top = 0.2f, right = 0.8f, bottom = 0.8f, aspectRatio = 1f)
+
+        val warped = draft.withPerspective(tilted)
+
+        assertEquals(PhotoCropDraft(perspective = tilted), warped)
+        assertEquals(draft, draft.withPerspective(IdentityCorners))
+    }
+
+    @Test
+    fun draftRotationAndFlipsCarryThePerspective() {
+        val draft = PhotoCropDraft(perspective = tilted)
+
+        assertEquals(tilted.rotatedClockwise(), draft.rotatedClockwise().perspective)
+        assertEquals(tilted.flipped(true), draft.flippedHorizontally().perspective)
+        assertEquals(tilted.flipped(false), draft.flippedVertically().perspective)
+        assertEquals(tilted.size, draft.flippedVertically().flippedVertically().perspective.size)
+    }
+
+    @Test
+    fun verticalFlipMirrorsTheRectangleAndStraighten() {
+        val flipped = PhotoCropDraft(top = 0.1f, bottom = 0.6f, straightenDegrees = 4f).flippedVertically()
+
+        assertEquals(0.4f, flipped.top, 0.001f)
+        assertEquals(0.9f, flipped.bottom, 0.001f)
+        assertEquals(-4f, flipped.straightenDegrees, 0.001f)
+    }
+
+    @Test
+    fun aspectPresetsCoverTheRequestedRatiosAndOriginalFollowsTheSource() {
+        val presets = cropAspectPresets(sourceAspectRatio = 1.25f)
+
+        assertEquals(11, presets.size)
+        assertEquals(null, presets.first().ratio)
+        assertEquals(1.25f, presets.first { it.token == "original" }.ratio)
+        assertTrue(presets.map { it.token }.containsAll(listOf("square", "4-3", "3-4", "3-2", "2-3", "5-4", "4-5", "16-9", "9-16")))
+        assertEquals(presets.size, presets.map { it.token }.toSet().size)
+    }
+}

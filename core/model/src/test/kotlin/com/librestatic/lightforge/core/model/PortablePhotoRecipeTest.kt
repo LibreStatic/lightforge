@@ -202,6 +202,28 @@ class PortablePhotoRecipeTest {
     }
 
     @Test
+    fun newOperationTokensValidateAndNoncanonicalFormsReject() {
+        listOf(
+            "adjust,1,",
+            "adjust,1,brightness=-0.5;warmth=0.25",
+            "colormix,1,green=0.5:-0.25:0.1",
+            "look,1,builtin:warm_film,0.75",
+            "look,1,custom:123e4567-e89b-12d3-a456-426614174000,1.0",
+            "perspective,1,0.1,0.05,0.9,0.15,0.95,0.9,0.05,0.8",
+        ).forEach { recipe(listOf(it)).validate() }
+        listOf(
+            "adjust,1,warmth=0.25;brightness=-0.5",
+            "adjust,1,tint=0.0",
+            "adjust,1,tint=1",
+            "colormix,1,red=0.0:0.0:0.0",
+            "colormix,1,green=1:0:0",
+            "look,1,builtin:warm_film,1",
+            "look,1,builtin:warm_film,0.75,extra",
+            "perspective,1,0,0,1,0,1,1,0,1",
+        ).forEach { encoded -> reject { recipe(listOf(encoded)).validate() } }
+    }
+
+    @Test
     fun unknownOperationsInvalidRangesAndOversizedUtf8Reject() {
         val invalid =
             listOf(
