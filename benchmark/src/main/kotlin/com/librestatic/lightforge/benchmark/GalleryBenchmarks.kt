@@ -54,6 +54,35 @@ class StartupBenchmark {
     }
 }
 
+/** Real launch: production runtime, onboarding finished, indexed library (the path users cold start). */
+@RunWith(AndroidJUnit4::class)
+class ProductionStartupBenchmark {
+    @get:Rule val rule = MacrobenchmarkRule()
+
+    @Test
+    fun coldStartupWithBaselineProfile() = coldStartup(CompilationMode.Partial(BaselineProfileMode.Require))
+
+    @Test
+    fun coldStartupWithoutProfile() = coldStartup(CompilationMode.None())
+
+    private fun coldStartup(mode: CompilationMode) {
+        prepareProductionTarget()
+        rule.measureRepeated(
+            packageName = TARGET_PACKAGE,
+            metrics = listOf(StartupTimingMetric()),
+            compilationMode = mode,
+            startupMode = StartupMode.COLD,
+            iterations = 10,
+        ) {
+            pressHome()
+            startActivityAndWait { it.putExtra(PRODUCTION_TIMELINE_EXTRA, true) }
+            check(device.wait(Until.hasObject(By.res("timeline_grid")), 30_000)) {
+                "Production timeline did not appear"
+            }
+        }
+    }
+}
+
 @RunWith(AndroidJUnit4::class)
 class TimelineScrollBenchmark {
     @get:Rule val rule = MacrobenchmarkRule()
@@ -166,8 +195,7 @@ class ProductionFoldPostureBenchmark {
                 device.executeShellCommand("cmd device_state state 2")
                 killProcess()
                 device.executeShellCommand("pm clear $TARGET_PACKAGE")
-                device.executeShellCommand("pm grant $TARGET_PACKAGE android.permission.READ_MEDIA_IMAGES")
-                device.executeShellCommand("pm grant $TARGET_PACKAGE android.permission.READ_MEDIA_VIDEO")
+                prepareProductionTarget() // Grants media access and skips the onboarding pm clear brings back.
                 startActivityAndWait { it.putExtra(PRODUCTION_TIMELINE_EXTRA, true) }
                 check(device.wait(Until.hasObject(By.res("timeline_grid")), 30_000))
                 repeat(4) { device.findObject(By.res("timeline_grid"))!!.fling(Direction.DOWN) }
@@ -291,8 +319,7 @@ class ProductionTimelineAnchorBenchmark {
             setupBlock = {
                 killProcess()
                 device.executeShellCommand("pm clear $TARGET_PACKAGE")
-                device.executeShellCommand("pm grant $TARGET_PACKAGE android.permission.READ_MEDIA_IMAGES")
-                device.executeShellCommand("pm grant $TARGET_PACKAGE android.permission.READ_MEDIA_VIDEO")
+                prepareProductionTarget() // Grants media access and skips the onboarding pm clear brings back.
                 startActivityAndWait { it.putExtra(PRODUCTION_TIMELINE_EXTRA, true) }
                 check(device.wait(Until.hasObject(By.res("timeline_grid")), 30_000))
                 repeat(4) {
@@ -342,8 +369,7 @@ class ProductionTabletResizeAnchorBenchmark {
                 device.executeShellCommand("wm size reset")
                 killProcess()
                 device.executeShellCommand("pm clear $TARGET_PACKAGE")
-                device.executeShellCommand("pm grant $TARGET_PACKAGE android.permission.READ_MEDIA_IMAGES")
-                device.executeShellCommand("pm grant $TARGET_PACKAGE android.permission.READ_MEDIA_VIDEO")
+                prepareProductionTarget() // Grants media access and skips the onboarding pm clear brings back.
                 startActivityAndWait { it.putExtra(PRODUCTION_TIMELINE_EXTRA, true) }
                 check(device.wait(Until.hasObject(By.res("timeline_grid")), 30_000))
                 repeat(4) { device.findObject(By.res("timeline_grid"))!!.fling(Direction.DOWN) }
