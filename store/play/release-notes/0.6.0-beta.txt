@@ -1,0 +1,72 @@
+<en-US>
+• Photo editor: GPU colour grading, a fuller Adjust panel, LUT Filters and perspective Crop.
+• Pinch, pan and double-tap to zoom in the photo and video editors.
+• Hold a video to play it in slow motion, also when opened from other apps.
+• RAW photos open with the camera's own framing.
+• Faster app start.
+• Fixes for RAW previews, thumbnails and the Details panel.
+Report problems at github.com/LibreStatic/lightforge/issues
+</en-US>
+<es-419>
+• Editor de fotos: gradación de color por GPU, Ajustar más completo, Filtros LUT y Recortar con perspectiva.
+• Pellizcá, arrastrá o tocá dos veces para hacer zoom en los editores.
+• Mantené presionado un video para verlo en cámara lenta, también desde otras apps.
+• Las fotos RAW se abren con el encuadre de la cámara.
+• La app arranca más rápido.
+• Arreglos en vistas RAW, miniaturas y Detalles.
+Reportá problemas en github.com/LibreStatic/lightforge/issues
+</es-419>
+<es-ES>
+• Editor de fotos: gradación de color por GPU, Ajustar más completo, Filtros LUT y Recortar con perspectiva.
+• Pellizca, arrastra o toca dos veces para hacer zoom en los editores.
+• Mantén pulsado un vídeo para verlo a cámara lenta, también desde otras apps.
+• Las fotos RAW se abren con el encuadre de la cámara.
+• La app arranca más rápido.
+• Correcciones en vistas RAW, miniaturas y Detalles.
+Informa de problemas en github.com/LibreStatic/lightforge/issues
+</es-ES>
+<pt-BR>
+• Editor de fotos: gradação de cor por GPU, Ajustar mais completo, Filtros LUT e Cortar com perspectiva.
+• Pince, arraste ou toque duas vezes para dar zoom nos editores.
+• Mantenha um vídeo pressionado para vê-lo em câmera lenta, também vindo de outros apps.
+• Fotos RAW abrem com o enquadramento da câmera.
+• O app abre mais rápido.
+• Correções em prévias RAW, miniaturas e Detalhes.
+Relate problemas em github.com/LibreStatic/lightforge/issues
+</pt-BR>
+<pt-PT>
+• Editor de fotos: gradação de cor por GPU, Ajustar mais completo, Filtros LUT e Cortar com perspetiva.
+• Aperte, arraste ou toque duas vezes para fazer zoom nos editores.
+• Mantenha um vídeo premido para o ver em câmara lenta, também a partir de outras apps.
+• As fotos RAW abrem com o enquadramento da câmara.
+• A app abre mais depressa.
+• Correções em pré-visualizações RAW, miniaturas e Detalhes.
+Comunique problemas em github.com/LibreStatic/lightforge/issues
+</pt-PT>
+<fr-FR>
+• Éditeur photo : étalonnage GPU, Ajuster plus complet, Filtres LUT et Recadrer en perspective.
+• Pincez, faites glisser ou touchez deux fois pour zoomer dans les éditeurs.
+• Maintenez une vidéo pour la voir au ralenti, même ouverte depuis une autre app.
+• Les photos RAW s’ouvrent avec le cadrage de l’appareil.
+• L’app démarre plus vite.
+• Corrections des aperçus RAW, miniatures et Détails.
+Signalez les problèmes sur github.com/LibreStatic/lightforge/issues
+</fr-FR>
+<de-DE>
+• Fotoeditor: GPU-Farbkorrektur, umfangreicheres Anpassen, LUT-Filter und perspektivisches Zuschneiden.
+• Mit zwei Fingern, Ziehen oder Doppeltippen in den Editoren zoomen.
+• Video gedrückt halten für Zeitlupe, auch aus anderen Apps.
+• RAW-Fotos öffnen mit dem Bildausschnitt der Kamera.
+• Die App startet schneller.
+• Korrekturen bei RAW-Vorschauen, Miniaturen und Details.
+Probleme melden unter github.com/LibreStatic/lightforge/issues
+</de-DE>
+<it-IT>
+• Editor foto: color grading via GPU, Regola più completo, Filtri LUT e Ritaglia in prospettiva.
+• Pizzica, trascina o tocca due volte per lo zoom negli editor.
+• Tieni premuto un video per vederlo al rallentatore, anche da altre app.
+• Le foto RAW si aprono con l'inquadratura della fotocamera.
+• L'app si avvia più velocemente.
+• Correzioni ad anteprime RAW, miniature e Dettagli.
+Segnala i problemi su github.com/LibreStatic/lightforge/issues
+</it-IT>
