@@ -49,6 +49,16 @@ swap the build of a release that Google has not approved yet. Any remaining word
    - Each block must stay at most 500 characters; check that with a script.
    - Commit: `docs(release): add X.Y.Z-beta release notes`.
 
+3b. **Baseline and Startup Profiles.**
+   - Compare `git log -1 --format=%cd -- app/src/main/baseline-prof.txt` with the commits since the last release.
+   - If `app/` or `feature/` code changed since the profiles were last regenerated, regenerate them with
+     `scripts/generate-baseline-profile.sh`. It runs on `emulator-5554`; set `ANDROID_SERIAL` to use another device.
+     Stale profiles leave new code interpreted on first use, which shows up as jank after install.
+   - The script must exit 0. Both `baseline-prof.txt` and `startup-prof.txt` must change only in ways that match the
+     code changes; a file that shrinks to a fraction of its size means a journey failed.
+   - Commit both files alone: `perf(profile): regenerate baseline and startup profiles`.
+   - If no device is available, say so in the final report rather than skipping silently.
+
 4. **Local CI gate, before pushing.**
    - Create a clean worktree:
      `git worktree add --detach ~/.cache/claude-tmp/ugallery/release-wt main`. Never use /tmp or /dev/shm.
@@ -109,5 +119,5 @@ swap the build of a release that Google has not approved yet. Any remaining word
 
 9. **Close out.**
    - Remove the worktree only if nothing else needs it.
-   - Report: the commits pushed, the gate result, the AAB path and versionCode, and the Console state.
+   - Report: the commits pushed, whether the profiles were regenerated, the gate result, the AAB path and versionCode, and the Console state.
    - Update `store/play/closed-testing.md` only if the user asks; it is their uncommitted file.

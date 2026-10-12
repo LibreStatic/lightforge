@@ -36,6 +36,12 @@ scripts/compose-driver.sh stop
 
 Renderable entry points are zero-argument `*DriverPreviews.kt` files in a feature's `src/debug` source set that feed fake state into the real production composable. Add one there for the screen you are changing (never duplicate production UI, never put fake state in `src/main`) and list the feature in `tools/compose-driver/build.gradle.kts`.
 
+# Measuring performance
+
+Never judge jank, startup or frame times on a debug build or in Compose Driver. Both run Compose interpreted and without R8, and Compose Driver also runs under Robolectric, so they can be several times slower than what users get. Measure on the `benchmark` build type (Macrobenchmark, `docs/benchmarks/README.md`) or on the minified `remoteacceptance` release (`-Plightforge.remoteReleaseAcceptance=true`) with Perfetto. A debug build is fine for finding *what* recomposes, not for deciding *whether* it is slow.
+
+The Baseline Profile (`app/src/main/baseline-prof.txt`) and Startup Profile (`startup-prof.txt`) are generated from the journeys in `:baselineprofile`. When you add or rework a screen users reach often, add it to a journey there. Then regenerate both profiles with `scripts/generate-baseline-profile.sh` and commit them on their own.
+
 # Publishing to Google Play
 
 `tools/play-publish.py` publishes through the Play Developer API, so a release needs no Console clicks and no manual upload.
