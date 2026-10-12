@@ -41,13 +41,13 @@ android {
         minSdk = 30
         targetSdk = 36
         // -Plightforge.versionCode wins; CI derives it from the run number plus an offset
-        // that keeps it above the last manually uploaded code; local builds fall back to 133.
+        // that keeps it above the last manually uploaded code; local builds fall back to 134.
         versionCode = providers.gradleProperty("lightforge.versionCode").orNull?.toInt()
             ?: System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull()?.let {
                 it + (providers.gradleProperty("lightforge.versionCodeOffset").orNull?.toInt() ?: 100)
             }
-            ?: 133
-        versionName = "0.5.2-beta"
+            ?: 134
+        versionName = "0.6.0-beta"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
