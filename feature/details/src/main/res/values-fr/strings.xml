@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="details_title">Détails</string><string name="details_name">Nom</string><string name="details_type">Type</string><string name="details_size">Taille</string><string name="details_dimensions">Dimensions</string><string name="details_date">Date</string><string name="details_folder">Dossier</string><string name="details_unknown">Inconnu</string><string name="details_load_metadata">Charger les métadonnées</string><string name="details_camera_make">Fabricant</string><string name="details_camera_model">Modèle</string><string name="details_lens">Objectif</string><string name="details_iso">ISO</string><string name="details_exposure">Exposition</string><string name="details_original_time">Heure d’origine</string><string name="details_location">Lieu</string><string name="details_location_missing">Aucun lieu</string><string name="details_location_permission">Autorisation de localisation requise</string><string name="details_metadata_not_image">Métadonnées indisponibles pour les vidéos.</string><string name="details_metadata_unavailable">Métadonnées corrompues ou non prises en charge.</string><string name="details_media_unavailable">Ce média est indisponible.</string>
     <string name="details_detected_text">Texte détecté</string><string name="details_copy_text">Copier le texte</string>
     <string name="details_section_captured">Prise de vue</string>
@@ -113,7 +113,7 @@
     <string name="details_virtual_crop_title">Recadrage virtuel</string>
     <string name="virtual_crop_shows">Affiche %1$s sur l\'image complète du capteur (%2$s).</string>
     <string name="details_virtual_crop_body">Le fichier conserve l\'image complète. Quiconque reçoit l\'original peut découvrir ce qui se trouve hors du cadre, sans avoir besoin de votre accord. Exporter un JPEG, PNG ou TIFF est le seul moyen de ne partager que la partie cadrée.</string>
-    <plurals name="virtual_crop_dialog_title">
+    <plurals name="virtual_crop_dialog_title" tools:ignore="ImpliedQuantity">
         <item quantity="one">Cette photo a un recadrage virtuel</item>
         <item quantity="many">Ces photos ont un recadrage virtuel</item>
         <item quantity="other">Ces photos ont un recadrage virtuel</item>
@@ -123,7 +123,7 @@
         <item quantity="many">%1$d photos RAW ont un recadrage virtuel.</item>
         <item quantity="other">%1$d photos RAW ont un recadrage virtuel.</item>
     </plurals>
-    <plurals name="virtual_crop_dialog_body">
+    <plurals name="virtual_crop_dialog_body" tools:ignore="ImpliedQuantity">
         <item quantity="one">Le fichier RAW contient l\'image complète. Quiconque reçoit l\'original peut voir ce qui se trouve hors du cadre, sans avoir besoin de votre accord. Pour ne partager que la partie cadrée, partagez plutôt un JPEG final.</item>
         <item quantity="many">Ces fichiers RAW contiennent les images complètes. Quiconque reçoit les originaux peut voir ce qui se trouve hors du cadre, sans avoir besoin de votre accord. Pour ne partager que les parties cadrées, partagez plutôt des JPEG finaux.</item>
         <item quantity="other">Ces fichiers RAW contiennent les images complètes. Quiconque reçoit les originaux peut voir ce qui se trouve hors du cadre, sans avoir besoin de votre accord. Pour ne partager que les parties cadrées, partagez plutôt des JPEG finaux.</item>

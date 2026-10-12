@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="details_title">Detalhes</string><string name="details_name">Nome</string><string name="details_type">Tipo</string><string name="details_size">Tamanho</string><string name="details_dimensions">Dimensões</string><string name="details_date">Data</string><string name="details_folder">Pasta</string><string name="details_unknown">Desconhecido</string><string name="details_load_metadata">Carregar metadados</string><string name="details_camera_make">Fabricante</string><string name="details_camera_model">Modelo</string><string name="details_lens">Lente</string><string name="details_iso">ISO</string><string name="details_exposure">Exposição</string><string name="details_original_time">Hora original</string><string name="details_location">Localização</string><string name="details_location_missing">Sem localização</string><string name="details_location_permission">Permissão de localização necessária</string><string name="details_metadata_not_image">Metadados indisponíveis para vídeos.</string><string name="details_metadata_unavailable">Metadados corrompidos ou não suportados.</string><string name="details_media_unavailable">Esta mídia está indisponível.</string>
     <string name="details_detected_text">Texto detectado</string><string name="details_copy_text">Copiar texto</string>
     <string name="details_section_captured">Captura</string>
@@ -113,7 +113,7 @@
     <string name="details_virtual_crop_title">Corte virtual</string>
     <string name="virtual_crop_shows">Mostra %1$s da imagem completa do sensor (%2$s).</string>
     <string name="details_virtual_crop_body">O arquivo guarda a imagem completa. Quem receber o original pode descobrir o que está fora do enquadramento, sem precisar do seu consentimento. Exportar um JPEG, PNG ou TIFF é a única forma de compartilhar só a parte enquadrada.</string>
-    <plurals name="virtual_crop_dialog_title">
+    <plurals name="virtual_crop_dialog_title" tools:ignore="ImpliedQuantity">
         <item quantity="one">Esta foto tem um corte virtual</item>
         <item quantity="many">Estas fotos têm um corte virtual</item>
         <item quantity="other">Estas fotos têm um corte virtual</item>
@@ -123,7 +123,7 @@
         <item quantity="many">%1$d fotos RAW têm um corte virtual.</item>
         <item quantity="other">%1$d fotos RAW têm um corte virtual.</item>
     </plurals>
-    <plurals name="virtual_crop_dialog_body">
+    <plurals name="virtual_crop_dialog_body" tools:ignore="ImpliedQuantity">
         <item quantity="one">O arquivo RAW contém a imagem completa. Quem receber o original pode ver o que está fora do enquadramento, sem precisar do seu consentimento. Para compartilhar só a parte enquadrada, compartilhe um JPEG final.</item>
         <item quantity="many">Estes arquivos RAW contêm as imagens completas. Quem receber os originais pode ver o que está fora do enquadramento, sem precisar do seu consentimento. Para compartilhar só as partes enquadradas, compartilhe JPEGs finais.</item>
         <item quantity="other">Estes arquivos RAW contêm as imagens completas. Quem receber os originais pode ver o que está fora do enquadramento, sem precisar do seu consentimento. Para compartilhar só as partes enquadradas, compartilhe JPEGs finais.</item>
