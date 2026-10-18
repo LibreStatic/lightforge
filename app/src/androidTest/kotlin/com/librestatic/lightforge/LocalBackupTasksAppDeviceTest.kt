@@ -51,6 +51,7 @@ class LocalBackupTasksAppDeviceTest {
         val settings = label(com.librestatic.lightforge.feature.settings.R.string.settings_title)
         val backup = label(com.librestatic.lightforge.feature.settings.R.string.local_backup_title)
         val tasks = label(com.librestatic.lightforge.feature.settings.R.string.local_backup_tasks_title)
+        val tasksAction = By.desc(context.getString(com.librestatic.lightforge.feature.settings.R.string.local_backup_tasks_title))
         val back = label(com.librestatic.lightforge.feature.settings.R.string.local_backup_back)
         // Tasks draws Back as its top bar navigation icon, which exposes a content description.
         val tasksBack = By.desc(context.getString(com.librestatic.lightforge.feature.settings.R.string.local_backup_back))
@@ -73,7 +74,7 @@ class LocalBackupTasksAppDeviceTest {
                 await(label(com.librestatic.lightforge.feature.settings.R.string.local_backup_local_hint))
                 steps += "Local backup"
                 capture("local-backup")
-                click(tasks)
+                click(tasksAction)
                 await(tasks)
                 assertTrue(
                     "Tasks must be a separate route, not the launch button",
@@ -84,11 +85,11 @@ class LocalBackupTasksAppDeviceTest {
                 capture("tasks")
                 click(tasksBack)
                 await(backup)
-                await(tasks) // The Tasks entry returns on the backup parent screen.
+                await(tasksAction) // The Tasks entry returns on the backup parent screen.
                 steps += "Back to Local backup"
                 click(tasksBack)
                 await(settings)
-                assertTrue(device.wait(Until.gone(tasks), 15_000))
+                assertTrue(device.wait(Until.gone(tasksAction), 15_000))
                 steps += "Back to Settings"
                 capture("returned-settings")
                 File(evidence, "result.txt")

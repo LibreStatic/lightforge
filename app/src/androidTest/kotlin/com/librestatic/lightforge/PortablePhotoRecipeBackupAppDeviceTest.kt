@@ -414,7 +414,7 @@ class PortablePhotoRecipeBackupAppDeviceTest {
                     assertEquals(operations, restoredRecipe.operations)
                     assertEquals(8, restoredRecipe.revision)
                     assertEquals(restored, restoredRecipe.source)
-                    textAction(com.librestatic.lightforge.feature.settings.R.string.local_backup_tasks_title)
+                    action(description = label(com.librestatic.lightforge.feature.settings.R.string.local_backup_tasks_title))
                     reveal(By.text(archiveName), "owned-task-visible")
                     capture("restored-task")
                     action(description = label(com.librestatic.lightforge.feature.settings.R.string.local_backup_back))

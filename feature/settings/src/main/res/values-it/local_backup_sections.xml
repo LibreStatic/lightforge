@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="local_backup_section_create">Crea backup</string>
+    <string name="local_backup_section_restore">Ripristina</string>
+    <string name="local_backup_open_summary">Scegli un file di backup. Viene verificato prima di ripristinare qualsiasi cosa.</string>
+</resources>
