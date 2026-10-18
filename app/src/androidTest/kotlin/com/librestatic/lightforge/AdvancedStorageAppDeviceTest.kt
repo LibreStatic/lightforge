@@ -125,6 +125,10 @@ class AdvancedStorageAppDeviceTest {
             reconcile = { v, p -> synchronizer.reconcileFolder(v, p) },
             refresh = {},
             retirement = OriginalRetirement { },
+            folderBuckets = { _, _ -> emptyMap() },
+            folderRelocated = { _, _, _, _, _ -> },
+            verifyIdentity = { sources -> resolver.keysStillAtRememberedPath(sources) },
+            verifyCopy = { source, targetPath -> resolver.copyMatchesItem(source, targetPath) },
         )
         val result = operations.transfer(TransferPurpose.Move, listOf(key), FolderTarget(key.volumeName, "Pictures/LfAppProbeTarget/"))
 

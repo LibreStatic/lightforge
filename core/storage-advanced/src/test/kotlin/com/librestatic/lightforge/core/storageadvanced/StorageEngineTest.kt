@@ -73,6 +73,30 @@ class StorageEngineTest {
         assertTrue(scans.isNotEmpty())
     }
 
+    @Test fun hideRefusesStandardTopLevelFoldersAndVolumeRoots() {
+        val e = engine()
+        for (name in listOf("DCIM", "Pictures", "Download")) {
+            val folder = dir(name)
+            assertTrue(e.hide(folder.path) is AdvancedResult.Failed)
+            assertFalse(File(folder, ".nomedia").exists())
+        }
+        assertTrue(e.hide(volumeA.path) is AdvancedResult.Failed)
+        assertTrue(e.hiddenByApp().isEmpty())
+        // A subfolder of a standard folder is fine.
+        assertEquals(AdvancedResult.Done, e.hide(dir("Pictures/Trip").path))
+    }
+
+    @Test fun hideFailsAndForgetsTheEntryWhenThePlatformRemovesTheMarker() {
+        val folder = dir("Pics")
+        val e = StorageEngine(
+            registry = HiddenRegistry(registryFile),
+            volumes = { listOf(VolumeRoot("external_primary", volumeA)) },
+            scan = { File(folder, ".nomedia").delete() },
+        )
+        assertTrue(e.hide(folder.path) is AdvancedResult.Failed)
+        assertTrue(e.hiddenByApp().isEmpty())
+    }
+
     @Test fun rehideAfterExternalMarkerDeletionKeepsOneEntry() {
         val folder = dir("Pics")
         val e = engine()

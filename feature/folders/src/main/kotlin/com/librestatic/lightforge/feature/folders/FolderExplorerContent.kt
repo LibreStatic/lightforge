@@ -650,7 +650,7 @@ private fun FolderMenu(
     onDialog: (FolderDialog) -> Unit,
 ) {
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
-        if (!folder.isHidden && !folder.isEmptyDirectory) {
+        if (!folder.isHidden && !folder.isEmptyDirectory && !isStandardFolder(folder.location.relativePath)) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.folders_menu_hide)) },
                 leadingIcon = { Icon(GalleryIcons.VisibilityOff, contentDescription = null) },

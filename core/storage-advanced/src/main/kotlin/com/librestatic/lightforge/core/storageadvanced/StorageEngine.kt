@@ -50,6 +50,8 @@ internal class StorageEngine(
     fun hide(path: String): AdvancedResult {
         val dir = validatedFolder(path) ?: return INVALID
         if (!dir.isDirectory) return AdvancedResult.Failed("Not a directory")
+        // MediaProvider deletes a .nomedia in a standard top-level folder or a volume root, so hiding there does nothing.
+        if (rootOf(dir) == dir || isStandardFolder(dir)) return PROTECTED
         val entries = registry.read()
         val marker = File(dir, NOMEDIA)
         val canonical = dir.path
@@ -72,6 +74,11 @@ internal class StorageEngine(
                     HiddenEntry(canonical, HiddenKind.NoMediaFile, createdAt),
             )
             scan(listOf(canonical, marker.path))
+            if (!marker.exists()) {
+                // The platform removed the marker: nothing is hidden, so nothing may be recorded.
+                registry.write(entries.filterNot { it.absolutePath == canonical })
+                return AdvancedResult.Failed("The system did not keep the .nomedia")
+            }
             AdvancedResult.Done
         } catch (e: Exception) {
             marker.delete()
@@ -625,7 +632,7 @@ internal class StorageEngine(
         const val MTIME_TOLERANCE_MILLIS = 2_000L
         private const val MAX_NAME_LENGTH = 255
         private val INVALID = AdvancedResult.Failed("Path is not allowed")
-        private val PROTECTED = AdvancedResult.Failed("Standard folders cannot be renamed, moved or deleted")
+        private val PROTECTED = AdvancedResult.Failed("Standard folders cannot be hidden, renamed, moved or deleted")
         private val STANDARD_FOLDERS = listOf(
             "DCIM", "Pictures", "Download", "Movies", "Music", "Podcasts", "Ringtones", "Alarms",
             "Notifications", "Documents", "Audiobooks", "Recordings", "Screenshots",
