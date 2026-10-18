@@ -70,3 +70,11 @@ internal fun ContentResolver.copyMatchesItem(source: TransferSource, targetPath:
         target.inputStream().buffered().use { copy -> sameBytes(original, copy) }
     } ?: false
 }.getOrDefault(false)
+
+/** The MediaStore _ID of the file at the absolute [path] on [volumeName], or null when it is not indexed (yet). */
+internal fun ContentResolver.idOfPath(volumeName: String, path: String): Long? = runCatching {
+    query(
+        MediaStore.Files.getContentUri(volumeName), arrayOf(MediaStore.MediaColumns._ID),
+        "${MediaStore.MediaColumns.DATA}=?", arrayOf(path), null,
+    )?.use { if (it.moveToFirst()) it.getLong(0) else null }
+}.getOrNull()

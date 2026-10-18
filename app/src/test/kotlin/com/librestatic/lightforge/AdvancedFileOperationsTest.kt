@@ -90,6 +90,14 @@ class AdvancedFileOperationsTest {
         }
     }
 
+    private class RecordingJournal : TransferJournal {
+        val entries = ArrayList<TransferJournalEntry>()
+        val order = ArrayList<String>()
+        override fun begin(entries: List<TransferJournalEntry>) { this.entries += entries; order += "begin" }
+        override fun end(entries: List<TransferJournalEntry>) { this.entries -= entries.toSet(); order += "end" }
+        override fun pending() = entries.toList()
+    }
+
     private class Env(
         val storage: FakeStorage = FakeStorage(),
         var active: Boolean = true,
@@ -112,6 +120,9 @@ class AdvancedFileOperationsTest {
             return key
         }
 
+        val carried = ArrayList<Triple<MediaKey, String, String>>()
+        val journalStore = RecordingJournal()
+
         val operations = AdvancedFileOperations(
             advanced = storage,
             isActive = { active },
@@ -125,6 +136,8 @@ class AdvancedFileOperationsTest {
             folderRelocated = { oldVolume, oldPrefix, newVolume, newPrefix, _ -> relocations += listOf(oldVolume, oldPrefix, newVolume, newPrefix) },
             verifyIdentity = { sources -> sources.map { it.key }.filterNot { it in changedOnDisk }.toSet() },
             verifyCopy = { source, _ -> source.key !in corruptCopies },
+            carryState = { from, volume, path -> carried += Triple(from, volume, path); journalStore.order += "carry" },
+            journal = journalStore,
         )
     }
 
@@ -541,5 +554,60 @@ class AdvancedFileOperationsTest {
         assertEquals("notes (1)", withCounter("notes", 1))
         assertEquals(".hidden (1)", withCounter(".hidden", 1))
         assertEquals("a.b (3).png", withCounter("a.b.png", 3))
+    }
+
+    @Test fun aCrossVolumeMoveCarriesTheOriginalsStateAndJournalsBeforeDeleting() = runBlocking {
+        val env = Env()
+        val one = env.item(1)
+        env.storage.deleteFilesResult = { AdvancedResult.Done }
+        val sd = FolderTarget("1234-5678", "Pictures/")
+        val result = env.operations.transfer(TransferPurpose.Move, listOf(one), sd)
+        assertEquals(1, result.relocated)
+        assertEquals(listOf(Triple(one, "1234-5678", "/1234-5678/Pictures/IMG_1.jpg")), env.carried)
+        assertEquals(listOf("begin", "carry", "end"), env.journalStore.order)
+        assertTrue(env.journalStore.entries.isEmpty())
+    }
+
+    @Test fun aCopyNeverCarriesStateOrTouchesTheJournal() = runBlocking {
+        val env = Env()
+        env.operations.transfer(TransferPurpose.Copy, listOf(env.item(1)), dest)
+        assertTrue(env.carried.isEmpty())
+        assertTrue(env.journalStore.order.isEmpty())
+    }
+
+    @Test fun anInterruptedMoveIsFinishedFromTheJournal() = runBlocking {
+        val env = Env()
+        val one = env.item(1)
+        env.storage.deleteFilesResult = { AdvancedResult.Done }
+        env.storage.existing += "/external_primary/Pictures/Trips/IMG_1.jpg"
+        env.journalStore.entries += TransferJournalEntry("external_primary", 1, "external_primary", "/external_primary/Pictures/Trips/IMG_1.jpg")
+        env.operations.recoverInterrupted()
+        assertEquals(listOf("/external_primary/DCIM/Camera/IMG_1.jpg"), env.storage.deletedFiles)
+        assertEquals(listOf(one), env.hints)
+        assertTrue(env.journalStore.entries.isEmpty())
+    }
+
+    @Test fun aJournaledCopyThatNoLongerMatchesKeepsTheOriginal() = runBlocking {
+        val env = Env()
+        val one = env.item(1)
+        env.corruptCopies += one
+        env.storage.existing += "/external_primary/Pictures/Trips/IMG_1.jpg"
+        env.journalStore.entries += TransferJournalEntry("external_primary", 1, "external_primary", "/external_primary/Pictures/Trips/IMG_1.jpg")
+        env.operations.recoverInterrupted()
+        assertTrue(env.storage.deletedFiles.isEmpty())
+        assertTrue(env.journalStore.entries.isEmpty())
+    }
+
+    @Test fun theFileJournalRoundTrips() {
+        val file = java.io.File.createTempFile("journal", ".txt").apply { delete() }
+        val journal = FileTransferJournal(file)
+        val a = TransferJournalEntry("external_primary", 1, "1234-5678", "/storage/1234-5678/A/x y.jpg")
+        val b = TransferJournalEntry("external_primary", 2, "1234-5678", "/storage/1234-5678/A/z.jpg")
+        journal.begin(listOf(a, b))
+        assertEquals(listOf(a, b), FileTransferJournal(file).pending())
+        journal.end(listOf(a))
+        assertEquals(listOf(b), FileTransferJournal(file).pending())
+        journal.end(listOf(b))
+        assertFalse(file.exists())
     }
 }

@@ -1007,6 +1007,9 @@ interface LibraryDao {
     @Query("DELETE FROM virtual_albums WHERE albumId = :albumId")
     suspend fun deleteVirtualAlbum(albumId: Long): Int
 
+    @Query("SELECT albumId FROM virtual_album_media WHERE volumeName = :volumeName AND mediaStoreId = :mediaStoreId")
+    suspend fun virtualAlbumIdsOf(volumeName: String, mediaStoreId: Long): List<Long>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun addVirtualAlbumMedia(items: List<VirtualAlbumMediaEntity>): List<Long>
 

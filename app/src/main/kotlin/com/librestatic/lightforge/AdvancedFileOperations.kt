@@ -43,6 +43,55 @@ internal data class TransferResult(
 
 internal data class FolderOpResult(val result: AdvancedResult, val reconciled: List<String> = emptyList())
 
+/** One verified copy whose original is about to be deleted: the original's key and where the copy is. */
+internal data class TransferJournalEntry(val fromVolume: String, val fromId: Long, val toVolume: String, val toPath: String)
+
+/**
+ * Written before an original is deleted and cleared once it is gone, so a process death between the
+ * copy and the delete leaves a record that [AdvancedFileOperations.recoverInterrupted] finishes.
+ */
+internal interface TransferJournal {
+    fun begin(entries: List<TransferJournalEntry>)
+    fun end(entries: List<TransferJournalEntry>)
+    fun pending(): List<TransferJournalEntry>
+
+    object None : TransferJournal {
+        override fun begin(entries: List<TransferJournalEntry>) = Unit
+        override fun end(entries: List<TransferJournalEntry>) = Unit
+        override fun pending(): List<TransferJournalEntry> = emptyList()
+    }
+}
+
+/** A [TransferJournal] kept in one small file (tab-separated lines), replaced atomically on every change. */
+internal class FileTransferJournal(private val file: java.io.File) : TransferJournal {
+    @Synchronized override fun begin(entries: List<TransferJournalEntry>) = write(pending() + entries)
+
+    @Synchronized override fun end(entries: List<TransferJournalEntry>) = write(pending() - entries.toSet())
+
+    @Synchronized override fun pending(): List<TransferJournalEntry> = runCatching {
+        if (!file.exists()) return emptyList()
+        file.readLines().mapNotNull { line ->
+            val parts = line.split('\t')
+            if (parts.size != 4) return@mapNotNull null
+            TransferJournalEntry(parts[0], parts[1].toLongOrNull() ?: return@mapNotNull null, parts[2], parts[3])
+        }
+    }.getOrDefault(emptyList())
+
+    private fun write(entries: List<TransferJournalEntry>) {
+        if (entries.isEmpty()) {
+            file.delete()
+            return
+        }
+        file.parentFile?.mkdirs()
+        val temp = java.io.File(file.path + ".tmp")
+        temp.writeText(entries.joinToString("\n") { "${it.fromVolume}\t${it.fromId}\t${it.toVolume}\t${it.toPath}" })
+        if (!temp.renameTo(file)) {
+            file.delete()
+            check(temp.renameTo(file)) { "Could not replace the transfer journal" }
+        }
+    }
+}
+
 /** Hands the originals the engine could not delete to the existing system-confirmed delete. */
 internal fun interface OriginalRetirement {
     suspend fun retire(originals: List<TransferSource>)
@@ -79,6 +128,12 @@ internal class AdvancedFileOperations(
     private val verifyIdentity: suspend (List<TransferSource>) -> Set<MediaKey>,
     /** True when the file at the target path has the bytes of the item's own content URI. */
     private val verifyCopy: suspend (TransferSource, targetPath: String) -> Boolean,
+    /**
+     * Moves what the user attached to the original (favourite, virtual albums, archive entry) onto the
+     * row of its copy at [targetPath] on [targetVolume], before the original and its row are removed.
+     */
+    private val carryState: suspend (from: MediaKey, targetVolume: String, targetPath: String) -> Unit = { _, _, _ -> },
+    private val journal: TransferJournal = TransferJournal.None,
 ) {
     suspend fun transfer(
         purpose: TransferPurpose,
@@ -156,10 +211,20 @@ internal class AdvancedFileOperations(
         }
         // With All files access the original is deleted here, without a system dialog; only what that
         // refuses goes to the confirmed delete.
+        val journalEntries = verified.map { TransferJournalEntry(it.source.volumeName, it.source.key.mediaStoreId, destination.volumeName, it.to) }
+        if (journalEntries.isNotEmpty()) {
+            runCatching { journal.begin(journalEntries) }
+            // The copy's row inherits the original's decisions while the original's row still exists.
+            verified.forEach { runCatching { carryState(it.source.key, destination.volumeName, it.to) } }
+        }
         val deletions = if (verified.isEmpty()) emptyList() else advanced.deleteFiles(verified.map { it.from })
         val deleted = verified.filterIndexed { index, _ -> deletions.getOrNull(index) == AdvancedResult.Done }
         val awaiting = verified.filterNot { it in deleted }.map { it.source }
         deleted.forEach { applyHint(it.source.key) }
+        if (journalEntries.isNotEmpty()) {
+            // An original the engine refused to delete is handed to the system delete below; its copy is safe.
+            runCatching { journal.end(journalEntries) }
+        }
         if (moved.isNotEmpty() || copied.isNotEmpty()) runCatching { refresh() }
         if (awaiting.isNotEmpty()) retirement.retire(awaiting)
         val emptied = moved.map { it.source.volumeName to it.source.relativePath } +
@@ -177,6 +242,28 @@ internal class AdvancedFileOperations(
             failed = failed,
             notGranted = notGranted,
         )
+    }
+
+    /**
+     * Finishes moves a process death interrupted: each journaled copy that still matches its original
+     * gets the original's state and the original is deleted. Entries that cannot be resolved are dropped.
+     */
+    suspend fun recoverInterrupted() {
+        if (!isActive()) return
+        val pending = journal.pending()
+        if (pending.isEmpty()) return
+        for (entry in pending) {
+            runCatching {
+                val key = MediaKey(entry.fromVolume, entry.fromId)
+                val source = sources(listOf(key)).singleOrNull()?.takeIf { it.key in verifyIdentity(listOf(it)) } ?: return@runCatching
+                val from = advanced.absolutePathOf(source.volumeName, source.relativePath, source.displayName) ?: return@runCatching
+                if (!advanced.pathExists(entry.toPath) || !verifyCopy(source, entry.toPath)) return@runCatching
+                carryState(key, entry.toVolume, entry.toPath)
+                if (advanced.deleteFiles(listOf(from)).singleOrNull() == AdvancedResult.Done) applyHint(key)
+            }
+        }
+        runCatching { journal.end(pending) }
+        runCatching { refresh() }
     }
 
     /**

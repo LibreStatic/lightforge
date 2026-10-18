@@ -23,6 +23,8 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import androidx.paging.filter
 import com.librestatic.lightforge.core.data.MomentRepository
+import com.librestatic.lightforge.core.database.ArchivedMediaEntity
+import com.librestatic.lightforge.core.database.VirtualAlbumMediaEntity
 import com.librestatic.lightforge.core.database.MomentEntity
 import com.librestatic.lightforge.core.database.PortableTimelineOverrideEntity
 import com.librestatic.lightforge.core.database.MomentMemberRow
@@ -6942,7 +6944,46 @@ class GalleryViewModel @Inject constructor(
         verifyCopy = { source, target ->
             withContext(Dispatchers.IO) { getApplication<Application>().contentResolver.copyMatchesItem(source, target) }
         },
+        carryState = { from, toVolume, toPath -> carryTransferState(from, toVolume, toPath) },
+        journal = FileTransferJournal(java.io.File(application.noBackupFilesDir, "advanced-transfer-journal.txt")),
     )
+
+    init {
+        // A move whose process died between the verified copy and the delete is finished once the mode is on.
+        viewModelScope.launch {
+            advancedStatus.status.map { it.active }.distinctUntilChanged().collect { active ->
+                if (active) {
+                    runtime.filterNotNull().first()
+                    withContext(Dispatchers.IO) { advancedOperations.recoverInterrupted() }
+                }
+            }
+        }
+    }
+
+    /** Gives the copy at [toPath] the favourite, virtual albums and archive entry of the original [from]. */
+    private suspend fun carryTransferState(from: MediaKey, toVolume: String, toPath: String) = withContext(Dispatchers.IO) {
+        val active = runtime.value ?: return@withContext
+        val resolver = getApplication<Application>().contentResolver
+        val dao = active.database.libraryDao()
+        val newId = resolver.idOfPath(toVolume, toPath) ?: return@withContext
+        val newKey = MediaKey(toVolume, newId)
+        active.synchronizer.applyRowHint(newKey)
+        if (dao.media(from.volumeName, from.mediaStoreId)?.isFavorite == true) {
+            val uri = android.content.ContentUris.withAppendedId(android.provider.MediaStore.Files.getContentUri(toVolume), newId)
+            val marked = runCatching {
+                resolver.update(uri, android.content.ContentValues().apply { put(android.provider.MediaStore.MediaColumns.IS_FAVORITE, 1) }, null, null)
+            }.getOrDefault(0)
+            if (marked > 0) active.synchronizer.applyRowHint(newKey)
+        }
+        val now = System.currentTimeMillis()
+        val albums = dao.virtualAlbumIdsOf(from.volumeName, from.mediaStoreId)
+        if (albums.isNotEmpty()) {
+            dao.addVirtualAlbumMedia(albums.map { VirtualAlbumMediaEntity(it, toVolume, newId, now) })
+        }
+        if (dao.observeArchived(from.volumeName, from.mediaStoreId).first()) {
+            dao.upsertArchived(ArchivedMediaEntity(toVolume, newId, now))
+        }
+    }
 
     private val folderPickerPrefs = application.getSharedPreferences("folder_picker", Context.MODE_PRIVATE)
     private val mutableFolderPick = MutableStateFlow<FolderPickRequest?>(null)
