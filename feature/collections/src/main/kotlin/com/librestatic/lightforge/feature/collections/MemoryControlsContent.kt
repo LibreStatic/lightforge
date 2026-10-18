@@ -21,6 +21,7 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import com.librestatic.lightforge.core.data.*
 import com.librestatic.lightforge.core.database.*
+import com.librestatic.lightforge.core.designsystem.GalleryLoadErrorRow
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.core.thumbnail.*
@@ -739,11 +740,7 @@ private fun MemoryControlPeople(
             if (people.loadState.append is LoadState.Loading)
                 item { GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth()) }
             if (people.loadState.append is LoadState.Error)
-                item {
-                    TextButton({ people.retry() }) {
-                        Text(stringResource(R.string.memory_controls_retry))
-                    }
-                }
+                item { GalleryLoadErrorRow({ people.retry() }) }
         }
     }
 }

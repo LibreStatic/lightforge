@@ -28,6 +28,7 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import com.librestatic.lightforge.core.data.*
 import com.librestatic.lightforge.core.database.*
+import com.librestatic.lightforge.core.designsystem.GalleryLoadErrorRow
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import com.librestatic.lightforge.core.model.MediaKey
@@ -1031,7 +1032,7 @@ private fun <T : Any> SmartPagingStatus(items: LazyPagingItems<T>, empty: Int) {
     else if (items.loadState.refresh is LoadState.NotLoading && items.itemCount == 0)
         Text(stringResource(empty))
     if (items.loadState.refresh is LoadState.Error || items.loadState.append is LoadState.Error)
-        TextButton(onClick = { items.retry() }) { Text(stringResource(R.string.smart_retry)) }
+        GalleryLoadErrorRow({ items.retry() })
     if (items.loadState.append is LoadState.Loading)
         GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth())
 }

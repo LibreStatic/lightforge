@@ -22,6 +22,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
+import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 
 @OptIn(ExperimentalLayoutApi::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
@@ -62,6 +63,14 @@ fun DocumentAutoArchiveContent(
     }
     BackHandler { if (preview != null) preview = null else onBack() }
     Scaffold(
+        topBar = {
+            GalleryTopAppBar(
+                title = stringResource(R.string.document_auto_title),
+                onBack = { if (!busy) { if (preview != null) preview = null else onBack() } },
+                navigationContentDescription = stringResource(R.string.documents_back),
+                windowInsets = WindowInsets(0, 0, 0, 0),
+            )
+        },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         modifier =
             modifier.testTag("document-auto-screen").semantics { testTagsAsResourceId = true },
@@ -73,19 +82,6 @@ fun DocumentAutoArchiveContent(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item {
-                TextButton(
-                    onClick = { if (preview != null) preview = null else onBack() },
-                    enabled = !busy,
-                ) {
-                    Text(stringResource(R.string.documents_back))
-                }
-                Text(
-                    stringResource(R.string.document_auto_title),
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.semantics { heading() },
-                )
-            }
             item { Text(stringResource(R.string.document_auto_explanation)) }
             if (state == null) item { GalleryIndeterminateProgressIndicator() }
             else {
