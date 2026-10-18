@@ -181,4 +181,5 @@
     <string name="device_folders_search">Search folders</string>
     <string name="device_folders_sort_view">Sort and view</string>
     <string name="folder_op_copied">Folder copied</string>
+    <string name="device_folders_search_in_folder">Search in this folder</string>
 </resources>

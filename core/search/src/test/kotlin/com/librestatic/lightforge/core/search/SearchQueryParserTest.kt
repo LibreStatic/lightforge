@@ -3,6 +3,7 @@ package com.librestatic.lightforge.core.search
 import com.librestatic.lightforge.core.model.MediaKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
@@ -27,6 +28,23 @@ class SearchQueryParserTest {
                 "timelineSortMillis < ${LocalDate.of(2025, 9, 1).start()}",
             parsed.expression(),
         )
+    }
+
+    @Test fun `in token scopes the search to a folder and keeps the other terms`() {
+        val parsed = parser.parse("in:Pictures/Trip beach")
+        assertEquals("Pictures/Trip/", parsed.folderPath)
+        assertEquals(listOf("beach"), parsed.normalizedTerms)
+        assertFalse(parsed.isEmpty)
+    }
+
+    @Test fun `a folder alone is a valid query and quoted paths keep their spaces`() {
+        val parsed = parser.parse("in:\"Pictures/My Trip/\" tipo:video")
+        assertEquals("Pictures/My Trip/", parsed.folderPath)
+        assertEquals(com.librestatic.lightforge.core.model.MediaKind.Video, parsed.kind)
+        assertEquals("Pictures/Trip/", parser.parse("en:Pictures\\Trip").folderPath)
+        assertNull(parser.parse("beach").folderPath)
+        assertEquals("in:\"Pictures/My Trip\"", folderScopeToken("Pictures/My Trip/"))
+        assertEquals("Pictures/Trip/", parser.parse(folderScopeToken("Pictures/Trip/")).folderPath)
     }
 
     @Test fun `localized favorites labels select the favorites filter`() {

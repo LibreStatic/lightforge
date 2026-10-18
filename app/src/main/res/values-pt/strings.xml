@@ -168,4 +168,5 @@
     <string name="device_folders_search">Pesquisar pastas</string>
     <string name="device_folders_sort_view">Ordem e visualização</string>
     <string name="folder_op_copied">Pasta copiada</string>
+    <string name="device_folders_search_in_folder">Pesquisar nesta pasta</string>
 </resources>

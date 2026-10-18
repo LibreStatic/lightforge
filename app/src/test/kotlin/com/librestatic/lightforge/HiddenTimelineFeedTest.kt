@@ -53,3 +53,10 @@ class HiddenTimelineFeedTest {
         assertEquals(listOf(other), pick(listOf(private, deep, other), showAll = true, library = library))
     }
 }
+
+class SearchFolderScopeTest {
+    @Test fun `folder scope pattern matches the folder and below and escapes wildcards`() {
+        assertEquals("Pictures/Trip/%", likePrefixPattern("Pictures/Trip/"))
+        assertEquals("100\\%\\_off/%", likePrefixPattern("100%_off/"))
+    }
+}

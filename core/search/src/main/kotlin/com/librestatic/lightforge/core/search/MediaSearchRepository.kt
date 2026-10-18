@@ -42,14 +42,30 @@ class MediaSearchCursor internal constructor(
     private val results: SearchResults,
     private val expression: String,
     private val strategy: String,
+    /** Drops hits the index cannot judge itself (a folder scope); null keeps every hit. */
+    private val hitFilter: (suspend (List<MediaSearchHit>) -> List<MediaSearchHit>)? = null,
 ) : Closeable {
     private var closed = false
 
     suspend fun nextPage(): MediaSearchPage = withContext(Dispatchers.IO) {
         check(!closed) { "Search cursor is closed" }
-        val page = results.nextPageAsync.get(30, TimeUnit.SECONDS)
-        if (page.isEmpty()) close()
-        MediaSearchPage(page.map { it.hit(expression, strategy) }, page.isEmpty())
+        var scanned = 0
+        var result: MediaSearchPage? = null
+        while (result == null) {
+            val page = results.nextPageAsync.get(30, TimeUnit.SECONDS)
+            if (page.isEmpty()) {
+                close()
+                result = MediaSearchPage(emptyList(), true)
+                continue
+            }
+            val hits = page.map { it.hit(expression, strategy) }.let { hitFilter?.invoke(it) ?: it }
+            // A scope can filter out a whole page; keep reading (bounded) so the caller is not handed an empty page
+            // that looks like the end of the results.
+            if (hits.isNotEmpty() || hitFilter == null || ++scanned >= MaxFilteredPages) {
+                result = MediaSearchPage(hits, false)
+            }
+        }
+        checkNotNull(result)
     }
 
     override fun close() {
@@ -86,6 +102,8 @@ class MediaSearchCursor internal constructor(
     }
 }
 
+private const val MaxFilteredPages = 20
+
 class AppSearchMediaSearchRepository(
     context: Context,
     private val databaseName: String = MediaSearchIndex.DefaultDatabase,
@@ -97,7 +115,11 @@ class AppSearchMediaSearchRepository(
 
     suspend fun search(raw: String, pageSize: Int = 100): MediaSearchCursor = search(parse(raw), pageSize)
 
-    suspend fun search(query: ParsedSearchQuery, pageSize: Int = 100): MediaSearchCursor =
+    suspend fun search(
+        query: ParsedSearchQuery,
+        pageSize: Int = 100,
+        hitFilter: (suspend (List<MediaSearchHit>) -> List<MediaSearchHit>)? = null,
+    ): MediaSearchCursor =
         withContext(Dispatchers.IO) {
             require(pageSize in 1..1_000)
             val session = owner.open(databaseName).get(30, TimeUnit.SECONDS)
@@ -119,7 +141,7 @@ class AppSearchMediaSearchRepository(
                     )
                     .setOrder(SearchSpec.ORDER_DESCENDING)
                     .build()
-                MediaSearchCursor(session, session.search(expression, spec), expression, strategy)
+                MediaSearchCursor(session, session.search(expression, spec), expression, strategy, hitFilter)
             } catch (failure: Throwable) {
                 session.close()
                 throw failure

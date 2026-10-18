@@ -17,9 +17,20 @@ data class ParsedSearchQuery(
     val personIds: List<String> = emptyList(),
     val fromMillisInclusive: Long? = null,
     val toMillisExclusive: Long? = null,
+    /**
+     * Scopes the search to a folder and everything below it: `in:Pictures/Trip` or `in:"Pictures/My Trip"`.
+     * Stored as the MediaStore-style relative path with a trailing slash, without the volume.
+     */
+    val folderPath: String? = null,
 ) {
     val isEmpty: Boolean get() = normalizedTerms.isEmpty() && kind == null && !favoriteOnly &&
-        personIds.isEmpty() && fromMillisInclusive == null && toMillisExclusive == null
+        personIds.isEmpty() && fromMillisInclusive == null && toMillisExclusive == null && folderPath == null
+}
+
+/** Builds the `in:` token for a folder, quoting the path when it has spaces. */
+fun folderScopeToken(relativePath: String): String {
+    val path = relativePath.trim('/')
+    return if (path.any(Char::isWhitespace)) "in:\"$path\"" else "in:$path"
 }
 
 object SearchTextNormalizer {
@@ -61,10 +72,15 @@ class SearchQueryParser(
         var favoriteOnly = false
         var from: Long? = null
         var to: Long? = null
+        var folder: String? = null
         val people = linkedSetOf<String>()
         val terms = mutableListOf<String>()
 
-        raw.trim().split(Whitespace).filter(String::isNotBlank).forEach { rawToken ->
+        // A quoted folder keeps its spaces: swap them for a placeholder while the query is split into tokens.
+        val quoted = QuotedFolder.replace(raw.trim()) { match ->
+            match.groupValues[1] + ":" + match.groupValues[2].replace(' ', SpacePlaceholder)
+        }
+        quoted.split(Whitespace).filter(String::isNotBlank).forEach { rawToken ->
             val token = SearchTextNormalizer.normalize(rawToken)
             val separator = rawToken.indexOf(':')
             val key = if (separator > 0) SearchTextNormalizer.normalize(rawToken.substring(0, separator)) else ""
@@ -72,6 +88,7 @@ class SearchQueryParser(
             val value = SearchTextNormalizer.normalize(rawValue)
             when (key) {
                 "tipo", "type", "typ" -> kind = parseKind(value) ?: kind
+                "in", "en", "dans", "em" -> parseFolder(rawValue.replace(SpacePlaceholder, ' '))?.let { folder = it }
                 "persona", "person" -> rawValue.lowercase(Locale.ROOT).validOpaqueId()?.let(people::add)
                 "fecha", "date" -> parseDateRange(value)?.let { (start, end) -> from = start; to = end }
                 "desde", "from" -> parseDateStart(value)?.let { from = it }
@@ -98,8 +115,13 @@ class SearchQueryParser(
             personIds = people.toList(),
             fromMillisInclusive = from,
             toMillisExclusive = to,
+            folderPath = folder,
         )
     }
+
+    private fun parseFolder(value: String): String? =
+        value.replace('\\', '/').split('/').map(String::trim).filter(String::isNotEmpty)
+            .takeIf(List<String>::isNotEmpty)?.joinToString("/", postfix = "/")
 
     private fun parseKind(value: String) = when (SearchVocabulary.resolve(value)) {
         SearchConcept.Image -> MediaKind.Image
@@ -142,6 +164,8 @@ class SearchQueryParser(
 
     private companion object {
         val Whitespace = Regex("\\s+")
+        val QuotedFolder = Regex("(?i)\\b(in|en|dans|em):\\\"([^\\\"]+)\\\"")
+        const val SpacePlaceholder = '\u0001'
         val OpaqueId = Regex("[a-z0-9_-]{1,100}")
     }
 }

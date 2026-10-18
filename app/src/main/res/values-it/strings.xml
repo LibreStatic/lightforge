@@ -168,4 +168,5 @@
     <string name="device_folders_search">Cerca cartelle</string>
     <string name="device_folders_sort_view">Ordine e vista</string>
     <string name="folder_op_copied">Cartella copiata</string>
+    <string name="device_folders_search_in_folder">Cerca in questa cartella</string>
 </resources>

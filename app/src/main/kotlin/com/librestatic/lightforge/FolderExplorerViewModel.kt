@@ -10,6 +10,7 @@ import com.librestatic.lightforge.core.data.FolderTreeRepository
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import com.librestatic.lightforge.core.data.MediaStoreChangeMonitor
+import com.librestatic.lightforge.core.search.folderScopeToken
 import com.librestatic.lightforge.core.preferences.GallerySettingsRepository
 import com.librestatic.lightforge.core.mediastore.AdvancedResult
 import com.librestatic.lightforge.core.mediastore.AdvancedStorage
@@ -87,6 +88,8 @@ data class FolderChrome(
     val searching: Boolean = false,
     /** The folder being shown can be searched and sorted (a folder level, not the volumes or a placeholder). */
     val canBrowseOptions: Boolean = false,
+    /** The folder being shown can scope the global search (`in:<path>`); the volume root cannot. */
+    val canSearchInFolder: Boolean = false,
 )
 
 /** What shapes the cards of a level besides the tree: view options, search, pins and the folder rules. */
@@ -261,10 +264,13 @@ class FolderExplorerViewModel @Inject constructor(
     val revokedWithHidden: StateFlow<Int> = status.map { it.revokedWithHidden }.distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
-    val chrome: StateFlow<FolderChrome> = combine(status, uiState, includeSubfolders, compactChains, searchOpen) { st, ui, subfolders, compact, searching ->
+    val chrome: StateFlow<FolderChrome> = combine(
+        status, uiState, includeSubfolders, compactChains, combine(searchOpen, location, ::Pair),
+    ) { st, ui, subfolders, compact, (searching, at) ->
         FolderChrome(
             searching = searching,
             canBrowseOptions = ui is FolderExplorerUiState.Folder,
+            canSearchInFolder = ui is FolderExplorerUiState.Folder && !at.relativePath.isNullOrBlank(),
             canCreateFolder = st.active && ui is FolderExplorerUiState.Folder,
             canShowHidden = st.active,
             temporaryShowHidden = st.temporaryShowHidden,
@@ -367,6 +373,11 @@ class FolderExplorerViewModel @Inject constructor(
 
     val currentViewOptions: FolderViewOptions
         get() = (uiState.value as? FolderExplorerUiState.Folder)?.options ?: FolderViewOptions()
+
+    /** The `in:` search token for the folder being shown, or null at a level that is no folder. */
+    fun searchScopeToken(): String? =
+        location.value.relativePath?.takeIf { it.isNotBlank() && uiState.value is FolderExplorerUiState.Folder }
+            ?.let(::folderScopeToken)
 
     fun togglePin(card: FolderCardUi) = setPinned(listOf(card), !card.isPinned)
 

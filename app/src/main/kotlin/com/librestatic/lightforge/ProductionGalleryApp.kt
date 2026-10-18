@@ -3208,6 +3208,14 @@ internal fun ProductionGalleryApp(
                                 onNewFolder = folderExplorer::beginNewFolder,
                                 onSearch = folderExplorer::openSearch,
                                 onSortAndView = folderExplorer::beginViewOptions,
+                                onSearchInFolder = {
+                                    // Opens the global search already scoped to this folder; the user adds the words.
+                                    folderExplorer.searchScopeToken()?.let { token ->
+                                        viewModel.setSearchQuery("$token ")
+                                        rootTab = RootTab.Search
+                                        route = SurfaceRoute.Root
+                                    }
+                                },
                                 onTemporaryShowHiddenChange = ::setTemporaryShowHidden,
                                 onIncludeSubfoldersChange = folderExplorer::setIncludeSubfolders,
                                 onCompactChainsChange = folderExplorer::setCompactChains,

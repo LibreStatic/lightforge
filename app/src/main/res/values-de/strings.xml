@@ -159,4 +159,5 @@
     <string name="device_folders_search">Ordner suchen</string>
     <string name="device_folders_sort_view">Sortierung und Ansicht</string>
     <string name="folder_op_copied">Ordner kopiert</string>
+    <string name="device_folders_search_in_folder">In diesem Ordner suchen</string>
 </resources>

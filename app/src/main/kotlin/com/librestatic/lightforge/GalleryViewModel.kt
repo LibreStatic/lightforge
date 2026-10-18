@@ -2097,7 +2097,10 @@ class GalleryViewModel @Inject constructor(
                     }
                     return@launch
                 }
-                val cursor = AppSearchMediaSearchRepository(getApplication()).search(raw, 100)
+                val repository = AppSearchMediaSearchRepository(getApplication())
+                val parsed = repository.parse(raw)
+                val scope = parsed.folderPath?.let { path -> folderScopeFilter(path) }
+                val cursor = repository.search(parsed, 100, scope)
                 if (!isCurrentSearch(generation, raw)) {
                     cursor.close()
                     return@launch
@@ -2109,7 +2112,7 @@ class GalleryViewModel @Inject constructor(
                 var semanticUnavailable = false
                 val semanticHits = if (SearchQueryParser().parse(raw).normalizedTerms.isEmpty()) emptyList()
                 else try {
-                    semanticSearchEngine?.search(raw).orEmpty()
+                    semanticSearchEngine?.search(raw).orEmpty().let { hits -> scope?.invoke(hits) ?: hits }
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (failure: Throwable) {
@@ -2135,6 +2138,20 @@ class GalleryViewModel @Inject constructor(
                     mutableSearch.value = GallerySearchUiState(raw, error = true)
                 }
             }
+        }
+    }
+
+    /** Keeps the search hits inside the folder an `in:` token names (and below it), judged from the library index. */
+    private fun folderScopeFilter(folderPath: String): suspend (List<MediaSearchHit>) -> List<MediaSearchHit> = { hits ->
+        val dao = runtime.value?.database?.libraryDao()
+        if (dao == null) {
+            emptyList()
+        } else {
+            val pattern = likePrefixPattern(folderPath)
+            val inside = hits.groupBy { it.key.volumeName }.flatMap { (volume, group) ->
+                group.map { it.key.mediaStoreId }.chunked(500).flatMap { ids -> dao.idsInFolder(volume, ids, pattern).map { volume to it } }
+            }.toSet()
+            hits.filter { (it.key.volumeName to it.key.mediaStoreId) in inside }
         }
     }
 

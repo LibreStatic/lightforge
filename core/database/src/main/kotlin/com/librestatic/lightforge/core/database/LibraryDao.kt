@@ -868,6 +868,16 @@ interface LibraryDao {
     )
     suspend fun accessibleIdsUnderPrefix(volumeName: String, relativePathPrefix: String): List<Long>
 
+    /**
+     * Which of [ids] are accessible rows inside the folder (or below it) matching the LIKE [pattern] over the
+     * relative path; used to scope a search with `in:`.
+     */
+    @Query(
+        "SELECT mediaStoreId FROM media_items WHERE volumeName = :volumeName AND isAccessible = 1 " +
+            "AND mediaStoreId IN (:ids) AND COALESCE(relativePath, '') LIKE :pattern ESCAPE '\\'",
+    )
+    suspend fun idsInFolder(volumeName: String, ids: List<Long>, pattern: String): List<Long>
+
     /** Hides the rows under a folder prefix that a MediaStore read did not return. */
     @Transaction
     suspend fun hideFolderRowsNotIn(volumeName: String, relativePathPrefix: String, seenIds: Set<Long>): Int {

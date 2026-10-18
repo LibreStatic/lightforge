@@ -168,4 +168,5 @@
     <string name="device_folders_search">Rechercher des dossiers</string>
     <string name="device_folders_sort_view">Tri et affichage</string>
     <string name="folder_op_copied">Dossier copié</string>
+    <string name="device_folders_search_in_folder">Rechercher dans ce dossier</string>
 </resources>

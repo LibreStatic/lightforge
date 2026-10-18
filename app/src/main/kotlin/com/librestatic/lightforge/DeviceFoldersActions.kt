@@ -27,6 +27,7 @@ internal fun RowScope.DeviceFoldersActions(
     onNewFolder: () -> Unit,
     onSearch: () -> Unit,
     onSortAndView: () -> Unit,
+    onSearchInFolder: () -> Unit,
     onTemporaryShowHiddenChange: (Boolean) -> Unit,
     onIncludeSubfoldersChange: (Boolean) -> Unit,
     onCompactChainsChange: (Boolean) -> Unit,
@@ -54,6 +55,13 @@ internal fun RowScope.DeviceFoldersActions(
                     checked = chrome.temporaryShowHidden,
                     tag = "device-folders-show-hidden",
                 ) { expanded = false; onTemporaryShowHiddenChange(!chrome.temporaryShowHidden) }
+            }
+            if (chrome.canSearchInFolder) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.device_folders_search_in_folder)) },
+                    onClick = { expanded = false; onSearchInFolder() },
+                    modifier = Modifier.testTag("device-folders-search-in-folder"),
+                )
             }
             if (chrome.canBrowseOptions) {
                 DropdownMenuItem(
