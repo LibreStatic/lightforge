@@ -124,6 +124,34 @@ class StorageEngineTest {
         assertTrue(File(volumeA, "Android/media/com.whatsapp").isDirectory)
     }
 
+    @Test fun moveAndCopyRefuseTargetsInTheAndroidMediaTree() {
+        val e = engine()
+        val one = File(dir("a"), "1.jpg").apply { writeText("1") }
+        val two = File(dir("a"), "2.jpg").apply { writeText("2") }
+        val target = File(volumeA, "Android/media/com.whatsapp/WhatsApp/1.jpg")
+        val moved = e.moveAll(listOf(one.path to target.path, two.path to File(volumeA, "android/MEDIA/x/2.jpg").path))
+        assertTrue(moved.all { it is AdvancedResult.Failed })
+        assertTrue(e.copyAll(listOf(one.path to target.path)).single() is AdvancedResult.Failed)
+        assertTrue(one.exists() && two.exists())
+        assertFalse(File(volumeA, "Android").exists())
+        assertTrue(e.renameInPlace(one.path, target.path) is AdvancedResult.Failed)
+    }
+
+    @Test fun standardTopLevelFoldersCannotBeRenamedMovedOrDeleted() {
+        val e = engine()
+        dir("Pictures/Trips")
+        for (name in listOf("DCIM", "pictures", "Download", "Podcasts", "Screenshots", "Audiobooks")) {
+            val path = dir(name).path
+            assertTrue(name, e.renameDirectory(path, "Other") is AdvancedResult.Failed)
+            assertTrue(name, e.moveDirectory(path, File(volumeA, "Pictures/Trips").path) is AdvancedResult.Failed)
+            assertTrue(name, e.deleteEmptyDirectory(path) is AdvancedResult.Failed)
+            assertTrue(name, File(path).isDirectory)
+        }
+        // Sub-folders and ordinary top-level folders stay manageable.
+        assertEquals(AdvancedResult.Done, e.renameDirectory(File(volumeA, "Pictures/Trips").path, "Trips2"))
+        assertEquals(AdvancedResult.Done, e.renameDirectory(dir("Mine").path, "Mine2"))
+    }
+
     @Test fun renameMovesFileButRefusesExistingTarget() {
         val src = File(dir("a"), "x.jpg").apply { writeText("1") }
         val dst = File(volumeA, "b/x.jpg")

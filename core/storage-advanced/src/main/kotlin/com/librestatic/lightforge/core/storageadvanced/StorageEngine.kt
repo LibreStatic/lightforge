@@ -191,7 +191,8 @@ internal class StorageEngine(
     private fun copyOne(source: String, target: String): Outcome {
         if (!isGranted()) return Refused(AdvancedResult.NotGranted)
         val from = validated(source) ?: return Refused(INVALID)
-        val to = validated(target) ?: return Refused(INVALID)
+        // Android/media/<package> is deleted with its app, so files never land anywhere in the Android tree.
+        val to = validatedFolder(target) ?: return Refused(INVALID)
         if (from.name.startsWith(PENDING_PREFIX) || from.name.startsWith(TRASHED_PREFIX)) {
             return Refused(AdvancedResult.Failed("Source is a pending or trashed item"))
         }
@@ -259,7 +260,8 @@ internal class StorageEngine(
     private fun renameOne(source: String, target: String): Outcome {
         if (!isGranted()) return Refused(AdvancedResult.NotGranted)
         val from = validated(source) ?: return Refused(INVALID)
-        val to = validated(target) ?: return Refused(INVALID)
+        // Android/media/<package> is deleted with its app, so files never land anywhere in the Android tree.
+        val to = validatedFolder(target) ?: return Refused(INVALID)
         if (from.name.startsWith(PENDING_PREFIX) || from.name.startsWith(TRASHED_PREFIX)) {
             return Refused(AdvancedResult.Failed("Source is a pending or trashed item"))
         }
@@ -300,6 +302,7 @@ internal class StorageEngine(
 
     fun renameDirectory(path: String, newName: String): AdvancedResult {
         val from = validatedFolder(path) ?: return INVALID
+        if (isStandardFolder(from)) return PROTECTED
         if (!validName(newName)) return AdvancedResult.Failed("Invalid folder name")
         val parent = from.parentFile ?: return INVALID
         return moveDir(from, File(parent, newName))
@@ -307,6 +310,7 @@ internal class StorageEngine(
 
     fun moveDirectory(path: String, newParent: String): AdvancedResult {
         val from = validatedFolder(path) ?: return INVALID
+        if (isStandardFolder(from)) return PROTECTED
         val parentDir = validatedFolder(newParent, allowRoot = true) ?: return INVALID
         if (!parentDir.isDirectory) return AdvancedResult.Failed("Not a directory")
         if (under(parentDir, from)) return AdvancedResult.Failed("Cannot move a folder into itself")
@@ -353,6 +357,7 @@ internal class StorageEngine(
 
     fun deleteEmptyDirectory(path: String): AdvancedResult {
         val dir = validatedFolder(path) ?: return INVALID
+        if (isStandardFolder(dir)) return PROTECTED
         if (!dir.isDirectory) return AdvancedResult.Failed("Not a directory")
         if (dir.list()?.isEmpty() != true) return AdvancedResult.Failed("Directory not empty")
         if (!dir.delete()) return AdvancedResult.Failed("Delete failed")
@@ -423,6 +428,13 @@ internal class StorageEngine(
         return if (first.equals("Android", ignoreCase = true)) null else file
     }
 
+    /** A standard top-level folder (DCIM, Pictures, Download...) that other apps and MediaStore rely on. */
+    private fun isStandardFolder(dir: File): Boolean {
+        val root = rootOf(dir) ?: return false
+        val relative = dir.relativeTo(root).path
+        return !relative.contains(File.separatorChar) && STANDARD_FOLDERS.any { it.equals(relative, ignoreCase = true) }
+    }
+
     private fun canonical(file: File): File = runCatching { file.canonicalFile }.getOrDefault(file.absoluteFile)
 
     private fun under(file: File, root: File): Boolean =
@@ -440,5 +452,10 @@ internal class StorageEngine(
         const val MTIME_TOLERANCE_MILLIS = 2_000L
         private const val MAX_NAME_LENGTH = 255
         private val INVALID = AdvancedResult.Failed("Path is not allowed")
+        private val PROTECTED = AdvancedResult.Failed("Standard folders cannot be renamed, moved or deleted")
+        private val STANDARD_FOLDERS = listOf(
+            "DCIM", "Pictures", "Download", "Movies", "Music", "Podcasts", "Ringtones", "Alarms",
+            "Notifications", "Documents", "Audiobooks", "Recordings", "Screenshots",
+        )
     }
 }

@@ -249,6 +249,24 @@ class FolderExplorerStateTest {
     }
 
     @Test
+    fun chainCompactionCanBeSwitchedOff() {
+        val root = FolderLocation("external_primary", null)
+        fun names(compact: Boolean) =
+            (buildFolderExplorerUiState(single, root, compactChains = compact) as FolderExplorerUiState.Folder).folders.map { it.name }
+        assertTrue(names(true).contains("Android/media/com.whatsapp/WhatsApp Images"))
+        assertTrue(names(false).contains("Android"))
+        assertTrue(names(false).none { it.contains('/') })
+
+        val deep = FolderLocation("external_primary", "Android/media/com.whatsapp/WhatsApp Images/")
+        val compactCrumbs = (buildFolderExplorerUiState(single, deep, compactChains = true) as FolderExplorerUiState.Folder).crumbs
+        val plainCrumbs = (buildFolderExplorerUiState(single, deep, compactChains = false) as FolderExplorerUiState.Folder).crumbs
+        assertEquals(2, compactCrumbs.size)
+        assertEquals(5, plainCrumbs.size)
+        assertEquals(FolderLocation("external_primary", "Android/media/com.whatsapp/"), parentLocation(single, deep, compactChains = false))
+        assertEquals(FolderLocation("external_primary", null), parentLocation(single, deep, compactChains = true))
+    }
+
+    @Test
     fun singleVolumeRootReportsItsSpace() {
         val space = VolumeSpace(null, 5, 10)
         val root = buildFolderExplorerUiState(single, FolderLocation.Start, mapOf("external_primary" to space)) as FolderExplorerUiState.Folder
@@ -300,6 +318,23 @@ class FolderExplorerStateTest {
         val mode = ExplorerMode.PickDestination(PickPurpose.MoveFolder, FolderLocation("external_primary", "Pictures/"))
         assertTrue(!mode.canChoose(FolderLocation("external_primary", null)))
         assertTrue(mode.canChoose(FolderLocation("external_primary", "DCIM/")))
+    }
+
+    @Test fun noPickerEverChoosesTheAndroidTree() {
+        for (purpose in PickPurpose.values()) {
+            val mode = ExplorerMode.PickDestination(purpose, FolderLocation("external_primary", "DCIM/Exports/"))
+            assertTrue(!mode.canChoose(FolderLocation("external_primary", "Android/media/com.whatsapp/WhatsApp/")))
+            assertTrue(!mode.canChoose(FolderLocation("external_primary", "android/media/")))
+        }
+    }
+
+    @Test fun standardTopLevelFoldersAreProtected() {
+        for (p in listOf(null, "", "DCIM/", "pictures/", "Download", "Podcasts/", "Screenshots/", "Audiobooks/")) {
+            assertTrue(p.toString(), isStandardFolder(p))
+        }
+        for (p in listOf("DCIM/Camera/", "Pictures/Trips/", "Trips/", "Podcasts2/")) {
+            assertTrue(p, !isStandardFolder(p))
+        }
     }
 
     @Test fun theAndroidTreeIsRecognisedInAnyCase() {

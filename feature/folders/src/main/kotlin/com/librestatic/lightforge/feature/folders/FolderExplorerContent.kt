@@ -666,25 +666,27 @@ private fun FolderMenu(
                 modifier = Modifier.testTag("folder-menu-unhide"),
             )
         }
-        DropdownMenuItem(
-            text = { Text(stringResource(R.string.folders_menu_move)) },
-            leadingIcon = { Icon(GalleryIcons.DriveFileMove, contentDescription = null) },
-            onClick = { onDismiss(); actions.onMove(folder) },
-            modifier = Modifier.testTag("folder-menu-move"),
-        )
-        DropdownMenuItem(
-            text = { Text(stringResource(R.string.folders_menu_rename)) },
-            leadingIcon = { Icon(GalleryIcons.Rename, contentDescription = null) },
-            onClick = { onDismiss(); onDialog(FolderDialog.Rename(folder)) },
-            modifier = Modifier.testTag("folder-menu-rename"),
-        )
-        if (folder.isEmptyDirectory && folder.subfolderCount == 0) {
+        if (!isStandardFolder(folder.location.relativePath)) {
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.folders_menu_delete)) },
-                leadingIcon = { Icon(GalleryIcons.Trash, contentDescription = null) },
-                onClick = { onDismiss(); onDialog(FolderDialog.Delete(folder)) },
-                modifier = Modifier.testTag("folder-menu-delete"),
+                text = { Text(stringResource(R.string.folders_menu_move)) },
+                leadingIcon = { Icon(GalleryIcons.DriveFileMove, contentDescription = null) },
+                onClick = { onDismiss(); actions.onMove(folder) },
+                modifier = Modifier.testTag("folder-menu-move"),
             )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.folders_menu_rename)) },
+                leadingIcon = { Icon(GalleryIcons.Rename, contentDescription = null) },
+                onClick = { onDismiss(); onDialog(FolderDialog.Rename(folder)) },
+                modifier = Modifier.testTag("folder-menu-rename"),
+            )
+            if (folder.isEmptyDirectory && folder.subfolderCount == 0) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.folders_menu_delete)) },
+                    leadingIcon = { Icon(GalleryIcons.Trash, contentDescription = null) },
+                    onClick = { onDismiss(); onDialog(FolderDialog.Delete(folder)) },
+                    modifier = Modifier.testTag("folder-menu-delete"),
+                )
+            }
         }
         DropdownMenuItem(
             text = { Text(stringResource(R.string.folders_menu_properties)) },

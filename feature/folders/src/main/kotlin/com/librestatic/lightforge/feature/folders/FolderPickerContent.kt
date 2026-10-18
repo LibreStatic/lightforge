@@ -64,7 +64,11 @@ fun FolderPickerContent(
                 navigationContentDescription = stringResource(R.string.folders_picker_back),
                 actions = {
                     if (onNewFolder != null) {
-                        IconButton(onClick = onNewFolder, enabled = here != null, modifier = Modifier.testTag("folder-picker-new-folder")) {
+                        IconButton(
+                            onClick = onNewFolder,
+                            enabled = here != null && here.relativePath?.let(::isAndroidAppTree) != true,
+                            modifier = Modifier.testTag("folder-picker-new-folder"),
+                        ) {
                             Icon(GalleryIcons.CreateNewFolder, contentDescription = stringResource(R.string.folders_new_title))
                         }
                     }

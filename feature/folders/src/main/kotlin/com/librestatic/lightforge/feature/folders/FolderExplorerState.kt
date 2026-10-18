@@ -43,6 +43,8 @@ enum class PickPurpose { Move, Copy, MoveFolder }
  */
 fun ExplorerMode.PickDestination.canChoose(here: FolderLocation?): Boolean {
     val volume = here?.volumeName ?: return false
+    // Android/media/<package> is wiped with its app, so nothing is ever moved or copied into the Android tree.
+    if (here.relativePath?.let(::isAndroidAppTree) == true) return false
     if (purpose != PickPurpose.MoveFolder) return true
     val source = sourceFolder ?: return false
     if (source.volumeName != volume) return false // a folder is only moved within its volume
@@ -151,6 +153,9 @@ sealed interface FolderExplorerUiState {
 /** A synthetic single-child folder is shown merged into its child ("A/B"), so it is never a stop. */
 private fun FolderNode<FolderStats>.isPassThrough() = direct == null && children.size == 1
 
+/** Whether [this] is merged into its only child; false for every node when compaction is switched off. */
+private fun FolderNode<FolderStats>.mergesIntoChild(compact: Boolean) = compact && isPassThrough()
+
 /** Clamps [location] to something that exists: a missing folder falls back to its nearest existing ancestor. */
 fun resolveLocation(tree: FolderTree, location: FolderLocation): FolderLocation {
     val volumes = tree.volumes
@@ -164,13 +169,13 @@ fun resolveLocation(tree: FolderTree, location: FolderLocation): FolderLocation 
 }
 
 /** The location Back leads to, or null when [location] is already the start level. */
-fun parentLocation(tree: FolderTree, location: FolderLocation): FolderLocation? {
+fun parentLocation(tree: FolderTree, location: FolderLocation, compactChains: Boolean = true): FolderLocation? {
     val resolved = resolveLocation(tree, location)
     val volume = resolved.volumeName ?: return null
     val path = resolved.relativePath ?: return if (tree.volumes.size > 1) FolderLocation.Start else null
     for (crumb in breadcrumb(path).dropLast(1).asReversed()) {
         val node = tree.find(volume, crumb.relativePath) ?: continue
-        if (!node.isPassThrough()) return FolderLocation(volume, crumb.relativePath)
+        if (!node.mergesIntoChild(compactChains)) return FolderLocation(volume, crumb.relativePath)
     }
     return FolderLocation(volume, null)
 }
@@ -178,7 +183,7 @@ fun parentLocation(tree: FolderTree, location: FolderLocation): FolderLocation? 
 /**
  * [isRecordedHide] tells whether this app hid the folder (advanced mode); [hiddenItems] are all hidden
  * rows, of which the ones stored in the current folder are shown; [includeSubfolders] widens the inline
- * file grid to the whole subtree.
+ * file grid to the whole subtree. [compactChains] merges chains of single-child folders into one card.
  */
 fun buildFolderExplorerUiState(
     tree: FolderTree,
@@ -187,6 +192,7 @@ fun buildFolderExplorerUiState(
     includeSubfolders: Boolean = false,
     hiddenItems: List<HiddenItemUi> = emptyList(),
     isRecordedHide: (FolderLocation) -> Boolean = { false },
+    compactChains: Boolean = true,
 ): FolderExplorerUiState {
     if (tree.volumes.isEmpty()) return FolderExplorerUiState.Empty
     val resolved = resolveLocation(tree, location)
@@ -219,9 +225,9 @@ fun buildFolderExplorerUiState(
         ?.let { FolderMediaScope(volumeName, it, includeSubfolders) }
     val here = path?.let(::normalizedFolderPath)
     return FolderExplorerUiState.Folder(
-        crumbs = crumbs(tree, volumeName, path, spaces[volumeName]?.label),
+        crumbs = crumbs(tree, volumeName, path, spaces[volumeName]?.label, compactChains),
         files = files,
-        folders = node.children.map { it.compactSingleChildChains() }.map { card(tree, it, isRecordedHide) },
+        folders = node.children.map { if (compactChains) it.compactSingleChildChains() else it }.map { card(tree, it, isRecordedHide) },
         media = media,
         hiddenItems = if (here == null) emptyList() else hiddenItems.filter {
             it.volumeName == volumeName && normalizedFolderPath(it.relativePath) == here
@@ -247,6 +253,19 @@ private fun album(node: FolderNode<FolderStats>, stats: FolderStats) = AlbumSumm
  */
 fun isAndroidAppTree(relativePath: String): Boolean =
     normalizedFolderPath(relativePath).trim('/').substringBefore('/').equals("Android", ignoreCase = true)
+
+/** Top-level folders every Android install and other apps rely on; the explorer never renames, moves or deletes them. */
+private val StandardTopLevelFolders = setOf(
+    "DCIM", "Pictures", "Download", "Movies", "Music", "Podcasts", "Ringtones", "Alarms",
+    "Notifications", "Documents", "Audiobooks", "Recordings", "Screenshots",
+)
+
+/** Whether [relativePath] is a volume root or a standard top-level folder (DCIM, Pictures, Download...). Case-insensitive. */
+fun isStandardFolder(relativePath: String?): Boolean {
+    val path = normalizedFolderPath(relativePath.orEmpty()).trimEnd('/')
+    if (path.isEmpty()) return true
+    return !path.contains('/') && StandardTopLevelFolders.any { it.equals(path, ignoreCase = true) }
+}
 
 /** "A/B/" for any spelling of the same folder path, so MediaStore and disk paths compare equal. */
 fun normalizedFolderPath(path: String): String =
@@ -320,7 +339,7 @@ fun validateFolderName(name: String, siblings: Collection<String>): FolderNamePr
 fun FolderLocation.leafName(): String? =
     relativePath?.trim('/')?.substringAfterLast('/')?.takeIf { it.isNotEmpty() }
 
-private fun crumbs(tree: FolderTree, volumeName: String, path: String?, volumeLabel: String?): List<CrumbUi> {
+private fun crumbs(tree: FolderTree, volumeName: String, path: String?, volumeLabel: String?, compactChains: Boolean): List<CrumbUi> {
     val segments = breadcrumb(path)
     val result = mutableListOf(
         CrumbUi(null, volumeName, volumeLabel, FolderLocation(volumeName, null), isCurrent = segments.isEmpty()),
@@ -331,7 +350,7 @@ private fun crumbs(tree: FolderTree, volumeName: String, path: String?, volumeLa
         val isLast = index == segments.lastIndex
         val node = tree.find(volumeName, segment.relativePath)
         // Segments that the card view merges ("Android/media") also merge into one crumb.
-        if (isLast || node == null || !node.isPassThrough()) {
+        if (isLast || node == null || !node.mergesIntoChild(compactChains)) {
             result += CrumbUi(pending, volumeName, volumeLabel, FolderLocation(volumeName, segment.relativePath), isCurrent = isLast)
             pending = null
         }

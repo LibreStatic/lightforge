@@ -106,6 +106,11 @@ fun FolderPickerMoveFolderPreview() = PickerFrame(
 fun FolderPickerNoSubfoldersPreview() =
     PickerFrame(PickPurpose.Move, advancedTree, FolderLocation("external_primary", "Pictures/Instagram/"))
 
+/** Inside Android/media: Move here and New folder are disabled, the system wipes that tree with its app. */
+@Composable
+fun FolderPickerAndroidTreePreview() =
+    PickerFrame(PickPurpose.Move, advancedTree, FolderLocation("external_primary", "Android/media/com.whatsapp/WhatsApp/Media/"))
+
 /** Two volumes at the volume list: nothing can be chosen yet. */
 @Composable
 fun FolderPickerVolumesPreview() = PickerFrame(PickPurpose.Copy, twoVolumes, FolderLocation.Start)
