@@ -106,6 +106,34 @@ class IncrementalMediaSynchronizerTest {
     }
 
     @Test
+    fun absentRowWhoseFileStillExistsIsHiddenNotDeleted() = runTest {
+        val key = MediaKey("external_primary", 42)
+        val store = FakeStore(checkpoint()).apply { items["external_primary" to 42] = record(42, 10).toEntity(1) }
+        var probed: Triple<String, String?, String?>? = null
+        val result = IncrementalMediaSynchronizer(
+            FakeDeltaSource(emptyList()), store, ::fullAccess,
+            fileStillExists = { volume, path, name -> probed = Triple(volume, path, name); true },
+        ).applyRowHint(key)
+
+        assertEquals(RowHintResult.Hidden, result)
+        assertEquals(0, store.deleteCount)
+        assertFalse(store.items.getValue("external_primary" to 42L).isAccessible)
+        assertEquals("external_primary", probed?.first)
+    }
+
+    @Test
+    fun absentRowWhoseFileIsGoneIsDeleted() = runTest {
+        val key = MediaKey("external_primary", 42)
+        val store = FakeStore(checkpoint()).apply { items["external_primary" to 42] = record(42, 10).toEntity(1) }
+        val result = IncrementalMediaSynchronizer(
+            FakeDeltaSource(emptyList()), store, ::fullAccess, fileStillExists = { _, _, _ -> false },
+        ).applyRowHint(key)
+
+        assertEquals(RowHintResult.Deleted, result)
+        assertEquals(1, store.deleteCount)
+    }
+
+    @Test
     fun hiddenRowIsNotDeletedEvenWithoutFullAccess() = runTest {
         val key = MediaKey("external_primary", 42)
         val store = FakeStore(checkpoint()).apply { items["external_primary" to 42] = record(42, 10).toEntity(1) }
@@ -288,6 +316,8 @@ class IncrementalMediaSynchronizerTest {
             missing.forEach { items[it.volumeName to it.mediaStoreId] = it.copy(isAccessible = false) }
             return missing.size
         }
+        override suspend fun mediaLocation(volumeName: String, id: Long) =
+            items[volumeName to id]?.let { MediaLocation(it.relativePath, it.displayName) }
         override suspend fun deleteMedia(volumeName: String, id: Long): Int {
             deleteCount++
             return if (items.remove(volumeName to id) != null) 1 else 0

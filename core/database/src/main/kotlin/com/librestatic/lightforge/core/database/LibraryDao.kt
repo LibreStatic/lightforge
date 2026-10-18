@@ -882,11 +882,17 @@ interface LibraryDao {
     @Query("UPDATE media_items SET isAccessible = 0 WHERE volumeName = :volumeName")
     suspend fun markVolumeInaccessible(volumeName: String): Int
 
+    /**
+     * Ghost rule of the physical album lists: a folder whose rows are all inaccessible is listed only when its
+     * whole volume has no accessible row (an unmounted volume). On a mounted volume it is a folder that was
+     * hidden, moved, renamed or deleted, and it is left out instead of showing "storage unavailable".
+     */
     @Query(
         """
         SELECT m.volumeName, m.bucketId, MAX(m.bucketDisplayName) AS displayName,
             MAX(m.relativePath) AS relativePath,
-            COUNT(*) AS itemCount, MAX(m.timelineSortMillis) AS latestSortMillis,
+            CASE WHEN MAX(m.isAccessible) = 1 THEN SUM(m.isAccessible) ELSE COUNT(*) END AS itemCount,
+            MAX(m.timelineSortMillis) AS latestSortMillis,
             (SELECT cover.mediaStoreId FROM media_items AS cover
              WHERE cover.volumeName = m.volumeName AND cover.bucketId = m.bucketId
                 AND cover.isTrashed = 0
@@ -896,6 +902,8 @@ interface LibraryDao {
         FROM media_items AS m
         WHERE m.bucketId IS NOT NULL AND m.isTrashed = 0
         GROUP BY m.volumeName, m.bucketId
+        HAVING MAX(m.isAccessible) = 1
+            OR NOT EXISTS (SELECT 1 FROM media_items AS live WHERE live.volumeName = m.volumeName AND live.isAccessible = 1)
         ORDER BY latestSortMillis DESC, m.bucketId DESC, m.volumeName DESC
         """,
     )
@@ -905,7 +913,8 @@ interface LibraryDao {
         """
         SELECT m.volumeName, m.bucketId, MAX(m.bucketDisplayName) AS displayName,
             MAX(m.relativePath) AS relativePath,
-            COUNT(*) AS itemCount, MAX(m.timelineSortMillis) AS latestSortMillis,
+            CASE WHEN MAX(m.isAccessible) = 1 THEN SUM(m.isAccessible) ELSE COUNT(*) END AS itemCount,
+            MAX(m.timelineSortMillis) AS latestSortMillis,
             (SELECT cover.mediaStoreId FROM media_items AS cover
              WHERE cover.volumeName=m.volumeName AND cover.bucketId=m.bucketId AND cover.isTrashed=0
              ORDER BY cover.isAccessible DESC, cover.timelineSortMillis DESC, cover.mediaStoreId DESC LIMIT 1)
@@ -914,6 +923,8 @@ interface LibraryDao {
         FROM media_items AS m
         WHERE m.bucketId IS NOT NULL AND m.isTrashed=0
         GROUP BY m.volumeName, m.bucketId
+        HAVING MAX(m.isAccessible) = 1
+            OR NOT EXISTS (SELECT 1 FROM media_items AS live WHERE live.volumeName = m.volumeName AND live.isAccessible = 1)
         ORDER BY latestSortMillis DESC, m.bucketId DESC, m.volumeName DESC
         """,
     )

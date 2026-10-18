@@ -7464,6 +7464,10 @@ class GalleryViewModel @Inject constructor(
             scanner = InitialMediaScanner(reader, store, { permissions.access.value }),
             synchronizer = IncrementalMediaSynchronizer(
                 reader, store, { permissions.access.value }, refreshMutex = refreshMutex,
+                fileStillExists = { volume, relativePath, displayName ->
+                    advancedStorage.absolutePathOf(volume, relativePath, displayName)
+                        ?.let { path -> java.io.File(path).exists() } == true
+                },
             ),
             generations = MediaStoreGenerationProbe(context),
             thumbnails = thumbnailFactory(),

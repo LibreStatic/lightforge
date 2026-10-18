@@ -27,7 +27,13 @@ interface IncrementalMediaIndexStore : MediaIndexStore {
 
     /** Hides the accessible rows under [relativePathPrefix] whose id is not in [seenIds]. */
     suspend fun hideFolderRowsNotIn(volumeName: String, relativePathPrefix: String, seenIds: Set<Long>): Int
+
+    /** Where the indexed row says its file lives, or null when the row is unknown. */
+    suspend fun mediaLocation(volumeName: String, id: Long): MediaLocation? = null
 }
+
+/** The MediaStore folder and file name of an indexed row. */
+data class MediaLocation(val relativePath: String?, val displayName: String?)
 
 sealed interface IncrementalSyncResult {
     data object NoChange : IncrementalSyncResult
@@ -60,6 +66,13 @@ class IncrementalMediaSynchronizer(
     private val pageSize: Int = 256,
     /** Shared with the library refresh so a folder reconcile never interleaves with a scan's sweep. */
     private val refreshMutex: Mutex = Mutex(),
+    /**
+     * Second probe for a row MediaStore no longer shows us: true when the file is still on disk. Without
+     * All files access a `.nomedia` made by another app turns a row into one owned by someone else, which
+     * reads as absent; deleting it would drop its favourites and albums, so such a row is hidden instead.
+     */
+    private val fileStillExists: (volumeName: String, relativePath: String?, displayName: String?) -> Boolean =
+        { _, _, _ -> false },
 ) {
     init { require(pageSize in 1..1_000) }
 
@@ -165,6 +178,11 @@ class IncrementalMediaSynchronizer(
                 val access = currentAccess()
                 if (access.images != GrantLevel.Full || access.videos != GrantLevel.Full)
                     return@withContext RowHintResult.PermissionLost
+                val location = store.mediaLocation(key.volumeName, key.mediaStoreId)
+                if (location != null && fileStillExists(key.volumeName, location.relativePath, location.displayName)) {
+                    store.markMediaInaccessible(key.volumeName, key.mediaStoreId)
+                    return@withContext RowHintResult.Hidden
+                }
                 store.deleteMedia(key.volumeName, key.mediaStoreId)
                 RowHintResult.Deleted
             }
