@@ -69,14 +69,21 @@ fun PublicationRecoveriesContent(onBack: () -> Unit, modifier: Modifier = Modifi
         color = MaterialTheme.colorScheme.background, contentColor = MaterialTheme.colorScheme.onBackground) {
         Column(Modifier.fillMaxSize()) {
             GalleryTopAppBar(title = stringResource(R.string.publication_recoveries_title),
-                onBack = { if (!state.busy) onBack() }, navigationContentDescription = stringResource(R.string.publication_recoveries_back))
-            LazyColumn(Modifier.fillMaxSize().testTag("publication-recoveries-list"), contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                item("toolbar") {
-                    OutlinedButton(onClick = model::refresh, enabled = !state.busy, modifier = Modifier.testTag("publication-recoveries-refresh")) {
-                        Text(stringResource(R.string.publication_recoveries_refresh))
+                onBack = { if (!state.busy) onBack() }, navigationContentDescription = stringResource(R.string.publication_recoveries_back),
+                actions = {
+                    IconButton(onClick = model::refresh, enabled = !state.busy, modifier = Modifier.testTag("publication-recoveries-refresh")) {
+                        Icon(GalleryIcons.Refresh, contentDescription = stringResource(R.string.publication_recoveries_refresh))
                     }
-                }
+                })
+            val showEmpty = state.initialized && !state.busy && state.entries.isEmpty() && state.message == null
+            if (showEmpty) GalleryEmptyState(
+                title = stringResource(R.string.publication_recoveries_empty),
+                body = stringResource(R.string.publication_recoveries_empty_body),
+                icon = GalleryIcons.History,
+                hero = true,
+                modifier = Modifier.weight(1f).fillMaxWidth().testTag("publication-recoveries-empty"),
+            ) else LazyColumn(Modifier.weight(1f).fillMaxWidth().testTag("publication-recoveries-list"), contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (state.busy || !state.initialized) item("busy") {
                     Column {
                         GalleryIndeterminateProgressIndicator(Modifier.fillMaxWidth().testTag("publication-recoveries-busy"))
@@ -95,16 +102,6 @@ fun PublicationRecoveriesContent(onBack: () -> Unit, modifier: Modifier = Modifi
                         }), Modifier.padding(12.dp).testTag("publication-recoveries-message"))
                     }
                 } }
-                if (state.initialized && !state.busy && state.entries.isEmpty() && state.message == null) item("empty") {
-                    GalleryEmptyState(
-                        title = stringResource(R.string.publication_recoveries_empty),
-                        body = stringResource(R.string.publication_recoveries_empty_body),
-                        icon = GalleryIcons.History,
-                        hero = true,
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 320.dp)
-                            .testTag("publication-recoveries-empty"),
-                    )
-                }
                 items(state.entries, key = { it.key }) { entry ->
                     val selected = entry.key == state.selectedKey
                     Surface(Modifier.fillMaxWidth().selectable(selected, enabled = !state.busy, role = Role.RadioButton,
