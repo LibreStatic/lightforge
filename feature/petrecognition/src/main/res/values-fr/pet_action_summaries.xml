@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="pet_download_summary">Télécharge une fois les modèles de reconnaissance sur l\'appareil (environ 58 Mo)</string>
+    <string name="pet_download_summary">Télécharge une fois les modèles de reconnaissance sur l\'appareil</string>
     <string name="pet_import_summary">Charge un paquet de modèles déjà vérifié, sans téléchargement</string>
     <string name="pet_enable_summary">Active la reconnaissance des animaux avec les modèles installés</string>
     <string name="pet_analyze_summary">Cherche les chats et les chiens dans les photos de cet appareil</string>
