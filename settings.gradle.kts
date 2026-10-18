@@ -38,6 +38,7 @@ include(
     ":core:raw",
     ":core:editing-video",
     ":core:frame-interpolation",
+    ":core:legacy-video",
     ":core:preferences",
     ":core:security",
     ":core:designsystem",

@@ -130,6 +130,8 @@ val verbatimLicenseCopies = listOf(
     "COPYRIGHT" to "app/src/main/assets/licenses/Lightforge-Copyright.txt",
     "core/raw/third_party/libraw/LICENSE.LGPL" to "app/src/main/assets/licenses/LibRaw-LGPL.txt",
     "core/raw/third_party/libraw/LICENSE.CDDL" to "app/src/main/assets/licenses/LibRaw-CDDL.txt",
+    "core/legacy-video/third_party/ffmpeg/COPYING.LGPLv2.1" to
+        "app/src/main/assets/licenses/FFmpeg-LGPL-2.1.txt",
     "core/frame-interpolation/src/main/resources/META-INF/NCNN_LICENSE.txt" to
         "app/src/main/assets/licenses/ncnn-BSD-3-Clause-and-notices.txt",
     "core/frame-interpolation/src/main/resources/META-INF/RIFE_NCNN_LICENSE.txt" to

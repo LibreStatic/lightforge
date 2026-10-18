@@ -1,0 +1,12 @@
+FFmpeg 7.1.2 (LGPL 2.1+ only: no --enable-gpl, no --enable-nonfree)
+Source:  https://ffmpeg.org/releases/ffmpeg-7.1.2.tar.xz
+SHA-256: 089bc60fb59d6aecc5d994ff530fd0dcb3ee39aa55867849a2bbc4e555f9c304
+
+Only libavcodec/libavutil sources and headers that the flv, vp6f and vp6a decoders
+actually compile are kept (FFmpeg's directory layout). Per-ABI generated files
+(config.h, config_components.h, codec_list.c, ... and sources.cmake) are in config/<abi>/.
+
+Common configure flags: --disable-everything --disable-asm --disable-programs --disable-doc --disable-network --disable-avdevice --disable-avformat --disable-avfilter --disable-swresample --disable-swscale --disable-postproc --disable-autodetect --disable-jni --disable-mediacodec --disable-hwaccels --disable-debug --disable-stripping --enable-decoder=flv,vp6f,vp6a --enable-pic --enable-small --enable-cross-compile --target-os=android 
+Per ABI: --arch/--cpu/--cc/--ar/--ranlib/--nm/--strip/--sysroot of NDK 27.1.12297006, API 30, --extra-cflags=-MMD.
+
+Regenerate with scripts/ffmpeg/vendor-ffmpeg.sh
