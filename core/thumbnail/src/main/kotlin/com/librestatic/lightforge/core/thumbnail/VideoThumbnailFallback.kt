@@ -39,6 +39,7 @@ internal class VideoThumbnailFallback(context: Context) {
         false
     }
 
+    @OptIn(UnstableApi::class)
     @WorkerThread
     fun decodeThumbnail(uri: Uri, size: Size, signal: CancellationSignal): Bitmap {
         signal.throwIfCanceled()
