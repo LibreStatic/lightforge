@@ -195,6 +195,85 @@ fun SmartAlbumsContent(
                     modifier = Modifier.testTag("smart-top-bar").semantics { heading() },
                     // The shell scaffold already placed this route below the status bar.
                     windowInsets = WindowInsets(0, 0, 0, 0),
+                    actions = {
+                        var menuOpen by remember { mutableStateOf(false) }
+                        val row = album
+                        when {
+                            page == SmartPage.Home -> {
+                                IconButton(
+                                    onClick = {
+                                        selectedId = null
+                                        edit(null)
+                                    },
+                                    modifier = Modifier.testTag("smart-create"),
+                                ) {
+                                    Icon(
+                                        GalleryIcons.Plus,
+                                        contentDescription = stringResource(R.string.smart_create),
+                                    )
+                                }
+                                SmartMenu(menuOpen, { menuOpen = it }) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.smart_analysis)) },
+                                        onClick = {
+                                            menuOpen = false
+                                            onAnalysis()
+                                        },
+                                        leadingIcon = {
+                                            Icon(GalleryIcons.Settings, contentDescription = null)
+                                        },
+                                        modifier = Modifier.testTag("smart-analysis"),
+                                    )
+                                }
+                            }
+                            page == SmartPage.Editor ->
+                                IconButton(
+                                    onClick = { page = SmartPage.Preview },
+                                    enabled = !busy && draft.validYear && !stale,
+                                    modifier = Modifier.testTag("smart-preview"),
+                                ) {
+                                    Icon(
+                                        GalleryIcons.Search,
+                                        contentDescription = stringResource(R.string.smart_preview),
+                                    )
+                                }
+                            page == SmartPage.Detail && row != null -> {
+                                IconButton(
+                                    onClick = { edit(row) },
+                                    enabled = !busy,
+                                    modifier = Modifier.testTag("smart-edit"),
+                                ) {
+                                    Icon(
+                                        GalleryIcons.Edit,
+                                        contentDescription = stringResource(R.string.smart_edit),
+                                    )
+                                }
+                                SmartMenu(menuOpen, { menuOpen = it }) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.smart_excluded)) },
+                                        onClick = {
+                                            menuOpen = false
+                                            page = SmartPage.Exclusions
+                                        },
+                                        enabled = !busy,
+                                        modifier = Modifier.testTag("smart-manage-exclusions"),
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.smart_delete)) },
+                                        onClick = {
+                                            menuOpen = false
+                                            deleting = true
+                                        },
+                                        enabled = !busy,
+                                        leadingIcon = {
+                                            Icon(GalleryIcons.Trash, contentDescription = null)
+                                        },
+                                        modifier = Modifier.testTag("smart-delete"),
+                                    )
+                                }
+                            }
+                        }
+                    },
                 )
                 Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                 GalleryProgressSlot(busy)
@@ -226,15 +305,10 @@ fun SmartAlbumsContent(
                         SmartHome(
                             repository,
                             content,
-                            onNew = {
-                                selectedId = null
-                                edit(null)
-                            },
                             onOpen = {
                                 selectedId = it
                                 page = SmartPage.Detail
                             },
-                            onAnalysis = onAnalysis,
                         )
                     SmartPage.Editor ->
                         SmartEditor(
@@ -248,7 +322,6 @@ fun SmartAlbumsContent(
                             onDraft = { change -> draft = change(draft) },
                             onTopic = { page = SmartPage.Topics },
                             onPerson = { page = SmartPage.People },
-                            onPreview = { page = SmartPage.Preview },
                             onReload = { album?.let { edit(it) } },
                             onSave = {
                                 val snapshot = draft
@@ -376,35 +449,6 @@ fun SmartAlbumsContent(
                                     item(span = { GridItemSpan(maxLineSpan) }) {
                                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                             SmartSummary(row, repository, retry) { error = it }
-                                            Row(
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                OutlinedButton(
-                                                    onClick = { edit(row) },
-                                                    enabled = !busy,
-                                                    modifier =
-                                                        Modifier.weight(1f).testTag("smart-edit"),
-                                                ) {
-                                                    Text(stringResource(R.string.smart_edit))
-                                                }
-                                                OutlinedButton(
-                                                    onClick = { page = SmartPage.Exclusions },
-                                                    enabled = !busy,
-                                                    modifier =
-                                                        Modifier.weight(1f)
-                                                            .testTag("smart-manage-exclusions"),
-                                                ) {
-                                                    Text(stringResource(R.string.smart_excluded))
-                                                }
-                                            }
-                                            TextButton(
-                                                onClick = { deleting = true },
-                                                enabled = !busy,
-                                                modifier =
-                                                    Modifier.fillMaxWidth().testTag("smart-delete"),
-                                            ) {
-                                                Text(stringResource(R.string.smart_delete))
-                                            }
                                             undo?.let { receipt ->
                                                 Surface(
                                                     color =
@@ -491,9 +535,7 @@ fun SmartAlbumsContent(
 private fun SmartHome(
     repository: GallerySmartAlbumRepository,
     modifier: Modifier,
-    onNew: () -> Unit,
     onOpen: (String) -> Unit,
-    onAnalysis: () -> Unit,
 ) {
     val albums = remember(repository) { repository.albums() }.collectAsLazyPagingItems()
     LazyColumn(
@@ -503,9 +545,6 @@ private fun SmartHome(
     ) {
         item {
             Text(stringResource(R.string.smart_local))
-            Button(onClick = onNew, modifier = Modifier.fillMaxWidth().testTag("smart-create")) {
-                Text(stringResource(R.string.smart_create))
-            }
         }
         item { SmartPagingStatus(albums, R.string.smart_empty_albums) }
         items(albums.itemCount, key = albums.itemKey { it.albumId }) { index ->
@@ -524,11 +563,6 @@ private fun SmartHome(
                 }
             }
         }
-        item {
-            TextButton(onClick = onAnalysis, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.smart_analysis))
-            }
-        }
     }
 }
 
@@ -544,7 +578,6 @@ private fun SmartEditor(
     onDraft: ((SmartAlbumDraft) -> SmartAlbumDraft) -> Unit,
     onTopic: () -> Unit,
     onPerson: () -> Unit,
-    onPreview: () -> Unit,
     onReload: () -> Unit,
     onSave: () -> Unit,
 ) {
@@ -577,33 +610,29 @@ private fun SmartEditor(
             )
         }
         item {
-            OutlinedButton(
-                onClick = onTopic,
+            SmartPickerRow(
+                headline = stringResource(R.string.smart_topic),
+                value = smartTopic(draft.topic),
                 enabled = !busy,
-                modifier = Modifier.fillMaxWidth().testTag("smart-topic"),
-            ) {
-                Text(stringResource(R.string.smart_topic_value, smartTopic(draft.topic)))
-            }
+                tag = "smart-topic",
+                onClick = onTopic,
+            )
         }
         item {
-            OutlinedButton(
-                onClick = onPerson,
+            SmartPickerRow(
+                headline = stringResource(R.string.smart_person),
+                value =
+                    if (draft.personId == null) stringResource(R.string.smart_any_person)
+                    else
+                        person?.displayName
+                            ?: stringResource(
+                                if (person == null) R.string.smart_unavailable_person
+                                else R.string.smart_unnamed_person
+                            ),
                 enabled = !busy,
-                modifier = Modifier.fillMaxWidth().testTag("smart-person"),
-            ) {
-                Text(
-                    stringResource(
-                        R.string.smart_person_value,
-                        if (draft.personId == null) stringResource(R.string.smart_any_person)
-                        else
-                            person?.displayName
-                                ?: stringResource(
-                                    if (person == null) R.string.smart_unavailable_person
-                                    else R.string.smart_unnamed_person
-                                ),
-                    )
-                )
-            }
+                tag = "smart-person",
+                onClick = onPerson,
+            )
         }
         item {
             OutlinedTextField(
@@ -648,13 +677,6 @@ private fun SmartEditor(
             }
         }
         item {
-            OutlinedButton(
-                onClick = onPreview,
-                enabled = !busy && draft.validYear && !stale,
-                modifier = Modifier.fillMaxWidth().testTag("smart-preview"),
-            ) {
-                Text(stringResource(R.string.smart_preview))
-            }
             Button(
                 onClick = onSave,
                 enabled = !busy && draft.validName && draft.validYear && !stale,
@@ -1093,5 +1115,35 @@ private fun SmartConfirm(title: Int, hint: Int, onCancel: () -> Unit, onConfirm:
         dismissButton = {
             TextButton(onClick = onCancel) { Text(stringResource(R.string.smart_cancel)) }
         },
+    )
+}
+
+@Composable
+private fun SmartMenu(
+    open: Boolean,
+    onOpenChange: (Boolean) -> Unit,
+    items: @Composable ColumnScope.() -> Unit,
+) {
+    Box {
+        IconButton(onClick = { onOpenChange(true) }, modifier = Modifier.testTag("smart-menu")) {
+            Icon(GalleryIcons.More, contentDescription = stringResource(R.string.smart_more))
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { onOpenChange(false) }, content = items)
+    }
+}
+
+@Composable
+private fun SmartPickerRow(
+    headline: String,
+    value: String,
+    enabled: Boolean,
+    tag: String,
+    onClick: () -> Unit,
+) {
+    ListItem(
+        headlineContent = { Text(headline) },
+        supportingContent = { Text(value) },
+        trailingContent = { Icon(GalleryIcons.ChevronForward, contentDescription = null) },
+        modifier = Modifier.fillMaxWidth().clickable(enabled = enabled, role = Role.Button, onClick = onClick).testTag(tag),
     )
 }

@@ -138,6 +138,20 @@ class SmartAlbumsAppDeviceTest {
             error("Missing smart control $tag")
         }
         fun click(tag: String) {
+            // Excluded photos and Delete album live in the top bar overflow menu.
+            // Popup menu items are matched by their text: popups are separate semantics roots.
+            val menuItem =
+                when (tag) {
+                    "smart-manage-exclusions" -> com.librestatic.lightforge.feature.collections.R.string.smart_excluded
+                    "smart-delete" -> com.librestatic.lightforge.feature.collections.R.string.smart_delete
+                    else -> null
+                }
+            if (menuItem != null) {
+                tag("smart-menu").click()
+                device.waitForIdle()
+                clickText(context.getString(menuItem))
+                return
+            }
             tag(tag).click()
             device.waitForIdle()
         }
