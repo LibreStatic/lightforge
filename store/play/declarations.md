@@ -117,7 +117,8 @@ Summary answer: **no user data is collected or shared with the developer or any 
 |---|---|
 | Photo and video permissions policy (`READ_MEDIA_IMAGES`, `READ_MEDIA_VIDEO`, `READ_MEDIA_VISUAL_USER_SELECTED`) | Use the Play Console declaration form. Core use case is a gallery that browses, searches, organizes and edits the user's full library, which qualifies as core functionality (not a one-off pick). The photo picker is not sufficient for persistent, indexed, 100k+ item timelines. Mention that partial (selected items) access is supported. |
 | `ACCESS_MEDIA_LOCATION` | Needed to read photo GPS EXIF for the on-device Places map and "share without location" controls. |
-| `MANAGE_EXTERNAL_STORAGE` | Not declared. |
+| `MANAGE_EXTERNAL_STORAGE` | Opt-in advanced storage mode (ADR-046). Use the "All files access" declaration: core functionality is local backup and restore, own-server SFTP/SMB mirroring, device-to-device migration and the encrypted Private Album; the mode also manages hidden folders and moves files in place. Off until the user enables it in Settings. **If rejected**, build the Play release with `-Plightforge.allFilesAccess=false`, which removes the permission without code changes. |
+| `MANAGE_MEDIA` | Optional special access (Android 12+) so confirmed batch edits, trash and deletes do not prompt per batch. No declaration form. **[CONFIRM]** against the current Play policy before the first upload that includes it. |
 | `ACCESS_FINE_LOCATION` / `ACCESS_COARSE_LOCATION` | Not declared (explicitly removed from merged manifest). |
 | `INTERNET`, `ACCESS_NETWORK_STATE` | Used for user-initiated model/map downloads, user-configured servers, local-network sharing. |
 | `ACCESS_LOCAL_NETWORK` | Android-to-Android transfer on the local network. |

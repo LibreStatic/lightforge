@@ -894,6 +894,36 @@ interface LibraryDao {
     )
     fun physicalAlbumOptions(): Flow<List<PhysicalAlbumRow>>
 
+    /**
+     * Live folder inventory for the explorer. Same visibility predicate as [physicalAlbumOptions]
+     * (non-trashed rows). Folders with a path group by (volume, path); path-less rows group per
+     * (volume, bucket), mirroring how Settings keys them. Rows with neither stay in one group per volume.
+     */
+    @Query(
+        """
+        SELECT m.volumeName, m.relativePath, MAX(m.bucketId) AS bucketId,
+            MAX(m.bucketDisplayName) AS displayName,
+            COUNT(*) AS directCount,
+            SUM(CASE WHEN m.mediaType = 1 THEN 1 ELSE 0 END) AS imageCount,
+            SUM(CASE WHEN m.mediaType = 3 THEN 1 ELSE 0 END) AS videoCount,
+            SUM(m.sizeBytes) AS totalBytes,
+            MIN(m.timelineSortMillis) AS minSortMillis, MAX(m.timelineSortMillis) AS maxSortMillis,
+            (SELECT cover.mediaStoreId FROM media_items AS cover
+             WHERE cover.volumeName = m.volumeName AND cover.isTrashed = 0
+                AND ((m.relativePath IS NOT NULL AND cover.relativePath = m.relativePath)
+                  OR (m.relativePath IS NULL AND cover.relativePath IS NULL
+                      AND cover.bucketId IS m.bucketId))
+             ORDER BY cover.isAccessible DESC, cover.timelineSortMillis DESC,
+                cover.mediaStoreId DESC LIMIT 1) AS coverMediaStoreId,
+            MAX(m.isAccessible) AS isAvailable
+        FROM media_items AS m
+        WHERE m.isTrashed = 0
+        GROUP BY m.volumeName, m.relativePath,
+            CASE WHEN m.relativePath IS NULL THEN m.bucketId END
+        """,
+    )
+    fun folderSummaries(): Flow<List<FolderSummaryRow>>
+
     @Insert
     suspend fun insertVirtualAlbum(album: VirtualAlbumEntity): Long
 

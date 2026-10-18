@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="folders_internal_storage">Memoria interna</string>
+    <string name="folders_files_in_folder">File in questa cartella</string>
+    <string name="folders_empty_title">Nessuna cartella sul dispositivo</string>
+    <string name="folders_empty_body">Le cartelle con foto e video appariranno qui.</string>
+    <string name="folders_path_label">Percorso della cartella</string>
+    <string name="folders_current_folder">Cartella attuale</string>
+    <string name="folders_storage_space">%1$s liberi su %2$s</string>
+    <string name="folders_loading">Caricamento delle cartelle</string>
+    <plurals name="folders_item_count">
+        <item quantity="one">%1$d elemento</item>
+        <item quantity="other">%1$d elementi</item>
+    </plurals>
+    <plurals name="folders_subfolder_count">
+        <item quantity="one">%1$d cartella</item>
+        <item quantity="other">%1$d cartelle</item>
+    </plurals>
+</resources>

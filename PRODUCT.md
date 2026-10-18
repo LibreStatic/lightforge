@@ -20,7 +20,7 @@ Lightforge is a 100% native Android gallery app that makes managing massive loca
 
 ## Positioning
 
-A gallery that scales to quarter-million-item libraries on-device, with local ML organization, no service dependency, and no OEM privilege assumptions. Connectivity is used only to download user-controlled, signed semantic model packages; gallery data and queries never leave the device. Unlike stock gallery apps, it does not assume MANAGE_EXTERNAL_STORAGE or OEM media-management privileges. The differentiator is full local-first architecture: MediaStore as authority, Room/AppSearch/ML as rebuildable indexes, and a system-permission-respecting access model.
+A gallery that scales to quarter-million-item libraries on-device, with local ML organization, no service dependency, and no OEM privilege assumptions. Connectivity is used only to download user-controlled, signed semantic model packages; gallery data and queries never leave the device. Unlike stock gallery apps, it does not depend on MANAGE_EXTERNAL_STORAGE or OEM privileges: all-files access is an opt-in, removable advanced mode (ADR-046). The differentiator is full local-first architecture: MediaStore as authority, Room/AppSearch/ML as rebuildable indexes, and a system-permission-respecting access model.
 
 ## Operating Context
 
@@ -53,7 +53,7 @@ A gallery that scales to quarter-million-item libraries on-device, with local ML
 - Accessibility: TalkBack, font scale, touch targets >= 48dp.
 - Localization: English, Spanish, French, Portuguese, Italian, and German.
 - INTERNET access is restricted to verified semantic model package delivery; no user content, metadata, query, embedding, or inference traffic.
-- No MANAGE_EXTERNAL_STORAGE, no MANAGE_MEDIA, no OEM privilege assumptions.
+- MediaStore is the default and sufficient access model. `MANAGE_MEDIA` is optional (skips per-batch confirmations); `MANAGE_EXTERNAL_STORAGE` is an opt-in advanced mode isolated in `:core:storage-advanced` and removable with `-Plightforge.allFilesAccess=false` (ADR-046). No OEM privilege assumptions.
 - No misleading P2 stubs; features either work or degrade explicitly.
 
 ## Brand Commitments

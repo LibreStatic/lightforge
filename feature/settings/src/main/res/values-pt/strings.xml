@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="settings_library">Biblioteca</string>
     <string name="settings_library_sort">Ordenar por</string>
     <string name="settings_sort_date_taken">Data da captura</string>
@@ -221,4 +221,52 @@
     <string name="settings_warning_virtual_crop_portable">Corte virtual ao exportar o álbum privado</string>
     <string name="settings_warning_virtual_crop_portable_supporting">Avisa que um backup do álbum privado mantém as fotos RAW completas, inclusive a imagem fora do corte.</string>
     <string name="settings_warnings_show_all">Mostrar todos os avisos novamente</string>
+    <!-- Storage access (ADR-046) -->
+    <string name="settings_storage_access">Acesso ao armazenamento</string>
+    <string name="storage_access_allowed">Permitido</string>
+    <string name="storage_access_not_allowed">Não permitido</string>
+    <string name="storage_access_status_off">Desativado</string>
+    <string name="storage_access_status_active">Ativo</string>
+    <string name="storage_access_status_waiting">Aguardando a permissão</string>
+    <string name="storage_access_status_label">Estado</string>
+    <string name="storage_access_permission_label">Permissão</string>
+    <string name="storage_access_open_system">Abrir configurações do sistema</string>
+    <string name="storage_access_change_system">Alterar nas configurações do sistema</string>
+    <string name="storage_access_cancel">Cancelar</string>
+    <string name="storage_access_media_title">Gerir mídia sem confirmação</string>
+    <string name="storage_access_media_body">Se permitir, mover para a lixeira, excluir e editar várias fotos e vídeos de uma vez não pedirá confirmação a cada vez.</string>
+    <string name="storage_access_advanced_title">Modo de armazenamento avançado</string>
+    <string name="storage_access_advanced_switch">Usar o modo de armazenamento avançado</string>
+    <string name="storage_access_advanced_supporting">Mostra pastas ocultas, oculta e reexibe pastas, move arquivos instantaneamente dentro do mesmo armazenamento e gere pastas.</string>
+    <string name="storage_access_waiting_body">Permita o acesso a todos os arquivos na tela do sistema para concluir a ativação.</string>
+    <string name="storage_access_enable_title">Ativar o modo de armazenamento avançado?</string>
+    <string name="storage_access_enable_body">Este modo permite ao Lightforge:\n• Mostrar pastas ocultas com .nomedia\n• Ocultar e reexibir pastas\n• Mover arquivos instantaneamente dentro do mesmo armazenamento\n• Criar, renomear e excluir pastas vazias\n\nUsa a permissão de acesso a todos os arquivos, que você concede na próxima tela. Você pode desativá-lo a qualquer momento. O Lightforge guarda uma lista das pastas que oculta para poder desfazer.</string>
+    <string name="storage_access_enable_confirm">Continuar</string>
+    <string name="storage_access_turn_off_body">As pastas que você mantiver ocultas continuam listadas aqui para você reexibi-las depois.</string>
+    <string name="storage_access_turn_off_no_permission">O acesso a todos os arquivos não está mais permitido, então as pastas não podem ser reexibidas agora.</string>
+    <string name="storage_access_turn_off_unhide">Reexibir e desativar</string>
+    <string name="storage_access_turn_off_keep">Manter ocultas e desativar</string>
+    <string name="storage_access_hidden_title">Pastas ocultadas pelo Lightforge</string>
+    <string name="storage_access_hidden_body">O Lightforge adicionou um arquivo .nomedia a estas pastas. Reexiba-as para voltar a ver suas fotos e vídeos.</string>
+    <string name="storage_access_hidden_on">Oculta em %1$s</string>
+    <string name="storage_access_unhide">Reexibir</string>
+    <string name="storage_access_unhide_description">Reexibir %1$s</string>
+    <string name="storage_access_unhide_all">Reexibir todas</string>
+    <string name="storage_access_message_permission">Reexibir pastas exige o acesso a todos os arquivos. Permita-o na tela do sistema e tente novamente.</string>
+    <string name="storage_access_revoked_title">O acesso a todos os arquivos foi removido</string>
+    <plurals name="storage_access_turn_off_title" tools:ignore="ImpliedQuantity">
+        <item quantity="one">Reexibir a pasta que o Lightforge ocultou?</item>
+        <item quantity="many">Reexibir as %1$d pastas que o Lightforge ocultou?</item>
+        <item quantity="other">Reexibir as %1$d pastas que o Lightforge ocultou?</item>
+    </plurals>
+    <plurals name="storage_access_revoked_body">
+        <item quantity="one">O Lightforge ocultou %1$d pasta e não pode reexibi-la sem esta permissão.</item>
+        <item quantity="many">O Lightforge ocultou %1$d pastas e não pode reexibi-las sem esta permissão.</item>
+        <item quantity="other">O Lightforge ocultou %1$d pastas e não pode reexibi-las sem esta permissão.</item>
+    </plurals>
+    <plurals name="storage_access_message_not_unhidden">
+        <item quantity="one">Não foi possível reexibir %1$d pasta; ela continua na lista.</item>
+        <item quantity="many">Não foi possível reexibir %1$d pastas; elas continuam na lista.</item>
+        <item quantity="other">Não foi possível reexibir %1$d pastas; elas continuam na lista.</item>
+    </plurals>
 </resources>

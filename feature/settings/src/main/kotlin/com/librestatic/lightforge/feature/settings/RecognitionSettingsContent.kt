@@ -1,5 +1,8 @@
 package com.librestatic.lightforge.feature.settings
 
+import com.librestatic.lightforge.core.model.folders.FolderNode
+import com.librestatic.lightforge.core.model.folders.buildFolderForest
+import com.librestatic.lightforge.core.model.folders.find
 import android.app.LocaleManager
 import com.librestatic.lightforge.core.designsystem.GalleryEmptyState
 import android.os.Build
@@ -171,7 +174,7 @@ data class SemanticModelSettingsUiState(
 )
 
 /** Nested settings destinations. [Root] lists categories; every other value is a detail page. */
-private enum class SettingsPage { Root, Library, LibraryFolders, Playback, Gestures, Thumbnails, Appearance, Operations, Security, Backup, AiAnalysis, Warnings }
+private enum class SettingsPage { Root, Library, LibraryFolders, Playback, Gestures, Thumbnails, Appearance, Operations, Security, Backup, AiAnalysis, Warnings, StorageAccess }
 
 @Composable
 fun RecognitionSettingsContent(
@@ -218,6 +221,8 @@ fun RecognitionSettingsContent(
     onSemanticDelete: (String) -> Unit = {},
     onSemanticDeleteAll: () -> Unit = {},
     onSemanticAutomaticSelection: () -> Unit = {},
+    /** State and actions of the "Storage access" page; null (or no content) hides the page. */
+    storageAccess: StorageAccessSettings? = null,
     showHeader: Boolean = true,
     adaptiveInfo: GalleryAdaptiveLayoutInfo? = null,
     modifier: Modifier = Modifier,
@@ -298,6 +303,9 @@ fun RecognitionSettingsContent(
             SettingsPage.Security -> SettingsSubPage(embedded = twoPane, illustration = GalleryIcons.Lock, title = stringResource(R.string.settings_security), onBack = { page = SettingsPage.Root }) {
                 SecuritySection(settings, onSettingsChange)
             }
+            SettingsPage.StorageAccess -> SettingsSubPage(embedded = twoPane, illustration = GalleryIcons.Folder, title = stringResource(R.string.settings_storage_access), onBack = { page = SettingsPage.Root }) {
+                storageAccess?.let { StorageAccessSettingsContent(it.state, it.actions) }
+            }
             SettingsPage.Backup -> SettingsSubPage(embedded = twoPane, illustration = GalleryIcons.Download, title = stringResource(R.string.settings_backup), onBack = { page = SettingsPage.Root }) {
                 BackupSection(onExportSettings, onImportSettings, onResetSettings, onLocalBackup, onRemoteBackup, onOwnSync, onOfflinePlaces, onLocalSharing)
             }
@@ -347,6 +355,7 @@ fun RecognitionSettingsContent(
             aiConsentGranted = peopleAnalysisEnabled || contentAnalysisEnabled || petCollectionsEnabled,
             onOpen = { page = it },
             onOpenAbout = onOpenAbout,
+            storageAccessSummary = storageAccess?.state?.takeIf { it.hasContent }?.categorySummary(),
             selectedPage = if (twoPane) visiblePage else null,
             modifier = listModifier,
         )
@@ -411,6 +420,7 @@ private fun SettingsCategoryList(
     aiConsentGranted: Boolean,
     onOpen: (SettingsPage) -> Unit,
     onOpenAbout: () -> Unit,
+    storageAccessSummary: String? = null,
     selectedPage: SettingsPage? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -468,6 +478,7 @@ private fun SettingsCategoryList(
     val offLabel = stringResource(R.string.settings_summary_off)
 
     val twoPane = selectedPage != null
+    val managementRows = if (storageAccessSummary != null) 5 else 4
     // The list of a two-pane layout keeps the folder browser under "Library".
     fun selected(page: SettingsPage) = selectedPage == page ||
         (page == SettingsPage.Library && selectedPage == SettingsPage.LibraryFolders)
@@ -491,10 +502,13 @@ private fun SettingsCategoryList(
             SettingsCategoryRow(GalleryIcons.Image, stringResource(R.string.settings_thumbnails), "$columnsSummary · " + enabledPattern.format(thumbnailCount, 5), 3, 4, selected = selected(SettingsPage.Thumbnails), chevron = !twoPane) { onOpen(SettingsPage.Thumbnails) }
         }
         SettingsCategoryGroup(stringResource(R.string.settings_group_management)) {
-            SettingsCategoryRow(GalleryIcons.Folder, stringResource(R.string.settings_operations), enabledPattern.format(operationsCount, 3), 0, 4, selected = selected(SettingsPage.Operations), chevron = !twoPane) { onOpen(SettingsPage.Operations) }
-            SettingsCategoryRow(GalleryIcons.Lock, stringResource(R.string.settings_security), if (securityOn) onLabel else offLabel, 1, 4, selected = selected(SettingsPage.Security), chevron = !twoPane) { onOpen(SettingsPage.Security) }
-            SettingsCategoryRow(GalleryIcons.Warning, stringResource(R.string.settings_warnings), enabledPattern.format(DismissibleWarning.entries.size - settings.operations.dismissedWarnings.size, DismissibleWarning.entries.size), 2, 4, selected = selected(SettingsPage.Warnings), chevron = !twoPane) { onOpen(SettingsPage.Warnings) }
-            SettingsCategoryRow(GalleryIcons.Download, stringResource(R.string.settings_backup), null, 3, 4, selected = selected(SettingsPage.Backup), chevron = !twoPane) { onOpen(SettingsPage.Backup) }
+            SettingsCategoryRow(GalleryIcons.Folder, stringResource(R.string.settings_operations), enabledPattern.format(operationsCount, 3), 0, managementRows, selected = selected(SettingsPage.Operations), chevron = !twoPane) { onOpen(SettingsPage.Operations) }
+            SettingsCategoryRow(GalleryIcons.Lock, stringResource(R.string.settings_security), if (securityOn) onLabel else offLabel, 1, managementRows, selected = selected(SettingsPage.Security), chevron = !twoPane) { onOpen(SettingsPage.Security) }
+            SettingsCategoryRow(GalleryIcons.Warning, stringResource(R.string.settings_warnings), enabledPattern.format(DismissibleWarning.entries.size - settings.operations.dismissedWarnings.size, DismissibleWarning.entries.size), 2, managementRows, selected = selected(SettingsPage.Warnings), chevron = !twoPane) { onOpen(SettingsPage.Warnings) }
+            SettingsCategoryRow(GalleryIcons.Download, stringResource(R.string.settings_backup), null, 3, managementRows, selected = selected(SettingsPage.Backup), chevron = !twoPane) { onOpen(SettingsPage.Backup) }
+            if (storageAccessSummary != null) {
+                SettingsCategoryRow(GalleryIcons.Folder, stringResource(R.string.settings_storage_access), storageAccessSummary, 4, managementRows, Modifier.testTag("settings_storage_access_row"), selected = selected(SettingsPage.StorageAccess), chevron = !twoPane) { onOpen(SettingsPage.StorageAccess) }
+            }
         }
         SettingsCategoryGroup(stringResource(R.string.settings_appearance)) {
             SettingsCategoryRow(
@@ -732,7 +746,7 @@ private fun SettingsSubPage(
  * emitted directly, so the single-pane layout is unchanged.
  */
 @Composable
-private fun SettingsCard(title: String? = null, content: @Composable () -> Unit) {
+internal fun SettingsCard(title: String? = null, content: @Composable () -> Unit) {
     if (!LocalSettingsCards.current) {
         content()
         return
@@ -766,74 +780,20 @@ private fun SettingsHeader(title: String, onBack: () -> Unit) {
     )
 }
 
-internal data class FolderTreeNode(
-    val volumeName: String,
-    val relativePath: String?,
-    val name: String,
-    val directOption: GalleryFolderOption?,
-    val children: List<FolderTreeNode>,
-) {
-    val options: List<GalleryFolderOption> = buildList {
-        directOption?.let(::add)
-        children.forEach { addAll(it.options) }
-    }
-    val itemCount: Long = options.sumOf(GalleryFolderOption::itemCount)
-}
+internal typealias FolderTreeNode = FolderNode<GalleryFolderOption>
 
-private class MutableFolderTreeNode(
-    val volumeName: String,
-    val relativePath: String?,
-    val name: String,
-) {
-    var directOption: GalleryFolderOption? = null
-    val children = linkedMapOf<String, MutableFolderTreeNode>()
+internal val FolderTreeNode.directOption: GalleryFolderOption? get() = direct
+internal val FolderTreeNode.options: List<GalleryFolderOption> get() = allDirect
+internal val FolderTreeNode.itemCount: Long get() = options.sumOf(GalleryFolderOption::itemCount)
 
-    fun freeze(): FolderTreeNode = FolderTreeNode(
-        volumeName = volumeName,
-        relativePath = relativePath,
-        name = name,
-        directOption = directOption,
-        children = children.values.map(MutableFolderTreeNode::freeze)
-            .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.name }),
-    )
-}
-
-internal fun buildFolderHierarchy(options: List<GalleryFolderOption>): List<FolderTreeNode> {
-    val roots = linkedMapOf<String, MutableFolderTreeNode>()
-    options.forEach { option ->
-        val normalizedPath = FolderSelectionPolicy.normalizeRelativePath(option.relativePath)
-        if (normalizedPath == null) {
-            roots["${option.volumeName}|#${option.bucketId}"] = MutableFolderTreeNode(
-                volumeName = option.volumeName,
-                relativePath = null,
-                name = option.displayName,
-            ).also { it.directOption = option }
-            return@forEach
-        }
-        var parentChildren = roots
-        val segments = normalizedPath.trimEnd('/').split('/')
-        segments.forEachIndexed { index, segment ->
-            val path = segments.take(index + 1).joinToString(separator = "/", postfix = "/")
-            val key = "${option.volumeName}|$path"
-            val node = parentChildren.getOrPut(key) {
-                MutableFolderTreeNode(option.volumeName, path, segment)
-            }
-            if (index == segments.lastIndex) node.directOption = option
-            parentChildren = node.children
-        }
-    }
-    return roots.values.map(MutableFolderTreeNode::freeze)
-        .sortedWith(
-            compareBy<FolderTreeNode> { if (it.volumeName == "external_primary") 0 else 1 }
-                .thenBy { it.volumeName }
-                .thenBy(String.CASE_INSENSITIVE_ORDER) { it.name },
-        )
-}
-
-private fun FolderTreeNode.find(volumeName: String, relativePath: String): FolderTreeNode? {
-    if (this.volumeName == volumeName && this.relativePath == relativePath) return this
-    return children.firstNotNullOfOrNull { it.find(volumeName, relativePath) }
-}
+internal fun buildFolderHierarchy(options: List<GalleryFolderOption>): List<FolderTreeNode> = buildFolderForest(
+    items = options,
+    volumeOf = GalleryFolderOption::volumeName,
+    relativePathOf = GalleryFolderOption::relativePath,
+    fallbackKeyOf = { it.bucketId.toString() },
+    fallbackNameOf = GalleryFolderOption::displayName,
+    normalizeRelativePath = FolderSelectionPolicy::normalizeRelativePath,
+)
 
 private fun FolderTreeNode.selectionState(settings: GallerySettings): ToggleableState {
     val defaultSelected = settings.library.folderSelectionMode == FolderSelectionMode.AllExceptExcluded
@@ -2146,7 +2106,7 @@ internal fun SemanticModelsTestContent(state: SemanticModelSettingsUiState) {
 }
 
 @Composable
-private fun SettingsSwitchRow(
+internal fun SettingsSwitchRow(
     label: String,
     checked: Boolean,
     modifier: Modifier = Modifier,

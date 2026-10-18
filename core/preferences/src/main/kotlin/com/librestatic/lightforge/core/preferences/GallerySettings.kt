@@ -196,6 +196,11 @@ data class OperationSettings(
     val skipAppDeleteConfirmation: Boolean = false,
     /** Warnings the user chose not to see again; empty means every warning is shown. */
     val dismissedWarnings: Set<DismissibleWarning> = emptySet(),
+    /**
+     * The user's opt-in to the advanced storage mode (ADR-046). Only a wish: the mode is active when
+     * this is on AND the system grants All files access. Builds without the feature keep the value.
+     */
+    val advancedStorageEnabled: Boolean = false,
 )
 
 /** Confirmation dialogs the user can silence, and bring back from Settings. [key] is persisted: never rename it. */

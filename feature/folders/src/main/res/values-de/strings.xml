@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="folders_internal_storage">Interner Speicher</string>
+    <string name="folders_files_in_folder">Dateien in diesem Ordner</string>
+    <string name="folders_empty_title">Keine Ordner auf dem Gerät</string>
+    <string name="folders_empty_body">Ordner mit Fotos und Videos erscheinen hier.</string>
+    <string name="folders_path_label">Ordnerpfad</string>
+    <string name="folders_current_folder">Aktueller Ordner</string>
+    <string name="folders_storage_space">%1$s frei von %2$s</string>
+    <string name="folders_loading">Ordner werden geladen</string>
+    <plurals name="folders_item_count">
+        <item quantity="one">%1$d Element</item>
+        <item quantity="other">%1$d Elemente</item>
+    </plurals>
+    <plurals name="folders_subfolder_count">
+        <item quantity="one">%1$d Ordner</item>
+        <item quantity="other">%1$d Ordner</item>
+    </plurals>
+</resources>

@@ -219,4 +219,49 @@
     <string name="settings_warning_virtual_crop_portable">Virtueller Zuschnitt beim Exportieren des privaten Albums</string>
     <string name="settings_warning_virtual_crop_portable_supporting">Weist darauf hin, dass ein Backup des privaten Albums RAW-Fotos vollständig enthält, auch das Bild außerhalb des Zuschnitts.</string>
     <string name="settings_warnings_show_all">Alle Warnungen wieder anzeigen</string>
+    <!-- Storage access (ADR-046) -->
+    <string name="settings_storage_access">Speicherzugriff</string>
+    <string name="storage_access_allowed">Erlaubt</string>
+    <string name="storage_access_not_allowed">Nicht erlaubt</string>
+    <string name="storage_access_status_off">Aus</string>
+    <string name="storage_access_status_active">Aktiv</string>
+    <string name="storage_access_status_waiting">Wartet auf Berechtigung</string>
+    <string name="storage_access_status_label">Status</string>
+    <string name="storage_access_permission_label">Berechtigung</string>
+    <string name="storage_access_open_system">Systemeinstellungen öffnen</string>
+    <string name="storage_access_change_system">In den Systemeinstellungen ändern</string>
+    <string name="storage_access_cancel">Abbrechen</string>
+    <string name="storage_access_media_title">Medien ohne Bestätigung verwalten</string>
+    <string name="storage_access_media_body">Wenn erlaubt, fragt die App beim gleichzeitigen Löschen, Verschieben in den Papierkorb und Bearbeiten mehrerer Fotos und Videos nicht jedes Mal nach.</string>
+    <string name="storage_access_advanced_title">Erweiterter Speichermodus</string>
+    <string name="storage_access_advanced_switch">Erweiterten Speichermodus verwenden</string>
+    <string name="storage_access_advanced_supporting">Versteckte Ordner anzeigen, Ordner verstecken und wieder einblenden, Dateien im selben Speicher sofort verschieben und Ordner verwalten.</string>
+    <string name="storage_access_waiting_body">Erlaube auf dem Systembildschirm den Zugriff auf alle Dateien, um die Aktivierung abzuschließen.</string>
+    <string name="storage_access_enable_title">Erweiterten Speichermodus aktivieren?</string>
+    <string name="storage_access_enable_body">Mit diesem Modus kann Lightforge:\n• Mit .nomedia versteckte Ordner anzeigen\n• Ordner verstecken und wieder einblenden\n• Dateien im selben Speicher sofort verschieben\n• Leere Ordner erstellen, umbenennen und löschen\n\nDafür wird die Berechtigung „Zugriff auf alle Dateien“ verwendet, die du auf dem nächsten Bildschirm erteilst. Du kannst den Modus jederzeit ausschalten. Lightforge führt eine Liste der Ordner, die es versteckt, um dies rückgängig machen zu können.</string>
+    <string name="storage_access_enable_confirm">Weiter</string>
+    <string name="storage_access_turn_off_body">Ordner, die versteckt bleiben, stehen weiterhin hier in der Liste, damit du sie später wieder einblenden kannst.</string>
+    <string name="storage_access_turn_off_no_permission">Der Zugriff auf alle Dateien ist nicht mehr erlaubt, daher können die Ordner derzeit nicht eingeblendet werden.</string>
+    <string name="storage_access_turn_off_unhide">Einblenden und ausschalten</string>
+    <string name="storage_access_turn_off_keep">Versteckt lassen und ausschalten</string>
+    <string name="storage_access_hidden_title">Von Lightforge versteckte Ordner</string>
+    <string name="storage_access_hidden_body">Lightforge hat diesen Ordnern eine .nomedia-Datei hinzugefügt. Blende sie wieder ein, um ihre Fotos und Videos erneut anzuzeigen.</string>
+    <string name="storage_access_hidden_on">Versteckt am %1$s</string>
+    <string name="storage_access_unhide">Einblenden</string>
+    <string name="storage_access_unhide_description">%1$s einblenden</string>
+    <string name="storage_access_unhide_all">Alle einblenden</string>
+    <string name="storage_access_message_permission">Zum Einblenden ist der Zugriff auf alle Dateien nötig. Erlaube ihn auf dem Systembildschirm und versuche es dann erneut.</string>
+    <string name="storage_access_revoked_title">Zugriff auf alle Dateien wurde entzogen</string>
+    <plurals name="storage_access_turn_off_title">
+        <item quantity="one">Den von Lightforge versteckten Ordner einblenden?</item>
+        <item quantity="other">Die %1$d von Lightforge versteckten Ordner einblenden?</item>
+    </plurals>
+    <plurals name="storage_access_revoked_body">
+        <item quantity="one">Lightforge hat %1$d Ordner versteckt und kann ihn ohne diese Berechtigung nicht einblenden.</item>
+        <item quantity="other">Lightforge hat %1$d Ordner versteckt und kann sie ohne diese Berechtigung nicht einblenden.</item>
+    </plurals>
+    <plurals name="storage_access_message_not_unhidden">
+        <item quantity="one">%1$d Ordner konnte nicht eingeblendet werden und bleibt in der Liste.</item>
+        <item quantity="other">%1$d Ordner konnten nicht eingeblendet werden und bleiben in der Liste.</item>
+    </plurals>
 </resources>

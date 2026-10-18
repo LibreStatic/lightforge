@@ -41,6 +41,7 @@ dependencies {
     testImplementation(project(":feature:pdfstudio"))
     testImplementation(project(":feature:collage"))
     testImplementation(project(":feature:privatealbum"))
+    testImplementation(project(":feature:folders"))
 
     testImplementation(libs.compose.driver)
     testImplementation(libs.robolectric)

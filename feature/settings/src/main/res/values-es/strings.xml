@@ -221,4 +221,52 @@
     <string name="settings_warning_virtual_crop_portable">Recorte virtual al exportar el álbum privado</string>
     <string name="settings_warning_virtual_crop_portable_supporting">Avisa que una copia del álbum privado conserva las fotos RAW completas, incluida la imagen fuera del recorte.</string>
     <string name="settings_warnings_show_all">Volver a mostrar todas las advertencias</string>
+    <!-- Storage access (ADR-046) -->
+    <string name="settings_storage_access">Acceso al almacenamiento</string>
+    <string name="storage_access_allowed">Permitido</string>
+    <string name="storage_access_not_allowed">No permitido</string>
+    <string name="storage_access_status_off">Desactivado</string>
+    <string name="storage_access_status_active">Activo</string>
+    <string name="storage_access_status_waiting">Esperando el permiso</string>
+    <string name="storage_access_status_label">Estado</string>
+    <string name="storage_access_permission_label">Permiso</string>
+    <string name="storage_access_open_system">Abrir ajustes del sistema</string>
+    <string name="storage_access_change_system">Cambiar en los ajustes del sistema</string>
+    <string name="storage_access_cancel">Cancelar</string>
+    <string name="storage_access_media_title">Gestionar multimedia sin confirmación</string>
+    <string name="storage_access_media_body">Si lo permites, mover a la papelera, eliminar y editar varias fotos y videos a la vez no pedirá confirmación cada vez.</string>
+    <string name="storage_access_advanced_title">Modo de almacenamiento avanzado</string>
+    <string name="storage_access_advanced_switch">Usar el modo de almacenamiento avanzado</string>
+    <string name="storage_access_advanced_supporting">Muestra carpetas ocultas, oculta y vuelve a mostrar carpetas, mueve archivos al instante dentro del mismo almacenamiento y gestiona carpetas.</string>
+    <string name="storage_access_waiting_body">Permite el acceso a todos los archivos en la pantalla del sistema para terminar de activarlo.</string>
+    <string name="storage_access_enable_title">¿Activar el modo de almacenamiento avanzado?</string>
+    <string name="storage_access_enable_body">Este modo permite a Lightforge:\n• Mostrar carpetas ocultas con .nomedia\n• Ocultar y volver a mostrar carpetas\n• Mover archivos al instante dentro del mismo almacenamiento\n• Crear, renombrar y eliminar carpetas vacías\n\nUsa el permiso de acceso a todos los archivos, que concedes en la siguiente pantalla. Puedes desactivarlo cuando quieras. Lightforge guarda una lista de las carpetas que oculta para poder deshacerlo.</string>
+    <string name="storage_access_enable_confirm">Continuar</string>
+    <string name="storage_access_turn_off_body">Las carpetas que dejes ocultas seguirán en esta lista para que puedas mostrarlas más tarde.</string>
+    <string name="storage_access_turn_off_no_permission">El acceso a todos los archivos ya no está permitido, así que ahora no se pueden volver a mostrar las carpetas.</string>
+    <string name="storage_access_turn_off_unhide">Mostrar y desactivar</string>
+    <string name="storage_access_turn_off_keep">Mantener ocultas y desactivar</string>
+    <string name="storage_access_hidden_title">Carpetas ocultadas por Lightforge</string>
+    <string name="storage_access_hidden_body">Lightforge añadió un archivo .nomedia a estas carpetas. Vuelve a mostrarlas para ver de nuevo sus fotos y videos.</string>
+    <string name="storage_access_hidden_on">Oculta desde el %1$s</string>
+    <string name="storage_access_unhide">Mostrar</string>
+    <string name="storage_access_unhide_description">Volver a mostrar %1$s</string>
+    <string name="storage_access_unhide_all">Mostrar todas</string>
+    <string name="storage_access_message_permission">Volver a mostrar carpetas requiere el acceso a todos los archivos. Permítelo en la pantalla del sistema y vuelve a intentarlo.</string>
+    <string name="storage_access_revoked_title">Se quitó el acceso a todos los archivos</string>
+    <plurals name="storage_access_turn_off_title">
+        <item quantity="one">¿Volver a mostrar la carpeta que ocultó Lightforge?</item>
+        <item quantity="many">¿Volver a mostrar las %1$d carpetas que ocultó Lightforge?</item>
+        <item quantity="other">¿Volver a mostrar las %1$d carpetas que ocultó Lightforge?</item>
+    </plurals>
+    <plurals name="storage_access_revoked_body">
+        <item quantity="one">Lightforge ocultó %1$d carpeta y no puede volver a mostrarla sin este permiso.</item>
+        <item quantity="many">Lightforge ocultó %1$d carpetas y no puede volver a mostrarlas sin este permiso.</item>
+        <item quantity="other">Lightforge ocultó %1$d carpetas y no puede volver a mostrarlas sin este permiso.</item>
+    </plurals>
+    <plurals name="storage_access_message_not_unhidden">
+        <item quantity="one">No se pudo volver a mostrar %1$d carpeta; sigue en la lista.</item>
+        <item quantity="many">No se pudo volver a mostrar %1$d carpetas; siguen en la lista.</item>
+        <item quantity="other">No se pudo volver a mostrar %1$d carpetas; siguen en la lista.</item>
+    </plurals>
 </resources>

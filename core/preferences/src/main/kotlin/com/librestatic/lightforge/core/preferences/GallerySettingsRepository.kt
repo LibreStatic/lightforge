@@ -342,6 +342,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                         keepLastModifiedWhenPossible = p[Keys.KeepModified] ?: true,
                         skipAppDeleteConfirmation = p[Keys.SkipDeleteConfirmation] ?: false,
                         dismissedWarnings = DismissibleWarning.fromKeys(p[Keys.DismissedWarnings].orEmpty()),
+                        advancedStorageEnabled = p[Keys.AdvancedStorageEnabled] ?: false,
                     ),
                 security =
                     SecuritySettings(
@@ -407,6 +408,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         p[Keys.KeepModified] = s.operations.keepLastModifiedWhenPossible
         p[Keys.SkipDeleteConfirmation] = s.operations.skipAppDeleteConfirmation
         p[Keys.DismissedWarnings] = s.operations.dismissedWarnings.mapTo(linkedSetOf()) { it.key }
+        p[Keys.AdvancedStorageEnabled] = s.operations.advancedStorageEnabled
         p[Keys.AppLock] = s.security.appLockEnabled
         p[Keys.DestructiveLock] = s.security.destructiveActionLockEnabled
         p[Keys.RelockTimeout] = s.security.relockTimeoutMinutes
@@ -488,6 +490,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     put("keepLastModifiedWhenPossible", operations.keepLastModifiedWhenPossible)
                     put("skipAppDeleteConfirmation", operations.skipAppDeleteConfirmation)
                     put("dismissedWarnings", JSONArray(operations.dismissedWarnings.map { it.key }))
+                    put("advancedStorageEnabled", operations.advancedStorageEnabled)
                 },
             )
             put(
@@ -600,6 +603,8 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     o.bool("keepLastModifiedWhenPossible", true),
                     o.bool("skipAppDeleteConfirmation", false),
                     DismissibleWarning.fromKeys(o.stringSet("dismissedWarnings")),
+                    // Optional and lenient: absent or malformed (older or foreign export) means off.
+                    o.optBoolean("advancedStorageEnabled", false),
                 ),
             security =
                 SecuritySettings(
@@ -664,6 +669,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         val KeepModified = booleanPreferencesKey("operations.keep_modified")
         val SkipDeleteConfirmation = booleanPreferencesKey("operations.skip_delete_confirmation")
         val DismissedWarnings = stringSetPreferencesKey("operations.dismissed_warnings")
+        val AdvancedStorageEnabled = booleanPreferencesKey("advanced.enabled")
         val AppLock = booleanPreferencesKey("security.app_lock")
         val DestructiveLock = booleanPreferencesKey("security.destructive_lock")
         val RelockTimeout = intPreferencesKey("security.relock_timeout")

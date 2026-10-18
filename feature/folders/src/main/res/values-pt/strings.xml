@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="folders_internal_storage">Armazenamento interno</string>
+    <string name="folders_files_in_folder">Arquivos desta pasta</string>
+    <string name="folders_empty_title">Nenhuma pasta no dispositivo</string>
+    <string name="folders_empty_body">As pastas com fotos e vídeos aparecerão aqui.</string>
+    <string name="folders_path_label">Caminho da pasta</string>
+    <string name="folders_current_folder">Pasta atual</string>
+    <string name="folders_storage_space">%1$s livres de %2$s</string>
+    <string name="folders_loading">Carregando pastas</string>
+    <plurals name="folders_item_count">
+        <item quantity="one">%1$d item</item>
+        <item quantity="other">%1$d itens</item>
+    </plurals>
+    <plurals name="folders_subfolder_count">
+        <item quantity="one">%1$d pasta</item>
+        <item quantity="other">%1$d pastas</item>
+    </plurals>
+</resources>

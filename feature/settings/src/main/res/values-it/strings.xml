@@ -221,4 +221,52 @@
     <string name="settings_warning_virtual_crop_portable">Ritaglio virtuale quando esporti l\'album privato</string>
     <string name="settings_warning_virtual_crop_portable_supporting">Ricorda che un backup dell\'album privato conserva le foto RAW complete, compresa l\'immagine fuori dal ritaglio.</string>
     <string name="settings_warnings_show_all">Mostra di nuovo tutti gli avvisi</string>
+    <!-- Storage access (ADR-046) -->
+    <string name="settings_storage_access">Accesso all\'archiviazione</string>
+    <string name="storage_access_allowed">Consentito</string>
+    <string name="storage_access_not_allowed">Non consentito</string>
+    <string name="storage_access_status_off">Disattivato</string>
+    <string name="storage_access_status_active">Attivo</string>
+    <string name="storage_access_status_waiting">In attesa dell\'autorizzazione</string>
+    <string name="storage_access_status_label">Stato</string>
+    <string name="storage_access_permission_label">Autorizzazione</string>
+    <string name="storage_access_open_system">Apri impostazioni di sistema</string>
+    <string name="storage_access_change_system">Modifica nelle impostazioni di sistema</string>
+    <string name="storage_access_cancel">Annulla</string>
+    <string name="storage_access_media_title">Gestisci i contenuti senza conferma</string>
+    <string name="storage_access_media_body">Se lo consenti, spostare nel cestino, eliminare e modificare più foto e video insieme non chiederà conferma ogni volta.</string>
+    <string name="storage_access_advanced_title">Modalità di archiviazione avanzata</string>
+    <string name="storage_access_advanced_switch">Usa la modalità di archiviazione avanzata</string>
+    <string name="storage_access_advanced_supporting">Mostra le cartelle nascoste, nasconde e mostra di nuovo le cartelle, sposta i file all\'istante nella stessa memoria e gestisce le cartelle.</string>
+    <string name="storage_access_waiting_body">Consenti l\'accesso a tutti i file nella schermata di sistema per completare l\'attivazione.</string>
+    <string name="storage_access_enable_title">Attivare la modalità di archiviazione avanzata?</string>
+    <string name="storage_access_enable_body">Questa modalità consente a Lightforge di:\n• Mostrare le cartelle nascoste con .nomedia\n• Nascondere e mostrare di nuovo le cartelle\n• Spostare i file all\'istante nella stessa memoria\n• Creare, rinominare ed eliminare cartelle vuote\n\nUsa l\'autorizzazione di accesso a tutti i file, che concedi nella schermata successiva. Puoi disattivarla in qualsiasi momento. Lightforge conserva un elenco delle cartelle che nasconde per poterlo annullare.</string>
+    <string name="storage_access_enable_confirm">Continua</string>
+    <string name="storage_access_turn_off_body">Le cartelle che lasci nascoste restano elencate qui, così potrai mostrarle di nuovo più tardi.</string>
+    <string name="storage_access_turn_off_no_permission">L\'accesso a tutti i file non è più consentito, quindi per ora le cartelle non possono essere mostrate di nuovo.</string>
+    <string name="storage_access_turn_off_unhide">Mostra e disattiva</string>
+    <string name="storage_access_turn_off_keep">Lascia nascoste e disattiva</string>
+    <string name="storage_access_hidden_title">Cartelle nascoste da Lightforge</string>
+    <string name="storage_access_hidden_body">Lightforge ha aggiunto un file .nomedia a queste cartelle. Mostrale di nuovo per rivedere le loro foto e i loro video.</string>
+    <string name="storage_access_hidden_on">Nascosta il %1$s</string>
+    <string name="storage_access_unhide">Mostra</string>
+    <string name="storage_access_unhide_description">Mostra di nuovo %1$s</string>
+    <string name="storage_access_unhide_all">Mostra tutte</string>
+    <string name="storage_access_message_permission">Per mostrare di nuovo le cartelle serve l\'accesso a tutti i file. Consentilo nella schermata di sistema e riprova.</string>
+    <string name="storage_access_revoked_title">L\'accesso a tutti i file è stato rimosso</string>
+    <plurals name="storage_access_turn_off_title">
+        <item quantity="one">Mostrare di nuovo la cartella nascosta da Lightforge?</item>
+        <item quantity="many">Mostrare di nuovo le %1$d cartelle nascoste da Lightforge?</item>
+        <item quantity="other">Mostrare di nuovo le %1$d cartelle nascoste da Lightforge?</item>
+    </plurals>
+    <plurals name="storage_access_revoked_body">
+        <item quantity="one">Lightforge ha nascosto %1$d cartella e non può mostrarla di nuovo senza questa autorizzazione.</item>
+        <item quantity="many">Lightforge ha nascosto %1$d cartelle e non può mostrarle di nuovo senza questa autorizzazione.</item>
+        <item quantity="other">Lightforge ha nascosto %1$d cartelle e non può mostrarle di nuovo senza questa autorizzazione.</item>
+    </plurals>
+    <plurals name="storage_access_message_not_unhidden">
+        <item quantity="one">Impossibile mostrare di nuovo %1$d cartella: resta nell\'elenco.</item>
+        <item quantity="many">Impossibile mostrare di nuovo %1$d cartelle: restano nell\'elenco.</item>
+        <item quantity="other">Impossibile mostrare di nuovo %1$d cartelle: restano nell\'elenco.</item>
+    </plurals>
 </resources>

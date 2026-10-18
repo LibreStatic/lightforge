@@ -32,6 +32,10 @@ val releaseKeystore: Map<String, String> = run {
 val hasReleaseKeystore = releaseKeystore["storeFile"]?.let { File(it).isFile } == true &&
     listOf("storePassword", "keyAlias", "keyPassword").all { !releaseKeystore[it].isNullOrEmpty() }
 
+// Advanced storage mode (ADR-046). `-Plightforge.allFilesAccess=false` (or gradle.properties) removes
+// MANAGE_EXTERNAL_STORAGE from the merged manifest and binds the no-op AdvancedStorage.
+val allFilesAccess = providers.gradleProperty("lightforge.allFilesAccess").orNull?.toBooleanStrictOrNull() ?: true
+
 android {
     namespace = "com.librestatic.lightforge"
     compileSdk = 37
@@ -109,6 +113,8 @@ android {
         getByName("benchmark").res.srcDir("src/debugBadge/res")
     }
 
+    defaultConfig.buildConfigField("boolean", "ALL_FILES_ACCESS", allFilesAccess.toString())
+
     buildFeatures {
         compose = true
         buildConfig = true
@@ -122,6 +128,14 @@ android {
     }
     packaging {
         resources.excludes += setOf("/META-INF/{AL2.0,LGPL2.1}")
+    }
+}
+
+if (!allFilesAccess) {
+    androidComponents {
+        onVariants { variant ->
+            variant.sources.manifests.addStaticManifestFile("src/allFilesAccessOff/AndroidManifest.xml")
+        }
     }
 }
 
@@ -203,6 +217,7 @@ dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:database"))
     implementation(project(":core:mediastore"))
+    implementation(project(":core:storage-advanced"))
     implementation(project(":core:thumbnail"))
     implementation(project(":core:ml"))
     implementation(project(":core:search"))
@@ -215,6 +230,7 @@ dependencies {
     implementation(project(":feature:viewer"))
     implementation(project(":feature:details"))
     implementation(project(":feature:trash"))
+    implementation(project(":feature:folders"))
     implementation(project(":feature:search"))
     implementation(project(":feature:settings"))
     implementation(project(":feature:remotebackup"))

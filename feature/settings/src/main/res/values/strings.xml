@@ -225,4 +225,49 @@
     <string name="settings_warning_virtual_crop_portable">Virtual crop when exporting the private album</string>
     <string name="settings_warning_virtual_crop_portable_supporting">Explains that a private album backup keeps RAW photos complete, including the image outside their crop.</string>
     <string name="settings_warnings_show_all">Show all warnings again</string>
+    <!-- Storage access (ADR-046) -->
+    <string name="settings_storage_access">Storage access</string>
+    <string name="storage_access_allowed">Allowed</string>
+    <string name="storage_access_not_allowed">Not allowed</string>
+    <string name="storage_access_status_off">Off</string>
+    <string name="storage_access_status_active">Active</string>
+    <string name="storage_access_status_waiting">Waiting for permission</string>
+    <string name="storage_access_status_label">Status</string>
+    <string name="storage_access_permission_label">Permission</string>
+    <string name="storage_access_open_system">Open system settings</string>
+    <string name="storage_access_change_system">Change in system settings</string>
+    <string name="storage_access_cancel">Cancel</string>
+    <string name="storage_access_media_title">Manage media without confirmation</string>
+    <string name="storage_access_media_body">When allowed, moving to trash, deleting and editing several photos and videos at once will not ask for confirmation each time.</string>
+    <string name="storage_access_advanced_title">Advanced storage mode</string>
+    <string name="storage_access_advanced_switch">Use advanced storage mode</string>
+    <string name="storage_access_advanced_supporting">Show hidden folders, hide and unhide folders, move files instantly within the same storage and manage folders.</string>
+    <string name="storage_access_waiting_body">Allow All files access on the system screen to finish turning this on.</string>
+    <string name="storage_access_enable_title">Turn on advanced storage mode?</string>
+    <string name="storage_access_enable_body">This mode lets Lightforge:\n• Show folders hidden with .nomedia\n• Hide and unhide folders\n• Move files instantly within the same storage\n• Create, rename and delete empty folders\n\nIt uses the All files access permission, which you grant on the next screen. You can turn it off at any time. Lightforge keeps a list of the folders it hides so it can undo it.</string>
+    <string name="storage_access_enable_confirm">Continue</string>
+    <string name="storage_access_turn_off_body">Folders you keep hidden stay listed here so you can unhide them later.</string>
+    <string name="storage_access_turn_off_no_permission">All files access is no longer allowed, so the folders cannot be unhidden right now.</string>
+    <string name="storage_access_turn_off_unhide">Unhide and turn off</string>
+    <string name="storage_access_turn_off_keep">Keep hidden and turn off</string>
+    <string name="storage_access_hidden_title">Folders hidden by Lightforge</string>
+    <string name="storage_access_hidden_body">Lightforge added a .nomedia file to these folders. Unhide them to show their photos and videos again.</string>
+    <string name="storage_access_hidden_on">Hidden on %1$s</string>
+    <string name="storage_access_unhide">Unhide</string>
+    <string name="storage_access_unhide_description">Unhide %1$s</string>
+    <string name="storage_access_unhide_all">Unhide all</string>
+    <string name="storage_access_message_permission">Unhiding needs All files access. Allow it on the system screen, then try again.</string>
+    <string name="storage_access_revoked_title">All files access was removed</string>
+    <plurals name="storage_access_turn_off_title">
+        <item quantity="one">Unhide the %1$d folder Lightforge hid?</item>
+        <item quantity="other">Unhide the %1$d folders Lightforge hid?</item>
+    </plurals>
+    <plurals name="storage_access_revoked_body">
+        <item quantity="one">Lightforge hid %1$d folder and cannot unhide it without this permission.</item>
+        <item quantity="other">Lightforge hid %1$d folders and cannot unhide them without this permission.</item>
+    </plurals>
+    <plurals name="storage_access_message_not_unhidden">
+        <item quantity="one">%1$d folder could not be unhidden and stays listed.</item>
+        <item quantity="other">%1$d folders could not be unhidden and stay listed.</item>
+    </plurals>
 </resources>

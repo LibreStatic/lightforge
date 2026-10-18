@@ -69,7 +69,7 @@ See the [privacy policy](store/play/privacy-policy.md) and the [commercial use a
 | `INTERNET`, `ACCESS_NETWORK_STATE`, `ACCESS_LOCAL_NETWORK` | User-initiated model downloads, backup to the user's own servers and local-network sharing only. Guarded by `tools/verify_offline_release.py`; cleartext traffic is disabled. |
 | `POST_NOTIFICATIONS`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_DATA_SYNC`, `FOREGROUND_SERVICE_MEDIA_PROCESSING` | Visible progress for long exports, indexing, backup and transfers. |
 
-No location, `MANAGE_EXTERNAL_STORAGE` or `MANAGE_MEDIA` permission, and no OEM privilege assumptions; Wi-Fi and location permissions pulled in by libraries are removed from the merged manifest.
+`MANAGE_MEDIA` (optional, Android 12+) lets batch edits, trash and deletes skip the per-batch confirmation. `MANAGE_EXTERNAL_STORAGE` backs an opt-in advanced storage mode (hidden `.nomedia` folders, in-place moves, folder operations); it lives only in `:core:storage-advanced` and `-Plightforge.allFilesAccess=false` strips it from the build (ADR-046). No location permission and no OEM privilege assumptions; Wi-Fi and location permissions pulled in by libraries are removed from the merged manifest.
 
 ## Project status
 

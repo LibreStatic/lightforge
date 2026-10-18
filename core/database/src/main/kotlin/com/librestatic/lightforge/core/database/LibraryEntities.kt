@@ -23,6 +23,10 @@ import androidx.room.PrimaryKey
             value = ["volumeName", "bucketId"],
         ),
         Index(
+            name = "index_media_volume_relative_path",
+            value = ["volumeName", "relativePath"],
+        ),
+        Index(
             name = "index_media_moment_scan",
             value = ["isAccessible", "isTrashed", "timelineSortMillis", "mediaStoreId", "volumeName"],
         ),
@@ -166,6 +170,22 @@ data class PhysicalAlbumRow(
     val relativePath: String?,
     val itemCount: Long,
     val latestSortMillis: Long,
+    val coverMediaStoreId: Long?,
+    val isAvailable: Boolean,
+)
+
+/** One physical folder (exact volume + relative path) of the folder browser. */
+data class FolderSummaryRow(
+    val volumeName: String,
+    val relativePath: String?,
+    val bucketId: Long?,
+    val displayName: String?,
+    val directCount: Long,
+    val imageCount: Long,
+    val videoCount: Long,
+    val totalBytes: Long,
+    val minSortMillis: Long,
+    val maxSortMillis: Long,
     val coverMediaStoreId: Long?,
     val isAvailable: Boolean,
 )

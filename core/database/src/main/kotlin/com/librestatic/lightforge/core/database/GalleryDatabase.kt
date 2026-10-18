@@ -77,7 +77,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
             PeerImportVersionEntity::class,
             PeerImportSourceEntity::class,
         ],
-    version = 31,
+    version = 32,
     exportSchema = true,
 )
 abstract class GalleryDatabase : RoomDatabase() {
@@ -681,6 +681,12 @@ object GalleryDatabaseFactory {
         }
     }
 
+    val Migration31To32 = object : Migration(31, 32) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_media_volume_relative_path` ON `media_items` (`volumeName`, `relativePath`)")
+        }
+    }
+
     val Migration30To31 = object : Migration(30, 31) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("ALTER TABLE virtual_albums ADD COLUMN chosenCoverVolumeName TEXT")
@@ -787,6 +793,7 @@ object GalleryDatabaseFactory {
                 Migration28To29,
                 Migration29To30,
                 Migration30To31,
+                Migration31To32,
             )
             .build()
 }

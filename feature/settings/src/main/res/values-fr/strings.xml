@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="settings_library">Photothèque</string>
     <string name="settings_library_sort">Trier par</string>
     <string name="settings_sort_date_taken">Date de prise</string>
@@ -221,4 +221,52 @@
     <string name="settings_warning_virtual_crop_portable">Recadrage virtuel lors de l\'export de l\'album privé</string>
     <string name="settings_warning_virtual_crop_portable_supporting">Rappelle qu\'une sauvegarde de l\'album privé conserve les photos RAW en entier, y compris l\'image en dehors du recadrage.</string>
     <string name="settings_warnings_show_all">Réafficher tous les avertissements</string>
+    <!-- Storage access (ADR-046) -->
+    <string name="settings_storage_access">Accès au stockage</string>
+    <string name="storage_access_allowed">Autorisé</string>
+    <string name="storage_access_not_allowed">Non autorisé</string>
+    <string name="storage_access_status_off">Désactivé</string>
+    <string name="storage_access_status_active">Actif</string>
+    <string name="storage_access_status_waiting">En attente de l\'autorisation</string>
+    <string name="storage_access_status_label">État</string>
+    <string name="storage_access_permission_label">Autorisation</string>
+    <string name="storage_access_open_system">Ouvrir les réglages système</string>
+    <string name="storage_access_change_system">Modifier dans les réglages système</string>
+    <string name="storage_access_cancel">Annuler</string>
+    <string name="storage_access_media_title">Gérer les médias sans confirmation</string>
+    <string name="storage_access_media_body">Si vous l\'autorisez, la mise à la corbeille, la suppression et la modification de plusieurs photos et vidéos à la fois ne demanderont plus de confirmation à chaque fois.</string>
+    <string name="storage_access_advanced_title">Mode de stockage avancé</string>
+    <string name="storage_access_advanced_switch">Utiliser le mode de stockage avancé</string>
+    <string name="storage_access_advanced_supporting">Affiche les dossiers masqués, masque et réaffiche des dossiers, déplace des fichiers instantanément au sein du même stockage et gère les dossiers.</string>
+    <string name="storage_access_waiting_body">Autorisez l\'accès à tous les fichiers dans l\'écran système pour terminer l\'activation.</string>
+    <string name="storage_access_enable_title">Activer le mode de stockage avancé ?</string>
+    <string name="storage_access_enable_body">Ce mode permet à Lightforge de :\n• Afficher les dossiers masqués avec .nomedia\n• Masquer et réafficher des dossiers\n• Déplacer des fichiers instantanément au sein du même stockage\n• Créer, renommer et supprimer des dossiers vides\n\nIl utilise l\'autorisation d\'accès à tous les fichiers, que vous accordez sur l\'écran suivant. Vous pouvez le désactiver à tout moment. Lightforge conserve la liste des dossiers qu\'il masque afin de pouvoir annuler.</string>
+    <string name="storage_access_enable_confirm">Continuer</string>
+    <string name="storage_access_turn_off_body">Les dossiers que vous laissez masqués restent listés ici pour que vous puissiez les réafficher plus tard.</string>
+    <string name="storage_access_turn_off_no_permission">L\'accès à tous les fichiers n\'est plus autorisé : les dossiers ne peuvent pas être réaffichés pour le moment.</string>
+    <string name="storage_access_turn_off_unhide">Réafficher et désactiver</string>
+    <string name="storage_access_turn_off_keep">Garder masqués et désactiver</string>
+    <string name="storage_access_hidden_title">Dossiers masqués par Lightforge</string>
+    <string name="storage_access_hidden_body">Lightforge a ajouté un fichier .nomedia à ces dossiers. Réaffichez-les pour retrouver leurs photos et vidéos.</string>
+    <string name="storage_access_hidden_on">Masqué le %1$s</string>
+    <string name="storage_access_unhide">Réafficher</string>
+    <string name="storage_access_unhide_description">Réafficher %1$s</string>
+    <string name="storage_access_unhide_all">Tout réafficher</string>
+    <string name="storage_access_message_permission">Réafficher des dossiers nécessite l\'accès à tous les fichiers. Autorisez-le dans l\'écran système, puis réessayez.</string>
+    <string name="storage_access_revoked_title">L\'accès à tous les fichiers a été retiré</string>
+    <plurals name="storage_access_turn_off_title" tools:ignore="ImpliedQuantity">
+        <item quantity="one">Réafficher le dossier masqué par Lightforge ?</item>
+        <item quantity="many">Réafficher les %1$d dossiers masqués par Lightforge ?</item>
+        <item quantity="other">Réafficher les %1$d dossiers masqués par Lightforge ?</item>
+    </plurals>
+    <plurals name="storage_access_revoked_body">
+        <item quantity="one">Lightforge a masqué %1$d dossier et ne peut pas le réafficher sans cette autorisation.</item>
+        <item quantity="many">Lightforge a masqué %1$d dossiers et ne peut pas les réafficher sans cette autorisation.</item>
+        <item quantity="other">Lightforge a masqué %1$d dossiers et ne peut pas les réafficher sans cette autorisation.</item>
+    </plurals>
+    <plurals name="storage_access_message_not_unhidden">
+        <item quantity="one">%1$d dossier n\'a pas pu être réaffiché et reste listé.</item>
+        <item quantity="many">%1$d dossiers n\'ont pas pu être réaffichés et restent listés.</item>
+        <item quantity="other">%1$d dossiers n\'ont pas pu être réaffichés et restent listés.</item>
+    </plurals>
 </resources>

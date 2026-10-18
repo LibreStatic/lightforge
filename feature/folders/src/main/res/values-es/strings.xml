@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="folders_internal_storage">Almacenamiento interno</string>
+    <string name="folders_files_in_folder">Archivos de esta carpeta</string>
+    <string name="folders_empty_title">No hay carpetas en el dispositivo</string>
+    <string name="folders_empty_body">Las carpetas con fotos y videos aparecerán aquí.</string>
+    <string name="folders_path_label">Ruta de la carpeta</string>
+    <string name="folders_current_folder">Carpeta actual</string>
+    <string name="folders_storage_space">%1$s libres de %2$s</string>
+    <string name="folders_loading">Cargando carpetas</string>
+    <plurals name="folders_item_count">
+        <item quantity="one">%1$d elemento</item>
+        <item quantity="other">%1$d elementos</item>
+    </plurals>
+    <plurals name="folders_subfolder_count">
+        <item quantity="one">%1$d carpeta</item>
+        <item quantity="other">%1$d carpetas</item>
+    </plurals>
+</resources>

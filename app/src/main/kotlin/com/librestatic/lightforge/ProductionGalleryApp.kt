@@ -417,6 +417,7 @@ internal fun ProductionGalleryApp(
     val access by viewModel.access.collectAsState()
     val engineState by viewModel.engineState.collectAsState()
     val thumbnails by viewModel.thumbnailLoader.collectAsState()
+    val folderExplorer = rememberFolderExplorerViewModel()
     val currentMedia by viewModel.currentMedia.collectAsState()
     val viewerRestoreSnapshot by viewModel.viewerRestoreSnapshot.collectAsState()
     val viewerSourceChecking by viewModel.viewerSourceChecking.collectAsState()
@@ -1188,6 +1189,7 @@ internal fun ProductionGalleryApp(
             route == SurfaceRoute.MemoriesBrowser -> { rootTab = RootTab.Collections; route = SurfaceRoute.Root }
             route == SurfaceRoute.PublicationRecoveries -> { route = SurfaceRoute.Root }
             route == SurfaceRoute.Album && albumReturnToDeviceFolders -> route = SurfaceRoute.DeviceFolders
+            route == SurfaceRoute.DeviceFolders && folderExplorer.navigateUp() -> Unit
             route == SurfaceRoute.LocalBackupTasks -> { backupReviewTaskId = null; route = if (backupTasksReturnRemote) SurfaceRoute.RemoteBackup else SurfaceRoute.LocalBackup }
             route == SurfaceRoute.OfflinePlaces -> leaveOfflinePlaces()
             route == SurfaceRoute.OwnSync || route == SurfaceRoute.LocalSharing || route == SurfaceRoute.PetIdentity -> { route = SurfaceRoute.Settings }
@@ -1683,9 +1685,10 @@ internal fun ProductionGalleryApp(
                     activityEvents,
                     showTitle = adaptiveInfo.navigationType == GalleryNavigationType.Rail,
                 )
-                SurfaceRoute.DeviceFolders -> DeviceFoldersContent(
-                    albums = physicalAlbums,
-                    onAlbumClick = { album ->
+                SurfaceRoute.DeviceFolders -> FolderExplorerHost(
+                    viewModel = folderExplorer,
+                    thumbnails = thumbnails,
+                    onOpenFiles = { album ->
                         albumReturnToDeviceFolders = true
                         viewModel.selectAlbum(album, filter, sort)
                         route = SurfaceRoute.Album
@@ -2406,6 +2409,7 @@ internal fun ProductionGalleryApp(
                         onSemanticDeleteAll = viewModel::deleteAllSemanticModels,
                         onSemanticAutomaticSelection = viewModel::useAutomaticSemanticModel,
                         onOpenAbout = { route = SurfaceRoute.About },
+                        storageAccess = rememberStorageAccessSettings(),
                         showHeader = false,
                     )
                 }
@@ -3094,7 +3098,7 @@ internal fun ProductionGalleryApp(
                     )
                     SurfaceRoute.DeviceFolders -> GalleryTopAppBar(
                         title = stringResource(R.string.device_folders_title),
-                        onBack = { route = SurfaceRoute.Root },
+                        onBack = { if (!folderExplorer.navigateUp()) route = SurfaceRoute.Root },
                         navigationContentDescription = stringResource(R.string.nav_back),
                     )
                     SurfaceRoute.Archive -> GalleryTopAppBar(
