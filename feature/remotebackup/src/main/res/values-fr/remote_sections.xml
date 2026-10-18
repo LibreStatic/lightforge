@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="remote_section_server">Serveur</string>
+    <string name="remote_section_backup">Sauvegarde</string>
+    <string name="remote_credentials_summary">Modifiez l\'identifiant ou le mot de passe de ce serveur</string>
+    <string name="remote_test_summary">Vérifiez que le serveur répond et ce qu\'il prend en charge</string>
+    <string name="remote_trust_summary">Vérifiez l\'empreinte SSH du serveur avant de lui faire confiance</string>
+    <string name="remote_list_summary">Consultez les sauvegardes déjà stockées sur ce serveur et téléchargez-en une</string>
+</resources>

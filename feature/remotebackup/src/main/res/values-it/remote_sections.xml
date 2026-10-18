@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="remote_section_server">Server</string>
+    <string name="remote_section_backup">Backup</string>
+    <string name="remote_credentials_summary">Cambia nome utente o password di questo server</string>
+    <string name="remote_test_summary">Verifica che il server risponda e cosa supporti</string>
+    <string name="remote_trust_summary">Controlla l\'impronta SSH del server prima di fidarti</string>
+    <string name="remote_list_summary">Vedi i backup già presenti su questo server e scarica quello che vuoi</string>
+</resources>
