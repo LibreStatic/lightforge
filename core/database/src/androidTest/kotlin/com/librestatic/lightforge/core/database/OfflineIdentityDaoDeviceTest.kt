@@ -59,6 +59,19 @@ class OfflineIdentityDaoDeviceTest {
         assertFalse(dao.media("external_primary", 2)!!.isAccessible)
     }
 
+    @Test fun reconciliationBackfillsMissingDurationWithoutRewritingUnchangedRows() = runBlocking {
+        media(1); media(2)
+        sql("UPDATE media_items SET durationMillis=7000 WHERE mediaStoreId=2")
+        val dao = db.libraryDao()
+        val checkpoint = MediaStoreCheckpointEntity("external_primary", "v1+lf2", 3, 2, 99, "Running", 123)
+        // Same generation: only the row whose duration was unknown is rewritten.
+        val probed = dao.media("external_primary", 1)!!.copy(durationMillis = 5000, lastSeenScanId = 99)
+        val unchanged = dao.media("external_primary", 2)!!.copy(durationMillis = 1, lastSeenScanId = 99)
+        dao.reconcileMediaPage(listOf(probed, unchanged), checkpoint)
+        assertEquals(5000L, dao.media("external_primary", 1)!!.durationMillis)
+        assertEquals(7000L, dao.media("external_primary", 2)!!.durationMillis)
+    }
+
     @Test fun migration26To27PreservesMediaMemoriesAndRestoreReceipts() {
         val name="migration-v26-pet-peer.db"
         val helper=MigrationTestHelper(InstrumentationRegistry.getInstrumentation(),GalleryDatabase::class.java)

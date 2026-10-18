@@ -58,6 +58,8 @@ data class MediaItemEntity(
 data class KnownMediaGeneration(
     val mediaStoreId: Long,
     val generationModified: Long,
+    val durationMillis: Long,
+    val width: Int,
 )
 
 @Entity(

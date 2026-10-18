@@ -579,7 +579,7 @@ interface LibraryDao {
     }
 
     @Query(
-        "SELECT mediaStoreId, generationModified FROM media_items " +
+        "SELECT mediaStoreId, generationModified, durationMillis, width FROM media_items " +
             "WHERE volumeName=:volumeName AND mediaStoreId IN (:mediaStoreIds)",
     )
     suspend fun knownMediaGenerations(
@@ -603,9 +603,15 @@ interface LibraryDao {
             val volumeName = items.first().volumeName
             require(items.all { it.volumeName == volumeName && it.isAccessible })
             val known = knownMediaGenerations(volumeName, items.map(MediaItemEntity::mediaStoreId))
-                .associate { it.mediaStoreId to it.generationModified }
+                .associateBy(KnownMediaGeneration::mediaStoreId)
             markMediaSeen(volumeName, items.map(MediaItemEntity::mediaStoreId), items.first().lastSeenScanId)
-            val newOrChanged = items.filter { known[it.mediaStoreId] != it.generationModified }
+            val newOrChanged = items.filter { item ->
+                val row = known[item.mediaStoreId]
+                // Also rewrite rows whose duration or size were missing and are now known (FLV and
+                // other files MediaProvider cannot parse, probed by the reader since index format +lf2).
+                row == null || row.generationModified != item.generationModified ||
+                    (row.durationMillis <= 0 && item.durationMillis > 0) || (row.width <= 0 && item.width > 0)
+            }
             if (newOrChanged.isNotEmpty()) upsertMedia(newOrChanged)
         }
         upsertCheckpoint(checkpoint)

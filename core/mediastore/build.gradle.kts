@@ -23,6 +23,8 @@ dependencies {
     implementation(project(":core:model"))
     implementation(project(":core:editing-image"))
     implementation(project(":core:editing-video"))
+    implementation(project(":core:legacy-video"))
+    implementation(libs.androidx.media3.inspector)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.exifinterface)
     implementation(libs.kotlinx.coroutines.core)

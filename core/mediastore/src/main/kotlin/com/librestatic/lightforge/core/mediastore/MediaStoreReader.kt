@@ -94,6 +94,8 @@ interface MediaStoreDeltaSource {
 }
 
 class MediaStoreReader(private val resolver: ContentResolver) : MediaStorePageSource, MediaStoreDeltaSource {
+    private val videoProbe = UnindexedVideoProbe(resolver)
+
     override fun readIdPage(
         volumeName: String,
         afterId: Long,
@@ -138,7 +140,7 @@ class MediaStoreReader(private val resolver: ContentResolver) : MediaStorePageSo
         )?.use { cursor ->
             buildList(capacity = minOf(limit, cursor.count.coerceAtLeast(0))) {
                 while (size < limit && cursor.moveToNext()) {
-                    cursor.toRecord(volumeName)?.let(::add)
+                    cursor.toRecord(volumeName)?.let(videoProbe::complete)?.let(::add)
                 }
             }
         }.orEmpty()
@@ -195,7 +197,7 @@ class MediaStoreReader(private val resolver: ContentResolver) : MediaStorePageSo
             null,
         )?.use { cursor ->
             buildList(capacity = minOf(limit, cursor.count.coerceAtLeast(0))) {
-                while (size < limit && cursor.moveToNext()) cursor.toRecord(volumeName)?.let(::add)
+                while (size < limit && cursor.moveToNext()) cursor.toRecord(volumeName)?.let(videoProbe::complete)?.let(::add)
             }
         }.orEmpty()
         val last = records.lastOrNull()
@@ -212,7 +214,7 @@ class MediaStoreReader(private val resolver: ContentResolver) : MediaStorePageSo
         MediaStoreProjection.Columns,
         Bundle().apply { putInt(MediaStore.QUERY_ARG_MATCH_TRASHED, MediaStore.MATCH_INCLUDE) },
         null,
-    )?.use { cursor -> if (cursor.moveToFirst()) cursor.toRecord(key.volumeName) else null }
+    )?.use { cursor -> if (cursor.moveToFirst()) cursor.toRecord(key.volumeName)?.let(videoProbe::complete) else null }
 }
 
 private fun Cursor.toRecord(requestedVolume: String): MediaStoreRecord? {
