@@ -15,9 +15,10 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
+import com.librestatic.lightforge.core.legacyvideo.LegacyMediaSourceFactory
+import com.librestatic.lightforge.core.legacyvideo.LegacyRenderersFactory
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -397,10 +398,10 @@ private class Media3VideoEngine(
 
     private fun createPlayer(): ExoPlayer = ExoPlayer.Builder(
         context,
-        DefaultRenderersFactory(context)
+        LegacyRenderersFactory(context)
             .setMediaCodecSelector(decoderSelector)
             .setEnableDecoderFallback(true),
-    ).build().also(::configure)
+    ).setMediaSourceFactory(LegacyMediaSourceFactory.create(context)).build().also(::configure)
 
     override fun rebuild(pipeline: VideoPipeline): Boolean {
         val previous = player

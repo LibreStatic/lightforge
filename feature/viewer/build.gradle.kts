@@ -29,6 +29,7 @@ dependencies {
     implementation(project(":core:navigation"))
     implementation(project(":core:selection"))
     implementation(project(":core:thumbnail"))
+    implementation(project(":core:legacy-video"))
     implementation(project(":core:frame-interpolation"))
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.effect)

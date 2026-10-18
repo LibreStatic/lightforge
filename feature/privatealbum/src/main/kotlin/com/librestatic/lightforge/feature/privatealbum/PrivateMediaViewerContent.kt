@@ -36,6 +36,8 @@ import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
+import com.librestatic.lightforge.core.legacyvideo.LegacyMediaSourceFactory
+import com.librestatic.lightforge.core.legacyvideo.LegacyRenderersFactory
 import com.librestatic.lightforge.core.security.PrivateAlbumCrypto
 import java.util.Locale
 import kotlinx.coroutines.*
@@ -232,7 +234,11 @@ private fun PrivateViewerVideo(source: PrivateViewerSource, onFailure: () -> Uni
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val failure by rememberUpdatedState(onFailure)
-    val player = remember(source) { ExoPlayer.Builder(context).build() }
+    val player = remember(source) {
+        ExoPlayer.Builder(context, LegacyRenderersFactory(context))
+            .setMediaSourceFactory(LegacyMediaSourceFactory.create(context))
+            .build()
+    }
     val released = remember(player) { java.util.concurrent.atomic.AtomicBoolean(false) }
     fun releasePlayer() {
         if (released.compareAndSet(false, true)) {

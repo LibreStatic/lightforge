@@ -965,6 +965,22 @@
       "licenseId": "Apache-2.0",
       "licenseName": "Apache License 2.0",
       "licenseTextAsset": "licenses/Apache-2.0.txt",
+      "name": "media3-inspector",
+      "version": "1.11.0"
+    },
+    {
+      "group": "androidx.media3",
+      "licenseId": "Apache-2.0",
+      "licenseName": "Apache License 2.0",
+      "licenseTextAsset": "licenses/Apache-2.0.txt",
+      "name": "media3-inspector-frame",
+      "version": "1.11.0"
+    },
+    {
+      "group": "androidx.media3",
+      "licenseId": "Apache-2.0",
+      "licenseName": "Apache License 2.0",
+      "licenseTextAsset": "licenses/Apache-2.0.txt",
       "name": "media3-muxer",
       "version": "1.11.0"
     },

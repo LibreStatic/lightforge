@@ -35,6 +35,7 @@ dependencies {
     implementation(project(":core:database"))
     implementation(project(":core:mediastore"))
     implementation(project(":core:thumbnail"))
+    implementation(project(":core:legacy-video"))
     implementation(project(":core:navigation"))
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
