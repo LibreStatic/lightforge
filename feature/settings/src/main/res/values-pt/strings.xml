@@ -237,10 +237,10 @@
     <string name="storage_access_media_body">Se permitir, mover para a lixeira, excluir e editar várias fotos e vídeos de uma vez não pedirá confirmação a cada vez.</string>
     <string name="storage_access_advanced_title">Modo de armazenamento avançado</string>
     <string name="storage_access_advanced_switch">Usar o modo de armazenamento avançado</string>
-    <string name="storage_access_advanced_supporting">Mostra pastas ocultas, oculta e reexibe pastas, move arquivos instantaneamente dentro do mesmo armazenamento e gere pastas.</string>
+    <string name="storage_access_advanced_supporting">Mostra itens ocultos, oculta e reexibe pastas, move e renomeia arquivos instantaneamente no mesmo armazenamento, gerencia pastas e exclui as que ficam vazias.</string>
     <string name="storage_access_waiting_body">Permita o acesso a todos os arquivos na tela do sistema para concluir a ativação.</string>
     <string name="storage_access_enable_title">Ativar o modo de armazenamento avançado?</string>
-    <string name="storage_access_enable_body">Este modo permite ao Lightforge:\n• Mostrar pastas ocultas com .nomedia\n• Ocultar e reexibir pastas\n• Mover arquivos instantaneamente dentro do mesmo armazenamento\n• Criar, renomear e excluir pastas vazias\n\nUsa a permissão de acesso a todos os arquivos, que você concede na próxima tela. Você pode desativá-lo a qualquer momento. O Lightforge guarda uma lista das pastas que oculta para poder desfazer.</string>
+    <string name="storage_access_enable_body">Este modo permite que o Lightforge:\n• Mostre fotos e vídeos de pastas ocultas com .nomedia\n• Oculte e reexiba pastas\n• Mova e renomeie arquivos instantaneamente no mesmo armazenamento\n• Crie, renomeie e mova pastas, e exclua as vazias\n• Opcionalmente, exclua pastas que ficaram vazias após uma movimentação\n\nUsa a permissão de acesso a todos os arquivos, concedida na próxima tela. Você pode desativá-lo a qualquer momento. O Lightforge guarda uma lista das pastas que oculta para poder desfazer.</string>
     <string name="storage_access_enable_confirm">Continuar</string>
     <string name="storage_access_turn_off_body">As pastas que você mantiver ocultas continuam listadas aqui para você reexibi-las depois.</string>
     <string name="storage_access_turn_off_no_permission">O acesso a todos os arquivos não está mais permitido, então as pastas não podem ser reexibidas agora.</string>
@@ -268,5 +268,27 @@
         <item quantity="one">Não foi possível reexibir %1$d pasta; ela continua na lista.</item>
         <item quantity="many">Não foi possível reexibir %1$d pastas; elas continuam na lista.</item>
         <item quantity="other">Não foi possível reexibir %1$d pastas; elas continuam na lista.</item>
+    </plurals>
+    <string name="storage_access_show_hidden">Mostrar itens ocultos</string>
+    <string name="storage_access_show_hidden_supporting">Lista fotos e vídeos de pastas ocultas com .nomedia ou com nome que começa com ponto.</string>
+    <string name="storage_access_delete_empty">Excluir pastas que ficaram vazias</string>
+    <string name="storage_access_delete_empty_supporting">Quando você move os últimos arquivos de uma pasta, a pasta também é excluída.</string>
+    <string name="settings_protect_hidden_items">Proteger itens ocultos com o bloqueio do app</string>
+    <string name="settings_protect_hidden_items_supporting">Pede para desbloquear antes de mostrar itens ocultos ou abrir a lista de pastas ocultas.</string>
+    <string name="storage_access_hidden_locked">A lista de pastas ocultas está protegida pelo bloqueio do app.</string>
+    <string name="storage_access_hidden_show_list">Mostrar pastas ocultas</string>
+    <string name="storage_access_unhide_choose_folder">Reexibir (escolher pasta)</string>
+    <string name="storage_access_unhide_choose_folder_description">Reexibir %1$s escolhendo a pasta</string>
+    <string name="storage_access_keep_hidden">Manter ocultas</string>
+    <string name="storage_access_prompt_body">O modo de armazenamento avançado foi desativado por uma importação ou redefinição de ajustes, mas estas pastas continuam ocultas. Ao reexibi-las, as fotos e vídeos voltam a aparecer.</string>
+    <plurals name="storage_access_summary_action_needed">
+        <item quantity="one">Ação necessária: %1$d pasta ainda oculta</item>
+        <item quantity="many">Ação necessária: %1$d pastas ainda ocultas</item>
+        <item quantity="other">Ação necessária: %1$d pastas ainda ocultas</item>
+    </plurals>
+    <plurals name="storage_access_prompt_title">
+        <item quantity="one">Reexibir %1$d pasta?</item>
+        <item quantity="many">Reexibir %1$d pastas?</item>
+        <item quantity="other">Reexibir %1$d pastas?</item>
     </plurals>
 </resources>

@@ -1,6 +1,7 @@
 package com.librestatic.lightforge.feature.settings
 
 import android.content.Intent
+import android.net.Uri
 
 /** A folder Lightforge hid with a `.nomedia` file, as shown in Settings (ADR-046). */
 data class HiddenFolderUi(val absolutePath: String, val createdAtMillis: Long)
@@ -21,6 +22,14 @@ data class StorageAccessUiState(
     val advancedEnabled: Boolean = false,
     val allFilesGranted: Boolean = false,
     val hidden: List<HiddenFolderUi> = emptyList(),
+    /** Subset of [hidden] the app can only unhide once the user picks the folder (owner delete failed). */
+    val treeGrantPaths: Set<String> = emptySet(),
+    val showHidden: Boolean = false,
+    val deleteEmptyFolders: Boolean = false,
+    val protectHiddenItems: Boolean = false,
+    val appLockEnabled: Boolean = false,
+    /** Folders to offer to unhide after an import or reset turned the mode off; 0 means no prompt. */
+    val unhidePromptCount: Int = 0,
     val busy: Boolean = false,
     val message: StorageAccessMessage? = null,
 ) {
@@ -29,6 +38,18 @@ data class StorageAccessUiState(
     /** The user opted in, the permission is gone, and there is something Lightforge should undo. */
     val permissionRevoked: Boolean
         get() = advancedSupported && advancedEnabled && !allFilesGranted && hidden.isNotEmpty()
+
+    /** Folders still hidden while the permission is gone; 0 when nothing needs the user's action. */
+    val revokedWithHidden: Int get() = if (permissionRevoked) hidden.size else 0
+
+    /** Show-hidden and delete-empty exist only while the mode is active; nothing of it shows otherwise. */
+    val advancedActive: Boolean get() = advancedSupported && advancedStatus == AdvancedStatus.Active
+
+    /** The lock row exists only where hidden items can exist and the app lock can protect them. */
+    val protectRowVisible: Boolean get() = advancedSupported && appLockEnabled
+
+    /** Hidden items and the hidden-folders list need the app lock before they are shown. */
+    val hiddenItemsProtected: Boolean get() = protectHiddenItems && protectRowVisible
 
     /** Whether the page has anything to show; the settings list hides the entry otherwise. */
     val hasContent: Boolean get() = manageMediaSupported || advancedSupported || hidden.isNotEmpty()
@@ -43,6 +64,13 @@ data class StorageAccessActions(
     val onUnhideAndTurnOff: () -> Unit = {},
     val onUnhide: (String) -> Unit = {},
     val onUnhideAll: () -> Unit = {},
+    /** Finishes an unhide with a folder the user picked in the system picker (ADR-046). */
+    val onUnhideWithTree: (String, Uri) -> Unit = { _, _ -> },
+    val onSetShowHidden: (Boolean) -> Unit = {},
+    val onSetDeleteEmptyFolders: (Boolean) -> Unit = {},
+    val onDismissUnhidePrompt: () -> Unit = {},
+    /** Runs [onSuccess] after the app lock check when [protectHiddenItems] is on; the host owns the biometric UI. */
+    val requireUnlock: (onSuccess: () -> Unit) -> Unit = { it() },
     val manageMediaIntent: () -> Intent? = { null },
     val permissionIntent: () -> Intent? = { null },
 )
@@ -85,4 +113,18 @@ fun readableHiddenPath(absolutePath: String): String {
         return if (rest.isEmpty()) match.groupValues[1] else "${match.groupValues[1]}/$rest"
     }
     return path.ifEmpty { "/" }
+}
+
+/**
+ * Document id of a folder for the picker's initial location, or null for a path outside a mounted volume.
+ * `/storage/emulated/0/Pictures/Trip` becomes `primary:Pictures/Trip`; other volumes use their UUID.
+ */
+fun treeDocumentIdOf(absolutePath: String): String? {
+    val path = absolutePath.trimEnd('/')
+    PrimaryVolumePrefixes.firstNotNullOfOrNull { prefix -> prefix.find("$path/") }
+        ?.let { return "primary:" + "$path/".removeRange(it.range).trimEnd('/') }
+    OtherVolumePrefix.find("$path/")?.let { match ->
+        return match.groupValues[1] + ":" + "$path/".removeRange(match.range).trimEnd('/')
+    }
+    return null
 }

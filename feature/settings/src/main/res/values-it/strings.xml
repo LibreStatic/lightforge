@@ -237,10 +237,10 @@
     <string name="storage_access_media_body">Se lo consenti, spostare nel cestino, eliminare e modificare più foto e video insieme non chiederà conferma ogni volta.</string>
     <string name="storage_access_advanced_title">Modalità di archiviazione avanzata</string>
     <string name="storage_access_advanced_switch">Usa la modalità di archiviazione avanzata</string>
-    <string name="storage_access_advanced_supporting">Mostra le cartelle nascoste, nasconde e mostra di nuovo le cartelle, sposta i file all\'istante nella stessa memoria e gestisce le cartelle.</string>
+    <string name="storage_access_advanced_supporting">Mostra gli elementi nascosti, nasconde e mostra di nuovo le cartelle, sposta e rinomina i file all\'istante nello stesso archivio, gestisce le cartelle ed elimina quelle rimaste vuote.</string>
     <string name="storage_access_waiting_body">Consenti l\'accesso a tutti i file nella schermata di sistema per completare l\'attivazione.</string>
     <string name="storage_access_enable_title">Attivare la modalità di archiviazione avanzata?</string>
-    <string name="storage_access_enable_body">Questa modalità consente a Lightforge di:\n• Mostrare le cartelle nascoste con .nomedia\n• Nascondere e mostrare di nuovo le cartelle\n• Spostare i file all\'istante nella stessa memoria\n• Creare, rinominare ed eliminare cartelle vuote\n\nUsa l\'autorizzazione di accesso a tutti i file, che concedi nella schermata successiva. Puoi disattivarla in qualsiasi momento. Lightforge conserva un elenco delle cartelle che nasconde per poterlo annullare.</string>
+    <string name="storage_access_enable_body">Questa modalità permette a Lightforge di:\n• Mostrare foto e video nelle cartelle nascoste con .nomedia\n• Nascondere e mostrare di nuovo le cartelle\n• Spostare e rinominare i file all\'istante nello stesso archivio\n• Creare, rinominare e spostare cartelle, ed eliminare quelle vuote\n• Facoltativamente, eliminare le cartelle rimaste vuote dopo uno spostamento\n\nUsa l\'autorizzazione di accesso a tutti i file, che concedi nella schermata successiva. Puoi disattivarla in qualsiasi momento. Lightforge conserva l\'elenco delle cartelle che nasconde per poter annullare.</string>
     <string name="storage_access_enable_confirm">Continua</string>
     <string name="storage_access_turn_off_body">Le cartelle che lasci nascoste restano elencate qui, così potrai mostrarle di nuovo più tardi.</string>
     <string name="storage_access_turn_off_no_permission">L\'accesso a tutti i file non è più consentito, quindi per ora le cartelle non possono essere mostrate di nuovo.</string>
@@ -268,5 +268,27 @@
         <item quantity="one">Impossibile mostrare di nuovo %1$d cartella: resta nell\'elenco.</item>
         <item quantity="many">Impossibile mostrare di nuovo %1$d cartelle: restano nell\'elenco.</item>
         <item quantity="other">Impossibile mostrare di nuovo %1$d cartelle: restano nell\'elenco.</item>
+    </plurals>
+    <string name="storage_access_show_hidden">Mostra elementi nascosti</string>
+    <string name="storage_access_show_hidden_supporting">Elenca foto e video nelle cartelle nascoste con .nomedia o con un nome che inizia con un punto.</string>
+    <string name="storage_access_delete_empty">Elimina le cartelle rimaste vuote</string>
+    <string name="storage_access_delete_empty_supporting">Quando sposti gli ultimi file fuori da una cartella, elimina anche la cartella.</string>
+    <string name="settings_protect_hidden_items">Proteggi gli elementi nascosti con il blocco app</string>
+    <string name="settings_protect_hidden_items_supporting">Chiede di sbloccare prima di mostrare gli elementi nascosti o aprire l\'elenco delle cartelle nascoste.</string>
+    <string name="storage_access_hidden_locked">L\'elenco delle cartelle nascoste è protetto dal blocco app.</string>
+    <string name="storage_access_hidden_show_list">Mostra cartelle nascoste</string>
+    <string name="storage_access_unhide_choose_folder">Mostra di nuovo (scegli cartella)</string>
+    <string name="storage_access_unhide_choose_folder_description">Mostra di nuovo %1$s scegliendo la cartella</string>
+    <string name="storage_access_keep_hidden">Mantieni nascoste</string>
+    <string name="storage_access_prompt_body">La modalità di archiviazione avanzata è stata disattivata da un\'importazione o da un ripristino delle impostazioni, ma queste cartelle sono ancora nascoste. Mostrandole di nuovo, foto e video tornano visibili.</string>
+    <plurals name="storage_access_summary_action_needed">
+        <item quantity="one">Azione necessaria: %1$d cartella ancora nascosta</item>
+        <item quantity="many">Azione necessaria: %1$d cartelle ancora nascoste</item>
+        <item quantity="other">Azione necessaria: %1$d cartelle ancora nascoste</item>
+    </plurals>
+    <plurals name="storage_access_prompt_title">
+        <item quantity="one">Mostrare di nuovo %1$d cartella?</item>
+        <item quantity="many">Mostrare di nuovo %1$d cartelle?</item>
+        <item quantity="other">Mostrare di nuovo %1$d cartelle?</item>
     </plurals>
 </resources>

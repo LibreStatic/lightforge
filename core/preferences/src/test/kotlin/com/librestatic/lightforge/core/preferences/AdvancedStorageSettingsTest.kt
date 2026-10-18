@@ -65,4 +65,44 @@ class AdvancedStorageSettingsTest {
         assertFalse(repo.enabled())
         assertEquals(true, repo.settings.first().operations.keepLastModifiedWhenPossible)
     }
+
+    @Test
+    fun `the new advanced fields default to off`() = test { repo ->
+        val settings = repo.settings.first()
+        assertFalse(settings.operations.advancedShowHidden)
+        assertFalse(settings.operations.advancedDeleteEmptyFolders)
+        assertFalse(settings.security.protectHiddenItems)
+    }
+
+    @Test
+    fun `a full export with every advanced field imports without error and round trips`() = test { repo ->
+        repo.update {
+            it.copy(
+                operations = it.operations.copy(advancedStorageEnabled = true, advancedShowHidden = true, advancedDeleteEmptyFolders = true),
+                security = it.security.copy(appLockEnabled = true, protectHiddenItems = true),
+            )
+        }
+        val exported = repo.exportJson()
+        assertTrue(exported.getJSONObject("operations").getBoolean("advancedShowHidden"))
+        assertTrue(exported.getJSONObject("operations").getBoolean("advancedDeleteEmptyFolders"))
+        assertTrue(exported.getJSONObject("security").getBoolean("protectHiddenItems"))
+        repo.reset()
+        assertFalse(repo.settings.first().operations.advancedShowHidden)
+        repo.importJson(exported)
+        val back = repo.settings.first()
+        assertTrue(back.operations.advancedStorageEnabled)
+        assertTrue(back.operations.advancedShowHidden)
+        assertTrue(back.operations.advancedDeleteEmptyFolders)
+        assertTrue(back.security.protectHiddenItems)
+    }
+
+    @Test
+    fun `malformed or absent new fields are ignored and the temporary state is never exported`() = test { repo ->
+        repo.importJson(JSONObject("""{"operations":{"advancedShowHidden":"yes","advancedDeleteEmptyFolders":null},"security":{"protectHiddenItems":"x"}}"""))
+        val settings = repo.settings.first()
+        assertFalse(settings.operations.advancedShowHidden)
+        assertFalse(settings.operations.advancedDeleteEmptyFolders)
+        assertFalse(settings.security.protectHiddenItems)
+        assertFalse(repo.exportJson().toString().contains("temporary", ignoreCase = true))
+    }
 }

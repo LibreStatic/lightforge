@@ -237,10 +237,10 @@
     <string name="storage_access_media_body">Si vous l\'autorisez, la mise à la corbeille, la suppression et la modification de plusieurs photos et vidéos à la fois ne demanderont plus de confirmation à chaque fois.</string>
     <string name="storage_access_advanced_title">Mode de stockage avancé</string>
     <string name="storage_access_advanced_switch">Utiliser le mode de stockage avancé</string>
-    <string name="storage_access_advanced_supporting">Affiche les dossiers masqués, masque et réaffiche des dossiers, déplace des fichiers instantanément au sein du même stockage et gère les dossiers.</string>
+    <string name="storage_access_advanced_supporting">Affiche les éléments masqués, masque et réaffiche des dossiers, déplace et renomme des fichiers instantanément sur le même stockage, gère les dossiers et supprime ceux qui restent vides.</string>
     <string name="storage_access_waiting_body">Autorisez l\'accès à tous les fichiers dans l\'écran système pour terminer l\'activation.</string>
     <string name="storage_access_enable_title">Activer le mode de stockage avancé ?</string>
-    <string name="storage_access_enable_body">Ce mode permet à Lightforge de :\n• Afficher les dossiers masqués avec .nomedia\n• Masquer et réafficher des dossiers\n• Déplacer des fichiers instantanément au sein du même stockage\n• Créer, renommer et supprimer des dossiers vides\n\nIl utilise l\'autorisation d\'accès à tous les fichiers, que vous accordez sur l\'écran suivant. Vous pouvez le désactiver à tout moment. Lightforge conserve la liste des dossiers qu\'il masque afin de pouvoir annuler.</string>
+    <string name="storage_access_enable_body">Ce mode permet à Lightforge de :\n• Afficher les photos et vidéos des dossiers masqués avec .nomedia\n• Masquer et réafficher des dossiers\n• Déplacer et renommer des fichiers instantanément sur le même stockage\n• Créer, renommer et déplacer des dossiers, et supprimer les dossiers vides\n• Supprimer, si vous le souhaitez, les dossiers restés vides après un déplacement\n\nIl utilise l\'autorisation d\'accès à tous les fichiers, que vous accordez à l\'écran suivant. Vous pouvez le désactiver à tout moment. Lightforge conserve la liste des dossiers qu\'il masque pour pouvoir annuler.</string>
     <string name="storage_access_enable_confirm">Continuer</string>
     <string name="storage_access_turn_off_body">Les dossiers que vous laissez masqués restent listés ici pour que vous puissiez les réafficher plus tard.</string>
     <string name="storage_access_turn_off_no_permission">L\'accès à tous les fichiers n\'est plus autorisé : les dossiers ne peuvent pas être réaffichés pour le moment.</string>
@@ -268,5 +268,27 @@
         <item quantity="one">%1$d dossier n\'a pas pu être réaffiché et reste listé.</item>
         <item quantity="many">%1$d dossiers n\'ont pas pu être réaffichés et restent listés.</item>
         <item quantity="other">%1$d dossiers n\'ont pas pu être réaffichés et restent listés.</item>
+    </plurals>
+    <string name="storage_access_show_hidden">Afficher les éléments masqués</string>
+    <string name="storage_access_show_hidden_supporting">Liste les photos et vidéos des dossiers masqués avec .nomedia ou dont le nom commence par un point.</string>
+    <string name="storage_access_delete_empty">Supprimer les dossiers restés vides</string>
+    <string name="storage_access_delete_empty_supporting">Quand vous déplacez les derniers fichiers d\'un dossier, celui-ci est aussi supprimé.</string>
+    <string name="settings_protect_hidden_items">Protéger les éléments masqués avec le verrouillage</string>
+    <string name="settings_protect_hidden_items_supporting">Demande de déverrouiller avant d\'afficher les éléments masqués ou d\'ouvrir la liste des dossiers masqués.</string>
+    <string name="storage_access_hidden_locked">La liste des dossiers masqués est protégée par le verrouillage de l\'application.</string>
+    <string name="storage_access_hidden_show_list">Afficher les dossiers masqués</string>
+    <string name="storage_access_unhide_choose_folder">Réafficher (choisir le dossier)</string>
+    <string name="storage_access_unhide_choose_folder_description">Réafficher %1$s en choisissant son dossier</string>
+    <string name="storage_access_keep_hidden">Garder masqués</string>
+    <string name="storage_access_prompt_body">Le mode de stockage avancé a été désactivé par une importation ou une réinitialisation des réglages, mais ces dossiers sont toujours masqués. Les réafficher fait réapparaître leurs photos et vidéos.</string>
+    <plurals name="storage_access_summary_action_needed">
+        <item quantity="one">Action requise : %1$d dossier toujours masqué</item>
+        <item quantity="many">Action requise : %1$d dossiers toujours masqués</item>
+        <item quantity="other">Action requise : %1$d dossiers toujours masqués</item>
+    </plurals>
+    <plurals name="storage_access_prompt_title">
+        <item quantity="one">Réafficher %1$d dossier ?</item>
+        <item quantity="many">Réafficher %1$d dossiers ?</item>
+        <item quantity="other">Réafficher %1$d dossiers ?</item>
     </plurals>
 </resources>

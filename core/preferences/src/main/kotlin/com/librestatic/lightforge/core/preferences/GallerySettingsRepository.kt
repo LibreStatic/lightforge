@@ -343,12 +343,15 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                         skipAppDeleteConfirmation = p[Keys.SkipDeleteConfirmation] ?: false,
                         dismissedWarnings = DismissibleWarning.fromKeys(p[Keys.DismissedWarnings].orEmpty()),
                         advancedStorageEnabled = p[Keys.AdvancedStorageEnabled] ?: false,
+                        advancedShowHidden = p[Keys.AdvancedShowHidden] ?: false,
+                        advancedDeleteEmptyFolders = p[Keys.AdvancedDeleteEmptyFolders] ?: false,
                     ),
                 security =
                     SecuritySettings(
                         appLockEnabled = p[Keys.AppLock] ?: false,
                         destructiveActionLockEnabled = p[Keys.DestructiveLock] ?: false,
                         relockTimeoutMinutes = p[Keys.RelockTimeout] ?: 1,
+                        protectHiddenItems = p[Keys.ProtectHiddenItems] ?: false,
                     ),
                 analysis =
                     AnalysisSettings(
@@ -409,9 +412,12 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         p[Keys.SkipDeleteConfirmation] = s.operations.skipAppDeleteConfirmation
         p[Keys.DismissedWarnings] = s.operations.dismissedWarnings.mapTo(linkedSetOf()) { it.key }
         p[Keys.AdvancedStorageEnabled] = s.operations.advancedStorageEnabled
+        p[Keys.AdvancedShowHidden] = s.operations.advancedShowHidden
+        p[Keys.AdvancedDeleteEmptyFolders] = s.operations.advancedDeleteEmptyFolders
         p[Keys.AppLock] = s.security.appLockEnabled
         p[Keys.DestructiveLock] = s.security.destructiveActionLockEnabled
         p[Keys.RelockTimeout] = s.security.relockTimeoutMinutes
+        p[Keys.ProtectHiddenItems] = s.security.protectHiddenItems
         p[Keys.FullAnalysisMinimumBattery] = s.analysis.fullAnalysisMinimumBatteryPercent
         p[Keys.ModelDownloadsOnMobileData] = s.analysis.modelDownloadsOnMobileData
         p[Keys.AppearancePalette] = s.appearance.palette.name
@@ -491,6 +497,8 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     put("skipAppDeleteConfirmation", operations.skipAppDeleteConfirmation)
                     put("dismissedWarnings", JSONArray(operations.dismissedWarnings.map { it.key }))
                     put("advancedStorageEnabled", operations.advancedStorageEnabled)
+                    put("advancedShowHidden", operations.advancedShowHidden)
+                    put("advancedDeleteEmptyFolders", operations.advancedDeleteEmptyFolders)
                 },
             )
             put(
@@ -499,6 +507,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     put("appLockEnabled", security.appLockEnabled)
                     put("destructiveActionLockEnabled", security.destructiveActionLockEnabled)
                     put("relockTimeoutMinutes", security.relockTimeoutMinutes)
+                    put("protectHiddenItems", security.protectHiddenItems)
                 },
             )
             put(
@@ -605,12 +614,15 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     DismissibleWarning.fromKeys(o.stringSet("dismissedWarnings")),
                     // Optional and lenient: absent or malformed (older or foreign export) means off.
                     o.optBoolean("advancedStorageEnabled", false),
+                    o.optBoolean("advancedShowHidden", false),
+                    o.optBoolean("advancedDeleteEmptyFolders", false),
                 ),
             security =
                 SecuritySettings(
                     s.bool("appLockEnabled", false),
                     s.bool("destructiveActionLockEnabled", false),
                     s.optInt("relockTimeoutMinutes", 1),
+                    s.optBoolean("protectHiddenItems", false),
                 ),
             analysis =
                 AnalysisSettings(
@@ -670,6 +682,9 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         val SkipDeleteConfirmation = booleanPreferencesKey("operations.skip_delete_confirmation")
         val DismissedWarnings = stringSetPreferencesKey("operations.dismissed_warnings")
         val AdvancedStorageEnabled = booleanPreferencesKey("advanced.enabled")
+        val AdvancedShowHidden = booleanPreferencesKey("advanced.show_hidden")
+        val AdvancedDeleteEmptyFolders = booleanPreferencesKey("advanced.delete_empty_folders")
+        val ProtectHiddenItems = booleanPreferencesKey("security.protect_hidden_items")
         val AppLock = booleanPreferencesKey("security.app_lock")
         val DestructiveLock = booleanPreferencesKey("security.destructive_lock")
         val RelockTimeout = intPreferencesKey("security.relock_timeout")

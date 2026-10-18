@@ -237,10 +237,10 @@
     <string name="storage_access_media_body">Si lo permites, mover a la papelera, eliminar y editar varias fotos y videos a la vez no pedirá confirmación cada vez.</string>
     <string name="storage_access_advanced_title">Modo de almacenamiento avanzado</string>
     <string name="storage_access_advanced_switch">Usar el modo de almacenamiento avanzado</string>
-    <string name="storage_access_advanced_supporting">Muestra carpetas ocultas, oculta y vuelve a mostrar carpetas, mueve archivos al instante dentro del mismo almacenamiento y gestiona carpetas.</string>
+    <string name="storage_access_advanced_supporting">Muestra elementos ocultos, oculta y vuelve a mostrar carpetas, mueve y renombra archivos al instante dentro del mismo almacenamiento, gestiona carpetas y elimina las que quedan vacías.</string>
     <string name="storage_access_waiting_body">Permite el acceso a todos los archivos en la pantalla del sistema para terminar de activarlo.</string>
     <string name="storage_access_enable_title">¿Activar el modo de almacenamiento avanzado?</string>
-    <string name="storage_access_enable_body">Este modo permite a Lightforge:\n• Mostrar carpetas ocultas con .nomedia\n• Ocultar y volver a mostrar carpetas\n• Mover archivos al instante dentro del mismo almacenamiento\n• Crear, renombrar y eliminar carpetas vacías\n\nUsa el permiso de acceso a todos los archivos, que concedes en la siguiente pantalla. Puedes desactivarlo cuando quieras. Lightforge guarda una lista de las carpetas que oculta para poder deshacerlo.</string>
+    <string name="storage_access_enable_body">Este modo permite a Lightforge:\n• Mostrar fotos y vídeos de carpetas ocultas con .nomedia\n• Ocultar y volver a mostrar carpetas\n• Mover y renombrar archivos al instante dentro del mismo almacenamiento\n• Crear, renombrar y mover carpetas, y eliminar las vacías\n• Opcionalmente, eliminar las carpetas que quedan vacías tras un movimiento\n\nUsa el permiso de acceso a todos los archivos, que concedes en la siguiente pantalla. Puedes desactivarlo cuando quieras. Lightforge guarda una lista de las carpetas que oculta para poder deshacerlo.</string>
     <string name="storage_access_enable_confirm">Continuar</string>
     <string name="storage_access_turn_off_body">Las carpetas que dejes ocultas seguirán en esta lista para que puedas mostrarlas más tarde.</string>
     <string name="storage_access_turn_off_no_permission">El acceso a todos los archivos ya no está permitido, así que ahora no se pueden volver a mostrar las carpetas.</string>
@@ -268,5 +268,27 @@
         <item quantity="one">No se pudo volver a mostrar %1$d carpeta; sigue en la lista.</item>
         <item quantity="many">No se pudo volver a mostrar %1$d carpetas; siguen en la lista.</item>
         <item quantity="other">No se pudo volver a mostrar %1$d carpetas; siguen en la lista.</item>
+    </plurals>
+    <string name="storage_access_show_hidden">Mostrar elementos ocultos</string>
+    <string name="storage_access_show_hidden_supporting">Muestra las fotos y vídeos de carpetas ocultas con .nomedia o con un nombre que empieza por punto.</string>
+    <string name="storage_access_delete_empty">Eliminar carpetas que quedan vacías</string>
+    <string name="storage_access_delete_empty_supporting">Cuando mueves los últimos archivos fuera de una carpeta, la carpeta también se elimina.</string>
+    <string name="settings_protect_hidden_items">Proteger elementos ocultos con el bloqueo de la app</string>
+    <string name="settings_protect_hidden_items_supporting">Pide desbloquear antes de mostrar elementos ocultos o abrir la lista de carpetas ocultas.</string>
+    <string name="storage_access_hidden_locked">La lista de carpetas ocultas está protegida por el bloqueo de la app.</string>
+    <string name="storage_access_hidden_show_list">Mostrar carpetas ocultas</string>
+    <string name="storage_access_unhide_choose_folder">Mostrar (elegir carpeta)</string>
+    <string name="storage_access_unhide_choose_folder_description">Volver a mostrar %1$s eligiendo su carpeta</string>
+    <string name="storage_access_keep_hidden">Mantener ocultas</string>
+    <string name="storage_access_prompt_body">El modo de almacenamiento avanzado se desactivó por una importación o un restablecimiento de ajustes, pero estas carpetas siguen ocultas. Al mostrarlas, vuelven a verse sus fotos y vídeos.</string>
+    <plurals name="storage_access_summary_action_needed">
+        <item quantity="one">Acción necesaria: %1$d carpeta sigue oculta</item>
+        <item quantity="many">Acción necesaria: %1$d carpetas siguen ocultas</item>
+        <item quantity="other">Acción necesaria: %1$d carpetas siguen ocultas</item>
+    </plurals>
+    <plurals name="storage_access_prompt_title">
+        <item quantity="one">¿Volver a mostrar %1$d carpeta?</item>
+        <item quantity="many">¿Volver a mostrar %1$d carpetas?</item>
+        <item quantity="other">¿Volver a mostrar %1$d carpetas?</item>
     </plurals>
 </resources>

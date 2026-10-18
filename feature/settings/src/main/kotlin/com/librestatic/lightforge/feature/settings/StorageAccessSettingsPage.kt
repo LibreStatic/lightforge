@@ -2,6 +2,9 @@ package com.librestatic.lightforge.feature.settings
 
 import android.content.Context
 import android.content.Intent
+import android.provider.DocumentsContract
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -51,6 +54,21 @@ fun StorageAccessSettingsContent(
     val context = LocalContext.current
     var confirmEnable by rememberSaveable { mutableStateOf(false) }
     var confirmTurnOff by rememberSaveable { mutableStateOf(false) }
+    var hiddenListUnlocked by rememberSaveable { mutableStateOf(false) }
+    var treeGrantPath by rememberSaveable { mutableStateOf<String?>(null) }
+    val treePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        val path = treeGrantPath
+        treeGrantPath = null
+        if (uri != null && path != null) actions.onUnhideWithTree(path, uri)
+    }
+    // Opening the system picker on the folder itself saves the user from browsing to it.
+    val chooseFolder: (String) -> Unit = { path ->
+        treeGrantPath = path
+        val initial = treeDocumentIdOf(path)?.let {
+            DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", it)
+        }
+        runCatching { treePicker.launch(initial) }.onFailure { treeGrantPath = null }
+    }
 
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xl)) {
         if (state.permissionRevoked) {
@@ -77,6 +95,7 @@ fun StorageAccessSettingsContent(
                 actions = actions,
                 context = context,
                 onRequestEnable = { confirmEnable = true },
+                requireUnlock = actions.requireUnlock,
                 onRequestTurnOff = {
                     when (turnOffAction(state.hidden.size)) {
                         TurnOffAction.TurnOffDirectly -> actions.onSetEnabled(false)
@@ -85,7 +104,13 @@ fun StorageAccessSettingsContent(
                 },
             )
         }
-        if (state.hidden.isNotEmpty()) HiddenFoldersSection(state, actions)
+        if (state.hidden.isNotEmpty()) {
+            if (state.hiddenItemsProtected && !hiddenListUnlocked) {
+                LockedHiddenFoldersSection(onShow = { actions.requireUnlock { hiddenListUnlocked = true } })
+            } else {
+                HiddenFoldersSection(state, actions, chooseFolder)
+            }
+        }
     }
 
     if (confirmEnable) {
@@ -141,6 +166,7 @@ fun StorageAccessSettingsContent(
 /** Short status for the settings list row. */
 @Composable
 fun StorageAccessUiState.categorySummary(): String = when {
+    revokedWithHidden > 0 -> pluralStringResource(R.plurals.storage_access_summary_action_needed, revokedWithHidden, revokedWithHidden)
     advancedSupported -> advancedStatusLabel(advancedStatus)
     else -> stringResource(if (manageMediaGranted) R.string.storage_access_allowed else R.string.storage_access_not_allowed)
 }
@@ -213,6 +239,7 @@ private fun AdvancedSection(
     context: Context,
     onRequestEnable: () -> Unit,
     onRequestTurnOff: () -> Unit,
+    requireUnlock: (onSuccess: () -> Unit) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
         SectionTitle(stringResource(R.string.storage_access_advanced_title))
@@ -229,10 +256,30 @@ private fun AdvancedSection(
                 value = advancedStatusLabel(state.advancedStatus),
                 modifier = Modifier.testTag("storage-access-advanced-status"),
             )
+            if (state.advancedActive) {
+                SettingsSwitchRow(
+                    label = stringResource(R.string.storage_access_show_hidden),
+                    checked = state.showHidden,
+                    supporting = stringResource(R.string.storage_access_show_hidden_supporting),
+                    enabled = !state.busy,
+                    modifier = Modifier.testTag("storage-access-show-hidden-switch"),
+                ) { on ->
+                    // Showing hidden items is the protected step; hiding them again never asks.
+                    if (on && state.hiddenItemsProtected) requireUnlock { actions.onSetShowHidden(true) } else actions.onSetShowHidden(on)
+                }
+                SettingsSwitchRow(
+                    label = stringResource(R.string.storage_access_delete_empty),
+                    checked = state.deleteEmptyFolders,
+                    supporting = stringResource(R.string.storage_access_delete_empty_supporting),
+                    enabled = !state.busy,
+                    modifier = Modifier.testTag("storage-access-delete-empty-switch"),
+                ) { on -> actions.onSetDeleteEmptyFolders(on) }
+            }
             if (state.advancedStatus == AdvancedStatus.WaitingForPermission) {
                 SectionBody(stringResource(R.string.storage_access_waiting_body))
+                // The explanation comes first, also for a mode that arrived through an import.
                 FilledTonalButton(
-                    onClick = { context.startSafely(actions.permissionIntent()) },
+                    onClick = onRequestEnable,
                     modifier = Modifier.padding(horizontal = GallerySpacing.Md).testTag("storage-access-permission-button"),
                 ) { Text(stringResource(R.string.storage_access_open_system)) }
             }
@@ -241,7 +288,7 @@ private fun AdvancedSection(
 }
 
 @Composable
-private fun HiddenFoldersSection(state: StorageAccessUiState, actions: StorageAccessActions) {
+private fun HiddenFoldersSection(state: StorageAccessUiState, actions: StorageAccessActions, chooseFolder: (String) -> Unit) {
     val dateFormat = remember { DateFormat.getDateInstance(DateFormat.MEDIUM) }
     Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
         SectionTitle(stringResource(R.string.storage_access_hidden_title))
@@ -255,12 +302,18 @@ private fun HiddenFoldersSection(state: StorageAccessUiState, actions: StorageAc
                     Text(stringResource(R.string.storage_access_hidden_on, dateFormat.format(Date(entry.createdAtMillis))))
                 },
                 trailingContent = {
-                    val description = stringResource(R.string.storage_access_unhide_description, name)
+                    val needsFolder = entry.absolutePath in state.treeGrantPaths
+                    val description = stringResource(
+                        if (needsFolder) R.string.storage_access_unhide_choose_folder_description else R.string.storage_access_unhide_description,
+                        name,
+                    )
                     TextButton(
-                        onClick = { actions.onUnhide(entry.absolutePath) },
+                        onClick = { if (needsFolder) chooseFolder(entry.absolutePath) else actions.onUnhide(entry.absolutePath) },
                         enabled = !state.busy,
                         modifier = Modifier.semantics { contentDescription = description },
-                    ) { Text(stringResource(R.string.storage_access_unhide)) }
+                    ) {
+                        Text(stringResource(if (needsFolder) R.string.storage_access_unhide_choose_folder else R.string.storage_access_unhide))
+                    }
                 },
             ) { Text(name, maxLines = 2, overflow = TextOverflow.Ellipsis) }
         }
@@ -272,6 +325,42 @@ private fun HiddenFoldersSection(state: StorageAccessUiState, actions: StorageAc
             ) { Text(stringResource(R.string.storage_access_unhide_all)) }
         }
     }
+}
+
+/** The hidden folders list behind the app lock: a labelled section with its own explanation and action. */
+@Composable
+private fun LockedHiddenFoldersSection(onShow: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Sm)) {
+        SectionTitle(stringResource(R.string.storage_access_hidden_title))
+        SectionBody(stringResource(R.string.storage_access_hidden_locked))
+        FilledTonalButton(
+            onClick = onShow,
+            modifier = Modifier.padding(horizontal = GallerySpacing.Md).testTag("storage-access-hidden-show-list"),
+        ) { Text(stringResource(R.string.storage_access_hidden_show_list)) }
+    }
+}
+
+/**
+ * Offers to unhide the folders left behind when an import or reset turned the mode off. Lives outside the
+ * page so it appears wherever in Settings the change happened.
+ */
+@Composable
+fun StorageAccessUnhidePrompt(state: StorageAccessUiState, actions: StorageAccessActions) {
+    if (state.unhidePromptCount <= 0) return
+    AlertDialog(
+        onDismissRequest = actions.onDismissUnhidePrompt,
+        title = { Text(pluralStringResource(R.plurals.storage_access_prompt_title, state.unhidePromptCount, state.unhidePromptCount)) },
+        text = { Text(stringResource(R.string.storage_access_prompt_body)) },
+        confirmButton = {
+            TextButton(
+                onClick = { actions.onDismissUnhidePrompt(); actions.onUnhideAll() },
+                modifier = Modifier.testTag("storage-access-prompt-unhide"),
+            ) { Text(stringResource(R.string.storage_access_unhide)) }
+        },
+        dismissButton = {
+            TextButton(onClick = actions.onDismissUnhidePrompt) { Text(stringResource(R.string.storage_access_keep_hidden)) }
+        },
+    )
 }
 
 @Composable

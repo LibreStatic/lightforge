@@ -1,11 +1,13 @@
 package com.librestatic.lightforge
 
 import android.content.Context
+import android.net.Uri
 import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.librestatic.lightforge.core.mediastore.AdvancedResult
 import com.librestatic.lightforge.core.mediastore.AdvancedStorage
+import com.librestatic.lightforge.core.mediastore.HiddenEntry
 import com.librestatic.lightforge.core.mediastore.MediaManagementAccess
 import com.librestatic.lightforge.core.preferences.GallerySettingsRepository
 import com.librestatic.lightforge.feature.settings.HiddenFolderUi
@@ -19,8 +21,10 @@ import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -28,6 +32,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+
+/** The settings the Storage access page shows next to the system permissions. */
+internal data class StorageExtras(
+    val showHidden: Boolean = false,
+    val deleteEmptyFolders: Boolean = false,
+    val protectHiddenItems: Boolean = false,
+    val appLockEnabled: Boolean = false,
+)
 
 /**
  * Plain logic behind the "Storage access" page (ADR-046), kept free of Android and Hilt so it is unit
@@ -40,9 +52,18 @@ internal class StorageAccessModel(
     private val readEnabled: suspend () -> Boolean,
     private val writeEnabled: suspend (Boolean) -> Unit,
     private val io: CoroutineDispatcher = Dispatchers.IO,
+    private val readExtras: suspend () -> StorageExtras = { StorageExtras() },
+    private val writeShowHidden: suspend (Boolean) -> Unit = {},
+    private val writeDeleteEmptyFolders: suspend (Boolean) -> Unit = {},
+    private val expectLocalChange: (Boolean) -> Unit = {},
 ) {
+    /** Entries whose unhide needs the user to pick the folder (the owner path failed without the permission). */
+    private val needsTreeGrant = linkedSetOf<String>()
+
     suspend fun snapshot(message: StorageAccessMessage? = null, busy: Boolean = false): StorageAccessUiState {
         val hidden = withContext(io) { advanced.hiddenByApp() }
+        val extras = readExtras()
+        needsTreeGrant.retainAll(hidden.mapTo(hashSetOf()) { it.absolutePath })
         return StorageAccessUiState(
             manageMediaSupported = manageMediaSupported,
             manageMediaGranted = manageMediaSupported && canManageMedia(),
@@ -50,34 +71,71 @@ internal class StorageAccessModel(
             advancedEnabled = readEnabled(),
             allFilesGranted = advanced.isSupported && advanced.isGranted(),
             hidden = hidden.sortedBy { it.absolutePath }.map { HiddenFolderUi(it.absolutePath, it.createdAtMillis) },
+            treeGrantPaths = needsTreeGrant.toSet(),
+            showHidden = extras.showHidden,
+            deleteEmptyFolders = extras.deleteEmptyFolders,
+            protectHiddenItems = extras.protectHiddenItems,
+            appLockEnabled = extras.appLockEnabled,
             busy = busy,
             message = message,
         )
     }
 
-    suspend fun setEnabled(enabled: Boolean) = writeEnabled(enabled)
+    suspend fun setEnabled(enabled: Boolean) {
+        expectLocalChange(enabled)
+        writeEnabled(enabled)
+    }
 
+    suspend fun setShowHidden(enabled: Boolean) = writeShowHidden(enabled)
+
+    suspend fun setDeleteEmptyFolders(enabled: Boolean) = writeDeleteEmptyFolders(enabled)
+
+    /** Works without the permission when the marker is ours; otherwise the row asks for the folder. */
     suspend fun unhide(absolutePath: String): StorageAccessMessage? {
-        if (!advanced.isGranted()) return permissionNeeded
         return when (withContext(io) { advanced.unhideFolder(absolutePath) }) {
-            AdvancedResult.Done -> null
+            AdvancedResult.Done -> { needsTreeGrant.remove(absolutePath); null }
             AdvancedResult.NotGranted -> permissionNeeded
+            is AdvancedResult.NeedsTreeGrant -> { needsTreeGrant.add(absolutePath); notUnhidden(1) }
             else -> notUnhidden(1)
         }
     }
 
+    /** Finishes an unhide through the folder the user picked; the entry stays listed on any failure. */
+    suspend fun unhideWithTree(absolutePath: String, treeUri: Uri): StorageAccessMessage? =
+        afterTreeUnhide(absolutePath, withContext(io) { advanced.unhideWithTree(absolutePath, treeUri) })
+
+    fun afterTreeUnhide(absolutePath: String, result: AdvancedResult): StorageAccessMessage? =
+        when (result) {
+            AdvancedResult.Done -> { needsTreeGrant.remove(absolutePath); null }
+            else -> notUnhidden(1)
+        }
+
+    /** Partial progress is kept: whatever was unhidden before a revoke stays unhidden. */
     suspend fun unhideAll(): StorageAccessMessage? {
-        if (!advanced.isGranted()) return permissionNeeded
-        val failed = withContext(io) { advanced.unhideAllRecorded() }
+        val failed = unhideRecorded()
         return if (failed.isEmpty()) null else notUnhidden(failed.size)
     }
 
-    /** Without the permission nothing changes: the mode stays on and the folders stay listed. */
+    /**
+     * Unhides what it can and switches the mode off. When the permission is missing and entries remain,
+     * the mode stays on so the revoked notice and the per-row actions stay reachable.
+     */
     suspend fun unhideAndTurnOff(): StorageAccessMessage? {
-        if (!advanced.isGranted()) return permissionNeeded
-        val failed = withContext(io) { advanced.unhideAllRecorded() }
-        writeEnabled(false)
+        val failed = unhideRecorded()
+        if (failed.isEmpty() || advanced.isGranted()) setEnabled(false)
         return if (failed.isEmpty()) null else notUnhidden(failed.size)
+    }
+
+    private suspend fun unhideRecorded(): List<HiddenEntry> {
+        val failed = withContext(io) { advanced.unhideAllRecorded() }
+        // A second attempt tells which leftovers only need the user to pick the folder.
+        return failed.filter { entry ->
+            when (withContext(io) { advanced.unhideFolder(entry.absolutePath) }) {
+                AdvancedResult.Done -> false
+                is AdvancedResult.NeedsTreeGrant -> { needsTreeGrant.add(entry.absolutePath); true }
+                else -> true
+            }
+        }
     }
 
     private val permissionNeeded = StorageAccessMessage(StorageAccessMessageKind.PermissionNeeded)
@@ -88,18 +146,35 @@ internal class StorageAccessModel(
 class StorageAccessViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val advanced: AdvancedStorage,
+    private val settings: GallerySettingsRepository,
+    private val status: AdvancedStorageStatus,
 ) : ViewModel() {
-    private val settings = GallerySettingsRepository(context)
     private val model = StorageAccessModel(
         advanced = advanced,
         manageMediaSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
         canManageMedia = { MediaManagementAccess.canManageMedia(context) },
         readEnabled = { settings.settings.first().operations.advancedStorageEnabled },
         writeEnabled = { enabled -> settings.update { it.copy(operations = it.operations.copy(advancedStorageEnabled = enabled)) } },
+        readExtras = {
+            val current = settings.settings.first()
+            StorageExtras(
+                showHidden = current.operations.advancedShowHidden,
+                deleteEmptyFolders = current.operations.advancedDeleteEmptyFolders,
+                protectHiddenItems = current.security.protectHiddenItems,
+                appLockEnabled = current.security.appLockEnabled,
+            )
+        },
+        writeShowHidden = { on -> settings.update { it.copy(operations = it.operations.copy(advancedShowHidden = on)) } },
+        writeDeleteEmptyFolders = { on -> settings.update { it.copy(operations = it.operations.copy(advancedDeleteEmptyFolders = on)) } },
+        expectLocalChange = status::expectLocalChange,
     )
     private val lock = Mutex()
     private val mutableState = MutableStateFlow(StorageAccessUiState())
-    val state: StateFlow<StorageAccessUiState> = mutableState.asStateFlow()
+
+    /** The page state plus the unhide prompt an import or reset can raise (see [AdvancedStorageStatus.pendingUnhide]). */
+    val state: StateFlow<StorageAccessUiState> =
+        combine(mutableState, status.pendingUnhide) { page, prompt -> page.copy(unhidePromptCount = prompt) }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, StorageAccessUiState())
 
     val actions: StorageAccessActions = StorageAccessActions(
         onRefresh = ::refresh,
@@ -107,6 +182,10 @@ class StorageAccessViewModel @Inject constructor(
         onUnhideAndTurnOff = { run { model.unhideAndTurnOff() } },
         onUnhide = { path -> run { model.unhide(path) } },
         onUnhideAll = { run { model.unhideAll() } },
+        onUnhideWithTree = { path, uri -> run { model.unhideWithTree(path, uri) } },
+        onSetShowHidden = { on -> run { model.setShowHidden(on); null } },
+        onSetDeleteEmptyFolders = { on -> run { model.setDeleteEmptyFolders(on); null } },
+        onDismissUnhidePrompt = status::dismissPendingUnhide,
         manageMediaIntent = { MediaManagementAccess.requestIntent(context) },
         permissionIntent = { advanced.permissionIntent() },
     )
@@ -114,12 +193,14 @@ class StorageAccessViewModel @Inject constructor(
     init {
         // Also picks up an imported or reset settings file while the page is open.
         viewModelScope.launch {
-            settings.settings.map { it.operations.advancedStorageEnabled }.distinctUntilChanged().collect { refresh() }
+            settings.settings.map { listOf(it.operations.advancedStorageEnabled, it.operations.advancedShowHidden, it.operations.advancedDeleteEmptyFolders, it.security.protectHiddenItems, it.security.appLockEnabled) }
+                .distinctUntilChanged().collect { refresh() }
         }
     }
 
     /** Re-reads both system permissions and the hide registry; the user changes them in system screens. */
     fun refresh() {
+        status.refresh()
         viewModelScope.launch { lock.withLock { mutableState.value = model.snapshot() } }
     }
 
@@ -129,6 +210,7 @@ class StorageAccessViewModel @Inject constructor(
                 mutableState.value = mutableState.value.copy(busy = true, message = null)
                 val message = action()
                 mutableState.value = model.snapshot(message)
+                status.refresh()
             }
         }
     }

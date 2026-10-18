@@ -43,4 +43,49 @@ class StorageAccessStateTest {
         assertEquals("1A2B-3C4D/DCIM/Old", readableHiddenPath("/storage/1A2B-3C4D/DCIM/Old"))
         assertEquals("/data/other", readableHiddenPath("/data/other"))
     }
+
+    @Test fun `unsupported builds expose none of the advanced rows`() {
+        val state = StorageAccessUiState(
+            advancedSupported = false,
+            advancedEnabled = true,
+            allFilesGranted = true,
+            appLockEnabled = true,
+            protectHiddenItems = true,
+        )
+        assertFalse(state.advancedActive)
+        assertFalse(state.protectRowVisible)
+        assertFalse(state.hiddenItemsProtected)
+        assertEquals(0, state.revokedWithHidden)
+        assertEquals(AdvancedStatus.Active, state.advancedStatus)
+    }
+
+    @Test fun `show hidden and delete empty need the mode to be active`() {
+        val base = StorageAccessUiState(advancedSupported = true, advancedEnabled = true, allFilesGranted = true)
+        assertTrue(base.advancedActive)
+        assertFalse(base.copy(allFilesGranted = false).advancedActive)
+        assertFalse(base.copy(advancedEnabled = false).advancedActive)
+    }
+
+    @Test fun `the lock row and the protection need a supported build and the app lock`() {
+        val base = StorageAccessUiState(advancedSupported = true, appLockEnabled = true, protectHiddenItems = true)
+        assertTrue(base.protectRowVisible)
+        assertTrue(base.hiddenItemsProtected)
+        assertFalse(base.copy(appLockEnabled = false).protectRowVisible)
+        assertFalse(base.copy(appLockEnabled = false).hiddenItemsProtected)
+        assertFalse(base.copy(protectHiddenItems = false).hiddenItemsProtected)
+    }
+
+    @Test fun `the revoked count is the hidden folders only while the permission is gone`() {
+        val hidden = listOf(HiddenFolderUi("/a", 1L), HiddenFolderUi("/b", 1L))
+        val base = StorageAccessUiState(advancedSupported = true, advancedEnabled = true, hidden = hidden)
+        assertEquals(2, base.revokedWithHidden)
+        assertEquals(0, base.copy(allFilesGranted = true).revokedWithHidden)
+    }
+
+    @Test fun `the picker opens on the folder of the path`() {
+        assertEquals("primary:Pictures/Trip", treeDocumentIdOf("/storage/emulated/0/Pictures/Trip"))
+        assertEquals("primary:Pictures/Trip", treeDocumentIdOf("/storage/emulated/0/Pictures/Trip/"))
+        assertEquals("1A2B-3C4D:DCIM/Old", treeDocumentIdOf("/storage/1A2B-3C4D/DCIM/Old"))
+        assertEquals(null, treeDocumentIdOf("/data/other"))
+    }
 }

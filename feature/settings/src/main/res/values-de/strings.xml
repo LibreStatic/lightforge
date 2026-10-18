@@ -235,10 +235,10 @@
     <string name="storage_access_media_body">Wenn erlaubt, fragt die App beim gleichzeitigen Löschen, Verschieben in den Papierkorb und Bearbeiten mehrerer Fotos und Videos nicht jedes Mal nach.</string>
     <string name="storage_access_advanced_title">Erweiterter Speichermodus</string>
     <string name="storage_access_advanced_switch">Erweiterten Speichermodus verwenden</string>
-    <string name="storage_access_advanced_supporting">Versteckte Ordner anzeigen, Ordner verstecken und wieder einblenden, Dateien im selben Speicher sofort verschieben und Ordner verwalten.</string>
+    <string name="storage_access_advanced_supporting">Blendet versteckte Elemente ein, versteckt und blendet Ordner ein, verschiebt und benennt Dateien im selben Speicher sofort um, verwaltet Ordner und löscht leer gebliebene.</string>
     <string name="storage_access_waiting_body">Erlaube auf dem Systembildschirm den Zugriff auf alle Dateien, um die Aktivierung abzuschließen.</string>
     <string name="storage_access_enable_title">Erweiterten Speichermodus aktivieren?</string>
-    <string name="storage_access_enable_body">Mit diesem Modus kann Lightforge:\n• Mit .nomedia versteckte Ordner anzeigen\n• Ordner verstecken und wieder einblenden\n• Dateien im selben Speicher sofort verschieben\n• Leere Ordner erstellen, umbenennen und löschen\n\nDafür wird die Berechtigung „Zugriff auf alle Dateien“ verwendet, die du auf dem nächsten Bildschirm erteilst. Du kannst den Modus jederzeit ausschalten. Lightforge führt eine Liste der Ordner, die es versteckt, um dies rückgängig machen zu können.</string>
+    <string name="storage_access_enable_body">Mit diesem Modus kann Lightforge:\n• Fotos und Videos in mit .nomedia versteckten Ordnern anzeigen\n• Ordner verstecken und wieder einblenden\n• Dateien im selben Speicher sofort verschieben und umbenennen\n• Ordner erstellen, umbenennen und verschieben sowie leere Ordner löschen\n• Optional nach dem Verschieben leer gebliebene Ordner löschen\n\nEr nutzt die Berechtigung „Zugriff auf alle Dateien“, die du im nächsten Bildschirm erteilst. Du kannst ihn jederzeit ausschalten. Lightforge führt eine Liste der versteckten Ordner, um das rückgängig machen zu können.</string>
     <string name="storage_access_enable_confirm">Weiter</string>
     <string name="storage_access_turn_off_body">Ordner, die versteckt bleiben, stehen weiterhin hier in der Liste, damit du sie später wieder einblenden kannst.</string>
     <string name="storage_access_turn_off_no_permission">Der Zugriff auf alle Dateien ist nicht mehr erlaubt, daher können die Ordner derzeit nicht eingeblendet werden.</string>
@@ -263,5 +263,25 @@
     <plurals name="storage_access_message_not_unhidden">
         <item quantity="one">%1$d Ordner konnte nicht eingeblendet werden und bleibt in der Liste.</item>
         <item quantity="other">%1$d Ordner konnten nicht eingeblendet werden und bleiben in der Liste.</item>
+    </plurals>
+    <string name="storage_access_show_hidden">Versteckte Elemente anzeigen</string>
+    <string name="storage_access_show_hidden_supporting">Listet Fotos und Videos in mit .nomedia versteckten Ordnern oder Ordnern, deren Name mit einem Punkt beginnt.</string>
+    <string name="storage_access_delete_empty">Leer gebliebene Ordner löschen</string>
+    <string name="storage_access_delete_empty_supporting">Wenn du die letzten Dateien aus einem Ordner verschiebst, wird auch der Ordner gelöscht.</string>
+    <string name="settings_protect_hidden_items">Versteckte Elemente mit der App-Sperre schützen</string>
+    <string name="settings_protect_hidden_items_supporting">Verlangt eine Entsperrung, bevor versteckte Elemente oder die Liste versteckter Ordner angezeigt werden.</string>
+    <string name="storage_access_hidden_locked">Die Liste der versteckten Ordner ist durch die App-Sperre geschützt.</string>
+    <string name="storage_access_hidden_show_list">Versteckte Ordner anzeigen</string>
+    <string name="storage_access_unhide_choose_folder">Einblenden (Ordner wählen)</string>
+    <string name="storage_access_unhide_choose_folder_description">%1$s einblenden, indem du den Ordner wählst</string>
+    <string name="storage_access_keep_hidden">Versteckt lassen</string>
+    <string name="storage_access_prompt_body">Der erweiterte Speichermodus wurde durch einen Import oder ein Zurücksetzen der Einstellungen ausgeschaltet, aber diese Ordner sind weiterhin versteckt. Wenn du sie einblendest, erscheinen ihre Fotos und Videos wieder.</string>
+    <plurals name="storage_access_summary_action_needed">
+        <item quantity="one">Aktion nötig: %1$d Ordner noch versteckt</item>
+        <item quantity="other">Aktion nötig: %1$d Ordner noch versteckt</item>
+    </plurals>
+    <plurals name="storage_access_prompt_title">
+        <item quantity="one">%1$d Ordner einblenden?</item>
+        <item quantity="other">%1$d Ordner einblenden?</item>
     </plurals>
 </resources>

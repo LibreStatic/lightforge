@@ -199,6 +199,7 @@ import com.librestatic.lightforge.feature.privatealbum.PrivateAlbumContent
 import com.librestatic.lightforge.feature.privatealbum.PrivateAlbumRepository
 import com.librestatic.lightforge.feature.privatealbum.PrivateAlbumDatabase
 import com.librestatic.lightforge.feature.privatealbum.BiometricGate
+import dagger.hilt.android.EntryPointAccessors
 import com.librestatic.lightforge.feature.places.OfflineGazetteer
 import com.librestatic.lightforge.feature.places.BundledGazetteer
 import com.librestatic.lightforge.core.designsystem.GalleryProgressSlot
@@ -565,6 +566,9 @@ internal fun ProductionGalleryApp(
     var lockPromptActive by remember { mutableStateOf(false) }
     var backgroundedAt by rememberSaveable { mutableStateOf(0L) }
     var sessionVideoMuted by remember { mutableStateOf<Boolean?>(null) }
+    val advancedStorageStatus = remember(context) {
+        EntryPointAccessors.fromApplication(context.applicationContext, AdvancedStorageEntryPoint::class.java).status()
+    }
     fun requestAppUnlock() {
         val fragmentActivity = context as? FragmentActivity ?: return
         if (lockPromptActive || !BiometricGate.canAuthenticate(context)) return
@@ -605,11 +609,19 @@ internal fun ProductionGalleryApp(
     DisposableEffect(lifecycleOwner, gallerySettings.security.relockTimeoutMinutes) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_STOP -> { backgroundedAt = android.os.SystemClock.elapsedRealtime(); sessionVideoMuted = null }
-                Lifecycle.Event.ON_START -> if (gallerySettings.security.appLockEnabled && backgroundedAt > 0L) {
-                    val timeout = gallerySettings.security.relockTimeoutMinutes * 60_000L
-                    if (timeout == 0L || android.os.SystemClock.elapsedRealtime() - backgroundedAt >= timeout) {
-                        appUnlocked = false
+                Lifecycle.Event.ON_STOP -> {
+                    backgroundedAt = android.os.SystemClock.elapsedRealtime()
+                    sessionVideoMuted = null
+                    advancedStorageStatus.onBackgrounded(backgroundedAt)
+                }
+                Lifecycle.Event.ON_RESUME -> advancedStorageStatus.refresh()
+                Lifecycle.Event.ON_START -> {
+                    advancedStorageStatus.onForegrounded(android.os.SystemClock.elapsedRealtime())
+                    if (gallerySettings.security.appLockEnabled && backgroundedAt > 0L) {
+                        val timeout = gallerySettings.security.relockTimeoutMinutes * 60_000L
+                        if (timeout == 0L || android.os.SystemClock.elapsedRealtime() - backgroundedAt >= timeout) {
+                            appUnlocked = false
+                        }
                     }
                 }
                 else -> Unit
@@ -643,7 +655,11 @@ internal fun ProductionGalleryApp(
         if (!privateFlowVisible) showPrivatePortable = false
     }
     LaunchedEffect(gallerySettings.security.appLockEnabled, appUnlocked) {
-        if (gallerySettings.security.appLockEnabled && !appUnlocked) privateSession.revoke()
+        if (gallerySettings.security.appLockEnabled && !appUnlocked) {
+            privateSession.revoke()
+            // A temporary show-hidden never survives the app locking again.
+            advancedStorageStatus.setTemporaryShowHidden(false)
+        }
     }
     if (showPrivatePortable && privateFlowVisible) {
         com.librestatic.lightforge.feature.privatealbum.PrivatePortableContent(

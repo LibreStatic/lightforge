@@ -241,10 +241,10 @@
     <string name="storage_access_media_body">When allowed, moving to trash, deleting and editing several photos and videos at once will not ask for confirmation each time.</string>
     <string name="storage_access_advanced_title">Advanced storage mode</string>
     <string name="storage_access_advanced_switch">Use advanced storage mode</string>
-    <string name="storage_access_advanced_supporting">Show hidden folders, hide and unhide folders, move files instantly within the same storage and manage folders.</string>
+    <string name="storage_access_advanced_supporting">Show hidden items, hide and unhide folders, move and rename files instantly within the same storage, manage folders and delete the ones left empty.</string>
     <string name="storage_access_waiting_body">Allow All files access on the system screen to finish turning this on.</string>
     <string name="storage_access_enable_title">Turn on advanced storage mode?</string>
-    <string name="storage_access_enable_body">This mode lets Lightforge:\n• Show folders hidden with .nomedia\n• Hide and unhide folders\n• Move files instantly within the same storage\n• Create, rename and delete empty folders\n\nIt uses the All files access permission, which you grant on the next screen. You can turn it off at any time. Lightforge keeps a list of the folders it hides so it can undo it.</string>
+    <string name="storage_access_enable_body">This mode lets Lightforge:\n• Show photos and videos in folders hidden with .nomedia\n• Hide and unhide folders\n• Move and rename files instantly within the same storage\n• Create, rename and move folders, and delete empty ones\n• Optionally delete folders left empty after a move\n\nIt uses the All files access permission, which you grant on the next screen. You can turn it off at any time. Lightforge keeps a list of the folders it hides so it can undo it.</string>
     <string name="storage_access_enable_confirm">Continue</string>
     <string name="storage_access_turn_off_body">Folders you keep hidden stay listed here so you can unhide them later.</string>
     <string name="storage_access_turn_off_no_permission">All files access is no longer allowed, so the folders cannot be unhidden right now.</string>
@@ -269,5 +269,25 @@
     <plurals name="storage_access_message_not_unhidden">
         <item quantity="one">%1$d folder could not be unhidden and stays listed.</item>
         <item quantity="other">%1$d folders could not be unhidden and stay listed.</item>
+    </plurals>
+    <string name="storage_access_show_hidden">Show hidden items</string>
+    <string name="storage_access_show_hidden_supporting">List photos and videos in folders hidden with .nomedia or a name that starts with a dot.</string>
+    <string name="storage_access_delete_empty">Delete folders left empty</string>
+    <string name="storage_access_delete_empty_supporting">After you move the last files out of a folder, remove the folder too.</string>
+    <string name="settings_protect_hidden_items">Protect hidden items with app lock</string>
+    <string name="settings_protect_hidden_items_supporting">Ask to unlock before hidden items are shown or the hidden folders list is opened.</string>
+    <string name="storage_access_hidden_locked">The list of hidden folders is protected by the app lock.</string>
+    <string name="storage_access_hidden_show_list">Show hidden folders</string>
+    <string name="storage_access_unhide_choose_folder">Unhide (choose folder)</string>
+    <string name="storage_access_unhide_choose_folder_description">Unhide %1$s by choosing its folder</string>
+    <string name="storage_access_keep_hidden">Keep hidden</string>
+    <string name="storage_access_prompt_body">Advanced storage mode was turned off by a settings import or reset, but these folders are still hidden. Unhiding them shows their photos and videos again.</string>
+    <plurals name="storage_access_summary_action_needed">
+        <item quantity="one">Action needed: %1$d folder still hidden</item>
+        <item quantity="other">Action needed: %1$d folders still hidden</item>
+    </plurals>
+    <plurals name="storage_access_prompt_title">
+        <item quantity="one">Unhide %1$d folder?</item>
+        <item quantity="other">Unhide %1$d folders?</item>
     </plurals>
 </resources>

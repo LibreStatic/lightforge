@@ -41,6 +41,7 @@ fun StorageAccessRevokedPreview() = StorageAccessPreviewFrame(
         advancedEnabled = true,
         allFilesGranted = false,
         hidden = TwoHidden,
+        treeGrantPaths = setOf(TwoHidden[1].absolutePath),
     ),
 )
 
@@ -53,6 +54,9 @@ fun StorageAccessActivePreview() = StorageAccessPreviewFrame(
         advancedEnabled = true,
         allFilesGranted = true,
         hidden = TwoHidden,
+        showHidden = true,
+        appLockEnabled = true,
+        protectHiddenItems = true,
     ),
 )
 
@@ -70,6 +74,8 @@ private fun StorageAccessPreviewFrame(initial: StorageAccessUiState) {
         onUnhideAndTurnOff = { state = state.copy(advancedEnabled = false, hidden = emptyList()) },
         onUnhide = { path -> state = state.copy(hidden = state.hidden.filterNot { it.absolutePath == path }) },
         onUnhideAll = { state = state.copy(hidden = emptyList()) },
+        onSetShowHidden = { on -> state = state.copy(showHidden = on) },
+        onSetDeleteEmptyFolders = { on -> state = state.copy(deleteEmptyFolders = on) },
     )
     LightforgeTheme(AppearanceSettings()) {
         Surface(Modifier.fillMaxSize()) {

@@ -201,6 +201,10 @@ data class OperationSettings(
      * this is on AND the system grants All files access. Builds without the feature keep the value.
      */
     val advancedStorageEnabled: Boolean = false,
+    /** Advanced mode only: list media a `.nomedia` or dot-prefixed folder hides (ADR-046). */
+    val advancedShowHidden: Boolean = false,
+    /** Advanced mode only: remove a folder left empty after a move (ADR-046). */
+    val advancedDeleteEmptyFolders: Boolean = false,
 )
 
 /** Confirmation dialogs the user can silence, and bring back from Settings. [key] is persisted: never rename it. */
@@ -219,6 +223,8 @@ data class SecuritySettings(
     val appLockEnabled: Boolean = false,
     val destructiveActionLockEnabled: Boolean = false,
     val relockTimeoutMinutes: Int = 1,
+    /** Asks for the app lock before hidden items or the hidden-folders list are shown (ADR-046). */
+    val protectHiddenItems: Boolean = false,
 )
 
 data class AnalysisSettings(

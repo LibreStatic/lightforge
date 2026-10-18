@@ -262,6 +262,8 @@ fun RecognitionSettingsContent(
         }
     }
 
+    storageAccess?.let { StorageAccessUnhidePrompt(it.state, it.actions) }
+
     val detail: @Composable () -> Unit = {
         // Root is only reachable in single-pane mode, where it is rendered by the caller.
         when (visiblePage) {
@@ -301,7 +303,7 @@ fun RecognitionSettingsContent(
                 WarningsSection(settings, onSettingsChange)
             }
             SettingsPage.Security -> SettingsSubPage(embedded = twoPane, illustration = GalleryIcons.Lock, title = stringResource(R.string.settings_security), onBack = { page = SettingsPage.Root }) {
-                SecuritySection(settings, onSettingsChange)
+                SecuritySection(settings, onSettingsChange, protectHiddenItemsAvailable = storageAccess?.state?.advancedSupported == true && settings.security.appLockEnabled)
             }
             SettingsPage.StorageAccess -> SettingsSubPage(embedded = twoPane, illustration = GalleryIcons.Folder, title = stringResource(R.string.settings_storage_access), onBack = { page = SettingsPage.Root }) {
                 storageAccess?.let { StorageAccessSettingsContent(it.state, it.actions) }
@@ -1643,6 +1645,7 @@ private fun DismissibleWarning.settingsSupporting() = when (this) {
 private fun SecuritySection(
     settings: GallerySettings,
     onSettingsChange: ((GallerySettings) -> GallerySettings) -> Unit,
+    protectHiddenItemsAvailable: Boolean = false,
 ) {
     val context = LocalContext.current
     var lockUnavailable by remember { mutableStateOf(false) }
@@ -1667,6 +1670,14 @@ private fun SecuritySection(
         SettingsSwitchRow(stringResource(R.string.settings_destructive_lock), settings.security.destructiveActionLockEnabled) {
             if (it && !canAuthenticate()) lockUnavailable = true
             else onSettingsChange { current -> current.copy(security = current.security.copy(destructiveActionLockEnabled = it)) }
+        }
+        if (protectHiddenItemsAvailable) {
+            SettingsSwitchRow(
+                label = stringResource(R.string.settings_protect_hidden_items),
+                checked = settings.security.protectHiddenItems,
+                supporting = stringResource(R.string.settings_protect_hidden_items_supporting),
+                modifier = Modifier.testTag("settings-protect-hidden-items"),
+            ) { on -> onSettingsChange { current -> current.copy(security = current.security.copy(protectHiddenItems = on)) } }
         }
         SettingsValueRow(stringResource(R.string.settings_relock_timeout), stringResource(R.string.settings_minutes, settings.security.relockTimeoutMinutes)) {
             val next = when (settings.security.relockTimeoutMinutes) { 0 -> 1; 1 -> 5; 5 -> 15; else -> 0 }
