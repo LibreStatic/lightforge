@@ -221,10 +221,10 @@ internal fun rawPredicate(alias: String? = null): String = buildString {
 internal val RawPredicate: String = rawPredicate()
 
 /**
- * Animated filter shared by every query site. MIME-based for now, so a static WebP still counts and
- * animated AVIF/HEIF does not; an index-time "animated" flag will replace it in this one place.
+ * Animated filter shared by every query site: the flag set at index time from the file header
+ * (GIF, animated WebP, APNG, AVIF and HEIF sequences), not the MIME type.
  */
 internal fun animatedPredicate(alias: String? = null): String {
     val prefix = alias?.let { "$it." }.orEmpty()
-    return "LOWER(COALESCE(${prefix}mimeType,'')) IN ('image/gif','image/webp')"
+    return "${prefix}isAnimated = 1"
 }

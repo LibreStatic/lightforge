@@ -77,7 +77,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
             PeerImportVersionEntity::class,
             PeerImportSourceEntity::class,
         ],
-    version = 32,
+    version = 33,
     exportSchema = true,
 )
 abstract class GalleryDatabase : RoomDatabase() {
@@ -681,6 +681,15 @@ object GalleryDatabaseFactory {
         }
     }
 
+    val Migration32To33 = object : Migration(32, 33) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE media_items ADD COLUMN isAnimated INTEGER NOT NULL DEFAULT 0")
+            // GIF is animated by type; the other formats are sniffed on the next reconciliation, which the
+            // index format suffix of the MediaStore checkpoint forces once.
+            db.execSQL("UPDATE media_items SET isAnimated = 1 WHERE LOWER(COALESCE(mimeType, '')) = 'image/gif'")
+        }
+    }
+
     val Migration31To32 = object : Migration(31, 32) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("CREATE INDEX IF NOT EXISTS `index_media_volume_relative_path` ON `media_items` (`volumeName`, `relativePath`)")
@@ -794,6 +803,7 @@ object GalleryDatabaseFactory {
                 Migration29To30,
                 Migration30To31,
                 Migration31To32,
+                Migration32To33,
             )
             .build()
 }

@@ -104,4 +104,56 @@ class FolderSummariesDeviceTest {
             check(context.deleteDatabase(name))
         }
     }
+
+    @Test
+    fun thirtyTwoToThirtyThreeAddsAnimatedFlagAndMarksGifs() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val name = "animated-migration-${UUID.randomUUID()}.db"
+        val helper = MigrationTestHelper(instrumentation, GalleryDatabase::class.java)
+        try {
+            helper.createDatabase(name, 32).use { db ->
+                insert(db, 801, 1, 100, 1000, "Pictures/", 10)
+                insert(db, 802, 1, 100, 1000, "Pictures/", 10)
+                db.execSQL("UPDATE media_items SET mimeType='image/gif' WHERE mediaStoreId=801")
+                db.execSQL("UPDATE media_items SET mimeType='image/webp' WHERE mediaStoreId=802")
+            }
+            helper.runMigrationsAndValidate(name, 33, true, GalleryDatabaseFactory.Migration32To33).use { db ->
+                db.query("SELECT mediaStoreId, isAnimated FROM media_items ORDER BY mediaStoreId").use {
+                    assertTrue(it.moveToFirst()); assertEquals(1, it.getInt(1))
+                    assertTrue(it.moveToNext()); assertEquals(0, it.getInt(1))
+                }
+            }
+        } finally {
+            check(context.deleteDatabase(name))
+        }
+    }
+
+    @Test
+    fun physicalAlbumsDropGhostFoldersOfMountedVolumesAndCountOnlyAccessibleRows() = runBlocking {
+        val database = Room.inMemoryDatabaseBuilder(
+            InstrumentationRegistry.getInstrumentation().targetContext,
+            GalleryDatabase::class.java,
+        ).build()
+        try {
+            val db = database.openHelper.writableDatabase
+            insert(db, 1, 1, 10, 1000, "DCIM/Camera/", 10)
+            insert(db, 2, 1, 10, 900, "DCIM/Camera/", 10)
+            insert(db, 3, 1, 10, 800, "DCIM/Camera/", 10, accessible = 0)
+            // Hidden, moved or renamed folder on a mounted volume: a ghost.
+            insert(db, 4, 1, 10, 700, "Ghost/", 20, accessible = 0)
+            // An unmounted volume has no accessible row at all, so its folder stays listed as unavailable.
+            insert(db, 5, 1, 10, 600, "DCIM/Camera/", 10, accessible = 0, volume = "1234-ABCD")
+            val rows = database.libraryDao().physicalAlbumOptions().first()
+            assertEquals(2, rows.size)
+            val camera = rows.single { it.volumeName == "external_primary" }
+            assertEquals(2L, camera.itemCount)
+            assertTrue(camera.isAvailable)
+            val card = rows.single { it.volumeName == "1234-ABCD" }
+            assertTrue(!card.isAvailable)
+            assertTrue(rows.none { it.displayName == "Ghost" })
+        } finally {
+            database.close()
+        }
+    }
 }

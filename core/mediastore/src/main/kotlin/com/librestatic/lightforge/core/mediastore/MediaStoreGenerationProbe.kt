@@ -23,9 +23,9 @@ class MediaStoreGenerationProbe(private val context: Context) {
     companion object {
         /**
          * Bumped when MediaStoreReader starts filling columns it used to copy verbatim, so the next
-         * sync reconciles the whole volume once (v2: duration/size probed for FLV and similar).
+         * sync reconciles the whole volume once (v2: duration/size probed for FLV and similar; v3: animated flag sniffed from image headers).
          */
-        private const val IndexFormatSuffix = "+lf2"
+        private const val IndexFormatSuffix = "+lf3"
 
         val MinimalProjection: Array<String> get() = MediaStoreProjection.Columns.clone()
     }

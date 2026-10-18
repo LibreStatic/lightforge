@@ -30,6 +30,8 @@ data class MediaStoreRecord(
     val isFavorite: Boolean,
     val isTrashed: Boolean,
     val dateExpiresSeconds: Long? = null,
+    /** More than one frame (GIF, animated WebP, APNG, AVIF or HEIF sequence); set at index time by [AnimatedImageProbe]. */
+    val isAnimated: Boolean = false,
 )
 
 data class MediaStoreIdPage(
@@ -121,6 +123,8 @@ interface MediaStoreDeltaSource {
 
 class MediaStoreReader(private val resolver: ContentResolver) : MediaStorePageSource, MediaStoreDeltaSource {
     private val videoProbe = UnindexedVideoProbe(resolver)
+    private val animatedProbe = AnimatedImageProbe(resolver)
+    private fun MediaStoreRecord.completed(): MediaStoreRecord = animatedProbe.complete(videoProbe.complete(this))
 
     override fun readIdPage(
         volumeName: String,
@@ -166,7 +170,7 @@ class MediaStoreReader(private val resolver: ContentResolver) : MediaStorePageSo
         )?.use { cursor ->
             buildList(capacity = minOf(limit, cursor.count.coerceAtLeast(0))) {
                 while (size < limit && cursor.moveToNext()) {
-                    cursor.toRecord(volumeName)?.let(videoProbe::complete)?.let(::add)
+                    cursor.toRecord(volumeName)?.completed()?.let(::add)
                 }
             }
         }.orEmpty()
@@ -223,7 +227,7 @@ class MediaStoreReader(private val resolver: ContentResolver) : MediaStorePageSo
             null,
         )?.use { cursor ->
             buildList(capacity = minOf(limit, cursor.count.coerceAtLeast(0))) {
-                while (size < limit && cursor.moveToNext()) cursor.toRecord(volumeName)?.let(videoProbe::complete)?.let(::add)
+                while (size < limit && cursor.moveToNext()) cursor.toRecord(volumeName)?.completed()?.let(::add)
             }
         }.orEmpty()
         val last = records.lastOrNull()
@@ -244,7 +248,7 @@ class MediaStoreReader(private val resolver: ContentResolver) : MediaStorePageSo
         when {
             !cursor.moveToFirst() -> MediaStoreRow.Absent
             cursor.isHiddenMedia() -> MediaStoreRow.Hidden
-            else -> cursor.toRecord(key.volumeName)?.let(videoProbe::complete)
+            else -> cursor.toRecord(key.volumeName)?.completed()
                 ?.let(MediaStoreRow::Present) ?: MediaStoreRow.Absent
         }
     } ?: MediaStoreRow.Absent
@@ -291,7 +295,7 @@ class MediaStoreReader(private val resolver: ContentResolver) : MediaStorePageSo
         )?.use { cursor ->
             buildList(capacity = minOf(limit, cursor.count.coerceAtLeast(0))) {
                 while (size < limit && cursor.moveToNext()) {
-                    cursor.toRecord(volumeName)?.let(videoProbe::complete)?.let(::add)
+                    cursor.toRecord(volumeName)?.completed()?.let(::add)
                 }
             }
         }.orEmpty()

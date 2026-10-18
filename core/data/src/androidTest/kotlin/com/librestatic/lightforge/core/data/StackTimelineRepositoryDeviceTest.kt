@@ -188,7 +188,7 @@ class StackTimelineRepositoryDeviceTest {
                 .upsertMedia(
                     listOf(
                         media(1).copy(displayName = "zzz", sizeBytes = 900),
-                        media(3).copy(mimeType = "image/gif"),
+                        media(3).copy(mimeType = "image/gif", isAnimated = true),
                         media(4).copy(mimeType = "image/x-adobe-dng"),
                     )
                 )

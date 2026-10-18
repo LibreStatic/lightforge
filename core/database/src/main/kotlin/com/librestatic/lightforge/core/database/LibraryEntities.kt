@@ -1,5 +1,6 @@
 package com.librestatic.lightforge.core.database
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -57,6 +58,8 @@ data class MediaItemEntity(
     val isAccessible: Boolean,
     val lastSeenScanId: Long,
     val dateExpiresSeconds: Long? = null,
+    /** Set at index time from the file header (GIF, animated WebP, APNG, AVIF/HEIF sequence); drives the Animated filter. */
+    @ColumnInfo(defaultValue = "0") val isAnimated: Boolean = false,
 )
 
 data class KnownMediaGeneration(

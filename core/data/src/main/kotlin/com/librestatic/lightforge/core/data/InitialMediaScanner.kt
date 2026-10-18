@@ -69,6 +69,8 @@ class RoomMediaIndexStore(private val dao: LibraryDao) : IncrementalMediaIndexSt
         relativePathPrefix: String,
         seenIds: Set<Long>,
     ): Int = dao.hideFolderRowsNotIn(volumeName, relativePathPrefix, seenIds)
+    override suspend fun mediaLocation(volumeName: String, id: Long): MediaLocation? =
+        dao.media(volumeName, id)?.let { MediaLocation(it.relativePath, it.displayName) }
 }
 
 /** Performs bounded, resumable reads; each page and its checkpoint are one short transaction. */
@@ -186,4 +188,5 @@ internal fun MediaStoreRecord.toEntity(scanId: Long): MediaItemEntity = MediaIte
     isAccessible = true,
     lastSeenScanId = scanId,
     dateExpiresSeconds = dateExpiresSeconds,
+    isAnimated = isAnimated,
 )
