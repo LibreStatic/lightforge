@@ -1,6 +1,7 @@
 package com.librestatic.lightforge.core.mediastore
 
 import android.content.Intent
+import android.net.Uri
 
 /**
  * Optional "advanced storage" capabilities backed by All files access (MANAGE_EXTERNAL_STORAGE).
@@ -37,7 +38,69 @@ interface AdvancedStorage {
 
     /** Deletes the directory only if it exists and is empty. */
     suspend fun deleteEmptyDirectory(absolutePath: String): AdvancedResult
+
+    /**
+     * Maps a MediaStore volume name plus a relative path and display name to an absolute path of a
+     * mounted volume. The only place that maps volumes to paths; null when unsupported, unmounted or
+     * when the parts would escape the volume.
+     */
+    fun absolutePathOf(volumeName: String, relativePath: String? = null, displayName: String? = null): String? = null
+
+    /** Creates a new folder named [name] inside [parentAbsolutePath]; never overwrites. */
+    suspend fun createDirectory(parentAbsolutePath: String, name: String): AdvancedResult = AdvancedResult.Unsupported
+
+    /** Renames a folder in place (same parent) and rescans it. */
+    suspend fun renameDirectory(absolutePath: String, newName: String): AdvancedResult = AdvancedResult.Unsupported
+
+    /** Moves a folder inside [newParentAbsolutePath] on the same volume and rescans it. */
+    suspend fun moveDirectory(absolutePath: String, newParentAbsolutePath: String): AdvancedResult =
+        AdvancedResult.Unsupported
+
+    /**
+     * Batch of same-volume file moves (source to target absolute paths) under one lock and one scan.
+     * The result list has one entry per input pair, in order.
+     */
+    suspend fun moveAll(moves: List<Pair<String, String>>): List<AdvancedResult> =
+        moves.map { AdvancedResult.Unsupported }
+
+    /** Immediate sub-folders of [absolutePath] (a volume root is allowed); empty when unsupported or not granted. */
+    suspend fun listDirectories(absolutePath: String): List<DirectoryEntry> = emptyList()
+
+    /**
+     * Image and video rows MediaStore keeps as plain files (`media_type=0`) because a `.nomedia` or a
+     * dot-prefixed folder excludes them, plus media rows under dot-prefixed folders. Empty unless granted.
+     * The mode and the show-hidden setting are the caller's gate.
+     */
+    suspend fun queryHiddenMedia(): List<HiddenMediaRow> = emptyList()
+
+    /**
+     * Removes the `.nomedia` this app recorded in the folder through a SAF tree grant on that folder
+     * (the fallback after [AdvancedResult.NeedsTreeGrant]) and rescans it.
+     */
+    suspend fun unhideWithTree(absolutePath: String, treeUri: Uri): AdvancedResult = AdvancedResult.Unsupported
 }
+
+data class DirectoryEntry(
+    val name: String,
+    val absolutePath: String,
+    val isEmpty: Boolean,
+    val hasNoMedia: Boolean,
+    val isDotPrefixed: Boolean,
+)
+
+enum class HiddenMediaKind { Image, Video }
+
+data class HiddenMediaRow(
+    val volumeName: String,
+    val mediaStoreId: Long,
+    val relativePath: String,
+    val displayName: String,
+    val mimeType: String,
+    val kind: HiddenMediaKind,
+    val sizeBytes: Long,
+    val dateTakenOrModifiedMillis: Long,
+    val contentUri: Uri,
+)
 
 data class HiddenEntry(val absolutePath: String, val kind: HiddenKind, val createdAtMillis: Long)
 
@@ -49,6 +112,9 @@ sealed interface AdvancedResult {
     data object Unsupported : AdvancedResult
     data object NotGranted : AdvancedResult
     data class Failed(val reason: String) : AdvancedResult
+
+    /** The `.nomedia` could not be removed without the permission; ask for a SAF tree grant on [absolutePath]. */
+    data class NeedsTreeGrant(val absolutePath: String) : AdvancedResult
 }
 
 /** Default binding: no advanced storage in this build. */
