@@ -854,6 +854,31 @@ interface LibraryDao {
     @Query("SELECT COUNT(*) FROM media_items")
     suspend fun mediaCount(): Long
 
+    /** Hides one row without touching its identity or saved state; a hidden file is not a deletion. */
+    @Query("UPDATE media_items SET isAccessible = 0 WHERE volumeName = :volumeName AND mediaStoreId = :id")
+    suspend fun markMediaInaccessible(volumeName: String, id: Long): Int
+
+    @Query("UPDATE media_items SET isAccessible = 0 WHERE volumeName = :volumeName AND mediaStoreId IN (:ids)")
+    suspend fun markMediaIdsInaccessible(volumeName: String, ids: List<Long>): Int
+
+    /** Accessible rows whose folder is [relativePathPrefix] or below it ("" matches the whole volume). */
+    @Query(
+        "SELECT mediaStoreId FROM media_items WHERE volumeName = :volumeName AND isAccessible = 1 " +
+            "AND instr(COALESCE(relativePath, ''), :relativePathPrefix) = 1",
+    )
+    suspend fun accessibleIdsUnderPrefix(volumeName: String, relativePathPrefix: String): List<Long>
+
+    /** Hides the rows under a folder prefix that a MediaStore read did not return. */
+    @Transaction
+    suspend fun hideFolderRowsNotIn(volumeName: String, relativePathPrefix: String, seenIds: Set<Long>): Int {
+        val missing = accessibleIdsUnderPrefix(volumeName, relativePathPrefix).filter { it !in seenIds }
+        missing.chunked(500).forEach { markMediaIdsInaccessible(volumeName, it) }
+        return missing.size
+    }
+
+    @RawQuery
+    suspend fun rawCount(query: SupportSQLiteQuery): Long
+
     @Query("UPDATE media_items SET isAccessible = 0 WHERE volumeName = :volumeName")
     suspend fun markVolumeInaccessible(volumeName: String): Int
 
@@ -895,29 +920,38 @@ interface LibraryDao {
     fun physicalAlbumOptions(): Flow<List<PhysicalAlbumRow>>
 
     /**
-     * Live folder inventory for the explorer. Same visibility predicate as [physicalAlbumOptions]
-     * (non-trashed rows). Folders with a path group by (volume, path); path-less rows group per
+     * Live folder inventory for the explorer. Counts, bytes, dates and the cover use accessible,
+     * non-trashed, non-archived rows, the same set the folder paging source lists. Groups made
+     * only of inaccessible rows are still returned, with `accessibleCount = 0`, so the caller can
+     * tell an unmounted volume from a hidden folder. Folders with a path group by (volume, path);
+     * path-less rows group per
      * (volume, bucket), mirroring how Settings keys them. Rows with neither stay in one group per volume.
      */
     @Query(
         """
         SELECT m.volumeName, m.relativePath, MAX(m.bucketId) AS bucketId,
             MAX(m.bucketDisplayName) AS displayName,
-            COUNT(*) AS directCount,
-            SUM(CASE WHEN m.mediaType = 1 THEN 1 ELSE 0 END) AS imageCount,
-            SUM(CASE WHEN m.mediaType = 3 THEN 1 ELSE 0 END) AS videoCount,
-            SUM(m.sizeBytes) AS totalBytes,
-            MIN(m.timelineSortMillis) AS minSortMillis, MAX(m.timelineSortMillis) AS maxSortMillis,
+            SUM(CASE WHEN m.isAccessible = 1 THEN 1 ELSE 0 END) AS directCount,
+            SUM(CASE WHEN m.isAccessible = 1 AND m.mediaType = 1 THEN 1 ELSE 0 END) AS imageCount,
+            SUM(CASE WHEN m.isAccessible = 1 AND m.mediaType = 3 THEN 1 ELSE 0 END) AS videoCount,
+            SUM(CASE WHEN m.isAccessible = 1 THEN m.sizeBytes ELSE 0 END) AS totalBytes,
+            COALESCE(MIN(CASE WHEN m.isAccessible = 1 THEN m.timelineSortMillis END), 0) AS minSortMillis,
+            COALESCE(MAX(CASE WHEN m.isAccessible = 1 THEN m.timelineSortMillis END), 0) AS maxSortMillis,
             (SELECT cover.mediaStoreId FROM media_items AS cover
-             WHERE cover.volumeName = m.volumeName AND cover.isTrashed = 0
+             WHERE cover.volumeName = m.volumeName AND cover.isTrashed = 0 AND cover.isAccessible = 1
                 AND ((m.relativePath IS NOT NULL AND cover.relativePath = m.relativePath)
                   OR (m.relativePath IS NULL AND cover.relativePath IS NULL
                       AND cover.bucketId IS m.bucketId))
-             ORDER BY cover.isAccessible DESC, cover.timelineSortMillis DESC,
+                AND NOT EXISTS (SELECT 1 FROM archived_media ca
+                    WHERE ca.volumeName = cover.volumeName AND ca.mediaStoreId = cover.mediaStoreId)
+             ORDER BY cover.timelineSortMillis DESC,
                 cover.mediaStoreId DESC LIMIT 1) AS coverMediaStoreId,
-            MAX(m.isAccessible) AS isAvailable
+            MAX(m.isAccessible) AS isAvailable,
+            SUM(CASE WHEN m.isAccessible = 1 THEN 1 ELSE 0 END) AS accessibleCount
         FROM media_items AS m
         WHERE m.isTrashed = 0
+            AND NOT EXISTS (SELECT 1 FROM archived_media a
+                WHERE a.volumeName = m.volumeName AND a.mediaStoreId = m.mediaStoreId)
         GROUP BY m.volumeName, m.relativePath,
             CASE WHEN m.relativePath IS NULL THEN m.bucketId END
         """,

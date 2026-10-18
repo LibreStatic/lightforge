@@ -59,6 +59,33 @@ class GalleryAlbumRepository(
         },
     ).flow.map { page -> page.map { it.toTimelineMedia() } }
 
+    /** Media stored in one folder by exact path, optionally with every subfolder below it. */
+    fun mediaInFolder(
+        volumeName: String,
+        relativePath: String,
+        includeSubfolders: Boolean,
+        filter: AlbumMediaFilter = AlbumMediaFilter.All,
+        sort: AlbumSort = AlbumSort.NewestFirst,
+    ): Flow<PagingData<TimelineMedia>> = Pager(
+        config = PagingConfig(
+            pageSize = 120,
+            initialLoadSize = 180,
+            prefetchDistance = 120,
+            enablePlaceholders = false,
+            maxSize = 600,
+        ),
+        pagingSourceFactory = {
+            FolderMediaPagingSource(database, volumeName, relativePath, includeSubfolders, filter, sort)
+        },
+    ).flow.map { page -> page.map { it.toTimelineMedia() } }
+
+    suspend fun folderMediaCount(
+        volumeName: String,
+        relativePath: String,
+        includeSubfolders: Boolean,
+        filter: AlbumMediaFilter = AlbumMediaFilter.All,
+    ): Long = dao.rawCount(FolderMediaSql.count(volumeName, relativePath, includeSubfolders, filter))
+
     suspend fun createVirtualAlbum(name: String): Long {
         val displayName = validateName(name)
         val now = nowMillis()

@@ -4,15 +4,23 @@ import com.librestatic.lightforge.core.database.MediaItemEntity
 import com.librestatic.lightforge.core.database.MediaStoreCheckpointEntity
 import com.librestatic.lightforge.core.mediastore.MediaStoreDeltaSource
 import com.librestatic.lightforge.core.mediastore.MediaStoreGenerationPage
+import com.librestatic.lightforge.core.mediastore.MediaStoreIdPage
 import com.librestatic.lightforge.core.mediastore.MediaStoreRecord
+import com.librestatic.lightforge.core.mediastore.MediaStoreRow
 import com.librestatic.lightforge.core.mediastore.VolumeGeneration
 import com.librestatic.lightforge.core.model.GrantLevel
 import com.librestatic.lightforge.core.model.LibraryAccess
 import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.core.model.MediaKind
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.advanceUntilIdle
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class IncrementalMediaSynchronizerTest {
@@ -83,6 +91,78 @@ class IncrementalMediaSynchronizerTest {
     }
 
     @Test
+    fun rowHintOnHiddenRowKeepsIdentity() = runTest {
+        val key = MediaKey("external_primary", 42)
+        val store = FakeStore(checkpoint()).apply {
+            items["external_primary" to 42] = record(42, 10).toEntity(1)
+        }
+        val source = FakeDeltaSource(emptyList(), hidden = setOf(key))
+        val result = IncrementalMediaSynchronizer(source, store, ::fullAccess).applyRowHint(key)
+
+        assertEquals(RowHintResult.Hidden, result)
+        assertEquals(0, store.deleteCount)
+        assertFalse(store.items.getValue("external_primary" to 42L).isAccessible)
+        assertEquals(record(42, 10).toEntity(1).copy(isAccessible = false), store.items.getValue("external_primary" to 42L))
+    }
+
+    @Test
+    fun hiddenRowIsNotDeletedEvenWithoutFullAccess() = runTest {
+        val key = MediaKey("external_primary", 42)
+        val store = FakeStore(checkpoint()).apply { items["external_primary" to 42] = record(42, 10).toEntity(1) }
+        val result = IncrementalMediaSynchronizer(
+            FakeDeltaSource(emptyList(), hidden = setOf(key)), store,
+            { LibraryAccess(GrantLevel.Full, GrantLevel.None, false) },
+        ).applyRowHint(key)
+        assertEquals(RowHintResult.Hidden, result)
+        assertEquals(0, store.deleteCount)
+    }
+
+    @Test
+    fun reconcileFolderUpsertsReturnedRowsAndHidesTheMissingOnesUnderThePrefix() = runTest {
+        fun inFolder(id: Long, path: String) = record(id, 10).copy(relativePath = path)
+        val store = FakeStore(checkpoint()).apply {
+            listOf(inFolder(1, "DCIM/Camera/"), inFolder(2, "DCIM/Camera/Sub/"), inFolder(3, "DCIM/Other/"), inFolder(4, "Pictures/"))
+                .forEach { items["external_primary" to it.key.mediaStoreId] = it.toEntity(1) }
+        }
+        // Row 2 vanished from MediaStore (hidden or moved); row 5 is new; row 3 and 4 are outside.
+        val source = FakeDeltaSource(listOf(inFolder(1, "DCIM/Camera/"), inFolder(5, "DCIM/Camera/")))
+        val result = IncrementalMediaSynchronizer(source, store, ::fullAccess, pageSize = 1)
+            .reconcileFolder("external_primary", "DCIM/Camera/")
+
+        assertEquals(FolderReconcileResult.Complete(upserted = 2, hidden = 1), result)
+        assertTrue(store.items.getValue("external_primary" to 1L).isAccessible)
+        assertTrue(store.items.getValue("external_primary" to 5L).isAccessible)
+        assertFalse(store.items.getValue("external_primary" to 2L).isAccessible)
+        assertTrue(store.items.getValue("external_primary" to 3L).isAccessible)
+        assertTrue(store.items.getValue("external_primary" to 4L).isAccessible)
+        assertEquals(0, store.deleteCount)
+    }
+
+    @Test
+    fun reconcileFolderWithoutAccessChangesNothing() = runTest {
+        val store = FakeStore(checkpoint()).apply { items["external_primary" to 1] = record(1, 10).toEntity(1) }
+        val result = IncrementalMediaSynchronizer(FakeDeltaSource(emptyList()), store, ::noAccess)
+            .reconcileFolder("external_primary", "DCIM/Camera/")
+        assertEquals(FolderReconcileResult.PermissionLost, result)
+        assertTrue(store.items.getValue("external_primary" to 1L).isAccessible)
+    }
+
+    @Test
+    fun reconcileFolderWaitsForTheRefreshLock() = runTest {
+        val lock = Mutex(locked = true)
+        val source = FakeDeltaSource(emptyList())
+        val reconcile = async(start = CoroutineStart.UNDISPATCHED) {
+            IncrementalMediaSynchronizer(source, FakeStore(checkpoint()), ::fullAccess, refreshMutex = lock)
+                .reconcileFolder("external_primary", "DCIM/")
+        }
+        advanceUntilIdle()
+        assertFalse(reconcile.isCompleted)
+        assertEquals(0, source.folderQueries)
+        lock.unlock()
+        assertEquals(FolderReconcileResult.Complete(0, 0), reconcile.await())
+    }
+
+    @Test
     fun rowHintDoesNotWriteBackAStaleCheckpoint() = runTest {
         val newer = checkpoint().copy(generation = 12)
         val store = FakeStore(checkpoint()).apply {
@@ -114,8 +194,12 @@ class IncrementalMediaSynchronizerTest {
         assertEquals(0, source.pageQueries)
     }
 
-    private class FakeDeltaSource(private val records: List<MediaStoreRecord>) : MediaStoreDeltaSource {
+    private class FakeDeltaSource(
+        private val records: List<MediaStoreRecord>,
+        private val hidden: Set<MediaKey> = emptySet(),
+    ) : MediaStoreDeltaSource {
         var pageQueries = 0
+        var folderQueries = 0
         override fun readGenerationPage(
             volumeName: String,
             afterGeneration: Long,
@@ -134,7 +218,24 @@ class IncrementalMediaSynchronizerTest {
             return MediaStoreGenerationPage(page, last?.generationModified, last?.key?.mediaStoreId)
         }
 
-        override fun readOne(key: MediaKey): MediaStoreRecord? = records.firstOrNull { it.key == key }
+        override fun readRow(key: MediaKey): MediaStoreRow = when {
+            key in hidden -> MediaStoreRow.Hidden
+            else -> records.firstOrNull { it.key == key }?.let(MediaStoreRow::Present) ?: MediaStoreRow.Absent
+        }
+
+        override fun readFolderPage(
+            volumeName: String,
+            relativePathPrefix: String,
+            afterId: Long,
+            limit: Int,
+        ): MediaStoreIdPage {
+            folderQueries++
+            val page = records.filter {
+                it.key.volumeName == volumeName && it.relativePath.orEmpty().startsWith(relativePathPrefix) &&
+                    it.key.mediaStoreId > afterId
+            }.sortedBy { it.key.mediaStoreId }.take(limit)
+            return MediaStoreIdPage(page, page.lastOrNull()?.key?.mediaStoreId)
+        }
     }
 
     private class FakeStore(initial: MediaStoreCheckpointEntity) : IncrementalMediaIndexStore {
@@ -171,6 +272,21 @@ class IncrementalMediaSynchronizerTest {
         }
         override suspend fun upsertHintedMedia(items: List<MediaItemEntity>) {
             items.forEach { this.items[it.volumeName to it.mediaStoreId] = it }
+        }
+        override suspend fun markMediaInaccessible(volumeName: String, id: Long): Int {
+            val row = items[volumeName to id] ?: return 0
+            items[volumeName to id] = row.copy(isAccessible = false)
+            return 1
+        }
+        override suspend fun hideFolderRowsNotIn(
+            volumeName: String, relativePathPrefix: String, seenIds: Set<Long>,
+        ): Int {
+            val missing = items.values.filter {
+                it.volumeName == volumeName && it.isAccessible && it.mediaStoreId !in seenIds &&
+                    it.relativePath.orEmpty().startsWith(relativePathPrefix)
+            }
+            missing.forEach { items[it.volumeName to it.mediaStoreId] = it.copy(isAccessible = false) }
+            return missing.size
         }
         override suspend fun deleteMedia(volumeName: String, id: Long): Int {
             deleteCount++

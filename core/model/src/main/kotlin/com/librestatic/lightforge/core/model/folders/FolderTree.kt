@@ -11,6 +11,10 @@ data class FolderStats(
     val maxSortMillis: Long,
     val coverMediaStoreId: Long?,
     val isAvailable: Boolean,
+    /** The folder holds media hidden from the system gallery (a .nomedia folder); advanced mode only. */
+    val isHidden: Boolean = false,
+    /** A directory on disk with no media at all; advanced mode only. */
+    val isEmptyDirectory: Boolean = false,
 )
 
 /** Sums over a folder and everything below it. Dates are null when the subtree has no items. */

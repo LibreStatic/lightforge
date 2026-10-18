@@ -23,6 +23,8 @@ private class MutableFolderNode<T>(
  * Items whose normalised path is null become roots keyed by volume and [fallbackKeyOf]; the others
  * are placed along their path, creating synthetic intermediate nodes. Roots sort with
  * `external_primary` first, then by volume name, then by [nameOrder]; children sort by [nameOrder].
+ * Items that land on the same node (paths that normalise alike) are merged through [combine]; the
+ * default keeps the last one.
  */
 fun <T> buildFolderForest(
     items: List<T>,
@@ -32,14 +34,20 @@ fun <T> buildFolderForest(
     fallbackNameOf: (T) -> String,
     normalizeRelativePath: (String?) -> String? = ::normalizeFolderPath,
     nameOrder: Comparator<String> = String.CASE_INSENSITIVE_ORDER,
+    combine: (existing: T, incoming: T) -> T = { _, incoming -> incoming },
 ): List<FolderNode<T>> {
     val roots = linkedMapOf<String, MutableFolderNode<T>>()
     items.forEach { item ->
         val volume = volumeOf(item)
         val normalizedPath = normalizeRelativePath(relativePathOf(item))
         if (normalizedPath == null) {
-            roots["$volume|#${fallbackKeyOf(item)}"] = MutableFolderNode<T>(volume, null, fallbackNameOf(item))
-                .also { it.direct = item }
+            val rootKey = "$volume|#${fallbackKeyOf(item)}"
+            val existing = roots[rootKey]
+            if (existing == null) {
+                roots[rootKey] = MutableFolderNode<T>(volume, null, fallbackNameOf(item)).also { it.direct = item }
+            } else {
+                existing.direct = existing.direct?.let { combine(it, item) } ?: item
+            }
             return@forEach
         }
         var parentChildren = roots
@@ -47,7 +55,7 @@ fun <T> buildFolderForest(
         segments.forEachIndexed { index, segment ->
             val path = segments.take(index + 1).joinToString(separator = "/", postfix = "/")
             val node = parentChildren.getOrPut("$volume|$path") { MutableFolderNode(volume, path, segment) }
-            if (index == segments.lastIndex) node.direct = item
+            if (index == segments.lastIndex) node.direct = node.direct?.let { combine(it, item) } ?: item
             parentChildren = node.children
         }
     }

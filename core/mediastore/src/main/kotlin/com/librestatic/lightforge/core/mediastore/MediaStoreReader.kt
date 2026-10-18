@@ -43,6 +43,17 @@ data class MediaStoreGenerationPage(
     val nextMediaStoreId: Long?,
 )
 
+/**
+ * What MediaStore says about one row. [Hidden] means the row exists but is not media to the
+ * provider (`media_type=0`, typically a `.nomedia` folder) while its MIME type is an image or video;
+ * it must never be mistaken for a deletion.
+ */
+sealed interface MediaStoreRow {
+    data class Present(val record: MediaStoreRecord) : MediaStoreRow
+    data object Hidden : MediaStoreRow
+    data object Absent : MediaStoreRow
+}
+
 object MediaStoreProjection {
     val Columns = arrayOf(
         MediaStore.MediaColumns._ID,
@@ -90,7 +101,22 @@ interface MediaStoreDeltaSource {
         limit: Int,
     ): MediaStoreGenerationPage
 
-    fun readOne(key: MediaKey): MediaStoreRecord?
+    /** Distinguishes a hidden row from a deleted or inaccessible one. */
+    fun readRow(key: MediaKey): MediaStoreRow
+
+    /** Convenience for callers that only care about indexable rows: null for Hidden and Absent. */
+    fun readOne(key: MediaKey): MediaStoreRecord? = (readRow(key) as? MediaStoreRow.Present)?.record
+
+    /**
+     * Image and video rows (media_type IN (1,3), trashed included) whose relative path starts with
+     * [relativePathPrefix], ascending by id after [afterId]. An empty prefix matches the whole volume.
+     */
+    fun readFolderPage(
+        volumeName: String,
+        relativePathPrefix: String,
+        afterId: Long,
+        limit: Int,
+    ): MediaStoreIdPage
 }
 
 class MediaStoreReader(private val resolver: ContentResolver) : MediaStorePageSource, MediaStoreDeltaSource {
@@ -208,13 +234,78 @@ class MediaStoreReader(private val resolver: ContentResolver) : MediaStorePageSo
         )
     }
 
-    /** Returns null when a row hint was deleted or is no longer accessible. */
-    override fun readOne(key: MediaKey): MediaStoreRecord? = resolver.query(
+    /** Returns Absent when a row hint was deleted or is no longer accessible. */
+    override fun readRow(key: MediaKey): MediaStoreRow = resolver.query(
         MediaStoreUriFactory.uriFor(key),
         MediaStoreProjection.Columns,
         Bundle().apply { putInt(MediaStore.QUERY_ARG_MATCH_TRASHED, MediaStore.MATCH_INCLUDE) },
         null,
-    )?.use { cursor -> if (cursor.moveToFirst()) cursor.toRecord(key.volumeName)?.let(videoProbe::complete) else null }
+    )?.use { cursor ->
+        when {
+            !cursor.moveToFirst() -> MediaStoreRow.Absent
+            cursor.isHiddenMedia() -> MediaStoreRow.Hidden
+            else -> cursor.toRecord(key.volumeName)?.let(videoProbe::complete)
+                ?.let(MediaStoreRow::Present) ?: MediaStoreRow.Absent
+        }
+    } ?: MediaStoreRow.Absent
+
+    override fun readOne(key: MediaKey): MediaStoreRecord? =
+        (readRow(key) as? MediaStoreRow.Present)?.record
+
+    override fun readFolderPage(
+        volumeName: String,
+        relativePathPrefix: String,
+        afterId: Long,
+        limit: Int,
+    ): MediaStoreIdPage {
+        require(volumeName.isNotBlank())
+        require(afterId >= -1)
+        require(limit in 1..1_000)
+        val queryArgs = Bundle().apply {
+            putString(
+                ContentResolver.QUERY_ARG_SQL_SELECTION,
+                "(${MediaStore.Files.FileColumns.MEDIA_TYPE}=? OR " +
+                    "${MediaStore.Files.FileColumns.MEDIA_TYPE}=?) AND " +
+                    "${MediaStore.MediaColumns._ID}>? AND " +
+                    "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ? ESCAPE '\\'",
+            )
+            putStringArray(
+                ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS,
+                arrayOf(
+                    MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString(),
+                    MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString(),
+                    afterId.toString(),
+                    relativePathPrefix.escapeLike() + "%",
+                ),
+            )
+            putStringArray(ContentResolver.QUERY_ARG_SORT_COLUMNS, arrayOf(MediaStore.MediaColumns._ID))
+            putInt(ContentResolver.QUERY_ARG_SORT_DIRECTION, ContentResolver.QUERY_SORT_DIRECTION_ASCENDING)
+            putInt(ContentResolver.QUERY_ARG_LIMIT, limit)
+            putInt(MediaStore.QUERY_ARG_MATCH_TRASHED, MediaStore.MATCH_INCLUDE)
+        }
+        val records = resolver.query(
+            MediaStore.Files.getContentUri(volumeName),
+            MediaStoreProjection.Columns,
+            queryArgs,
+            null,
+        )?.use { cursor ->
+            buildList(capacity = minOf(limit, cursor.count.coerceAtLeast(0))) {
+                while (size < limit && cursor.moveToNext()) {
+                    cursor.toRecord(volumeName)?.let(videoProbe::complete)?.let(::add)
+                }
+            }
+        }.orEmpty()
+        return MediaStoreIdPage(records, records.lastOrNull()?.key?.mediaStoreId)
+    }
+}
+
+private fun String.escapeLike(): String =
+    replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+private fun Cursor.isHiddenMedia(): Boolean {
+    if (int(MediaStore.Files.FileColumns.MEDIA_TYPE) != MediaStore.Files.FileColumns.MEDIA_TYPE_NONE) return false
+    val mime = stringOrNull(MediaStore.MediaColumns.MIME_TYPE)?.lowercase() ?: return false
+    return mime.startsWith("image/") || mime.startsWith("video/")
 }
 
 private fun Cursor.toRecord(requestedVolume: String): MediaStoreRecord? {

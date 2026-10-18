@@ -41,13 +41,18 @@ internal fun observeFolderTree(rows: Flow<List<FolderSummaryRow>>, debounceMilli
 }.conflate().distinctUntilChanged()
 
 internal fun buildFolderTree(rows: List<FolderSummaryRow>): FolderTree {
+    // A folder whose rows are all inaccessible is hidden or emptied, so it drops out. Only a volume
+    // that has no accessible row at all is unmounted: its folders stay, flagged unavailable.
+    val volumesWithAccessibleRows = rows.filter { it.accessibleCount > 0 }.mapTo(HashSet()) { it.volumeName }
+    val visibleRows = rows.filter { it.accessibleCount > 0 || it.volumeName !in volumesWithAccessibleRows }
     val forest: List<FolderNode<FolderStats>> = buildFolderForest(
-        items = rows,
+        items = visibleRows,
         volumeOf = FolderSummaryRow::volumeName,
         relativePathOf = FolderSummaryRow::relativePath,
         fallbackKeyOf = { it.bucketId.toString() },
         fallbackNameOf = { it.displayName ?: it.bucketId?.toString().orEmpty() },
         nameOrder = NaturalNameOrder,
+        combine = FolderSummaryRow::mergedWith,
     ).map { it.mapStats() }
     return FolderTree.from(forest)
 }
@@ -71,3 +76,30 @@ private fun FolderNode<FolderSummaryRow>.mapStats(): FolderNode<FolderStats> = F
     },
     children = children.map { it.mapStats() },
 )
+
+/** Two raw groups that normalise to one path (for example "A\\B" and "A/B/") are one folder. */
+private fun FolderSummaryRow.mergedWith(other: FolderSummaryRow): FolderSummaryRow {
+    val otherIsNewer = other.accessibleCount > 0 &&
+        (accessibleCount == 0L || other.maxSortMillis > maxSortMillis)
+    return copy(
+        bucketId = bucketId ?: other.bucketId,
+        displayName = displayName ?: other.displayName,
+        directCount = directCount + other.directCount,
+        imageCount = imageCount + other.imageCount,
+        videoCount = videoCount + other.videoCount,
+        totalBytes = totalBytes + other.totalBytes,
+        minSortMillis = when {
+            accessibleCount == 0L -> other.minSortMillis
+            other.accessibleCount == 0L -> minSortMillis
+            else -> minOf(minSortMillis, other.minSortMillis)
+        },
+        maxSortMillis = maxOf(maxSortMillis, other.maxSortMillis),
+        coverMediaStoreId = if (otherIsNewer || coverMediaStoreId == null) {
+            other.coverMediaStoreId ?: coverMediaStoreId
+        } else {
+            coverMediaStoreId
+        },
+        isAvailable = isAvailable || other.isAvailable,
+        accessibleCount = accessibleCount + other.accessibleCount,
+    )
+}

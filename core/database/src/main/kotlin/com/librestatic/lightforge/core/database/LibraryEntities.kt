@@ -188,6 +188,8 @@ data class FolderSummaryRow(
     val maxSortMillis: Long,
     val coverMediaStoreId: Long?,
     val isAvailable: Boolean,
+    /** Accessible, non-trashed, non-archived rows; 0 when the folder is hidden or its volume is gone. */
+    val accessibleCount: Long,
 )
 
 data class VirtualAlbumRow(

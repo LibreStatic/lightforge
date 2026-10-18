@@ -51,10 +51,20 @@ class FolderSummariesDeviceTest {
             insert(db, 5, 1, 20, 700, null, 77)
             insert(db, 6, 1, 30, 800, null, 78)
             insert(db, 7, 1, 40, 900, "DCIM/Camera/", 10, volume = "1234-ABCD")
+            // A folder of only inaccessible rows (hidden or emptied) is reported with no accessible rows,
+            // and its inaccessible rows never inflate the counts of a folder that still has visible ones.
+            insert(db, 8, 1, 999, 100, "Hidden/", 12, accessible = 0)
+            insert(db, 9, 1, 999, 100, "DCIM/Camera/", 10, accessible = 0)
             val rows = database.libraryDao().folderSummaries().first()
-            assertEquals(5, rows.size)
+            assertEquals(6, rows.size)
+            val hiddenOnly = rows.single { it.relativePath == "Hidden/" }
+            assertEquals(0L, hiddenOnly.accessibleCount)
+            assertEquals(0L, hiddenOnly.directCount)
+            assertNull(hiddenOnly.coverMediaStoreId)
+            assertTrue(!hiddenOnly.isAvailable)
             val camera = rows.single { it.volumeName == "external_primary" && it.relativePath == "DCIM/Camera/" }
             assertEquals(2L, camera.directCount)
+            assertEquals(2L, camera.accessibleCount)
             assertEquals(1L, camera.imageCount)
             assertEquals(1L, camera.videoCount)
             assertEquals(400L, camera.totalBytes)

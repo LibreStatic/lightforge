@@ -3,6 +3,7 @@ package com.librestatic.lightforge.core.data
 import com.librestatic.lightforge.core.database.MediaItemEntity
 import com.librestatic.lightforge.core.database.MediaStoreCheckpointEntity
 import com.librestatic.lightforge.core.mediastore.MediaStoreDeltaSource
+import com.librestatic.lightforge.core.mediastore.MediaStoreRow
 import com.librestatic.lightforge.core.mediastore.VolumeGeneration
 import com.librestatic.lightforge.core.model.GrantLevel
 import com.librestatic.lightforge.core.model.LibraryAccess
@@ -10,6 +11,8 @@ import com.librestatic.lightforge.core.model.MediaKey
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.coroutineContext
 
@@ -18,6 +21,12 @@ interface IncrementalMediaIndexStore : MediaIndexStore {
 
     /** Upserts rows without a checkpoint; an active scan token is resolved in the same transaction. */
     suspend fun upsertHintedMedia(items: List<MediaItemEntity>)
+
+    /** Hides one row (isAccessible=0) while keeping its identity and everything saved about it. */
+    suspend fun markMediaInaccessible(volumeName: String, id: Long): Int
+
+    /** Hides the accessible rows under [relativePathPrefix] whose id is not in [seenIds]. */
+    suspend fun hideFolderRowsNotIn(volumeName: String, relativePathPrefix: String, seenIds: Set<Long>): Int
 }
 
 sealed interface IncrementalSyncResult {
@@ -31,7 +40,15 @@ sealed interface IncrementalSyncResult {
 sealed interface RowHintResult {
     data object Upserted : RowHintResult
     data object Deleted : RowHintResult
+
+    /** The row still exists but MediaStore stopped treating it as media; it was hidden, not deleted. */
+    data object Hidden : RowHintResult
     data object PermissionLost : RowHintResult
+}
+
+sealed interface FolderReconcileResult {
+    data class Complete(val upserted: Int, val hidden: Int) : FolderReconcileResult
+    data object PermissionLost : FolderReconcileResult
 }
 
 /** Applies generation-bounded deltas without ever materializing the library or its IDs. */
@@ -41,6 +58,8 @@ class IncrementalMediaSynchronizer(
     private val currentAccess: () -> LibraryAccess,
     private val nowMillis: () -> Long = System::currentTimeMillis,
     private val pageSize: Int = 256,
+    /** Shared with the library refresh so a folder reconcile never interleaves with a scan's sweep. */
+    private val refreshMutex: Mutex = Mutex(),
 ) {
     init { require(pageSize in 1..1_000) }
 
@@ -135,26 +154,70 @@ class IncrementalMediaSynchronizer(
     /** Uses a row-specific observer URI to distinguish a deletion from a changed row. */
     suspend fun applyRowHint(key: MediaKey): RowHintResult = withContext(Dispatchers.IO) {
         if (!currentAccess().canReadAny()) return@withContext RowHintResult.PermissionLost
-        val record = try {
-            source.readOne(key)
+        val row = try {
+            source.readRow(key)
         } catch (_: SecurityException) {
             return@withContext RowHintResult.PermissionLost
         }
-        if (record == null) {
-            // With partial permissions, an absent row can mean a revoked selection, not deletion.
-            val access = currentAccess()
-            if (access.images != GrantLevel.Full || access.videos != GrantLevel.Full)
-                return@withContext RowHintResult.PermissionLost
-            store.deleteMedia(key.volumeName, key.mediaStoreId)
-            RowHintResult.Deleted
-        } else {
-            store.checkpoint(key.volumeName) ?: return@withContext RowHintResult.PermissionLost
-            // Hints run outside the refresh lock: writing back a checkpoint read here could roll
-            // back a scan or delta sync that finished meanwhile, so only the row is written.
-            store.upsertHintedMedia(listOf(record.toEntity(0)))
-            RowHintResult.Upserted
+        when (row) {
+            MediaStoreRow.Absent -> {
+                // With partial permissions, an absent row can mean a revoked selection, not deletion.
+                val access = currentAccess()
+                if (access.images != GrantLevel.Full || access.videos != GrantLevel.Full)
+                    return@withContext RowHintResult.PermissionLost
+                store.deleteMedia(key.volumeName, key.mediaStoreId)
+                RowHintResult.Deleted
+            }
+            // The file is still there (a .nomedia folder, by this app or another one). Hiding keeps
+            // favourites, edits, albums and every other saved decision for when it comes back.
+            MediaStoreRow.Hidden -> {
+                store.markMediaInaccessible(key.volumeName, key.mediaStoreId)
+                RowHintResult.Hidden
+            }
+            is MediaStoreRow.Present -> {
+                store.checkpoint(key.volumeName) ?: return@withContext RowHintResult.PermissionLost
+                // Hints run outside the refresh lock: writing back a checkpoint read here could roll
+                // back a scan or delta sync that finished meanwhile, so only the row is written.
+                store.upsertHintedMedia(listOf(row.record.toEntity(0)))
+                RowHintResult.Upserted
+            }
         }
     }
+
+    /**
+     * Re-reads one folder subtree from MediaStore: returned rows are upserted, accessible rows under
+     * [relativePathPrefix] that it did not return (moved, deleted or hidden) become inaccessible.
+     * Runs under the refresh lock, so a scan's mark-and-sweep cannot interleave.
+     */
+    suspend fun reconcileFolder(volumeName: String, relativePathPrefix: String): FolderReconcileResult =
+        withContext(Dispatchers.IO) {
+            refreshMutex.withLock {
+                if (!currentAccess().canReadAny()) return@withLock FolderReconcileResult.PermissionLost
+                val seen = HashSet<Long>()
+                var afterId = -1L
+                while (true) {
+                    coroutineContext.ensureActive()
+                    val page = try {
+                        source.readFolderPage(volumeName, relativePathPrefix, afterId, pageSize)
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: SecurityException) {
+                        return@withLock FolderReconcileResult.PermissionLost
+                    }
+                    if (page.records.isEmpty()) break
+                    val nextId = requireNotNull(page.nextAfterId)
+                    check(nextId > afterId) { "MediaStore folder page did not advance" }
+                    afterId = nextId
+                    // Token 0 keeps a paused full scan's visibility rules (see LibraryDao.upsertMedia).
+                    store.upsertHintedMedia(page.records.map { it.toEntity(0) })
+                    page.records.forEach { seen += it.key.mediaStoreId }
+                }
+                // Permission may have been revoked mid-read: absence would then mean "not shown to us".
+                if (!currentAccess().canReadAny()) return@withLock FolderReconcileResult.PermissionLost
+                val hidden = store.hideFolderRowsNotIn(volumeName, relativePathPrefix, seen)
+                FolderReconcileResult.Complete(seen.size, hidden)
+            }
+        }
 }
 
 private fun LibraryAccess.canReadAny(): Boolean =

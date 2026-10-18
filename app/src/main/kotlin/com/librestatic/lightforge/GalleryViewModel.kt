@@ -7198,7 +7198,9 @@ class GalleryViewModel @Inject constructor(
             database = database,
             timeline = GalleryTimelineRepository(database),
             scanner = InitialMediaScanner(reader, store, { permissions.access.value }),
-            synchronizer = IncrementalMediaSynchronizer(reader, store, { permissions.access.value }),
+            synchronizer = IncrementalMediaSynchronizer(
+                reader, store, { permissions.access.value }, refreshMutex = refreshMutex,
+            ),
             generations = MediaStoreGenerationProbe(context),
             thumbnails = thumbnailFactory(),
             motionKeyFrames = motionKeyFrames,

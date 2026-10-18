@@ -42,5 +42,25 @@ internal object FolderSelectionSql {
         return "(CASE ${branches.joinToString(" ")} ELSE ${defaultSelected.asSqlInt()} END)=1"
     }
 
+    /**
+     * Rows stored in one folder: an exact `relativePath` match, or every path that starts with it when
+     * [includeSubfolders]. Uses the same `instr(...)=1` prefix test as the selection rules.
+     */
+    fun folderPredicate(
+        alias: String,
+        volumeName: String,
+        relativePath: String,
+        includeSubfolders: Boolean,
+        args: MutableList<Any>,
+    ): String {
+        args += volumeName
+        args += relativePath
+        return if (includeSubfolders) {
+            "$alias.volumeName=? AND instr(COALESCE($alias.relativePath,''),?)=1"
+        } else {
+            "$alias.volumeName=? AND $alias.relativePath=?"
+        }
+    }
+
     private fun Boolean.asSqlInt() = if (this) 1 else 0
 }

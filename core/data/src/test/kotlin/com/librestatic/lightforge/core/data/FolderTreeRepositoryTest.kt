@@ -16,7 +16,8 @@ class FolderTreeRepositoryTest {
     private fun row(
         path: String?, bucket: Long, count: Long = 1, bytes: Long = 10, min: Long = 1, max: Long = 1,
         cover: Long? = bucket, volume: String = "external_primary", name: String? = null, images: Long = count,
-    ) = FolderSummaryRow(volume, path, bucket, name ?: path?.trimEnd('/')?.substringAfterLast('/'), count, images, count - images, bytes, min, max, cover, true)
+        available: Boolean = true, accessible: Long = count,
+    ) = FolderSummaryRow(volume, path, bucket, name ?: path?.trimEnd('/')?.substringAfterLast('/'), count, images, count - images, bytes, min, max, cover, available, accessible)
 
     @Test fun aggregatesSubtreesAndSortsNaturally() {
         val tree = buildFolderTree(
@@ -54,6 +55,44 @@ class FolderTreeRepositoryTest {
         assertEquals(listOf("Loose", "Other"), root.children.map { it.name })
         assertEquals(1L, tree.totals(root.children[1]).totalCount)
         assertEquals(2L, tree.totals(root).totalCount)
+    }
+
+    @Test fun foldersWithOnlyInaccessibleRowsDropWhileTheVolumeHasAccessibleOnes() {
+        val tree = buildFolderTree(
+            listOf(
+                row("DCIM/Camera/", 1, count = 2),
+                row("Hidden/", 2, count = 0, bytes = 0, min = 0, max = 0, cover = null, available = false, accessible = 0),
+            ),
+        )
+        assertNull(tree.find("external_primary", "Hidden/"))
+        assertEquals(2L, tree.totals(tree.volumes.single()).totalCount)
+    }
+
+    @Test fun unmountedVolumeKeepsItsFoldersAsUnavailable() {
+        val tree = buildFolderTree(
+            listOf(
+                row("DCIM/", 1, count = 2),
+                row("Movies/", 3, count = 0, volume = "1234-ABCD", available = false, accessible = 0, cover = null),
+            ),
+        )
+        val movies = tree.find("1234-ABCD", "Movies/")!!
+        assertEquals(false, movies.direct!!.isAvailable)
+        assertEquals(false, tree.totals(movies).isAvailable)
+    }
+
+    @Test fun pathsThatNormaliseAlikeKeepBothCounts() {
+        val tree = buildFolderTree(
+            listOf(
+                row("DCIM\\Camera", 1, count = 2, bytes = 20, min = 5, max = 50, cover = 11),
+                row("DCIM/Camera/", 1, count = 3, bytes = 30, min = 2, max = 90, cover = 12),
+            ),
+        )
+        val stats = tree.find("external_primary", "DCIM/Camera/")!!.direct!!
+        assertEquals(5L, stats.directCount)
+        assertEquals(50L, stats.totalBytes)
+        assertEquals(2L, stats.minSortMillis)
+        assertEquals(90L, stats.maxSortMillis)
+        assertEquals(12L, stats.coverMediaStoreId)
     }
 
     @Test fun debouncesBurstsButNotTheFirstEmission() = runTest {
