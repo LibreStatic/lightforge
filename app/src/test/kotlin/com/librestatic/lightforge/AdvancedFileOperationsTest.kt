@@ -278,6 +278,25 @@ class AdvancedFileOperationsTest {
         assertEquals(listOf(key), env.hints)
     }
 
+    @Test fun renameSiblingKeepsTheExtensionWhenTheNewNameHasNone() = runBlocking {
+        val env = Env()
+        val key = env.item(1)
+        assertTrue(env.operations.renameSibling(key, "Sunset"))
+        assertEquals(
+            listOf("/external_primary/DCIM/Camera/IMG_1.jpg" to "/external_primary/DCIM/Camera/Sunset.jpg"),
+            env.storage.renames,
+        )
+    }
+
+    @Test fun renameSiblingRefusesDotPrefixAndExtensionChanges() = runBlocking {
+        val env = Env()
+        val key = env.item(1)
+        assertFalse(env.operations.renameSibling(key, ".Sunset.jpg"))
+        assertFalse(env.operations.renameSibling(key, "Sunset.txt"))
+        assertFalse(env.operations.renameSibling(key, ".jpg"))
+        assertTrue(env.storage.renames.isEmpty())
+    }
+
     @Test fun renameSiblingReportsFalseOnARefusalSoTheWriteRequestTakesOver() = runBlocking {
         val env = Env()
         val key = env.item(1)

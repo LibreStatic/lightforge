@@ -390,10 +390,34 @@ class StorageEngineTest {
         val e = engine()
         e.hide(folder.path)
         granted = false
-        assertTrue(e.unhideWithTree(folder.path, "Pics", { true }) is AdvancedResult.Failed)
-        assertEquals(AdvancedResult.Done, e.unhideWithTree(folder.path, "Pics/Sub", { it.delete() }))
+        assertTrue(e.unhideWithTree(folder.path, "primary:Pics", { true }) is AdvancedResult.Failed)
+        assertEquals(AdvancedResult.Done, e.unhideWithTree(folder.path, "primary:Pics/Sub", { it.delete() }))
         assertFalse(File(folder, ".nomedia").exists())
         assertTrue(e.hiddenByApp().isEmpty())
+    }
+
+    @Test fun unhideWithTreeOnAnotherVolumeLeavesForeignMarkerAndRecordAlone() {
+        val folder = dir("Pics/Sub")
+        val foreign = File(dir("Pics/Sub", volumeB), ".nomedia").apply { writeText("x") }
+        val e = engine()
+        e.hide(folder.path)
+        granted = false
+        var called = false
+        val result = e.unhideWithTree(folder.path, "ABCD-1234:Pics/Sub", { called = true; it.delete() })
+        assertTrue(result is AdvancedResult.Failed)
+        assertFalse(called)
+        assertTrue(foreign.exists())
+        assertTrue(File(folder, ".nomedia").exists())
+        assertEquals(1, e.hiddenByApp().size)
+    }
+
+    @Test fun unhideWithTreeKeepsTheRecordWhenTheMarkerSurvivesTheDelete() {
+        val folder = dir("Pics/Sub")
+        val e = engine()
+        e.hide(folder.path)
+        granted = false
+        assertTrue(e.unhideWithTree(folder.path, "primary:Pics/Sub", { true }) is AdvancedResult.Failed)
+        assertEquals(1, e.hiddenByApp().size)
     }
 
     @Test fun listDirectoriesDescribesChildren() {
@@ -408,6 +432,8 @@ class StorageEngineTest {
         assertEquals(listOf(true, false, false), children.map { it.isDotPrefixed })
         assertTrue(children.first { it.name == "Empty" }.isEmpty)
         assertTrue(children.first { it.name == "Hidden" }.hasNoMedia)
+        assertTrue(children.first { it.name == "Hidden" }.isEmpty)
+        assertFalse(children.first { it.name == ".dots" }.isEmpty)
         val rootChildren = e.listDirectories(volumeA.path).map { it.name }
         assertTrue("Android" in rootChildren && "Pictures" in rootChildren)
         assertTrue(e.listDirectories(File(volumeA, "Android").path).none { it.name == "data" })

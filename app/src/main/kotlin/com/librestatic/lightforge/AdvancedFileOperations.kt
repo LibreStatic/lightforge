@@ -160,8 +160,11 @@ internal class AdvancedFileOperations(
     suspend fun renameSibling(key: MediaKey, newDisplayName: String): Boolean {
         if (!isActive()) return false
         val source = sources(listOf(key)).singleOrNull() ?: return false
+        // A bare rename would let the name drop or change its extension, and MediaStore would then
+        // stop indexing the file (and the row, with its favourites and albums, would be removed).
+        val safeName = renameKeepingKind(source.displayName, newDisplayName) ?: return false
         val from = advanced.absolutePathOf(source.volumeName, source.relativePath, source.displayName) ?: return false
-        val to = advanced.absolutePathOf(source.volumeName, source.relativePath, newDisplayName) ?: return false
+        val to = advanced.absolutePathOf(source.volumeName, source.relativePath, safeName) ?: return false
         if (advanced.renameInPlace(from, to) != AdvancedResult.Done) return false
         applyHint(key)
         return true
@@ -200,4 +203,22 @@ internal class AdvancedFileOperations(
     }
 
     private class Planned(val source: TransferSource, val from: String, val to: String)
+}
+
+/**
+ * The name to rename a media file to with a plain file rename, or null when the caller must use the
+ * permission-based write request instead: a name starting with a dot (it would hide the file) or an
+ * extension that differs from the current one. A name without any extension keeps the current one.
+ */
+internal fun renameKeepingKind(currentName: String?, requested: String): String? {
+    val name = requested.trim()
+    if (name.isEmpty() || name.startsWith(".")) return null
+    val currentExt = currentName?.substringAfterLast('.', "").orEmpty()
+    if (currentExt.isEmpty()) return name
+    val requestedExt = name.substringAfterLast('.', "")
+    return when {
+        requestedExt.equals(currentExt, ignoreCase = true) && name.length > currentExt.length + 1 -> name
+        '.' !in name -> "$name.$currentExt"
+        else -> null
+    }
 }

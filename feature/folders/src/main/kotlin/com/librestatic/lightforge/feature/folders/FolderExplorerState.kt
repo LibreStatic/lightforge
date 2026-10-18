@@ -269,7 +269,9 @@ private fun card(tree: FolderTree, node: FolderNode<FolderStats>, isRecordedHide
     } else {
         FolderAction.Enter(location)
     }
-    val isHidden = stats?.isHidden == true
+    // A folder this app hid is hidden even when its media sits only in sub-folders or it holds none.
+    val recordedHide = isRecordedHide(location)
+    val isHidden = stats?.isHidden == true || recordedHide
     return FolderCardUi(
         key = FolderTree.keyOf(node),
         name = node.name,
@@ -280,7 +282,7 @@ private fun card(tree: FolderTree, node: FolderNode<FolderStats>, isRecordedHide
         action = action,
         location = location,
         isHidden = isHidden,
-        isHiddenByApp = isHidden && isRecordedHide(location),
+        isHiddenByApp = recordedHide,
         isEmptyDirectory = stats?.isEmptyDirectory == true && totals.totalCount == 0L,
         directCount = stats?.directCount ?: 0,
         minSortMillis = totals.minSortMillis,

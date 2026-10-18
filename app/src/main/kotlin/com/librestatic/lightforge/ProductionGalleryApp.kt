@@ -1545,8 +1545,6 @@ internal fun ProductionGalleryApp(
                         onRequestAccess = ::requestAccess,
                         onOpenSettings = { route = SurfaceRoute.Settings },
                         onOpenDeviceFolders = { route = SurfaceRoute.DeviceFolders },
-                        temporaryShowHidden = advancedState.temporaryShowHidden.takeIf { advancedState.active },
-                        onTemporaryShowHiddenChange = ::setTemporaryShowHidden,
                         onCreate = { showCreateMenu = true },
                         onOpenUpdates = { route = SurfaceRoute.Updates },
                         // The rail already has Create, Updates (with export progress) and Settings.

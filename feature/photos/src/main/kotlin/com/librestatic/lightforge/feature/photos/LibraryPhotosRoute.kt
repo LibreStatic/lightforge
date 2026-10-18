@@ -81,9 +81,6 @@ fun LibraryPhotosRoute(
     onRequestAccess: () -> Unit,
     onOpenSettings: () -> Unit = {},
     onOpenDeviceFolders: () -> Unit = {},
-    /** Advanced storage only: null hides the entry, otherwise it is the checked state of "Show hidden items for now". */
-    temporaryShowHidden: Boolean? = null,
-    onTemporaryShowHiddenChange: (Boolean) -> Unit = {},
     @Suppress("UNUSED_PARAMETER") onCreate: () -> Unit = {},
     onOpenUpdates: () -> Unit = {},
     activeExportCount: Int = 0,
@@ -172,8 +169,6 @@ fun LibraryPhotosRoute(
                 PhotosOverflowMenu(
                     onOpenSettings = onOpenSettings,
                     onOpenDeviceFolders = onOpenDeviceFolders,
-                    temporaryShowHidden = temporaryShowHidden,
-                    onTemporaryShowHiddenChange = onTemporaryShowHiddenChange,
                 )
             }
             if (access.isLimited) Text(
@@ -429,8 +424,6 @@ private fun PermissionRequired(onRequestAccess: () -> Unit) {
 private fun PhotosOverflowMenu(
     onOpenSettings: () -> Unit,
     onOpenDeviceFolders: () -> Unit,
-    temporaryShowHidden: Boolean?,
-    onTemporaryShowHiddenChange: (Boolean) -> Unit,
 ) {
     var expanded by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     androidx.compose.foundation.layout.Box {
@@ -443,17 +436,6 @@ private fun PhotosOverflowMenu(
                 leadingIcon = { Icon(GalleryIcons.Folder, contentDescription = null) },
                 onClick = { expanded = false; onOpenDeviceFolders() },
             )
-            if (temporaryShowHidden != null) {
-                androidx.compose.material3.DropdownMenuItem(
-                    text = { Text(stringResource(R.string.photos_menu_show_hidden)) },
-                    leadingIcon = { Icon(GalleryIcons.Visibility, contentDescription = null) },
-                    trailingIcon = if (temporaryShowHidden) {
-                        { Icon(GalleryIcons.Check, contentDescription = stringResource(R.string.photos_menu_checked)) }
-                    } else null,
-                    onClick = { expanded = false; onTemporaryShowHiddenChange(!temporaryShowHidden) },
-                    modifier = Modifier.testTag("photos-menu-show-hidden"),
-                )
-            }
             androidx.compose.material3.DropdownMenuItem(
                 text = { Text(stringResource(R.string.photos_menu_settings)) },
                 leadingIcon = { Icon(GalleryIcons.Settings, contentDescription = null) },

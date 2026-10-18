@@ -44,15 +44,19 @@ The app declares `MANAGE_MEDIA` (Android 12+ special access, "Media management")
 The user turns the mode on in Settings, sees an explanation, and grants all-files access
 on the system screen. The mode enables:
 
-- showing hidden items (`.nomedia` folders and dot-prefixed names), including a
+- showing items hidden by `.nomedia` (dot-prefixed names are deferred), including a
   "temporarily show hidden" switch that turns itself off after the app has been in the
   background for 5 minutes;
 - hiding and unhiding folders by creating or removing `.nomedia`;
 - same-volume moves and renames with `File.renameTo`, followed by a
   `MediaScannerConnection.scanFile` of both paths;
-- folder operations without the SAF picker;
-- optionally, deleting folders left empty (off by default);
-- included folders that MediaStore does not index.
+- folder create, rename, move, hide and unhide without the SAF picker; folder copy and
+  deleting non-empty folders are not offered;
+- optionally, deleting folders left empty (off by default).
+
+Not part of the shipped mode (deferred): included folders that MediaStore does not index and
+hiding with a dot prefix. Unhide works for hides this app recorded; a `.nomedia` made by
+another app is never deleted.
 
 Cross-volume moves keep the verified copy path: size and hash check, then delete. Every
 batch operation uses the same strategy: rename when the capability is present, otherwise

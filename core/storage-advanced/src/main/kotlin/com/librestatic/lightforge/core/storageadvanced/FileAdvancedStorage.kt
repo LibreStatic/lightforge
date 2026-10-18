@@ -70,7 +70,7 @@ class FileAdvancedStorage(context: Context) : AdvancedStorage {
         unguarded {
             val docId = runCatching { DocumentsContract.getTreeDocumentId(treeUri) }.getOrNull()
                 ?: return@unguarded AdvancedResult.Failed("Not a folder grant")
-            engine.unhideWithTree(absolutePath, docId.substringAfter(':', "")) { marker ->
+            engine.unhideWithTree(absolutePath, docId) { marker ->
                 val child = DocumentsContract.buildDocumentUriUsingTree(treeUri, "$docId/${marker.name}")
                 runCatching { DocumentsContract.deleteDocument(appContext.contentResolver, child) }.getOrDefault(false)
             }

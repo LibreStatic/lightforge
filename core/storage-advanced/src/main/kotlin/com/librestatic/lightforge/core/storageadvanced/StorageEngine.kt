@@ -85,15 +85,18 @@ internal class StorageEngine(
      * Without All files access the marker is deleted through its MediaStore row; when that fails the
      * result is [AdvancedResult.NeedsTreeGrant].
      */
-    fun unhide(path: String): AdvancedResult = unhideWith(path, treeRelativePath = null, deleteViaTree = null)
+    fun unhide(path: String): AdvancedResult = unhideWith(path, treeDocumentId = null, deleteViaTree = null)
 
-    /** [unhide] through a SAF tree grant whose document id path is [treeRelativePath]. */
-    fun unhideWithTree(path: String, treeRelativePath: String, deleteViaTree: (File) -> Boolean): AdvancedResult =
-        unhideWith(path, treeRelativePath, deleteViaTree)
+    /**
+     * [unhide] through a SAF tree grant whose full document id (`primary:Pics/Sub` or
+     * `1234-5678:Pics/Sub`) is [treeDocumentId]; both the volume and the path must match [path].
+     */
+    fun unhideWithTree(path: String, treeDocumentId: String, deleteViaTree: (File) -> Boolean): AdvancedResult =
+        unhideWith(path, treeDocumentId, deleteViaTree)
 
     private fun unhideWith(
         path: String,
-        treeRelativePath: String?,
+        treeDocumentId: String?,
         deleteViaTree: ((File) -> Boolean)?,
     ): AdvancedResult {
         val dir = validated(path) ?: return INVALID
@@ -104,13 +107,18 @@ internal class StorageEngine(
         if (marker.exists() && looksLikeOurs(marker, entry)) {
             if (deleteViaTree != null) {
                 val root = rootOf(dir) ?: return INVALID
-                if (treeRelativePath?.trim('/') != dir.relativeTo(root).path) {
+                val volumeName = volumes().firstOrNull { canonical(it.root) == root }?.name
+                val treeVolume = treeDocumentId?.substringBefore(':', "")
+                val treePath = treeDocumentId?.substringAfter(':', "")?.trim('/')
+                if (volumeName == null || treeVolume.isNullOrEmpty() || !sameVolume(treeVolume, volumeName) ||
+                    treePath != dir.relativeTo(root).path
+                ) {
                     return AdvancedResult.Failed("Granted folder does not match")
                 }
             }
             val removed = try {
                 when {
-                    deleteViaTree != null -> deleteViaTree(marker)
+                    deleteViaTree != null -> deleteViaTree(marker) && !marker.exists()
                     isGranted() -> marker.delete()
                     else -> deleteOwnedMarker(marker)
                 }
@@ -363,7 +371,8 @@ internal class StorageEngine(
                 DirectoryEntry(
                     name = child.name,
                     absolutePath = child.path,
-                    isEmpty = child.list()?.isEmpty() == true,
+                    // A lone .nomedia marker (a folder hidden by this app) still counts as an empty folder.
+                    isEmpty = child.list()?.all { it == NOMEDIA } == true,
                     hasNoMedia = File(child, NOMEDIA).exists(),
                     isDotPrefixed = child.name.startsWith("."),
                 )
@@ -373,6 +382,11 @@ internal class StorageEngine(
     private fun validName(name: String): Boolean =
         name.isNotBlank() && name == name.trim() && name != "." && name != ".." &&
             name.none { it == '/' || it == '\u0000' } && name.length <= MAX_NAME_LENGTH
+
+    // SAF names the emulated volume "primary"; MediaStore calls it external_primary. Cards use the UUID.
+    private fun sameVolume(documentVolume: String, mediaStoreName: String): Boolean =
+        if (documentVolume.equals("primary", ignoreCase = true)) mediaStoreName == "external_primary"
+        else documentVolume.equals(mediaStoreName, ignoreCase = true)
 
     private fun rootOf(file: File): File? = volumeRoots().map { canonical(it) }.firstOrNull { under(file, it) }
 

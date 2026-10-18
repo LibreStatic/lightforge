@@ -75,7 +75,9 @@ class AdvancedStorageDeviceTest {
     }
 
     @After fun tearDown() {
-        if (phase == "prepare") return
+        // Changing the MANAGE_EXTERNAL_STORAGE appop kills this process, so the verify phase never
+        // re-grants; the host does that afterwards (appops set ... allow) and runs an unphased cleanup pass.
+        if (phase == "prepare" || phase == "verify") return
         setAllFiles(true)
         runBlocking { storage.unhideAllRecorded() }
         cleanup()

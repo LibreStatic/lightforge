@@ -66,6 +66,4 @@
         <item quantity="many">%1$s, %2$d elementos</item>
         <item quantity="other">%1$s, %2$d elementos</item>
     </plurals>
-    <string name="photos_menu_show_hidden">Mostrar elementos ocultos por ahora</string>
-    <string name="photos_menu_checked">Activado</string>
 </resources>

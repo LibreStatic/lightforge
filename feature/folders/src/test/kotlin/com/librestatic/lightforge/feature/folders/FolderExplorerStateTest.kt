@@ -1,5 +1,6 @@
 package com.librestatic.lightforge.feature.folders
 
+import com.librestatic.lightforge.core.model.folders.mergeAdvancedOverlay
 import com.librestatic.lightforge.core.model.AlbumKey
 import com.librestatic.lightforge.core.model.folders.FolderStats
 import com.librestatic.lightforge.core.model.folders.FolderTree
@@ -186,6 +187,34 @@ class FolderExplorerStateTest {
         assertEquals(50L, hidden.minSortMillis)
         assertEquals(60L, hidden.maxSortMillis)
         assertTrue(hidden.action is FolderAction.Enter)
+    }
+
+    @Test
+    fun recordedHideIsFlaggedWhenItsMediaSitsOnlyInSubfolders() {
+        val tree = mergeAdvancedOverlay(
+            single,
+            hiddenGroups = listOf(
+                com.librestatic.lightforge.core.model.folders.HiddenFolderGroup(
+                    "external_primary", "DCIM/Trip/Day1/", 3, 300, 5, 6, 8,
+                    com.librestatic.lightforge.core.model.folders.HiddenMediaKind.Image,
+                ),
+                com.librestatic.lightforge.core.model.folders.HiddenFolderGroup(
+                    "external_primary", "DCIM/Trip/Day2/", 2, 200, 7, 9, 10,
+                    com.librestatic.lightforge.core.model.folders.HiddenMediaKind.Image,
+                ),
+            ),
+            emptyDirs = listOf(com.librestatic.lightforge.core.model.folders.EmptyDirectory("external_primary", "Quiet/")),
+        )
+        val cards = (buildFolderExplorerUiState(
+            tree, FolderLocation("external_primary", "DCIM/"),
+            isRecordedHide = { it.relativePath == "DCIM/Trip/" || it.relativePath == "Quiet/" },
+        ) as FolderExplorerUiState.Folder).folders
+        val trip = cards.single { it.name.startsWith("Trip") }
+        assertTrue(trip.isHidden)
+        assertTrue(trip.isHiddenByApp)
+        val root = cardsAtRoot(tree) { it.relativePath == "Quiet/" }
+        val quiet = root.single { it.name == "Quiet" }
+        assertTrue(quiet.isHidden && quiet.isHiddenByApp)
     }
 
     @Test

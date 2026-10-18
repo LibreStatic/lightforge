@@ -70,6 +70,4 @@
         <item quantity="one">%1$s, %2$d item</item>
         <item quantity="other">%1$s, %2$d items</item>
     </plurals>
-    <string name="photos_menu_show_hidden">Show hidden items for now</string>
-    <string name="photos_menu_checked">Checked</string>
 </resources>

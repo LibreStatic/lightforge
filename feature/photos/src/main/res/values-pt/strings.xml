@@ -66,6 +66,4 @@
         <item quantity="many">%1$s, %2$d itens</item>
         <item quantity="other">%1$s, %2$d itens</item>
     </plurals>
-    <string name="photos_menu_show_hidden">Mostrar itens ocultos por enquanto</string>
-    <string name="photos_menu_checked">Marcado</string>
 </resources>
