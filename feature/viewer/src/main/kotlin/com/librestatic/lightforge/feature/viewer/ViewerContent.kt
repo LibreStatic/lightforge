@@ -303,6 +303,8 @@ fun ViewerContent(
             value = VideoFramesState.Loading
             return@produceState
         }
+        // Release the previous video's frames instead of showing them while these are extracted.
+        value = VideoFramesState.Loading
         value = try {
             val frames = VideoFrameExtractor.extract(context, request.uri, request.durationMillis)
             if (frames.isEmpty()) VideoFramesState.Unavailable else VideoFramesState.Ready(frames)
@@ -440,7 +442,8 @@ fun ViewerContent(
             chromeVisible = false
         }
     }
-    val displayedItems = mediaItems.ifEmpty { listOf(media) }
+    // Pager and filmstrip key by viewerId, so a duplicate in the source list must never reach them.
+    val displayedItems = remember(mediaItems, media) { mediaItems.distinctBy { it.viewerId }.ifEmpty { listOf(media) } }
     val selectedIndex = displayedItems.indexOfFirst { it.viewerId == media.viewerId }.coerceAtLeast(0)
     val pagerState = rememberPagerState(initialPage = selectedIndex) { displayedItems.size }
     val latestDisplayedItems by rememberUpdatedState(displayedItems)
@@ -1229,7 +1232,7 @@ private fun VideoFrameScrubber(
                 GalleryLoadingIndicator(color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             is VideoFramesState.Ready -> Row(Modifier.fillMaxSize()) {
-                frames.frames.forEach { frame ->
+                frames.frames.filterNot { it.isRecycled }.forEach { frame ->
                     Image(
                         bitmap = frame.asImageBitmap(),
                         contentDescription = null,

@@ -167,6 +167,33 @@ class VideoViewerControllerTest {
 
         assertEquals(listOf(true, false, true, false), engine.scrubbingModeChanges)
     }
+
+    @Test
+    fun commandsOnReleasedControllerAreIgnored() {
+        val engine = FakeVideoEngine()
+        val controller = VideoViewerController(engine)
+        engine.listener?.onReady(10_000L, false)
+        controller.close()
+        engine.lastSeek = null
+        val scrubbingChanges = engine.scrubbingModeChanges.size
+        val repeatChanges = engine.repeatEnabled.size
+        val effectCalls = engine.effectCalls
+
+        controller.play()
+        controller.seekTo(500L)
+        controller.seekBy(1_000L)
+        controller.beginScrubbing()
+        controller.setVolume(0.5f)
+        controller.setPlaybackSpeed(2f)
+        controller.setLooping(true)
+        controller.setVideoEffects(emptyList())
+        controller.attachSurface(null)
+
+        assertEquals(null, engine.lastSeek)
+        assertEquals(scrubbingChanges, engine.scrubbingModeChanges.size)
+        assertEquals(repeatChanges, engine.repeatEnabled.size)
+        assertEquals(effectCalls, engine.effectCalls)
+    }
 }
 
 private class FakeVideoEngine : VideoEngine {

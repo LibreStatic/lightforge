@@ -3685,7 +3685,7 @@ class GalleryViewModel @Inject constructor(
                 if (anchorIndex >= hits.size - ViewerWindowRefreshThreshold && !mutableSearch.value.terminal) {
                     val cursor = searchCursor
                     if (cursor != null) runCatching { cursor.nextPage() }.onSuccess { page ->
-                        hits = hits + page.hits
+                        hits = (hits + page.hits).distinctBy { "${it.key.volumeName}:${it.key.mediaStoreId}" }
                         mutableSearch.value = mutableSearch.value.copy(
                             hits = hits,
                             terminal = page.isTerminal,
@@ -3714,7 +3714,7 @@ class GalleryViewModel @Inject constructor(
                 hasNext = window.hasNext
             }
             viewerTrashedKeys.retainAll { trashed -> items.any { it.key == trashed } }
-            val visibleItems = items.filterNot { it.key in viewerTrashedKeys }
+            val visibleItems = items.filterNot { it.key in viewerTrashedKeys }.distinctBy { it.key }
             val currentIndex = visibleItems.indexOfFirst { it.key == media.key }.let { if (it < 0) 0 else it }
             mutableViewerState.value = ViewerUiState(
                 items = visibleItems.ifEmpty { listOf(media) },

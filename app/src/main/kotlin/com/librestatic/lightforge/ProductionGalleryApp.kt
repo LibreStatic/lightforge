@@ -4318,6 +4318,18 @@ private fun PublicMediaRecoveryContent(title: String, body: String, loading: Boo
     }
 }
 
+/**
+ * Owns the controller created for one file. If the file changes on the frame the controller is
+ * assigned, no composition ever observes it, so the effect keyed on it would never close it; closing
+ * it when this holder is forgotten (or abandoned) covers that window. `close()` is idempotent.
+ */
+private class VideoControllerHolder : androidx.compose.runtime.RememberObserver {
+    val controller = mutableStateOf<VideoViewerController?>(null)
+    override fun onRemembered() = Unit
+    override fun onForgotten() { controller.value?.close() }
+    override fun onAbandoned() { controller.value?.close() }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ViewerRoute(
@@ -4421,7 +4433,8 @@ private fun ViewerRoute(
     // transition starts made heavy videos stutter; wait until the surface has settled and let the
     // thumbnail poster carry the motion in the meantime.
     val surfaceSettled = LocalSurfaceFocusReady.current
-    var createdVideoController by remember(media.key) { mutableStateOf<VideoViewerController?>(null) }
+    val controllerHolder = remember(media.key) { VideoControllerHolder() }
+    var createdVideoController by controllerHolder.controller
     if (media.kind == MediaKind.Video) LaunchedEffect(media.key, surfaceSettled) {
         if (!surfaceSettled || createdVideoController != null) return@LaunchedEffect
         androidx.compose.runtime.withFrameNanos { }

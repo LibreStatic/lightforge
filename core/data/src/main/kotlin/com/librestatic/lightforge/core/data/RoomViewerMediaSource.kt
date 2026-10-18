@@ -15,6 +15,26 @@ data class ViewerMediaWindow(
     val hasNext: Boolean,
 )
 
+/**
+ * Builds the window from keyset pages fetched with `radius + 1` rows. A stale anchor (renamed file,
+ * repaired date, edited size) can make its own row show up in either page; it is dropped so the
+ * viewer never receives the same item twice.
+ */
+internal fun assembleViewerWindow(
+    previous: List<TimelineMedia>,
+    anchor: TimelineMedia,
+    next: List<TimelineMedia>,
+    radius: Int,
+): ViewerMediaWindow {
+    val before = previous.filterNot { it.key == anchor.key }
+    val after = next.filterNot { it.key == anchor.key }
+    return ViewerMediaWindow(
+        items = before.take(radius).asReversed() + anchor + after.take(radius),
+        hasPrevious = before.size > radius,
+        hasNext = after.size > radius,
+    )
+}
+
 /** Loads a bounded, source-ordered window around the viewer anchor. */
 class RoomViewerMediaSource(database: GalleryDatabase) {
     private val dao = database.libraryDao()
@@ -30,11 +50,11 @@ class RoomViewerMediaSource(database: GalleryDatabase) {
         }
         val previous = page(query, anchor, PageSide.Previous, radius + 1)
         val next = page(query, anchor, PageSide.Next, radius + 1)
-        return ViewerMediaWindow(
-            items = previous.take(radius).asReversed().map(MediaItemEntity::toTimelineMedia) +
-                anchor + next.take(radius).map(MediaItemEntity::toTimelineMedia),
-            hasPrevious = previous.size > radius,
-            hasNext = next.size > radius,
+        return assembleViewerWindow(
+            previous = previous.map(MediaItemEntity::toTimelineMedia),
+            anchor = anchor,
+            next = next.map(MediaItemEntity::toTimelineMedia),
+            radius = radius,
         )
     }
 

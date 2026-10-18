@@ -218,11 +218,13 @@ class VideoViewerController internal constructor(
         return true
     }
 
-    @MainThread fun play() { check(!released); engine.play() }
+    // UI callbacks from a previous composition can still fire after the viewer moved to another file,
+    // so commands on a released controller are ignored.
+    @MainThread fun play() { if (!released) engine.play() }
     @MainThread fun pause() { if (!released) engine.pause() }
     @MainThread
     fun beginScrubbing() {
-        check(!released)
+        if (released) return
         if (scrubbing) return
         scrubbing = true
         engine.setScrubbingModeEnabled(true)
@@ -235,7 +237,7 @@ class VideoViewerController internal constructor(
     }
     @MainThread
     fun setLooping(enabled: Boolean) {
-        check(!released)
+        if (released) return
         if (looping == enabled) return
         looping = enabled
         engine.setRepeatEnabled(enabled)
@@ -259,15 +261,15 @@ class VideoViewerController internal constructor(
         val ready = mutableState.value as? VideoViewerState.Ready ?: return
         mutableState.value = ready.copy(isMuted = false)
     }
-    @MainThread fun seekTo(positionMillis: Long) { check(!released); engine.seekTo(positionMillis.coerceAtLeast(0)) }
-    @MainThread fun setVolume(volume: Float) { check(!released); engine.setVolume(volume.coerceIn(0f, 1f)) }
+    @MainThread fun seekTo(positionMillis: Long) { if (!released) engine.seekTo(positionMillis.coerceAtLeast(0)) }
+    @MainThread fun setVolume(volume: Float) { if (!released) engine.setVolume(volume.coerceIn(0f, 1f)) }
     @MainThread fun setPlaybackSpeed(speed: Float) {
-        check(!released)
+        if (released) return
         engine.setPlaybackSpeed(speed.coerceIn(0.125f, 4f))
     }
     @MainThread
     fun seekBy(deltaMillis: Long) {
-        check(!released)
+        if (released) return
         val maximum = playbackDurationMillis.takeIf { it > 0 } ?: Long.MAX_VALUE
         engine.seekTo((engine.currentPositionMillis() + deltaMillis).coerceIn(0L, maximum))
     }
@@ -278,23 +280,17 @@ class VideoViewerController internal constructor(
     }
     @MainThread
     fun attachSurface(surfaceView: SurfaceView?) {
-        if (released) {
-            check(surfaceView == null)
-            return
-        }
+        if (released) return
         engine.attachSurface(surfaceView)
     }
     @MainThread
     fun attachTextureView(textureView: TextureView?) {
-        if (released) {
-            check(textureView == null)
-            return
-        }
+        if (released) return
         engine.attachTextureView(textureView)
     }
     @MainThread
     fun setVideoEffects(effects: List<Effect>) {
-        check(!released)
+        if (released) return
         videoEffects = effects
         // A player that fell back to plain playback has no effects graph to update.
         if (videoEffectsRequested && !pipeline.videoEffects) return
