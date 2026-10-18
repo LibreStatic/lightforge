@@ -51,7 +51,9 @@ internal fun interface OriginalRetirement {
  * per item: [AdvancedStorage.moveAll] when source and target share a volume (the index row keeps its
  * id and every saved decision attached to it), otherwise a verified copy followed by the existing
  * verified delete of the original. An item whose rename already succeeded never falls back, so no
- * duplicate is made. With the mode inactive every entry point does nothing; callers use the SAF flow.
+ * duplicate is made. Every item is first checked against its current MediaStore row, and an original
+ * is retired only after its copy is byte-compared with the item's own content URI; a crash before
+ * that leaves a copy beside the original, never a lost file. With the mode inactive every entry point does nothing; callers use the SAF flow.
  */
 internal class AdvancedFileOperations(
     private val advanced: AdvancedStorage,
@@ -62,6 +64,18 @@ internal class AdvancedFileOperations(
     private val reconcile: suspend (volumeName: String, relativePathPrefix: String) -> Unit,
     private val refresh: suspend () -> Unit,
     private val retirement: OriginalRetirement,
+    private val folderBuckets: suspend (volumeName: String, prefix: String) -> Map<String, Long>,
+    private val folderRelocated: suspend (
+        oldVolume: String,
+        oldPrefix: String,
+        newVolume: String,
+        newPrefix: String,
+        previousBuckets: Map<String, Long>,
+    ) -> Unit,
+    /** The keys whose MediaStore row is still where the index says it is; others are never touched. */
+    private val verifyIdentity: suspend (List<TransferSource>) -> Set<MediaKey>,
+    /** True when the file at the target path has the bytes of the item's own content URI. */
+    private val verifyCopy: suspend (TransferSource, targetPath: String) -> Boolean,
 ) {
     suspend fun transfer(
         purpose: TransferPurpose,
@@ -72,7 +86,10 @@ internal class AdvancedFileOperations(
         val total = keys.size
         if (!isActive()) return TransferResult(purpose, total, inactive = true)
         onProgress(0, total)
-        val byKey = sources(keys).associateBy { it.key }
+        val indexed = sources(keys)
+        val stillThere = verifyIdentity(indexed)
+        // A row whose file moved or was renamed since the last scan could point at another file.
+        val byKey = indexed.filter { it.key in stillThere }.associateBy { it.key }
         var failed = keys.count { it !in byKey }
         var skipped = 0
         val toMove = ArrayList<Planned>()
@@ -120,7 +137,12 @@ internal class AdvancedFileOperations(
         // The rows of renamed files are re-read at once, so Room keeps their identity.
         moved.forEach { applyHint(it.source.key) }
         if (moved.isNotEmpty() || copied.isNotEmpty()) runCatching { refresh() }
-        val originals = if (purpose == TransferPurpose.Move) copied.map { it.source } else emptyList()
+        // An original is only retired once its copy is proven to hold the item's own bytes.
+        val originals = if (purpose == TransferPurpose.Move) {
+            copied.filter { verifyCopy(it.source, it.to) }.map { it.source }.also { failed += copied.size - it.size }
+        } else {
+            emptyList()
+        }
         if (originals.isNotEmpty()) retirement.retire(originals)
         if (moved.isNotEmpty()) deleteEmptyParents(moved.map { it.source.volumeName to it.source.relativePath })
         onProgress(total, total)
@@ -159,7 +181,7 @@ internal class AdvancedFileOperations(
      */
     suspend fun renameSibling(key: MediaKey, newDisplayName: String): Boolean {
         if (!isActive()) return false
-        val source = sources(listOf(key)).singleOrNull() ?: return false
+        val source = sources(listOf(key)).singleOrNull()?.takeIf { it.key in verifyIdentity(listOf(it)) } ?: return false
         // A bare rename would let the name drop or change its extension, and MediaStore would then
         // stop indexing the file (and the row, with its favourites and albums, would be removed).
         val safeName = renameKeepingKind(source.displayName, newDisplayName) ?: return false
@@ -177,11 +199,12 @@ internal class AdvancedFileOperations(
         val from = advanced.absolutePathOf(source.volumeName, sourcePath) ?: return FolderOpResult(AdvancedResult.Failed("unknown path"))
         val parent = advanced.absolutePathOf(destination.volumeName, destination.relativePath)
             ?: return FolderOpResult(AdvancedResult.Failed("unknown path"))
-        val result = advanced.moveDirectory(from, parent)
-        if (result != AdvancedResult.Done) return FolderOpResult(result)
         val leaf = sourcePath.trim('/').substringAfterLast('/')
         val newPath = (destination.relativePath.orEmpty().trim('/') + "/" + leaf).trim('/') + "/"
-        return FolderOpResult(result, reconcileAfterMove(source.volumeName, destination.volumeName, sourcePath, newPath))
+        val buckets = runCatching { folderBuckets(source.volumeName, sourcePath) }.getOrDefault(emptyMap())
+        val result = advanced.moveDirectory(from, parent)
+        if (result != AdvancedResult.Done) return FolderOpResult(result)
+        return FolderOpResult(result, reconcileAfterMove(source.volumeName, destination.volumeName, sourcePath, newPath, buckets))
     }
 
     /** Renames the folder in place; both prefixes are re-read afterwards. */
@@ -189,14 +212,24 @@ internal class AdvancedFileOperations(
         val sourcePath = source.relativePath?.takeIf { it.isNotBlank() } ?: return FolderOpResult(AdvancedResult.Failed("volume root"))
         if (!isActive()) return FolderOpResult(AdvancedResult.NotGranted)
         val from = advanced.absolutePathOf(source.volumeName, sourcePath) ?: return FolderOpResult(AdvancedResult.Failed("unknown path"))
+        val newPath = renamedRelativePath(sourcePath, newName)
+        val buckets = runCatching { folderBuckets(source.volumeName, sourcePath) }.getOrDefault(emptyMap())
         val result = advanced.renameDirectory(from, newName)
         if (result != AdvancedResult.Done) return FolderOpResult(result)
-        return FolderOpResult(result, reconcileAfterMove(source.volumeName, source.volumeName, sourcePath, renamedRelativePath(sourcePath, newName)))
+        return FolderOpResult(result, reconcileAfterMove(source.volumeName, source.volumeName, sourcePath, newPath, buckets))
     }
 
     // The new prefix first, so rows that kept their id are updated before the old prefix is swept.
-    private suspend fun reconcileAfterMove(oldVolume: String, newVolume: String, oldPath: String, newPath: String): List<String> {
+    // The folder rules move once the new rows are indexed, because their bucket ids are read from them.
+    private suspend fun reconcileAfterMove(
+        oldVolume: String,
+        newVolume: String,
+        oldPath: String,
+        newPath: String,
+        buckets: Map<String, Long>,
+    ): List<String> {
         runCatching { reconcile(newVolume, newPath) }
+        runCatching { folderRelocated(oldVolume, oldPath, newVolume, newPath, buckets) }
         runCatching { reconcile(oldVolume, oldPath) }
         runCatching { refresh() }
         return listOf(newPath, oldPath)

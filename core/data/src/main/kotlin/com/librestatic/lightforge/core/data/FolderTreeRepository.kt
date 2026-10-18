@@ -8,13 +8,13 @@ import com.librestatic.lightforge.core.model.folders.FolderTree
 import com.librestatic.lightforge.core.model.folders.NaturalNameOrder
 import com.librestatic.lightforge.core.model.folders.buildFolderForest
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.emitAll
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -28,16 +28,24 @@ class FolderTreeRepository(
     fun observeFolderTree(): Flow<FolderTree> = observeFolderTree(dao.folderSummaries(), debounceMillis)
 }
 
-internal fun observeFolderTree(rows: Flow<List<FolderSummaryRow>>, debounceMillis: Long): Flow<FolderTree> = flow {
+internal fun observeFolderTree(rows: Flow<List<FolderSummaryRow>>, debounceMillis: Long): Flow<FolderTree> = channelFlow {
     var first = true
-    emitAll(
-        rows.transformLatest { latest ->
-            // Scans rewrite the table in bursts; only the last state of a burst is worth building.
-            if (!first) delay(debounceMillis)
+    var pending: Job? = null
+    rows.collect { latest ->
+        if (first) {
+            // The first state is built inside the collector, so a later upstream emission can never
+            // cancel it; the collector waits for it and only then sees the next rows.
             first = false
-            emit(withContext(Dispatchers.Default) { buildFolderTree(latest) })
-        },
-    )
+            send(withContext(Dispatchers.Default) { buildFolderTree(latest) })
+        } else {
+            // Scans rewrite the table in bursts; only the last state of a burst is worth building.
+            pending?.cancel()
+            pending = launch {
+                delay(debounceMillis)
+                send(withContext(Dispatchers.Default) { buildFolderTree(latest) })
+            }
+        }
+    }
 }.conflate().distinctUntilChanged()
 
 internal fun buildFolderTree(rows: List<FolderSummaryRow>): FolderTree {

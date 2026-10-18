@@ -18,6 +18,21 @@ interface FolderLibrary {
 
     /** A full catch-up with MediaStore. */
     suspend fun refresh()
+
+    /** Relative path to bucket id of the indexed folders at or under [relativePathPrefix]; read before a rename or move. */
+    suspend fun folderBuckets(volumeName: String, relativePathPrefix: String): Map<String, Long> = emptyMap()
+
+    /**
+     * A folder was renamed or moved: its folder rules (excluded, included) follow it to the new path
+     * and bucket. [previousBuckets] is what [folderBuckets] returned before the operation.
+     */
+    suspend fun folderRelocated(
+        oldVolume: String,
+        oldPrefix: String,
+        newVolume: String,
+        newPrefix: String,
+        previousBuckets: Map<String, Long>,
+    ) = Unit
 }
 
 enum class FolderOp { Hide, Unhide, Rename, Delete, Create, Move }

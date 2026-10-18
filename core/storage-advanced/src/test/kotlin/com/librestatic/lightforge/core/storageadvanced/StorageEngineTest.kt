@@ -109,6 +109,21 @@ class StorageEngineTest {
         assertTrue(e.hide(File(dir("p"), "../../private").path) is AdvancedResult.Failed)
     }
 
+    @Test fun folderOperationsRefuseTheAndroidTreeInAnyCase() {
+        val e = engine()
+        dir("Android/media/com.whatsapp")
+        dir("Pictures/Trips")
+        for (p in listOf("Android", "Android/media", "Android/media/com.whatsapp", "android/DATA/x", "ANDROID/media")) {
+            val path = File(volumeA, p).path
+            assertTrue(p, e.hide(path) is AdvancedResult.Failed)
+            assertTrue(p, e.renameDirectory(path, "Other") is AdvancedResult.Failed)
+            assertTrue(p, e.moveDirectory(path, File(volumeA, "Pictures").path) is AdvancedResult.Failed)
+            assertTrue(p, e.deleteEmptyDirectory(path) is AdvancedResult.Failed)
+        }
+        assertTrue(e.moveDirectory(File(volumeA, "Pictures/Trips").path, File(volumeA, "Android/media").path) is AdvancedResult.Failed)
+        assertTrue(File(volumeA, "Android/media/com.whatsapp").isDirectory)
+    }
+
     @Test fun renameMovesFileButRefusesExistingTarget() {
         val src = File(dir("a"), "x.jpg").apply { writeText("1") }
         val dst = File(volumeA, "b/x.jpg")

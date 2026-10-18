@@ -78,7 +78,12 @@ class AdvancedFileOperationsTest {
         val reconciled = ArrayList<Pair<String, String>>()
         var refreshes = 0
         val retired = ArrayList<List<TransferSource>>()
+        val relocations = ArrayList<List<String>>()
         val rows = HashMap<MediaKey, TransferSource>()
+        /** Keys whose MediaStore row no longer matches the index. */
+        val changedOnDisk = HashSet<MediaKey>()
+        /** Keys whose copy does not match the item's own bytes. */
+        val corruptCopies = HashSet<MediaKey>()
 
         fun item(id: Long, volume: String = "external_primary", path: String = "DCIM/Camera/", name: String = "IMG_$id.jpg"): MediaKey {
             val key = MediaKey(volume, id)
@@ -95,6 +100,10 @@ class AdvancedFileOperationsTest {
             reconcile = { volume, prefix -> reconciled += volume to prefix },
             refresh = { refreshes++ },
             retirement = { retired += it },
+            folderBuckets = { _, _ -> emptyMap() },
+            folderRelocated = { oldVolume, oldPrefix, newVolume, newPrefix, _ -> relocations += listOf(oldVolume, oldPrefix, newVolume, newPrefix) },
+            verifyIdentity = { sources -> sources.map { it.key }.filterNot { it in changedOnDisk }.toSet() },
+            verifyCopy = { source, _ -> source.key !in corruptCopies },
         )
     }
 
@@ -337,6 +346,54 @@ class AdvancedFileOperationsTest {
         assertTrue(env.operations.renameFolder(FolderTarget("external_primary", null), "X").result is AdvancedResult.Failed)
         assertTrue(env.operations.moveFolder(FolderTarget("external_primary", ""), dest).result is AdvancedResult.Failed)
         assertTrue(env.storage.directoryCalls.isEmpty())
+    }
+
+    @Test fun anItemWhoseRowChangedOnDiskIsNeitherMovedCopiedNorRetired() = runBlocking {
+        val env = Env()
+        val stale = env.item(1)
+        val card = env.item(7, volume = "1234-ABCD", path = "DCIM/")
+        env.changedOnDisk += stale
+        env.changedOnDisk += card
+        val result = env.operations.transfer(TransferPurpose.Move, listOf(stale, card), dest)
+        assertTrue(env.storage.moves.isEmpty() && env.storage.copies.isEmpty())
+        assertTrue(env.retired.isEmpty())
+        assertEquals(2, result.failed)
+    }
+
+    @Test fun anOriginalIsOnlyRetiredWhenItsCopyMatchesTheItemsOwnBytes() = runBlocking {
+        val env = Env()
+        val good = env.item(7, volume = "1234-ABCD", path = "DCIM/")
+        val bad = env.item(8, volume = "1234-ABCD", path = "DCIM/")
+        env.corruptCopies += bad
+        val result = env.operations.transfer(TransferPurpose.Move, listOf(good, bad), dest)
+        assertEquals(listOf(listOf(env.rows.getValue(good))), env.retired)
+        assertEquals(1, result.failed)
+        assertEquals(listOf(env.rows.getValue(good)), result.awaitingDelete)
+    }
+
+    @Test fun renameSiblingRefusesARowThatChangedOnDisk() = runBlocking {
+        val env = Env()
+        val key = env.item(1)
+        env.changedOnDisk += key
+        assertFalse(env.operations.renameSibling(key, "New.jpg"))
+        assertTrue(env.storage.renames.isEmpty())
+    }
+
+    @Test fun folderRenameAndMoveHandTheNewPathToTheRuleRelocation() = runBlocking {
+        val env = Env()
+        env.operations.renameFolder(FolderTarget("external_primary", "DCIM/Old/"), "New")
+        env.operations.moveFolder(FolderTarget("external_primary", "DCIM/Exports/"), dest)
+        assertEquals(
+            listOf(
+                listOf("external_primary", "DCIM/Old/", "external_primary", "DCIM/New/"),
+                listOf("external_primary", "DCIM/Exports/", "external_primary", "Pictures/Trips/Exports/"),
+            ),
+            env.relocations,
+        )
+        val failing = Env()
+        failing.storage.directoryResult = AdvancedResult.Failed("x")
+        failing.operations.renameFolder(FolderTarget("external_primary", "DCIM/Old/"), "New")
+        assertTrue(failing.relocations.isEmpty())
     }
 
     @Test fun `the outcome sums a transfer up as one message`() {

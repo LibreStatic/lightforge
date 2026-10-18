@@ -2972,6 +2972,31 @@ class GalleryViewModel @Inject constructor(
             MediaQuery(scope = MediaQuery.Scope.Folder(volumeName, relativePath, includeSubfolders)),
         )
 
+    /** Relative path to bucket id of the indexed folders at or under [prefix]. */
+    suspend fun folderBuckets(volumeName: String, prefix: String): Map<String, Long> = withContext(Dispatchers.IO) {
+        val dao = runtime.value?.database?.libraryDao() ?: return@withContext emptyMap()
+        val normalized = prefix.trim('/') + "/"
+        dao.folderSummaries().first()
+            .filter { it.volumeName == volumeName && it.bucketId != null && it.relativePath?.startsWith(normalized) == true }
+            .associate { it.relativePath!! to it.bucketId!! }
+    }
+
+    /** Moves the folder rules of a renamed or moved folder to its new path and bucket. */
+    suspend fun folderRelocated(
+        oldVolume: String,
+        oldPrefix: String,
+        newVolume: String,
+        newPrefix: String,
+        previousBuckets: Map<String, Long>,
+    ) {
+        val after = folderBuckets(newVolume, newPrefix)
+        val bucketMap = bucketRelocation(previousBuckets, oldPrefix, newPrefix, after)
+        gallerySettingsRepository.update { settings ->
+            val rules = relocateFolderRules(settings.library.folderRules, oldVolume, oldPrefix, newVolume, newPrefix, bucketMap)
+            if (rules == settings.library.folderRules) settings else settings.copy(library = settings.library.copy(folderRules = rules))
+        }
+    }
+
     /** Re-reads one folder subtree from MediaStore (after a hide, unhide or rename), then refreshes the library. */
     suspend fun reconcileFolder(volumeName: String, relativePathPrefix: String) {
         val active = runtime.value ?: return
@@ -6906,6 +6931,16 @@ class GalleryViewModel @Inject constructor(
         refresh = { refreshLibrary() },
         retirement = OriginalRetirement { originals ->
             beginTargetsAction(originals.map { MediaActionTarget(it.key, it.kind) }, MediaAction.Delete)
+        },
+        folderBuckets = { volume, prefix -> folderBuckets(volume, prefix) },
+        folderRelocated = { oldVolume, oldPrefix, newVolume, newPrefix, before ->
+            folderRelocated(oldVolume, oldPrefix, newVolume, newPrefix, before)
+        },
+        verifyIdentity = { sources ->
+            withContext(Dispatchers.IO) { getApplication<Application>().contentResolver.keysStillAtRememberedPath(sources) }
+        },
+        verifyCopy = { source, target ->
+            withContext(Dispatchers.IO) { getApplication<Application>().contentResolver.copyMatchesItem(source, target) }
         },
     )
 

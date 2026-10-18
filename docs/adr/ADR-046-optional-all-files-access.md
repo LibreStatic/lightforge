@@ -54,6 +54,12 @@ on the system screen. The mode enables:
   deleting non-empty folders are not offered;
 - optionally, deleting folders left empty (off by default).
 
+Folder operations never touch the `Android/` tree (any case): `Android/media/<package>`
+belongs to another app, which would recreate an empty folder and orphan its files. The engine
+refuses hide, create, rename, move and delete there and the explorer shows no menu on those
+cards. A renamed or moved folder takes its folder rules (excluded or included, by path and by
+bucket) with it, so an excluded folder stays excluded.
+
 Not part of the shipped mode (deferred): included folders that MediaStore does not index and
 hiding with a dot prefix. Unhide works for hides this app recorded; a `.nomedia` made by
 another app is never deleted.
@@ -76,8 +82,8 @@ or broken data.
 
 - The app records every `.nomedia` it creates in its own registry, a JSON file in
   `noBackupFilesDir/advanced-storage/`.
-- Switching the mode off, revoking the permission, or flipping the build flag offers
-  "Unhide the folders Lightforge hid".
+- Switching the mode off or revoking the permission offers "Unhide the folders Lightforge
+  hid". Flipping the build flag does not (see "We switch it off in the build").
 - The app never records or deletes a `.nomedia` that it did not create.
 - If a hide cannot be undone (for example, the permission is already revoked), Settings
   keeps listing it so it can be resolved by hand.
@@ -91,10 +97,12 @@ or broken data.
   - the app binds `NoOpAdvancedStorage`;
   - the Settings rows do not exist.
 - A Play build without the permission therefore needs no code change.
-- Follow-up, not implemented yet: on the first launch after the flag flips, read the registry
-  (the module is still compiled in) and offer to unhide each folder through a per-folder SAF
-  tree grant. Until then, the safe order is to ship a build that unhides on mode-off before
-  shipping one with the flag off.
+- **Release blocker, not implemented:** `NoOpAdvancedStorage` never reads the registry, so a
+  flag-off build has no list of the folders an earlier build hid and no way to unhide them.
+  Recovery would bind a registry-reading implementation that is not `isSupported`, and offer
+  the owner delete or a per-folder SAF tree grant (neither needs `MANAGE_EXTERNAL_STORAGE`).
+  Until it exists, the safe order is to ship a build that unhides on mode-off before shipping
+  one with the flag off.
 
 **We delete it from the code (module).**
 
@@ -146,6 +154,18 @@ Before shipping, the following checks must pass:
     `ANDROID_SERIAL=emulator-5556`). The app reads hidden media from `MediaStore.Files` through
     `AdvancedStorage.queryHiddenMedia()` and does not crawl the disk; when a device does not
     report those rows, hidden items simply do not appear.
+  - Observed on 2026-10-18, Android 13 (API 33) x86_64 emulator `sdk_gphone64_x86_64`
+    (emulator-5556), `AdvancedStorageDeviceTest`, all passing:
+    - Hiding a folder with `.nomedia` removes the image row and leaves a `MediaStore.Files` row
+      with `media_type=0` and the same `_ID` (`_ID` 1000001569 before and after);
+      `queryHiddenMedia()` returned that `_ID`. Unhiding gave `media_type=1` and the same `_ID`.
+    - A file rename keeps the `_ID` and updates `RELATIVE_PATH`; so do a directory move and a
+      directory rename (`_ID` 1000001569 throughout).
+    - Hide one folder, deny `MANAGE_EXTERNAL_STORAGE` (the process is killed), run the app again:
+      `isGranted()` is false, `queryHiddenMedia()` is empty, hide returns `NotGranted`, and unhide
+      returned `Done` with the owner delete of the app's own `.nomedia` (marker present before,
+      gone after), not `NeedsTreeGrant`. The check hid one folder, not two; the registry path for
+      several folders is covered by the unit tests. Not measured: other devices or OEM builds.
   - Benchmark rename against verified copy on about 1000 photos on the `remoteacceptance`
     build: still open.
 
@@ -163,6 +183,28 @@ Section 3 checks 1 and 3 are automated: CI builds with `-Plightforge.allFilesAcc
 runs `tools/verify_offline_release.py --no-all-files`, which also asserts that
 `MANAGE_EXTERNAL_STORAGE` is declared only in `core/storage-advanced`. The default build runs
 with `--expect-all-files`.
+
+Move and copy by path check each item against its current MediaStore row (`_ID`, folder and
+name) before anything is touched, and a cross-volume or refused-rename original is retired only
+after its copy is byte-compared with the item's own content URI. This path is not journaled
+like `VerifiedMoveController`, which is built around one item and a SAF tree: a crash before
+the delete approval leaves a copy beside the original, never a lost file. Journaling a batch is
+deferred.
+
+Reduced scope: the temporary show-hidden switch reaches the Folders explorer only. The Photos
+overflow entry was removed because it did nothing; showing hidden rows in the Photos timeline is
+deferred.
+
+Deferred (Simple Gallery gap plan section 7, explorer): breadcrumb long-press path entry (7.3),
+per-folder sort, view and filter (7.4), search inside a folder and the `in:` token (7.6, 7.7),
+selecting files, alone or with folders (7.8), dimming or badging excluded folders and an Exclude
+shortcut (7.9), a destination picker that replaces SAF when the mode is off, with batched
+MediaStore moves (7.10), tree pane, drag and drop and keyboard navigation on large screens
+(7.11), restoring scroll after process death and reopening the last folder (7.12). Each folder
+keeps its own scroll position while the screen is open. Section 6.13 P1 items also deferred: the
+multi-select type filter, an index-time Animated flag (Animated is still MIME-based), a grouping
+control in the Photos overflow and the "show even if hidden" folder rule. Album covers, pins
+and other path-keyed settings are not rewritten on folder rename.
 
 Deferred: SAF tree-grant fallback after the flag flips, the rename benchmark, included
 folders that MediaStore does not index, a dot-prefixed-name view, and the viewer, system

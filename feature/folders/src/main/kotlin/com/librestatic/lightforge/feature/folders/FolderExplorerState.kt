@@ -241,6 +241,13 @@ private fun album(node: FolderNode<FolderStats>, stats: FolderStats) = AlbumSumm
     availability = if (stats.isAvailable) AlbumAvailability.Available else AlbumAvailability.VolumeUnavailable,
 )
 
+/**
+ * Android/ and everything under it (Android/media/<package> included) belongs to other apps, so the
+ * explorer offers no hide, rename, move or delete there. The storage engine refuses them as well.
+ */
+fun isAndroidAppTree(relativePath: String): Boolean =
+    normalizedFolderPath(relativePath).trim('/').substringBefore('/').equals("Android", ignoreCase = true)
+
 /** "A/B/" for any spelling of the same folder path, so MediaStore and disk paths compare equal. */
 fun normalizedFolderPath(path: String): String =
     path.trim('/').takeIf { it.isNotEmpty() }?.let { "$it/" } ?: ""

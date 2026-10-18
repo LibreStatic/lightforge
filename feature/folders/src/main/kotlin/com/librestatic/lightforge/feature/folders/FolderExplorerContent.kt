@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
@@ -49,6 +50,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -295,8 +297,19 @@ private fun FolderLevelGrid(
     upActions: List<CustomAccessibilityAction>,
     picking: ExplorerMode.PickDestination?,
 ) {
+    // Each folder keeps its own scroll position: entering one starts at its top, going back restores the parent.
+    val locationKey = state.crumbs.last().location.let { "${it.volumeName}|${it.relativePath}" }
+    val positions = remember { HashMap<String, Pair<Int, Int>>() }
+    val gridState = remember(locationKey) {
+        positions[locationKey]?.let { (index, offset) -> LazyGridState(index, offset) } ?: LazyGridState()
+    }
+    LaunchedEffect(gridState, locationKey) {
+        snapshotFlow { gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset }
+            .collect { positions[locationKey] = it }
+    }
     LazyVerticalGrid(
         columns = FolderLevelCells,
+        state = gridState,
         modifier = Modifier
             .fillMaxSize()
             .testTag("folder-explorer-grid")
@@ -520,7 +533,7 @@ private fun FolderCard(
 ) {
     val colors = MaterialTheme.colorScheme
     var menuOpen by remember { mutableStateOf(false) }
-    val hasMenu = actions != null && folder.location.relativePath != null
+    val hasMenu = actions != null && folder.location.relativePath?.let { !isAndroidAppTree(it) } == true
     val moreDescription = stringResource(R.string.folders_more_options_for, folder.name)
     val body: @Composable ColumnScope.() -> Unit = {
         Box {

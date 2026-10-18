@@ -301,4 +301,13 @@ class FolderExplorerStateTest {
         assertTrue(!mode.canChoose(FolderLocation("external_primary", null)))
         assertTrue(mode.canChoose(FolderLocation("external_primary", "DCIM/")))
     }
+
+    @Test fun theAndroidTreeIsRecognisedInAnyCase() {
+        for (p in listOf("Android/", "Android/media/", "android/media/com.whatsapp/", "ANDROID/data/x")) {
+            org.junit.Assert.assertTrue(p, isAndroidAppTree(p))
+        }
+        for (p in listOf("Pictures/Android/", "AndroidApps/", "DCIM/")) {
+            org.junit.Assert.assertFalse(p, isAndroidAppTree(p))
+        }
+    }
 }

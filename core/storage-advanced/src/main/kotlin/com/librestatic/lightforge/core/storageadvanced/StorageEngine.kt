@@ -48,7 +48,7 @@ internal class StorageEngine(
      * folder this app already hid is idempotent and returns Done.
      */
     fun hide(path: String): AdvancedResult {
-        val dir = validated(path) ?: return INVALID
+        val dir = validatedFolder(path) ?: return INVALID
         if (!dir.isDirectory) return AdvancedResult.Failed("Not a directory")
         val entries = registry.read()
         val marker = File(dir, NOMEDIA)
@@ -285,7 +285,7 @@ internal class StorageEngine(
         if (isGranted()) AdvancedResult.Failed(reason) else AdvancedResult.NotGranted
 
     fun createDirectory(parent: String, name: String): AdvancedResult {
-        val parentDir = validated(parent, allowRoot = true) ?: return INVALID
+        val parentDir = validatedFolder(parent, allowRoot = true) ?: return INVALID
         if (!parentDir.isDirectory) return AdvancedResult.Failed("Not a directory")
         if (!validName(name)) return AdvancedResult.Failed("Invalid folder name")
         val dir = validated(File(parentDir, name).path) ?: return INVALID
@@ -299,15 +299,15 @@ internal class StorageEngine(
     }
 
     fun renameDirectory(path: String, newName: String): AdvancedResult {
-        val from = validated(path) ?: return INVALID
+        val from = validatedFolder(path) ?: return INVALID
         if (!validName(newName)) return AdvancedResult.Failed("Invalid folder name")
         val parent = from.parentFile ?: return INVALID
         return moveDir(from, File(parent, newName))
     }
 
     fun moveDirectory(path: String, newParent: String): AdvancedResult {
-        val from = validated(path) ?: return INVALID
-        val parentDir = validated(newParent, allowRoot = true) ?: return INVALID
+        val from = validatedFolder(path) ?: return INVALID
+        val parentDir = validatedFolder(newParent, allowRoot = true) ?: return INVALID
         if (!parentDir.isDirectory) return AdvancedResult.Failed("Not a directory")
         if (under(parentDir, from)) return AdvancedResult.Failed("Cannot move a folder into itself")
         return moveDir(from, File(parentDir, from.name))
@@ -315,7 +315,7 @@ internal class StorageEngine(
 
     private fun moveDir(from: File, rawTo: File): AdvancedResult {
         if (!isGranted()) return AdvancedResult.NotGranted
-        val to = validated(rawTo.path) ?: return INVALID
+        val to = validatedFolder(rawTo.path) ?: return INVALID
         if (!from.isDirectory) return AdvancedResult.Failed("Not a directory")
         if (to.exists()) return AdvancedResult.Failed("Target exists")
         val fromRoot = rootOf(from)
@@ -352,7 +352,7 @@ internal class StorageEngine(
     }
 
     fun deleteEmptyDirectory(path: String): AdvancedResult {
-        val dir = validated(path) ?: return INVALID
+        val dir = validatedFolder(path) ?: return INVALID
         if (!dir.isDirectory) return AdvancedResult.Failed("Not a directory")
         if (dir.list()?.isEmpty() != true) return AdvancedResult.Failed("Directory not empty")
         if (!dir.delete()) return AdvancedResult.Failed("Delete failed")
@@ -402,8 +402,25 @@ internal class StorageEngine(
         if (file == root) return if (allowRoot) file else null
         val relative = file.relativeTo(root).path
         val top = relative.split(File.separatorChar)
-        if (top.size >= 2 && top[0] == "Android" && (top[1] == "data" || top[1] == "obb")) return null
+        if (top.size >= 2 && top[0].equals("Android", ignoreCase = true) &&
+            (top[1].equals("data", ignoreCase = true) || top[1].equals("obb", ignoreCase = true))
+        ) {
+            return null
+        }
         return file
+    }
+
+    /**
+     * [validated] for operations that change a folder (hide, create, rename, move, delete): the whole
+     * Android tree is refused as well, because Android/media/<package> belongs to another app that
+     * would recreate an empty folder and orphan the files left under the new name.
+     */
+    private fun validatedFolder(path: String, allowRoot: Boolean = false): File? {
+        val file = validated(path, allowRoot) ?: return null
+        val root = rootOf(file) ?: return null
+        if (file == root) return file
+        val first = file.relativeTo(root).path.split(File.separatorChar).first()
+        return if (first.equals("Android", ignoreCase = true)) null else file
     }
 
     private fun canonical(file: File): File = runCatching { file.canonicalFile }.getOrDefault(file.absoluteFile)

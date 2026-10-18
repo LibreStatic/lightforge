@@ -584,6 +584,17 @@ internal fun ProductionGalleryApp(
                 viewModel.reconcileFolder(volumeName, relativePathPrefix)
 
             override suspend fun refresh() = viewModel.refreshFolders()
+
+            override suspend fun folderBuckets(volumeName: String, relativePathPrefix: String) =
+                viewModel.folderBuckets(volumeName, relativePathPrefix)
+
+            override suspend fun folderRelocated(
+                oldVolume: String,
+                oldPrefix: String,
+                newVolume: String,
+                newPrefix: String,
+                previousBuckets: Map<String, Long>,
+            ) = viewModel.folderRelocated(oldVolume, oldPrefix, newVolume, newPrefix, previousBuckets)
         }
     }
     // Revealing hidden items, even for now, asks for the app lock when "Protect hidden items" is on.

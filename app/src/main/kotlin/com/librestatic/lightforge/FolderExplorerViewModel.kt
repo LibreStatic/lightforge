@@ -264,7 +264,8 @@ class FolderExplorerViewModel @Inject constructor(
 
     fun rename(card: FolderCardUi, newName: String) {
         val old = card.location.relativePath ?: return
-        operate(FolderOp.Rename, card.location, listOf(old, renamedRelativePath(old, newName))) { advanced.renameDirectory(it, newName) }
+        val renamed = renamedRelativePath(old, newName)
+        operate(FolderOp.Rename, card.location, listOf(old, renamed), relocatedTo = renamed) { advanced.renameDirectory(it, newName) }
     }
 
     fun beginNewFolder() {
@@ -288,11 +289,19 @@ class FolderExplorerViewModel @Inject constructor(
         op: FolderOp,
         target: FolderLocation,
         reconcile: List<String?>,
+        /** The new relative path of [target] when the call renames it; its folder rules follow it. */
+        relocatedTo: String? = null,
         call: suspend (String) -> AdvancedResult,
     ) {
         viewModelScope.launch {
             val volume = target.volumeName
             val absolute = volume?.let { advanced.absolutePathOf(it, target.relativePath) }
+            val oldPath = target.relativePath
+            val buckets = if (relocatedTo != null && volume != null && oldPath != null) {
+                runCatching { library.value?.folderBuckets(volume, oldPath) }.getOrNull().orEmpty()
+            } else {
+                emptyMap()
+            }
             val result = when {
                 !status.value.active -> AdvancedResult.NotGranted
                 absolute == null -> AdvancedResult.Failed("unknown path")
@@ -301,6 +310,9 @@ class FolderExplorerViewModel @Inject constructor(
             if (result == AdvancedResult.Done && volume != null) {
                 reconcile.filterNotNull().distinct().forEach { prefix ->
                     runCatching { library.value?.reconcile(volume, prefix) }
+                }
+                if (relocatedTo != null && oldPath != null) {
+                    runCatching { library.value?.folderRelocated(volume, oldPath, volume, relocatedTo, buckets) }
                 }
                 diskTick.value += 1
             }
