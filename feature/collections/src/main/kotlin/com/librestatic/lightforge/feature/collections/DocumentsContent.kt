@@ -322,20 +322,25 @@ fun DocumentsContent(
             if (focused == null) {
                 val stateOnly = rows.itemCount == 0 &&
                     (rows.loadState.refresh is LoadState.Error || rows.loadState.refresh is LoadState.NotLoading)
-                if (stateOnly) {
-                    Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).testTag("documents-list")) {
-                        controls()
+                // The controls take their own height (capped so the state stays visible) and the state
+                // fills everything below them, so it centers in the leftover space.
+                if (stateOnly) BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                    val controlsMax = maxHeight * 0.6f
+                    Column(Modifier.fillMaxSize()) {
+                        Column(Modifier.heightIn(max = controlsMax).verticalScroll(rememberScrollState()).testTag("documents-list")) {
+                            controls()
+                        }
+                        if (rows.loadState.refresh is LoadState.Error)
+                            GalleryLoadErrorState({ rows.retry() }, Modifier.weight(1f).fillMaxWidth().testTag("documents-error"))
+                        else
+                            GalleryEmptyState(
+                                title = stringResource(R.string.documents_empty_title),
+                                body = stringResource(R.string.documents_empty_body),
+                                icon = GalleryIcons.Description,
+                                hero = true,
+                                modifier = Modifier.weight(1f).fillMaxWidth().testTag("documents-empty"),
+                            )
                     }
-                    if (rows.loadState.refresh is LoadState.Error)
-                        GalleryLoadErrorState({ rows.retry() }, Modifier.weight(1f).fillMaxWidth().testTag("documents-error"))
-                    else
-                        GalleryEmptyState(
-                            title = stringResource(R.string.documents_empty_title),
-                            body = stringResource(R.string.documents_empty_body),
-                            icon = GalleryIcons.Description,
-                            hero = true,
-                            modifier = Modifier.weight(1f).fillMaxWidth().testTag("documents-empty"),
-                        )
                 } else LazyColumn(
                     Modifier.weight(1f).testTag("documents-list"),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
