@@ -183,23 +183,29 @@ internal fun PrivateExportRecoveryContent(
                 }
             }
             val selectedRow = selected
-            if (selectedRow == null) {
+            if (selectedRow == null && loaded && rows.isEmpty()) {
+                Column(Modifier.weight(1f).fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(stringResource(R.string.private_export_recovery_intro))
+                        if (initialExportFailed) RecoveryNotice(R.string.private_export_recovery_export_failed, true)
+                        error?.let { value -> RecoveryNotice(value, true) }
+                        message?.let { value -> RecoveryNotice(value, false) }
+                    }
+                    GalleryEmptyState(
+                        title = stringResource(R.string.private_export_recovery_empty_title),
+                        body = stringResource(R.string.private_export_recovery_empty),
+                        icon = GalleryIcons.Lock,
+                        hero = true,
+                        modifier = Modifier.weight(1f).fillMaxWidth().testTag("private-export-recovery-empty"),
+                    )
+                }
+            } else if (selectedRow == null) {
                 LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     item { Text(stringResource(R.string.private_export_recovery_intro)) }
                     if (initialExportFailed) item { RecoveryNotice(R.string.private_export_recovery_export_failed, true) }
                     error?.let { value -> item { RecoveryNotice(value, true) } }
                     message?.let { value -> item { RecoveryNotice(value, false) } }
-                    if (loaded && rows.isEmpty()) item {
-                        GalleryEmptyState(
-                            title = stringResource(R.string.private_export_recovery_empty_title),
-                            body = stringResource(R.string.private_export_recovery_empty),
-                            icon = GalleryIcons.Lock,
-                            hero = true,
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 320.dp)
-                                .testTag("private-export-recovery-empty"),
-                        )
-                    }
                     items(rows, key = { it.id }) { row ->
                         OutlinedCard(onClick = { if (!working && hasAccess()) { selected = row; confirmation = null } },
                             enabled = !working,
