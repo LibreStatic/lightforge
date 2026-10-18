@@ -57,6 +57,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.snapshotFlow
@@ -1729,7 +1730,9 @@ private fun VideoSurface(
         }
     }
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        if (state !is VideoViewerState.Failure) {
+        // The factory attaches the surface only once, so a controller swapped in without passing
+        // through null (the external viewer opening another file) needs a fresh SurfaceView.
+        if (state !is VideoViewerState.Failure) key(controller) {
             AndroidView(
                 factory = { context -> android.view.SurfaceView(context).also(controller::attachSurface) },
                 modifier = (resolvedAspectRatio?.let { Modifier.aspectRatio(it) } ?: Modifier.fillMaxSize())
