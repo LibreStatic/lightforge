@@ -87,6 +87,7 @@ internal fun PdfMediaPanel(vm: PdfStudioViewModel, s: PdfStudioState, mediaSourc
                     title = stringResource(R.string.pdf_media_empty_title),
                     body = stringResource(R.string.pdf_media_empty_body),
                     illustrationDescription = stringResource(R.string.pdf_media_empty_title),
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
                 )
             else
                 LazyVerticalGrid(
@@ -130,6 +131,7 @@ internal fun PdfMediaPanel(vm: PdfStudioViewModel, s: PdfStudioState, mediaSourc
                     title = stringResource(R.string.pdf_media_empty_title),
                     body = stringResource(R.string.pdf_media_empty_body),
                     illustrationDescription = stringResource(R.string.pdf_media_empty_title),
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
                 )
             } else {
                 val access by mediaSource.access.collectAsState()
@@ -138,6 +140,7 @@ internal fun PdfMediaPanel(vm: PdfStudioViewModel, s: PdfStudioState, mediaSourc
                         title = access.message ?: stringResource(R.string.pdf_media_empty_title),
                         body = access.message ?: stringResource(R.string.pdf_media_empty_body),
                         illustrationDescription = stringResource(R.string.pdf_media_empty_title),
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
                         action =
                             access.actionLabel?.let { label ->
                                 { TextButton(onClick = { access.onAction?.invoke() }) { Text(label) } }
@@ -162,6 +165,7 @@ internal fun PdfMediaPanel(vm: PdfStudioViewModel, s: PdfStudioState, mediaSourc
                             title = stringResource(R.string.pdf_media_empty_title),
                             body = stringResource(R.string.pdf_media_empty_body),
                             illustrationDescription = stringResource(R.string.pdf_media_empty_title),
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
                         )
                     else
                         LazyVerticalGrid(
