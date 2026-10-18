@@ -31,8 +31,23 @@ class ThirdPartyLicenseUnitTest(unittest.TestCase):
                 encoding="utf-8",
             )
             document = licenses.generate(lockfile)
-            self.assertEqual(len(document["components"]), 1)
+            self.assertEqual(
+                len(document["components"]), 1 + len(licenses.BUNDLED_COMPONENTS)
+            )
             self.assertEqual(document["components"][0]["licenseId"], "Apache-2.0")
+
+    def test_bundled_native_components_are_listed_with_existing_texts(self):
+        document = self.generate_line("androidx.core:core:1.0")
+        bundled = {
+            f"{c['group']}:{c['name']}": c["licenseTextAsset"]
+            for c in document["components"][1:]
+        }
+        self.assertEqual(bundled["org.ffmpeg:ffmpeg"], "licenses/FFmpeg-LGPL-2.1.txt")
+        self.assertEqual(bundled["org.libraw:libraw"], "licenses/LibRaw-LGPL.txt")
+        self.assertEqual(len(bundled), len(set(bundled)))
+        licenses.validate_license_assets(
+            document, MODULE_PATH.parents[1] / "app/src/main/assets"
+        )
 
     def test_coordinate_override_uses_bsd_license(self):
         document = self.generate_line("androidx.appsearch:appsearch-external-protobuf:1.1")

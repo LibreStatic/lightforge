@@ -1975,6 +1975,54 @@
       "licenseTextAsset": "licenses/SLF4J.txt",
       "name": "slf4j-api",
       "version": "2.0.18"
+    },
+    {
+      "group": "org.ffmpeg",
+      "licenseId": "LGPL-2.1-or-later",
+      "licenseName": "GNU Lesser General Public License 2.1 or later",
+      "licenseTextAsset": "licenses/FFmpeg-LGPL-2.1.txt",
+      "name": "ffmpeg",
+      "version": "7.1.2"
+    },
+    {
+      "group": "org.libraw",
+      "licenseId": "LGPL-2.1-only OR CDDL-1.0",
+      "licenseName": "GNU Lesser General Public License 2.1 (or CDDL 1.0)",
+      "licenseTextAsset": "licenses/LibRaw-LGPL.txt",
+      "name": "libraw",
+      "version": "0.22.2"
+    },
+    {
+      "group": "com.tencent",
+      "licenseId": "BSD-3-Clause",
+      "licenseName": "ncnn BSD 3-Clause License and bundled notices",
+      "licenseTextAsset": "licenses/ncnn-BSD-3-Clause-and-notices.txt",
+      "name": "ncnn",
+      "version": "20220729"
+    },
+    {
+      "group": "com.github.nihui",
+      "licenseId": "MIT",
+      "licenseName": "MIT License",
+      "licenseTextAsset": "licenses/rife-ncnn-vulkan-MIT.txt",
+      "name": "rife-ncnn-vulkan",
+      "version": "a7532fc3"
+    },
+    {
+      "group": "org.opencv.zoo",
+      "licenseId": "Apache-2.0",
+      "licenseName": "Apache License 2.0",
+      "licenseTextAsset": "licenses/SFace-Apache-2.0.txt",
+      "name": "face_recognition_sface",
+      "version": "2021dec"
+    },
+    {
+      "group": "com.google.fonts",
+      "licenseId": "OFL-1.1",
+      "licenseName": "SIL Open Font License 1.1",
+      "licenseTextAsset": "licenses/Noto-OFL-1.1.txt",
+      "name": "noto-sans-serif",
+      "version": "2.015"
     }
   ],
   "configuration": "offlineReleaseRuntimeClasspath",

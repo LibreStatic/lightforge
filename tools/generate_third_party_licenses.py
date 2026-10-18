@@ -50,6 +50,60 @@ ML_KIT = {
 }
 
 
+# Native libraries, models and fonts that ship inside the APK without a Maven coordinate. Their
+# license texts are verbatim copies checked by app/build.gradle.kts (verbatimLicenseCopies).
+BUNDLED_COMPONENTS = (
+    {
+        "group": "org.ffmpeg",
+        "name": "ffmpeg",
+        "version": "7.1.2",
+        "licenseId": "LGPL-2.1-or-later",
+        "licenseName": "GNU Lesser General Public License 2.1 or later",
+        "licenseTextAsset": "licenses/FFmpeg-LGPL-2.1.txt",
+    },
+    {
+        "group": "org.libraw",
+        "name": "libraw",
+        "version": "0.22.2",
+        "licenseId": "LGPL-2.1-only OR CDDL-1.0",
+        "licenseName": "GNU Lesser General Public License 2.1 (or CDDL 1.0)",
+        "licenseTextAsset": "licenses/LibRaw-LGPL.txt",
+    },
+    {
+        "group": "com.tencent",
+        "name": "ncnn",
+        "version": "20220729",
+        "licenseId": "BSD-3-Clause",
+        "licenseName": "ncnn BSD 3-Clause License and bundled notices",
+        "licenseTextAsset": "licenses/ncnn-BSD-3-Clause-and-notices.txt",
+    },
+    {
+        "group": "com.github.nihui",
+        "name": "rife-ncnn-vulkan",
+        "version": "a7532fc3",
+        "licenseId": "MIT",
+        "licenseName": "MIT License",
+        "licenseTextAsset": "licenses/rife-ncnn-vulkan-MIT.txt",
+    },
+    {
+        "group": "org.opencv.zoo",
+        "name": "face_recognition_sface",
+        "version": "2021dec",
+        "licenseId": "Apache-2.0",
+        "licenseName": "Apache License 2.0",
+        "licenseTextAsset": "licenses/SFace-Apache-2.0.txt",
+    },
+    {
+        "group": "com.google.fonts",
+        "name": "noto-sans-serif",
+        "version": "2.015",
+        "licenseId": "OFL-1.1",
+        "licenseName": "SIL Open Font License 1.1",
+        "licenseTextAsset": "licenses/Noto-OFL-1.1.txt",
+    },
+)
+
+
 def parse_release_runtime(lockfile: Path) -> list[tuple[str, str, str]]:
     modules: set[tuple[str, str, str]] = set()
     for raw in lockfile.read_text(encoding="utf-8").splitlines():
@@ -121,6 +175,7 @@ def generate(lockfile: Path) -> dict[str, object]:
         )
     if not components:
         raise ValueError("No offlineReleaseRuntimeClasspath dependencies found")
+    components.extend(dict(component) for component in BUNDLED_COMPONENTS)
     return {
         "schemaVersion": 1,
         "configuration": RUNTIME_CONFIGURATION,

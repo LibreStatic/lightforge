@@ -29,7 +29,8 @@ assert {line.strip() for line in rules.splitlines() if line.startswith("-dontwar
 print("PDF DEPENDENCIES PASS: provider 1.85.2; PKIX 1.85; utility 1.85.1; debug/release locks and license catalog agree; one artifact family")
 
 # Phase G1a: bundled Noto fonts (text layer). Not a Maven artifact, so — like the ncnn/SFace/
-# LibRaw bundled binaries above them — they are NOT in the generated third_party_licenses.json;
+# LibRaw bundled binaries above them — they are listed by hand in BUNDLED_COMPONENTS of
+# tools/generate_third_party_licenses.py rather than read from the lockfile;
 # they get a canonical license copy next to the fonts, a verbatim bundled copy under app assets,
 # and a byte-equality check here (the same contract app/build.gradle.kts's
 # verifyVerbatimLicenseCopies enforces at build time, checked here without needing Gradle/a device).
