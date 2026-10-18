@@ -83,7 +83,7 @@ class GalleryWidgetProvider : AppWidgetProvider() {
             if (!ticket.isActive) return
             val signal = CancellationSignal()
             try {
-                bitmap = NativeImageDecoder(context.contentResolver).thumbnail(photoUri, Size(maxSize, maxSize), signal)
+                bitmap = NativeImageDecoder(context).thumbnail(photoUri, Size(maxSize, maxSize), signal)
             } catch (failure: Exception) {
                 Log.w(TAG, "Failed to load widget thumbnail", failure)
             } finally {

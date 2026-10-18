@@ -71,7 +71,7 @@ class PickerViewModel(
 
     val thumbnails: ThumbnailLoader = ThumbnailLoader.native(
         application,
-        NativeImageDecoder(application.contentResolver),
+        NativeImageDecoder(application),
         maxCacheBytes = (Runtime.getRuntime().maxMemory() / 8).coerceAtMost(64L * 1024 * 1024),
     )
 

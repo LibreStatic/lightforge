@@ -24,6 +24,7 @@ dependencies {
     implementation(project(":core:mediastore"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.exifinterface)
+    implementation(libs.androidx.media3.inspector.frame)
     implementation(libs.kotlinx.coroutines.core)
     testImplementation(libs.junit4)
     testImplementation(libs.kotlinx.coroutines.test)

@@ -7112,7 +7112,7 @@ class GalleryViewModel @Inject constructor(
         val maxCache = context.getSystemService(ActivityManager::class.java).memoryClass
             .toLong().times(1024 * 1024).div(8)
             .coerceIn(16L * 1024 * 1024, 64L * 1024 * 1024)
-        val decoder = NativeImageDecoder(context.contentResolver)
+        val decoder = NativeImageDecoder(context)
         val motionKeyFrames = com.librestatic.lightforge.core.data.MotionKeyFrameRepository(context, database)
         val thumbnailFactory = { motionThumbnailLoader(context, decoder, maxCache, motionKeyFrames) }
         return GalleryRuntime(

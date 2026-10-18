@@ -61,7 +61,7 @@ fun ManualMomentContent(
         }
     val context = LocalContext.current.applicationContext
     val loader = remember(context) {
-        ThumbnailLoader.native(context, NativeImageDecoder(context.contentResolver), 4L * 1024 * 1024)
+        ThumbnailLoader.native(context, NativeImageDecoder(context), 4L * 1024 * 1024)
     }
     DisposableEffect(loader) { onDispose { loader.close() } }
     val keyboard = LocalSoftwareKeyboardController.current

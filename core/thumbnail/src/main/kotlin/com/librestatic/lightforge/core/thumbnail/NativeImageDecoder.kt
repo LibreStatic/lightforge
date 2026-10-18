@@ -1,6 +1,7 @@
 package com.librestatic.lightforge.core.thumbnail
 
 import android.content.ContentResolver
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.BitmapRegionDecoder
@@ -23,7 +24,15 @@ import java.io.IOException
 import kotlin.math.ceil
 import kotlin.math.max
 
-class NativeImageDecoder(private val resolver: ContentResolver) {
+class NativeImageDecoder private constructor(
+    private val resolver: ContentResolver,
+    private val videoFallback: VideoThumbnailFallback?,
+) {
+    constructor(resolver: ContentResolver) : this(resolver, null)
+
+    /** Also thumbnails videos MediaProvider cannot parse (e.g. FLV) through Media3. */
+    constructor(context: Context) : this(context.contentResolver, VideoThumbnailFallback(context))
+
     private val heifFallback = HeifFallbackDecoder(resolver)
 
     /**
@@ -34,6 +43,9 @@ class NativeImageDecoder(private val resolver: ContentResolver) {
     fun thumbnail(uri: Uri, size: Size, signal: CancellationSignal): Bitmap {
         val key = uri.toString()
         if (key in rawFallbackThumbnailUris) return rawThumbnail(uri, size)
+        if (videoFallback != null && key in videoFallbackThumbnailUris) {
+            return videoFallback.decodeThumbnail(uri, size, signal)
+        }
         if (key in failedThumbnailUris) {
             try {
                 return heifFallback.decodeThumbnail(uri, size, signal)
@@ -61,6 +73,16 @@ class NativeImageDecoder(private val resolver: ContentResolver) {
             if (fallback != null) {
                 failedThumbnailUris[key] = true
                 return fallback
+            }
+            if (videoFallback != null && videoFallback.isVideo(uri)) {
+                val video = try {
+                    videoFallback.decodeThumbnail(uri, size, signal)
+                } catch (e: IOException) {
+                    original.addSuppressed(e)
+                    throw original
+                }
+                videoFallbackThumbnailUris[key] = true
+                return video
             }
             if (!isCameraRaw(uri)) throw original
             val raw = try {
@@ -261,6 +283,13 @@ private val failedThumbnailUris: MutableMap<String, Boolean> = java.util.Collect
 
 /** Camera RAW URIs whose platform thumbnail fails (Skia "invalid scale"); they go straight to the sampled decode. */
 private val rawFallbackThumbnailUris: MutableMap<String, Boolean> = java.util.Collections.synchronizedMap(
+    object : LinkedHashMap<String, Boolean>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Boolean>): Boolean = size > 256
+    },
+)
+
+/** Video URIs MediaProvider cannot thumbnail (e.g. FLV); they go straight to the Media3 frame extractor. */
+private val videoFallbackThumbnailUris: MutableMap<String, Boolean> = java.util.Collections.synchronizedMap(
     object : LinkedHashMap<String, Boolean>(64, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Boolean>): Boolean = size > 256
     },
