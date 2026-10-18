@@ -75,12 +75,6 @@ interface AdvancedStorage {
     /** Whether [absolutePath] exists inside a mounted volume; false when unsupported, not granted or refused. */
     suspend fun pathExists(absolutePath: String): Boolean = false
 
-    /**
-     * Hides a folder or media file by renaming it with a leading dot (`Trip` becomes `.Trip`) and records
-     * it ([HiddenKind.DotPrefix]) so [unhideFolder] can rename it back. The recorded path is the hidden one.
-     */
-    suspend fun hideWithDotPrefix(absolutePath: String): AdvancedResult = AdvancedResult.Unsupported
-
     /** Deletes files (one result each, one scan). A file that is already gone counts as [AdvancedResult.Done]. */
     suspend fun deleteFiles(absolutePaths: List<String>): List<AdvancedResult> =
         absolutePaths.map { AdvancedResult.Unsupported }

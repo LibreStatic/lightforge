@@ -515,47 +515,27 @@ class StorageEngineTest {
         assertEquals(null, e.absolutePathOf("external_primary", "../x/", null))
     }
 
-    @Test fun dotPrefixHidesAFolderRecordsTheHiddenPathAndUnhideRenamesItBack() {
-        val folder = dir("Pictures/Trip").also { File(it, "a.jpg").writeText("x") }
+    // Dot-prefix hides are no longer created by the app; records from earlier builds must still be undoable.
+    private fun legacyDotHide(name: String): Pair<File, File> {
+        val folder = dir("Pictures/$name")
+        val hidden = File(volumeA, "Pictures/.$name")
+        File(folder, "a.jpg").writeText("x")
+        assertTrue(folder.renameTo(hidden))
+        HiddenRegistry(registryFile).write(listOf(HiddenEntry(hidden.path, HiddenKind.DotPrefix, 42L)))
+        return folder to hidden
+    }
+
+    @Test fun legacyDotPrefixRecordIsUndoneByUnhide() {
+        val (folder, hidden) = legacyDotHide("Trip")
         val e = engine()
-        assertEquals(AdvancedResult.Done, e.hideWithDotPrefix(folder.path))
-        val hidden = File(volumeA, "Pictures/.Trip")
-        assertTrue(hidden.isDirectory && !folder.exists() && File(hidden, "a.jpg").isFile)
-        assertEquals(listOf(HiddenEntry(hidden.path, HiddenKind.DotPrefix, 42L)), e.hiddenByApp())
         assertEquals(AdvancedResult.Done, e.unhide(hidden.path))
         assertTrue(folder.isDirectory && !hidden.exists() && File(folder, "a.jpg").isFile)
         assertTrue(e.hiddenByApp().isEmpty())
     }
 
-    @Test fun dotPrefixWorksOnASingleFileAndIsUndone() {
-        val file = File(dir("Pictures"), "IMG_1.jpg").apply { writeText("x") }
+    @Test fun legacyDotPrefixUnhideNeedsThePermissionAndKeepsTheRecordWhenTheNameIsTaken() {
+        val (_, hidden) = legacyDotHide("Trip")
         val e = engine()
-        assertEquals(AdvancedResult.Done, e.hideWithDotPrefix(file.path))
-        val hidden = File(file.parentFile, ".IMG_1.jpg")
-        assertTrue(hidden.isFile && !file.exists())
-        assertEquals(AdvancedResult.Done, e.unhide(hidden.path))
-        assertTrue(file.isFile && !hidden.exists())
-        assertTrue(e.hiddenByApp().isEmpty())
-    }
-
-    @Test fun dotPrefixRefusesDottedNamesExistingTargetsStandardFoldersAndTheAndroidTree() {
-        val e = engine()
-        assertTrue(e.hideWithDotPrefix(dir("Pictures/.already").path) is AdvancedResult.Failed)
-        val a = dir("Pictures/A")
-        dir("Pictures/.A")
-        assertTrue(e.hideWithDotPrefix(a.path) is AdvancedResult.Failed)
-        assertTrue(a.isDirectory)
-        assertTrue(e.hideWithDotPrefix(dir("Pictures").path) is AdvancedResult.Failed)
-        assertTrue(e.hideWithDotPrefix(dir("Android/media/x").path) is AdvancedResult.Failed)
-        assertTrue(e.hideWithDotPrefix(File(volumeA, "Pictures/missing").path) is AdvancedResult.Failed)
-        assertTrue(e.hiddenByApp().isEmpty())
-    }
-
-    @Test fun dotPrefixUnhideNeedsThePermissionAndKeepsTheRecordWhenTheNameIsTaken() {
-        val folder = dir("Pictures/Trip")
-        val e = engine()
-        e.hideWithDotPrefix(folder.path)
-        val hidden = File(volumeA, "Pictures/.Trip")
         granted = false
         assertEquals(AdvancedResult.NotGranted, e.unhide(hidden.path))
         granted = true
@@ -565,12 +545,11 @@ class StorageEngineTest {
         assertTrue(hidden.isDirectory)
     }
 
-    @Test fun dotPrefixRecordIsResolvedWhenTheFolderWasRenamedByHand() {
-        val folder = dir("Pictures/Trip")
+    @Test fun legacyDotPrefixRecordIsResolvedWhenTheFolderWasRenamedByHand() {
+        val (_, hidden) = legacyDotHide("Trip")
         val e = engine()
-        e.hideWithDotPrefix(folder.path)
-        File(volumeA, "Pictures/.Trip").renameTo(File(volumeA, "Pictures/Other"))
-        assertEquals(AdvancedResult.Done, e.unhide(File(volumeA, "Pictures/.Trip").path))
+        hidden.renameTo(File(volumeA, "Pictures/Other"))
+        assertEquals(AdvancedResult.Done, e.unhide(hidden.path))
         assertTrue(e.hiddenByApp().isEmpty())
         assertTrue(File(volumeA, "Pictures/Other").isDirectory)
     }

@@ -369,42 +369,7 @@ internal class StorageEngine(
     /** Whether [path] exists inside a mounted volume; false for anything the engine would refuse. */
     fun exists(path: String): Boolean = validated(path)?.exists() == true
 
-    /**
-     * Hides a folder or a media file by giving it a dot-prefixed name (`Trip` becomes `.Trip`), which
-     * MediaStore treats like a `.nomedia`. The new path is recorded so [unhide] can undo it; a name that
-     * already starts with a dot, an existing target, the Android tree and standard folders are refused.
-     */
-    fun hideWithDotPrefix(path: String): AdvancedResult {
-        val source = validatedFolder(path) ?: return INVALID
-        if (!source.exists()) return AdvancedResult.Failed("Not found")
-        if (source.isDirectory && isStandardFolder(source)) return PROTECTED
-        if (source.name.startsWith(".")) return AdvancedResult.Failed("Already hidden")
-        val parent = source.parentFile ?: return INVALID
-        val target = File(parent, "." + source.name)
-        if (!validName(target.name)) return AdvancedResult.Failed("Invalid name")
-        if (target.exists()) return AdvancedResult.Failed("Target exists")
-        val createdAt = clock()
-        val result = if (source.isDirectory) {
-            moveDir(source, target)
-        } else {
-            when (val outcome = renameOne(source.path, target.path)) {
-                is Moved -> { scan(listOf(outcome.from.path, outcome.to.path)); AdvancedResult.Done }
-                else -> outcome.asFailure()
-            }
-        }
-        if (result != AdvancedResult.Done) return result
-        return try {
-            val entries = registry.read().filterNot { it.absolutePath == target.path }
-            registry.write(entries + HiddenEntry(target.path, HiddenKind.DotPrefix, createdAt))
-            AdvancedResult.Done
-        } catch (e: Exception) {
-            // Without the record the hide could not be undone from the app: put the name back.
-            runCatching { renameFile(target, source) }
-            scan(listOf(source.path, target.path))
-            AdvancedResult.Failed(e.message ?: "Could not record hide")
-        }
-    }
-
+    // Dot-prefixed hides are not created any more (ADR-046); records from earlier builds are still undone below.
     private fun undoDotPrefix(hidden: File, entry: HiddenEntry, entries: List<HiddenEntry>): AdvancedResult {
         val forget = { registry.write(entries - entry) }
         // Renamed or deleted behind our back: the hide is already resolved.
