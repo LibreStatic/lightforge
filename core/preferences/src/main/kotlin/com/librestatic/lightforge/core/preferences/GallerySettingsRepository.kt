@@ -346,6 +346,9 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                         advancedShowHidden = p[Keys.AdvancedShowHidden] ?: false,
                         advancedDeleteEmptyFolders = p[Keys.AdvancedDeleteEmptyFolders] ?: false,
                         compactFolderChains = p[Keys.CompactFolderChains] ?: true,
+                        folderViewOptions = decodeStringMap(p[Keys.FolderViewOptions]),
+                        pinnedFolders = p[Keys.PinnedFolders].orEmpty(),
+                        lastFolder = p[Keys.LastFolder],
                     ),
                 security =
                     SecuritySettings(
@@ -416,6 +419,9 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         p[Keys.AdvancedShowHidden] = s.operations.advancedShowHidden
         p[Keys.AdvancedDeleteEmptyFolders] = s.operations.advancedDeleteEmptyFolders
         p[Keys.CompactFolderChains] = s.operations.compactFolderChains
+        p[Keys.FolderViewOptions] = encodeStringMap(s.operations.folderViewOptions)
+        p[Keys.PinnedFolders] = s.operations.pinnedFolders
+        s.operations.lastFolder?.let { p[Keys.LastFolder] = it } ?: p.remove(Keys.LastFolder)
         p[Keys.AppLock] = s.security.appLockEnabled
         p[Keys.DestructiveLock] = s.security.destructiveActionLockEnabled
         p[Keys.RelockTimeout] = s.security.relockTimeoutMinutes
@@ -502,6 +508,9 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     put("advancedShowHidden", operations.advancedShowHidden)
                     put("advancedDeleteEmptyFolders", operations.advancedDeleteEmptyFolders)
                     put("compactFolderChains", operations.compactFolderChains)
+                    put("folderViewOptions", encodeStringMap(operations.folderViewOptions))
+                    put("pinnedFolders", JSONArray(operations.pinnedFolders.sorted()))
+                    operations.lastFolder?.let { put("lastFolder", it) }
                 },
             )
             put(
@@ -620,6 +629,9 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     o.optBoolean("advancedShowHidden", false),
                     o.optBoolean("advancedDeleteEmptyFolders", false),
                     o.optBoolean("compactFolderChains", true),
+                    decodeStringMap(o.optString("folderViewOptions", "")),
+                    o.stringSet("pinnedFolders"),
+                    o.optString("lastFolder", "").ifBlank { null },
                 ),
             security =
                 SecuritySettings(
@@ -689,6 +701,9 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         val AdvancedShowHidden = booleanPreferencesKey("advanced.show_hidden")
         val AdvancedDeleteEmptyFolders = booleanPreferencesKey("advanced.delete_empty_folders")
         val CompactFolderChains = booleanPreferencesKey("folders.compact_chains")
+        val FolderViewOptions = stringPreferencesKey("folders.view_options")
+        val PinnedFolders = stringSetPreferencesKey("folders.pinned")
+        val LastFolder = stringPreferencesKey("folders.last")
         val ProtectHiddenItems = booleanPreferencesKey("security.protect_hidden_items")
         val AppLock = booleanPreferencesKey("security.app_lock")
         val DestructiveLock = booleanPreferencesKey("security.destructive_lock")
@@ -760,3 +775,13 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         }
     }
 }
+
+/** Tab-separated "key, value" lines; keys and values never hold a tab or a newline. */
+internal fun encodeStringMap(map: Map<String, String>): String =
+    map.entries.sortedBy { it.key }.joinToString("\n") { (key, value) -> "$key\t$value" }
+
+internal fun decodeStringMap(text: String?): Map<String, String> =
+    text.orEmpty().lineSequence().mapNotNull { line ->
+        val parts = line.split('\t')
+        if (parts.size == 2 && parts[0].isNotEmpty()) parts[0] to parts[1] else null
+    }.toMap()

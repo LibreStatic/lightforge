@@ -220,6 +220,12 @@ data class OperationSettings(
     val advancedDeleteEmptyFolders: Boolean = false,
     /** Device folders: merge a chain of single-child folders into one card ("A/B/C"). Available in every build. */
     val compactFolderChains: Boolean = true,
+    /** Device folders: how each folder is sorted and shown. Key is the folder's identity, value an encoded option set; "default" applies elsewhere. */
+    val folderViewOptions: Map<String, String> = emptyMap(),
+    /** Device folders: identities (`volume|path/`) of the folders pinned to the top. */
+    val pinnedFolders: Set<String> = emptySet(),
+    /** Device folders: the last folder opened as `volume|path/`, restored on a cold start. */
+    val lastFolder: String? = null,
 )
 
 /** Confirmation dialogs the user can silence, and bring back from Settings. [key] is persisted: never rename it. */
