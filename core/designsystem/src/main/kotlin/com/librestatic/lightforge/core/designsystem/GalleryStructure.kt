@@ -20,6 +20,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -232,6 +233,42 @@ fun GalleryErrorState(
     illustration = { Icon(GalleryIcons.Warning, contentDescription = null, modifier = Modifier.size(36.dp)) },
     action = stateAction(retryLabel, onRetry),
 )
+
+/** A list or screen failed to load: the standard message with its Retry inside the state. */
+@Composable
+fun GalleryLoadErrorState(
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+    body: String = stringResource(R.string.gallery_load_error_body),
+) = GalleryErrorState(
+    title = stringResource(R.string.gallery_load_error_title),
+    body = body,
+    modifier = modifier,
+    retryLabel = stringResource(R.string.gallery_retry),
+    onRetry = onRetry,
+)
+
+/** An append or inline load failed under existing content: the message sits next to its Retry. */
+@Composable
+fun GalleryLoadErrorRow(
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+    message: String = stringResource(R.string.gallery_load_error_more),
+) {
+    Row(
+        modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onRetry) { Text(stringResource(R.string.gallery_retry)) }
+    }
+}
 
 /**
  * Access is missing. The primary action asks again; the optional secondary action opens system

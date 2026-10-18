@@ -16,4 +16,8 @@
     <!-- Media editors -->
     <string name="editor_slider_reset">Reset %1$s</string>
     <string name="editor_zoom_reset">Reset zoom</string>
+    <string name="gallery_load_error_title">Couldn\'t load this</string>
+    <string name="gallery_load_error_body">Something went wrong while loading. Check that the files are available and try again.</string>
+    <string name="gallery_load_error_more">Couldn\'t load more items.</string>
+    <string name="gallery_retry">Retry</string>
 </resources>
