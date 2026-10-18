@@ -3,6 +3,9 @@ package com.librestatic.lightforge
 import androidx.paging.PagingData
 import com.librestatic.lightforge.core.mediastore.ALREADY_HIDDEN_BY_OTHERS
 import com.librestatic.lightforge.core.mediastore.AdvancedResult
+import com.librestatic.lightforge.core.mediastore.AdvancedStorage
+import com.librestatic.lightforge.core.mediastore.FOLDER_HAS_TRASH
+import com.librestatic.lightforge.feature.folders.FolderDeleteSummary
 import com.librestatic.lightforge.core.mediastore.HiddenMediaRow
 import com.librestatic.lightforge.core.model.TimelineMedia
 import com.librestatic.lightforge.core.model.folders.HiddenFolderGroup
@@ -47,6 +50,9 @@ sealed interface FolderMessage {
     /** Another app already hid the folder with its own .nomedia, so this app cannot unhide it. */
     data object AlreadyHiddenByOthers : FolderMessage
 
+    /** The folder holds items of the Trash, which a delete would orphan, so nothing was deleted. */
+    data object FolderHasTrash : FolderMessage
+
     data class Failed(val op: FolderOp) : FolderMessage
 }
 
@@ -54,7 +60,11 @@ internal fun AdvancedResult.toFolderMessage(op: FolderOp): FolderMessage = when 
     AdvancedResult.Done -> FolderMessage.Done(op)
     AdvancedResult.NotGranted -> FolderMessage.NotGranted
     is AdvancedResult.Failed ->
-        if (reason == ALREADY_HIDDEN_BY_OTHERS) FolderMessage.AlreadyHiddenByOthers else FolderMessage.Failed(op)
+        when (reason) {
+            ALREADY_HIDDEN_BY_OTHERS -> FolderMessage.AlreadyHiddenByOthers
+            FOLDER_HAS_TRASH -> FolderMessage.FolderHasTrash
+            else -> FolderMessage.Failed(op)
+        }
     AdvancedResult.Unsupported, is AdvancedResult.NeedsTreeGrant -> FolderMessage.Failed(op)
 }
 
@@ -106,3 +116,25 @@ internal fun groupHiddenFacts(rows: List<HiddenRowFacts>): List<HiddenFolderGrou
             kind = key.third,
         )
     }
+
+/**
+ * Adds up what a recursive delete of the folders at [absolutePaths] would remove, read from the disk.
+ * Null when any of them cannot be read, so the dialog never confirms a delete it could not count.
+ * Reads only: it never deletes.
+ */
+internal suspend fun summarizeFolderDelete(storage: AdvancedStorage, absolutePaths: List<String>): FolderDeleteSummary? {
+    var total = FolderDeleteSummary()
+    for (path in absolutePaths) {
+        val contents = storage.inspectDirectory(path) ?: return null
+        total = FolderDeleteSummary(
+            files = total.files + contents.files,
+            // The folder itself is deleted as well.
+            folders = total.folders + contents.folders,
+            bytes = total.bytes + contents.bytes,
+            otherFiles = total.otherFiles + contents.otherFiles,
+            hiddenMedia = total.hiddenMedia + contents.hiddenMedia,
+            trashedFiles = total.trashedFiles + contents.trashedFiles,
+        )
+    }
+    return total
+}

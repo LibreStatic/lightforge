@@ -112,7 +112,8 @@ class FolderExplorerActions(
     val onHide: (FolderCardUi) -> Unit,
     val onUnhide: (FolderCardUi) -> Unit,
     val onRename: (FolderCardUi, String) -> Unit,
-    val onDelete: (FolderCardUi) -> Unit,
+    /** Deletes the folders with everything in them; only called after the user confirmed the dialog. */
+    val onDelete: (List<FolderCardUi>) -> Unit,
     val onOpenHiddenItem: (HiddenItemUi) -> Unit,
     /** Opens the destination picker to move the folder. */
     val onMove: (FolderCardUi) -> Unit = {},
@@ -120,16 +121,16 @@ class FolderExplorerActions(
     val onCopy: (FolderCardUi) -> Unit = {},
     /** Turns the "show in Photos even if hidden" rule of a hidden folder on or off. */
     val onToggleShowEvenIfHidden: (FolderCardUi) -> Unit = {},
+    /** Counts what deleting the folders would remove from the disk; null when it cannot be read. */
+    val summarizeDelete: suspend (List<FolderCardUi>) -> FolderDeleteSummary? = { null },
 )
 
 private sealed interface FolderDialog {
-    val folder: FolderCardUi
-
-    data class Rename(override val folder: FolderCardUi) : FolderDialog
-    data class Delete(override val folder: FolderCardUi) : FolderDialog
-    data class Properties(override val folder: FolderCardUi) : FolderDialog
-    data class Exclude(override val folder: FolderCardUi) : FolderDialog
-    data class Include(override val folder: FolderCardUi) : FolderDialog
+    data class Rename(val folder: FolderCardUi) : FolderDialog
+    data class Delete(val folders: List<FolderCardUi>) : FolderDialog
+    data class Properties(val folder: FolderCardUi) : FolderDialog
+    data class Exclude(val folder: FolderCardUi) : FolderDialog
+    data class Include(val folder: FolderCardUi) : FolderDialog
 }
 
 /**
@@ -298,7 +299,17 @@ private fun FolderLevel(
             }
             if (picking == null && selection.selectingFolders) {
                 val selected = state.folders.filter { it.key in selection.folders }
-                FolderSelectionBar(selection, selected, Modifier.align(Alignment.BottomCenter))
+                FolderSelectionBar(
+                    selection = selection,
+                    selected = selected,
+                    // Delete only asks: the dialog below counts what is inside and the folders go after it is confirmed.
+                    onDelete = if (actions != null && selected.all { it.isDeletable() }) {
+                        { dialog = FolderDialog.Delete(selected) }
+                    } else {
+                        null
+                    },
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
             }
         }
     }
@@ -323,9 +334,10 @@ private fun FolderLevel(
                 onConfirm = { name -> close(); actions?.onRename?.invoke(current.folder, name) },
             )
             is FolderDialog.Delete -> DeleteDialog(
-                folder = current.folder,
+                folders = current.folders,
+                summarize = actions?.summarizeDelete ?: { null },
                 onDismiss = close,
-                onConfirm = { close(); actions?.onDelete?.invoke(current.folder) },
+                onConfirm = { close(); actions?.onDelete?.invoke(current.folders) },
             )
             is FolderDialog.Properties -> PropertiesDialog(current.folder, state.crumbs, close)
             is FolderDialog.Exclude -> ExcludeDialog(
@@ -856,7 +868,7 @@ private fun FolderMenu(
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.folders_menu_delete)) },
                     leadingIcon = { Icon(GalleryIcons.Trash, contentDescription = null) },
-                    onClick = { onDismiss(); onDialog(FolderDialog.Delete(folder)) },
+                    onClick = { onDismiss(); onDialog(FolderDialog.Delete(listOf(folder))) },
                     modifier = Modifier.testTag("folder-menu-delete"),
                 )
             }
@@ -962,26 +974,134 @@ private fun FolderNameProblem.messageRes(): Int = when (this) {
     FolderNameProblem.AlreadyExists -> R.string.folders_name_exists
 }
 
+/** What the delete dialog knows about the folders: still counting, counted, or not readable. */
+private sealed interface DeleteScan {
+    data object Counting : DeleteScan
+    data object Unreadable : DeleteScan
+    data class Counted(val summary: FolderDeleteSummary) : DeleteScan
+}
+
+/** Whether the folder can be deleted from the explorer (not a volume root, a standard folder or the Android tree). */
+internal fun FolderCardUi.isDeletable(): Boolean {
+    val path = location.relativePath ?: return false
+    return !isStandardFolder(path) && !isAndroidAppTree(path)
+}
+
+/**
+ * Confirms deleting [folders] with everything on the disk below them. The dialog counts the real
+ * contents first (every file, not only the indexed photos and videos) and cannot be confirmed before
+ * the count is known, or while the folders hold items of the Trash.
+ */
 @Composable
-private fun DeleteDialog(folder: FolderCardUi, onDismiss: () -> Unit, onConfirm: () -> Unit) {
-    val empty = folder.isEmptyDirectory && folder.subfolderCount == 0
-    val items = folder.itemCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+internal fun DeleteDialog(
+    folders: List<FolderCardUi>,
+    summarize: suspend (List<FolderCardUi>) -> FolderDeleteSummary?,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    val context = LocalContext.current
+    val allEmpty = folders.all { it.isEmptyDirectory && it.subfolderCount == 0 }
+    val scan by produceState<DeleteScan>(DeleteScan.Counting, folders) {
+        value = if (allEmpty) {
+            DeleteScan.Counted(FolderDeleteSummary())
+        } else {
+            summarize(folders)?.let { DeleteScan.Counted(it) } ?: DeleteScan.Unreadable
+        }
+    }
+    val counted = (scan as? DeleteScan.Counted)?.summary
+    val blockedByTrash = counted != null && counted.trashedFiles > 0
+    val title = when {
+        allEmpty && folders.size == 1 -> stringResource(R.string.folders_delete_title)
+        folders.size == 1 -> stringResource(R.string.folders_delete_all_title)
+        else -> pluralStringResource(R.plurals.folders_delete_many_title, folders.size, folders.size)
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(if (empty) R.string.folders_delete_title else R.string.folders_delete_all_title)) },
+        title = { Text(title) },
         text = {
-            Text(
-                if (empty) stringResource(R.string.folders_delete_body, folder.name)
-                else pluralStringResource(R.plurals.folders_delete_all_body, items, folder.name, items),
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm, modifier = Modifier.testTag("folder-delete-confirm")) {
-                Text(stringResource(R.string.folders_delete_confirm))
+            Column(Modifier.testTag("folder-delete-dialog"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (allEmpty) {
+                    Text(
+                        if (folders.size == 1) {
+                            stringResource(R.string.folders_delete_body, folders.single().name)
+                        } else {
+                            pluralStringResource(R.plurals.folders_delete_intro_many, folders.size, folders.size)
+                        },
+                    )
+                    return@Column
+                }
+                Text(
+                    if (folders.size == 1) {
+                        stringResource(R.string.folders_delete_intro, folders.single().name)
+                    } else {
+                        pluralStringResource(R.plurals.folders_delete_intro_many, folders.size, folders.size)
+                    },
+                )
+                when (val current = scan) {
+                    DeleteScan.Counting -> Text(
+                        stringResource(R.string.folders_delete_counting),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.testTag("folder-delete-counting"),
+                    )
+                    DeleteScan.Unreadable -> Text(
+                        stringResource(R.string.folders_delete_count_failed),
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.testTag("folder-delete-unreadable"),
+                    )
+                    is DeleteScan.Counted -> DeleteSummaryLines(current.summary, Formatter.formatFileSize(context, current.summary.bytes))
+                }
+                if (counted != null && !blockedByTrash) {
+                    Text(
+                        stringResource(R.string.folders_delete_irreversible),
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.testTag("folder-delete-irreversible"),
+                    )
+                }
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.folders_cancel)) } },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                enabled = counted != null && !blockedByTrash,
+                modifier = Modifier.testTag("folder-delete-confirm"),
+            ) { Text(stringResource(R.string.folders_delete_confirm)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, modifier = Modifier.testTag("folder-delete-cancel")) {
+                Text(stringResource(R.string.folders_cancel))
+            }
+        },
     )
+}
+
+@Composable
+private fun DeleteSummaryLines(summary: FolderDeleteSummary, size: String) {
+    val bullet = MaterialTheme.typography.bodyMedium
+    @Composable
+    fun line(text: String, tag: String, error: Boolean = false) = Text(
+        "• $text",
+        style = bullet,
+        color = if (error) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.testTag(tag),
+    )
+    val files = summary.files.toIntClamped()
+    line(pluralStringResource(R.plurals.folders_delete_files, files, files) + " · " + size, "folder-delete-files")
+    if (summary.folders > 0) {
+        val folders = summary.folders.toIntClamped()
+        line(pluralStringResource(R.plurals.folders_delete_subfolders, folders, folders), "folder-delete-subfolders")
+    }
+    if (summary.otherFiles > 0) {
+        val other = summary.otherFiles.toIntClamped()
+        line(pluralStringResource(R.plurals.folders_delete_other, other, other), "folder-delete-other")
+    }
+    if (summary.hiddenMedia > 0) {
+        val hidden = summary.hiddenMedia.toIntClamped()
+        line(pluralStringResource(R.plurals.folders_delete_hidden, hidden, hidden), "folder-delete-hidden")
+    }
+    if (summary.trashedFiles > 0) {
+        val trashed = summary.trashedFiles.toIntClamped()
+        line(pluralStringResource(R.plurals.folders_delete_has_trash, trashed, trashed), "folder-delete-trash", error = true)
+    }
 }
 
 @Composable

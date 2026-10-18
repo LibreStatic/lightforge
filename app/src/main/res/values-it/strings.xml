@@ -169,4 +169,5 @@
     <string name="device_folders_sort_view">Ordine e vista</string>
     <string name="folder_op_copied">Cartella copiata</string>
     <string name="device_folders_search_in_folder">Cerca in questa cartella</string>
+    <string name="folder_op_has_trash">Questa cartella contiene elementi del cestino, quindi non è stato eliminato nulla. Ripristinali o eliminali prima dal cestino.</string>
 </resources>

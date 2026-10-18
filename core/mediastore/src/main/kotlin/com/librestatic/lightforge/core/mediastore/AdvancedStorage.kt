@@ -86,8 +86,18 @@ interface AdvancedStorage {
     suspend fun copyDirectory(absolutePath: String, newParentAbsolutePath: String, newName: String? = null): AdvancedResult =
         AdvancedResult.Unsupported
 
-    /** Deletes the folder and everything in it; standard folders, volume roots and the Android tree are refused. */
+    /**
+     * Deletes the folder and everything in it; standard folders, volume roots and the Android tree are
+     * refused. A folder that holds items in the Trash is refused too ([FOLDER_HAS_TRASH]), so a trashed
+     * photo is never lost behind a folder delete.
+     */
     suspend fun deleteDirectory(absolutePath: String): AdvancedResult = AdvancedResult.Unsupported
+
+    /**
+     * What a recursive delete of the folder would remove: every file and sub-folder on disk, not only the
+     * indexed media. Null when unsupported, not granted or the path is refused.
+     */
+    suspend fun inspectDirectory(absolutePath: String): DirectoryContents? = null
 
     /** Immediate sub-folders of [absolutePath] (a volume root is allowed); empty when unsupported or not granted. */
     suspend fun listDirectories(absolutePath: String): List<DirectoryEntry> = emptyList()
@@ -114,6 +124,21 @@ data class DirectoryEntry(
     val isDotPrefixed: Boolean,
 )
 
+/**
+ * The real contents of a folder tree on disk. [files] counts every regular file ([mediaFiles] photos and
+ * videos by file name, [otherFiles] the rest, [trashedFiles] the `.trashed-` and `.pending-` items of the
+ * system Trash); [hiddenMedia] are photos and videos inside a hidden or dot-prefixed folder.
+ */
+data class DirectoryContents(
+    val files: Long,
+    val folders: Long,
+    val bytes: Long,
+    val mediaFiles: Long,
+    val otherFiles: Long,
+    val hiddenMedia: Long,
+    val trashedFiles: Long,
+)
+
 enum class HiddenMediaKind { Image, Video }
 
 data class HiddenMediaRow(
@@ -135,6 +160,9 @@ enum class HiddenKind { NoMediaFile, DotPrefix }
 
 /** The [AdvancedResult.Failed] reason of a hide refused because another app already placed a `.nomedia`. */
 const val ALREADY_HIDDEN_BY_OTHERS: String = "already hidden by someone else"
+
+/** The [AdvancedResult.Failed] reason of a folder delete refused because the folder holds items in the Trash. */
+const val FOLDER_HAS_TRASH: String = "folder holds items in Trash"
 
 sealed interface AdvancedResult {
     data object Done : AdvancedResult

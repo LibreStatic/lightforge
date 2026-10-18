@@ -98,6 +98,20 @@ data class FolderCardUi(
     val pathLabel: String? = null,
 )
 
+/**
+ * What deleting folders removes from the disk, counted on the file system and not from the index:
+ * [otherFiles] are not photos or videos, [hiddenMedia] sit in hidden folders, [trashedFiles] are items of the
+ * Trash kept under hidden names (a delete is refused while there are any).
+ */
+data class FolderDeleteSummary(
+    val files: Long = 0,
+    val folders: Long = 0,
+    val bytes: Long = 0,
+    val otherFiles: Long = 0,
+    val hiddenMedia: Long = 0,
+    val trashedFiles: Long = 0,
+)
+
 /** One hidden image or video, for the read-only grid of a hidden folder. */
 data class HiddenItemUi(
     val volumeName: String,

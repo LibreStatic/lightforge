@@ -1773,6 +1773,7 @@ internal fun ProductionGalleryApp(
                     },
                     onMoveFolder = { card -> viewModel.beginFolderMovePick(card.location) },
                     onCopyFolder = { card -> viewModel.beginFolderCopyPick(card.location) },
+                    runDestructive = ::runDestructive,
                     mediaSelection = MediaSelectionAccess(
                         selecting = selectionCount > 0L,
                         isSelected = { key -> SelectionReducer.isSelected(selection, key) },

@@ -169,4 +169,5 @@
     <string name="device_folders_sort_view">Orden y vista</string>
     <string name="folder_op_copied">Carpeta copiada</string>
     <string name="device_folders_search_in_folder">Buscar en esta carpeta</string>
+    <string name="folder_op_has_trash">Esta carpeta guarda elementos de la papelera, así que no se eliminó nada. Restáuralos o elimínalos de la papelera primero.</string>
 </resources>

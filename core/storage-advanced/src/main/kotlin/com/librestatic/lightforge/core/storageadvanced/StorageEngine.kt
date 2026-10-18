@@ -1,7 +1,9 @@
 package com.librestatic.lightforge.core.storageadvanced
 
 import com.librestatic.lightforge.core.mediastore.AdvancedResult
+import com.librestatic.lightforge.core.mediastore.DirectoryContents
 import com.librestatic.lightforge.core.mediastore.DirectoryEntry
+import com.librestatic.lightforge.core.mediastore.FOLDER_HAS_TRASH
 import com.librestatic.lightforge.core.mediastore.HiddenEntry
 import com.librestatic.lightforge.core.mediastore.HiddenKind
 import java.io.File
@@ -475,6 +477,13 @@ internal class StorageEngine(
         if (isStandardFolder(dir)) return PROTECTED
         if (!dir.isDirectory) return AdvancedResult.Failed("Not a directory")
         if (!isGranted()) return AdvancedResult.NotGranted
+        // A trashed or pending item lives on disk under a hidden name; deleting it would orphan the Trash entry.
+        val before = try {
+            inspect(dir)
+        } catch (_: SecurityException) {
+            return AdvancedResult.NotGranted
+        }
+        if (before.trashedFiles > 0) return AdvancedResult.Failed(FOLDER_HAS_TRASH)
         val removed = ArrayList<String>()
         val ok = try {
             dir.deleteTree(removed)
@@ -486,6 +495,52 @@ internal class StorageEngine(
         if (!ok) return lostOr("Delete failed")
         runCatching { registry.write(registry.read().filterNot { under(File(it.absolutePath), dir) }) }
         return AdvancedResult.Done
+    }
+
+    /** What [deleteDirectory] would remove from the folder at [path]; null when the path is refused. */
+    fun inspectDirectory(path: String): DirectoryContents? {
+        val dir = validatedFolder(path) ?: return null
+        if (!dir.isDirectory) return null
+        return inspect(dir)
+    }
+
+    private fun inspect(root: File): DirectoryContents {
+        var files = 0L
+        var folders = 0L
+        var bytes = 0L
+        var media = 0L
+        var other = 0L
+        var hidden = 0L
+        var trashed = 0L
+        fun walk(dir: File, inHidden: Boolean) {
+            val children = dir.listFiles().orEmpty()
+            val hiddenHere = inHidden || (dir != root && dir.name.startsWith(".")) || children.any { it.name == NOMEDIA }
+            for (child in children) {
+                if (java.nio.file.Files.isSymbolicLink(child.toPath())) {
+                    // A link is removed, never followed; it counts as one file.
+                    files++
+                    other++
+                } else if (child.isDirectory) {
+                    folders++
+                    walk(child, hiddenHere)
+                } else if (child.name == NOMEDIA) {
+                    continue
+                } else {
+                    files++
+                    bytes += child.length()
+                    when {
+                        child.name.startsWith(PENDING_PREFIX) || child.name.startsWith(TRASHED_PREFIX) -> trashed++
+                        isMediaName(child.name) -> {
+                            media++
+                            if (hiddenHere) hidden++
+                        }
+                        else -> other++
+                    }
+                }
+            }
+        }
+        walk(root, false)
+        return DirectoryContents(files, folders, bytes, media, other, hidden, trashed)
     }
 
     private fun File.deleteTree(deleted: MutableList<String>): Boolean {
@@ -587,6 +642,16 @@ internal class StorageEngine(
 
     companion object {
         const val NOMEDIA = ".nomedia"
+
+        private val MEDIA_EXTENSIONS = setOf(
+            "jpg", "jpeg", "jpe", "png", "gif", "webp", "heic", "heif", "avif", "bmp", "wbmp", "dng", "cr2", "cr3",
+            "nef", "arw", "orf", "rw2", "raf", "pef", "srw", "mp4", "m4v", "mkv", "webm", "3gp", "3g2", "mov", "avi",
+            "mpg", "mpeg", "flv", "wmv", "ogv",
+        )
+
+        /** Whether the file name is a photo or video by extension, the way the media scanner decides. */
+        fun isMediaName(name: String): Boolean =
+            name.substringAfterLast('.', "").lowercase() in MEDIA_EXTENSIONS
         const val ALREADY_HIDDEN_BY_OTHERS = com.librestatic.lightforge.core.mediastore.ALREADY_HIDDEN_BY_OTHERS
         const val PENDING_PREFIX = ".pending-"
         const val TRASHED_PREFIX = ".trashed-"

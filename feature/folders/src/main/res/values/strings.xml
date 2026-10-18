@@ -113,10 +113,38 @@
     <string name="folders_menu_hide_selected">Hide</string>
     <string name="folders_delete_all_title">Delete folder and its contents?</string>
     <string name="folders_picker_title_copy_folder">Copy folder to…</string>
-    <plurals name="folders_delete_all_body">
-        <item quantity="one">“%1$s” and the %2$d item inside it will be permanently deleted from your device. This can\'t be undone.</item>
-        <item quantity="other">“%1$s” and the %2$d items inside it will be permanently deleted from your device. This can\'t be undone.</item>
-    </plurals>
     <string name="folders_menu_show_even_if_hidden">Show in Photos even if hidden</string>
     <string name="folders_menu_checked">On</string>
+    <plurals name="folders_delete_many_title">
+        <item quantity="one">Delete %d folder and its contents?</item>
+        <item quantity="other">Delete %d folders and their contents?</item>
+    </plurals>
+    <string name="folders_delete_intro">“%1$s” and everything inside it will be permanently deleted from your device.</string>
+    <plurals name="folders_delete_intro_many">
+        <item quantity="one">%1$d folder and everything inside it will be permanently deleted from your device.</item>
+        <item quantity="other">%1$d folders and everything inside them will be permanently deleted from your device.</item>
+    </plurals>
+    <string name="folders_delete_counting">Counting what is inside…</string>
+    <string name="folders_delete_count_failed">Could not read what is inside, so nothing will be deleted.</string>
+    <plurals name="folders_delete_files">
+        <item quantity="one">%1$d file</item>
+        <item quantity="other">%1$d files</item>
+    </plurals>
+    <plurals name="folders_delete_subfolders">
+        <item quantity="one">%1$d subfolder</item>
+        <item quantity="other">%1$d subfolders</item>
+    </plurals>
+    <plurals name="folders_delete_other">
+        <item quantity="one">%1$d file is not a photo or video (a document, audio or app data)</item>
+        <item quantity="other">%1$d files are not photos or videos (documents, audio or app data)</item>
+    </plurals>
+    <plurals name="folders_delete_hidden">
+        <item quantity="one">%1$d photo or video is hidden from the gallery</item>
+        <item quantity="other">%1$d photos or videos are hidden from the gallery</item>
+    </plurals>
+    <string name="folders_delete_irreversible">This can\'t be undone. Nothing goes to Trash.</string>
+    <plurals name="folders_delete_has_trash">
+        <item quantity="one">%1$d item from Trash is stored in here. Restore it or delete it from Trash first, then delete the folder.</item>
+        <item quantity="other">%1$d items from Trash are stored in here. Restore them or delete them from Trash first, then delete the folder.</item>
+    </plurals>
 </resources>

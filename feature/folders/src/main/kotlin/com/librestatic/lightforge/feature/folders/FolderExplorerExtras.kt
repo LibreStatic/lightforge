@@ -91,7 +91,6 @@ class ExplorerSelection(
     val onPinFolders: (Boolean) -> Unit = {},
     val onExcludeFolders: (Boolean) -> Unit = {},
     val onHideFolders: ((Boolean) -> Unit)? = null,
-    val onDeleteFolders: (() -> Unit)? = null,
 ) {
     val selectingFolders: Boolean get() = folders.isNotEmpty()
     val selecting: Boolean get() = selectingFolders || mediaSelecting
@@ -354,6 +353,8 @@ private fun FolderSortKey.labelRes(): Int = when (this) {
 internal fun FolderSelectionBar(
     selection: ExplorerSelection,
     selected: List<FolderCardUi>,
+    /** Asks to delete the selected folders (a confirmation follows); null hides the action. */
+    onDelete: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val allPinned = selected.isNotEmpty() && selected.all { it.isPinned }
@@ -380,7 +381,7 @@ internal fun FolderSelectionBar(
                 ),
             )
         }
-        selection.onDeleteFolders?.let { delete ->
+        onDelete?.let { delete ->
             add(
                 GallerySelectionAction(
                     stringResource(R.string.folders_menu_delete), GalleryIcons.Trash, delete, inline = false, testTag = "folder-selection-delete",

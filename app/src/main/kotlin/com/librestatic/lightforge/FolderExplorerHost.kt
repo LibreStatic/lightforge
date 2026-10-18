@@ -10,6 +10,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -57,6 +58,8 @@ internal fun FolderExplorerHost(
     onCopyFolder: (FolderCardUi) -> Unit,
     /** The gallery selection that carries the file actions; the explorer only ticks and reads it. */
     mediaSelection: MediaSelectionAccess,
+    /** Runs a destructive action behind the destructive-action lock (biometric prompt when it is on). */
+    runDestructive: (() -> Unit) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -76,6 +79,7 @@ internal fun FolderExplorerHost(
     LaunchedEffect(viewModel, snackbarHostState) {
         viewModel.messages.collect { message -> showFolderMessage(context, snackbarHostState, message, onOpenStorageAccess) }
     }
+    val currentRunDestructive by rememberUpdatedState(runDestructive)
     val actions = remember(viewModel, active) {
         if (!active) {
             null
@@ -84,7 +88,8 @@ internal fun FolderExplorerHost(
                 onHide = viewModel::hide,
                 onUnhide = viewModel::unhide,
                 onRename = viewModel::rename,
-                onDelete = viewModel::delete,
+                onDelete = { cards -> currentRunDestructive { viewModel.deleteFolders(cards) } },
+                summarizeDelete = viewModel::summarizeDelete,
                 onMove = onMoveFolder,
                 onCopy = onCopyFolder,
                 onToggleShowEvenIfHidden = viewModel::toggleShowEvenIfHidden,
@@ -121,7 +126,6 @@ internal fun FolderExplorerHost(
         onPinFolders = viewModel::pinSelected,
         onExcludeFolders = viewModel::excludeSelected,
         onHideFolders = if (active) viewModel::hideSelected else null,
-        onDeleteFolders = if (active) viewModel::deleteSelected else null,
     )
     FolderExplorerContent(
         state = state,
@@ -183,5 +187,6 @@ internal fun FolderMessage.textRes(): Int = when (this) {
     }
     FolderMessage.NotGranted -> R.string.folder_op_not_granted
     FolderMessage.AlreadyHiddenByOthers -> R.string.folder_op_hidden_by_others
+    FolderMessage.FolderHasTrash -> R.string.folder_op_has_trash
     is FolderMessage.Failed -> R.string.folder_op_failed
 }

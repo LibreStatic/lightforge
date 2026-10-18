@@ -169,4 +169,5 @@
     <string name="device_folders_sort_view">Tri et affichage</string>
     <string name="folder_op_copied">Dossier copié</string>
     <string name="device_folders_search_in_folder">Rechercher dans ce dossier</string>
+    <string name="folder_op_has_trash">Ce dossier contient des éléments de la corbeille, donc rien n\'a été supprimé. Restaurez-les ou supprimez-les d\'abord de la corbeille.</string>
 </resources>

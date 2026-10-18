@@ -112,10 +112,38 @@
     <string name="folders_menu_hide_selected">Ausblenden</string>
     <string name="folders_delete_all_title">Ordner und Inhalt löschen?</string>
     <string name="folders_picker_title_copy_folder">Ordner kopieren nach…</string>
-    <plurals name="folders_delete_all_body">
-        <item quantity="one">„%1$s“ und das darin enthaltene Element (%2$d) werden endgültig vom Gerät gelöscht. Das lässt sich nicht rückgängig machen.</item>
-        <item quantity="other">„%1$s“ und die darin enthaltenen %2$d Elemente werden endgültig vom Gerät gelöscht. Das lässt sich nicht rückgängig machen.</item>
-    </plurals>
     <string name="folders_menu_show_even_if_hidden">In Fotos anzeigen, auch wenn verborgen</string>
     <string name="folders_menu_checked">An</string>
+    <plurals name="folders_delete_many_title">
+        <item quantity="one">%d Ordner und seinen Inhalt löschen?</item>
+        <item quantity="other">%d Ordner und ihren Inhalt löschen?</item>
+    </plurals>
+    <string name="folders_delete_intro">„%1$s“ und alles darin wird endgültig vom Gerät gelöscht.</string>
+    <plurals name="folders_delete_intro_many">
+        <item quantity="one">%1$d Ordner und alles darin wird endgültig vom Gerät gelöscht.</item>
+        <item quantity="other">%1$d Ordner und alles darin wird endgültig vom Gerät gelöscht.</item>
+    </plurals>
+    <string name="folders_delete_counting">Inhalt wird gezählt…</string>
+    <string name="folders_delete_count_failed">Der Inhalt konnte nicht gelesen werden, daher wird nichts gelöscht.</string>
+    <plurals name="folders_delete_files">
+        <item quantity="one">%1$d Datei</item>
+        <item quantity="other">%1$d Dateien</item>
+    </plurals>
+    <plurals name="folders_delete_subfolders">
+        <item quantity="one">%1$d Unterordner</item>
+        <item quantity="other">%1$d Unterordner</item>
+    </plurals>
+    <plurals name="folders_delete_other">
+        <item quantity="one">%1$d Datei ist kein Foto und kein Video (Dokument, Audio oder App-Daten)</item>
+        <item quantity="other">%1$d Dateien sind keine Fotos und Videos (Dokumente, Audio oder App-Daten)</item>
+    </plurals>
+    <plurals name="folders_delete_hidden">
+        <item quantity="one">%1$d Foto oder Video ist in der Galerie verborgen</item>
+        <item quantity="other">%1$d Fotos oder Videos sind in der Galerie verborgen</item>
+    </plurals>
+    <string name="folders_delete_irreversible">Das lässt sich nicht rückgängig machen. Nichts wandert in den Papierkorb.</string>
+    <plurals name="folders_delete_has_trash">
+        <item quantity="one">Hier liegt %1$d Element aus dem Papierkorb. Stelle es wieder her oder lösche es zuerst aus dem Papierkorb, dann den Ordner.</item>
+        <item quantity="other">Hier liegen %1$d Elemente aus dem Papierkorb. Stelle sie wieder her oder lösche sie zuerst aus dem Papierkorb, dann den Ordner.</item>
+    </plurals>
 </resources>

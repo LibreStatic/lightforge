@@ -663,4 +663,46 @@ class StorageEngineTest {
         assertEquals(AdvancedResult.NotGranted, e.deleteDirectory(folder.path))
         assertTrue(folder.isDirectory)
     }
+
+    @Test fun inspectDirectoryCountsEveryFileNotOnlyMedia() {
+        val folder = dir("Pictures/Trip")
+        File(folder, "a.jpg").writeText("aa")
+        File(folder, "notes.txt").writeText("n")
+        File(dir("Pictures/Trip/Docs"), "thesis.pdf").writeText("pdf")
+        File(dir("Pictures/Trip/Private"), ".nomedia").writeText("")
+        File(File(folder, "Private"), "secret.mp4").writeText("s")
+        File(folder, ".trashed-1794957354-b.jpg").writeText("t")
+        val contents = engine().inspectDirectory(folder.path)!!
+        assertEquals(5L, contents.files)
+        assertEquals(2L, contents.folders)
+        assertEquals(2L, contents.mediaFiles)
+        assertEquals(2L, contents.otherFiles)
+        assertEquals(1L, contents.hiddenMedia)
+        assertEquals(1L, contents.trashedFiles)
+        assertEquals(2L + 1 + 3 + 1 + 1, contents.bytes)
+    }
+
+    @Test fun inspectDirectoryRefusesTheAndroidTreeAndAMissingFolder() {
+        val e = engine()
+        assertEquals(null, e.inspectDirectory(dir("Android/media/x").path))
+        assertEquals(null, e.inspectDirectory(File(volumeA, "Nope").path))
+    }
+
+    @Test fun deleteDirectoryRefusesAFolderThatHoldsTrashedItemsAndDeletesNothing() {
+        val folder = dir("Pictures/AdvReviewDel")
+        File(folder, "d1.jpg").writeText("1")
+        File(folder, "notes.txt").writeText("n")
+        File(folder, ".trashed-1794957354-d0.jpg").writeText("t")
+        assertEquals(
+            AdvancedResult.Failed(com.librestatic.lightforge.core.mediastore.FOLDER_HAS_TRASH),
+            engine().deleteDirectory(folder.path),
+        )
+        assertTrue(File(folder, "d1.jpg").exists())
+        assertTrue(File(folder, "notes.txt").exists())
+        assertTrue(File(folder, ".trashed-1794957354-d0.jpg").exists())
+        File(folder, ".pending-1-p.jpg").writeText("p")
+        File(folder, ".trashed-1794957354-d0.jpg").delete()
+        assertTrue(engine().deleteDirectory(folder.path) is AdvancedResult.Failed)
+        assertTrue(folder.exists())
+    }
 }

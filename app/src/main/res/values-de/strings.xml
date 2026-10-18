@@ -160,4 +160,5 @@
     <string name="device_folders_sort_view">Sortierung und Ansicht</string>
     <string name="folder_op_copied">Ordner kopiert</string>
     <string name="device_folders_search_in_folder">In diesem Ordner suchen</string>
+    <string name="folder_op_has_trash">Dieser Ordner enthält Elemente aus dem Papierkorb, daher wurde nichts gelöscht. Stelle sie wieder her oder lösche sie zuerst aus dem Papierkorb.</string>
 </resources>

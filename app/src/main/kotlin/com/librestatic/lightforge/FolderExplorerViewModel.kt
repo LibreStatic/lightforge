@@ -23,6 +23,7 @@ import com.librestatic.lightforge.core.preferences.FolderSelectionPolicy
 import com.librestatic.lightforge.core.preferences.FolderSelectionTarget
 import com.librestatic.lightforge.core.preferences.withFolderPathSelected
 import com.librestatic.lightforge.feature.folders.FolderCardUi
+import com.librestatic.lightforge.feature.folders.FolderDeleteSummary
 import com.librestatic.lightforge.feature.folders.FolderViewOptions
 import com.librestatic.lightforge.feature.folders.ScrollMemory
 import com.librestatic.lightforge.feature.folders.decodeScrollPositions
@@ -446,12 +447,6 @@ class FolderExplorerViewModel @Inject constructor(
         cards.forEach { if (hide) hide(it) else unhide(it) }
     }
 
-    fun deleteSelected() {
-        val cards = selectedCards()
-        clearFolderSelection()
-        cards.forEach(::delete)
-    }
-
     // ---- Remembering where the user was ----
 
     private var lastFolderRestored = false
@@ -516,9 +511,30 @@ class FolderExplorerViewModel @Inject constructor(
 
     fun unhide(card: FolderCardUi) = operate(FolderOp.Unhide, card.location, listOf(card.location.relativePath)) { advanced.unhideFolder(it) }
 
-    /** Deletes the folder; one with files in it goes with everything below it, and the library drops those rows. */
-    fun delete(card: FolderCardUi) = operate(FolderOp.Delete, card.location, listOf(card.location.relativePath)) {
-        if (card.isEmptyDirectory) advanced.deleteEmptyDirectory(it) else advanced.deleteDirectory(it)
+    /** Counts what deleting [cards] would remove from the disk; null when any folder cannot be read. */
+    suspend fun summarizeDelete(cards: List<FolderCardUi>): FolderDeleteSummary? = withContext(Dispatchers.IO) {
+        summarizeFolderDelete(advanced, cards.map { card ->
+            val volume = card.location.volumeName ?: return@withContext null
+            advanced.absolutePathOf(volume, card.location.relativePath) ?: return@withContext null
+        })
+    }
+
+    /**
+     * Deletes the folders; one with files in it goes with everything below it, and the library drops those
+     * rows. Only called after the confirmation dialog, which has counted the contents. One message reports
+     * the batch: the first failure, or Done.
+     */
+    fun deleteFolders(cards: List<FolderCardUi>) {
+        clearFolderSelection()
+        if (cards.isEmpty()) return
+        viewModelScope.launch {
+            val results = cards.map { card ->
+                performOperation(card.location, listOf(card.location.relativePath)) {
+                    if (card.isEmptyDirectory) advanced.deleteEmptyDirectory(it) else advanced.deleteDirectory(it)
+                }
+            }
+            mutableMessages.emit((results.firstOrNull { it != AdvancedResult.Done } ?: AdvancedResult.Done).toFolderMessage(FolderOp.Delete))
+        }
     }
 
     fun rename(card: FolderCardUi, newName: String) {
@@ -553,30 +569,39 @@ class FolderExplorerViewModel @Inject constructor(
         call: suspend (String) -> AdvancedResult,
     ) {
         viewModelScope.launch {
-            val volume = target.volumeName
-            val absolute = volume?.let { advanced.absolutePathOf(it, target.relativePath) }
-            val oldPath = target.relativePath
-            val buckets = if (relocatedTo != null && volume != null && oldPath != null) {
-                runCatching { library.value?.folderBuckets(volume, oldPath) }.getOrNull().orEmpty()
-            } else {
-                emptyMap()
-            }
-            val result = when {
-                !status.value.active -> AdvancedResult.NotGranted
-                absolute == null -> AdvancedResult.Failed("unknown path")
-                else -> withContext(Dispatchers.IO) { runCatching { call(absolute) }.getOrElse { AdvancedResult.Failed(it.message.orEmpty()) } }
-            }
-            if (result == AdvancedResult.Done && volume != null) {
-                reconcile.filterNotNull().distinct().forEach { prefix ->
-                    runCatching { library.value?.reconcile(volume, prefix) }
-                }
-                if (relocatedTo != null && oldPath != null) {
-                    runCatching { library.value?.folderRelocated(volume, oldPath, volume, relocatedTo, buckets) }
-                }
-                diskTick.value += 1
-            }
-            mutableMessages.emit(result.toFolderMessage(op))
+            mutableMessages.emit(performOperation(target, reconcile, relocatedTo, call).toFolderMessage(op))
         }
+    }
+
+    private suspend fun performOperation(
+        target: FolderLocation,
+        reconcile: List<String?>,
+        relocatedTo: String? = null,
+        call: suspend (String) -> AdvancedResult,
+    ): AdvancedResult {
+        val volume = target.volumeName
+        val absolute = volume?.let { advanced.absolutePathOf(it, target.relativePath) }
+        val oldPath = target.relativePath
+        val buckets = if (relocatedTo != null && volume != null && oldPath != null) {
+            runCatching { library.value?.folderBuckets(volume, oldPath) }.getOrNull().orEmpty()
+        } else {
+            emptyMap()
+        }
+        val result = when {
+            !status.value.active -> AdvancedResult.NotGranted
+            absolute == null -> AdvancedResult.Failed("unknown path")
+            else -> withContext(Dispatchers.IO) { runCatching { call(absolute) }.getOrElse { AdvancedResult.Failed(it.message.orEmpty()) } }
+        }
+        if (result == AdvancedResult.Done && volume != null) {
+            reconcile.filterNotNull().distinct().forEach { prefix ->
+                runCatching { library.value?.reconcile(volume, prefix) }
+            }
+            if (relocatedTo != null && oldPath != null) {
+                runCatching { library.value?.folderRelocated(volume, oldPath, volume, relocatedTo, buckets) }
+            }
+            diskTick.value += 1
+        }
+        return result
     }
 
     private fun isRecorded(target: FolderLocation, recorded: Set<String>): Boolean {

@@ -13,6 +13,7 @@ import android.provider.Settings
 import android.os.storage.StorageManager
 import com.librestatic.lightforge.core.mediastore.AdvancedResult
 import com.librestatic.lightforge.core.mediastore.AdvancedStorage
+import com.librestatic.lightforge.core.mediastore.DirectoryContents
 import com.librestatic.lightforge.core.mediastore.DirectoryEntry
 import com.librestatic.lightforge.core.mediastore.HiddenEntry
 import com.librestatic.lightforge.core.mediastore.HiddenMediaKind
@@ -142,6 +143,12 @@ class FileAdvancedStorage(context: Context, private val recoveryOnly: Boolean = 
 
     override suspend fun deleteDirectory(absolutePath: String): AdvancedResult =
         guarded { engine.deleteDirectory(absolutePath) }
+
+    override suspend fun inspectDirectory(absolutePath: String): DirectoryContents? =
+        mutex.withLock {
+            if (!isGranted()) return@withLock null
+            withContext(Dispatchers.IO) { runCatching { engine.inspectDirectory(absolutePath) }.getOrNull() }
+        }
 
     override suspend fun listDirectories(absolutePath: String): List<DirectoryEntry> =
         mutex.withLock {

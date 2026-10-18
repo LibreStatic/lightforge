@@ -57,7 +57,6 @@
     <string name="folders_revoked_action">Mostrar carpetas</string>
     <plurals name="folders_revoked_notice">
         <item quantity="one">El acceso a todos los archivos está desactivado, pero %1$d carpeta sigue oculta por Lightforge. Muéstrala para ver sus fotos de nuevo.</item>
-        <item quantity="many">El acceso a todos los archivos está desactivado, pero %1$d carpetas siguen ocultas por Lightforge. Muéstralas para ver sus fotos de nuevo.</item>
         <item quantity="other">El acceso a todos los archivos está desactivado, pero %1$d carpetas siguen ocultas por Lightforge. Muéstralas para ver sus fotos de nuevo.</item>
     </plurals>
     <string name="folders_new_title">Nueva carpeta</string>
@@ -113,11 +112,38 @@
     <string name="folders_menu_hide_selected">Ocultar</string>
     <string name="folders_delete_all_title">¿Eliminar la carpeta y su contenido?</string>
     <string name="folders_picker_title_copy_folder">Copiar carpeta a…</string>
-    <plurals name="folders_delete_all_body">
-        <item quantity="one">“%1$s” y el %2$d elemento que contiene se eliminarán de forma permanente del dispositivo. No se puede deshacer.</item>
-        <item quantity="many">“%1$s” y los %2$d elementos que contiene se eliminarán de forma permanente del dispositivo. No se puede deshacer.</item>
-        <item quantity="other">“%1$s” y los %2$d elementos que contiene se eliminarán de forma permanente del dispositivo. No se puede deshacer.</item>
-    </plurals>
     <string name="folders_menu_show_even_if_hidden">Mostrar en Fotos aunque esté oculta</string>
     <string name="folders_menu_checked">Activado</string>
+    <plurals name="folders_delete_many_title">
+        <item quantity="one">¿Eliminar %d carpeta y su contenido?</item>
+        <item quantity="other">¿Eliminar %d carpetas y su contenido?</item>
+    </plurals>
+    <string name="folders_delete_intro">«%1$s» y todo lo que contiene se eliminarán de forma permanente del dispositivo.</string>
+    <plurals name="folders_delete_intro_many">
+        <item quantity="one">%1$d carpeta y todo lo que contiene se eliminarán de forma permanente del dispositivo.</item>
+        <item quantity="other">%1$d carpetas y todo lo que contienen se eliminarán de forma permanente del dispositivo.</item>
+    </plurals>
+    <string name="folders_delete_counting">Contando lo que hay dentro…</string>
+    <string name="folders_delete_count_failed">No se pudo leer lo que hay dentro, así que no se eliminará nada.</string>
+    <plurals name="folders_delete_files">
+        <item quantity="one">%1$d archivo</item>
+        <item quantity="other">%1$d archivos</item>
+    </plurals>
+    <plurals name="folders_delete_subfolders">
+        <item quantity="one">%1$d subcarpeta</item>
+        <item quantity="other">%1$d subcarpetas</item>
+    </plurals>
+    <plurals name="folders_delete_other">
+        <item quantity="one">%1$d archivo no es una foto ni un vídeo (un documento, audio o datos de una app)</item>
+        <item quantity="other">%1$d archivos no son fotos ni vídeos (documentos, audio o datos de apps)</item>
+    </plurals>
+    <plurals name="folders_delete_hidden">
+        <item quantity="one">%1$d foto o vídeo está oculto en la galería</item>
+        <item quantity="other">%1$d fotos o vídeos están ocultos en la galería</item>
+    </plurals>
+    <string name="folders_delete_irreversible">No se puede deshacer. Nada pasa a la papelera.</string>
+    <plurals name="folders_delete_has_trash">
+        <item quantity="one">Hay %1$d elemento de la papelera guardado aquí. Restáuralo o elimínalo de la papelera y luego elimina la carpeta.</item>
+        <item quantity="other">Hay %1$d elementos de la papelera guardados aquí. Restáuralos o elimínalos de la papelera y luego elimina la carpeta.</item>
+    </plurals>
 </resources>
