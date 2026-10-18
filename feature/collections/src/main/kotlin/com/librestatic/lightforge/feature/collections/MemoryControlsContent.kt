@@ -3,6 +3,7 @@ package com.librestatic.lightforge.feature.collections
 import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
 import androidx.compose.material3.*
@@ -359,30 +360,26 @@ fun MemoryControlsContent(
                         }
                         if (atLimit) item { Text(stringResource(R.string.memory_controls_limit)) }
                         item {
-                            Button(
-                                {
-                                    draft = MemoryControlsDraft()
-                                    page = MemoryControlPage.Dates
-                                    notice = null
-                                },
+                            MemoryAddRow(
+                                headline = stringResource(R.string.memory_controls_add_dates),
+                                supporting = stringResource(R.string.memory_controls_add_dates_hint),
                                 enabled = loaded && !busy && !atLimit,
-                                modifier =
-                                    Modifier.fillMaxWidth().testTag("memory-controls-add-dates"),
+                                tag = "memory-controls-add-dates",
                             ) {
-                                Text(stringResource(R.string.memory_controls_add_dates))
+                                draft = MemoryControlsDraft()
+                                page = MemoryControlPage.Dates
+                                notice = null
                             }
                         }
                         item {
-                            OutlinedButton(
-                                {
-                                    page = MemoryControlPage.People
-                                    notice = null
-                                },
+                            MemoryAddRow(
+                                headline = stringResource(R.string.memory_controls_add_person),
+                                supporting = stringResource(R.string.memory_controls_add_person_hint),
                                 enabled = loaded && !busy && !atLimit,
-                                modifier =
-                                    Modifier.fillMaxWidth().testTag("memory-controls-add-person"),
+                                tag = "memory-controls-add-person",
                             ) {
-                                Text(stringResource(R.string.memory_controls_add_person))
+                                page = MemoryControlPage.People
+                                notice = null
                             }
                         }
                         if (loaded && count == 0)
@@ -810,5 +807,24 @@ private fun MemoryControlConfirm(
                 Text(stringResource(R.string.memory_controls_cancel))
             }
         },
+    )
+}
+
+@Composable
+private fun MemoryAddRow(
+    headline: String,
+    supporting: String,
+    enabled: Boolean,
+    tag: String,
+    onClick: () -> Unit,
+) {
+    ListItem(
+        headlineContent = { Text(headline) },
+        supportingContent = { Text(supporting) },
+        trailingContent = { Icon(GalleryIcons.ChevronForward, contentDescription = null) },
+        modifier =
+            Modifier.fillMaxWidth()
+                .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+                .testTag(tag),
     )
 }

@@ -40,4 +40,6 @@
     <string name="memory_controls_analysis">Ouvrir l’analyse locale</string>
     <string name="memory_controls_no_people">Aucune personne locale disponible. Vous pouvez configurer l’analyse locale séparément.</string>
     <string name="memory_controls_date_review">Ces jours inclus et leur fuseau enregistré restent fixes lorsque le fuseau de l’appareil change.</string>
+    <string name="memory_controls_add_dates_hint">Les photos de ces dates n’apparaissent plus dans les Souvenirs.</string>
+    <string name="memory_controls_add_person_hint">Les photos de cette personne n’apparaissent plus dans les Souvenirs.</string>
 </resources>
