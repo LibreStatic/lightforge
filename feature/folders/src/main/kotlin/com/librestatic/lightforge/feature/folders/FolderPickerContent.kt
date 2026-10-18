@@ -54,6 +54,7 @@ fun FolderPickerContent(
             PickPurpose.Move -> R.string.folders_picker_title_move
             PickPurpose.Copy -> R.string.folders_picker_title_copy
             PickPurpose.MoveFolder -> R.string.folders_picker_title_move_folder
+            PickPurpose.CopyFolder -> R.string.folders_picker_title_copy_folder
         },
     )
     Surface(modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background, contentColor = MaterialTheme.colorScheme.onBackground) {

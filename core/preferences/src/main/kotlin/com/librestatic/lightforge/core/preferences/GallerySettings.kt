@@ -90,6 +90,19 @@ object FolderSelectionPolicy {
 
 }
 
+/**
+ * Includes or excludes the folder at [relativePath] and everything below it: the rules of the folder
+ * itself and of its sub-folders are replaced by one path rule, so a more specific rule set before no
+ * longer overrides it.
+ */
+fun GallerySettings.withFolderPathSelected(volumeName: String, relativePath: String, selected: Boolean): GallerySettings {
+    val path = FolderSelectionPolicy.normalizeRelativePath(relativePath) ?: return this
+    val retained = library.folderRules.filterKeys { target ->
+        target !is FolderSelectionTarget.Path || target.volumeName != volumeName || !target.relativePath.startsWith(path)
+    }
+    return copy(library = library.copy(folderRules = retained + (FolderSelectionTarget.Path(volumeName, path) to selected)))
+}
+
 internal fun migrateLegacyFolderRules(
     mode: FolderSelectionMode,
     included: Set<String>,

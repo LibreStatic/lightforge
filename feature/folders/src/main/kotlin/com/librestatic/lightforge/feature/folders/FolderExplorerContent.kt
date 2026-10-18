@@ -3,6 +3,7 @@ package com.librestatic.lightforge.feature.folders
 import android.text.format.DateUtils
 import android.text.format.Formatter
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -53,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -71,6 +73,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -113,6 +116,8 @@ class FolderExplorerActions(
     val onOpenHiddenItem: (HiddenItemUi) -> Unit,
     /** Opens the destination picker to move the folder. */
     val onMove: (FolderCardUi) -> Unit = {},
+    /** Opens the destination picker to copy the folder with everything in it. */
+    val onCopy: (FolderCardUi) -> Unit = {},
 )
 
 private sealed interface FolderDialog {
@@ -121,6 +126,8 @@ private sealed interface FolderDialog {
     data class Rename(override val folder: FolderCardUi) : FolderDialog
     data class Delete(override val folder: FolderCardUi) : FolderDialog
     data class Properties(override val folder: FolderCardUi) : FolderDialog
+    data class Exclude(override val folder: FolderCardUi) : FolderDialog
+    data class Include(override val folder: FolderCardUi) : FolderDialog
 }
 
 /**
@@ -142,6 +149,9 @@ fun FolderExplorerContent(
     revokedWithHidden: Int = 0,
     onUnhideFolders: () -> Unit = {},
     mode: ExplorerMode = ExplorerMode.Browse,
+    browse: FolderBrowseActions? = null,
+    selection: ExplorerSelection = ExplorerSelection.None,
+    scrollMemory: ScrollMemory = remember { InMemoryScrollMemory() },
 ) {
     val picking = mode as? ExplorerMode.PickDestination
     Column(modifier.fillMaxSize()) {
@@ -188,6 +198,9 @@ fun FolderExplorerContent(
                     media = media,
                     onMediaClick = onMediaClick,
                     picking = picking,
+                    browse = browse,
+                    selection = selection,
+                    scrollMemory = scrollMemory,
                 )
             }
         }
@@ -204,14 +217,21 @@ private fun FolderLevel(
     media: LazyPagingItems<TimelineMedia>?,
     onMediaClick: (TimelineMedia, FolderMediaScope) -> Unit,
     picking: ExplorerMode.PickDestination?,
+    browse: FolderBrowseActions?,
+    selection: ExplorerSelection,
+    scrollMemory: ScrollMemory,
 ) {
     var dialog by remember { mutableStateOf<FolderDialog?>(null) }
+    var pathEntryOpen by remember { mutableStateOf(false) }
     val up = state.crumbs.getOrNull(state.crumbs.lastIndex - 1)?.location
     val upLabel = stringResource(R.string.folders_up_one_level)
     val upActions = if (up == null) emptyList() else listOf(CustomAccessibilityAction(upLabel) { onEnter(up); true })
     Column(Modifier.fillMaxSize()) {
+        if (browse != null && browse.searching && picking == null) {
+            FolderSearchField(state.query, browse.onQueryChange, browse.onCloseSearch)
+        }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Breadcrumb(state.crumbs, onEnter, upActions, Modifier.weight(1f))
+            Breadcrumb(state.crumbs, onEnter, upActions, Modifier.weight(1f), onEditPath = { pathEntryOpen = true })
             state.rootSpace?.let { space ->
                 val free = space.freeBytes
                 val total = space.totalBytes
@@ -241,6 +261,14 @@ private fun FolderLevel(
                     modifier = Modifier.fillMaxSize().testTag("folder-picker-no-subfolders"),
                     heroIcon = GalleryIcons.Folder,
                 )
+            } else if (picking == null && state.query.isNotBlank() && state.folders.isEmpty()) {
+                GalleryStateContent(
+                    title = stringResource(R.string.folders_search_empty_title),
+                    body = stringResource(R.string.folders_search_empty_body, state.query),
+                    illustrationDescription = stringResource(R.string.folders_search_empty_title),
+                    modifier = Modifier.fillMaxSize().testTag("folder-search-empty"),
+                    heroIcon = GalleryIcons.Search,
+                )
             } else if (picking == null && state.isEmpty) {
                 GalleryStateContent(
                     title = stringResource(R.string.folders_folder_empty_title),
@@ -261,9 +289,27 @@ private fun FolderLevel(
                     onDialog = { dialog = it },
                     upActions = upActions,
                     picking = picking,
+                    browse = browse,
+                    selection = selection,
+                    scrollMemory = scrollMemory,
                 )
             }
+            if (picking == null && selection.selectingFolders) {
+                val selected = state.folders.filter { it.key in selection.folders }
+                FolderSelectionBar(selection, selected, Modifier.align(Alignment.BottomCenter))
+            }
         }
+    }
+    if (pathEntryOpen) {
+        val current = state.crumbs.last().location
+        PathEntryDialog(
+            currentPath = current.relativePath?.trim('/').orEmpty(),
+            onDismiss = { pathEntryOpen = false },
+            onGo = { text ->
+                pathEntryOpen = false
+                parseTypedPath(text, current.volumeName ?: return@PathEntryDialog)?.let(onEnter)
+            },
+        )
     }
     dialog?.let { current ->
         val close = { dialog = null }
@@ -280,6 +326,16 @@ private fun FolderLevel(
                 onConfirm = { close(); actions?.onDelete?.invoke(current.folder) },
             )
             is FolderDialog.Properties -> PropertiesDialog(current.folder, state.crumbs, close)
+            is FolderDialog.Exclude -> ExcludeDialog(
+                folder = current.folder,
+                onDismiss = close,
+                onConfirm = { target -> close(); browse?.onSetExcluded?.invoke(target, true) },
+            )
+            is FolderDialog.Include -> IncludeDialog(
+                folder = current.folder,
+                onDismiss = close,
+                onConfirm = { close(); browse?.onSetExcluded?.invoke(current.folder.location, false) },
+            )
         }
     }
 }
@@ -296,17 +352,21 @@ private fun FolderLevelGrid(
     onDialog: (FolderDialog) -> Unit,
     upActions: List<CustomAccessibilityAction>,
     picking: ExplorerMode.PickDestination?,
+    browse: FolderBrowseActions?,
+    selection: ExplorerSelection,
+    scrollMemory: ScrollMemory,
 ) {
     // Each folder keeps its own scroll position: entering one starts at its top, going back restores the parent.
+    // The host owns the memory, so it also survives leaving the screen and the process.
     val locationKey = state.crumbs.last().location.let { "${it.volumeName}|${it.relativePath}" }
-    val positions = remember { HashMap<String, Pair<Int, Int>>() }
     val gridState = remember(locationKey) {
-        positions[locationKey]?.let { (index, offset) -> LazyGridState(index, offset) } ?: LazyGridState()
+        scrollMemory.get(locationKey)?.let { (index, offset) -> LazyGridState(index, offset) } ?: LazyGridState()
     }
     LaunchedEffect(gridState, locationKey) {
         snapshotFlow { gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset }
-            .collect { positions[locationKey] = it }
+            .collect { scrollMemory.set(locationKey, it) }
     }
+    val listMode = state.options.view == FolderViewMode.List && picking == null
     LazyVerticalGrid(
         columns = FolderLevelCells,
         state = gridState,
@@ -314,19 +374,36 @@ private fun FolderLevelGrid(
             .fillMaxSize()
             .testTag("folder-explorer-grid")
             .semantics { customActions = upActions },
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
+        contentPadding = PaddingValues(
+            start = 16.dp, end = 16.dp, top = 8.dp,
+            // Room for the selection bar so the last row stays reachable.
+            bottom = if (selection.selecting) 96.dp else 24.dp,
+        ),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         val cards = if (picking == null) state.folders else state.folders.filter { it.location != picking.sourceFolder }
-        items(cards, key = { it.key }, span = { GridItemSpan(CardSpan) }) { folder ->
-            FolderCard(folder, thumbnails, if (picking == null) actions else null, onDialog, picking != null) {
+        items(cards, key = { it.key }, span = { GridItemSpan(if (listMode) maxLineSpan else CardSpan) }) { folder ->
+            val open = {
                 when (val action = folder.action) {
                     is FolderAction.Enter -> onEnter(action.location)
                     // A picker only navigates: a folder without sub-folders is entered, not opened as an album.
                     is FolderAction.OpenFiles -> if (picking != null) onEnter(folder.location) else onOpenFiles(action.album)
                 }
             }
+            val activeActions = if (picking == null) actions else null
+            val activeBrowse = if (picking == null) browse else null
+            FolderEntry(
+                folder = folder,
+                loader = thumbnails,
+                actions = activeActions,
+                browse = activeBrowse,
+                onDialog = onDialog,
+                picking = picking != null,
+                listMode = listMode,
+                selection = if (picking == null) selection else ExplorerSelection.None,
+                onClick = open,
+            )
         }
         if (picking != null) return@LazyVerticalGrid
         if (state.hiddenItems.isNotEmpty()) {
@@ -342,7 +419,16 @@ private fun FolderLevelGrid(
                 count = media.itemCount,
                 key = media.itemKey { "media:${it.key.volumeName}:${it.key.mediaStoreId}" },
             ) { index ->
-                media[index]?.let { item -> MediaTile(item, thumbnails) { onMediaClick(item, scope) } }
+                media[index]?.let { item ->
+                    MediaTile(
+                        media = item,
+                        loader = thumbnails,
+                        selecting = selection.mediaSelecting,
+                        selected = selection.isMediaSelected(item.key),
+                        onLongClick = { selection.onToggleMedia(item) },
+                        onClick = { if (selection.mediaSelecting) selection.onToggleMedia(item) else onMediaClick(item, scope) },
+                    )
+                }
             }
         } else {
             state.files?.let { files ->
@@ -399,14 +485,17 @@ private object FolderLevelCells : GridCells {
 private fun volumeName(volumeName: String, label: String?): String =
     if (volumeName == PrimaryVolume) stringResource(R.string.folders_internal_storage) else label ?: volumeName
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun Breadcrumb(
     crumbs: List<CrumbUi>,
     onEnter: (FolderLocation) -> Unit,
     upActions: List<CustomAccessibilityAction>,
     modifier: Modifier = Modifier,
+    onEditPath: () -> Unit = {},
 ) {
     val scroll = rememberScrollState()
+    val editPathLabel = stringResource(R.string.folders_path_edit_action)
     // Deep paths overflow: keep the current folder in view.
     LaunchedEffect(crumbs) { scroll.scrollTo(scroll.maxValue) }
     val pathLabel = stringResource(R.string.folders_path_label)
@@ -419,7 +508,7 @@ private fun Breadcrumb(
             .semantics {
                 contentDescription = pathLabel
                 collectionInfo = CollectionInfo(rowCount = 1, columnCount = crumbs.size)
-                customActions = upActions
+                customActions = upActions + CustomAccessibilityAction(editPathLabel) { onEditPath(); true }
             },
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -434,7 +523,11 @@ private fun Breadcrumb(
                     .heightIn(min = 48.dp)
                     .clip(MaterialTheme.shapes.large)
                     .background(if (crumb.isCurrent) colors.secondaryContainer else colors.surface)
-                    .clickable(role = Role.Button) { onEnter(crumb.location) }
+                    .combinedClickable(
+                        role = Role.Button,
+                        onLongClickLabel = editPathLabel,
+                        onLongClick = onEditPath,
+                    ) { onEnter(crumb.location) }
                     .padding(horizontal = 12.dp)
                     .testTag("folder-crumb-$index")
                     .semantics {
@@ -479,7 +572,7 @@ private fun RevokedNotice(count: Int, onUnhide: () -> Unit) {
 }
 
 @Composable
-private fun Cover(cover: MediaKey?, loader: ThumbnailLoader?, modifier: Modifier) {
+internal fun Cover(cover: MediaKey?, loader: ThumbnailLoader?, modifier: Modifier) {
     val request = cover?.let { ThumbnailRequest(it, 0, 256, 256) }
     val bitmap by produceState(
         initialValue = request?.let { loader?.let { l -> l.cached(it) ?: l.bestCached(it.mediaKey, it.generationModified) } },
@@ -521,65 +614,102 @@ private fun dateRangeText(min: Long?, max: Long?): String? {
 
 private fun Long.toIntClamped(): Int = coerceIn(0L, Int.MAX_VALUE.toLong()).toInt()
 
+/** A folder as a card or, in list view, a row; owns its overflow menu and its selection look. */
+@Composable
+private fun FolderEntry(
+    folder: FolderCardUi,
+    loader: ThumbnailLoader?,
+    actions: FolderExplorerActions?,
+    browse: FolderBrowseActions?,
+    onDialog: (FolderDialog) -> Unit,
+    picking: Boolean,
+    listMode: Boolean,
+    selection: ExplorerSelection,
+    onClick: () -> Unit,
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+    val isAndroidTree = folder.location.relativePath?.let { isAndroidAppTree(it) } == true
+    val hasMenu = !picking && (browse != null || (actions != null && !isAndroidTree))
+    val moreDescription = stringResource(R.string.folders_more_options_for, folder.name)
+    val selecting = selection.selectingFolders
+    val selected = folder.key in selection.folders
+    val canSelect = !picking && browse != null
+    val menu: (@Composable () -> Unit)? = if (hasMenu) {
+        {
+            Box {
+                IconButton(onClick = { menuOpen = true }, modifier = Modifier.testTag("folder-card-menu-${folder.key}")) {
+                    Icon(GalleryIcons.More, contentDescription = moreDescription)
+                }
+                FolderMenu(folder, actions, browse, menuOpen, { menuOpen = false }, onDialog)
+            }
+        }
+    } else {
+        null
+    }
+    val click = { if (selecting) selection.onToggleFolder(folder) else onClick() }
+    val longClick = if (canSelect) ({ selection.onToggleFolder(folder) }) else null
+    if (listMode) {
+        FolderRow(folder, loader, selecting, selected, picking, click, longClick, menu)
+    } else {
+        FolderCard(folder, loader, picking, selecting, selected, click, longClick, menu, moreDescription)
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun FolderCard(
     folder: FolderCardUi,
     loader: ThumbnailLoader?,
-    actions: FolderExplorerActions?,
-    onDialog: (FolderDialog) -> Unit,
     picking: Boolean,
+    selecting: Boolean,
+    selected: Boolean,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)?,
+    menu: (@Composable () -> Unit)?,
+    moreDescription: String,
 ) {
     val colors = MaterialTheme.colorScheme
-    var menuOpen by remember { mutableStateOf(false) }
-    val hasMenu = actions != null && folder.location.relativePath?.let { !isAndroidAppTree(it) } == true
-    val moreDescription = stringResource(R.string.folders_more_options_for, folder.name)
-    val body: @Composable ColumnScope.() -> Unit = {
+    val selectedState = stringResource(R.string.folders_selected_state)
+    val selectLabel = stringResource(R.string.folders_select_action)
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (folder.isExcluded) 0.6f else 1f)
+            .testTag("folder-card-${folder.key}")
+            .clip(MaterialTheme.shapes.medium)
+            .combinedClickable(
+                role = Role.Button,
+                onLongClickLabel = selectLabel,
+                onLongClick = onLongClick,
+                onClick = onClick,
+            )
+            .semantics { if (selecting) { this.selected = selected; if (selected) stateDescription = selectedState } },
+        colors = CardDefaults.cardColors(containerColor = colors.surfaceContainerHigh),
+        border = if (selected) BorderStroke(2.dp, colors.primary) else null,
+    ) {
         Box {
             Cover(folder.cover, loader, Modifier.fillMaxWidth().aspectRatio(1.5f))
-            if (folder.isHidden && !picking) HiddenBadge(Modifier.align(Alignment.TopStart).padding(8.dp))
+            Row(
+                Modifier.align(Alignment.TopStart).padding(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (selecting) SelectionCheck(selected)
+                if (folder.isPinned) PinnedBadge()
+                if (folder.isHidden && !picking) HiddenBadge(Modifier)
+                if (folder.isExcluded) ExcludedBadge()
+            }
         }
-        Row(Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp, end = if (hasMenu) 4.dp else 12.dp)) {
+        Row(Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp, end = if (menu != null) 4.dp else 12.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(folder.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                folder.pathLabel?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
                 CardSummary(folder)
             }
-            if (actions != null && hasMenu) {
-                Box {
-                    IconButton(
-                        onClick = { menuOpen = true },
-                        modifier = Modifier.testTag("folder-card-menu-${folder.key}"),
-                    ) {
-                        Icon(GalleryIcons.More, contentDescription = moreDescription)
-                    }
-                    FolderMenu(folder, actions, menuOpen, { menuOpen = false }, onDialog)
-                }
-            }
+            menu?.invoke()
         }
-    }
-    if (hasMenu) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("folder-card-${folder.key}")
-                .clip(MaterialTheme.shapes.medium)
-                .combinedClickable(
-                    role = Role.Button,
-                    onLongClickLabel = moreDescription,
-                    onLongClick = { menuOpen = true },
-                    onClick = onClick,
-                ),
-            colors = CardDefaults.cardColors(containerColor = colors.surfaceContainerHigh),
-            content = body,
-        )
-    } else {
-        Card(
-            onClick = onClick,
-            modifier = Modifier.fillMaxWidth().testTag("folder-card-${folder.key}"),
-            colors = CardDefaults.cardColors(containerColor = colors.surfaceContainerHigh),
-            content = body,
-        )
     }
 }
 
@@ -622,7 +752,7 @@ private fun CardSummary(folder: FolderCardUi) {
 }
 
 @Composable
-private fun HiddenBadge(modifier: Modifier) {
+internal fun HiddenBadge(modifier: Modifier) {
     val colors = MaterialTheme.colorScheme
     Surface(
         color = colors.tertiaryContainer,
@@ -644,42 +774,72 @@ private fun HiddenBadge(modifier: Modifier) {
 @Composable
 private fun FolderMenu(
     folder: FolderCardUi,
-    actions: FolderExplorerActions,
+    actions: FolderExplorerActions?,
+    browse: FolderBrowseActions?,
     expanded: Boolean,
     onDismiss: () -> Unit,
     onDialog: (FolderDialog) -> Unit,
 ) {
+    val isAndroidTree = folder.location.relativePath?.let { isAndroidAppTree(it) } == true
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
-        if (!folder.isHidden && !folder.isEmptyDirectory && !isStandardFolder(folder.location.relativePath)) {
+        if (browse != null) {
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.folders_menu_hide)) },
-                leadingIcon = { Icon(GalleryIcons.VisibilityOff, contentDescription = null) },
-                onClick = { onDismiss(); actions.onHide(folder) },
-                modifier = Modifier.testTag("folder-menu-hide"),
+                text = { Text(stringResource(if (folder.isPinned) R.string.folders_menu_unpin else R.string.folders_menu_pin)) },
+                leadingIcon = { Icon(GalleryIcons.Pin, contentDescription = null) },
+                onClick = { onDismiss(); browse.onTogglePin(folder) },
+                modifier = Modifier.testTag("folder-menu-pin"),
             )
+            if (folder.location.relativePath != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(if (folder.isExcluded) R.string.folders_menu_include else R.string.folders_menu_exclude)) },
+                    leadingIcon = { Icon(GalleryIcons.Block, contentDescription = null) },
+                    onClick = {
+                        onDismiss()
+                        onDialog(if (folder.isExcluded) FolderDialog.Include(folder) else FolderDialog.Exclude(folder))
+                    },
+                    modifier = Modifier.testTag("folder-menu-exclude"),
+                )
+            }
         }
-        if (folder.isHidden && folder.isHiddenByApp) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.folders_menu_unhide)) },
-                leadingIcon = { Icon(GalleryIcons.Visibility, contentDescription = null) },
-                onClick = { onDismiss(); actions.onUnhide(folder) },
-                modifier = Modifier.testTag("folder-menu-unhide"),
-            )
-        }
-        if (!isStandardFolder(folder.location.relativePath)) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.folders_menu_move)) },
-                leadingIcon = { Icon(GalleryIcons.DriveFileMove, contentDescription = null) },
-                onClick = { onDismiss(); actions.onMove(folder) },
-                modifier = Modifier.testTag("folder-menu-move"),
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.folders_menu_rename)) },
-                leadingIcon = { Icon(GalleryIcons.Rename, contentDescription = null) },
-                onClick = { onDismiss(); onDialog(FolderDialog.Rename(folder)) },
-                modifier = Modifier.testTag("folder-menu-rename"),
-            )
-            if (folder.isEmptyDirectory && folder.subfolderCount == 0) {
+        if (actions != null && !isAndroidTree) {
+            // Hide does nothing in a standard top-level folder: the system removes a .nomedia placed there.
+            if (!folder.isHidden && !folder.isEmptyDirectory && !isStandardFolder(folder.location.relativePath)) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.folders_menu_hide)) },
+                    leadingIcon = { Icon(GalleryIcons.VisibilityOff, contentDescription = null) },
+                    onClick = { onDismiss(); actions.onHide(folder) },
+                    modifier = Modifier.testTag("folder-menu-hide"),
+                )
+            }
+            if (folder.isHidden && folder.isHiddenByApp) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.folders_menu_unhide)) },
+                    leadingIcon = { Icon(GalleryIcons.Visibility, contentDescription = null) },
+                    onClick = { onDismiss(); actions.onUnhide(folder) },
+                    modifier = Modifier.testTag("folder-menu-unhide"),
+                )
+            }
+            if (!folder.isEmptyDirectory) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.folders_menu_copy)) },
+                    leadingIcon = { Icon(GalleryIcons.ContentCopy, contentDescription = null) },
+                    onClick = { onDismiss(); actions.onCopy(folder) },
+                    modifier = Modifier.testTag("folder-menu-copy"),
+                )
+            }
+            if (!isStandardFolder(folder.location.relativePath)) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.folders_menu_move)) },
+                    leadingIcon = { Icon(GalleryIcons.DriveFileMove, contentDescription = null) },
+                    onClick = { onDismiss(); actions.onMove(folder) },
+                    modifier = Modifier.testTag("folder-menu-move"),
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.folders_menu_rename)) },
+                    leadingIcon = { Icon(GalleryIcons.Rename, contentDescription = null) },
+                    onClick = { onDismiss(); onDialog(FolderDialog.Rename(folder)) },
+                    modifier = Modifier.testTag("folder-menu-rename"),
+                )
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.folders_menu_delete)) },
                     leadingIcon = { Icon(GalleryIcons.Trash, contentDescription = null) },
@@ -791,10 +951,17 @@ private fun FolderNameProblem.messageRes(): Int = when (this) {
 
 @Composable
 private fun DeleteDialog(folder: FolderCardUi, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    val empty = folder.isEmptyDirectory && folder.subfolderCount == 0
+    val items = folder.itemCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.folders_delete_title)) },
-        text = { Text(stringResource(R.string.folders_delete_body, folder.name)) },
+        title = { Text(stringResource(if (empty) R.string.folders_delete_title else R.string.folders_delete_all_title)) },
+        text = {
+            Text(
+                if (empty) stringResource(R.string.folders_delete_body, folder.name)
+                else pluralStringResource(R.plurals.folders_delete_all_body, items, folder.name, items),
+            )
+        },
         confirmButton = {
             TextButton(onClick = onConfirm, modifier = Modifier.testTag("folder-delete-confirm")) {
                 Text(stringResource(R.string.folders_delete_confirm))
@@ -845,13 +1012,22 @@ private fun PropertyRow(label: String, value: String) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun MediaTile(media: TimelineMedia, loader: ThumbnailLoader?, onClick: () -> Unit) {
+private fun MediaTile(
+    media: TimelineMedia,
+    loader: ThumbnailLoader?,
+    selecting: Boolean,
+    selected: Boolean,
+    onLongClick: () -> Unit,
+    onClick: () -> Unit,
+) {
     val request = ThumbnailRequest(media.key, media.generationModified, TileThumbnailPx, TileThumbnailPx)
     val bitmap by produceState(loader?.cached(request), request, loader) {
         if (value == null && loader != null) value = runCatching { loader.load(request) }.getOrNull()
     }
     val isVideo = media.kind == MediaKind.Video
+    val selectLabel = stringResource(R.string.folders_select_action)
     val description = mediaTileDescription(
         if (isVideo) videoDurationDescription(media.durationMillis) else stringResource(R.string.folders_photo),
         media.isFavorite,
@@ -865,10 +1041,12 @@ private fun MediaTile(media: TimelineMedia, loader: ThumbnailLoader?, onClick: (
             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
             .clearAndSetSemantics {
                 contentDescription = description
+                if (selecting) this.selected = selected
                 this.onClick { onClick(); true }
+                this.onLongClick(selectLabel) { onLongClick(); true }
             }
             .testTag("folder-media-${media.key.volumeName}-${media.key.mediaStoreId}")
-            .clickable(onClick = onClick),
+            .combinedClickable(onLongClickLabel = selectLabel, onLongClick = onLongClick, onClick = onClick),
     ) {
         bitmap?.let { Image(it.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
         if (!isVideo) {
@@ -887,6 +1065,7 @@ private fun MediaTile(media: TimelineMedia, loader: ThumbnailLoader?, onClick: (
         if (isVideo) {
             VideoDurationBadge(media.durationMillis, Modifier.align(Alignment.BottomEnd).padding(4.dp))
         }
+        if (selecting) SelectionCheck(selected, Modifier.align(Alignment.TopEnd).padding(6.dp))
     }
 }
 
