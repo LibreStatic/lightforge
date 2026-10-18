@@ -26,6 +26,7 @@ dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:thumbnail"))
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.paging.compose)
     implementation(platform(libs.compose.bom))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")

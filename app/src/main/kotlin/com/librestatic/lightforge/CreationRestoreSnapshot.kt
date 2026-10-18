@@ -168,6 +168,7 @@ data class CreationRestoreSnapshot(
                 MediaQuery.Scope.Screenshots -> MediaQuery.Scope.Screenshots
                 is MediaQuery.Scope.PhysicalAlbum -> source.copy()
                 is MediaQuery.Scope.VirtualAlbum -> source.copy()
+                is MediaQuery.Scope.Folder -> source.copy()
                 is MediaQuery.Scope.Search -> source.copy()
                 is MediaQuery.Scope.LargeVideos -> source.copy()
                 is MediaQuery.Scope.BlurryCandidates -> source.copy().also { require(it.maximumScore.isFinite()) }

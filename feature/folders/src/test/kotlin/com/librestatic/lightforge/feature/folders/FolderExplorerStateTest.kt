@@ -145,4 +145,98 @@ class FolderExplorerStateTest {
         assertEquals(FolderLocation.Start, resolveLocation(two, FolderLocation("missing", "DCIM/")))
         assertEquals(FolderLocation("external_primary", null), resolveLocation(single, FolderLocation("missing", null)))
     }
+
+    // Advanced mode
+
+    private val advancedTree = com.librestatic.lightforge.core.model.folders.mergeAdvancedOverlay(
+        single,
+        hiddenGroups = listOf(
+            com.librestatic.lightforge.core.model.folders.HiddenFolderGroup(
+                "external_primary", "Pictures/Private/", 4, 400, 50, 60, 9,
+                com.librestatic.lightforge.core.model.folders.HiddenMediaKind.Image,
+            ),
+        ),
+        emptyDirs = listOf(com.librestatic.lightforge.core.model.folders.EmptyDirectory("external_primary", "Empty/")),
+    )
+
+    private fun cardsAtRoot(tree: FolderTree, recorded: (FolderLocation) -> Boolean = { false }) =
+        (buildFolderExplorerUiState(tree, FolderLocation.Start, isRecordedHide = recorded) as FolderExplorerUiState.Folder).folders
+
+    @Test
+    fun modeOffCardsCarryNoAdvancedFlags() {
+        val cards = cardsAtRoot(single)
+        assertTrue(cards.none { it.isHidden || it.isEmptyDirectory || it.isHiddenByApp })
+    }
+
+    @Test
+    fun hiddenAndEmptyFoldersAreFlagged() {
+        val cards = cardsAtRoot(advancedTree) { it.relativePath == "Pictures/Private/" }
+        val pictures = cards.single { it.name.startsWith("Pictures") }
+        assertEquals(1, cards.count { it.isEmptyDirectory })
+        val empty = cards.single { it.isEmptyDirectory }
+        assertEquals(0L, empty.itemCount)
+        assertNull(empty.minSortMillis)
+        assertTrue(pictures.itemCount > 0)
+        val hidden = (buildFolderExplorerUiState(
+            advancedTree, FolderLocation("external_primary", "Pictures/"),
+            isRecordedHide = { it.relativePath == "Pictures/Private/" },
+        ) as FolderExplorerUiState.Folder).folders.single { it.isHidden }
+        assertTrue(hidden.isHiddenByApp)
+        assertEquals(4L, hidden.directCount)
+        assertEquals(50L, hidden.minSortMillis)
+        assertEquals(60L, hidden.maxSortMillis)
+        assertTrue(hidden.action is FolderAction.Enter)
+    }
+
+    @Test
+    fun hiddenItemsShowOnlyInTheirOwnFolder() {
+        val item = HiddenItemUi("external_primary", "Pictures/Private", 9, "a.jpg", "image/jpeg", false, 1, 1, "content://x/9")
+        val inside = buildFolderExplorerUiState(
+            advancedTree, FolderLocation("external_primary", "Pictures/Private/"), hiddenItems = listOf(item),
+        ) as FolderExplorerUiState.Folder
+        assertEquals(listOf(item), inside.hiddenItems)
+        val elsewhere = buildFolderExplorerUiState(
+            advancedTree, FolderLocation("external_primary", "Pictures/"), hiddenItems = listOf(item),
+        ) as FolderExplorerUiState.Folder
+        assertTrue(elsewhere.hiddenItems.isEmpty())
+    }
+
+    @Test
+    fun emptyDirectoryOpensAsAnEmptyFolder() {
+        val state = buildFolderExplorerUiState(advancedTree, FolderLocation("external_primary", "Empty/")) as FolderExplorerUiState.Folder
+        assertTrue(state.isEmpty)
+    }
+
+    @Test
+    fun folderWithFilesGetsAnInlineMediaScope() {
+        val state = buildFolderExplorerUiState(single, FolderLocation("external_primary", "DCIM/Camera/")) as FolderExplorerUiState.Folder
+        assertEquals(FolderMediaScope("external_primary", "DCIM/Camera/", false), state.media)
+        val flattened = buildFolderExplorerUiState(
+            single, FolderLocation("external_primary", "DCIM/"), includeSubfolders = true,
+        ) as FolderExplorerUiState.Folder
+        assertEquals(FolderMediaScope("external_primary", "DCIM/", true), flattened.media)
+        val root = buildFolderExplorerUiState(single, FolderLocation("external_primary", null)) as FolderExplorerUiState.Folder
+        assertNull(root.media)
+    }
+
+    @Test
+    fun singleVolumeRootReportsItsSpace() {
+        val space = VolumeSpace(null, 5, 10)
+        val root = buildFolderExplorerUiState(single, FolderLocation.Start, mapOf("external_primary" to space)) as FolderExplorerUiState.Folder
+        assertEquals(space, root.rootSpace)
+        val nested = buildFolderExplorerUiState(
+            single, FolderLocation("external_primary", "DCIM/Camera/"), mapOf("external_primary" to space),
+        ) as FolderExplorerUiState.Folder
+        assertNull(nested.rootSpace)
+    }
+
+    @Test
+    fun folderNameValidation() {
+        assertNull(validateFolderName("Trips", listOf("Other")))
+        assertEquals(FolderNameProblem.Blank, validateFolderName("  ", emptyList()))
+        assertEquals(FolderNameProblem.Reserved, validateFolderName("..", emptyList()))
+        assertEquals(FolderNameProblem.InvalidCharacters, validateFolderName("a/b", emptyList()))
+        assertEquals(FolderNameProblem.TooLong, validateFolderName("x".repeat(256), emptyList()))
+        assertEquals(FolderNameProblem.AlreadyExists, validateFolderName("trips", listOf("Trips")))
+    }
 }

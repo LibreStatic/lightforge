@@ -42,6 +42,13 @@ data class MediaQuery(
                 require(volumeName.isNotBlank())
             }
         }
+        /** Media stored in one folder by relative path ("A/B/"), optionally with every subfolder below it. */
+        data class Folder(val volumeName: String, val relativePath: String, val includeSubfolders: Boolean = false) : Scope {
+            init {
+                require(volumeName.isNotBlank())
+                require(relativePath.isNotBlank())
+            }
+        }
         data class VirtualAlbum(val albumId: Long) : Scope {
             init {
                 require(albumId >= 0)

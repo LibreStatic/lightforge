@@ -63,4 +63,6 @@
         <item quantity="one">%1$s, %2$d Element</item>
         <item quantity="other">%1$s, %2$d Elemente</item>
     </plurals>
+    <string name="photos_menu_show_hidden">Ausgeblendete Elemente vorerst anzeigen</string>
+    <string name="photos_menu_checked">Aktiviert</string>
 </resources>

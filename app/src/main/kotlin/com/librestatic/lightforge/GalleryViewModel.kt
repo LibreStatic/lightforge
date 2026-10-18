@@ -2954,6 +2954,29 @@ class GalleryViewModel @Inject constructor(
         selectAlbum(album.key, filter, sort)
     }
 
+    /** The media stored in one device folder (optionally with its subfolders), for the folder explorer's inline grid. */
+    fun folderMedia(volumeName: String, relativePath: String, includeSubfolders: Boolean): Flow<PagingData<TimelineMedia>> =
+        runtime.filterNotNull()
+            .flatMapLatest { it.albums.mediaInFolder(volumeName, relativePath, includeSubfolders) }
+            .withoutPending(pendingLibraryRemovals) { it.key }
+
+    /** Opens the viewer over a device folder, so swiping stays inside that folder (and its subfolders when asked). */
+    fun openFolderMedia(media: TimelineMedia, volumeName: String, relativePath: String, includeSubfolders: Boolean) =
+        openMedia(
+            media,
+            MediaQuery(scope = MediaQuery.Scope.Folder(volumeName, relativePath, includeSubfolders)),
+        )
+
+    /** Re-reads one folder subtree from MediaStore (after a hide, unhide or rename), then refreshes the library. */
+    suspend fun reconcileFolder(volumeName: String, relativePathPrefix: String) {
+        val active = runtime.value ?: return
+        active.synchronizer.reconcileFolder(volumeName, relativePathPrefix)
+        refreshLibrary()
+    }
+
+    /** The folder explorer's Refresh: a full catch-up with MediaStore. */
+    suspend fun refreshFolders() = refreshLibrary(reconcileUnobservedChanges = true)
+
     fun toggleSelection(media: TimelineMedia) {
         setMediaSelected(
             media = media,

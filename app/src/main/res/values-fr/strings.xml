@@ -139,4 +139,19 @@
 <string name="video_music_untitled">Piste audio</string>
     <string name="share_cropped_failed">Impossible de préparer le JPEG recadré</string>
     <string name="share_cropped_too_large">Mémoire insuffisante pour développer ce RAW en JPEG. Partagez l’original ou exportez-le en TIFF depuis l’éditeur.</string>
+    <string name="folder_op_hidden">Dossier masqué</string>
+    <string name="folder_op_unhidden">Dossier de nouveau visible</string>
+    <string name="folder_op_renamed">Dossier renommé</string>
+    <string name="folder_op_deleted">Dossier supprimé</string>
+    <string name="folder_op_created">Dossier créé</string>
+    <string name="folder_op_not_granted">L\'accès à tous les fichiers n\'est pas accordé.</string>
+    <string name="folder_op_grant_action">Accorder l\'accès</string>
+    <string name="folder_op_hidden_by_others">Une autre application masque déjà ce dossier avec son propre fichier .nomedia ; il ne peut pas être réaffiché ici.</string>
+    <string name="folder_op_failed">Le dossier n\'a pas été modifié.</string>
+    <string name="device_folders_new_folder">Nouveau dossier</string>
+    <string name="device_folders_more_options">Plus d\'options</string>
+    <string name="device_folders_show_hidden">Afficher les éléments masqués pour l\'instant</string>
+    <string name="device_folders_include_subfolders">Inclure les sous-dossiers</string>
+    <string name="device_folders_refresh">Actualiser</string>
+    <string name="device_folders_checked">Coché</string>
 </resources>

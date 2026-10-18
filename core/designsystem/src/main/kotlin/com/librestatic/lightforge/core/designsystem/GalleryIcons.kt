@@ -10,6 +10,9 @@ import androidx.compose.material.icons.automirrored.rounded.Redo
 import androidx.compose.material.icons.automirrored.rounded.Undo
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.VolumeOff
+import androidx.compose.material.icons.rounded.CreateNewFolder
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material.icons.rounded.Exposure
 import androidx.compose.material.icons.rounded.Contrast
 import androidx.compose.material.icons.rounded.LightMode
@@ -186,6 +189,9 @@ val GalleryIconUnarchive: ImageVector get() = Icons.Rounded.Unarchive
 val GalleryIconRestoreFromTrash: ImageVector get() = Icons.Rounded.RestoreFromTrash
 val GalleryIconAsk: ImageVector get() = Icons.Rounded.AutoAwesome
 val GalleryIconFolder: ImageVector get() = Icons.Rounded.Folder
+val GalleryIconCreateNewFolder: ImageVector get() = Icons.Rounded.CreateNewFolder
+val GalleryIconVisibility: ImageVector get() = Icons.Rounded.Visibility
+val GalleryIconVisibilityOff: ImageVector get() = Icons.Rounded.VisibilityOff
 val GalleryIconSidePanel: ImageVector get() = Icons.AutoMirrored.Rounded.ViewSidebar
 val GalleryIconNotifications: ImageVector get() = Icons.Rounded.Notifications
 val GalleryIconLayers: ImageVector get() = Icons.Rounded.Layers
@@ -407,6 +413,9 @@ object GalleryIcons {
     val RestoreFromTrash get() = GalleryIconRestoreFromTrash
     val Ask get() = GalleryIconAsk
     val Folder get() = GalleryIconFolder
+    val CreateNewFolder get() = GalleryIconCreateNewFolder
+    val Visibility get() = GalleryIconVisibility
+    val VisibilityOff get() = GalleryIconVisibilityOff
     val SidePanel get() = GalleryIconSidePanel
     val Notifications get() = GalleryIconNotifications
     val Layers get() = GalleryIconLayers

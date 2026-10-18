@@ -31,6 +31,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -80,6 +81,9 @@ fun LibraryPhotosRoute(
     onRequestAccess: () -> Unit,
     onOpenSettings: () -> Unit = {},
     onOpenDeviceFolders: () -> Unit = {},
+    /** Advanced storage only: null hides the entry, otherwise it is the checked state of "Show hidden items for now". */
+    temporaryShowHidden: Boolean? = null,
+    onTemporaryShowHiddenChange: (Boolean) -> Unit = {},
     @Suppress("UNUSED_PARAMETER") onCreate: () -> Unit = {},
     onOpenUpdates: () -> Unit = {},
     activeExportCount: Int = 0,
@@ -165,7 +169,12 @@ fun LibraryPhotosRoute(
                     contentDescription = activeExportDescription
                         ?: stringResource(R.string.photos_updates),
                 )
-                PhotosOverflowMenu(onOpenSettings = onOpenSettings, onOpenDeviceFolders = onOpenDeviceFolders)
+                PhotosOverflowMenu(
+                    onOpenSettings = onOpenSettings,
+                    onOpenDeviceFolders = onOpenDeviceFolders,
+                    temporaryShowHidden = temporaryShowHidden,
+                    onTemporaryShowHiddenChange = onTemporaryShowHiddenChange,
+                )
             }
             if (access.isLimited) Text(
                 stringResource(R.string.limited_access_label),
@@ -417,7 +426,12 @@ private fun PermissionRequired(onRequestAccess: () -> Unit) {
 }
 
 @Composable
-private fun PhotosOverflowMenu(onOpenSettings: () -> Unit, onOpenDeviceFolders: () -> Unit) {
+private fun PhotosOverflowMenu(
+    onOpenSettings: () -> Unit,
+    onOpenDeviceFolders: () -> Unit,
+    temporaryShowHidden: Boolean?,
+    onTemporaryShowHiddenChange: (Boolean) -> Unit,
+) {
     var expanded by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     androidx.compose.foundation.layout.Box {
         GalleryExpressiveIconButton(onClick = { expanded = true }) {
@@ -429,6 +443,17 @@ private fun PhotosOverflowMenu(onOpenSettings: () -> Unit, onOpenDeviceFolders: 
                 leadingIcon = { Icon(GalleryIcons.Folder, contentDescription = null) },
                 onClick = { expanded = false; onOpenDeviceFolders() },
             )
+            if (temporaryShowHidden != null) {
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(stringResource(R.string.photos_menu_show_hidden)) },
+                    leadingIcon = { Icon(GalleryIcons.Visibility, contentDescription = null) },
+                    trailingIcon = if (temporaryShowHidden) {
+                        { Icon(GalleryIcons.Check, contentDescription = stringResource(R.string.photos_menu_checked)) }
+                    } else null,
+                    onClick = { expanded = false; onTemporaryShowHiddenChange(!temporaryShowHidden) },
+                    modifier = Modifier.testTag("photos-menu-show-hidden"),
+                )
+            }
             androidx.compose.material3.DropdownMenuItem(
                 text = { Text(stringResource(R.string.photos_menu_settings)) },
                 leadingIcon = { Icon(GalleryIcons.Settings, contentDescription = null) },

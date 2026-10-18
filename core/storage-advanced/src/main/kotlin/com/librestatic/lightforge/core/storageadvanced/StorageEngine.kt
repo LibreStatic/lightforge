@@ -324,7 +324,7 @@ internal class StorageEngine(
 
     companion object {
         const val NOMEDIA = ".nomedia"
-        const val ALREADY_HIDDEN_BY_OTHERS = "already hidden by someone else"
+        const val ALREADY_HIDDEN_BY_OTHERS = com.librestatic.lightforge.core.mediastore.ALREADY_HIDDEN_BY_OTHERS
         const val PENDING_PREFIX = ".pending-"
         const val TRASHED_PREFIX = ".trashed-"
 

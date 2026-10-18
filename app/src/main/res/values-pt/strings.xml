@@ -139,4 +139,19 @@
 <string name="video_music_untitled">Faixa de áudio</string>
     <string name="share_cropped_failed">Não foi possível preparar o JPEG cortado</string>
     <string name="share_cropped_too_large">Memória insuficiente para revelar este RAW como JPEG. Compartilhe o original ou exporte como TIFF no editor.</string>
+    <string name="folder_op_hidden">Pasta oculta</string>
+    <string name="folder_op_unhidden">Pasta visível novamente</string>
+    <string name="folder_op_renamed">Pasta renomeada</string>
+    <string name="folder_op_deleted">Pasta excluída</string>
+    <string name="folder_op_created">Pasta criada</string>
+    <string name="folder_op_not_granted">O acesso a todos os arquivos não foi concedido.</string>
+    <string name="folder_op_grant_action">Conceder acesso</string>
+    <string name="folder_op_hidden_by_others">Outro app já oculta esta pasta com o próprio arquivo .nomedia, então ela não pode ser exibida novamente aqui.</string>
+    <string name="folder_op_failed">A pasta não foi alterada.</string>
+    <string name="device_folders_new_folder">Nova pasta</string>
+    <string name="device_folders_more_options">Mais opções</string>
+    <string name="device_folders_show_hidden">Mostrar itens ocultos por enquanto</string>
+    <string name="device_folders_include_subfolders">Incluir subpastas</string>
+    <string name="device_folders_refresh">Atualizar</string>
+    <string name="device_folders_checked">Marcado</string>
 </resources>

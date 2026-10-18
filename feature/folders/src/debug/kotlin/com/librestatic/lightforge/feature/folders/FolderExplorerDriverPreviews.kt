@@ -10,7 +10,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.librestatic.lightforge.core.designsystem.LightforgeTheme
+import com.librestatic.lightforge.core.model.folders.EmptyDirectory
 import com.librestatic.lightforge.core.model.folders.FolderNode
+import com.librestatic.lightforge.core.model.folders.HiddenFolderGroup
+import com.librestatic.lightforge.core.model.folders.HiddenMediaKind
+import com.librestatic.lightforge.core.model.folders.mergeAdvancedOverlay
 import com.librestatic.lightforge.core.model.folders.FolderStats
 import com.librestatic.lightforge.core.model.folders.FolderTree
 import com.librestatic.lightforge.core.model.folders.NaturalNameOrder
@@ -43,20 +47,75 @@ fun FolderExplorerDeepPreview() =
 @Composable
 fun FolderExplorerEmptyPreview() = Frame(FolderTree.Empty, FolderLocation.Start)
 
+/** Advanced mode off: the plain read-only browse view, with no overflow, badges or hidden rows. */
 @Composable
-private fun Frame(tree: FolderTree, start: FolderLocation) {
+fun FolderExplorerBrowseOffPreview() = Frame(singleVolume, FolderLocation.Start)
+
+/**
+ * Advanced mode on: hidden folders carry the Hidden badge, an empty directory is listed, each card has
+ * an overflow menu (tap `folder-card-menu-<key>`; long-press works too).
+ */
+@Composable
+fun FolderExplorerAdvancedPreview() = Frame(advancedTree, FolderLocation.Start, actions = previewActions)
+
+/** Advanced mode, inside a hidden folder: its items show in a read-only grid. */
+@Composable
+fun FolderExplorerAdvancedHiddenFolderPreview() = Frame(
+    advancedTree,
+    FolderLocation("external_primary", "Pictures/Private/"),
+    actions = previewActions,
+    hiddenItems = previewHiddenItems,
+)
+
+/** Advanced mode was revoked while this app still hides folders: the notice offers to unhide them. */
+@Composable
+fun FolderExplorerRevokedPreview() = Frame(singleVolume, FolderLocation.Start, revoked = 2)
+
+/** The folder tree could not be read: the error state with Retry. */
+@Composable
+fun FolderExplorerErrorPreview() = Frame(state = FolderExplorerUiState.Error)
+
+/** A folder without anything in it. */
+@Composable
+fun FolderExplorerEmptyFolderPreview() = Frame(advancedTree, FolderLocation("external_primary", "Empty/"), actions = previewActions)
+
+@Composable
+private fun Frame(
+    tree: FolderTree = FolderTree.Empty,
+    start: FolderLocation = FolderLocation.Start,
+    actions: FolderExplorerActions? = null,
+    hiddenItems: List<HiddenItemUi> = emptyList(),
+    revoked: Int = 0,
+    state: FolderExplorerUiState? = null,
+) {
     LightforgeTheme {
         Surface(Modifier.fillMaxSize()) {
             var location by remember { mutableStateOf(start) }
             val loader = remember { ThumbnailLoader(FakeThumbnails, maxCacheBytes = 16L * 1024 * 1024, threadCount = 1) }
             FolderExplorerContent(
-                state = buildFolderExplorerUiState(tree, location, spaces),
+                state = state ?: buildFolderExplorerUiState(
+                    tree, location, spaces, hiddenItems = hiddenItems, isRecordedHide = { it.relativePath == "Pictures/Private/" },
+                ),
                 thumbnails = loader,
                 onEnter = { location = it },
                 onOpenFiles = {},
+                actions = actions,
+                revokedWithHidden = revoked,
             )
         }
     }
+}
+
+private val previewActions = FolderExplorerActions(
+    onHide = {},
+    onUnhide = {},
+    onRename = { _, _ -> },
+    onDelete = {},
+    onOpenHiddenItem = {},
+)
+
+private val previewHiddenItems = (1L..6L).map {
+    HiddenItemUi("external_primary", "Pictures/Private/", it, "IMG_000$it.jpg", "image/jpeg", it % 3 == 0L, 3_200_000L, 1_700_000_000_000L + it, "content://media/$it")
 }
 
 private val spaces = mapOf(
@@ -94,6 +153,13 @@ private val primaryRows = arrayOf(
 )
 
 private val singleVolume = tree(*primaryRows)
+private val advancedTree = mergeAdvancedOverlay(
+    singleVolume,
+    hiddenGroups = listOf(
+        HiddenFolderGroup("external_primary", "Pictures/Private/", 6, 19_200_000L, 1_700_000_000_000L, 1_700_000_000_006L, 1L, HiddenMediaKind.Image),
+    ),
+    emptyDirs = listOf(EmptyDirectory("external_primary", "Empty/"), EmptyDirectory("external_primary", "Pictures/New/")),
+)
 private val twoVolumes = tree(*primaryRows, Row("1234-ABCD", "DCIM/Camera/", 7, 310, 400))
 
 private val FakeThumbnails = ThumbnailSource { request, _ ->

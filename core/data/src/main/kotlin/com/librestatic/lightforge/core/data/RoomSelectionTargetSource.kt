@@ -91,7 +91,7 @@ internal object CleanupScopeSql {
         is MediaQuery.Scope.ExactDuplicateGroup ->
             "duplicate_hashes dh JOIN media_items m ON m.volumeName=dh.volumeName " +
                 "AND m.mediaStoreId=dh.mediaStoreId"
-        is MediaQuery.Scope.LargeVideos, MediaQuery.Scope.Screenshots -> "media_items m"
+        is MediaQuery.Scope.LargeVideos, MediaQuery.Scope.Screenshots, is MediaQuery.Scope.Folder -> "media_items m"
         else -> null
     }
 
@@ -100,6 +100,8 @@ internal object CleanupScopeSql {
             is MediaQuery.Scope.LargeVideos -> {
                 where += "m.mediaType=3"; where += "m.sizeBytes>=?"; args += scope.minimumBytes
             }
+            is MediaQuery.Scope.Folder ->
+                where += FolderSelectionSql.folderPredicate("m", scope.volumeName, scope.relativePath, scope.includeSubfolders, args)
             MediaQuery.Scope.Screenshots -> where += "(LOWER(COALESCE(m.bucketDisplayName,'')) LIKE '%screenshot%' OR LOWER(COALESCE(m.relativePath,'')) LIKE '%screenshot%' OR LOWER(COALESCE(m.displayName,'')) LIKE '%screenshot%')"
             is MediaQuery.Scope.BlurryCandidates -> {
                 where += "sf.algorithmVersion=?"; args += scope.algorithmVersion

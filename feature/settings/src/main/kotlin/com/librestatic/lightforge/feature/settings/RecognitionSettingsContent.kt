@@ -55,6 +55,7 @@ import androidx.compose.material3.TriStateCheckbox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -223,6 +224,9 @@ fun RecognitionSettingsContent(
     onSemanticAutomaticSelection: () -> Unit = {},
     /** State and actions of the "Storage access" page; null (or no content) hides the page. */
     storageAccess: StorageAccessSettings? = null,
+    /** Opens the "Storage access" page once (a deep link from the folder explorer); [onStorageAccessOpened] clears the request. */
+    openStorageAccess: Boolean = false,
+    onStorageAccessOpened: () -> Unit = {},
     showHeader: Boolean = true,
     adaptiveInfo: GalleryAdaptiveLayoutInfo? = null,
     modifier: Modifier = Modifier,
@@ -233,6 +237,12 @@ fun RecognitionSettingsContent(
     val twoPane = adaptiveInfo != null && adaptiveInfo.windowClass != GalleryWindowClass.Compact && masterWidth != null
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     var page by rememberSaveable { mutableStateOf(SettingsPage.Root) }
+    LaunchedEffect(openStorageAccess, storageAccess != null) {
+        if (openStorageAccess && storageAccess != null) {
+            page = SettingsPage.StorageAccess
+            onStorageAccessOpened()
+        }
+    }
     var folderVolume by rememberSaveable { mutableStateOf<String?>(null) }
     var folderPath by rememberSaveable { mutableStateOf<String?>(null) }
 

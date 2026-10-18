@@ -139,4 +139,19 @@
 <string name="video_music_untitled">Traccia audio</string>
     <string name="share_cropped_failed">Impossibile preparare il JPEG ritagliato</string>
     <string name="share_cropped_too_large">Memoria insufficiente per sviluppare questo RAW come JPEG. Condividi l’originale o esportalo come TIFF dall’editor.</string>
+    <string name="folder_op_hidden">Cartella nascosta</string>
+    <string name="folder_op_unhidden">Cartella di nuovo visibile</string>
+    <string name="folder_op_renamed">Cartella rinominata</string>
+    <string name="folder_op_deleted">Cartella eliminata</string>
+    <string name="folder_op_created">Cartella creata</string>
+    <string name="folder_op_not_granted">L\'accesso a tutti i file non è stato concesso.</string>
+    <string name="folder_op_grant_action">Concedi accesso</string>
+    <string name="folder_op_hidden_by_others">Un\'altra app nasconde già questa cartella con il proprio file .nomedia, quindi non può essere resa di nuovo visibile da qui.</string>
+    <string name="folder_op_failed">La cartella non è stata modificata.</string>
+    <string name="device_folders_new_folder">Nuova cartella</string>
+    <string name="device_folders_more_options">Altre opzioni</string>
+    <string name="device_folders_show_hidden">Mostra gli elementi nascosti per ora</string>
+    <string name="device_folders_include_subfolders">Includi sottocartelle</string>
+    <string name="device_folders_refresh">Aggiorna</string>
+    <string name="device_folders_checked">Selezionato</string>
 </resources>

@@ -261,6 +261,7 @@ private sealed interface ViewerReturnDestination {
     data object Trash : ViewerReturnDestination
     data object People : ViewerReturnDestination
     data object Cleanup : ViewerReturnDestination
+    data object Folders : ViewerReturnDestination
 }
 
 private val ViewerReturnDestinationSaver = listSaver<ViewerReturnDestination?, String>(
@@ -278,6 +279,7 @@ private val ViewerReturnDestinationSaver = listSaver<ViewerReturnDestination?, S
             ViewerReturnDestination.Highlight -> listOf("highlight")
             ViewerReturnDestination.People -> listOf("people")
             ViewerReturnDestination.Cleanup -> listOf("cleanup")
+            ViewerReturnDestination.Folders -> listOf("folders")
         }
     },
     restore = { saved ->
@@ -299,6 +301,7 @@ private val ViewerReturnDestinationSaver = listSaver<ViewerReturnDestination?, S
             "highlight" -> ViewerReturnDestination.Highlight
             "people" -> ViewerReturnDestination.People
             "cleanup" -> ViewerReturnDestination.Cleanup
+            "folders" -> ViewerReturnDestination.Folders
             else -> null
         }
     },
@@ -568,6 +571,29 @@ internal fun ProductionGalleryApp(
     var sessionVideoMuted by remember { mutableStateOf<Boolean?>(null) }
     val advancedStorageStatus = remember(context) {
         EntryPointAccessors.fromApplication(context.applicationContext, AdvancedStorageEntryPoint::class.java).status()
+    }
+    val advancedState by advancedStorageStatus.status.collectAsState()
+    val folderChrome by folderExplorer.chrome.collectAsState()
+    var openStorageAccessPage by rememberSaveable { mutableStateOf(false) }
+    val folderLibrary = remember(viewModel) {
+        object : FolderLibrary {
+            override fun media(volumeName: String, relativePath: String, includeSubfolders: Boolean) =
+                viewModel.folderMedia(volumeName, relativePath, includeSubfolders)
+
+            override suspend fun reconcile(volumeName: String, relativePathPrefix: String) =
+                viewModel.reconcileFolder(volumeName, relativePathPrefix)
+
+            override suspend fun refresh() = viewModel.refreshFolders()
+        }
+    }
+    // Revealing hidden items, even for now, asks for the app lock when "Protect hidden items" is on.
+    fun setTemporaryShowHidden(enabled: Boolean) {
+        val security = gallerySettings.security
+        if (enabled && security.appLockEnabled && security.protectHiddenItems) {
+            authenticateForHiddenItems(context) { advancedStorageStatus.setTemporaryShowHidden(true) }
+        } else {
+            advancedStorageStatus.setTemporaryShowHidden(enabled)
+        }
     }
     fun requestAppUnlock() {
         val fragmentActivity = context as? FragmentActivity ?: return
@@ -1153,6 +1179,7 @@ internal fun ProductionGalleryApp(
             ViewerReturnDestination.Highlight -> route = SurfaceRoute.HighlightCollection
             ViewerReturnDestination.People -> route = SurfaceRoute.People
             ViewerReturnDestination.Cleanup -> route = SurfaceRoute.Cleanup
+            ViewerReturnDestination.Folders -> route = SurfaceRoute.DeviceFolders
             null -> route = SurfaceRoute.Root
         }
     }
@@ -1515,6 +1542,8 @@ internal fun ProductionGalleryApp(
                         onRequestAccess = ::requestAccess,
                         onOpenSettings = { route = SurfaceRoute.Settings },
                         onOpenDeviceFolders = { route = SurfaceRoute.DeviceFolders },
+                        temporaryShowHidden = advancedState.temporaryShowHidden.takeIf { advancedState.active },
+                        onTemporaryShowHiddenChange = ::setTemporaryShowHidden,
                         onCreate = { showCreateMenu = true },
                         onOpenUpdates = { route = SurfaceRoute.Updates },
                         // The rail already has Create, Updates (with export progress) and Settings.
@@ -1703,7 +1732,18 @@ internal fun ProductionGalleryApp(
                 )
                 SurfaceRoute.DeviceFolders -> FolderExplorerHost(
                     viewModel = folderExplorer,
+                    library = folderLibrary,
                     thumbnails = thumbnails,
+                    snackbarHostState = snackbarHostState,
+                    onOpenStorageAccess = {
+                        openStorageAccessPage = true
+                        route = SurfaceRoute.Settings
+                    },
+                    onOpenMedia = { media, scope ->
+                        openViewer(ViewerReturnDestination.Folders) {
+                            viewModel.openFolderMedia(media, scope.volumeName, scope.relativePath, scope.includeSubfolders)
+                        }
+                    },
                     onOpenFiles = { album ->
                         albumReturnToDeviceFolders = true
                         viewModel.selectAlbum(album, filter, sort)
@@ -2426,6 +2466,8 @@ internal fun ProductionGalleryApp(
                         onSemanticAutomaticSelection = viewModel::useAutomaticSemanticModel,
                         onOpenAbout = { route = SurfaceRoute.About },
                         storageAccess = rememberStorageAccessSettings(),
+                        openStorageAccess = openStorageAccessPage,
+                        onStorageAccessOpened = { openStorageAccessPage = false },
                         showHeader = false,
                     )
                 }
@@ -3116,6 +3158,15 @@ internal fun ProductionGalleryApp(
                         title = stringResource(R.string.device_folders_title),
                         onBack = { if (!folderExplorer.navigateUp()) route = SurfaceRoute.Root },
                         navigationContentDescription = stringResource(R.string.nav_back),
+                        actions = {
+                            DeviceFoldersActions(
+                                chrome = folderChrome,
+                                onNewFolder = folderExplorer::beginNewFolder,
+                                onTemporaryShowHiddenChange = ::setTemporaryShowHidden,
+                                onIncludeSubfoldersChange = folderExplorer::setIncludeSubfolders,
+                                onRefresh = folderExplorer::refresh,
+                            )
+                        },
                     )
                     SurfaceRoute.Archive -> GalleryTopAppBar(
                         title = stringResource(R.string.archive_title),

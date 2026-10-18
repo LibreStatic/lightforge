@@ -107,6 +107,9 @@ data class HiddenEntry(val absolutePath: String, val kind: HiddenKind, val creat
 /** Only [NoMediaFile] is implemented; [DotPrefix] is reserved. */
 enum class HiddenKind { NoMediaFile, DotPrefix }
 
+/** The [AdvancedResult.Failed] reason of a hide refused because another app already placed a `.nomedia`. */
+const val ALREADY_HIDDEN_BY_OTHERS: String = "already hidden by someone else"
+
 sealed interface AdvancedResult {
     data object Done : AdvancedResult
     data object Unsupported : AdvancedResult

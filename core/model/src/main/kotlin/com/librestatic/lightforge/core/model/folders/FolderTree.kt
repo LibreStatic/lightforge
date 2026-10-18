@@ -50,8 +50,9 @@ data class FolderTotals(
             imageCount = stats.imageCount,
             videoCount = stats.videoCount,
             totalBytes = stats.totalBytes,
-            minSortMillis = stats.minSortMillis,
-            maxSortMillis = stats.maxSortMillis,
+            // A folder without items has no dates; zeros would drag every parent's range back to 1970.
+            minSortMillis = stats.minSortMillis.takeIf { stats.directCount > 0 },
+            maxSortMillis = stats.maxSortMillis.takeIf { stats.directCount > 0 },
             coverMediaStoreId = stats.coverMediaStoreId,
             isAvailable = stats.isAvailable,
         )
