@@ -79,6 +79,60 @@ fun FolderExplorerErrorPreview() = Frame(state = FolderExplorerUiState.Error)
 @Composable
 fun FolderExplorerEmptyFolderPreview() = Frame(advancedTree, FolderLocation("external_primary", "Empty/"), actions = previewActions)
 
+/** Destination picker for Move to folder, starting at the single volume's root. */
+@Composable
+fun FolderPickerMovePreview() = PickerFrame(PickPurpose.Move, advancedTree, FolderLocation.Start)
+
+/** Destination picker for Copy to folder, inside a folder that has sub-folders. */
+@Composable
+fun FolderPickerCopyPreview() = PickerFrame(PickPurpose.Copy, advancedTree, FolderLocation("external_primary", "DCIM/"))
+
+/** Folder move: inside the folder being moved, so "Move here" is disabled; its card is not listed. */
+@Composable
+fun FolderPickerMoveFolderInvalidPreview() = PickerFrame(
+    PickPurpose.MoveFolder, advancedTree, FolderLocation("external_primary", "DCIM/Exports/"),
+    source = FolderLocation("external_primary", "DCIM/Exports/"),
+)
+
+/** Folder move into a valid destination: "Move here" is enabled. */
+@Composable
+fun FolderPickerMoveFolderPreview() = PickerFrame(
+    PickPurpose.MoveFolder, advancedTree, FolderLocation("external_primary", "Pictures/"),
+    source = FolderLocation("external_primary", "DCIM/Exports/"),
+)
+
+/** A leaf folder without sub-folders: the placeholder is centred and the folder can still be chosen. */
+@Composable
+fun FolderPickerNoSubfoldersPreview() =
+    PickerFrame(PickPurpose.Move, advancedTree, FolderLocation("external_primary", "Pictures/Instagram/"))
+
+/** Two volumes at the volume list: nothing can be chosen yet. */
+@Composable
+fun FolderPickerVolumesPreview() = PickerFrame(PickPurpose.Copy, twoVolumes, FolderLocation.Start)
+
+@Composable
+private fun PickerFrame(
+    purpose: PickPurpose,
+    tree: FolderTree,
+    start: FolderLocation,
+    source: FolderLocation? = null,
+) {
+    LightforgeTheme {
+        var location by remember { mutableStateOf(start) }
+        val loader = remember { ThumbnailLoader(FakeThumbnails, maxCacheBytes = 16L * 1024 * 1024, threadCount = 1) }
+        FolderPickerContent(
+            purpose = purpose,
+            sourceFolder = source,
+            state = buildFolderExplorerUiState(tree, location, spaces),
+            thumbnails = loader,
+            onEnter = { location = it },
+            onBack = { parentLocation(tree, location)?.let { location = it } },
+            onNewFolder = {},
+            onConfirm = {},
+        )
+    }
+}
+
 @Composable
 private fun Frame(
     tree: FolderTree = FolderTree.Empty,

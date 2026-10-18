@@ -24,6 +24,36 @@ data class FolderLocation(val volumeName: String? = null, val relativePath: Stri
 /** What the platform says about a volume; [label] is null for the primary volume (the UI localises it). */
 data class VolumeSpace(val label: String?, val freeBytes: Long?, val totalBytes: Long?)
 
+/** Whether the explorer browses folders or picks a destination folder for a move or copy. */
+sealed interface ExplorerMode {
+    data object Browse : ExplorerMode
+
+    /**
+     * Choose a folder: cards only navigate, files, menus and hidden badges are not shown.
+     * [sourceFolder] is the folder being moved for [PickPurpose.MoveFolder].
+     */
+    data class PickDestination(val purpose: PickPurpose, val sourceFolder: FolderLocation? = null) : ExplorerMode
+}
+
+enum class PickPurpose { Move, Copy, MoveFolder }
+
+/**
+ * Whether [here] is a valid destination. Nothing is valid at the volume list, and a folder cannot be
+ * moved into itself, into one of its descendants, into the parent it already has, or to another volume.
+ */
+fun ExplorerMode.PickDestination.canChoose(here: FolderLocation?): Boolean {
+    val volume = here?.volumeName ?: return false
+    if (purpose != PickPurpose.MoveFolder) return true
+    val source = sourceFolder ?: return false
+    if (source.volumeName != volume) return false // a folder is only moved within its volume
+    val sourcePath = normalizedFolderPath(source.relativePath.orEmpty())
+    if (sourcePath.isEmpty()) return false
+    val herePath = normalizedFolderPath(here.relativePath.orEmpty())
+    if (herePath.startsWith(sourcePath)) return false
+    val parent = sourcePath.trimEnd('/').substringBeforeLast('/', "").let { if (it.isEmpty()) "" else "$it/" }
+    return herePath != parent
+}
+
 sealed interface FolderAction {
     /** Navigate into a folder that has sub-folders. */
     data class Enter(val location: FolderLocation) : FolderAction

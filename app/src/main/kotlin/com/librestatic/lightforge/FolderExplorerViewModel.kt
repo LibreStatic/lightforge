@@ -245,6 +245,11 @@ class FolderExplorerViewModel @Inject constructor(
         reload.value += 1
     }
 
+    /** A file operation changed the disk outside this screen; the empty-folder overlay is read again. */
+    fun diskChanged() {
+        diskTick.value += 1
+    }
+
     fun refresh() {
         reload.value += 1
         diskTick.value += 1

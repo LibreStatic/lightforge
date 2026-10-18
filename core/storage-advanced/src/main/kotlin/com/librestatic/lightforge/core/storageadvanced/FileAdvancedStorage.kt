@@ -109,6 +109,18 @@ class FileAdvancedStorage(context: Context) : AdvancedStorage {
             }
         }
 
+    override suspend fun copyAll(copies: List<Pair<String, String>>): List<AdvancedResult> =
+        mutex.withLock {
+            if (!isGranted()) return@withLock copies.map { AdvancedResult.NotGranted }
+            withContext(Dispatchers.IO) {
+                try {
+                    engine.copyAll(copies)
+                } catch (_: SecurityException) {
+                    copies.map { AdvancedResult.NotGranted }
+                }
+            }
+        }
+
     override suspend fun listDirectories(absolutePath: String): List<DirectoryEntry> =
         mutex.withLock {
             if (!isGranted()) return@withLock emptyList()

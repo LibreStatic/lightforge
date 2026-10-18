@@ -1345,6 +1345,9 @@ internal fun ProductionGalleryApp(
         viewModel.clearTreeOperation()
         if (treeUri != null && captured != null) viewModel.startTreeOperation(captured, treeUri)
     }
+    LaunchedEffect(viewModel) {
+        viewModel.treeLaunches.collect { treeLauncher.launch(null) }
+    }
     LaunchedEffect(Unit) {
         viewModel.treeOperationOutcomes.collect { outcome ->
             val message = when (outcome) {
@@ -1744,6 +1747,7 @@ internal fun ProductionGalleryApp(
                             viewModel.openFolderMedia(media, scope.volumeName, scope.relativePath, scope.includeSubfolders)
                         }
                     },
+                    onMoveFolder = { card -> viewModel.beginFolderMovePick(card.location) },
                     onOpenFiles = { album ->
                         albumReturnToDeviceFolders = true
                         viewModel.selectAlbum(album, filter, sort)
@@ -1787,6 +1791,11 @@ internal fun ProductionGalleryApp(
                             },
                             onMediaSelectionChange = viewModel::setMediaSelected,
                             onRenameAlbum = { viewModel.beginAlbumRename(album) },
+                            onRenameFolder = if (advancedState.active && album.key is AlbumKey.Physical) {
+                                { viewModel.beginFolderRename(album) }
+                            } else {
+                                null
+                            },
                             onDeleteAlbum = deletableVirtualAlbumId(album.key)?.let { { viewModel.beginAlbumDelete(album) } },
                             deleteAlbumLabel = stringResource(R.string.album_delete),
                             onSetCover = { viewModel.setAlbumCover(album, it) },
@@ -1825,7 +1834,8 @@ internal fun ProductionGalleryApp(
                         showDetails,
                         adaptiveInfo,
                         onTreeOperation = { move ->
-                            if (viewModel.prepareTreeOperation(media, move)) treeLauncher.launch(null)
+                            if (advancedState.active) viewModel.beginItemFolderTransfer(media, move)
+                            else if (viewModel.prepareTreeOperation(media, move)) treeLauncher.launch(null)
                             else Toast.makeText(context, treeActionUnavailable, Toast.LENGTH_SHORT).show()
                         },
                         onShowDetails = { showDetails = true },
@@ -2792,6 +2802,16 @@ internal fun ProductionGalleryApp(
                             onTrash = { runDestructive { viewModel.beginSelectionSystemAction(MediaAction.Trash(true)) } },
                             onDelete = { runDestructive { viewModel.beginSelectionSystemAction(MediaAction.Delete) } },
                             onAddToAlbum = { showAddToAlbum = true },
+                            // Mode off, the system folder chooser takes one item at a time.
+                            canMoveToFolder = advancedState.active || selectionCount == 1L,
+                            onMoveToFolder = {
+                                if (advancedState.active) viewModel.beginSelectionFolderTransfer(move = true)
+                                else viewModel.beginSelectionTreeOperation(move = true)
+                            },
+                            onCopyToFolder = {
+                                if (advancedState.active) viewModel.beginSelectionFolderTransfer(move = false)
+                                else viewModel.beginSelectionTreeOperation(move = false)
+                            },
                             onArchive = { viewModel.setSelectionArchived(true) },
                             onShare = {
                                 if (gallerySettings.operations.shareWithoutLocationByDefault) {
@@ -3431,6 +3451,17 @@ internal fun ProductionGalleryApp(
     }
 
     BackHandler(enabled = albumCoverWorking) { /* The pending write owns its album until completion. */ }
+    AdvancedOperationsHost(
+        viewModel = viewModel,
+        folderExplorer = folderExplorer,
+        thumbnails = thumbnails,
+        snackbarHostState = snackbarHostState,
+        onOpenStorageAccess = {
+            openStorageAccessPage = true
+            route = SurfaceRoute.Settings
+        },
+        onLeaveAlbum = { if (route == SurfaceRoute.Album) handleBack() },
+    )
     albumRename?.let { rename ->
         com.librestatic.lightforge.feature.album.RenameAlbumDialog(
             name = rename.name,
@@ -4043,6 +4074,9 @@ private fun SelectionActions(
     onTrash: () -> Unit,
     onDelete: () -> Unit,
     onAddToAlbum: () -> Unit,
+    canMoveToFolder: Boolean,
+    onMoveToFolder: () -> Unit,
+    onCopyToFolder: () -> Unit,
     onArchive: () -> Unit,
     onShare: () -> Unit,
     onClear: () -> Unit,
@@ -4129,6 +4163,12 @@ private fun SelectionActions(
                 ),
                 // Always enabled: preparation explains a count or media-type mismatch in a snackbar.
                 action(stringResource(R.string.m6_collage), GalleryIcons.GridView, onCreateCollage, true, false, "selection-create-collage"),
+                if (canMoveToFolder) action(
+                    stringResource(R.string.selection_move_to_folder), GalleryIcons.DriveFileMove, onMoveToFolder, true, false, "selection-move-to-folder",
+                ) else null,
+                if (canMoveToFolder) action(
+                    stringResource(R.string.selection_copy_to_folder), GalleryIcons.ContentCopy, onCopyToFolder, true, false, "selection-copy-to-folder",
+                ) else null,
                 action(stringResource(R.string.archive_move), GalleryIcons.Archive, onArchive, true, false, null),
                 action(stringResource(R.string.selection_select_all), GalleryIcons.Check, onSelectAll, true, false, null),
                 action(stringResource(R.string.selection_delete), GalleryIcons.Trash, onDelete, true, false, null),

@@ -31,4 +31,5 @@
     <string name="album_side_panel_folders_label">Ordner</string>
     <string name="album_more_options">Weitere Optionen</string>
     <string name="album_cover_action">Cover auswählen</string>
+    <string name="album_rename_folder">Ordner umbenennen</string>
 </resources>

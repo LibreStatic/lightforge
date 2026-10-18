@@ -109,6 +109,8 @@ class FolderExplorerActions(
     val onRename: (FolderCardUi, String) -> Unit,
     val onDelete: (FolderCardUi) -> Unit,
     val onOpenHiddenItem: (HiddenItemUi) -> Unit,
+    /** Opens the destination picker to move the folder. */
+    val onMove: (FolderCardUi) -> Unit = {},
 )
 
 private sealed interface FolderDialog {
@@ -137,9 +139,11 @@ fun FolderExplorerContent(
     onRetry: () -> Unit = {},
     revokedWithHidden: Int = 0,
     onUnhideFolders: () -> Unit = {},
+    mode: ExplorerMode = ExplorerMode.Browse,
 ) {
+    val picking = mode as? ExplorerMode.PickDestination
     Column(modifier.fillMaxSize()) {
-        if (revokedWithHidden > 0) RevokedNotice(revokedWithHidden, onUnhideFolders)
+        if (revokedWithHidden > 0 && picking == null) RevokedNotice(revokedWithHidden, onUnhideFolders)
         // Placeholders sit in this weighted box, never in a list item, so they centre in what is left.
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when (state) {
@@ -181,6 +185,7 @@ fun FolderExplorerContent(
                     actions = actions,
                     media = media,
                     onMediaClick = onMediaClick,
+                    picking = picking,
                 )
             }
         }
@@ -196,6 +201,7 @@ private fun FolderLevel(
     actions: FolderExplorerActions?,
     media: LazyPagingItems<TimelineMedia>?,
     onMediaClick: (TimelineMedia, FolderMediaScope) -> Unit,
+    picking: ExplorerMode.PickDestination?,
 ) {
     var dialog by remember { mutableStateOf<FolderDialog?>(null) }
     val up = state.crumbs.getOrNull(state.crumbs.lastIndex - 1)?.location
@@ -224,7 +230,16 @@ private fun FolderLevel(
             }
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            if (state.isEmpty) {
+            if (picking != null && state.folders.none { it.location != picking.sourceFolder }) {
+                // Nothing to open below this level; the destination can still be chosen or created here.
+                GalleryStateContent(
+                    title = stringResource(R.string.folders_picker_no_subfolders_title),
+                    body = stringResource(R.string.folders_picker_no_subfolders_body),
+                    illustrationDescription = stringResource(R.string.folders_picker_no_subfolders_title),
+                    modifier = Modifier.fillMaxSize().testTag("folder-picker-no-subfolders"),
+                    heroIcon = GalleryIcons.Folder,
+                )
+            } else if (picking == null && state.isEmpty) {
                 GalleryStateContent(
                     title = stringResource(R.string.folders_folder_empty_title),
                     body = stringResource(R.string.folders_folder_empty_body),
@@ -243,6 +258,7 @@ private fun FolderLevel(
                     onMediaClick = onMediaClick,
                     onDialog = { dialog = it },
                     upActions = upActions,
+                    picking = picking,
                 )
             }
         }
@@ -277,6 +293,7 @@ private fun FolderLevelGrid(
     onMediaClick: (TimelineMedia, FolderMediaScope) -> Unit,
     onDialog: (FolderDialog) -> Unit,
     upActions: List<CustomAccessibilityAction>,
+    picking: ExplorerMode.PickDestination?,
 ) {
     LazyVerticalGrid(
         columns = FolderLevelCells,
@@ -288,14 +305,17 @@ private fun FolderLevelGrid(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        items(state.folders, key = { it.key }, span = { GridItemSpan(CardSpan) }) { folder ->
-            FolderCard(folder, thumbnails, actions, onDialog) {
+        val cards = if (picking == null) state.folders else state.folders.filter { it.location != picking.sourceFolder }
+        items(cards, key = { it.key }, span = { GridItemSpan(CardSpan) }) { folder ->
+            FolderCard(folder, thumbnails, if (picking == null) actions else null, onDialog, picking != null) {
                 when (val action = folder.action) {
                     is FolderAction.Enter -> onEnter(action.location)
-                    is FolderAction.OpenFiles -> onOpenFiles(action.album)
+                    // A picker only navigates: a folder without sub-folders is entered, not opened as an album.
+                    is FolderAction.OpenFiles -> if (picking != null) onEnter(folder.location) else onOpenFiles(action.album)
                 }
             }
         }
+        if (picking != null) return@LazyVerticalGrid
         if (state.hiddenItems.isNotEmpty()) {
             sectionHeader("hidden-header", R.string.folders_hidden_items, state.hiddenItems.size.toLong())
             items(state.hiddenItems, key = { "hidden:${it.volumeName}:${it.mediaStoreId}" }) { item ->
@@ -495,6 +515,7 @@ private fun FolderCard(
     loader: ThumbnailLoader?,
     actions: FolderExplorerActions?,
     onDialog: (FolderDialog) -> Unit,
+    picking: Boolean,
     onClick: () -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -504,7 +525,7 @@ private fun FolderCard(
     val body: @Composable ColumnScope.() -> Unit = {
         Box {
             Cover(folder.cover, loader, Modifier.fillMaxWidth().aspectRatio(1.5f))
-            if (folder.isHidden) HiddenBadge(Modifier.align(Alignment.TopStart).padding(8.dp))
+            if (folder.isHidden && !picking) HiddenBadge(Modifier.align(Alignment.TopStart).padding(8.dp))
         }
         Row(Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp, end = if (hasMenu) 4.dp else 12.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -633,6 +654,12 @@ private fun FolderMenu(
             )
         }
         DropdownMenuItem(
+            text = { Text(stringResource(R.string.folders_menu_move)) },
+            leadingIcon = { Icon(GalleryIcons.DriveFileMove, contentDescription = null) },
+            onClick = { onDismiss(); actions.onMove(folder) },
+            modifier = Modifier.testTag("folder-menu-move"),
+        )
+        DropdownMenuItem(
             text = { Text(stringResource(R.string.folders_menu_rename)) },
             leadingIcon = { Icon(GalleryIcons.Rename, contentDescription = null) },
             onClick = { onDismiss(); onDialog(FolderDialog.Rename(folder)) },
@@ -661,12 +688,25 @@ private fun RenameDialog(
     siblings: List<String>,
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
-) {
-    val original = folder.location.leafName().orEmpty()
-    var name by remember(folder.key) { mutableStateOf(original) }
+) = RenameFolderDialog(
+    currentName = folder.location.leafName().orEmpty(),
     // A compacted card ("A/B") stands for the deepest folder, whose real siblings are not listed here.
-    val problem = validateFolderName(name, if ('/' in folder.name) emptyList() else siblings)
-    val unchanged = name.trim() == original
+    siblings = if ('/' in folder.name) emptyList() else siblings,
+    onDismiss = onDismiss,
+    onConfirm = onConfirm,
+)
+
+/** Asks for the new name of the folder called [currentName]; [siblings] are the names already next to it. */
+@Composable
+fun RenameFolderDialog(
+    currentName: String,
+    siblings: List<String>,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
+    var name by remember(currentName) { mutableStateOf(currentName) }
+    val problem = validateFolderName(name, siblings)
+    val unchanged = name.trim() == currentName
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.folders_rename_title)) },

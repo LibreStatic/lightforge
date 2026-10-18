@@ -145,4 +145,14 @@
     <string name="device_folders_include_subfolders">Unterordner einbeziehen</string>
     <string name="device_folders_refresh">Aktualisieren</string>
     <string name="device_folders_checked">Aktiviert</string>
+    <string name="folder_op_moved">Ordner verschoben</string>
+    <plurals name="adv_transfer_moved"><item quantity="one">%1$d Element verschoben</item><item quantity="other">%1$d Elemente verschoben</item></plurals>
+    <plurals name="adv_transfer_copied"><item quantity="one">%1$d Element kopiert</item><item quantity="other">%1$d Elemente kopiert</item></plurals>
+    <string name="adv_transfer_nothing">Alles befindet sich bereits in diesem Ordner.</string>
+    <string name="adv_transfer_partial">%1$d erledigt, %2$d konnten nicht übertragen werden</string>
+    <string name="adv_transfer_failed">Es wurde nichts übertragen.</string>
+    <string name="adv_transfer_progress_move">%1$d von %2$d wird verschoben</string>
+    <string name="adv_transfer_progress_copy">%1$d von %2$d wird kopiert</string>
+    <string name="selection_move_to_folder">In Ordner verschieben</string>
+    <string name="selection_copy_to_folder">In Ordner kopieren</string>
 </resources>

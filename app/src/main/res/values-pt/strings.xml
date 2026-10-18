@@ -154,4 +154,14 @@
     <string name="device_folders_include_subfolders">Incluir subpastas</string>
     <string name="device_folders_refresh">Atualizar</string>
     <string name="device_folders_checked">Marcado</string>
+    <string name="folder_op_moved">Pasta movida</string>
+    <plurals name="adv_transfer_moved"><item quantity="one">%1$d item movido</item><item quantity="other">%1$d itens movidos</item></plurals>
+    <plurals name="adv_transfer_copied"><item quantity="one">%1$d item copiado</item><item quantity="other">%1$d itens copiados</item></plurals>
+    <string name="adv_transfer_nothing">Tudo já está nessa pasta.</string>
+    <string name="adv_transfer_partial">%1$d concluídos, %2$d não puderam ser transferidos</string>
+    <string name="adv_transfer_failed">Nada foi transferido.</string>
+    <string name="adv_transfer_progress_move">Movendo %1$d de %2$d</string>
+    <string name="adv_transfer_progress_copy">Copiando %1$d de %2$d</string>
+    <string name="selection_move_to_folder">Mover para pasta</string>
+    <string name="selection_copy_to_folder">Copiar para pasta</string>
 </resources>

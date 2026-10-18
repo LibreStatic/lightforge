@@ -99,6 +99,8 @@ fun AlbumContent(
     showHeader: Boolean = true,
     modifier: Modifier = Modifier,
     onRenameAlbum: (() -> Unit)? = null,
+    /** Rename of a device folder (advanced storage mode); offered for physical albums only. */
+    onRenameFolder: (() -> Unit)? = null,
     onDeleteAlbum: (() -> Unit)? = null,
     deleteAlbumLabel: String? = null,
     onSetCover: ((TimelineMedia?) -> Unit)? = null,
@@ -159,7 +161,11 @@ fun AlbumContent(
                 selectedCount = if (picking) 0L else count,
                 onFilterChange = onFilterChange,
                 onSortChange = onSortChange,
-                onRenameAlbum = onRenameAlbum.takeIf { album.key is AlbumKey.Virtual },
+                onRenameAlbum = when (album.key) {
+                    is AlbumKey.Virtual -> onRenameAlbum
+                    is AlbumKey.Physical -> onRenameFolder
+                },
+                renameIsFolder = album.key is AlbumKey.Physical,
                 onDeleteAlbum = onDeleteAlbum.takeIf { album.key is AlbumKey.Virtual && deleteAlbumLabel != null },
                 deleteAlbumLabel = deleteAlbumLabel,
                 onChooseCover = if (canSetCover) { { choosingCover = true } } else null,
@@ -279,6 +285,7 @@ private fun AlbumHeader(
     onFilterChange: (AlbumMediaFilter) -> Unit,
     onSortChange: (AlbumSort) -> Unit,
     onRenameAlbum: (() -> Unit)?,
+    renameIsFolder: Boolean,
     onDeleteAlbum: (() -> Unit)?,
     deleteAlbumLabel: String?,
     onChooseCover: (() -> Unit)?,
@@ -317,6 +324,7 @@ private fun AlbumHeader(
                 onFilterChange = onFilterChange,
                 onSortChange = onSortChange,
                 onRenameAlbum = onRenameAlbum,
+                renameIsFolder = renameIsFolder,
                 onDeleteAlbum = onDeleteAlbum,
                 deleteAlbumLabel = deleteAlbumLabel,
                 onChooseCover = onChooseCover,
@@ -338,6 +346,7 @@ private fun AlbumToolbar(
     onFilterChange: (AlbumMediaFilter) -> Unit,
     onSortChange: (AlbumSort) -> Unit,
     onRenameAlbum: (() -> Unit)?,
+    renameIsFolder: Boolean,
     onDeleteAlbum: (() -> Unit)?,
     deleteAlbumLabel: String?,
     onChooseCover: (() -> Unit)?,
@@ -407,9 +416,9 @@ private fun AlbumToolbar(
                 )
                 onRenameAlbum?.let { rename ->
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.album_rename)) },
+                        text = { Text(stringResource(if (renameIsFolder) R.string.album_rename_folder else R.string.album_rename)) },
                         onClick = { moreExpanded = false; rename() },
-                        modifier = Modifier.testTag("album-rename"),
+                        modifier = Modifier.testTag(if (renameIsFolder) "album-rename-folder" else "album-rename"),
                     )
                 }
                 // Device folders are filesystem directories: only AlbumKey.Virtual albums may be deleted.

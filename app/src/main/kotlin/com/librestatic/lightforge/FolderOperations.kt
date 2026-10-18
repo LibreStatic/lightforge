@@ -20,7 +20,7 @@ interface FolderLibrary {
     suspend fun refresh()
 }
 
-enum class FolderOp { Hide, Unhide, Rename, Delete, Create }
+enum class FolderOp { Hide, Unhide, Rename, Delete, Create, Move }
 
 /** One-shot outcome of a folder operation, shown in the app snackbar. */
 sealed interface FolderMessage {

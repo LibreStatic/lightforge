@@ -63,6 +63,15 @@ interface AdvancedStorage {
     suspend fun moveAll(moves: List<Pair<String, String>>): List<AdvancedResult> =
         moves.map { AdvancedResult.Unsupported }
 
+    /**
+     * Batch of verified file copies (source to target absolute paths), the fallback for a move that
+     * [moveAll] refused and for Copy to folder. Each target is written under a temporary name, compared
+     * with the source by SHA-256, renamed into place without overwriting and scanned once at the end.
+     * The result list has one entry per input pair, in order; a failed copy leaves no partial file.
+     */
+    suspend fun copyAll(copies: List<Pair<String, String>>): List<AdvancedResult> =
+        copies.map { AdvancedResult.Unsupported }
+
     /** Immediate sub-folders of [absolutePath] (a volume root is allowed); empty when unsupported or not granted. */
     suspend fun listDirectories(absolutePath: String): List<DirectoryEntry> = emptyList()
 

@@ -154,4 +154,14 @@
     <string name="device_folders_include_subfolders">Incluir subcarpetas</string>
     <string name="device_folders_refresh">Actualizar</string>
     <string name="device_folders_checked">Activado</string>
+    <string name="folder_op_moved">Carpeta movida</string>
+    <plurals name="adv_transfer_moved"><item quantity="one">%1$d elemento movido</item><item quantity="other">%1$d elementos movidos</item></plurals>
+    <plurals name="adv_transfer_copied"><item quantity="one">%1$d elemento copiado</item><item quantity="other">%1$d elementos copiados</item></plurals>
+    <string name="adv_transfer_nothing">Todo ya está en esa carpeta.</string>
+    <string name="adv_transfer_partial">%1$d listos, %2$d no se pudieron transferir</string>
+    <string name="adv_transfer_failed">No se transfirió nada.</string>
+    <string name="adv_transfer_progress_move">Moviendo %1$d de %2$d</string>
+    <string name="adv_transfer_progress_copy">Copiando %1$d de %2$d</string>
+    <string name="selection_move_to_folder">Mover a carpeta</string>
+    <string name="selection_copy_to_folder">Copiar a carpeta</string>
 </resources>

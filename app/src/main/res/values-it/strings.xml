@@ -154,4 +154,14 @@
     <string name="device_folders_include_subfolders">Includi sottocartelle</string>
     <string name="device_folders_refresh">Aggiorna</string>
     <string name="device_folders_checked">Selezionato</string>
+    <string name="folder_op_moved">Cartella spostata</string>
+    <plurals name="adv_transfer_moved"><item quantity="one">%1$d elemento spostato</item><item quantity="other">%1$d elementi spostati</item></plurals>
+    <plurals name="adv_transfer_copied"><item quantity="one">%1$d elemento copiato</item><item quantity="other">%1$d elementi copiati</item></plurals>
+    <string name="adv_transfer_nothing">Tutto è già in quella cartella.</string>
+    <string name="adv_transfer_partial">%1$d completati, %2$d non trasferiti</string>
+    <string name="adv_transfer_failed">Non è stato trasferito nulla.</string>
+    <string name="adv_transfer_progress_move">Spostamento di %1$d su %2$d</string>
+    <string name="adv_transfer_progress_copy">Copia di %1$d su %2$d</string>
+    <string name="selection_move_to_folder">Sposta in una cartella</string>
+    <string name="selection_copy_to_folder">Copia in una cartella</string>
 </resources>

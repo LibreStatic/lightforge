@@ -7,6 +7,9 @@ import androidx.room.withTransaction
 import android.app.ActivityManager
 import android.app.Application
 import android.content.Context
+import com.librestatic.lightforge.core.mediastore.AdvancedResult
+import com.librestatic.lightforge.feature.folders.FolderLocation
+import com.librestatic.lightforge.feature.folders.PickPurpose
 import android.graphics.Bitmap
 import android.graphics.drawable.AnimatedImageDrawable
 import android.graphics.drawable.BitmapDrawable
@@ -410,6 +413,8 @@ class GalleryViewModel @Inject constructor(
     application: Application,
     val permissions: PermissionCoordinator,
     private val savedStateHandle: SavedStateHandle,
+    private val advancedStorage: com.librestatic.lightforge.core.mediastore.AdvancedStorage,
+    private val advancedStatus: AdvancedStorageStatus,
 ) : AndroidViewModel(application) {
     private val runtime = MutableStateFlow<GalleryRuntime?>(null)
     private val mutableEngineState = MutableStateFlow(LibraryEngineState.Starting)
@@ -6769,6 +6774,23 @@ class GalleryViewModel @Inject constructor(
 
     fun requestRename(media: TimelineMedia, displayName: String) {
         val safeName = ScopedMediaOperations.validateDisplayName(displayName)
+        if (advancedStatus.status.value.active) {
+            // A sibling rename needs no confirmation; anything it refuses continues with the write request.
+            viewModelScope.launch {
+                if (advancedOperations.renameSibling(media.key, safeName)) {
+                    mutableCurrentMedia.update { current ->
+                        if (current?.key == media.key) current.copy(displayName = safeName) else current
+                    }
+                } else {
+                    requestRenameWrite(media, safeName)
+                }
+            }
+            return
+        }
+        requestRenameWrite(media, safeName)
+    }
+
+    private fun requestRenameWrite(media: TimelineMedia, safeName: String) {
         pendingWriteMutation = PendingWriteMutation.Rename(media.key, media.kind, safeName)
         savedStateHandle[WriteMutationStateKey] = pendingWriteMutation
         beginSystemAction(media, MediaAction.Write)
@@ -6832,6 +6854,183 @@ class GalleryViewModel @Inject constructor(
     }
 
     internal fun clearTreeOperation() { savedStateHandle["pending_tree_operation_v1"] = null }
+
+    private val treeLaunchChannel = Channel<Unit>(Channel.BUFFERED)
+
+    /** Emits when a staged single-item operation is ready for the system folder chooser (advanced mode off). */
+    internal val treeLaunches = treeLaunchChannel.receiveAsFlow()
+
+    /**
+     * Mode off: the system folder chooser handles one item at a time, so a single selected item is
+     * staged for it. The selection entries are only offered for more items when the mode is active.
+     */
+    internal fun beginSelectionTreeOperation(move: Boolean) {
+        viewModelScope.launch {
+            val key = (mutableSelection.value as? SelectionSpec.Explicit)?.keys?.singleOrNull() ?: return@launch
+            val row = withContext(Dispatchers.IO) {
+                runtime.value?.database?.libraryDao()?.media(key.volumeName, key.mediaStoreId)
+            } ?: return@launch
+            val media = TimelineMedia(
+                key, if (row.mediaType == 3) MediaKind.Video else MediaKind.Image,
+                row.generationModified, row.timelineSortMillis, row.width, row.height, row.durationMillis,
+                row.dateExpiresSeconds?.times(1000), row.isFavorite, row.isTrashed,
+                displayName = row.displayName, dateModifiedSeconds = row.dateModifiedSeconds,
+            )
+            if (prepareTreeOperation(media, move)) treeLaunchChannel.send(Unit)
+        }
+    }
+
+    // ---- Advanced storage (ADR-046): destination picker, move/copy/rename by path ----
+
+    private val advancedOperations = AdvancedFileOperations(
+        advanced = advancedStorage,
+        isActive = { advancedStatus.status.value.active },
+        deleteEmptyFolders = { advancedStatus.status.value.deleteEmptyFolders },
+        sources = { keys ->
+            withContext(Dispatchers.IO) {
+                val dao = runtime.value?.database?.libraryDao() ?: return@withContext emptyList()
+                keys.mapNotNull { key ->
+                    val row = dao.media(key.volumeName, key.mediaStoreId) ?: return@mapNotNull null
+                    TransferSource(
+                        key = key,
+                        kind = if (row.mediaType == 3) MediaKind.Video else MediaKind.Image,
+                        volumeName = row.volumeName,
+                        relativePath = row.relativePath ?: return@mapNotNull null,
+                        displayName = row.displayName ?: return@mapNotNull null,
+                    )
+                }
+            }
+        },
+        applyHint = { key -> runtime.value?.synchronizer?.applyRowHint(key) },
+        reconcile = { volume, prefix -> runtime.value?.synchronizer?.reconcileFolder(volume, prefix) },
+        refresh = { refreshLibrary() },
+        retirement = OriginalRetirement { originals ->
+            beginTargetsAction(originals.map { MediaActionTarget(it.key, it.kind) }, MediaAction.Delete)
+        },
+    )
+
+    private val folderPickerPrefs = application.getSharedPreferences("folder_picker", Context.MODE_PRIVATE)
+    private val mutableFolderPick = MutableStateFlow<FolderPickRequest?>(null)
+
+    /** What the destination picker is open for; null when it is closed. */
+    internal val folderPickRequest = mutableFolderPick.asStateFlow()
+    private val mutableLastDestination = MutableStateFlow(
+        FolderLocation(
+            folderPickerPrefs.getString("volume", null),
+            folderPickerPrefs.getString("path", null),
+        ),
+    )
+
+    /** Where the previous move or copy went; the picker opens there. */
+    internal val lastPickedDestination = mutableLastDestination.asStateFlow()
+    private val mutableTransferProgress = MutableStateFlow<TransferProgress?>(null)
+    internal val transferProgress = mutableTransferProgress.asStateFlow()
+    private val advancedEventChannel = Channel<AdvancedOpEvent>(Channel.BUFFERED)
+
+    /** Finished advanced operations, one message each; modelled on [treeOperationOutcomes]. */
+    internal val advancedEvents = advancedEventChannel.receiveAsFlow()
+
+    /** Opens the picker for the current selection; with a select-all query the keys are resolved page by page. */
+    fun beginSelectionFolderTransfer(move: Boolean) {
+        if (!advancedStatus.status.value.active) return
+        viewModelScope.launch {
+            val keys = when (val selected = mutableSelection.value) {
+                is SelectionSpec.Explicit -> selected.keys.toList()
+                is SelectionSpec.QueryAll -> withContext(Dispatchers.IO) {
+                    val active = runtime.value ?: return@withContext emptyList()
+                    val resolved = mutableListOf<MediaKey>()
+                    var after: MediaKey? = null
+                    while (true) {
+                        val page = active.selectionTargets.page(selected.querySnapshot, after, 500)
+                        if (page.isEmpty()) break
+                        resolved += page.filterNot { it.key in selected.exclusions }.map { it.key }
+                        after = page.last().key
+                        if (page.size < 500) break
+                    }
+                    resolved
+                }
+            }
+            if (keys.isNotEmpty()) {
+                mutableFolderPick.value = FolderPickRequest.Items(if (move) PickPurpose.Move else PickPurpose.Copy, keys)
+            }
+        }
+    }
+
+    fun beginItemFolderTransfer(media: TimelineMedia, move: Boolean) {
+        if (!advancedStatus.status.value.active) return
+        mutableFolderPick.value = FolderPickRequest.Items(if (move) PickPurpose.Move else PickPurpose.Copy, listOf(media.key))
+    }
+
+    fun beginFolderMovePick(source: FolderLocation) {
+        if (!advancedStatus.status.value.active) return
+        mutableFolderPick.value = FolderPickRequest.Folder(source)
+    }
+
+    fun cancelFolderPick() { mutableFolderPick.value = null }
+
+    fun completeFolderPick(destination: FolderLocation) {
+        val request = mutableFolderPick.value ?: return
+        val volume = destination.volumeName ?: return
+        mutableFolderPick.value = null
+        mutableLastDestination.value = destination
+        folderPickerPrefs.edit().putString("volume", volume).putString("path", destination.relativePath).apply()
+        val target = FolderTarget(volume, destination.relativePath?.takeIf { it.isNotBlank() })
+        viewModelScope.launch {
+            when (request) {
+                is FolderPickRequest.Items -> {
+                    val purpose = if (request.purpose == PickPurpose.Copy) TransferPurpose.Copy else TransferPurpose.Move
+                    mutableTransferProgress.value = TransferProgress(purpose, 0, request.keys.size)
+                    val result = try {
+                        advancedOperations.transfer(purpose, request.keys, target) { done, total ->
+                            mutableTransferProgress.value = TransferProgress(purpose, done, total)
+                        }
+                    } finally {
+                        mutableTransferProgress.value = null
+                    }
+                    if (result.succeeded > 0) clearSelection()
+                    advancedEventChannel.send(AdvancedOpEvent.Transfer(result))
+                }
+                is FolderPickRequest.Folder -> {
+                    val sourceVolume = request.source.volumeName ?: return@launch
+                    val outcome = advancedOperations.moveFolder(FolderTarget(sourceVolume, request.source.relativePath), target)
+                    advancedEventChannel.send(AdvancedOpEvent.Folder(outcome.result.toFolderMessage(FolderOp.Move)))
+                }
+            }
+        }
+    }
+
+    private val mutableFolderRename = MutableStateFlow<FolderRenameDraft?>(null)
+    internal val folderRename = mutableFolderRename.asStateFlow()
+
+    /** Starts renaming the device folder behind a physical album; the bucket is mapped to its path through one of its items. */
+    fun beginFolderRename(album: AlbumSummary) {
+        val key = album.key as? AlbumKey.Physical ?: return
+        if (!advancedStatus.status.value.active) return
+        viewModelScope.launch {
+            val path = withContext(Dispatchers.IO) {
+                runtime.value?.database?.libraryDao()
+                    ?.firstPhysicalAlbumPage(key.volumeName, key.bucketId, 0, 1)?.firstOrNull()?.relativePath
+            }?.takeIf { it.isNotBlank() } ?: return@launch
+            mutableFolderRename.value = FolderRenameDraft(
+                FolderTarget(key.volumeName, path),
+                path.trim('/').substringAfterLast('/'),
+            )
+        }
+    }
+
+    fun dismissFolderRename() { mutableFolderRename.value = null }
+
+    fun confirmFolderRename(newName: String) {
+        val draft = mutableFolderRename.value ?: return
+        mutableFolderRename.value = null
+        viewModelScope.launch {
+            val outcome = advancedOperations.renameFolder(draft.target, newName)
+            // The album was identified by the old folder; once renamed it has to be opened again.
+            advancedEventChannel.send(
+                AdvancedOpEvent.Folder(outcome.result.toFolderMessage(FolderOp.Rename), leaveAlbum = outcome.result == AdvancedResult.Done),
+            )
+        }
+    }
 
     internal enum class TreeOperationOutcome { Copied, MoveCopied, Failed }
 
@@ -6969,6 +7168,12 @@ class GalleryViewModel @Inject constructor(
                 com.librestatic.lightforge.core.mediastore.MediaActionPhase.AwaitingSystem)?.targets.orEmpty()
             val approvedAction = coordinator.snapshot.value.progress.action
             val removedKeys = approvedTargets.mapTo(HashSet()) { it.key }
+            // Read before the rows change, so the parents are known once the files are gone.
+            val emptiedParents = if (approved && ((approvedAction is MediaAction.Trash && approvedAction.enabled) || approvedAction == MediaAction.Delete)) {
+                advancedOperations.parentsOf(removedKeys.toList())
+            } else {
+                emptyList()
+            }
             val removals = if (approved) pendingRemovalsFor(approvedAction) else emptyList()
             if (removals.isNotEmpty() && removedKeys.isNotEmpty()) {
                 removals.forEach { pending -> pending.update { it + removedKeys } }
@@ -6981,6 +7186,7 @@ class GalleryViewModel @Inject constructor(
                 applyPendingWriteMutation(approvedTargets.singleOrNull())
             }
             if (approved) approvedTargets.forEach { runtime.value?.synchronizer?.applyRowHint(it.key) }
+            if (emptiedParents.isNotEmpty()) advancedOperations.deleteEmptyParents(emptiedParents)
             if (removals.isNotEmpty() && removedKeys.isNotEmpty()) releasePendingRemovals(removals, removedKeys)
             if (snapshot?.phase == com.librestatic.lightforge.core.mediastore.MediaActionPhase.ReadyForChunk) {
                 when {

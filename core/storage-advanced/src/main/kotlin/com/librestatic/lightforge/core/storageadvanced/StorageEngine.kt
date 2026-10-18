@@ -6,6 +6,7 @@ import com.librestatic.lightforge.core.mediastore.HiddenEntry
 import com.librestatic.lightforge.core.mediastore.HiddenKind
 import java.io.File
 import java.io.IOException
+import java.security.MessageDigest
 
 /** A mounted shared-storage volume: its MediaStore name (for example `external_primary`) and its root. */
 internal data class VolumeRoot(val name: String, val root: File)
@@ -164,6 +165,80 @@ internal class StorageEngine(
         }
         if (scanPaths.isNotEmpty()) scan(scanPaths.toList())
         return results
+    }
+
+    /** One scan for the whole batch; each copy is verified byte for byte (SHA-256) before it is renamed into place. */
+    fun copyAll(copies: List<Pair<String, String>>): List<AdvancedResult> {
+        val results = ArrayList<AdvancedResult>(copies.size)
+        val scanPaths = LinkedHashSet<String>()
+        for ((source, target) in copies) {
+            val outcome = copyOne(source, target)
+            if (outcome is Moved) scanPaths += outcome.to.path
+            results += if (outcome is Moved) AdvancedResult.Done else outcome.asFailure()
+        }
+        if (scanPaths.isNotEmpty()) scan(scanPaths.toList())
+        return results
+    }
+
+    private fun copyOne(source: String, target: String): Outcome {
+        if (!isGranted()) return Refused(AdvancedResult.NotGranted)
+        val from = validated(source) ?: return Refused(INVALID)
+        val to = validated(target) ?: return Refused(INVALID)
+        if (from.name.startsWith(PENDING_PREFIX) || from.name.startsWith(TRASHED_PREFIX)) {
+            return Refused(AdvancedResult.Failed("Source is a pending or trashed item"))
+        }
+        if (!from.isFile) return Refused(AdvancedResult.Failed("Source is not a file"))
+        if (to.exists()) return Refused(AdvancedResult.Failed("Target exists"))
+        val parent = to.parentFile ?: return Refused(INVALID)
+        val partial = File(parent, to.name + PARTIAL_SUFFIX)
+        return try {
+            if (!parent.isDirectory && !parent.mkdirs()) return Refused(lostOr("Could not create target folder"))
+            val expected = copyWithDigest(from, partial)
+            when {
+                !digestOf(partial).contentEquals(expected) -> Refused(AdvancedResult.Failed("Copy does not match the original"))
+                to.exists() -> Refused(AdvancedResult.Failed("Target exists"))
+                else -> {
+                    partial.setLastModified(from.lastModified())
+                    if (renameFile(partial, to)) Moved(from, to) else Refused(lostOr("Rename failed"))
+                }
+            }
+        } catch (e: SecurityException) {
+            Refused(AdvancedResult.NotGranted)
+        } catch (e: IOException) {
+            Refused(if (e.message?.contains("EACCES") == true) AdvancedResult.NotGranted else AdvancedResult.Failed("Copy failed"))
+        } finally {
+            if (partial.exists()) partial.delete()
+        }
+    }
+
+    private fun copyWithDigest(from: File, into: File): ByteArray {
+        val digest = MessageDigest.getInstance("SHA-256")
+        from.inputStream().use { input ->
+            into.outputStream().use { output ->
+                val buffer = ByteArray(COPY_BUFFER_BYTES)
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read < 0) break
+                    digest.update(buffer, 0, read)
+                    output.write(buffer, 0, read)
+                }
+                output.flush()
+            }
+        }
+        return digest.digest()
+    }
+
+    private fun digestOf(file: File): ByteArray {
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { input ->
+            val buffer = ByteArray(COPY_BUFFER_BYTES)
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                digest.update(buffer, 0, read)
+            }
+        }
+        return digest.digest()
     }
 
     private sealed interface Outcome
@@ -327,6 +402,8 @@ internal class StorageEngine(
         const val ALREADY_HIDDEN_BY_OTHERS = com.librestatic.lightforge.core.mediastore.ALREADY_HIDDEN_BY_OTHERS
         const val PENDING_PREFIX = ".pending-"
         const val TRASHED_PREFIX = ".trashed-"
+        private const val PARTIAL_SUFFIX = ".lightforge-copy.part"
+        private const val COPY_BUFFER_BYTES = 128 * 1024
 
         /** Filesystems store mtime with up to 2 s granularity (FAT); the marker may read slightly older. */
         const val MTIME_TOLERANCE_MILLIS = 2_000L

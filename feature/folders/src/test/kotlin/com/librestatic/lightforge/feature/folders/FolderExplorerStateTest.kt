@@ -239,4 +239,37 @@ class FolderExplorerStateTest {
         assertEquals(FolderNameProblem.TooLong, validateFolderName("x".repeat(256), emptyList()))
         assertEquals(FolderNameProblem.AlreadyExists, validateFolderName("trips", listOf("Trips")))
     }
+
+    @Test fun pickerNeverChoosesTheVolumeList() {
+        for (purpose in PickPurpose.values()) {
+            assertTrue(!ExplorerMode.PickDestination(purpose, FolderLocation("v", "A/")).canChoose(null))
+            assertTrue(!ExplorerMode.PickDestination(purpose, FolderLocation("v", "A/")).canChoose(FolderLocation.Start))
+        }
+    }
+
+    @Test fun itemPickersChooseAnyFolderOfAnyVolume() {
+        val move = ExplorerMode.PickDestination(PickPurpose.Move)
+        val copy = ExplorerMode.PickDestination(PickPurpose.Copy)
+        assertTrue(move.canChoose(FolderLocation("external_primary", null)))
+        assertTrue(move.canChoose(FolderLocation("1234-ABCD", "DCIM/Camera/")))
+        assertTrue(copy.canChoose(FolderLocation("external_primary", "Pictures/")))
+    }
+
+    @Test fun folderMoveRefusesTheSourceItsDescendantsItsParentAndOtherVolumes() {
+        val mode = ExplorerMode.PickDestination(PickPurpose.MoveFolder, FolderLocation("external_primary", "DCIM/Exports/"))
+        assertTrue(!mode.canChoose(FolderLocation("external_primary", "DCIM/Exports/")))
+        assertTrue(!mode.canChoose(FolderLocation("external_primary", "DCIM/Exports/2026/Trips")))
+        assertTrue(!mode.canChoose(FolderLocation("external_primary", "DCIM/")))
+        assertTrue(!mode.canChoose(FolderLocation("1234-ABCD", "DCIM/")))
+        assertTrue(mode.canChoose(FolderLocation("external_primary", "Pictures/")))
+        assertTrue(mode.canChoose(FolderLocation("external_primary", null)))
+        // A sibling whose name merely starts with the source name is not a descendant.
+        assertTrue(mode.canChoose(FolderLocation("external_primary", "DCIM/Exports2/")))
+    }
+
+    @Test fun movingARootLevelFolderToTheVolumeRootIsRefusedAsItsParent() {
+        val mode = ExplorerMode.PickDestination(PickPurpose.MoveFolder, FolderLocation("external_primary", "Pictures/"))
+        assertTrue(!mode.canChoose(FolderLocation("external_primary", null)))
+        assertTrue(mode.canChoose(FolderLocation("external_primary", "DCIM/")))
+    }
 }

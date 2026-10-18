@@ -256,6 +256,53 @@ class StorageEngineTest {
         )
     }
 
+    @Test fun copyAllWritesVerifiedCopiesKeepsOriginalsAndScansOnce() {
+        val e = engine()
+        val one = File(dir("a"), "1.jpg").apply { writeText("one"); setLastModified(1_600_000_000_000L) }
+        val taken = File(dir("b"), "1.jpg").apply { writeText("other") }
+        val missing = File(volumeA, "a/none.jpg")
+        val results = e.copyAll(
+            listOf(
+                one.path to File(volumeA, "c/1.jpg").path,
+                one.path to taken.path,
+                missing.path to File(volumeA, "c/none.jpg").path,
+                one.path to File(volumeB, "d/1.jpg").path,
+            ),
+        )
+        assertEquals(AdvancedResult.Done, results[0])
+        assertTrue((results[1] as AdvancedResult.Failed).reason.contains("exists"))
+        assertTrue(results[2] is AdvancedResult.Failed)
+        assertEquals(AdvancedResult.Done, results[3])
+        assertEquals("one", File(volumeA, "c/1.jpg").readText())
+        assertEquals(1_600_000_000_000L, File(volumeA, "c/1.jpg").lastModified())
+        assertEquals("one", File(volumeB, "d/1.jpg").readText())
+        assertTrue(one.exists())
+        assertEquals("other", taken.readText())
+        assertEquals(1, scans.size)
+        assertEquals(setOf(File(volumeA, "c/1.jpg").path, File(volumeB, "d/1.jpg").path), scans.single().toSet())
+        assertEquals(listOf("1.jpg"), File(volumeA, "c").list()!!.toList())
+    }
+
+    @Test fun copyAllRefusesWithoutPermissionAndDoesNotLeavePartialFiles() {
+        val e = engine()
+        val one = File(dir("a"), "1.jpg").apply { writeText("one") }
+        val failing = StorageEngine(
+            registry = HiddenRegistry(registryFile),
+            volumes = { listOf(VolumeRoot("external_primary", volumeA)) },
+            scan = { scans += it },
+            renameFile = { _, _ -> false },
+        )
+        assertTrue(failing.copyAll(listOf(one.path to File(volumeA, "c/1.jpg").path)).single() is AdvancedResult.Failed)
+        assertTrue(File(volumeA, "c").list()!!.isEmpty())
+        granted = false
+        assertEquals(
+            listOf<AdvancedResult>(AdvancedResult.NotGranted),
+            e.copyAll(listOf(one.path to File(volumeA, "d/1.jpg").path)),
+        )
+        assertFalse(File(volumeA, "d").exists())
+        assertTrue(scans.isEmpty())
+    }
+
     @Test fun renameInPlaceScansSourceAndTarget() {
         val src = File(dir("a"), "x.jpg").apply { writeText("1") }
         val dst = File(volumeA, "b/x.jpg")

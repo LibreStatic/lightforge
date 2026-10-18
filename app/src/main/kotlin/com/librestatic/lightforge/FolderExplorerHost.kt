@@ -17,6 +17,7 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import com.librestatic.lightforge.core.model.AlbumSummary
 import com.librestatic.lightforge.core.model.TimelineMedia
 import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
+import com.librestatic.lightforge.feature.folders.FolderCardUi
 import com.librestatic.lightforge.feature.folders.FolderExplorerActions
 import com.librestatic.lightforge.feature.folders.FolderExplorerContent
 import com.librestatic.lightforge.feature.folders.FolderExplorerUiState
@@ -37,6 +38,7 @@ internal fun FolderExplorerHost(
     onOpenFiles: (AlbumSummary) -> Unit,
     onOpenMedia: (TimelineMedia, FolderMediaScope) -> Unit,
     onOpenStorageAccess: () -> Unit,
+    onMoveFolder: (FolderCardUi) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -47,18 +49,7 @@ internal fun FolderExplorerHost(
     val media = viewModel.media.collectAsLazyPagingItems()
     LaunchedEffect(viewModel, library) { viewModel.bind(library) }
     LaunchedEffect(viewModel, snackbarHostState) {
-        viewModel.messages.collect { message ->
-            val text = context.getString(message.textRes())
-            if (message == FolderMessage.NotGranted) {
-                val result = snackbarHostState.showSnackbar(
-                    message = text,
-                    actionLabel = context.getString(R.string.folder_op_grant_action),
-                )
-                if (result == SnackbarResult.ActionPerformed) onOpenStorageAccess()
-            } else {
-                snackbarHostState.showSnackbar(text)
-            }
-        }
+        viewModel.messages.collect { message -> showFolderMessage(context, snackbarHostState, message, onOpenStorageAccess) }
     }
     val actions = remember(viewModel, active) {
         if (!active) {
@@ -69,6 +60,7 @@ internal fun FolderExplorerHost(
                 onUnhide = viewModel::unhide,
                 onRename = viewModel::rename,
                 onDelete = viewModel::delete,
+                onMove = onMoveFolder,
                 onOpenHiddenItem = { item ->
                     val view = Intent(Intent.ACTION_VIEW)
                         .setDataAndType(Uri.parse(item.uri), item.mimeType)
@@ -101,13 +93,33 @@ internal fun FolderExplorerHost(
     }
 }
 
-private fun FolderMessage.textRes(): Int = when (this) {
+/** Shows [message] in the snackbar; "not granted" offers a shortcut to the permission screen. */
+internal suspend fun showFolderMessage(
+    context: android.content.Context,
+    snackbarHostState: SnackbarHostState,
+    message: FolderMessage,
+    onOpenStorageAccess: () -> Unit,
+) {
+    val text = context.getString(message.textRes())
+    if (message == FolderMessage.NotGranted) {
+        val result = snackbarHostState.showSnackbar(
+            message = text,
+            actionLabel = context.getString(R.string.folder_op_grant_action),
+        )
+        if (result == SnackbarResult.ActionPerformed) onOpenStorageAccess()
+    } else {
+        snackbarHostState.showSnackbar(text)
+    }
+}
+
+internal fun FolderMessage.textRes(): Int = when (this) {
     is FolderMessage.Done -> when (op) {
         FolderOp.Hide -> R.string.folder_op_hidden
         FolderOp.Unhide -> R.string.folder_op_unhidden
         FolderOp.Rename -> R.string.folder_op_renamed
         FolderOp.Delete -> R.string.folder_op_deleted
         FolderOp.Create -> R.string.folder_op_created
+        FolderOp.Move -> R.string.folder_op_moved
     }
     FolderMessage.NotGranted -> R.string.folder_op_not_granted
     FolderMessage.AlreadyHiddenByOthers -> R.string.folder_op_hidden_by_others

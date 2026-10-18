@@ -62,4 +62,13 @@
     </plurals>
     <string name="folders_new_title">Nova pasta</string>
     <string name="folders_new_confirm">Criar</string>
+    <string name="folders_picker_title_move">Mover para pasta</string>
+    <string name="folders_picker_title_copy">Copiar para pasta</string>
+    <string name="folders_picker_title_move_folder">Mover pasta para…</string>
+    <string name="folders_picker_back">Voltar</string>
+    <string name="folders_picker_move_here">Mover para aqui</string>
+    <string name="folders_picker_copy_here">Copiar para aqui</string>
+    <string name="folders_picker_no_subfolders_title">Nenhuma pasta aqui</string>
+    <string name="folders_picker_no_subfolders_body">Você pode escolher esta pasta ou criar uma nova.</string>
+    <string name="folders_menu_move">Mover para…</string>
 </resources>

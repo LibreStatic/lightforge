@@ -32,4 +32,5 @@
     <string name="album_side_panel_folders_label">Dossiers</string>
     <string name="album_more_options">Plus d’options</string>
     <string name="album_cover_action">Choisir la couverture</string>
+    <string name="album_rename_folder">Renommer le dossier</string>
 </resources>
