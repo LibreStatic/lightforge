@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -69,6 +70,45 @@ fun DocumentAutoArchiveContent(
                 onBack = { if (!busy) { if (preview != null) preview = null else onBack() } },
                 navigationContentDescription = stringResource(R.string.documents_back),
                 windowInsets = WindowInsets(0, 0, 0, 0),
+                actions = {
+                    val current = state
+                    if (current != null && preview == null && (current.enabled || current.lastRunId != null)) {
+                        var menuOpen by remember { mutableStateOf(false) }
+                        Box {
+                            IconButton(
+                                onClick = { menuOpen = true },
+                                modifier = Modifier.testTag("document-auto-menu"),
+                            ) {
+                                Icon(
+                                    GalleryIcons.More,
+                                    contentDescription = stringResource(R.string.document_auto_more_actions),
+                                )
+                            }
+                            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                                if (current.enabled)
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.document_auto_pause)) },
+                                        enabled = !busy,
+                                        onClick = {
+                                            menuOpen = false
+                                            mutate { repository.pause() }
+                                        },
+                                        modifier = Modifier.testTag("document-auto-pause"),
+                                    )
+                                if (current.lastRunId != null)
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.document_auto_undo)) },
+                                        enabled = !busy,
+                                        onClick = {
+                                            menuOpen = false
+                                            mutate { repository.undoLastRun() }
+                                        },
+                                        modifier = Modifier.testTag("document-auto-undo"),
+                                    )
+                            }
+                        }
+                    }
+                },
             )
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -163,26 +203,6 @@ fun DocumentAutoArchiveContent(
                             Text(stringResource(R.string.document_auto_review))
                         }
                     }
-                    if (state!!.enabled)
-                        item {
-                            OutlinedButton(
-                                onClick = { mutate { repository.pause() } },
-                                enabled = !busy,
-                                modifier = Modifier.fillMaxWidth().testTag("document-auto-pause"),
-                            ) {
-                                Text(stringResource(R.string.document_auto_pause))
-                            }
-                        }
-                    if (state!!.lastRunId != null)
-                        item {
-                            OutlinedButton(
-                                onClick = { mutate { repository.undoLastRun() } },
-                                enabled = !busy,
-                                modifier = Modifier.fillMaxWidth().testTag("document-auto-undo"),
-                            ) {
-                                Text(stringResource(R.string.document_auto_undo))
-                            }
-                        }
                 } else {
                     val snapshot = preview!!
                     item {

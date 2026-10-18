@@ -28,4 +28,5 @@
         <item quantity="one">Mindestens %1$d Tag</item>
         <item quantity="other">Mindestens %1$d Tage</item>
     </plurals>
+    <string name="document_auto_more_actions">Weitere Optionen</string>
 </resources>

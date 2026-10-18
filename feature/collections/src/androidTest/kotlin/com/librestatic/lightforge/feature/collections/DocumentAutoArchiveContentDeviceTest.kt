@@ -162,7 +162,8 @@ class DocumentAutoArchiveContentDeviceTest {
                 compose.onAllNodesWithTag("document-auto-list").fetchSemanticsNodes().isNotEmpty()
             }
             capture("enabled")
-            scrollTag("document-auto-list", "document-auto-undo")
+            compose.onNodeWithTag("document-auto-menu").performClick()
+            compose.onNodeWithTag("document-auto-undo").assertIsDisplayed().assertIsEnabled().performClick()
             compose.waitUntil(10000) {
                 runBlocking { db.documentArchiveDao().rule()?.enabled == false }
             }
