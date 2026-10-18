@@ -608,7 +608,7 @@ private fun TimelineThumbnail(
                     "timeline-image-loaded-${entry.value.key.volumeName}_${entry.value.key.mediaStoreId}"),
             )
         }
-        if (!isVideo && stack == null) {
+        if (!isVideo && stack == null && !entry.value.isHiddenOverlay) {
             com.librestatic.lightforge.core.designsystem.AnimatedMediaTile(
                 uri = com.librestatic.lightforge.core.designsystem.mediaStoreImageUri(
                     entry.value.key.volumeName, entry.value.key.mediaStoreId,

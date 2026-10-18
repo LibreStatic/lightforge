@@ -117,4 +117,6 @@
         <item quantity="one">“%1$s” and the %2$d item inside it will be permanently deleted from your device. This can\'t be undone.</item>
         <item quantity="other">“%1$s” and the %2$d items inside it will be permanently deleted from your device. This can\'t be undone.</item>
     </plurals>
+    <string name="folders_menu_show_even_if_hidden">Show in Photos even if hidden</string>
+    <string name="folders_menu_checked">On</string>
 </resources>

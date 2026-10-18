@@ -8,6 +8,7 @@ import android.app.ActivityManager
 import android.app.Application
 import android.content.Context
 import com.librestatic.lightforge.core.mediastore.AdvancedResult
+import com.librestatic.lightforge.core.mediastore.HiddenMediaRow
 import com.librestatic.lightforge.feature.folders.FolderLocation
 import com.librestatic.lightforge.feature.folders.PickPurpose
 import android.graphics.Bitmap
@@ -226,6 +227,10 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
@@ -646,12 +651,47 @@ class GalleryViewModel @Inject constructor(
         if (hidden.isEmpty()) data else data.filter { item -> key(item)?.let { it !in hidden } ?: true }
     }
 
+    private fun mediaStoreChanged(): Flow<Unit> = callbackFlow {
+        val monitor = MediaStoreChangeMonitor(getApplication<Application>().contentResolver, this, 500L) { trySend(Unit) }
+        monitor.start()
+        awaitClose { monitor.close() }
+    }
+
+    /**
+     * Hidden items read live from disk (advanced storage mode), already narrowed to what Photos shows: everything
+     * while hidden items are shown, else the folders with the "show even if hidden" rule. Empty with the mode off.
+     */
+    private val hiddenOverlayRows: kotlinx.coroutines.flow.StateFlow<List<com.librestatic.lightforge.core.mediastore.HiddenMediaRow>> by lazy {
+        combine(
+            advancedStatus.status.map { it.active to it.showHidden }.distinctUntilChanged(),
+            gallerySettings.map { it.operations.showEvenIfHidden }.distinctUntilChanged(),
+        ) { (active, showAll), rules -> Triple(active, showAll, rules) }
+            .flatMapLatest { (active, showAll, rules) ->
+                if (!active || (!showAll && rules.isEmpty())) {
+                    flowOf(emptyList())
+                } else {
+                    kotlinx.coroutines.flow.merge(flowOf(Unit), mediaStoreChanged())
+                        .mapLatest { advancedStorage.queryHiddenMedia() }
+                        .flowOn(Dispatchers.IO)
+                        .combine(gallerySettings.map { it.library }.distinctUntilChanged()) { rows, library ->
+                            hiddenRowsForTimeline(rows, HiddenMediaRow::timelineFacts, showAll, rules, library)
+                        }
+                }
+            }
+            .distinctUntilChanged()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    }
+
+    /** The scanned file behind a hidden item in the Photos timeline, so it can be opened elsewhere. */
+    fun hiddenOverlayRow(key: MediaKey): com.librestatic.lightforge.core.mediastore.HiddenMediaRow? =
+        hiddenOverlayRows.value.firstOrNull { it.volumeName == key.volumeName && it.mediaStoreId == key.mediaStoreId }
+
     val timeline: Flow<PagingData<TimelineEntry>> by lazy {
         combine(gallerySettings.map { it.library }, selection.map {
             it !is SelectionSpec.Explicit || it.keys.isNotEmpty()
-        }) { library, selecting -> library to selecting }
+        }, hiddenOverlayRows) { library, selecting, hidden -> Triple(library, selecting, hidden.map { it.toOverlayMedia() }) }
             .distinctUntilChanged()
-            .flatMapLatest { (library, selecting) ->
+            .flatMapLatest { (library, selecting, hidden) ->
                 // A different library view has different rows, so an old jump target no longer applies.
                 if (library != previousTimelineLibrary) {
                     previousTimelineLibrary = library
@@ -664,6 +704,7 @@ class GalleryViewModel @Inject constructor(
                             library,
                             collapseStacks = !selecting,
                             anchor = anchor,
+                            hidden = hidden,
                         )
                     }
                 }

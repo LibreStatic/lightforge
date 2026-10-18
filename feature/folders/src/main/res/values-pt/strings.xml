@@ -118,4 +118,6 @@
         <item quantity="many">“%1$s” e os %2$d itens dentro dela serão excluídos permanentemente do dispositivo. Isso não pode ser desfeito.</item>
         <item quantity="other">“%1$s” e os %2$d itens dentro dela serão excluídos permanentemente do dispositivo. Isso não pode ser desfeito.</item>
     </plurals>
+    <string name="folders_menu_show_even_if_hidden">Mostrar em Fotos mesmo oculta</string>
+    <string name="folders_menu_checked">Ativado</string>
 </resources>

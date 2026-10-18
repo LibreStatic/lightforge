@@ -1587,7 +1587,15 @@ internal fun ProductionGalleryApp(
                             )
                         },
                         onMediaClick = { media ->
-                            if (selectionCount > 0) viewModel.toggleSelection(media)
+                            if (media.isHiddenOverlay) {
+                                // Not in the library: open it in whatever app handles the file, as the folder explorer does.
+                                viewModel.hiddenOverlayRow(media.key)?.let { row ->
+                                    val view = Intent(Intent.ACTION_VIEW)
+                                        .setDataAndType(row.contentUri, row.mimeType)
+                                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    try { context.startActivity(view) } catch (_: android.content.ActivityNotFoundException) {}
+                                }
+                            } else if (selectionCount > 0) viewModel.toggleSelection(media)
                             else if (media.stack != null) {
                                 initialStackId = requireNotNull(media.stack).id
                                 route = SurfaceRoute.Stacks
@@ -1604,7 +1612,10 @@ internal fun ProductionGalleryApp(
                             SelectionReducer.isSelected(selection, media.key)
                         },
                         selectionOrder = { media -> pdfSelectionOrder[media.key] },
-                        onMediaSelectionChange = viewModel::setMediaSelected,
+                        onMediaSelectionChange = { media, selected ->
+                            // Hidden items are only listed: they are not in the library, so nothing can act on them.
+                            if (!media.isHiddenOverlay) viewModel.setMediaSelected(media, selected)
+                        },
                         preferredColumns = gallerySettings.thumbnails.gridColumns.takeIf { it != com.librestatic.lightforge.core.preferences.AutoGridColumns },
                         cropThumbnails = gallerySettings.thumbnails.cropToFill,
                         onDensityChange = { columns ->

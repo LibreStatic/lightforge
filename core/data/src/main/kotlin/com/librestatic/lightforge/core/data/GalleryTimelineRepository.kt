@@ -46,6 +46,8 @@ class GalleryTimelineRepository(private val database: GalleryDatabase) {
         settings: LibrarySettings = LibrarySettings(),
         collapseStacks: Boolean = true,
         anchor: TimelineAnchor? = null,
+        /** Advanced storage mode: hidden items to merge in by the library sort order. */
+        hidden: List<TimelineMedia> = emptyList(),
     ): Flow<PagingData<TimelineEntry>> {
         val config =
             PagingConfig(
@@ -128,7 +130,7 @@ class GalleryTimelineRepository(private val database: GalleryDatabase) {
                 plainRows.map { data -> data.map { it.toTimelineMedia() } }
             }
         return rows.map { data ->
-            val media = data.map { TimelineEntry.Media(it) as TimelineEntry }
+            val media = mergeHidden(data, hidden, settings).map { TimelineEntry.Media(it) as TimelineEntry }
             if (settings.grouping == LibraryGrouping.None) media
             else
                 media.insertSeparators { before: TimelineEntry?, after: TimelineEntry? ->

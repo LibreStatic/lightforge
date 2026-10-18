@@ -118,4 +118,6 @@
         <item quantity="many">“%1$s” e i suoi %2$d elementi verranno eliminati definitivamente dal dispositivo. L\'azione non è reversibile.</item>
         <item quantity="other">“%1$s” e i suoi %2$d elementi verranno eliminati definitivamente dal dispositivo. L\'azione non è reversibile.</item>
     </plurals>
+    <string name="folders_menu_show_even_if_hidden">Mostra in Foto anche se nascosta</string>
+    <string name="folders_menu_checked">Attivo</string>
 </resources>

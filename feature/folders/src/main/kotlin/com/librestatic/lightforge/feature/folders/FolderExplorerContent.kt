@@ -118,6 +118,8 @@ class FolderExplorerActions(
     val onMove: (FolderCardUi) -> Unit = {},
     /** Opens the destination picker to copy the folder with everything in it. */
     val onCopy: (FolderCardUi) -> Unit = {},
+    /** Turns the "show in Photos even if hidden" rule of a hidden folder on or off. */
+    val onToggleShowEvenIfHidden: (FolderCardUi) -> Unit = {},
 )
 
 private sealed interface FolderDialog {
@@ -817,6 +819,17 @@ private fun FolderMenu(
                     leadingIcon = { Icon(GalleryIcons.Visibility, contentDescription = null) },
                     onClick = { onDismiss(); actions.onUnhide(folder) },
                     modifier = Modifier.testTag("folder-menu-unhide"),
+                )
+            }
+            if (folder.isHidden && folder.location.relativePath != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.folders_menu_show_even_if_hidden)) },
+                    leadingIcon = { Icon(GalleryIcons.Visibility, contentDescription = null) },
+                    trailingIcon = if (folder.showEvenIfHidden) {
+                        { Icon(GalleryIcons.Check, contentDescription = stringResource(R.string.folders_menu_checked)) }
+                    } else null,
+                    onClick = { onDismiss(); actions.onToggleShowEvenIfHidden(folder) },
+                    modifier = Modifier.testTag("folder-menu-show-even-if-hidden"),
                 )
             }
             if (!folder.isEmptyDirectory) {

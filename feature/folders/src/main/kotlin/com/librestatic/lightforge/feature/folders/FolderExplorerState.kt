@@ -92,6 +92,8 @@ data class FolderCardUi(
     /** The folder rules leave this folder out of the library; it is shown dimmed so it can be included again. */
     val isExcluded: Boolean = false,
     val isPinned: Boolean = false,
+    /** Advanced mode only: Photos lists this hidden folder's items even while hidden items are not shown. */
+    val showEvenIfHidden: Boolean = false,
     /** Search results only: the folder's parent path, so equally named folders can be told apart. */
     val pathLabel: String? = null,
 )
@@ -211,6 +213,8 @@ fun buildFolderExplorerUiState(
     isExcluded: (volumeName: String, bucketId: Long?, relativePath: String) -> Boolean = { _, _, _ -> false },
     /** Pin keys (see [pinKeyOf]) of the pinned folders. */
     pinned: Set<String> = emptySet(),
+    /** Pin-style keys (see [pinKeyOf]) of the folders Photos shows even if hidden. */
+    showEvenIfHidden: Set<String> = emptySet(),
 ): FolderExplorerUiState {
     if (tree.volumes.isEmpty()) return FolderExplorerUiState.Empty
     val resolved = resolveLocation(tree, location)
@@ -248,9 +252,9 @@ fun buildFolderExplorerUiState(
         folders = sortFolderCards(
             if (query.isBlank()) {
                 node.children.map { if (compactChains) it.compactSingleChildChains() else it }
-                    .map { card(tree, it, isRecordedHide, isExcluded, pinned) }
+                    .map { card(tree, it, isRecordedHide, isExcluded, pinned, showEvenIfHidden) }
             } else {
-                searchCards(tree, node, query.trim(), isRecordedHide, isExcluded, pinned)
+                searchCards(tree, node, query.trim(), isRecordedHide, isExcluded, pinned, showEvenIfHidden)
             },
             options,
         ),
@@ -272,13 +276,14 @@ private fun searchCards(
     isRecordedHide: (FolderLocation) -> Boolean,
     isExcluded: (String, Long?, String) -> Boolean,
     pinned: Set<String>,
+    showEvenIfHidden: Set<String>,
 ): List<FolderCardUi> {
     val found = ArrayList<FolderCardUi>()
     fun walk(node: FolderNode<FolderStats>) {
         for (child in node.children) {
             if (child.name.contains(query, ignoreCase = true)) {
                 val parent = child.relativePath.orEmpty().trim('/').substringBeforeLast('/', "")
-                found += card(tree, child, isRecordedHide, isExcluded, pinned).copy(pathLabel = parent.takeIf { it.isNotEmpty() })
+                found += card(tree, child, isRecordedHide, isExcluded, pinned, showEvenIfHidden).copy(pathLabel = parent.takeIf { it.isNotEmpty() })
             }
             walk(child)
         }
@@ -342,6 +347,7 @@ private fun card(
     isRecordedHide: (FolderLocation) -> Boolean,
     isExcluded: (String, Long?, String) -> Boolean = { _, _, _ -> false },
     pinned: Set<String> = emptySet(),
+    showEvenIfHidden: Set<String> = emptySet(),
 ): FolderCardUi {
     val totals = tree.totals(node)
     val stats = node.direct
@@ -372,6 +378,7 @@ private fun card(
         maxSortMillis = totals.maxSortMillis,
         isExcluded = isExcluded(node.volumeName, stats?.bucketId, node.relativePath.orEmpty()),
         isPinned = pinKeyOf(location) in pinned,
+        showEvenIfHidden = pinKeyOf(location) in showEvenIfHidden,
     )
 }
 

@@ -116,4 +116,6 @@
         <item quantity="one">„%1$s“ und das darin enthaltene Element (%2$d) werden endgültig vom Gerät gelöscht. Das lässt sich nicht rückgängig machen.</item>
         <item quantity="other">„%1$s“ und die darin enthaltenen %2$d Elemente werden endgültig vom Gerät gelöscht. Das lässt sich nicht rückgängig machen.</item>
     </plurals>
+    <string name="folders_menu_show_even_if_hidden">In Fotos anzeigen, auch wenn verborgen</string>
+    <string name="folders_menu_checked">An</string>
 </resources>

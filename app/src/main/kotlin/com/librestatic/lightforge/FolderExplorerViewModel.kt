@@ -96,6 +96,7 @@ private data class ViewInputs(
     val options: FolderViewOptions,
     val query: String,
     val pinned: Set<String>,
+    val showEvenIfHidden: Set<String>,
     val defaultSelected: Boolean,
     val rules: Map<FolderSelectionTarget, Boolean>,
 )
@@ -215,11 +216,11 @@ class FolderExplorerViewModel @Inject constructor(
         combine(location, operations, searchOpen, searchQuery) { at, ops, open, query ->
             val own = FolderViewOptions.decode(ops.folderViewOptions[FolderViewOptions.keyOf(at)])
             val fallback = FolderViewOptions.decode(ops.folderViewOptions[FolderViewOptions.keyOf(null)])
-            Triple(own ?: fallback ?: FolderViewOptions(), ops.pinnedFolders, if (open) query else "")
+            Triple(own ?: fallback ?: FolderViewOptions(), ops.pinnedFolders to ops.showEvenIfHidden, if (open) query else "")
         },
         libraryRules,
-    ) { (subfolders, compact), (options, pins, query), (mode, rules) ->
-        ViewInputs(subfolders, compact, options, query, pins, mode == FolderSelectionMode.AllExceptExcluded, rules)
+    ) { (subfolders, compact), (options, sets, query), (mode, rules) ->
+        ViewInputs(subfolders, compact, options, query, sets.first, sets.second, mode == FolderSelectionMode.AllExceptExcluded, rules)
     }
 
     private val mutableSelectedFolders = MutableStateFlow<Set<String>>(emptySet())
@@ -246,6 +247,7 @@ class FolderExplorerViewModel @Inject constructor(
                         !FolderSelectionPolicy.isSelected(inputs.defaultSelected, inputs.rules, volume, bucket ?: NoBucket, path)
                     },
                     pinned = inputs.pinned,
+                    showEvenIfHidden = inputs.showEvenIfHidden,
                 )
             }
         }.flowOn(Dispatchers.Default)
@@ -367,6 +369,17 @@ class FolderExplorerViewModel @Inject constructor(
         get() = (uiState.value as? FolderExplorerUiState.Folder)?.options ?: FolderViewOptions()
 
     fun togglePin(card: FolderCardUi) = setPinned(listOf(card), !card.isPinned)
+
+    /** The "show in Photos even if hidden" rule of a hidden folder (and everything below it). */
+    fun toggleShowEvenIfHidden(card: FolderCardUi) {
+        val key = pinKeyOf(card.location) ?: return
+        viewModelScope.launch {
+            settings.update {
+                val set = if (card.showEvenIfHidden) it.operations.showEvenIfHidden - key else it.operations.showEvenIfHidden + key
+                it.copy(operations = it.operations.copy(showEvenIfHidden = set))
+            }
+        }
+    }
 
     private fun setPinned(cards: List<FolderCardUi>, pinned: Boolean) {
         val keys = cards.mapNotNull { pinKeyOf(it.location) }

@@ -87,6 +87,7 @@ internal fun FolderExplorerHost(
                 onDelete = viewModel::delete,
                 onMove = onMoveFolder,
                 onCopy = onCopyFolder,
+                onToggleShowEvenIfHidden = viewModel::toggleShowEvenIfHidden,
                 onOpenHiddenItem = { item ->
                     val view = Intent(Intent.ACTION_VIEW)
                         .setDataAndType(Uri.parse(item.uri), item.mimeType)

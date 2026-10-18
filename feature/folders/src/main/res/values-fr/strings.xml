@@ -118,4 +118,6 @@
         <item quantity="many">« %1$s » et les %2$d éléments qu’il contient seront définitivement supprimés de l’appareil. Cette action est irréversible.</item>
         <item quantity="other">« %1$s » et les %2$d éléments qu’il contient seront définitivement supprimés de l’appareil. Cette action est irréversible.</item>
     </plurals>
+    <string name="folders_menu_show_even_if_hidden">Afficher dans Photos même si masqué</string>
+    <string name="folders_menu_checked">Activé</string>
 </resources>
