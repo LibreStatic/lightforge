@@ -87,40 +87,36 @@ fun MemoriesBrowserContent(
                         )
                     }
                 }
+                Text(
+                    stringResource(R.string.memories_browser_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 12.dp, end = 16.dp),
+                )
                 key(filter) {
                     val pages =
                         remember(repository, filter) { repository.browser(filter) }
                             .collectAsLazyPagingItems()
                     val scroll = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
-                    LazyColumn(
+                    if (pages.loadState.refresh is LoadState.NotLoading && pages.itemCount == 0)
+                        GalleryEmptyState(
+                            title = stringResource(R.string.memories_browser_empty),
+                            body = stringResource(R.string.memories_browser_empty_body),
+                            icon = GalleryIcons.AutoAwesome,
+                            hero = true,
+                            modifier = Modifier.fillMaxWidth().weight(1f).testTag("memories-browser-empty"),
+                        )
+                    else LazyColumn(
                         Modifier.fillMaxWidth().weight(1f).testTag("memories-browser-list"),
                         state = scroll,
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        item("description") {
-                            Text(
-                                stringResource(R.string.memories_browser_body),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                        }
                         if (pages.loadState.refresh is LoadState.Loading && pages.itemCount == 0)
                             item("loading") {
                                 GalleryIndeterminateProgressIndicator(
                                     Modifier.fillMaxWidth().testTag("memories-browser-loading")
                                 )
                                 Text(stringResource(R.string.memories_browser_loading))
-                            }
-                        if (pages.loadState.refresh is LoadState.NotLoading && pages.itemCount == 0)
-                            item("empty") {
-                                GalleryEmptyState(
-                                    title = stringResource(R.string.memories_browser_empty),
-                                    body = stringResource(R.string.memories_browser_empty_body),
-                                    icon = GalleryIcons.AutoAwesome,
-                                    hero = true,
-                                    modifier = Modifier.fillMaxWidth().heightIn(min = 320.dp)
-                                        .testTag("memories-browser-empty"),
-                                )
                             }
                         items(pages.itemCount, key = pages.itemKey { it.moment.momentId }) { index
                             ->

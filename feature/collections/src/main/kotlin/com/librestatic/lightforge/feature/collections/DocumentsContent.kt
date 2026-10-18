@@ -3,6 +3,8 @@ package com.librestatic.lightforge.feature.collections
 import android.content.ClipData
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryEmptyState
+import com.librestatic.lightforge.core.designsystem.GalleryLoadErrorRow
+import com.librestatic.lightforge.core.designsystem.GalleryLoadErrorState
 import android.content.ClipboardManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
@@ -224,36 +226,35 @@ fun DocumentsContent(
                         Modifier.width(360.dp).fillMaxHeight().verticalScroll(rememberScrollState()).padding(end = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) { controls() }
-                    LazyVerticalGrid(
+                    val stateOnly = rows.itemCount == 0 &&
+                        (rows.loadState.refresh is LoadState.Error || rows.loadState.refresh is LoadState.NotLoading)
+                    Column(Modifier.weight(1f).fillMaxHeight()) {
+                    Text(
+                        stringResource(category.label()) + " · " + rows.itemCount,
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(vertical = 4.dp).semantics { heading() },
+                    )
+                    if (stateOnly && rows.loadState.refresh is LoadState.Error)
+                        GalleryLoadErrorState({ rows.retry() }, Modifier.weight(1f).fillMaxWidth().testTag("documents-error"))
+                    else if (stateOnly)
+                        GalleryEmptyState(
+                            title = stringResource(R.string.documents_empty_title),
+                            body = stringResource(R.string.documents_empty_body),
+                            icon = GalleryIcons.Description,
+                            hero = true,
+                            modifier = Modifier.weight(1f).fillMaxWidth().testTag("documents-empty"),
+                        )
+                    else LazyVerticalGrid(
                         GridCells.Adaptive(260.dp),
-                        Modifier.weight(1f).fillMaxHeight().testTag("documents-list"),
+                        Modifier.weight(1f).fillMaxWidth().testTag("documents-list"),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         contentPadding = PaddingValues(bottom = 16.dp),
                     ) {
-                        item(span = { GridItemSpan(maxLineSpan) }) {
-                            Text(
-                                stringResource(category.label()) + " · " + rows.itemCount,
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.padding(vertical = 4.dp).semantics { heading() },
-                            )
-                        }
                         if (rows.loadState.refresh is LoadState.Loading && rows.itemCount == 0)
                             item(span = { GridItemSpan(maxLineSpan) }) { GalleryIndeterminateProgressIndicator() }
                         if (rows.loadState.refresh is LoadState.Error)
-                            item(span = { GridItemSpan(maxLineSpan) }) {
-                                TextButton(onClick = { rows.retry() }) { Text(stringResource(R.string.documents_retry)) }
-                            }
-                        if (rows.itemCount == 0 && rows.loadState.refresh is LoadState.NotLoading)
-                            item(span = { GridItemSpan(maxLineSpan) }) {
-                                GalleryEmptyState(
-                                    title = stringResource(R.string.documents_empty_title),
-                                    body = stringResource(R.string.documents_empty_body),
-                                    icon = GalleryIcons.Description,
-                                    hero = true,
-                                    modifier = Modifier.fillMaxWidth().heightIn(min = 320.dp).testTag("documents-empty"),
-                                )
-                            }
+                            item(span = { GridItemSpan(maxLineSpan) }) { GalleryLoadErrorRow({ rows.retry() }) }
                         items(rows.itemCount, key = rows.itemKey { it.key().saved() }) { index ->
                             rows[index]?.let { row ->
                                 val id = row.key().saved()
@@ -303,9 +304,8 @@ fun DocumentsContent(
                         if (rows.loadState.append is LoadState.Loading)
                             item(span = { GridItemSpan(maxLineSpan) }) { GalleryIndeterminateProgressIndicator() }
                         if (rows.loadState.append is LoadState.Error)
-                            item(span = { GridItemSpan(maxLineSpan) }) {
-                                TextButton(onClick = { rows.retry() }) { Text(stringResource(R.string.documents_retry)) }
-                            }
+                            item(span = { GridItemSpan(maxLineSpan) }) { GalleryLoadErrorRow({ rows.retry() }) }
+                    }
                     }
                 }
             }
@@ -320,7 +320,23 @@ fun DocumentsContent(
         )
         Column(Modifier.weight(1f).fillMaxWidth().widthIn(max = 1200.dp).padding(horizontal = 16.dp)) {
             if (focused == null) {
-                LazyColumn(
+                val stateOnly = rows.itemCount == 0 &&
+                    (rows.loadState.refresh is LoadState.Error || rows.loadState.refresh is LoadState.NotLoading)
+                if (stateOnly) {
+                    Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()).testTag("documents-list")) {
+                        controls()
+                    }
+                    if (rows.loadState.refresh is LoadState.Error)
+                        GalleryLoadErrorState({ rows.retry() }, Modifier.weight(1f).fillMaxWidth().testTag("documents-error"))
+                    else
+                        GalleryEmptyState(
+                            title = stringResource(R.string.documents_empty_title),
+                            body = stringResource(R.string.documents_empty_body),
+                            icon = GalleryIcons.Description,
+                            hero = true,
+                            modifier = Modifier.weight(1f).fillMaxWidth().testTag("documents-empty"),
+                        )
+                } else LazyColumn(
                     Modifier.weight(1f).testTag("documents-list"),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(bottom = 16.dp),
@@ -331,18 +347,7 @@ fun DocumentsContent(
                     if (rows.loadState.refresh is LoadState.Loading && rows.itemCount == 0)
                         item { GalleryIndeterminateProgressIndicator() }
                     if (rows.loadState.refresh is LoadState.Error)
-                        item {
-                            TextButton(onClick = { rows.retry() }) {
-                                Text(stringResource(R.string.documents_retry))
-                            }
-                        }
-                    if (rows.itemCount == 0 && rows.loadState.refresh is LoadState.NotLoading)
-                        item {
-                            Text(
-                                stringResource(R.string.documents_empty),
-                                Modifier.padding(vertical = 24.dp),
-                            )
-                        }
+                        item { GalleryLoadErrorRow({ rows.retry() }) }
                     items(rows.itemCount, key = rows.itemKey { it.key().saved() }) { index ->
                         rows[index]?.let { row ->
                             val id = row.key().saved()
@@ -404,11 +409,7 @@ fun DocumentsContent(
                     if (rows.loadState.append is LoadState.Loading)
                         item { GalleryIndeterminateProgressIndicator() }
                     if (rows.loadState.append is LoadState.Error)
-                        item {
-                            TextButton(onClick = { rows.retry() }) {
-                                Text(stringResource(R.string.documents_retry))
-                            }
-                        }
+                        item { GalleryLoadErrorRow({ rows.retry() }) }
                 }
             } else {
                 val row = detail
