@@ -41,4 +41,5 @@
     <string name="stacks_create">Criar pilha</string>
     <string name="stacks_collection_hint">Revise fotos semelhantes, escolha uma capa e mantenha os grupos neste dispositivo.</string>
     <string name="stacks_missing_title">Esta pilha não está disponível</string>
+    <string name="stacks_more">Mais opções</string>
 </resources>

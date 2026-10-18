@@ -121,8 +121,40 @@ fun PhotoStacksContent(
         } ?: photos.firstOrNull()
     val selected = photos.firstOrNull { it.key().stackKey() == selectedKey } ?: cover
     LaunchedEffect(comparing) { if (comparing) listState.animateScrollToItem(1) }
-    LaunchedEffect(renaming) {
-        if (renaming) listState.animateScrollToItem(if (selected != null && cover != null) 4 else 1)
+    if (renaming && stack != null) {
+        val current = stack!!
+        AlertDialog(
+            onDismissRequest = { renaming = false },
+            title = { Text(stringResource(R.string.stacks_rename)) },
+            text = {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it.take(80) },
+                    label = { Text(stringResource(R.string.stacks_name)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("stack-rename-field"),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    modifier = Modifier.testTag("stack-rename-save"),
+                    enabled = !busy,
+                    onClick = {
+                        mutate {
+                            repository.rename(current.stackId, current.revision, title)
+                            renaming = false
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.stacks_save_name))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { renaming = false }) {
+                    Text(stringResource(R.string.stacks_cancel))
+                }
+            },
+        )
     }
     if (confirmDissolve && stack != null) {
         val current = stack!!
@@ -180,6 +212,80 @@ fun PhotoStacksContent(
                 onBack = { if (!busy) back() },
                 navigationContentDescription = stringResource(R.string.stacks_back),
                 windowInsets = WindowInsets(0, 0, 0, 0),
+                actions = {
+                    if (!home && selected != null && cover != null) {
+                        IconButton(
+                            enabled = photos.size >= 2,
+                            onClick = {
+                                comparing = !comparing
+                                zoom = 1f
+                            },
+                            modifier = Modifier.testTag("stack-compare"),
+                        ) {
+                            Icon(
+                                GalleryIcons.SwapHoriz,
+                                contentDescription = stringResource(R.string.stacks_compare),
+                            )
+                        }
+                        val current = stack
+                        if (current != null) {
+                            var menuOpen by remember { mutableStateOf(false) }
+                            Box {
+                                IconButton(
+                                    onClick = { menuOpen = true },
+                                    modifier = Modifier.testTag("stack-menu"),
+                                ) {
+                                    Icon(
+                                        GalleryIcons.More,
+                                        contentDescription = stringResource(R.string.stacks_more),
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = menuOpen,
+                                    onDismissRequest = { menuOpen = false },
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.stacks_separate)) },
+                                        enabled = !busy,
+                                        onClick = {
+                                            menuOpen = false
+                                            mutate {
+                                                val remains =
+                                                    repository.separate(
+                                                        current.stackId,
+                                                        current.revision,
+                                                        selected.key(),
+                                                    )
+                                                selectedKey = null
+                                                comparing = false
+                                                if (!remains) home()
+                                            }
+                                        },
+                                        modifier = Modifier.testTag("stack-separate"),
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.stacks_rename)) },
+                                        onClick = {
+                                            menuOpen = false
+                                            title = current.title.orEmpty()
+                                            renaming = true
+                                        },
+                                        modifier = Modifier.testTag("stack-rename"),
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.stacks_unstack)) },
+                                        enabled = !busy,
+                                        onClick = {
+                                            menuOpen = false
+                                            confirmDissolve = true
+                                        },
+                                        modifier = Modifier.testTag("stack-unstack"),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
             )
         },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -556,81 +662,8 @@ fun PhotoStacksContent(
                             ) {
                                 Text(stringResource(R.string.stacks_choose_cover))
                             }
-                        OutlinedButton(
-                            enabled = photos.size >= 2,
-                            onClick = {
-                                comparing = !comparing
-                                zoom = 1f
-                            },
-                            modifier = Modifier.fillMaxWidth().testTag("stack-compare"),
-                        ) {
-                            Text(stringResource(R.string.stacks_compare))
-                        }
-                        if (stack != null) {
-                            val current = stack!!
-                            TextButton(
-                                enabled = !busy,
-                                onClick = {
-                                    mutate {
-                                        val remains =
-                                            repository.separate(
-                                                current.stackId,
-                                                current.revision,
-                                                selected.key(),
-                                            )
-                                        selectedKey = null
-                                        comparing = false
-                                        if (!remains) home()
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth().testTag("stack-separate"),
-                            ) {
-                                Text(stringResource(R.string.stacks_separate))
-                            }
-                        }
                     }
                 }
-                if (stack != null)
-                    item {
-                        val current = stack!!
-                        if (renaming) {
-                            OutlinedTextField(
-                                value = title,
-                                onValueChange = { title = it.take(80) },
-                                label = { Text(stringResource(R.string.stacks_name)) },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            Button(
-                                enabled = !busy,
-                                onClick = {
-                                    mutate {
-                                        repository.rename(current.stackId, current.revision, title)
-                                        renaming = false
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text(stringResource(R.string.stacks_save_name))
-                            }
-                        } else
-                            TextButton(
-                                onClick = {
-                                    title = current.title.orEmpty()
-                                    renaming = true
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text(stringResource(R.string.stacks_rename))
-                            }
-                        OutlinedButton(
-                            enabled = !busy,
-                            onClick = { confirmDissolve = true },
-                            modifier = Modifier.fillMaxWidth().testTag("stack-unstack"),
-                        ) {
-                            Text(stringResource(R.string.stacks_unstack))
-                        }
-                    }
             }
             error?.let { id ->
                 item {

@@ -152,6 +152,13 @@ class PhotoStacksContentDeviceTest {
                 scroll(tag)
                 compose.onNodeWithTag(tag).assertIsEnabled().performClick()
             }
+            fun clickTopBar(tag: String) {
+                compose.onNodeWithTag(tag).assertIsEnabled().performClick()
+            }
+            fun clickMenuItem(tag: String) {
+                compose.onNodeWithTag("stack-menu").performClick()
+                compose.onNodeWithTag(tag).assertIsEnabled().performClick()
+            }
             fun capture(label: String) {
                 val image =
                     compose.onNodeWithTag("photo-stacks-screen").captureToImage().asAndroidBitmap()
@@ -180,7 +187,7 @@ class PhotoStacksContentDeviceTest {
             compose.waitUntil(10000) {
                 runBlocking { db.photoStackDao().get(id)?.coverMediaStoreId == 2L }
             }
-            click("stack-compare")
+            clickTopBar("stack-compare")
             val comparison = compose.onNodeWithTag("stack-comparison").getUnclippedBoundsInRoot()
             val coverBounds =
                 compose.onNodeWithTag("stack-comparison-cover").getUnclippedBoundsInRoot()
@@ -197,21 +204,19 @@ class PhotoStacksContentDeviceTest {
             }
             capture("comparison")
             click("stack-close-compare")
-            val rename = context.getString(R.string.stacks_rename)
-            compose.onNodeWithTag("photo-stacks-list").performScrollToNode(hasText(rename))
-            compose.onNodeWithText(rename).performClick()
+            clickMenuItem("stack-rename")
             compose
-                .onNodeWithText(context.getString(R.string.stacks_name))
+                .onNodeWithTag("stack-rename-field")
                 .performTextReplacement("Summer friends")
-            compose.onNodeWithText(context.getString(R.string.stacks_save_name)).performClick()
+            compose.onNodeWithTag("stack-rename-save").performClick()
             compose.waitUntil(10000) {
                 runBlocking { db.photoStackDao().get(id)?.title == "Summer friends" }
             }
-            click("stack-separate")
+            clickMenuItem("stack-separate")
             compose.waitUntil(10000) { runBlocking { db.photoStackDao().rawMembers(id).size == 2 } }
             assertEquals(1L, db.photoStackDao().get(id)!!.coverMediaStoreId)
             assertEquals(media(2), db.documentDao().get("external_primary", 2)!!.media)
-            click("stack-unstack")
+            clickMenuItem("stack-unstack")
             compose.onNodeWithTag("stack-confirm-unstack").performClick()
             compose.waitUntil(10000) { runBlocking { db.photoStackDao().get(id) == null } }
             assertEquals(3L, db.libraryDao().mediaCount())

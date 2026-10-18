@@ -53,6 +53,20 @@ class PhotoStacksAppDeviceTest {
             }
             error("Missing stack control: $tag")
         }
+        fun clickMenuItem(tag: String) {
+            // Separate, Rename and Unstack all live in the top bar overflow menu.
+            clickTag("stack-menu")
+            // Popup menu items are matched by text: popups are separate semantics roots.
+            val label = InstrumentationRegistry.getInstrumentation().targetContext.getString(
+                when (tag) {
+                    "stack-separate" -> com.librestatic.lightforge.feature.collections.R.string.stacks_separate
+                    else -> error("Unsupported menu item: $tag")
+                }
+            )
+            assertTrue("Missing menu item $label", device.wait(Until.hasObject(By.text(label)), 10_000))
+            device.findObject(By.text(label)).click()
+            device.waitForIdle()
+        }
         fun awaitImage(id: Long, size: Int = 1024) {
             assertTrue(
                 "Original source image did not render: $id / $size",
@@ -240,7 +254,7 @@ class PhotoStacksAppDeviceTest {
             assertEquals(chosen, gallery.photoStackDao().get(id)!!.coverMediaStoreId)
             awaitImage(chosen)
             capture("reopened-stack")
-            clickTag("stack-separate")
+            clickMenuItem("stack-separate")
             withTimeout(10000) { while (gallery.photoStackDao().get(id) != null) delay(50) }
             assertEquals(originalHashes, sources.map(::hash))
             assertTrue(

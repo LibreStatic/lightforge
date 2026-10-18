@@ -41,4 +41,5 @@
     <string name="stacks_create">Créer une pile</string>
     <string name="stacks_collection_hint">Examinez les photos similaires, choisissez une couverture et conservez les groupes sur cet appareil.</string>
     <string name="stacks_missing_title">Cette pile n\'est pas disponible</string>
+    <string name="stacks_more">Plus d’options</string>
 </resources>
