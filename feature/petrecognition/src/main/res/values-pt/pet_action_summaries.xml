@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pet_download_summary">Baixa uma vez os modelos de reconhecimento no dispositivo (cerca de 58 MB)</string>
+    <string name="pet_import_summary">Carrega um pacote de modelos que você já verificou, sem baixar</string>
+    <string name="pet_enable_summary">Ativa o reconhecimento de animais com os modelos instalados</string>
+    <string name="pet_analyze_summary">Procura gatos e cães nas fotos deste dispositivo</string>
+</resources>

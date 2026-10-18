@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pet_download_summary">Download the on-device recognition models once (about 58 MB)</string>
+    <string name="pet_import_summary">Load a model package you already verified, without downloading</string>
+    <string name="pet_enable_summary">Turn on pet recognition using the installed models</string>
+    <string name="pet_analyze_summary">Find cats and dogs in the photos on this device</string>
+</resources>

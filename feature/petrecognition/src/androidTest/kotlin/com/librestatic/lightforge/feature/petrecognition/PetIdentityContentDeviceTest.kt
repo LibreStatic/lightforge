@@ -54,36 +54,36 @@ class PetIdentityContentDeviceTest {
             } }
             click("pet-review")
             click("pet-select-a")
-            click("pet-species-cat")
+            selectionAction("pet-species-cat")
             assertTrue(repo.edits.last() is PetEdit.SetSpecies)
             click("pet-select-a")
-            click("pet-create-group")
+            selectionAction("pet-create-group")
             compose.onNodeWithTag("pet-name").performTextInput("Noodle")
             compose.onNodeWithTag("pet-name-confirm").performClick()
             compose.waitForIdle()
             assertEquals("Noodle", (repo.edits.last() as PetEdit.CreateIdentity).name)
             restore.emulateSavedInstanceStateRestore()
             click("pet-select-b")
-            click("pet-exclude")
+            selectionAction("pet-exclude")
             assertTrue(repo.edits.last() is PetEdit.Exclude)
             click("pet-excluded")
             click("pet-select-b")
-            click("pet-restore")
+            selectionAction("pet-restore")
             assertTrue(repo.edits.last() is PetEdit.Restore)
             click("pet-undo")
             assertEquals("undo-${repo.summary.value.revision-1}", repo.lastUndo)
             click("pet-select-b")
-            click("pet-restore")
+            selectionAction("pet-restore")
             click("pet-review")
             click("pet-select-b")
-            click("pet-suggest")
+            selectionAction("pet-suggest")
             click("pet-accept-created")
             assertEquals("created", (repo.edits.last() as PetEdit.AcceptSuggestion).identityId)
             compose.onNodeWithTag("pet-identity-screen").performScrollToNode(hasText(context.getString(R.string.pet_groups)))
             compose.onNodeWithText(context.getString(R.string.pet_groups)).performClick()
             click("pet-open-created")
             click("pet-select-b")
-            click("pet-split")
+            selectionAction("pet-split")
             compose.onNodeWithTag("pet-name").performTextInput("Other")
             compose.onNodeWithTag("pet-name-confirm").performClick()
             compose.waitForIdle()
@@ -106,13 +106,23 @@ class PetIdentityContentDeviceTest {
     @Test fun revisionConflictIsVisibleAndDoesNotReportSuccessfulNaming() {
         val repo = PetUiRepository(Uri.EMPTY).apply { rejectEdits = true }
         compose.setContent { LightforgeTheme { PetIdentityContent(repo,{}) } }
-        click("pet-review"); click("pet-select-a"); click("pet-species-cat")
+        click("pet-review"); click("pet-select-a"); selectionAction("pet-species-cat")
         compose.onNodeWithTag("pet-identity-screen").performScrollToNode(hasTestTag("pet-error"))
         compose.onNodeWithTag("pet-error").assertExists()
         assertEquals(PetSpecies.Uncertain,repo.observations.first().species)
     }
     private fun click(tag:String) {
-        compose.onNodeWithTag("pet-identity-screen").performScrollToNode(hasTestTag(tag))
+        // Header actions (refresh, undo) sit in the top bar, outside the list.
+        runCatching { compose.onNodeWithTag("pet-identity-screen").performScrollToNode(hasTestTag(tag)) }
+        compose.onNodeWithTag(tag).performClick()
+        compose.waitForIdle()
+    }
+    /** Bulk actions live in the selection bar; the ones that do not fit are in its overflow menu. */
+    private fun selectionAction(tag:String) {
+        if (compose.onAllNodesWithTag(tag).fetchSemanticsNodes().isEmpty()) {
+            compose.onNodeWithTag("gallery_selection_more").performClick()
+            compose.waitForIdle()
+        }
         compose.onNodeWithTag(tag).performClick()
         compose.waitForIdle()
     }

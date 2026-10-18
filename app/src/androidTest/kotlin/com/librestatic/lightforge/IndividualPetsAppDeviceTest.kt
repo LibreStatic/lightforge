@@ -70,6 +70,11 @@ class IndividualPetsAppDeviceTest {
             device.waitForIdle()
         }
         fun tag(value:String,direction:Direction=Direction.DOWN)=click(By.res(value),direction)
+        // Bulk actions sit in the selection bar; the ones that do not fit are in its overflow menu.
+        fun selectionAction(value:String) {
+            if(!device.hasObject(By.res(value))) tag("gallery_selection_more")
+            tag(value)
+        }
         fun openPets() {
             click(By.desc(context.getString(com.librestatic.lightforge.feature.photos.R.string.open_settings)))
             await("Settings route") { device.hasObject(By.text(context.getString(com.librestatic.lightforge.feature.settings.R.string.settings_title))) }
@@ -151,9 +156,9 @@ class IndividualPetsAppDeviceTest {
                     observations.forEach { assertEquals(512,runBlocking { repository.observationEmbedding(it.id,PetModelCatalog.Fingerprint) }!!.size) }
                     capture("real-analysis")
                     val first=observations.first();val second=observations.last()
-                    selectObservation(first.id);tag("pet-species-cat")
+                    selectObservation(first.id);selectionAction("pet-species-cat")
                     await("First species explicitly reviewed") { ownedObservations().first { it.id==first.id }.species==PetSpecies.Cat }
-                    selectObservation(first.id);tag("pet-create-group")
+                    selectObservation(first.id);selectionAction("pet-create-group")
                     click(By.res("pet-name"))
                     await("Name has focus") { device.hasObject(By.clazz("android.widget.EditText").focused(true)) }
                     find(By.clazz("android.widget.EditText").focused(true)).text=name
@@ -161,9 +166,9 @@ class IndividualPetsAppDeviceTest {
                     tag("pet-name-confirm")
                     await("Named group committed") { ownedObservations().first { it.id==first.id }.identityId!=null }
                     val identityId=requireNotNull(ownedObservations().first { it.id==first.id }.identityId)
-                    selectObservation(second.id);tag("pet-species-cat")
+                    selectObservation(second.id);selectionAction("pet-species-cat")
                     await("Second species explicitly reviewed") { ownedObservations().first { it.id==second.id }.species==PetSpecies.Cat }
-                    selectObservation(second.id);tag("pet-suggest")
+                    selectObservation(second.id);selectionAction("pet-suggest")
                     tag("pet-accept-$identityId")
                     await("Reviewed same group has two sources") { ownedObservations().all { it.identityId==identityId } }
                     click(By.text(context.getString(com.librestatic.lightforge.feature.petrecognition.R.string.pet_groups)),Direction.UP)
