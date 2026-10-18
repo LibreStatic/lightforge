@@ -5,7 +5,7 @@ import java.io.OutputStream
 import java.security.MessageDigest
 
 /** Bounded-memory copy and readback; checks run before and after every blocking chunk. */
-internal object VerifiedStreamCopy {
+object VerifiedStreamCopy {
     data class Fingerprint(val bytes: Long, val sha256: String)
 
     fun copy(input: InputStream, output: OutputStream, checkActive: () -> Unit): Fingerprint =

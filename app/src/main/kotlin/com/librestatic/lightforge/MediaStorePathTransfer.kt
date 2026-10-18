@@ -5,7 +5,10 @@ import android.content.ContentUris
 import android.content.ContentValues
 import android.net.Uri
 import android.provider.MediaStore
+import com.librestatic.lightforge.core.mediastore.VerifiedStreamCopy
 import com.librestatic.lightforge.core.model.MediaKind
+import java.io.InputStream
+import java.io.OutputStream
 
 /**
  * What the in-app destination picker needs from MediaStore when All files access is off. Moving is a
@@ -111,11 +114,12 @@ internal class ResolverMediaStoreGateway(private val resolver: ContentResolver) 
             resolver.insert(collection, values)
         }.getOrNull() ?: return false
         val ok = runCatching {
-            val written = resolver.openInputStream(original)?.use { input ->
-                resolver.openOutputStream(created, "w")?.use { output -> input.copyTo(output) }
-            } ?: error("cannot open")
-            val expected = sizeOf(original)
-            check(expected == null || expected == written) { "size differs" }
+            // The original is deleted afterwards, so the copy is read back and compared by SHA-256, never by size.
+            copyAndVerify(
+                openOriginal = { resolver.openInputStream(original) },
+                openDestination = { resolver.openOutputStream(created, "w") },
+                openWritten = { resolver.openInputStream(created) },
+            )
             resolver.update(created, ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }, null, null) > 0
         }.getOrDefault(false)
         if (!ok) runCatching { resolver.delete(created, null, null) }
@@ -130,10 +134,6 @@ internal class ResolverMediaStoreGateway(private val resolver: ContentResolver) 
         return ContentUris.withAppendedId(base, source.key.mediaStoreId)
     }
 
-    private fun sizeOf(uri: Uri): Long? = runCatching {
-        resolver.query(uri, arrayOf(MediaStore.MediaColumns.SIZE), null, null, null)?.use { if (it.moveToFirst()) it.getLong(0) else null }
-    }.getOrNull()
-
     private fun originalDates(uri: Uri): Pair<Long?, Long?>? = runCatching {
         resolver.query(
             uri, arrayOf(MediaStore.MediaColumns.DATE_TAKEN, MediaStore.MediaColumns.DATE_MODIFIED), null, null, null,
@@ -142,4 +142,24 @@ internal class ResolverMediaStoreGateway(private val resolver: ContentResolver) 
             else (if (c.isNull(0)) null else c.getLong(0)) to (if (c.isNull(1)) null else c.getLong(1))
         }
     }.getOrNull()
+}
+
+/**
+ * Streams the original into the destination while fingerprinting it, then re-opens the written copy and
+ * the original and requires both to match the fingerprint (byte count and SHA-256). Throws on any
+ * mismatch or unopenable stream, so a caller that deletes the original afterwards never loses data.
+ * A missing size column proves nothing: the check never depends on it.
+ */
+internal fun copyAndVerify(
+    openOriginal: () -> InputStream?,
+    openDestination: () -> OutputStream?,
+    openWritten: () -> InputStream?,
+) {
+    val fingerprint = (openOriginal() ?: error("cannot open the original")).use { input ->
+        (openDestination() ?: error("cannot open the destination")).use { output ->
+            VerifiedStreamCopy.copy(input, output) {}
+        }
+    }
+    (openWritten() ?: error("cannot read the copy back")).use { VerifiedStreamCopy.verify(it, fingerprint) {} }
+    (openOriginal() ?: error("cannot re-open the original")).use { VerifiedStreamCopy.verify(it, fingerprint) {} }
 }

@@ -106,4 +106,62 @@ class MediaStorePathTransferTest {
         assertTrue(copied.isEmpty())
         assertEquals(1, result.skipped)
     }
+
+    @Test
+    fun copyAndVerifyAcceptsAnExactCopy() {
+        val bytes = ByteArray(300_000) { (it % 251).toByte() }
+        val written = java.io.ByteArrayOutputStream()
+        copyAndVerify(
+            openOriginal = { bytes.inputStream() },
+            openDestination = { written },
+            openWritten = { written.toByteArray().inputStream() },
+        )
+        assertEquals(bytes.toList(), written.toByteArray().toList())
+    }
+
+    @Test
+    fun copyAndVerifyRejectsACopyWhoseBytesDiffer() {
+        val bytes = ByteArray(1000) { it.toByte() }
+        val corrupted = bytes.copyOf().also { it[500] = (it[500] + 1).toByte() }
+        val failure = runCatching {
+            copyAndVerify(
+                openOriginal = { bytes.inputStream() },
+                openDestination = { java.io.ByteArrayOutputStream() },
+                openWritten = { corrupted.inputStream() },
+            )
+        }
+        assertTrue(failure.isFailure)
+    }
+
+    @Test
+    fun copyAndVerifyRejectsATruncatedCopyEvenWithoutAKnownSize() {
+        val bytes = ByteArray(1000) { it.toByte() }
+        assertTrue(
+            runCatching {
+                copyAndVerify({ bytes.inputStream() }, { java.io.ByteArrayOutputStream() }, { bytes.copyOf(999).inputStream() })
+            }.isFailure,
+        )
+    }
+
+    @Test
+    fun copyAndVerifyRejectsAnOriginalThatChangedWhileCopying() {
+        val bytes = ByteArray(1000) { it.toByte() }
+        var opened = 0
+        assertTrue(
+            runCatching {
+                copyAndVerify(
+                    openOriginal = { if (opened++ == 0) bytes.inputStream() else bytes.copyOf(10).inputStream() },
+                    openDestination = { java.io.ByteArrayOutputStream() },
+                    openWritten = { bytes.inputStream() },
+                )
+            }.isFailure,
+        )
+    }
+
+    @Test
+    fun copyAndVerifyFailsWhenAStreamCannotBeOpened() {
+        assertTrue(runCatching { copyAndVerify({ null }, { java.io.ByteArrayOutputStream() }, { null }) }.isFailure)
+        val bytes = ByteArray(10)
+        assertTrue(runCatching { copyAndVerify({ bytes.inputStream() }, { java.io.ByteArrayOutputStream() }, { null }) }.isFailure)
+    }
 }
