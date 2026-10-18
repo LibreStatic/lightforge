@@ -36,4 +36,5 @@
     <string name="documents_photo">Foto</string>
     <string name="documents_organize">Aggiungi a Documenti</string>
     <plurals name="documents_collection_count"><item quantity="one">%1$d foto · categorie e testo locali</item><item quantity="many">%1$d foto · categorie e testo locali</item><item quantity="other">%1$d foto · categorie e testo locali</item></plurals>
+    <string name="documents_more_actions">Altre opzioni</string>
 </resources>

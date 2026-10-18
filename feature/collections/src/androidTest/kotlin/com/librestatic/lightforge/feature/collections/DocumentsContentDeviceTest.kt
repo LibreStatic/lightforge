@@ -58,7 +58,7 @@ class DocumentsContentDeviceTest {
             compose.waitUntil(10_000) {
                 compose.onAllNodesWithText("Wide grid fixture").fetchSemanticsNodes().isNotEmpty()
             }
-            compose.onNodeWithText(text(R.string.documents_studio)).assertIsDisplayed()
+            compose.onNodeWithContentDescription(text(R.string.documents_studio)).assertIsDisplayed()
             compose.onNodeWithText("Wide grid fixture").assertIsDisplayed()
         } finally {
             db.close()

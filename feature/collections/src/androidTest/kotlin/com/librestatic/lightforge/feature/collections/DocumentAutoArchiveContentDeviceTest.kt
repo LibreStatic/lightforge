@@ -115,10 +115,14 @@ class DocumentAutoArchiveContentDeviceTest {
                 compose.onNodeWithTag(list).performScrollToNode(hasTestTag(tag))
                 compose.onNodeWithTag(tag).assertIsDisplayed().assertIsEnabled().performClick()
             }
+            fun openAutoArchive() {
+                compose.onNodeWithTag("documents-more").performClick()
+                compose.onNodeWithTag("documents-auto-archive").assertIsDisplayed().assertIsEnabled().performClick()
+            }
             compose.waitUntil(10000) {
                 compose.onAllNodesWithTag("documents-list").fetchSemanticsNodes().isNotEmpty()
             }
-            scrollTag("documents-list", "documents-auto-archive")
+            openAutoArchive()
             compose.waitUntil(10000) {
                 compose.onAllNodesWithTag("document-auto-list").fetchSemanticsNodes().isNotEmpty()
             }
@@ -153,7 +157,7 @@ class DocumentAutoArchiveContentDeviceTest {
             compose.waitForIdle()
             compose.runOnIdle { visible.value = true }
             compose.waitForIdle()
-            scrollTag("documents-list", "documents-auto-archive")
+            openAutoArchive()
             compose.waitUntil(10000) {
                 compose.onAllNodesWithTag("document-auto-list").fetchSemanticsNodes().isNotEmpty()
             }

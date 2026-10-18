@@ -148,66 +148,83 @@ fun DocumentsContent(
                 )
             }
         }
-        if (selection.isNotEmpty()) {
-            if (onCreateMemory != null) OutlinedButton(
-                enabled = !busy && selection.size in 1..120,
-                onClick = { onCreateMemory(selection.map { it.mediaKey() }) },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("documents-create-memory"),
-            ) { Text(stringResource(R.string.manual_moment_title)) }
-
-            Button(
-                enabled = !busy,
-                onClick = {
-                    mutate {
-                        onPdf(
-                            repository.pdfKeys(selection.map { it.mediaKey() })
-                        )
-                        selection = arrayListOf()
-                    }
-                },
-                modifier =
-                    Modifier.fillMaxWidth()
-                        .heightIn(min = 48.dp)
-                        .testTag("documents-create-pdf"),
-            ) {
-                Text(
-                    stringResource(
-                        R.string.documents_prepare_pdf,
-                        selection.size,
-                    )
-                )
-            }
-            TextButton(
-                onClick = { selection = arrayListOf() },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(R.string.documents_clear_selection))
-            }
-        } else {
-            DocumentActionButton(
-                wide,
-                com.librestatic.lightforge.core.designsystem.GalleryIcons.PictureAsPdf,
-                stringResource(R.string.documents_studio),
-                onClick = onPdfStudio,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-            )
-        }
-        DocumentActionButton(
-            wide,
-            com.librestatic.lightforge.core.designsystem.GalleryIcons.Archive,
-            stringResource(R.string.document_auto_title),
-            onClick = { showAutoArchive = true },
-            modifier =
-                Modifier.fillMaxWidth()
-                    .heightIn(min = 48.dp)
-                    .testTag("documents-auto-archive"),
-        )
         Text(
             stringResource(R.string.documents_selection_hint),
             style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(vertical = 6.dp),
         )
     }
+    var showMore by remember { mutableStateOf(false) }
+    // Screen-level actions live in the top bar; they do not apply to a focused document.
+    val topBarActions: @Composable RowScope.() -> Unit = {
+        if (focused == null) {
+            IconButton(
+                onClick = onPdfStudio,
+                modifier = Modifier.testTag("documents-pdf-studio"),
+            ) {
+                Icon(GalleryIcons.PictureAsPdf, contentDescription = stringResource(R.string.documents_studio))
+            }
+            Box {
+                IconButton(
+                    onClick = { showMore = true },
+                    modifier = Modifier.testTag("documents-more"),
+                ) {
+                    Icon(GalleryIcons.More, contentDescription = stringResource(R.string.documents_more_actions))
+                }
+                DropdownMenu(expanded = showMore, onDismissRequest = { showMore = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.document_auto_title)) },
+                        leadingIcon = { Icon(GalleryIcons.Archive, contentDescription = null) },
+                        onClick = {
+                            showMore = false
+                            showAutoArchive = true
+                        },
+                        modifier =
+                            Modifier.semantics { testTagsAsResourceId = true }
+                                .testTag("documents-auto-archive"),
+                    )
+                }
+            }
+        }
+    }
+    val selectionBarVisible = focused == null && selection.isNotEmpty()
+    val selectionBar: @Composable BoxScope.() -> Unit = {
+        if (selectionBarVisible) {
+            val pdfLabel = stringResource(R.string.documents_prepare_pdf, selection.size)
+            val momentLabel = stringResource(R.string.manual_moment_title)
+            com.librestatic.lightforge.core.designsystem.GallerySelectionBar(
+                count = selection.size.toLong(),
+                onClear = { selection = arrayListOf() },
+                clearLabel = stringResource(R.string.documents_clear_selection),
+                actions =
+                    listOfNotNull(
+                        com.librestatic.lightforge.core.designsystem.GallerySelectionAction(
+                            label = pdfLabel,
+                            icon = GalleryIcons.PictureAsPdf,
+                            onClick = {
+                                mutate {
+                                    onPdf(repository.pdfKeys(selection.map { it.mediaKey() }))
+                                    selection = arrayListOf()
+                                }
+                            },
+                            enabled = !busy,
+                            testTag = "documents-create-pdf",
+                        ),
+                        onCreateMemory?.let { create ->
+                            com.librestatic.lightforge.core.designsystem.GallerySelectionAction(
+                                label = momentLabel,
+                                icon = GalleryIcons.AutoAwesome,
+                                onClick = { create(selection.map { it.mediaKey() }) },
+                                enabled = !busy && selection.size in 1..120,
+                                testTag = "documents-create-memory",
+                            )
+                        },
+                    ),
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
+    }
+    val listBottomPadding = if (selectionBarVisible) 160.dp else 16.dp
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -219,6 +236,7 @@ fun DocumentsContent(
                     title = stringResource(R.string.documents_title),
                     onBack = onBack,
                     navigationContentDescription = stringResource(R.string.documents_back),
+                    actions = topBarActions,
                     windowInsets = WindowInsets(0, 0, 0, 0),
                 )
                 Row(Modifier.weight(1f).padding(horizontal = 16.dp)) {
@@ -228,7 +246,8 @@ fun DocumentsContent(
                     ) { controls() }
                     val stateOnly = rows.itemCount == 0 &&
                         (rows.loadState.refresh is LoadState.Error || rows.loadState.refresh is LoadState.NotLoading)
-                    Column(Modifier.weight(1f).fillMaxHeight()) {
+                    Box(Modifier.weight(1f).fillMaxHeight()) {
+                    Column(Modifier.fillMaxSize()) {
                     Text(
                         stringResource(category.label()) + " · " + rows.itemCount,
                         style = MaterialTheme.typography.titleMedium,
@@ -249,7 +268,7 @@ fun DocumentsContent(
                         Modifier.weight(1f).fillMaxWidth().testTag("documents-list"),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        contentPadding = PaddingValues(bottom = 16.dp),
+                        contentPadding = PaddingValues(bottom = listBottomPadding),
                     ) {
                         if (rows.loadState.refresh is LoadState.Loading && rows.itemCount == 0)
                             item(span = { GridItemSpan(maxLineSpan) }) { GalleryIndeterminateProgressIndicator() }
@@ -307,15 +326,19 @@ fun DocumentsContent(
                             item(span = { GridItemSpan(maxLineSpan) }) { GalleryLoadErrorRow({ rows.retry() }) }
                     }
                     }
+                    selectionBar()
+                    }
                 }
             }
             return@Scaffold
         }
-        Column(Modifier.padding(padding).fillMaxSize()) {
+        Box(Modifier.padding(padding).fillMaxSize()) {
+        Column(Modifier.fillMaxSize()) {
         com.librestatic.lightforge.core.designsystem.GalleryTopAppBar(
             title = stringResource(R.string.documents_title),
             onBack = { if (focused == null) onBack() else focused = null },
             navigationContentDescription = stringResource(R.string.documents_back),
+            actions = topBarActions,
             windowInsets = WindowInsets(0, 0, 0, 0),
         )
         Column(Modifier.weight(1f).fillMaxWidth().widthIn(max = 1200.dp).padding(horizontal = 16.dp)) {
@@ -344,7 +367,7 @@ fun DocumentsContent(
                 } else LazyColumn(
                     Modifier.weight(1f).testTag("documents-list"),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(bottom = 16.dp),
+                    contentPadding = PaddingValues(bottom = listBottomPadding),
                 ) {
                     item {
                         Column { controls() }
@@ -559,6 +582,8 @@ fun DocumentsContent(
             }
         }
         }
+        selectionBar()
+        }
     }
     }
 }
@@ -600,42 +625,5 @@ internal fun DocumentImage(
             }
         else
             Image(image.asImageBitmap(), contentDescription = null, contentScale = ContentScale.Fit)
-    }
-}
-
-/** Primary document actions: tonal cards in the wide panel so they outweigh the filter chips. */
-@Composable
-private fun DocumentActionButton(
-    tonal: Boolean,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    title: String,
-    onClick: () -> Unit,
-    modifier: Modifier,
-) {
-    if (!tonal) {
-        OutlinedButton(onClick = onClick, modifier = modifier) { Text(title) }
-        return
-    }
-    Surface(
-        onClick = onClick,
-        modifier = modifier,
-        shape = MaterialTheme.shapes.extraLarge,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-    ) {
-        Row(
-            Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Surface(
-                shape = androidx.compose.foundation.shape.CircleShape,
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            ) {
-                Icon(icon, null, Modifier.padding(10.dp).size(24.dp))
-            }
-            Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-            Icon(com.librestatic.lightforge.core.designsystem.GalleryIcons.ChevronForward, null)
-        }
     }
 }
