@@ -105,4 +105,18 @@ class AdvancedStorageSettingsTest {
         assertFalse(settings.security.protectHiddenItems)
         assertFalse(repo.exportJson().toString().contains("temporary", ignoreCase = true))
     }
+
+    @Test
+    fun `compact folder chains default on and survive export and import`() = test { repo ->
+        assertTrue(repo.settings.first().operations.compactFolderChains)
+        repo.update { it.copy(operations = it.operations.copy(compactFolderChains = false)) }
+        val exported = repo.exportJson()
+        assertFalse(exported.getJSONObject("operations").getBoolean("compactFolderChains"))
+        repo.reset()
+        assertTrue(repo.settings.first().operations.compactFolderChains)
+        repo.importJson(exported)
+        assertFalse(repo.settings.first().operations.compactFolderChains)
+        repo.importJson(JSONObject("""{"operations":{}}"""))
+        assertTrue(repo.settings.first().operations.compactFolderChains)
+    }
 }

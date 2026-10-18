@@ -143,6 +143,7 @@
     <string name="device_folders_more_options">Weitere Optionen</string>
     <string name="device_folders_show_hidden">Ausgeblendete Elemente vorerst anzeigen</string>
     <string name="device_folders_include_subfolders">Unterordner einbeziehen</string>
+    <string name="device_folders_compact_chains">Ketten einzelner Ordner zusammenfassen</string>
     <string name="device_folders_refresh">Aktualisieren</string>
     <string name="device_folders_checked">Aktiviert</string>
     <string name="folder_op_moved">Ordner verschoben</string>

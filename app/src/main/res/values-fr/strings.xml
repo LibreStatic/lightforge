@@ -152,6 +152,7 @@
     <string name="device_folders_more_options">Plus d\'options</string>
     <string name="device_folders_show_hidden">Afficher les éléments masqués pour l\'instant</string>
     <string name="device_folders_include_subfolders">Inclure les sous-dossiers</string>
+    <string name="device_folders_compact_chains">Fusionner les chaînes d’un seul dossier</string>
     <string name="device_folders_refresh">Actualiser</string>
     <string name="device_folders_checked">Coché</string>
     <string name="folder_op_moved">Dossier déplacé</string>

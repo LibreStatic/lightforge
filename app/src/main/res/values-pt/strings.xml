@@ -152,6 +152,7 @@
     <string name="device_folders_more_options">Mais opções</string>
     <string name="device_folders_show_hidden">Mostrar itens ocultos por enquanto</string>
     <string name="device_folders_include_subfolders">Incluir subpastas</string>
+    <string name="device_folders_compact_chains">Unir cadeias de uma só pasta</string>
     <string name="device_folders_refresh">Atualizar</string>
     <string name="device_folders_checked">Marcado</string>
     <string name="folder_op_moved">Pasta movida</string>

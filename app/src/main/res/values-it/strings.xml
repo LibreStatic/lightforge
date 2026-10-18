@@ -152,6 +152,7 @@
     <string name="device_folders_more_options">Altre opzioni</string>
     <string name="device_folders_show_hidden">Mostra gli elementi nascosti per ora</string>
     <string name="device_folders_include_subfolders">Includi sottocartelle</string>
+    <string name="device_folders_compact_chains">Unisci le catene di una sola cartella</string>
     <string name="device_folders_refresh">Aggiorna</string>
     <string name="device_folders_checked">Selezionato</string>
     <string name="folder_op_moved">Cartella spostata</string>

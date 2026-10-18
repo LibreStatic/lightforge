@@ -152,6 +152,7 @@
     <string name="device_folders_more_options">Más opciones</string>
     <string name="device_folders_show_hidden">Mostrar elementos ocultos por ahora</string>
     <string name="device_folders_include_subfolders">Incluir subcarpetas</string>
+    <string name="device_folders_compact_chains">Unir cadenas de una sola carpeta</string>
     <string name="device_folders_refresh">Actualizar</string>
     <string name="device_folders_checked">Activado</string>
     <string name="folder_op_moved">Carpeta movida</string>

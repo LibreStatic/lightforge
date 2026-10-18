@@ -205,6 +205,8 @@ data class OperationSettings(
     val advancedShowHidden: Boolean = false,
     /** Advanced mode only: remove a folder left empty after a move (ADR-046). */
     val advancedDeleteEmptyFolders: Boolean = false,
+    /** Device folders: merge a chain of single-child folders into one card ("A/B/C"). Available in every build. */
+    val compactFolderChains: Boolean = true,
 )
 
 /** Confirmation dialogs the user can silence, and bring back from Settings. [key] is persisted: never rename it. */

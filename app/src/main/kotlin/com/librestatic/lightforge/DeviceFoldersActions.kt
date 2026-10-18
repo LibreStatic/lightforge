@@ -19,7 +19,7 @@ import com.librestatic.lightforge.core.designsystem.GalleryIcons
 
 /**
  * Top-bar actions of the "On device" screen: New folder (advanced mode only) and an overflow with
- * "Show hidden items for now" (advanced mode only), "Include subfolders" and Refresh.
+ * "Show hidden items for now" (advanced mode only), "Include subfolders", "Merge single-folder chains" and Refresh.
  */
 @Composable
 internal fun RowScope.DeviceFoldersActions(
@@ -27,6 +27,7 @@ internal fun RowScope.DeviceFoldersActions(
     onNewFolder: () -> Unit,
     onTemporaryShowHiddenChange: (Boolean) -> Unit,
     onIncludeSubfoldersChange: (Boolean) -> Unit,
+    onCompactChainsChange: (Boolean) -> Unit,
     onRefresh: () -> Unit,
 ) {
     if (chrome.canCreateFolder) {
@@ -52,6 +53,11 @@ internal fun RowScope.DeviceFoldersActions(
                 checked = chrome.includeSubfolders,
                 tag = "device-folders-include-subfolders",
             ) { expanded = false; onIncludeSubfoldersChange(!chrome.includeSubfolders) }
+            CheckedItem(
+                text = stringResource(R.string.device_folders_compact_chains),
+                checked = chrome.compactChains,
+                tag = "device-folders-compact-chains",
+            ) { expanded = false; onCompactChainsChange(!chrome.compactChains) }
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.device_folders_refresh)) },
                 onClick = { expanded = false; onRefresh() },

@@ -345,6 +345,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                         advancedStorageEnabled = p[Keys.AdvancedStorageEnabled] ?: false,
                         advancedShowHidden = p[Keys.AdvancedShowHidden] ?: false,
                         advancedDeleteEmptyFolders = p[Keys.AdvancedDeleteEmptyFolders] ?: false,
+                        compactFolderChains = p[Keys.CompactFolderChains] ?: true,
                     ),
                 security =
                     SecuritySettings(
@@ -414,6 +415,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         p[Keys.AdvancedStorageEnabled] = s.operations.advancedStorageEnabled
         p[Keys.AdvancedShowHidden] = s.operations.advancedShowHidden
         p[Keys.AdvancedDeleteEmptyFolders] = s.operations.advancedDeleteEmptyFolders
+        p[Keys.CompactFolderChains] = s.operations.compactFolderChains
         p[Keys.AppLock] = s.security.appLockEnabled
         p[Keys.DestructiveLock] = s.security.destructiveActionLockEnabled
         p[Keys.RelockTimeout] = s.security.relockTimeoutMinutes
@@ -499,6 +501,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     put("advancedStorageEnabled", operations.advancedStorageEnabled)
                     put("advancedShowHidden", operations.advancedShowHidden)
                     put("advancedDeleteEmptyFolders", operations.advancedDeleteEmptyFolders)
+                    put("compactFolderChains", operations.compactFolderChains)
                 },
             )
             put(
@@ -616,6 +619,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     o.optBoolean("advancedStorageEnabled", false),
                     o.optBoolean("advancedShowHidden", false),
                     o.optBoolean("advancedDeleteEmptyFolders", false),
+                    o.optBoolean("compactFolderChains", true),
                 ),
             security =
                 SecuritySettings(
@@ -684,6 +688,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         val AdvancedStorageEnabled = booleanPreferencesKey("advanced.enabled")
         val AdvancedShowHidden = booleanPreferencesKey("advanced.show_hidden")
         val AdvancedDeleteEmptyFolders = booleanPreferencesKey("advanced.delete_empty_folders")
+        val CompactFolderChains = booleanPreferencesKey("folders.compact_chains")
         val ProtectHiddenItems = booleanPreferencesKey("security.protect_hidden_items")
         val AppLock = booleanPreferencesKey("security.app_lock")
         val DestructiveLock = booleanPreferencesKey("security.destructive_lock")

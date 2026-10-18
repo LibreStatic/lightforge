@@ -3193,6 +3193,7 @@ internal fun ProductionGalleryApp(
                                 onNewFolder = folderExplorer::beginNewFolder,
                                 onTemporaryShowHiddenChange = ::setTemporaryShowHidden,
                                 onIncludeSubfoldersChange = folderExplorer::setIncludeSubfolders,
+                                onCompactChainsChange = folderExplorer::setCompactChains,
                                 onRefresh = folderExplorer::refresh,
                             )
                         },

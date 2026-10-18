@@ -10,6 +10,7 @@ import com.librestatic.lightforge.core.data.FolderTreeRepository
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import com.librestatic.lightforge.core.data.MediaStoreChangeMonitor
+import com.librestatic.lightforge.core.preferences.GallerySettingsRepository
 import com.librestatic.lightforge.core.mediastore.AdvancedResult
 import com.librestatic.lightforge.core.mediastore.AdvancedStorage
 import com.librestatic.lightforge.core.mediastore.HiddenMediaRow
@@ -69,6 +70,7 @@ data class FolderChrome(
     val canShowHidden: Boolean = false,
     val temporaryShowHidden: Boolean = false,
     val includeSubfolders: Boolean = false,
+    val compactChains: Boolean = true,
 )
 
 private sealed interface TreeLoad {
@@ -92,6 +94,7 @@ class FolderExplorerViewModel @Inject constructor(
     private val savedState: SavedStateHandle,
     private val advanced: AdvancedStorage,
     private val advancedStatus: AdvancedStorageStatus,
+    private val settings: GallerySettingsRepository,
 ) : ViewModel() {
     private val reload = MutableStateFlow(0)
 
@@ -112,6 +115,11 @@ class FolderExplorerViewModel @Inject constructor(
     ).stateIn(viewModelScope, SharingStarted.Eagerly, FolderLocation.Start)
 
     private val includeSubfolders = savedState.getStateFlow(IncludeKey, false)
+
+    /** Persisted preference (default on): merge chains of single-child folders into one card. */
+    private val compactChains: StateFlow<Boolean> = settings.settings.map { it.operations.compactFolderChains }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
     private val status get() = advancedStatus.status
 
@@ -169,8 +177,11 @@ class FolderExplorerViewModel @Inject constructor(
             (if (st.showHidden) rows.map { it.toUi() } else emptyList()) to (if (st.active) recorded else emptySet())
         }
 
+    private val viewOptions: Flow<Pair<Boolean, Boolean>> = combine(includeSubfolders, compactChains, ::Pair)
+
     val uiState: StateFlow<FolderExplorerUiState> =
-        combine(mergedTree, location, spaces, includeSubfolders, overlayDetails) { load, at, space, subfolders, details ->
+        combine(mergedTree, location, spaces, viewOptions, overlayDetails) { load, at, space, options, details ->
+            val (subfolders, compact) = options
             when (load) {
                 null -> FolderExplorerUiState.Loading
                 TreeLoad.Failed -> FolderExplorerUiState.Error
@@ -181,6 +192,7 @@ class FolderExplorerViewModel @Inject constructor(
                     includeSubfolders = subfolders,
                     hiddenItems = details.first,
                     isRecordedHide = { target -> isRecorded(target, details.second) },
+                    compactChains = compact,
                 )
             }
         }.flowOn(Dispatchers.Default)
@@ -194,12 +206,13 @@ class FolderExplorerViewModel @Inject constructor(
     val revokedWithHidden: StateFlow<Int> = status.map { it.revokedWithHidden }.distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
-    val chrome: StateFlow<FolderChrome> = combine(status, uiState, includeSubfolders) { st, ui, subfolders ->
+    val chrome: StateFlow<FolderChrome> = combine(status, uiState, includeSubfolders, compactChains) { st, ui, subfolders, compact ->
         FolderChrome(
             canCreateFolder = st.active && ui is FolderExplorerUiState.Folder,
             canShowHidden = st.active,
             temporaryShowHidden = st.temporaryShowHidden,
             includeSubfolders = subfolders,
+            compactChains = compact,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FolderChrome())
 
@@ -232,9 +245,15 @@ class FolderExplorerViewModel @Inject constructor(
     /** Goes up one level; false when already at the start level, so the caller leaves the screen. */
     fun navigateUp(): Boolean {
         val current = (mergedTree.value as? TreeLoad.Loaded)?.tree ?: return false
-        val parent = parentLocation(current, location.value) ?: return false
+        val parent = parentLocation(current, location.value, compactChains.value) ?: return false
         open(parent)
         return true
+    }
+
+    fun setCompactChains(enabled: Boolean) {
+        viewModelScope.launch {
+            settings.update { it.copy(operations = it.operations.copy(compactFolderChains = enabled)) }
+        }
     }
 
     fun setIncludeSubfolders(enabled: Boolean) {
