@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="backup_summary_local_sharing">Invia foto e video direttamente a uno smartphone Android vicino</string>
+    <string name="backup_summary_own_sync">Mantieni le cartelle scelte sincronizzate con il tuo server</string>
+    <string name="backup_summary_offline_places">Cerca i nomi dei luoghi senza connessione</string>
+    <string name="backup_summary_remote_backup">Copia gli originali selezionati sul tuo server SFTP o SMB</string>
+    <string name="backup_summary_local_backup">Salva gli originali selezionati su questo dispositivo o su un\'unità USB e ripristinali</string>
+    <string name="backup_summary_export">Salva impostazioni e preferiti in un file</string>
+    <string name="backup_summary_import">Carica impostazioni e preferiti da un file esportato</string>
+    <string name="backup_summary_reset">Riporta ogni impostazione al valore originale</string>
+    <string name="pet_hide_dog_summary">Rimuove le etichette dei cani da ricerca e raccolte</string>
+    <string name="pet_hide_cat_summary">Rimuove le etichette dei gatti da ricerca e raccolte</string>
+    <string name="pet_restore_summary">Ripristina le etichette nascoste</string>
+    <string name="face_analysis_pause_summary">Ferma l\'analisi in background finché non riprendi</string>
+    <string name="face_analysis_resume_summary">Riprende l\'analisi della libreria in background</string>
+    <string name="face_analysis_delete_summary">Cancella tutti i risultati di volti e persone salvati su questo dispositivo</string>
+</resources>
