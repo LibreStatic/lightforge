@@ -40,4 +40,5 @@
     <string name="stacks_error">L’azione non è stata completata. Verifica che le foto siano disponibili e non appartengano già a un’altra pila.</string>
     <string name="stacks_create">Crea pila</string>
     <string name="stacks_collection_hint">Esamina foto simili, scegli una copertina e conserva i gruppi su questo dispositivo.</string>
+    <string name="stacks_missing_title">Questa pila non è disponibile</string>
 </resources>
