@@ -52,6 +52,8 @@ class LocalBackupTasksAppDeviceTest {
         val backup = label(com.librestatic.lightforge.feature.settings.R.string.local_backup_title)
         val tasks = label(com.librestatic.lightforge.feature.settings.R.string.local_backup_tasks_title)
         val back = label(com.librestatic.lightforge.feature.settings.R.string.local_backup_back)
+        // Tasks draws Back as its top bar navigation icon, which exposes a content description.
+        val tasksBack = By.desc(context.getString(com.librestatic.lightforge.feature.settings.R.string.local_backup_back))
         val intent =
             Intent(context, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -80,7 +82,7 @@ class LocalBackupTasksAppDeviceTest {
                 await(label(com.librestatic.lightforge.feature.settings.R.string.local_backup_task_durable_hint))
                 steps += "Tasks"
                 capture("tasks")
-                click(back)
+                click(tasksBack)
                 await(backup)
                 await(tasks) // The Tasks entry returns on the backup parent screen.
                 steps += "Back to Local backup"
