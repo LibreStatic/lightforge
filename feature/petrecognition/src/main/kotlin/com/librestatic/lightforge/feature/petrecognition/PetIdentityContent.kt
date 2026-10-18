@@ -36,7 +36,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GalleryProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
 
 private const val MegaByte = 1024 * 1024
@@ -132,9 +134,34 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
     val selectedSpecies = selectedVisible.map { it.species }.distinct().singleOrNull()
     val selectionIsUnassigned = selected.isNotEmpty() && selectedVisible.size == selected.size && selectedVisible.all { it.identityId == null && !it.excluded }
     Surface(modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurface) {
-    LazyColumn(Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }.testTag("pet-identity-screen"), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { TextButton(onClick = ::back, modifier = Modifier.testTag("pet-back")) { Text(stringResource(R.string.pet_back)) } }
-        item { Text(stringResource(R.string.pet_title), style = MaterialTheme.typography.headlineMedium) }
+    var moreOpen by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }) {
+    GalleryTopAppBar(
+        title = stringResource(R.string.pet_title),
+        onBack = ::back,
+        navigationContentDescription = stringResource(R.string.pet_back),
+        actions = {
+            if (summary.enabled) {
+                IconButton(enabled = !working, onClick = { cursor = null; refresh++; selected = emptySet(); selectedGroups = emptySet() }, modifier = Modifier.testTag("pet-refresh")) {
+                    Icon(GalleryIcons.Refresh, contentDescription = stringResource(R.string.pet_refresh))
+                }
+                Box {
+                    IconButton(onClick = { moreOpen = true }, modifier = Modifier.testTag("pet-more")) {
+                        Icon(GalleryIcons.More, contentDescription = stringResource(R.string.pet_more))
+                    }
+                    DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }, modifier = Modifier.semantics { testTagsAsResourceId = true }) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.pet_remove), color = MaterialTheme.colorScheme.error) },
+                            enabled = !working,
+                            onClick = { moreOpen = false; removal = true },
+                            modifier = Modifier.testTag("pet-remove"),
+                        )
+                    }
+                }
+            }
+        },
+    )
+    LazyColumn(Modifier.weight(1f).fillMaxWidth().testTag("pet-identity-screen"), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { Text(stringResource(R.string.pet_explanation)) }
         if (error || analysis.failed) item { Surface(color = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer) { Text(stringResource(R.string.pet_error), Modifier.padding(12.dp).testTag("pet-error")) } }
         if (busy || analysis.running) item {
@@ -190,12 +217,10 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
             item { Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(enabled = !working && installed, onClick = { error = false; PetIdentityAnalysisRunner.start(context, repository) }, modifier = Modifier.testTag("pet-analyze")) { Text(stringResource(R.string.pet_analyze)) }
             } }
-            item { OutlinedButton(enabled = !working, onClick = { removal = true }, modifier = Modifier.testTag("pet-remove")) { Text(stringResource(R.string.pet_remove)) } }
             item { Column {
                 Row { TextButton(enabled = !working, onClick = { navigate("groups") }) { Text(stringResource(R.string.pet_groups)) }; TextButton(enabled = !working, onClick = { navigate("unassigned") }, modifier = Modifier.testTag("pet-review")) { Text(stringResource(R.string.pet_unassigned)) } }
                 Row { TextButton(enabled = !working, onClick = { navigate("all") }) { Text(stringResource(R.string.pet_all)) }; TextButton(enabled = !working, onClick = { navigate("excluded") }, modifier = Modifier.testTag("pet-excluded")) { Text(stringResource(R.string.pet_excluded)) } }
             } }
-            item { TextButton(enabled = !working, onClick = { cursor = null; refresh++; selected = emptySet(); selectedGroups = emptySet() }, modifier = Modifier.testTag("pet-refresh")) { Text(stringResource(R.string.pet_refresh)) } }
             if (section == "groups") {
                 if (identities.items.isEmpty()) item { GalleryInlineEmpty(stringResource(R.string.pet_no_items)) }
                 items(identities.items, key = { it.id }) { identity ->
@@ -250,6 +275,7 @@ fun PetIdentityContent(repository: PetIdentityRepository, onBack: () -> Unit, mo
             item { TextButton(enabled = !working && next != null, onClick = { cursor = next; selected = emptySet(); selectedGroups = emptySet(); suggestions = emptyList() }, modifier = Modifier.testTag("pet-next")) { Text(stringResource(R.string.pet_next)) } }
             item { OutlinedButton(enabled = !working && summary.undoToken != null, onClick = { val expected = summary.revision; val token = summary.undoToken ?: return@OutlinedButton; run { check(repository.undo(expected, token).applied); selected = emptySet(); selectedGroups = emptySet() } }, modifier = Modifier.testTag("pet-undo")) { Text(stringResource(R.string.pet_undo)) } }
         }
+    }
     }
     }
     if (removal) AlertDialog(modifier = Modifier.semantics { testTagsAsResourceId = true }, onDismissRequest = { removal = false }, title = { Text(stringResource(R.string.pet_remove)) }, text = { Text(stringResource(R.string.pet_remove_detail)) }, confirmButton = {

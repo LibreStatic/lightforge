@@ -175,7 +175,7 @@ class IndividualPetsAppDeviceTest {
                     assertEquals(name,runBlocking { database.petIdentityDao().identity(identityId) }!!.name)
                     assertTrue(ownedObservations().all { it.identityId==identityId })
                     capture("group-after-recreate")
-                    tag("pet-remove",Direction.UP)
+                    tag("pet-more");tag("pet-remove")
                     assertTrue(runBlocking { repository.currentSummary().enabled })
                     tag("pet-remove-confirm")
                     await("Opt-out clears pet namespace and closes/deletes model") {

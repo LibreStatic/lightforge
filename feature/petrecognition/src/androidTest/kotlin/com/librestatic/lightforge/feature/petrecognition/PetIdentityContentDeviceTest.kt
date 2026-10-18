@@ -92,13 +92,15 @@ class PetIdentityContentDeviceTest {
             val screen = compose.onRoot().captureToImage().asAndroidBitmap()
             assertEquals("Rendered background must be the matching Material surface, including dark mode", expectedSurface, screen.getPixel(1,1))
             File(evidence,"ui-$dark-$font-$width.png").outputStream().use { screen.compress(Bitmap.CompressFormat.PNG,100,it) }
-            click("pet-remove")
+            compose.onNodeWithTag("pet-more").performClick()
+            compose.onNodeWithTag("pet-remove").performClick()
+            compose.waitForIdle()
             assertTrue(repo.summary.value.enabled)
             compose.onNodeWithTag("pet-remove-confirm").performClick()
             compose.waitUntil(10000) { !repo.summary.value.enabled }
             assertTrue(repo.observations.isEmpty()); assertTrue(repo.groups.isEmpty())
             assertTrue(photo.exists())
-            click("pet-back"); assertTrue(back)
+            compose.onNodeWithContentDescription(context.getString(R.string.pet_back)).performClick(); assertTrue(back)
         } finally { photo.delete() }
     }
     @Test fun revisionConflictIsVisibleAndDoesNotReportSuccessfulNaming() {
