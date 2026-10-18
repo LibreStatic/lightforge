@@ -179,12 +179,16 @@ data class ThumbnailSettings(
     val showVideoDuration: Boolean = true,
     val showFileType: Boolean = true,
     val markFavorites: Boolean = true,
-    /** Explicit grid column count (2..13), or [AutoGridColumns] to follow the window width. */
+    /** Explicit grid column count ([MinGridColumns]..[MaxGridColumns]), or [AutoGridColumns] to follow the window width. */
     val gridColumns: Int = AutoGridColumns,
 )
 
 /** Sentinel for [ThumbnailSettings.gridColumns]: pick columns from the available width. */
 const val AutoGridColumns = 0
+
+/** Bounds shared by the Settings picker, timeline pinch and settings import. */
+const val MinGridColumns = 2
+const val MaxGridColumns = 13
 
 data class OperationSettings(
     val shareWithoutLocationByDefault: Boolean = false,

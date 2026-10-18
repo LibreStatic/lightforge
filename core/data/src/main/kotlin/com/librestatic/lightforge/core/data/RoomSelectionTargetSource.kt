@@ -57,9 +57,8 @@ class RoomSelectionTargetSource(database: GalleryDatabase) {
         when (query.kindFilter) {
             MediaQuery.KindFilter.Images -> { where += "m.mediaType=?"; args += 1 }
             MediaQuery.KindFilter.Videos -> { where += "m.mediaType=?"; args += 3 }
-            MediaQuery.KindFilter.Animated -> where +=
-                "m.mediaType=1 AND LOWER(COALESCE(m.mimeType,'')) IN ('image/gif','image/webp')"
-            MediaQuery.KindFilter.Raw -> where += rawImagePredicate("m")
+            MediaQuery.KindFilter.Animated -> where += "m.mediaType=1 AND ${animatedPredicate("m")}"
+            MediaQuery.KindFilter.Raw -> where += "m.mediaType=1 AND ${rawPredicate("m")}"
             MediaQuery.KindFilter.ImagesAndVideos -> Unit
         }
         FolderSelectionSql.predicate(
@@ -81,16 +80,6 @@ class RoomSelectionTargetSource(database: GalleryDatabase) {
         }
         return SimpleSQLiteQuery("$select FROM $from WHERE ${where.joinToString(" AND ")}$tail", args.toTypedArray())
     }
-
-    private fun rawImagePredicate(alias: String) =
-        "$alias.mediaType=1 AND (LOWER(COALESCE($alias.mimeType,'')) IN (" +
-            "'image/x-adobe-dng','image/x-canon-cr2','image/x-canon-cr3','image/x-nikon-nef'," +
-            "'image/x-sony-arw','image/x-fuji-raf','image/x-panasonic-rw2','image/x-olympus-orf') " +
-            "OR LOWER(COALESCE($alias.displayName,'')) GLOB '*.[dD][nN][gG]' " +
-            "OR LOWER(COALESCE($alias.displayName,'')) GLOB '*.[cC][rR][23]' " +
-            "OR LOWER(COALESCE($alias.displayName,'')) GLOB '*.[nN][eE][fF]' " +
-            "OR LOWER(COALESCE($alias.displayName,'')) GLOB '*.[aA][rR][wW]' " +
-            "OR LOWER(COALESCE($alias.displayName,'')) GLOB '*.[rR][aA][fF]')"
 }
 
 /** Shared FROM/WHERE fragments for the "Free up space" scopes, used by selection and viewer paging. */

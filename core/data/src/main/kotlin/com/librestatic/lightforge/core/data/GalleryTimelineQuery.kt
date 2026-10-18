@@ -1,5 +1,6 @@
 package com.librestatic.lightforge.core.data
 
+import com.librestatic.lightforge.core.model.RawFormats
 import androidx.sqlite.db.SimpleSQLiteQuery
 import androidx.sqlite.db.SupportSQLiteQuery
 import com.librestatic.lightforge.core.preferences.FolderSelectionMode
@@ -64,19 +65,8 @@ internal object GalleryTimelineQuery {
             LibraryFilter.All -> Unit
             LibraryFilter.Images -> where += "mediaType=1"
             LibraryFilter.Videos -> where += "mediaType=3"
-            LibraryFilter.Animated ->
-                where +=
-                    "mediaType=1 AND LOWER(COALESCE(mimeType,'')) IN ('image/gif','image/webp')"
-            LibraryFilter.Raw ->
-                where +=
-                    "mediaType=1 AND (LOWER(COALESCE(mimeType,'')) IN (" +
-                        "'image/x-adobe-dng','image/x-canon-cr2','image/x-canon-cr3','image/x-nikon-nef'," +
-                        "'image/x-sony-arw','image/x-fuji-raf','image/x-panasonic-rw2','image/x-olympus-orf') " +
-                        "OR LOWER(COALESCE(displayName,'')) GLOB '*.[dD][nN][gG]' " +
-                        "OR LOWER(COALESCE(displayName,'')) GLOB '*.[cC][rR][23]' " +
-                        "OR LOWER(COALESCE(displayName,'')) GLOB '*.[nN][eE][fF]' " +
-                        "OR LOWER(COALESCE(displayName,'')) GLOB '*.[aA][rR][wW]' " +
-                        "OR LOWER(COALESCE(displayName,'')) GLOB '*.[rR][aA][fF]')"
+            LibraryFilter.Animated -> where += "mediaType=1 AND ${animatedPredicate()}"
+            LibraryFilter.Raw -> where += "mediaType=1 AND $RawPredicate"
         }
         FolderSelectionSql.predicate(
                 alias = "media_items",
@@ -210,4 +200,31 @@ internal object GalleryTimelineQuery {
             args.toTypedArray(),
         )
     }
+}
+
+/**
+ * RAW filter built from [RawFormats] so it matches what the decoder and grid badge treat as RAW.
+ * Shared by the timeline, viewer navigation, select-all and query-backed actions so all of them
+ * cover the same rows. [alias] qualifies the columns (`m` → `m.mimeType`).
+ */
+internal fun rawPredicate(alias: String? = null): String = buildString {
+    val prefix = alias?.let { "$it." }.orEmpty()
+    val mime = "LOWER(COALESCE(${prefix}mimeType,''))"
+    val name = "LOWER(COALESCE(${prefix}displayName,''))"
+    append('(').append(mime).append(" IN (")
+    RawFormats.mimeTypes.sorted().joinTo(this) { "'$it'" }
+    append(") OR ").append(mime).append(" LIKE '%raw%'")
+    RawFormats.extensions.sorted().forEach { append(" OR ").append(name).append(" LIKE '%.").append(it).append('\'') }
+    append(')')
+}
+
+internal val RawPredicate: String = rawPredicate()
+
+/**
+ * Animated filter shared by every query site. MIME-based for now, so a static WebP still counts and
+ * animated AVIF/HEIF does not; an index-time "animated" flag will replace it in this one place.
+ */
+internal fun animatedPredicate(alias: String? = null): String {
+    val prefix = alias?.let { "$it." }.orEmpty()
+    return "LOWER(COALESCE(${prefix}mimeType,'')) IN ('image/gif','image/webp')"
 }

@@ -1,5 +1,6 @@
 package com.librestatic.lightforge.core.designsystem
 
+import com.librestatic.lightforge.core.model.RawFormats
 import android.content.ContentUris
 import android.graphics.ImageDecoder
 import android.graphics.drawable.AnimatedImageDrawable
@@ -51,10 +52,6 @@ data class ThumbnailTileSettings(
 
 val LocalThumbnailTileSettings = staticCompositionLocalOf { ThumbnailTileSettings() }
 
-private val RawExtensions = setOf(
-    "dng", "cr2", "cr3", "crw", "nef", "nrw", "arw", "srf", "sr2", "srw", "raf", "orf", "rw2", "pef", "raw", "3fr", "iiq", "x3f",
-)
-
 /**
  * Short file type label for a grid tile, or null for the everyday formats (JPEG photos, MP4
  * videos) so only formats worth noticing carry a badge.
@@ -72,7 +69,7 @@ fun mediaFileTypeLabel(displayName: String?, isVideo: Boolean): String? {
         "gif", "png", "webp", "avif", "bmp" -> extension.uppercase()
         "heic", "heif" -> "HEIC"
         "tif", "tiff" -> "TIFF"
-        in RawExtensions -> "RAW"
+        in RawFormats.extensions -> "RAW"
         else -> null
     }
 }

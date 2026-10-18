@@ -249,7 +249,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                 ),
             thumbnails = thumbnails.copy(
                 gridColumns = thumbnails.gridColumns.takeIf { it == AutoGridColumns }
-                    ?: thumbnails.gridColumns.coerceIn(2, 13),
+                    ?: thumbnails.gridColumns.coerceIn(MinGridColumns, MaxGridColumns),
             ),
             security =
                 security.copy(

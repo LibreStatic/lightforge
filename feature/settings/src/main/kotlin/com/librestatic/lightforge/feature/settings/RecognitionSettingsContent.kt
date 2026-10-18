@@ -76,6 +76,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.state.ToggleableState
 import com.librestatic.lightforge.core.preferences.AppearanceSettings
 import com.librestatic.lightforge.core.preferences.AutoGridColumns
+import com.librestatic.lightforge.core.preferences.MaxGridColumns
+import com.librestatic.lightforge.core.preferences.MinGridColumns
 import com.librestatic.lightforge.core.preferences.DismissibleWarning
 import com.librestatic.lightforge.core.preferences.GallerySettings
 import com.librestatic.lightforge.core.preferences.FolderSelectionMode
@@ -1602,10 +1604,10 @@ private fun ThumbnailsSection(
             stringResource(R.string.settings_grid_columns),
             if (columns == AutoGridColumns) stringResource(R.string.settings_grid_columns_auto) else columns.toString(),
         ) {
-            // Automatic -> 2..8 -> Automatic.
+            // Automatic -> Min..Max (the same range pinch-to-zoom stores) -> Automatic.
             val next = when {
-                columns == AutoGridColumns -> 2
-                columns >= 8 -> AutoGridColumns
+                columns == AutoGridColumns -> MinGridColumns
+                columns >= MaxGridColumns -> AutoGridColumns
                 else -> columns + 1
             }
             onSettingsChange { current -> current.copy(thumbnails = current.thumbnails.copy(gridColumns = next)) }

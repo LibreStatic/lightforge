@@ -59,9 +59,8 @@ class GalleryQueryMediaRepository(private val database: GalleryDatabase) {
         when (query.kindFilter) {
             MediaQuery.KindFilter.Images -> where += "m.mediaType=1"
             MediaQuery.KindFilter.Videos -> where += "m.mediaType=3"
-            MediaQuery.KindFilter.Animated -> where +=
-                "m.mediaType=1 AND LOWER(COALESCE(m.mimeType,'')) IN ('image/gif','image/webp')"
-            MediaQuery.KindFilter.Raw -> where += "m.mediaType=1"
+            MediaQuery.KindFilter.Animated -> where += "m.mediaType=1 AND ${animatedPredicate("m")}"
+            MediaQuery.KindFilter.Raw -> where += "m.mediaType=1 AND ${rawPredicate("m")}"
             MediaQuery.KindFilter.ImagesAndVideos -> Unit
         }
         query.fromTimelineMillisInclusive?.let { where += "m.timelineSortMillis>=?"; args += it }

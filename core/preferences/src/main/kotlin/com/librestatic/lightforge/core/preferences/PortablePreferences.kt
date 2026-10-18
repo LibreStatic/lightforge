@@ -85,7 +85,8 @@ enum class PortablePreferenceField(
             val number = value.toDouble()
             require(number.isFinite())
             when (this) {
-                Columns -> require(number % 1.0 == 0.0 && (number == 0.0 || number in 2.0..13.0))
+                Columns -> require(number % 1.0 == 0.0 && (number == AutoGridColumns.toDouble() ||
+                        number in MinGridColumns.toDouble()..MaxGridColumns.toDouble()))
                 SkipSeconds -> require(number in setOf(5.0, 10.0, 15.0, 30.0))
                 else -> require(number in 2.0..8.0)
             }

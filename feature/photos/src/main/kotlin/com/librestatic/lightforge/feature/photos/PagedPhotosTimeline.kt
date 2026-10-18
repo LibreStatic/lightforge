@@ -107,6 +107,8 @@ import com.librestatic.lightforge.core.designsystem.mediaTileSemantics
 import com.librestatic.lightforge.core.designsystem.rememberMediaTileMenuState
 import com.librestatic.lightforge.core.designsystem.selectionRange
 import com.librestatic.lightforge.core.designsystem.galleryGridItemAnimation
+import com.librestatic.lightforge.core.preferences.MaxGridColumns
+import com.librestatic.lightforge.core.preferences.MinGridColumns
 
 /** One-shot input-focus request. Real TalkBack focus requires separate device acceptance. */
 data class TimelineFocusReturn(val key: MediaKey, val token: Long)
@@ -152,7 +154,7 @@ fun AdaptivePagedPhotosTimeline(
             // Persist only deliberate pinch/button changes; the automatic width-driven
             // default must not be frozen into an explicit preference.
             LaunchedEffect(columns) {
-                if (densityState.userAdjusted && columns in 2..13) onDensityChange(columns)
+                if (densityState.userAdjusted && columns in MinGridColumns..MaxGridColumns) onDensityChange(columns)
             }
         }
         val leadingIndex = state.firstVisibleItemIndex

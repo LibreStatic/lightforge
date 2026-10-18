@@ -35,6 +35,19 @@ class GalleryTimelineQueryTest {
         assertTrue(sql.contains("LOWER(COALESCE(displayName,'')) ASC"))
     }
 
+    @Test fun `raw filter covers every format the decoder opens`() {
+        val query = GalleryTimelineQuery.build(LibrarySettings(filter = LibraryFilter.Raw))
+        listOf("'%.pef'", "'%.srw'", "'%.nrw'", "'%.x3f'", "'%.dng'", "'image/x-pentax-pef'", "'%raw%'")
+            .forEach { assertTrue(it, query.sql.contains(it)) }
+        assertEquals(0, query.argCount)
+    }
+
+    @Test fun `aliased raw predicate qualifies every column for joined queries`() {
+        val aliased = rawPredicate("m")
+        assertEquals(RawPredicate.replace("(mimeType", "(m.mimeType").replace("(displayName", "(m.displayName"), aliased)
+        assertTrue(!Regex("\\((mimeType|displayName),").containsMatchIn(aliased))
+    }
+
     @Test fun `folder tokens are bound rather than interpolated`() {
         val hostileVolume = "external') OR 1=1 --"
         val token = GalleryFolderToken.encode(hostileVolume, 42L)

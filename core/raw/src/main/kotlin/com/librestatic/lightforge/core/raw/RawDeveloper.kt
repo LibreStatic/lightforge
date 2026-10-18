@@ -1,5 +1,6 @@
 package com.librestatic.lightforge.core.raw
 
+import com.librestatic.lightforge.core.model.RawFormats
 import android.content.ContentResolver
 import android.graphics.Bitmap
 import android.net.Uri
@@ -314,26 +315,9 @@ internal fun parseRawMetadata(encoded: String): RawMetadata {
     )
 }
 
-fun isRawMimeOrName(mimeType: String?, displayName: String?): Boolean {
-    val mime = mimeType?.lowercase().orEmpty()
-    if (mime in RawMimes || mime.contains("raw")) return true
-    val extension = displayName?.substringAfterLast('.', "")?.lowercase().orEmpty()
-    return extension in RawExtensions
-}
+fun isRawMimeOrName(mimeType: String?, displayName: String?): Boolean =
+    RawFormats.isRaw(mimeType, displayName)
 
-private val RawMimes = setOf(
-    "image/x-adobe-dng", "image/x-canon-cr2", "image/x-canon-cr3", "image/x-nikon-nef",
-    "image/x-sony-arw", "image/x-fuji-raf", "image/x-olympus-orf", "image/x-panasonic-rw2",
-    "image/x-pentax-pef", "image/x-samsung-srw", "image/x-canon-crw", "image/x-epson-erf",
-    "image/x-hasselblad-3fr", "image/x-kodak-dcr", "image/x-kodak-kdc", "image/x-leaf-mos",
-    "image/x-leica-rwl", "image/x-minolta-mrw", "image/x-phaseone-iiq", "image/x-sigma-x3f",
-)
-private val RawExtensions = setOf(
-    "3fr", "ari", "arw", "bay", "bmq", "cap", "cine", "cr2", "cr3", "crw", "cs1", "dc2",
-    "dcr", "dng", "drf", "eip", "erf", "fff", "iiq", "k25", "kdc", "mdc", "mef", "mos",
-    "mrw", "nef", "nrw", "obm", "orf", "pef", "ptx", "pxn", "r3d", "raf", "rdc", "rw2",
-    "rwl", "rwz", "sr2", "srf", "srw", "x3f",
-)
 
 internal fun RawDevelopmentSettings.nativeValues() = floatArrayOf(
     exposureEv, temperatureKelvin.toFloat(), tint, highlights, shadows, whites, blacks,

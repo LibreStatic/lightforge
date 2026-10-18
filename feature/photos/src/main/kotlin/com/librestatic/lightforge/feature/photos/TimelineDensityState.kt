@@ -41,6 +41,8 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.roundToInt
+import com.librestatic.lightforge.core.preferences.MaxGridColumns
+import com.librestatic.lightforge.core.preferences.MinGridColumns
 
 /**
  * The five pinch levels for a grid [widthDp] wide. Level 1 is the width's default column count
@@ -114,7 +116,7 @@ class TimelineDensityState internal constructor(
         if (seededFromPreferredColumns || userAdjusted) return
         if (columns != null) {
             seededFromPreferredColumns = true
-            explicitColumns = columns.coerceIn(2, 13)
+            explicitColumns = columns.coerceIn(MinGridColumns, MaxGridColumns)
         }
         val target = columns ?: mediaGridLayout(widthDp.coerceAtLeast(1).dp).columns
         val options = adaptiveDensityColumns(widthDp)
