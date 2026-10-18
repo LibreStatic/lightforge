@@ -18,18 +18,25 @@ import androidx.compose.ui.res.stringResource
 import com.librestatic.lightforge.core.designsystem.GalleryIcons
 
 /**
- * Top-bar actions of the "On device" screen: New folder (advanced mode only) and an overflow with
+ * Top-bar actions of the "On device" screen: Search, New folder (advanced mode only) and an overflow with "Sort and view",
  * "Show hidden items for now" (advanced mode only), "Include subfolders", "Merge single-folder chains" and Refresh.
  */
 @Composable
 internal fun RowScope.DeviceFoldersActions(
     chrome: FolderChrome,
     onNewFolder: () -> Unit,
+    onSearch: () -> Unit,
+    onSortAndView: () -> Unit,
     onTemporaryShowHiddenChange: (Boolean) -> Unit,
     onIncludeSubfoldersChange: (Boolean) -> Unit,
     onCompactChainsChange: (Boolean) -> Unit,
     onRefresh: () -> Unit,
 ) {
+    if (chrome.canBrowseOptions && !chrome.searching) {
+        IconButton(onClick = onSearch, modifier = Modifier.testTag("device-folders-search")) {
+            Icon(GalleryIcons.Search, contentDescription = stringResource(R.string.device_folders_search))
+        }
+    }
     if (chrome.canCreateFolder) {
         IconButton(onClick = onNewFolder, modifier = Modifier.testTag("device-folders-new-folder")) {
             Icon(GalleryIcons.CreateNewFolder, contentDescription = stringResource(R.string.device_folders_new_folder))
@@ -47,6 +54,13 @@ internal fun RowScope.DeviceFoldersActions(
                     checked = chrome.temporaryShowHidden,
                     tag = "device-folders-show-hidden",
                 ) { expanded = false; onTemporaryShowHiddenChange(!chrome.temporaryShowHidden) }
+            }
+            if (chrome.canBrowseOptions) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.device_folders_sort_view)) },
+                    onClick = { expanded = false; onSortAndView() },
+                    modifier = Modifier.testTag("device-folders-sort-view"),
+                )
             }
             CheckedItem(
                 text = stringResource(R.string.device_folders_include_subfolders),

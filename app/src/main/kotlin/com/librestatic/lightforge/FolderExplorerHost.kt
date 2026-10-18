@@ -17,12 +17,27 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import com.librestatic.lightforge.core.model.AlbumSummary
 import com.librestatic.lightforge.core.model.TimelineMedia
 import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
+import com.librestatic.lightforge.core.model.MediaKey
+import com.librestatic.lightforge.feature.folders.ExplorerSelection
+import com.librestatic.lightforge.feature.folders.FolderBrowseActions
 import com.librestatic.lightforge.feature.folders.FolderCardUi
+import com.librestatic.lightforge.feature.folders.FolderViewOptionsDialog
 import com.librestatic.lightforge.feature.folders.FolderExplorerActions
 import com.librestatic.lightforge.feature.folders.FolderExplorerContent
 import com.librestatic.lightforge.feature.folders.FolderExplorerUiState
 import com.librestatic.lightforge.feature.folders.FolderMediaScope
 import com.librestatic.lightforge.feature.folders.NewFolderDialog
+
+/** The slice of the gallery selection the explorer needs: whether files are selected and which. */
+internal class MediaSelectionAccess(
+    val selecting: Boolean,
+    val isSelected: (MediaKey) -> Boolean,
+    val toggle: (TimelineMedia) -> Unit,
+) {
+    companion object {
+        val None = MediaSelectionAccess(false, { false }, {})
+    }
+}
 
 /** Hilt-scoped to the activity, so the explorer location outlives route switches. */
 @Composable
@@ -39,6 +54,9 @@ internal fun FolderExplorerHost(
     onOpenMedia: (TimelineMedia, FolderMediaScope) -> Unit,
     onOpenStorageAccess: () -> Unit,
     onMoveFolder: (FolderCardUi) -> Unit,
+    onCopyFolder: (FolderCardUi) -> Unit,
+    /** The gallery selection that carries the file actions; the explorer only ticks and reads it. */
+    mediaSelection: MediaSelectionAccess,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -46,8 +64,15 @@ internal fun FolderExplorerHost(
     val active by viewModel.advancedActive.collectAsState()
     val revoked by viewModel.revokedWithHidden.collectAsState()
     val newFolderOpen by viewModel.newFolderOpen.collectAsState()
+    val viewOptionsOpen by viewModel.viewOptionsOpen.collectAsState()
+    val chrome by viewModel.chrome.collectAsState()
+    val selectedFolders by viewModel.selectedFolders.collectAsState()
     val media = viewModel.media.collectAsLazyPagingItems()
     LaunchedEffect(viewModel, library) { viewModel.bind(library) }
+    LaunchedEffect(viewModel) {
+        viewModel.restoreLastFolder()
+        viewModel.trackLastFolder()
+    }
     LaunchedEffect(viewModel, snackbarHostState) {
         viewModel.messages.collect { message -> showFolderMessage(context, snackbarHostState, message, onOpenStorageAccess) }
     }
@@ -61,6 +86,7 @@ internal fun FolderExplorerHost(
                 onRename = viewModel::rename,
                 onDelete = viewModel::delete,
                 onMove = onMoveFolder,
+                onCopy = onCopyFolder,
                 onOpenHiddenItem = { item ->
                     val view = Intent(Intent.ACTION_VIEW)
                         .setDataAndType(Uri.parse(item.uri), item.mimeType)
@@ -74,6 +100,28 @@ internal fun FolderExplorerHost(
             )
         }
     }
+    val browse = remember(viewModel, chrome.searching) {
+        FolderBrowseActions(
+            onTogglePin = viewModel::togglePin,
+            onSetExcluded = viewModel::setExcluded,
+            onQueryChange = viewModel::setQuery,
+            onCloseSearch = viewModel::closeSearch,
+            searching = chrome.searching,
+        )
+    }
+    val selection = ExplorerSelection(
+        folders = selectedFolders,
+        mediaSelecting = mediaSelection.selecting,
+        isMediaSelected = mediaSelection.isSelected,
+        onToggleFolder = viewModel::toggleFolder,
+        onToggleMedia = mediaSelection.toggle,
+        onSelectAllFolders = viewModel::selectAllFolders,
+        onClearFolders = viewModel::clearFolderSelection,
+        onPinFolders = viewModel::pinSelected,
+        onExcludeFolders = viewModel::excludeSelected,
+        onHideFolders = if (active) viewModel::hideSelected else null,
+        onDeleteFolders = if (active) viewModel::deleteSelected else null,
+    )
     FolderExplorerContent(
         state = state,
         thumbnails = thumbnails,
@@ -86,7 +134,17 @@ internal fun FolderExplorerHost(
         onRetry = viewModel::retry,
         revokedWithHidden = revoked,
         onUnhideFolders = onOpenStorageAccess,
+        browse = browse,
+        selection = selection,
+        scrollMemory = viewModel.scrollMemory,
     )
+    if (viewOptionsOpen) {
+        FolderViewOptionsDialog(
+            options = viewModel.currentViewOptions,
+            onChange = viewModel::setViewOptions,
+            onDismiss = viewModel::dismissViewOptions,
+        )
+    }
     if (newFolderOpen) {
         val siblings = (state as? FolderExplorerUiState.Folder)?.folders?.map { it.name }.orEmpty()
         NewFolderDialog(siblings = siblings, onDismiss = viewModel::dismissNewFolder, onCreate = viewModel::createFolder)
@@ -120,6 +178,7 @@ internal fun FolderMessage.textRes(): Int = when (this) {
         FolderOp.Delete -> R.string.folder_op_deleted
         FolderOp.Create -> R.string.folder_op_created
         FolderOp.Move -> R.string.folder_op_moved
+        FolderOp.Copy -> R.string.folder_op_copied
     }
     FolderMessage.NotGranted -> R.string.folder_op_not_granted
     FolderMessage.AlreadyHiddenByOthers -> R.string.folder_op_hidden_by_others

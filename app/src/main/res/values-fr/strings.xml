@@ -165,4 +165,7 @@
     <string name="adv_transfer_progress_copy">Copie de %1$d sur %2$d</string>
     <string name="selection_move_to_folder">Déplacer vers un dossier</string>
     <string name="selection_copy_to_folder">Copier vers un dossier</string>
+    <string name="device_folders_search">Rechercher des dossiers</string>
+    <string name="device_folders_sort_view">Tri et affichage</string>
+    <string name="folder_op_copied">Dossier copié</string>
 </resources>

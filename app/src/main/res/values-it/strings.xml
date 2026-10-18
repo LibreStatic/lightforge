@@ -165,4 +165,7 @@
     <string name="adv_transfer_progress_copy">Copia di %1$d su %2$d</string>
     <string name="selection_move_to_folder">Sposta in una cartella</string>
     <string name="selection_copy_to_folder">Copia in una cartella</string>
+    <string name="device_folders_search">Cerca cartelle</string>
+    <string name="device_folders_sort_view">Ordine e vista</string>
+    <string name="folder_op_copied">Cartella copiata</string>
 </resources>

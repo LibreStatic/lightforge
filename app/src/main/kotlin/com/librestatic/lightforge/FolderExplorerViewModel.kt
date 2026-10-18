@@ -17,7 +17,16 @@ import com.librestatic.lightforge.core.mediastore.HiddenMediaRow
 import com.librestatic.lightforge.core.model.TimelineMedia
 import com.librestatic.lightforge.core.model.folders.EmptyDirectory
 import com.librestatic.lightforge.core.model.folders.mergeAdvancedOverlay
+import com.librestatic.lightforge.core.preferences.FolderSelectionMode
+import com.librestatic.lightforge.core.preferences.FolderSelectionPolicy
+import com.librestatic.lightforge.core.preferences.FolderSelectionTarget
+import com.librestatic.lightforge.core.preferences.withFolderPathSelected
 import com.librestatic.lightforge.feature.folders.FolderCardUi
+import com.librestatic.lightforge.feature.folders.FolderViewOptions
+import com.librestatic.lightforge.feature.folders.ScrollMemory
+import com.librestatic.lightforge.feature.folders.decodeScrollPositions
+import com.librestatic.lightforge.feature.folders.encodeScrollPositions
+import com.librestatic.lightforge.feature.folders.pinKeyOf
 import com.librestatic.lightforge.feature.folders.HiddenItemUi
 import com.librestatic.lightforge.feature.folders.normalizedFolderPath
 import com.librestatic.lightforge.feature.folders.resolveLocation
@@ -58,6 +67,9 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
@@ -71,6 +83,21 @@ data class FolderChrome(
     val temporaryShowHidden: Boolean = false,
     val includeSubfolders: Boolean = false,
     val compactChains: Boolean = true,
+    /** The folder search field is open. */
+    val searching: Boolean = false,
+    /** The folder being shown can be searched and sorted (a folder level, not the volumes or a placeholder). */
+    val canBrowseOptions: Boolean = false,
+)
+
+/** What shapes the cards of a level besides the tree: view options, search, pins and the folder rules. */
+private data class ViewInputs(
+    val includeSubfolders: Boolean,
+    val compactChains: Boolean,
+    val options: FolderViewOptions,
+    val query: String,
+    val pinned: Set<String>,
+    val defaultSelected: Boolean,
+    val rules: Map<FolderSelectionTarget, Boolean>,
 )
 
 private sealed interface TreeLoad {
@@ -177,11 +204,31 @@ class FolderExplorerViewModel @Inject constructor(
             (if (st.showHidden) rows.map { it.toUi() } else emptyList()) to (if (st.active) recorded else emptySet())
         }
 
-    private val viewOptions: Flow<Pair<Boolean, Boolean>> = combine(includeSubfolders, compactChains, ::Pair)
+    private val searchOpen = savedState.getStateFlow(SearchOpenKey, false)
+    private val searchQuery = savedState.getStateFlow(SearchQueryKey, "")
+
+    private val operations = settings.settings.map { it.operations }.distinctUntilChanged()
+    private val libraryRules = settings.settings.map { it.library.folderSelectionMode to it.library.folderRules }.distinctUntilChanged()
+
+    private val viewInputs: Flow<ViewInputs> = combine(
+        combine(includeSubfolders, compactChains, ::Pair),
+        combine(location, operations, searchOpen, searchQuery) { at, ops, open, query ->
+            val own = FolderViewOptions.decode(ops.folderViewOptions[FolderViewOptions.keyOf(at)])
+            val fallback = FolderViewOptions.decode(ops.folderViewOptions[FolderViewOptions.keyOf(null)])
+            Triple(own ?: fallback ?: FolderViewOptions(), ops.pinnedFolders, if (open) query else "")
+        },
+        libraryRules,
+    ) { (subfolders, compact), (options, pins, query), (mode, rules) ->
+        ViewInputs(subfolders, compact, options, query, pins, mode == FolderSelectionMode.AllExceptExcluded, rules)
+    }
+
+    private val mutableSelectedFolders = MutableStateFlow<Set<String>>(emptySet())
+
+    /** The folder cards ticked in the explorer (by card key); media is selected in the gallery selection. */
+    val selectedFolders: StateFlow<Set<String>> = mutableSelectedFolders.asStateFlow()
 
     val uiState: StateFlow<FolderExplorerUiState> =
-        combine(mergedTree, location, spaces, viewOptions, overlayDetails) { load, at, space, options, details ->
-            val (subfolders, compact) = options
+        combine(mergedTree, location, spaces, viewInputs, overlayDetails) { load, at, space, inputs, details ->
             when (load) {
                 null -> FolderExplorerUiState.Loading
                 TreeLoad.Failed -> FolderExplorerUiState.Error
@@ -189,10 +236,16 @@ class FolderExplorerViewModel @Inject constructor(
                     tree = load.tree,
                     location = at,
                     spaces = space,
-                    includeSubfolders = subfolders,
+                    includeSubfolders = inputs.includeSubfolders,
                     hiddenItems = details.first,
                     isRecordedHide = { target -> isRecorded(target, details.second) },
-                    compactChains = compact,
+                    compactChains = inputs.compactChains,
+                    options = inputs.options,
+                    query = inputs.query,
+                    isExcluded = { volume, bucket, path ->
+                        !FolderSelectionPolicy.isSelected(inputs.defaultSelected, inputs.rules, volume, bucket ?: NoBucket, path)
+                    },
+                    pinned = inputs.pinned,
                 )
             }
         }.flowOn(Dispatchers.Default)
@@ -206,8 +259,10 @@ class FolderExplorerViewModel @Inject constructor(
     val revokedWithHidden: StateFlow<Int> = status.map { it.revokedWithHidden }.distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
-    val chrome: StateFlow<FolderChrome> = combine(status, uiState, includeSubfolders, compactChains) { st, ui, subfolders, compact ->
+    val chrome: StateFlow<FolderChrome> = combine(status, uiState, includeSubfolders, compactChains, searchOpen) { st, ui, subfolders, compact, searching ->
         FolderChrome(
+            searching = searching,
+            canBrowseOptions = ui is FolderExplorerUiState.Folder,
             canCreateFolder = st.active && ui is FolderExplorerUiState.Folder,
             canShowHidden = st.active,
             temporaryShowHidden = st.temporaryShowHidden,
@@ -240,10 +295,24 @@ class FolderExplorerViewModel @Inject constructor(
     fun open(target: FolderLocation) {
         savedState[VolumeKey] = target.volumeName
         savedState[PathKey] = target.relativePath
+        // A new level starts with nothing ticked and no filter, so a stale search never hides its folders.
+        mutableSelectedFolders.value = emptySet()
+        closeSearch()
     }
 
-    /** Goes up one level; false when already at the start level, so the caller leaves the screen. */
+    /**
+     * Back closes what is open on this level first (selection, then the search field), and only then
+     * goes up one level; false when already at the start level, so the caller leaves the screen.
+     */
     fun navigateUp(): Boolean {
+        if (mutableSelectedFolders.value.isNotEmpty()) {
+            mutableSelectedFolders.value = emptySet()
+            return true
+        }
+        if (savedState.get<Boolean>(SearchOpenKey) == true) {
+            closeSearch()
+            return true
+        }
         val current = (mergedTree.value as? TreeLoad.Loaded)?.tree ?: return false
         val parent = parentLocation(current, location.value, compactChains.value) ?: return false
         open(parent)
@@ -253,6 +322,150 @@ class FolderExplorerViewModel @Inject constructor(
     fun setCompactChains(enabled: Boolean) {
         viewModelScope.launch {
             settings.update { it.copy(operations = it.operations.copy(compactFolderChains = enabled)) }
+        }
+    }
+
+    private val mutableViewOptionsOpen = MutableStateFlow(false)
+    val viewOptionsOpen: StateFlow<Boolean> = mutableViewOptionsOpen.asStateFlow()
+
+    fun beginViewOptions() { mutableViewOptionsOpen.value = true }
+
+    fun dismissViewOptions() { mutableViewOptionsOpen.value = false }
+
+    /** Whether Back would only close a selection or the search field, so the screen stays. */
+    fun hasTransientState(): Boolean = mutableSelectedFolders.value.isNotEmpty() || savedState.get<Boolean>(SearchOpenKey) == true
+
+    fun openSearch() {
+        savedState[SearchOpenKey] = true
+    }
+
+    fun setQuery(text: String) {
+        savedState[SearchQueryKey] = text
+    }
+
+    fun closeSearch() {
+        savedState[SearchOpenKey] = false
+        savedState[SearchQueryKey] = ""
+    }
+
+    /** Stores how the folder being shown is sorted and laid out; folders without their own entry follow the latest. */
+    fun setViewOptions(options: FolderViewOptions) {
+        val at = location.value
+        viewModelScope.launch {
+            settings.update {
+                val map = it.operations.folderViewOptions + (FolderViewOptions.keyOf(at) to options.encode()) +
+                    (FolderViewOptions.keyOf(null) to options.encode())
+                it.copy(operations = it.operations.copy(folderViewOptions = map))
+            }
+        }
+    }
+
+    /** What the inline file grid of the shown folder lists, or null when no folder with files is shown. */
+    fun currentMediaScope() = (uiState.value as? FolderExplorerUiState.Folder)?.media
+
+    val currentViewOptions: FolderViewOptions
+        get() = (uiState.value as? FolderExplorerUiState.Folder)?.options ?: FolderViewOptions()
+
+    fun togglePin(card: FolderCardUi) = setPinned(listOf(card), !card.isPinned)
+
+    private fun setPinned(cards: List<FolderCardUi>, pinned: Boolean) {
+        val keys = cards.mapNotNull { pinKeyOf(it.location) }
+        if (keys.isEmpty()) return
+        viewModelScope.launch {
+            settings.update {
+                val set = if (pinned) it.operations.pinnedFolders + keys else it.operations.pinnedFolders - keys.toSet()
+                it.copy(operations = it.operations.copy(pinnedFolders = set))
+            }
+        }
+    }
+
+    /** Excludes (or includes) the folder and everything below it from the library through the folder rules. */
+    fun setExcluded(target: FolderLocation, excluded: Boolean) {
+        val volume = target.volumeName ?: return
+        val path = target.relativePath ?: return
+        viewModelScope.launch { settings.update { it.withFolderPathSelected(volume, path, !excluded) } }
+    }
+
+    // ---- Folder selection (cards); media is selected in the gallery selection ----
+
+    fun toggleFolder(card: FolderCardUi) {
+        mutableSelectedFolders.update { if (card.key in it) it - card.key else it + card.key }
+    }
+
+    fun clearFolderSelection() {
+        mutableSelectedFolders.value = emptySet()
+    }
+
+    fun selectAllFolders() {
+        val folders = (uiState.value as? FolderExplorerUiState.Folder)?.folders.orEmpty()
+        mutableSelectedFolders.value = folders.mapTo(LinkedHashSet()) { it.key }
+    }
+
+    private fun selectedCards(): List<FolderCardUi> {
+        val keys = mutableSelectedFolders.value
+        return (uiState.value as? FolderExplorerUiState.Folder)?.folders.orEmpty().filter { it.key in keys }
+    }
+
+    fun pinSelected(pinned: Boolean) {
+        setPinned(selectedCards(), pinned)
+        clearFolderSelection()
+    }
+
+    fun excludeSelected(excluded: Boolean) {
+        selectedCards().forEach { setExcluded(it.location, excluded) }
+        clearFolderSelection()
+    }
+
+    fun hideSelected(hide: Boolean) {
+        val cards = selectedCards()
+        clearFolderSelection()
+        cards.forEach { if (hide) hide(it) else unhide(it) }
+    }
+
+    fun deleteSelected() {
+        val cards = selectedCards()
+        clearFolderSelection()
+        cards.forEach(::delete)
+    }
+
+    // ---- Remembering where the user was ----
+
+    private var lastFolderRestored = false
+
+    /**
+     * Reopens the folder the user last left the main explorer in, once per process and only when this
+     * instance has no location of its own yet. The destination picker never calls this.
+     */
+    suspend fun restoreLastFolder() {
+        if (lastFolderRestored) return
+        lastFolderRestored = true
+        if (location.value != FolderLocation.Start) return
+        val saved = settings.settings.first().operations.lastFolder ?: return
+        val volume = saved.substringBefore('|', "").takeIf { it.isNotEmpty() } ?: return
+        val path = saved.substringAfter('|', "").takeIf { it.isNotEmpty() }
+        open(FolderLocation(volume, path))
+    }
+
+    /** Persists each location the main explorer reaches, so the next cold start can reopen it. */
+    suspend fun trackLastFolder() {
+        location.drop(1).collect { at ->
+            val volume = at.volumeName ?: return@collect
+            val key = "$volume|${at.relativePath.orEmpty()}"
+            settings.update { it.copy(operations = it.operations.copy(lastFolder = key)) }
+        }
+    }
+
+    /** Scroll positions per folder; kept in the saved state so they survive the process. */
+    val scrollMemory: ScrollMemory = object : ScrollMemory {
+        private val positions = LinkedHashMap(decodeScrollPositions(savedState.get<ArrayList<String>>(ScrollKey)))
+
+        override fun get(key: String) = positions[key]
+
+        override fun set(key: String, position: Pair<Int, Int>) {
+            if (positions[key] == position) return
+            positions.remove(key)
+            positions[key] = position
+            savedState[ScrollKey] = ArrayList(encodeScrollPositions(positions))
         }
     }
 
@@ -279,7 +492,10 @@ class FolderExplorerViewModel @Inject constructor(
 
     fun unhide(card: FolderCardUi) = operate(FolderOp.Unhide, card.location, listOf(card.location.relativePath)) { advanced.unhideFolder(it) }
 
-    fun delete(card: FolderCardUi) = operate(FolderOp.Delete, card.location, listOf(card.location.relativePath)) { advanced.deleteEmptyDirectory(it) }
+    /** Deletes the folder; one with files in it goes with everything below it, and the library drops those rows. */
+    fun delete(card: FolderCardUi) = operate(FolderOp.Delete, card.location, listOf(card.location.relativePath)) {
+        if (card.isEmptyDirectory) advanced.deleteEmptyDirectory(it) else advanced.deleteDirectory(it)
+    }
 
     fun rename(card: FolderCardUi, newName: String) {
         val old = card.location.relativePath ?: return
@@ -355,6 +571,10 @@ class FolderExplorerViewModel @Inject constructor(
         const val VolumeKey = "folders.volume"
         const val PathKey = "folders.path"
         const val IncludeKey = "folders.subfolders"
+        const val SearchOpenKey = "folders.search_open"
+        const val SearchQueryKey = "folders.search_query"
+        const val ScrollKey = "folders.scroll"
+        const val NoBucket = Long.MIN_VALUE
         const val ChangeQuietWindowMillis = 500L
     }
 }

@@ -35,7 +35,7 @@ interface FolderLibrary {
     ) = Unit
 }
 
-enum class FolderOp { Hide, Unhide, Rename, Delete, Create, Move }
+enum class FolderOp { Hide, Unhide, Rename, Delete, Create, Move, Copy }
 
 /** One-shot outcome of a folder operation, shown in the app snackbar. */
 sealed interface FolderMessage {

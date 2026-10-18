@@ -1356,9 +1356,6 @@ internal fun ProductionGalleryApp(
         viewModel.clearTreeOperation()
         if (treeUri != null && captured != null) viewModel.startTreeOperation(captured, treeUri)
     }
-    LaunchedEffect(viewModel) {
-        viewModel.treeLaunches.collect { treeLauncher.launch(null) }
-    }
     LaunchedEffect(Unit) {
         viewModel.treeOperationOutcomes.collect { outcome ->
             val message = when (outcome) {
@@ -1757,6 +1754,12 @@ internal fun ProductionGalleryApp(
                         }
                     },
                     onMoveFolder = { card -> viewModel.beginFolderMovePick(card.location) },
+                    onCopyFolder = { card -> viewModel.beginFolderCopyPick(card.location) },
+                    mediaSelection = MediaSelectionAccess(
+                        selecting = selectionCount > 0L,
+                        isSelected = { key -> SelectionReducer.isSelected(selection, key) },
+                        toggle = viewModel::toggleSelection,
+                    ),
                     onOpenFiles = { album ->
                         albumReturnToDeviceFolders = true
                         viewModel.selectAlbum(album, filter, sort)
@@ -1843,9 +1846,7 @@ internal fun ProductionGalleryApp(
                         showDetails,
                         adaptiveInfo,
                         onTreeOperation = { move ->
-                            if (advancedState.active) viewModel.beginItemFolderTransfer(media, move)
-                            else if (viewModel.prepareTreeOperation(media, move)) treeLauncher.launch(null)
-                            else Toast.makeText(context, treeActionUnavailable, Toast.LENGTH_SHORT).show()
+                            viewModel.beginItemFolderTransfer(media, move)
                         },
                         onShowDetails = { showDetails = true },
                         onHideDetails = { showDetails = false },
@@ -2803,24 +2804,20 @@ internal fun ProductionGalleryApp(
                             canShare = selectionCount in 1L..500L,
                             showShareLimitNote = selectionCount > 500,
                             onSelectAll = {
+                                val folderScope = folderExplorer.currentMediaScope()
                                 if (activeRoute == SurfaceRoute.Album && selectedAlbum != null) {
                                     viewModel.selectAllAlbum(requireNotNull(selectedAlbum), filter, sort)
+                                } else if (activeRoute == SurfaceRoute.DeviceFolders && folderScope != null) {
+                                    viewModel.selectAllFolderMedia(folderScope.volumeName, folderScope.relativePath, folderScope.includeSubfolders)
                                 } else viewModel.selectAllTimeline()
                             },
                             onFavorite = viewModel::toggleSelectionFavorite,
                             onTrash = { runDestructive { viewModel.beginSelectionSystemAction(MediaAction.Trash(true)) } },
                             onDelete = { runDestructive { viewModel.beginSelectionSystemAction(MediaAction.Delete) } },
                             onAddToAlbum = { showAddToAlbum = true },
-                            // Mode off, the system folder chooser takes one item at a time.
-                            canMoveToFolder = advancedState.active || selectionCount == 1L,
-                            onMoveToFolder = {
-                                if (advancedState.active) viewModel.beginSelectionFolderTransfer(move = true)
-                                else viewModel.beginSelectionTreeOperation(move = true)
-                            },
-                            onCopyToFolder = {
-                                if (advancedState.active) viewModel.beginSelectionFolderTransfer(move = false)
-                                else viewModel.beginSelectionTreeOperation(move = false)
-                            },
+                            canMoveToFolder = true,
+                            onMoveToFolder = { viewModel.beginSelectionFolderTransfer(move = true) },
+                            onCopyToFolder = { viewModel.beginSelectionFolderTransfer(move = false) },
                             onArchive = { viewModel.setSelectionArchived(true) },
                             onShare = {
                                 if (gallerySettings.operations.shareWithoutLocationByDefault) {
@@ -3191,6 +3188,8 @@ internal fun ProductionGalleryApp(
                             DeviceFoldersActions(
                                 chrome = folderChrome,
                                 onNewFolder = folderExplorer::beginNewFolder,
+                                onSearch = folderExplorer::openSearch,
+                                onSortAndView = folderExplorer::beginViewOptions,
                                 onTemporaryShowHiddenChange = ::setTemporaryShowHidden,
                                 onIncludeSubfoldersChange = folderExplorer::setIncludeSubfolders,
                                 onCompactChainsChange = folderExplorer::setCompactChains,

@@ -36,8 +36,8 @@ internal sealed interface FolderPickRequest {
 
     data class Items(override val purpose: PickPurpose, val keys: List<MediaKey>) : FolderPickRequest
 
-    data class Folder(val source: FolderLocation) : FolderPickRequest {
-        override val purpose: PickPurpose get() = PickPurpose.MoveFolder
+    data class Folder(val source: FolderLocation, val copy: Boolean = false) : FolderPickRequest {
+        override val purpose: PickPurpose get() = if (copy) PickPurpose.CopyFolder else PickPurpose.MoveFolder
     }
 }
 

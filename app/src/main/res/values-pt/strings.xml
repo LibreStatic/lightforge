@@ -165,4 +165,7 @@
     <string name="adv_transfer_progress_copy">Copiando %1$d de %2$d</string>
     <string name="selection_move_to_folder">Mover para pasta</string>
     <string name="selection_copy_to_folder">Copiar para pasta</string>
+    <string name="device_folders_search">Pesquisar pastas</string>
+    <string name="device_folders_sort_view">Ordem e visualização</string>
+    <string name="folder_op_copied">Pasta copiada</string>
 </resources>

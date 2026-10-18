@@ -156,4 +156,7 @@
     <string name="adv_transfer_progress_copy">%1$d von %2$d wird kopiert</string>
     <string name="selection_move_to_folder">In Ordner verschieben</string>
     <string name="selection_copy_to_folder">In Ordner kopieren</string>
+    <string name="device_folders_search">Ordner suchen</string>
+    <string name="device_folders_sort_view">Sortierung und Ansicht</string>
+    <string name="folder_op_copied">Ordner kopiert</string>
 </resources>
