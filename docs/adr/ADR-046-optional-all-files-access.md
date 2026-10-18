@@ -94,15 +94,17 @@ or broken data.
   `BuildConfig.ALL_FILES_ACCESS`.
 - With the property set to `false`:
   - an overlay manifest removes `MANAGE_EXTERNAL_STORAGE` from the merged manifest;
-  - the app binds `NoOpAdvancedStorage`;
-  - the Settings rows do not exist.
+  - the app binds `FileAdvancedStorage` in recovery-only mode: `isSupported` and `isGranted`
+    are false, so no mode, no file operation and no permission row exist, but it still reads
+    the registry;
+  - the Settings rows for the mode do not exist.
 - A Play build without the permission therefore needs no code change.
-- **Release blocker, not implemented:** `NoOpAdvancedStorage` never reads the registry, so a
-  flag-off build has no list of the folders an earlier build hid and no way to unhide them.
-  Recovery would bind a registry-reading implementation that is not `isSupported`, and offer
-  the owner delete or a per-folder SAF tree grant (neither needs `MANAGE_EXTERNAL_STORAGE`).
-  Until it exists, the safe order is to ship a build that unhides on mode-off before shipping
-  one with the flag off.
+- **Recovery after the flag flips (implemented):** the recovery-only instance lists the folders
+  an earlier build hid (`hiddenByApp`), and unhides them with the owner delete of the app's own
+  `.nomedia` or a per-folder SAF tree grant (`unhideWithTree`); neither needs
+  `MANAGE_EXTERNAL_STORAGE`. The Storage access page shows the hidden-folders list whenever the
+  registry is not empty, and on every launch with a non-empty registry the Settings unhide
+  prompt is raised (`AdvancedStorageStatus.pendingUnhide`).
 
 **We delete it from the code (module).**
 
@@ -120,7 +122,8 @@ or broken data.
 Before shipping, the following checks must pass:
 
 1. With the flag off, the merged manifest has no `MANAGE_EXTERNAL_STORAGE`, the Settings
-   rows are absent, and the tests pass.
+   rows for the mode are absent, the tests pass, and a registry written by an earlier build
+   is still listed and unhidable.
 2. Hide two folders, revoke the permission, and reopen the app: unhiding is offered and
    works.
 3. Export settings with the mode on and import them into a build with the flag off: there
@@ -176,8 +179,18 @@ granted, re-read on every resume): hidden items overlay (read live, no Room colu
 show-hidden with the 5-minute background timeout and app-lock gate, folder Hide/Unhide, folder
 create, rename, move and delete, a destination picker replacing SAF for Move/Copy, same-volume
 batch rename that keeps media identity, optional deletion of empty folders, and the revoked
-notice with unhide. Mode-independent fixes: a hidden row becomes inaccessible instead of being
-deleted, and folder counts use accessible rows only.
+notice with unhide. Standard top-level folders (DCIM, Pictures, Download, Movies, Music,
+Podcasts, Ringtones, Alarms, Notifications, Documents, Audiobooks, Recordings, Screenshots) and
+the volume root cannot be renamed, moved or deleted, and the Android tree is neither a source of
+folder operations nor a destination for moved or copied files (`Android/media/<package>` is wiped
+with its app). Mode-independent fixes: folder counts use accessible rows only, and the physical
+album lists drop folders whose rows are all inaccessible on a mounted volume (ghosts of hidden,
+moved or renamed folders) while keeping an unmounted volume's folders as unavailable. A row
+MediaStore stops returning is deleted only when its file is also gone from disk; if the file still
+exists (a `.nomedia` made by another app turns the row into one the app cannot read) the row is
+marked inaccessible and keeps its favourites and albums. That second probe is a `java.io.File`
+check, so how much of a foreign file the platform lets a non-manager app see on a given device is
+not measured here; where it cannot see the file the previous behaviour (delete) applies.
 
 Section 3 checks 1 and 3 are automated: CI builds with `-Plightforge.allFilesAccess=false` and
 runs `tools/verify_offline_release.py --no-all-files`, which also asserts that
@@ -195,17 +208,20 @@ Reduced scope: the temporary show-hidden switch reaches the Folders explorer onl
 overflow entry was removed because it did nothing; showing hidden rows in the Photos timeline is
 deferred.
 
-Deferred (Simple Gallery gap plan section 7, explorer): breadcrumb long-press path entry (7.3),
-per-folder sort, view and filter (7.4), search inside a folder and the `in:` token (7.6, 7.7),
-selecting files, alone or with folders (7.8), dimming or badging excluded folders and an Exclude
-shortcut (7.9), a destination picker that replaces SAF when the mode is off, with batched
-MediaStore moves (7.10), tree pane, drag and drop and keyboard navigation on large screens
-(7.11), restoring scroll after process death and reopening the last folder (7.12). Each folder
+Delivered from plan section 7.4: chain compaction ("A/B/C" cards and crumbs) can be switched off
+from the Device folders overflow (`compactFolderChains`, default on, persisted and exported).
+
+Deferred (Simple Gallery gap plan section 7, explorer; numbers follow the plan): breadcrumb
+long-press path entry (7.3), per-folder sort, view and filter (7.6), search inside a folder and the
+`in:` token (7.7), selecting files, alone or with folders (7.8), dimming or badging excluded
+folders and an Exclude shortcut (7.9), a destination picker that replaces SAF when the mode is
+off, with batched MediaStore moves (7.10), tree pane, drag and drop and keyboard navigation on
+large screens (7.11), restoring scroll after process death and reopening the last folder (7.12). Each folder
 keeps its own scroll position while the screen is open. Section 6.13 P1 items also deferred: the
 multi-select type filter, an index-time Animated flag (Animated is still MIME-based), a grouping
 control in the Photos overflow and the "show even if hidden" folder rule. Album covers, pins
 and other path-keyed settings are not rewritten on folder rename.
 
-Deferred: SAF tree-grant fallback after the flag flips, the rename benchmark, included
+Deferred: the rename benchmark, included
 folders that MediaStore does not index, a dot-prefixed-name view, and the viewer, system
 integration, photo editor, formats and slideshow sprints of the Simple Gallery gap plan.

@@ -68,6 +68,19 @@ class AdvancedStorageStatusTest {
         assertEquals(AdvancedStatus(), env.now)
     }
 
+    @Test fun `a flag-off build with folders hidden earlier offers to unhide them and stays inactive`() {
+        val env = Env(Fake(granted = false, hidden = 2, isSupported = false), enabled = false)
+        assertEquals(2, env.status.pendingUnhide.value)
+        assertEquals(AdvancedStatus(), env.now)
+        env.status.dismissPendingUnhide()
+        assertEquals(0, env.status.pendingUnhide.value)
+    }
+
+    @Test fun `a flag-off build with nothing hidden raises no prompt`() {
+        val env = Env(Fake(granted = false, hidden = 0, isSupported = false), enabled = false)
+        assertEquals(0, env.status.pendingUnhide.value)
+    }
+
     @Test fun `temporary show-hidden needs the mode and lasts until the timeout`() {
         val storage = Fake(granted = true)
         val env = Env(storage)

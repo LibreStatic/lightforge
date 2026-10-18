@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit
  * touches shared storage by path. Every mutating call returns [AdvancedResult.NotGranted] without
  * All files access; [hiddenByApp] stays readable so the user can still see what was hidden.
  */
-class FileAdvancedStorage(context: Context) : AdvancedStorage {
+class FileAdvancedStorage(context: Context, private val recoveryOnly: Boolean = false) : AdvancedStorage {
     private val appContext = context.applicationContext
     private val mutex = Mutex()
     private val engine = StorageEngine(
@@ -41,11 +41,12 @@ class FileAdvancedStorage(context: Context) : AdvancedStorage {
         deleteOwnedMarker = ::deleteOwnedMarker,
     )
 
-    override val isSupported: Boolean = true
+    override val isSupported: Boolean = !recoveryOnly
 
-    override fun isGranted(): Boolean = Environment.isExternalStorageManager()
+    override fun isGranted(): Boolean = !recoveryOnly && Environment.isExternalStorageManager()
 
-    override fun permissionIntent(): Intent {
+    override fun permissionIntent(): Intent? {
+        if (recoveryOnly) return null
         val uri = Uri.parse("package:${appContext.packageName}")
         val specific = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, uri)
         val intent = if (specific.resolveActivity(appContext.packageManager) != null) {

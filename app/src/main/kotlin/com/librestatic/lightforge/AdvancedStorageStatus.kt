@@ -35,7 +35,7 @@ data class AdvancedStatus(
 
 /**
  * The single capability source for advanced storage. With the build flag off the injected
- * [AdvancedStorage] is the no-op, so [status] is always inactive and default behaviour is unchanged.
+ * [AdvancedStorage] is recovery-only (unsupported), so [status] is always inactive and default behaviour is unchanged.
  */
 @Singleton
 class AdvancedStorageStatus internal constructor(
@@ -88,6 +88,8 @@ class AdvancedStorageStatus internal constructor(
                 val own = localChange == enabled
                 if (own) localChange = null
                 if (previous == true && !enabled && !own && count > 0) mutablePendingUnhide.value = count
+                // A build without the feature (flag off) cannot see hidden folders any other way: offer it once per launch.
+                if (previous == null && !advanced.isSupported && count > 0) mutablePendingUnhide.value = count
                 previous = enabled
             }
         }

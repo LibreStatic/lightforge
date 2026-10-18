@@ -2,7 +2,6 @@ package com.librestatic.lightforge
 
 import android.content.Context
 import com.librestatic.lightforge.core.mediastore.AdvancedStorage
-import com.librestatic.lightforge.core.mediastore.NoOpAdvancedStorage
 import com.librestatic.lightforge.core.storageadvanced.FileAdvancedStorage
 import com.librestatic.lightforge.core.preferences.GallerySettingsRepository
 import dagger.Module
@@ -20,7 +19,9 @@ object AdvancedStorageModule {
     @Provides
     @Singleton
     fun advancedStorage(@ApplicationContext context: Context): AdvancedStorage =
-        if (BuildConfig.ALL_FILES_ACCESS) FileAdvancedStorage(context) else NoOpAdvancedStorage
+        // With the flag off the instance is recovery-only: unsupported and never granted, but it still reads
+        // the hide registry so folders hidden by an earlier build can be listed and unhidden.
+        FileAdvancedStorage(context, recoveryOnly = !BuildConfig.ALL_FILES_ACCESS)
 
     /** One repository over the app-wide settings store, shared with the advanced storage status. */
     @Provides
