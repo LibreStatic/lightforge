@@ -1,0 +1,64 @@
+<en-US>
+• Generative eraser: fills larger areas with new detail. Each erase can be undone.
+• On device: browse your folders as a tree.
+• Storage access: optionally trash, delete and edit many items without confirming each batch.
+• Old FLV videos (Sorenson, VP6) play and show thumbnails, duration and size.
+• Fixes for video playback when switching files.
+Report problems at github.com/LibreStatic/lightforge/issues
+</en-US>
+<es-419>
+• Borrador generativo: rellena áreas grandes con detalle nuevo. Podés deshacer cada borrado.
+• Del dispositivo: navegá tus carpetas como un árbol.
+• Acceso al almacenamiento: opcionalmente mové a la papelera, borrá y editá muchos elementos sin confirmar cada lote.
+• Los videos FLV antiguos (Sorenson, VP6) se reproducen y muestran miniatura, duración y tamaño.
+• Arreglos al cambiar de archivo durante un video.
+Reportá problemas en github.com/LibreStatic/lightforge/issues
+</es-419>
+<es-ES>
+• Borrador generativo: rellena áreas grandes con detalle nuevo. Puedes deshacer cada borrado.
+• Del dispositivo: navega por tus carpetas como un árbol.
+• Acceso al almacenamiento: opcionalmente mueve a la papelera, borra y edita muchos elementos sin confirmar cada lote.
+• Los vídeos FLV antiguos (Sorenson, VP6) se reproducen y muestran miniatura, duración y tamaño.
+• Correcciones al cambiar de archivo durante un vídeo.
+Informa de problemas en github.com/LibreStatic/lightforge/issues
+</es-ES>
+<pt-BR>
+• Borracha generativa: preenche áreas grandes com novos detalhes. Desfaça cada apagamento.
+• No dispositivo: navegue pelas pastas em árvore.
+• Acesso ao armazenamento: opcionalmente envie à lixeira, exclua e edite muitos itens sem confirmar cada lote.
+• Vídeos FLV antigos (Sorenson, VP6) tocam e mostram miniatura, duração e tamanho.
+• Correções ao trocar de arquivo durante um vídeo.
+Relate problemas em github.com/LibreStatic/lightforge/issues
+</pt-BR>
+<pt-PT>
+• Borracha generativa: preenche áreas grandes com novos detalhes. Anule cada apagamento.
+• No dispositivo: navegue pelas pastas em árvore.
+• Acesso ao armazenamento: opcionalmente envie para o lixo, elimine e edite muitos itens sem confirmar cada lote.
+• Vídeos FLV antigos (Sorenson, VP6) reproduzem e mostram miniatura, duração e tamanho.
+• Correções ao mudar de ficheiro durante um vídeo.
+Comunique problemas em github.com/LibreStatic/lightforge/issues
+</pt-PT>
+<fr-FR>
+• Gomme générative : remplit de grandes zones avec de nouveaux détails. Chaque effacement peut être annulé.
+• Sur l’appareil : parcourez vos dossiers en arborescence.
+• Accès au stockage : en option, mettez à la corbeille, supprimez et modifiez de nombreux éléments sans confirmer chaque lot.
+• Les anciennes vidéos FLV (Sorenson, VP6) se lisent avec miniature, durée et taille.
+• Corrections au changement de fichier en vidéo.
+Signalez les problèmes sur github.com/LibreStatic/lightforge/issues
+</fr-FR>
+<de-DE>
+• Generativer Radierer: füllt größere Bereiche mit neuen Details. Jedes Radieren lässt sich rückgängig machen.
+• Auf dem Gerät: Ordner als Baum durchsuchen.
+• Speicherzugriff: optional viele Elemente ohne Bestätigung pro Stapel löschen, in den Papierkorb legen und bearbeiten.
+• Alte FLV-Videos (Sorenson, VP6) werden abgespielt und zeigen Vorschau, Dauer und Größe.
+• Korrekturen beim Dateiwechsel während eines Videos.
+Probleme melden unter github.com/LibreStatic/lightforge/issues
+</de-DE>
+<it-IT>
+• Gomma generativa: riempie aree ampie con nuovi dettagli. Ogni cancellazione si può annullare.
+• Sul dispositivo: sfoglia le cartelle ad albero.
+• Accesso all'archiviazione: facoltativamente sposta nel cestino, elimina e modifica molti elementi senza confermare ogni gruppo.
+• I vecchi video FLV (Sorenson, VP6) si riproducono e mostrano anteprima, durata e dimensioni.
+• Correzioni al cambio di file durante un video.
+Segnala i problemi su github.com/LibreStatic/lightforge/issues
+</it-IT>
