@@ -9,6 +9,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -56,8 +57,7 @@ class LocalBackupContentDeviceTest {
         compose.onNodeWithTag("local-backup-create").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag("local-backup-open").performScrollTo().assertIsEnabled()
         compose
-            .onNodeWithText(context.getString(R.string.local_backup_back))
-            .performScrollTo()
+            .onNodeWithContentDescription(context.getString(R.string.local_backup_back))
             .performClick()
         assertTrue(back)
     }

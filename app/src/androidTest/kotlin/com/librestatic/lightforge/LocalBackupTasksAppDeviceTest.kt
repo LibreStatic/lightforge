@@ -86,7 +86,7 @@ class LocalBackupTasksAppDeviceTest {
                 await(backup)
                 await(tasks) // The Tasks entry returns on the backup parent screen.
                 steps += "Back to Local backup"
-                click(back)
+                click(tasksBack)
                 await(settings)
                 assertTrue(device.wait(Until.gone(tasks), 15_000))
                 steps += "Back to Settings"

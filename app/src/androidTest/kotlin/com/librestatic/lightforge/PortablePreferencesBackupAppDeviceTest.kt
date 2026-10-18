@@ -324,7 +324,7 @@ class PortablePreferencesBackupAppDeviceTest {
                     )
                     assertEquals(expected, runBlocking { repository.settings.first() })
                     capture("recreated-replay")
-                    action(tag = "portable-preferences-back")
+                    action(description = context.getString(com.librestatic.lightforge.feature.settings.R.string.portable_preferences_back))
                     reveal(By.text(archiveName), "same-archive")
                     reveal(By.text(entry.name), "same-original-entry")
                     assertEquals(receiptsBefore, receiptCount())

@@ -427,7 +427,7 @@ class PortablePhotoRecipeBackupAppDeviceTest {
                             )
                         )
                     }
-                    textAction(com.librestatic.lightforge.feature.settings.R.string.local_backup_back)
+                    action(description = label(com.librestatic.lightforge.feature.settings.R.string.local_backup_back))
                     // Settings is now the verified parent; system Back has no text/IME ambiguity.
                     await("settings-parent") {
                         visible(

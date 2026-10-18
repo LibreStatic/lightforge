@@ -56,6 +56,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.librestatic.lightforge.core.designsystem.GalleryIndeterminateProgressIndicator
+import com.librestatic.lightforge.core.designsystem.GalleryTopAppBar
 
 /** A complete originals-only workflow; organization/preferences are deliberately not implied. */
 @Composable fun LocalBackupContent(onBack: () -> Unit) = LocalBackupContent(null, onBack)
@@ -331,9 +332,15 @@ fun LocalBackupContent(
         color = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface,
     ) {
+        Column(Modifier.fillMaxSize().testTag("local-backup-screen")) {
+        GalleryTopAppBar(
+            title = stringResource(R.string.local_backup_title),
+            onBack = { if (busy) confirmCancel = true else onBack() },
+            navigationContentDescription = stringResource(R.string.local_backup_back),
+        )
         Column(
-            Modifier.fillMaxSize()
-                .testTag("local-backup-screen")
+            Modifier.weight(1f)
+                .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -342,13 +349,6 @@ fun LocalBackupContent(
                 Modifier.widthIn(max = 720.dp).fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                TextButton(onClick = { if (busy) confirmCancel = true else onBack() }) {
-                    Text(stringResource(R.string.local_backup_back))
-                }
-                Text(
-                    stringResource(R.string.local_backup_title),
-                    style = MaterialTheme.typography.headlineMedium,
-                )
                 Text(
                     stringResource(
                         if (organizationPort == null) R.string.local_backup_scope
@@ -507,6 +507,7 @@ fun LocalBackupContent(
                     }
                 }
             }
+        }
         }
     }
     if (confirmRestore)
