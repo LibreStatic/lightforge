@@ -237,10 +237,8 @@
     <string name="storage_access_media_body">Se permitir, mover para a lixeira, excluir e editar várias fotos e vídeos de uma vez não pedirá confirmação a cada vez.</string>
     <string name="storage_access_advanced_title">Modo de armazenamento avançado</string>
     <string name="storage_access_advanced_switch">Usar o modo de armazenamento avançado</string>
-    <string name="storage_access_advanced_supporting">Mostra itens ocultos, oculta e reexibe pastas, move e renomeia arquivos instantaneamente no mesmo armazenamento, gerencia pastas e exclui as que ficam vazias.</string>
     <string name="storage_access_waiting_body">Permita o acesso a todos os arquivos na tela do sistema para concluir a ativação.</string>
     <string name="storage_access_enable_title">Ativar o modo de armazenamento avançado?</string>
-    <string name="storage_access_enable_body">Este modo permite que o Lightforge:\n• Mostre fotos e vídeos de pastas ocultas com .nomedia\n• Oculte e reexiba pastas\n• Mova e renomeie arquivos instantaneamente no mesmo armazenamento\n• Crie, renomeie e mova pastas, e exclua as vazias\n• Opcionalmente, exclua pastas que ficaram vazias após uma movimentação\n\nUsa a permissão de acesso a todos os arquivos, concedida na próxima tela. Você pode desativá-lo a qualquer momento. O Lightforge guarda uma lista das pastas que oculta para poder desfazer.</string>
     <string name="storage_access_enable_confirm">Continuar</string>
     <string name="storage_access_turn_off_body">As pastas que você mantiver ocultas continuam listadas aqui para você reexibi-las depois.</string>
     <string name="storage_access_turn_off_no_permission">O acesso a todos os arquivos não está mais permitido, então as pastas não podem ser reexibidas agora.</string>
@@ -291,4 +289,6 @@
         <item quantity="many">Reexibir %1$d pastas?</item>
         <item quantity="other">Reexibir %1$d pastas?</item>
     </plurals>
+    <string name="storage_access_advanced_supporting">Mostra itens ocultos, oculta e reexibe pastas, move e renomeia arquivos instantaneamente no mesmo armazenamento, cria, renomeia, move, copia e exclui permanentemente pastas (inclusive as que têm arquivos).</string>
+    <string name="storage_access_enable_body">Este modo permite que o Lightforge:\n• Mostre fotos e vídeos de pastas ocultas com .nomedia\n• Oculte e reexiba pastas\n• Mova e renomeie arquivos instantaneamente no mesmo armazenamento\n• Crie, renomeie, mova e copie pastas\n• Exclua permanentemente pastas com tudo o que há dentro, depois de você confirmar quantos arquivos são (nada vai para a lixeira)\n• Opcionalmente, exclua pastas que ficaram vazias após uma movimentação\n\nUsa a permissão de acesso a todos os arquivos, concedida na próxima tela. Você pode desativá-lo a qualquer momento. O Lightforge guarda uma lista das pastas que oculta para poder desfazer.</string>
 </resources>
