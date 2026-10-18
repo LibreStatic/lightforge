@@ -19,7 +19,7 @@ jobs:
         with:
           packages: ''
       - run: sdkmanager "platforms;android-37.0" "build-tools;37.0.0"
-      - run: ./gradlew :app:assembleOfflineDebug :app:assembleOfflineRelease test lint
+      - run: ./gradlew :app:assembleOfflineDebug :app:assembleOfflineRelease :app:compileOfflineDebugAndroidTestKotlin test lint
       - run: python tools/verify_offline_release.py --expect-all-files
 
   build-without-all-files:

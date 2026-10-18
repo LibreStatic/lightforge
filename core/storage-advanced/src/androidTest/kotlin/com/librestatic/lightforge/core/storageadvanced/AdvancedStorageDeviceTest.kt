@@ -128,6 +128,13 @@ class AdvancedStorageDeviceTest {
         println("$TAG: $message")
     }
 
+    @Test fun hideRefusesAStandardFolderAndLeavesNoMarker() = runBlocking {
+        assumeTrue(storage.isGranted())
+        val pictures = File(Environment.getExternalStorageDirectory(), "Pictures")
+        assertTrue(storage.hideFolder(pictures.path) is AdvancedResult.Failed)
+        assertFalse(File(pictures, ".nomedia").exists())
+    }
+
     @Test fun hideUnhideAndRenamesKeepMediaStoreIds() = runBlocking {
         assumeTrue(storage.isGranted())
         val png = writePng(probe, "probe.png")

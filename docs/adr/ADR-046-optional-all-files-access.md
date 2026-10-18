@@ -44,14 +44,14 @@ The app declares `MANAGE_MEDIA` (Android 12+ special access, "Media management")
 The user turns the mode on in Settings, sees an explanation, and grants all-files access
 on the system screen. The mode enables:
 
-- showing items hidden by `.nomedia` (dot-prefixed names are deferred), including a
-  "temporarily show hidden" switch that turns itself off after the app has been in the
-  background for 5 minutes;
+- showing items hidden by `.nomedia`, including a "temporarily show hidden" switch that turns
+  itself off after the app has been in the background for 5 minutes, in the Folders explorer and
+  merged into the Photos timeline by the library sort order;
 - hiding and unhiding folders by creating or removing `.nomedia`;
 - same-volume moves and renames with `File.renameTo`, followed by a
   `MediaScannerConnection.scanFile` of both paths;
-- folder create, rename, move, hide and unhide without the SAF picker; folder copy and
-  deleting non-empty folders are not offered;
+- folder create, rename, move, copy, delete (non-empty folders included), hide and unhide without
+  the SAF picker;
 - optionally, deleting folders left empty (off by default).
 
 Folder operations never touch the `Android/` tree (any case): `Android/media/<package>`
@@ -60,9 +60,10 @@ refuses hide, create, rename, move and delete there and the explorer shows no me
 cards. A renamed or moved folder takes its folder rules (excluded or included, by path and by
 bucket) with it, so an excluded folder stays excluded.
 
-Not part of the shipped mode (deferred): included folders that MediaStore does not index and
-hiding with a dot prefix. Unhide works for hides this app recorded; a `.nomedia` made by
-another app is never deleted.
+The app does not hide by renaming with a leading dot: the code was removed, and a dot-prefixed
+record written by an earlier build is still undone by unhide. Unhide works for hides this app
+recorded; a `.nomedia` made by another app is never deleted. Included folders that MediaStore does
+not index are not offered.
 
 Cross-volume moves keep the verified copy path: size and hash check, then delete. Every
 batch operation uses the same strategy: rename when the capability is present, otherwise
@@ -172,56 +173,58 @@ Before shipping, the following checks must pass:
   - Benchmark rename against verified copy on about 1000 photos on the `remoteacceptance`
     build: still open.
 
-## Shipped scope and deferred follow-ups
+## Shipped scope
 
 Shipped behind the mode (`AdvancedStorageStatus`, active only when supported, enabled and
 granted, re-read on every resume): hidden items overlay (read live, no Room column), temporary
 show-hidden with the 5-minute background timeout and app-lock gate, folder Hide/Unhide, folder
-create, rename, move and delete, a destination picker replacing SAF for Move/Copy, same-volume
-batch rename that keeps media identity, optional deletion of empty folders, and the revoked
-notice with unhide. Standard top-level folders (DCIM, Pictures, Download, Movies, Music,
-Podcasts, Ringtones, Alarms, Notifications, Documents, Audiobooks, Recordings, Screenshots) and
-the volume root cannot be renamed, moved or deleted, and the Android tree is neither a source of
-folder operations nor a destination for moved or copied files (`Android/media/<package>` is wiped
-with its app). Mode-independent fixes: folder counts use accessible rows only, and the physical
-album lists drop folders whose rows are all inaccessible on a mounted volume (ghosts of hidden,
-moved or renamed folders) while keeping an unmounted volume's folders as unavailable. A row
-MediaStore stops returning is deleted only when its file is also gone from disk; if the file still
-exists (a `.nomedia` made by another app turns the row into one the app cannot read) the row is
-marked inaccessible and keeps its favourites and albums. That second probe is a `java.io.File`
-check, so how much of a foreign file the platform lets a non-manager app see on a given device is
-not measured here; where it cannot see the file the previous behaviour (delete) applies.
+create, rename, move, copy and delete, a destination picker, same-volume batch rename that keeps
+media identity, optional deletion of empty folders, and the revoked notice with unhide. Standard
+top-level folders (DCIM, Pictures, Download, Movies, Music, Podcasts, Ringtones, Alarms,
+Notifications, Documents, Audiobooks, Recordings, Screenshots) and the volume root cannot be hidden,
+renamed, moved or deleted, and the Android tree is neither a source of folder operations nor a
+destination for moved or copied files (`Android/media/<package>` is wiped with its app).
+Mode-independent fixes: folder counts use accessible rows only, and the physical album lists drop
+folders whose rows are all inaccessible on a mounted volume while keeping an unmounted volume's
+folders as unavailable. A row MediaStore stops returning is deleted only when its file is also gone
+from disk; if the file still exists the row is marked inaccessible and keeps its favourites and
+albums. That probe is a `java.io.File` check, so how much of a foreign file the platform lets a
+non-manager app see is not measured here.
 
 Section 3 checks 1 and 3 are automated: CI builds with `-Plightforge.allFilesAccess=false` and
 runs `tools/verify_offline_release.py --no-all-files`, which also asserts that
 `MANAGE_EXTERNAL_STORAGE` is declared only in `core/storage-advanced`. The default build runs
 with `--expect-all-files`.
 
-Move and copy by path check each item against its current MediaStore row (`_ID`, folder and
-name) before anything is touched, and a cross-volume or refused-rename original is retired only
-after its copy is byte-compared with the item's own content URI. This path is not journaled
-like `VerifiedMoveController`, which is built around one item and a SAF tree: a crash before
-the delete approval leaves a copy beside the original, never a lost file. Journaling a batch is
-deferred.
+Moves and copies (Simple Gallery gap plan sections 7.8 and 7.10):
 
-Reduced scope: the temporary show-hidden switch reaches the Folders explorer only. The Photos
-overflow entry was removed because it did nothing; showing hidden rows in the Photos timeline is
-deferred.
+- With the mode on, move and copy go by path. Each item is checked against its current MediaStore
+  row before anything is touched, and a cross-volume or refused-rename original is retired only
+  after its copy is byte-compared with the item's own content URI.
+- Favourites, albums and archive state follow a moved item (`carryState`). A journal file
+  (`FileTransferJournal`) records each transfer, and `recoverInterrupted` finishes or rolls back
+  an interrupted one when the mode becomes active.
+- With the mode off, the same folder picker replaces SAF: a same-volume move updates
+  `RELATIVE_PATH` after one `MediaAction.Write` approval (the row keeps its identity), a copy
+  inserts a row and streams the bytes, and a cross-volume move copies and then requests
+  `MediaAction.Delete` for the originals. Limits: a volume root is not a destination, and a request
+  above 500 items is split into chunks whose counters are summed.
 
-Delivered from plan section 7.4: chain compaction ("A/B/C" cards and crumbs) can be switched off
-from the Device folders overflow (`compactFolderChains`, default on, persisted and exported).
+Explorer (plan section 7), all built: breadcrumb long-press path entry (7.3), compaction of
+single-child chains (7.4, switchable), per-folder sort, view and filter (7.6), search inside a
+folder and below it plus the `in:<path>` token of the global search (7.7), selecting files, alone or
+with folders (7.8), dimming excluded folders with an Exclude/Include shortcut (7.9), pinned folders,
+restored scroll position and reopening the last folder, also after process death (7.12). The Photos
+tab (6.13 P1) has multi-select type chips, a grouping control (day, month, year, none), the temporary
+show-hidden toggle in its overflow, and hidden items merged into the timeline; a hidden folder can
+carry the "Show in Photos even if hidden" rule. Hidden items in Photos open in an external viewer and
+cannot be selected or edited, because they are not in the library.
 
-Deferred (Simple Gallery gap plan section 7, explorer; numbers follow the plan): breadcrumb
-long-press path entry (7.3), per-folder sort, view and filter (7.6), search inside a folder and the
-`in:` token (7.7), selecting files, alone or with folders (7.8), dimming or badging excluded
-folders and an Exclude shortcut (7.9), a destination picker that replaces SAF when the mode is
-off, with batched MediaStore moves (7.10), tree pane, drag and drop and keyboard navigation on
-large screens (7.11), restoring scroll after process death and reopening the last folder (7.12). Each folder
-keeps its own scroll position while the screen is open. Section 6.13 P1 items also deferred: the
-multi-select type filter, an index-time Animated flag (Animated is still MIME-based), a grouping
-control in the Photos overflow and the "show even if hidden" folder rule. Album covers, pins
-and other path-keyed settings are not rewritten on folder rename.
-
-Deferred: the rename benchmark, included
-folders that MediaStore does not index, a dot-prefixed-name view, and the viewer, system
-integration, photo editor, formats and slideshow sprints of the Simple Gallery gap plan.
+Not built: tree pane, drag and drop and keyboard navigation on large screens (7.11); an index-time
+Animated flag (Animated is still MIME-based); rewriting album covers, pins and other path-keyed
+settings on folder rename; the rename-against-verified-copy benchmark; included folders that
+MediaStore does not index. The old SAF tree launch stack (`VerifiedMoveController` and its tree
+launchers) is no longer started by the folder picker and remains only because device tests use it.
+The scrubber histogram does not count hidden items merged into Photos. The viewer, system
+integration, photo editor, formats and slideshow sprints of the Simple Gallery gap plan are outside
+this change.

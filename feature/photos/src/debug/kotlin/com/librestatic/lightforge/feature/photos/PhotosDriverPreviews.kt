@@ -49,6 +49,12 @@ fun PhotosSelectionPreview() = PhotosFrame(initialSelection = setOf(3L, 4L, 10L)
 @Composable
 fun PhotosFilterEmptyPreview() = PhotosFrame(initialFilters = setOf(PhotosFilter.Raw), days = emptyList())
 
+/** Two type chips on together (Photos and Videos) and, in advanced storage mode, the overflow offers hidden items and grouping. */
+@Preview
+@Composable
+fun PhotosMultiFilterPreview() =
+    PhotosFrame(initialFilters = setOf(PhotosFilter.Photos, PhotosFilter.Videos), canShowHidden = true)
+
 /**
  * "Go to date": the calendar the date pill opens, over two years of media with gaps, each day
  * showing its first item. Rendered as the sheet's content so the driver sees it without a window.
