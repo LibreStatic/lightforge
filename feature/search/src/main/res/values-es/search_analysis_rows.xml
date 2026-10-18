@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="search_analysis_enable_people_summary">Agrupa fotos de la misma persona. Las caras no salen de este dispositivo.</string>
+    <string name="search_analysis_delete_summary">Borra todo lo que guardó el análisis en este dispositivo. Tus fotos no se tocan.</string>
+</resources>

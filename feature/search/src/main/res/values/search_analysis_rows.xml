@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="search_analysis_enable_people_summary">Group photos of the same person. Faces stay on this device.</string>
+    <string name="search_analysis_delete_summary">Erase everything the analysis stored on this device. Your photos are not touched.</string>
+</resources>

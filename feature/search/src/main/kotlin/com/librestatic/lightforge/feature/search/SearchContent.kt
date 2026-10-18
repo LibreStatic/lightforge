@@ -35,6 +35,8 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.SearchBarDefaults
@@ -300,27 +302,36 @@ fun SearchContent(
     if (showDetectedContent) AlertDialog(
         onDismissRequest = { showDetectedContent = false },
         title = { Text(stringResource(R.string.search_analysis_title)) },
-        text = { Text(stringResource(R.string.search_analysis_body)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.search_analysis_body))
+                // Secondary actions are labeled rows in the body, so the dialog keeps one button pair.
+                val rowColors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                if (detectedContentEnabled && !peopleAnalysisEnabled) {
+                    ListItem(
+                        onClick = onEnablePeopleAnalysis,
+                        colors = rowColors,
+                        modifier = Modifier.clip(MaterialTheme.shapes.medium).testTag("search_analysis_enable_people"),
+                        supportingContent = { Text(stringResource(R.string.search_analysis_enable_people_summary)) },
+                    ) { Text(stringResource(R.string.search_analysis_enable_people)) }
+                }
+                if (detectedContentEnabled) {
+                    ListItem(
+                        onClick = { confirmDeleteDetected = true },
+                        colors = rowColors,
+                        modifier = Modifier.clip(MaterialTheme.shapes.medium).testTag("search_analysis_delete"),
+                        supportingContent = { Text(stringResource(R.string.search_analysis_delete_summary)) },
+                    ) { Text(stringResource(R.string.search_analysis_delete), color = MaterialTheme.colorScheme.error) }
+                }
+            }
+        },
         confirmButton = {
             TextButton(onClick = if (detectedContentEnabled) onPauseDetectedContent else onEnableDetectedContent) {
                 Text(stringResource(if (detectedContentEnabled) R.string.search_analysis_pause else R.string.search_analysis_enable))
             }
         },
         dismissButton = {
-            Column(horizontalAlignment = Alignment.End) {
-                if (detectedContentEnabled && !peopleAnalysisEnabled) {
-                    TextButton(
-                        onClick = onEnablePeopleAnalysis,
-                        modifier = Modifier.testTag("search_analysis_enable_people"),
-                    ) {
-                        Text(stringResource(R.string.search_analysis_enable_people))
-                    }
-                }
-                if (detectedContentEnabled) TextButton(onClick = { confirmDeleteDetected = true }) {
-                    Text(stringResource(R.string.search_analysis_delete))
-                }
-                TextButton(onClick = { showDetectedContent = false }) { Text(stringResource(R.string.search_close)) }
-            }
+            TextButton(onClick = { showDetectedContent = false }) { Text(stringResource(R.string.search_close)) }
         },
     )
     if (confirmDeleteDetected) AlertDialog(

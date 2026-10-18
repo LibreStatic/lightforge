@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="search_analysis_enable_people_summary">Regroupe les photos d\'une même personne. Les visages restent sur cet appareil.</string>
+    <string name="search_analysis_delete_summary">Efface tout ce que l\'analyse a stocké sur cet appareil. Vos photos ne sont pas touchées.</string>
+</resources>
