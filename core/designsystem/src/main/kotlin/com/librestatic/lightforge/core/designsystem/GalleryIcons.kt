@@ -81,6 +81,7 @@ import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Error
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.DragIndicator
 import androidx.compose.material.icons.automirrored.rounded.RotateRight
 import androidx.compose.material.icons.automirrored.rounded.RotateLeft
@@ -195,6 +196,7 @@ val GalleryIconOpenInNew: ImageVector get() = Icons.AutoMirrored.Rounded.OpenInN
 val GalleryIconCheckCircle: ImageVector get() = Icons.Rounded.CheckCircle
 val GalleryIconError: ImageVector get() = Icons.Rounded.Error
 val GalleryIconHistory: ImageVector get() = Icons.Rounded.History
+val GalleryIconRefresh: ImageVector get() = Icons.Rounded.Refresh
 val GalleryIconDragIndicator: ImageVector get() = Icons.Rounded.DragIndicator
 val GalleryIconRotateRight: ImageVector get() = Icons.AutoMirrored.Rounded.RotateRight
 val GalleryIconRotateLeft: ImageVector get() = Icons.AutoMirrored.Rounded.RotateLeft
@@ -416,6 +418,7 @@ object GalleryIcons {
     val CheckCircle get() = GalleryIconCheckCircle
     val Error get() = GalleryIconError
     val History get() = GalleryIconHistory
+    val Refresh get() = GalleryIconRefresh
     val DragIndicator get() = GalleryIconDragIndicator
     val RotateRight get() = GalleryIconRotateRight
     val RotateLeft get() = GalleryIconRotateLeft
