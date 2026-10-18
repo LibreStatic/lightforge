@@ -4,8 +4,14 @@ import com.librestatic.lightforge.core.model.TimelineGrouping
 import com.librestatic.lightforge.core.model.TimelineIndex
 import java.time.LocalDate
 
-/** What the Photos timeline shows. The app maps it onto the library filter setting. */
+/**
+ * What the Photos timeline shows. The type chips are multi-select: the set of chosen kinds is shown
+ * together, and an empty set (the All chip) shows everything. The app maps it onto the library filter settings.
+ */
 enum class PhotosFilter { All, Photos, Videos, Animated, Raw }
+
+/** How the Photos timeline is grouped under headers. */
+enum class PhotosGrouping { Day, Month, Year, None }
 
 /** How the Photos timeline is ordered. The app maps it onto the library sort setting. */
 enum class PhotosSort { Newest, Oldest, RecentlyModified, Name, Largest }

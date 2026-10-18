@@ -28,8 +28,8 @@ class GalleryQueryMediaRepository(private val database: GalleryDatabase) {
         // Media panel would just filter back out - everything else (sort, grouping, folder
         // rules) is still the caller's own settings.
         val imagesOnly =
-            if (settings.filter == com.librestatic.lightforge.core.preferences.LibraryFilter.Images) settings
-            else settings.copy(filter = com.librestatic.lightforge.core.preferences.LibraryFilter.Images)
+            if (settings.filter == com.librestatic.lightforge.core.preferences.LibraryFilter.Images && settings.extraFilters.isEmpty()) settings
+            else settings.copy(filter = com.librestatic.lightforge.core.preferences.LibraryFilter.Images, extraFilters = emptySet())
         return database
             .libraryDao()
             .stackTimelineSelection(GalleryTimelineQuery.stacked(imagesOnly, limit = limit))
@@ -56,13 +56,7 @@ class GalleryQueryMediaRepository(private val database: GalleryDatabase) {
                 "EXISTS (SELECT 1 FROM archived_media a WHERE " +
                     "a.volumeName=m.volumeName AND a.mediaStoreId=m.mediaStoreId)"
         }
-        when (query.kindFilter) {
-            MediaQuery.KindFilter.Images -> where += "m.mediaType=1"
-            MediaQuery.KindFilter.Videos -> where += "m.mediaType=3"
-            MediaQuery.KindFilter.Animated -> where += "m.mediaType=1 AND ${animatedPredicate("m")}"
-            MediaQuery.KindFilter.Raw -> where += "m.mediaType=1 AND ${rawPredicate("m")}"
-            MediaQuery.KindFilter.ImagesAndVideos -> Unit
-        }
+        kindsClause(listOf(query.kindFilter) + query.extraKinds, "m")?.let(where::add)
         query.fromTimelineMillisInclusive?.let { where += "m.timelineSortMillis>=?"; args += it }
         query.toTimelineMillisExclusive?.let { where += "m.timelineSortMillis<?"; args += it }
         FolderSelectionSql.predicate(

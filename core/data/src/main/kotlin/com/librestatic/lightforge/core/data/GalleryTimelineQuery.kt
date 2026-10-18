@@ -4,6 +4,8 @@ import com.librestatic.lightforge.core.model.RawFormats
 import androidx.sqlite.db.SimpleSQLiteQuery
 import androidx.sqlite.db.SupportSQLiteQuery
 import com.librestatic.lightforge.core.preferences.FolderSelectionMode
+import com.librestatic.lightforge.core.preferences.activeFilters
+import com.librestatic.lightforge.core.selection.MediaQuery
 import com.librestatic.lightforge.core.preferences.LibraryFilter
 import com.librestatic.lightforge.core.preferences.LibraryGrouping
 import com.librestatic.lightforge.core.preferences.LibrarySettings
@@ -61,13 +63,18 @@ internal object GalleryTimelineQuery {
                 "NOT EXISTS (SELECT 1 FROM archived_media a WHERE " +
                     "a.volumeName=media_items.volumeName AND a.mediaStoreId=media_items.mediaStoreId)",
             )
-        when (settings.filter) {
-            LibraryFilter.All -> Unit
-            LibraryFilter.Images -> where += "mediaType=1"
-            LibraryFilter.Videos -> where += "mediaType=3"
-            LibraryFilter.Animated -> where += "mediaType=1 AND ${animatedPredicate()}"
-            LibraryFilter.Raw -> where += "mediaType=1 AND $RawPredicate"
-        }
+        kindsClause(
+            settings.activeFilters().map {
+                when (it) {
+                    LibraryFilter.Images -> MediaQuery.KindFilter.Images
+                    LibraryFilter.Videos -> MediaQuery.KindFilter.Videos
+                    LibraryFilter.Animated -> MediaQuery.KindFilter.Animated
+                    LibraryFilter.Raw -> MediaQuery.KindFilter.Raw
+                    LibraryFilter.All -> MediaQuery.KindFilter.ImagesAndVideos
+                }
+            },
+            alias = null,
+        )?.let(where::add)
         FolderSelectionSql.predicate(
                 alias = "media_items",
                 defaultSelected =
@@ -227,4 +234,24 @@ internal val RawPredicate: String = rawPredicate()
 internal fun animatedPredicate(alias: String? = null): String {
     val prefix = alias?.let { "$it." }.orEmpty()
     return "${prefix}isAnimated = 1"
+}
+
+/**
+ * SQL for a set of media kinds shown together (OR), or null when nothing is restricted. Shared by the
+ * timeline, viewer navigation, select-all and query-backed actions so all of them cover the same rows.
+ */
+internal fun kindsClause(kinds: Collection<MediaQuery.KindFilter>, alias: String?): String? {
+    val set = kinds.toSet()
+    if (set.isEmpty() || MediaQuery.KindFilter.ImagesAndVideos in set) return null
+    val prefix = alias?.let { "$it." }.orEmpty()
+    val parts = set.map { kind ->
+        when (kind) {
+            MediaQuery.KindFilter.Images -> "${prefix}mediaType=1"
+            MediaQuery.KindFilter.Videos -> "${prefix}mediaType=3"
+            MediaQuery.KindFilter.Animated -> "(${prefix}mediaType=1 AND ${animatedPredicate(alias)})"
+            MediaQuery.KindFilter.Raw -> "(${prefix}mediaType=1 AND ${rawPredicate(alias)})"
+            MediaQuery.KindFilter.ImagesAndVideos -> "1=1"
+        }
+    }
+    return if (parts.size == 1) parts.single() else parts.joinToString(" OR ", "(", ")")
 }

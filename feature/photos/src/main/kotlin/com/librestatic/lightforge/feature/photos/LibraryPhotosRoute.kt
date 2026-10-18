@@ -104,9 +104,17 @@ fun LibraryPhotosRoute(
     scrubberIndex: TimelineIndex? = null,
     onScrubberJump: (TimelineAnchor?) -> Unit = {},
     backgroundStatus: LibraryBackgroundStatus? = null,
-    filter: PhotosFilter = PhotosFilter.All,
-    /** Null hides the filter row. */
-    onFilterChange: ((PhotosFilter) -> Unit)? = null,
+    /** The kinds shown together; empty shows everything. */
+    filters: Set<PhotosFilter> = emptySet(),
+    /** Adds or removes a kind (All clears them); null hides the filter row. */
+    onFilterToggle: ((PhotosFilter) -> Unit)? = null,
+    grouping: PhotosGrouping = PhotosGrouping.Day,
+    /** Null hides the grouping entries of the overflow menu. */
+    onGroupingChange: ((PhotosGrouping) -> Unit)? = null,
+    /** Advanced storage mode only: offer "Show hidden items for now" in the overflow menu. */
+    canShowHidden: Boolean = false,
+    showHidden: Boolean = false,
+    onShowHiddenChange: (Boolean) -> Unit = {},
     sort: PhotosSort = PhotosSort.Newest,
     /** Null hides the sort menu. */
     onSortChange: ((PhotosSort) -> Unit)? = null,
@@ -169,6 +177,11 @@ fun LibraryPhotosRoute(
                 PhotosOverflowMenu(
                     onOpenSettings = onOpenSettings,
                     onOpenDeviceFolders = onOpenDeviceFolders,
+                    grouping = grouping,
+                    onGroupingChange = onGroupingChange,
+                    canShowHidden = canShowHidden,
+                    showHidden = showHidden,
+                    onShowHiddenChange = onShowHiddenChange,
                 )
             }
             if (access.isLimited) Text(
@@ -226,14 +239,14 @@ fun LibraryPhotosRoute(
                     modifier = Modifier.padding(horizontal = GallerySpacing.Lg, vertical = GallerySpacing.Sm))
             }
         }
-        val showFilterBar = onFilterChange != null && thumbnailLoader != null &&
+        val showFilterBar = onFilterToggle != null && thumbnailLoader != null &&
             presentationState != LibraryUiState.PermissionRequired &&
             presentationState != LibraryUiState.Error &&
             presentationState != LibraryUiState.Starting
         if (showFilterBar) {
             PhotosFilterBar(
-                filter = filter,
-                onFilterChange = requireNotNull(onFilterChange),
+                filters = filters,
+                onFilterToggle = requireNotNull(onFilterToggle),
                 sort = sort,
                 onSortChange = onSortChange,
                 totalCount = scrubberIndex?.total,
@@ -264,12 +277,12 @@ fun LibraryPhotosRoute(
                     modifier = Modifier.fillMaxSize(),
                 )
             }
-            entries.itemCount == 0 && engineState == LibraryUiState.Ready && filter != PhotosFilter.All &&
-                onFilterChange != null -> GalleryEmptyState(
+            entries.itemCount == 0 && engineState == LibraryUiState.Ready && filters.isNotEmpty() &&
+                onFilterToggle != null -> GalleryEmptyState(
                 title = stringResource(R.string.photos_filter_empty_title),
                 body = stringResource(R.string.photos_filter_empty_body),
                 actionLabel = stringResource(R.string.photos_filter_empty_action),
-                onAction = { onFilterChange(PhotosFilter.All) },
+                onAction = { onFilterToggle(PhotosFilter.All) },
                 hero = true,
                 modifier = Modifier.fillMaxSize(),
             )
@@ -424,10 +437,16 @@ private fun PermissionRequired(onRequestAccess: () -> Unit) {
 private fun PhotosOverflowMenu(
     onOpenSettings: () -> Unit,
     onOpenDeviceFolders: () -> Unit,
+    grouping: PhotosGrouping,
+    onGroupingChange: ((PhotosGrouping) -> Unit)?,
+    canShowHidden: Boolean,
+    showHidden: Boolean,
+    onShowHiddenChange: (Boolean) -> Unit,
 ) {
     var expanded by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    var groupingOpen by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     androidx.compose.foundation.layout.Box {
-        GalleryExpressiveIconButton(onClick = { expanded = true }) {
+        GalleryExpressiveIconButton(onClick = { expanded = true }, modifier = Modifier.testTag("photos_overflow")) {
             Icon(GalleryIcons.More, contentDescription = stringResource(R.string.photos_more_options))
         }
         androidx.compose.material3.DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
@@ -436,11 +455,50 @@ private fun PhotosOverflowMenu(
                 leadingIcon = { Icon(GalleryIcons.Folder, contentDescription = null) },
                 onClick = { expanded = false; onOpenDeviceFolders() },
             )
+            if (onGroupingChange != null) {
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(stringResource(R.string.photos_menu_group)) },
+                    leadingIcon = { Icon(GalleryIcons.ViewList, contentDescription = null) },
+                    onClick = { expanded = false; groupingOpen = true },
+                    modifier = Modifier.testTag("photos_group"),
+                )
+            }
+            if (canShowHidden) {
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(stringResource(R.string.photos_menu_show_hidden)) },
+                    leadingIcon = { Icon(GalleryIcons.Lock, contentDescription = null) },
+                    trailingIcon = if (showHidden) {
+                        { Icon(GalleryIcons.Check, contentDescription = stringResource(R.string.photos_menu_checked)) }
+                    } else null,
+                    onClick = { expanded = false; onShowHiddenChange(!showHidden) },
+                    modifier = Modifier.testTag("photos_show_hidden"),
+                )
+            }
             androidx.compose.material3.DropdownMenuItem(
                 text = { Text(stringResource(R.string.photos_menu_settings)) },
                 leadingIcon = { Icon(GalleryIcons.Settings, contentDescription = null) },
                 onClick = { expanded = false; onOpenSettings() },
             )
         }
+        androidx.compose.material3.DropdownMenu(expanded = groupingOpen, onDismissRequest = { groupingOpen = false }) {
+            PhotosGrouping.entries.forEach { option ->
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(stringResource(option.labelRes)) },
+                    trailingIcon = if (option == grouping) {
+                        { Icon(GalleryIcons.Check, contentDescription = stringResource(R.string.photos_menu_checked)) }
+                    } else null,
+                    onClick = { groupingOpen = false; onGroupingChange?.invoke(option) },
+                    modifier = Modifier.testTag("photos_group_${option.name.lowercase()}"),
+                )
+            }
+        }
     }
 }
+
+private val PhotosGrouping.labelRes: Int
+    get() = when (this) {
+        PhotosGrouping.Day -> R.string.photos_group_day
+        PhotosGrouping.Month -> R.string.photos_group_month
+        PhotosGrouping.Year -> R.string.photos_group_year
+        PhotosGrouping.None -> R.string.photos_group_none
+    }

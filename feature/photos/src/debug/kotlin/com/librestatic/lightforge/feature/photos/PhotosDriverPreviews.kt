@@ -47,7 +47,7 @@ fun PhotosSelectionPreview() = PhotosFrame(initialSelection = setOf(3L, 4L, 10L)
 /** A filter that matches nothing offers to show everything again. */
 @Preview
 @Composable
-fun PhotosFilterEmptyPreview() = PhotosFrame(initialFilter = PhotosFilter.Raw, days = emptyList())
+fun PhotosFilterEmptyPreview() = PhotosFrame(initialFilters = setOf(PhotosFilter.Raw), days = emptyList())
 
 /**
  * "Go to date": the calendar the date pill opens, over two years of media with gaps, each day
@@ -90,10 +90,13 @@ fun PhotosColdStartPreview() {
 private fun PhotosFrame(
     engineState: LibraryUiState = LibraryUiState.Ready,
     initialSelection: Set<Long> = emptySet(),
-    initialFilter: PhotosFilter = PhotosFilter.All,
+    initialFilters: Set<PhotosFilter> = emptySet(),
+    canShowHidden: Boolean = false,
     days: List<Pair<LocalDate, Int>> = SampleDays,
 ) {
-    var filter by remember { mutableStateOf(initialFilter) }
+    var filters by remember { mutableStateOf(initialFilters) }
+    var grouping by remember { mutableStateOf(PhotosGrouping.Day) }
+    var showHidden by remember { mutableStateOf(false) }
     var sort by remember { mutableStateOf(PhotosSort.Newest) }
     var selected by remember { mutableStateOf(initialSelection) }
     val loader = remember { previewThumbnailLoader() }
@@ -119,8 +122,19 @@ private fun PhotosFrame(
                 },
                 selectionMode = selected.isNotEmpty(),
                 scrubberIndex = index,
-                filter = filter,
-                onFilterChange = { filter = it },
+                filters = filters,
+                onFilterToggle = { kind ->
+                    filters = when {
+                        kind == PhotosFilter.All -> emptySet()
+                        kind in filters -> filters - kind
+                        else -> filters + kind
+                    }
+                },
+                grouping = grouping,
+                onGroupingChange = { grouping = it },
+                canShowHidden = canShowHidden,
+                showHidden = showHidden,
+                onShowHiddenChange = { showHidden = it },
                 sort = sort,
                 onSortChange = { sort = it },
                 onSelectAll = { selected = media.mapTo(mutableSetOf()) { it.key.mediaStoreId } },

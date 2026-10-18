@@ -48,4 +48,16 @@ class GallerySettingsTest {
         assertFalse(excludedMode.getValue(target))
         assertTrue(includedMode.getValue(target))
     }
+
+    @Test
+    fun `type filter toggles as a set and returns to All when emptied`() {
+        val both = LibrarySettings().withFilterToggled(LibraryFilter.Images).withFilterToggled(LibraryFilter.Videos)
+        assertEquals(setOf(LibraryFilter.Images, LibraryFilter.Videos), both.activeFilters())
+        assertEquals(LibraryFilter.Images, both.filter)
+        val videosOnly = both.withFilterToggled(LibraryFilter.Images)
+        assertEquals(setOf(LibraryFilter.Videos), videosOnly.activeFilters())
+        assertEquals(LibraryFilter.Videos, videosOnly.filter)
+        assertEquals(LibraryFilter.All, videosOnly.withFilterToggled(LibraryFilter.Videos).filter)
+        assertEquals(LibrarySettings(), both.withFilterToggled(LibraryFilter.All))
+    }
 }

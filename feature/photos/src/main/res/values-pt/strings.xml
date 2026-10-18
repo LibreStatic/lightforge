@@ -66,4 +66,11 @@
         <item quantity="many">%1$s, %2$d itens</item>
         <item quantity="other">%1$s, %2$d itens</item>
     </plurals>
+    <string name="photos_menu_group">Agrupar por</string>
+    <string name="photos_menu_show_hidden">Mostrar itens ocultos por agora</string>
+    <string name="photos_menu_checked">Selecionado</string>
+    <string name="photos_group_day">Dia</string>
+    <string name="photos_group_month">Mês</string>
+    <string name="photos_group_year">Ano</string>
+    <string name="photos_group_none">Sem agrupamento</string>
 </resources>

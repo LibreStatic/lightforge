@@ -37,14 +37,14 @@ import com.librestatic.lightforge.core.designsystem.GalleryIcons
 import com.librestatic.lightforge.core.designsystem.GallerySpacing
 
 /**
- * The Photos filter row: what to show (chips), how it is ordered (a sort menu) and, on wide
+ * The Photos filter row: what to show (multi-select chips), how it is ordered (a sort menu) and, on wide
  * windows, how many items the current view holds. Compact windows scroll the chips and keep the
  * sort button pinned at the end; wide windows put everything on one line.
  */
 @Composable
 internal fun PhotosFilterBar(
-    filter: PhotosFilter,
-    onFilterChange: (PhotosFilter) -> Unit,
+    filters: Set<PhotosFilter>,
+    onFilterToggle: (PhotosFilter) -> Unit,
     sort: PhotosSort,
     onSortChange: ((PhotosSort) -> Unit)?,
     totalCount: Int?,
@@ -76,10 +76,11 @@ internal fun PhotosFilterBar(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             PhotosFilter.entries.forEach { option ->
-                val selected = option == filter
+                // All is the empty selection; every other chip adds or removes its kind.
+                val selected = if (option == PhotosFilter.All) filters.isEmpty() else option in filters
                 FilterChip(
                     selected = selected,
-                    onClick = { onFilterChange(option) },
+                    onClick = { onFilterToggle(option) },
                     label = { Text(stringResource(option.labelRes), maxLines = 1) },
                     leadingIcon = if (selected) {
                         { Icon(GalleryIcons.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }

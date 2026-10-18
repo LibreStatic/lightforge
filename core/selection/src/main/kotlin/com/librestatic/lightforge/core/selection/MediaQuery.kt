@@ -7,6 +7,8 @@ import java.io.Serializable
 data class MediaQuery(
     val scope: Scope = Scope.Timeline,
     val kindFilter: KindFilter = KindFilter.ImagesAndVideos,
+    /** More kinds shown together with [kindFilter] (the Photos type chips are multi-select). */
+    val extraKinds: Set<KindFilter> = emptySet(),
     val favoriteOnly: Boolean = false,
     val trashedOnly: Boolean = false,
     val archiveMode: ArchiveMode = ArchiveMode.Exclude,

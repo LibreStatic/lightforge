@@ -102,13 +102,7 @@ class RoomViewerMediaSource(database: GalleryDatabase) {
                     "am.volumeName=m.volumeName AND am.mediaStoreId=m.mediaStoreId)"
         }
         if (query.favoriteOnly) where += "m.isFavorite=1"
-        when (query.kindFilter) {
-            MediaQuery.KindFilter.Images -> { where += "m.mediaType=?"; args += 1 }
-            MediaQuery.KindFilter.Videos -> { where += "m.mediaType=?"; args += 3 }
-            MediaQuery.KindFilter.Animated -> where += "m.mediaType=1 AND ${animatedPredicate("m")}"
-            MediaQuery.KindFilter.Raw -> where += "m.mediaType=1 AND ${rawPredicate("m")}"
-            MediaQuery.KindFilter.ImagesAndVideos -> Unit
-        }
+        kindsClause(listOf(query.kindFilter) + query.extraKinds, "m")?.let(where::add)
         FolderSelectionSql.predicate(
             alias = "m",
             defaultSelected = query.folderMode == MediaQuery.FolderMode.AllExceptExcluded,

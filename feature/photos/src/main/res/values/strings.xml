@@ -70,4 +70,11 @@
         <item quantity="one">%1$s, %2$d item</item>
         <item quantity="other">%1$s, %2$d items</item>
     </plurals>
+    <string name="photos_menu_group">Group by</string>
+    <string name="photos_menu_show_hidden">Show hidden items for now</string>
+    <string name="photos_menu_checked">Selected</string>
+    <string name="photos_group_day">Day</string>
+    <string name="photos_group_month">Month</string>
+    <string name="photos_group_year">Year</string>
+    <string name="photos_group_none">No grouping</string>
 </resources>

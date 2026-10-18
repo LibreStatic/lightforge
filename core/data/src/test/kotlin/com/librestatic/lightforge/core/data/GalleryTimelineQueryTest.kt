@@ -7,6 +7,7 @@ import com.librestatic.lightforge.core.preferences.LibrarySettings
 import com.librestatic.lightforge.core.preferences.LibrarySort
 import com.librestatic.lightforge.core.preferences.FolderSelectionTarget
 import com.librestatic.lightforge.core.preferences.GalleryFolderToken
+import com.librestatic.lightforge.core.selection.MediaQuery
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -33,6 +34,12 @@ class GalleryTimelineQueryTest {
         assertTrue(sql.contains("mediaType=3"))
         assertTrue(sql.contains("strftime('%Y-%m'"))
         assertTrue(sql.contains("LOWER(COALESCE(displayName,'')) ASC"))
+    }
+
+    @Test fun `several kinds are OR-ed and an unrestricted list adds no clause`() {
+        assertNull(kindsClause(emptyList(), alias = null))
+        val clause = checkNotNull(kindsClause(listOf(MediaQuery.KindFilter.Images, MediaQuery.KindFilter.Videos), alias = null))
+        assertTrue(clause, " OR " in clause)
     }
 
     @Test fun `raw filter covers every format the decoder opens`() {

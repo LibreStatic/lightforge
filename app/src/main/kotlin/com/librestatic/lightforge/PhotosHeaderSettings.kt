@@ -1,15 +1,19 @@
 package com.librestatic.lightforge
 
 import com.librestatic.lightforge.core.preferences.LibraryFilter
+import com.librestatic.lightforge.core.preferences.LibraryGrouping
+import com.librestatic.lightforge.core.preferences.activeFilters
+import com.librestatic.lightforge.core.preferences.withFilterToggled
 import com.librestatic.lightforge.core.preferences.LibrarySettings
 import com.librestatic.lightforge.core.preferences.LibrarySort
 import com.librestatic.lightforge.feature.photos.PhotosFilter
+import com.librestatic.lightforge.feature.photos.PhotosGrouping
 import com.librestatic.lightforge.feature.photos.PhotosSort
 
 // The Photos header shows the library query settings as filter chips and a sort menu; these map
 // both ways so the header and Settings always agree.
 
-internal fun LibrarySettings.photosFilter(): PhotosFilter = when (filter) {
+private fun LibraryFilter.toPhotos(): PhotosFilter = when (this) {
     LibraryFilter.All -> PhotosFilter.All
     LibraryFilter.Images -> PhotosFilter.Photos
     LibraryFilter.Videos -> PhotosFilter.Videos
@@ -17,13 +21,34 @@ internal fun LibrarySettings.photosFilter(): PhotosFilter = when (filter) {
     LibraryFilter.Raw -> PhotosFilter.Raw
 }
 
-internal fun LibrarySettings.withPhotosFilter(value: PhotosFilter): LibrarySettings = copy(
-    filter = when (value) {
-        PhotosFilter.All -> LibraryFilter.All
-        PhotosFilter.Photos -> LibraryFilter.Images
-        PhotosFilter.Videos -> LibraryFilter.Videos
-        PhotosFilter.Animated -> LibraryFilter.Animated
-        PhotosFilter.Raw -> LibraryFilter.Raw
+private fun PhotosFilter.toLibrary(): LibraryFilter = when (this) {
+    PhotosFilter.All -> LibraryFilter.All
+    PhotosFilter.Photos -> LibraryFilter.Images
+    PhotosFilter.Videos -> LibraryFilter.Videos
+    PhotosFilter.Animated -> LibraryFilter.Animated
+    PhotosFilter.Raw -> LibraryFilter.Raw
+}
+
+/** The chosen type chips; empty means All. */
+internal fun LibrarySettings.photosFilters(): Set<PhotosFilter> = activeFilters().map { it.toPhotos() }.toSet()
+
+/** Adds or removes [value] from the multi-select chips; All clears them. */
+internal fun LibrarySettings.withPhotosFilterToggled(value: PhotosFilter): LibrarySettings =
+    withFilterToggled(value.toLibrary())
+
+internal fun LibrarySettings.photosGrouping(): PhotosGrouping = when (grouping) {
+    LibraryGrouping.Day -> PhotosGrouping.Day
+    LibraryGrouping.Month -> PhotosGrouping.Month
+    LibraryGrouping.Year -> PhotosGrouping.Year
+    LibraryGrouping.None -> PhotosGrouping.None
+}
+
+internal fun LibrarySettings.withPhotosGrouping(value: PhotosGrouping): LibrarySettings = copy(
+    grouping = when (value) {
+        PhotosGrouping.Day -> LibraryGrouping.Day
+        PhotosGrouping.Month -> LibraryGrouping.Month
+        PhotosGrouping.Year -> LibraryGrouping.Year
+        PhotosGrouping.None -> LibraryGrouping.None
     },
 )
 

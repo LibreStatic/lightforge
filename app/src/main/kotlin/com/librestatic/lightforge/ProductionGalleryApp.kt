@@ -1535,10 +1535,17 @@ internal fun ProductionGalleryApp(
                         selectionMode = selectionCount > 0,
                         scrubberIndex = timelineIndex,
                         onScrubberJump = viewModel::jumpTimeline,
-                        filter = gallerySettings.library.photosFilter(),
-                        onFilterChange = { value ->
-                            viewModel.updateGallerySettings { it.copy(library = it.library.withPhotosFilter(value)) }
+                        filters = gallerySettings.library.photosFilters(),
+                        onFilterToggle = { value ->
+                            viewModel.updateGallerySettings { it.copy(library = it.library.withPhotosFilterToggled(value)) }
                         },
+                        grouping = gallerySettings.library.photosGrouping(),
+                        onGroupingChange = { value ->
+                            viewModel.updateGallerySettings { it.copy(library = it.library.withPhotosGrouping(value)) }
+                        },
+                        canShowHidden = advancedState.active,
+                        showHidden = advancedState.showHidden,
+                        onShowHiddenChange = ::setTemporaryShowHidden,
                         sort = gallerySettings.library.photosSort(),
                         onSortChange = { value ->
                             viewModel.updateGallerySettings { it.copy(library = it.library.withPhotosSort(value)) }

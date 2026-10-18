@@ -23,10 +23,27 @@ enum class LibraryFilter { All, Images, Videos, Animated, Raw }
 enum class LibraryGrouping { Day, Month, Year, None }
 enum class FolderSelectionMode { AllExceptExcluded, OnlyIncluded }
 
+/** The kinds Photos lists: the primary filter and the extra ones; empty means everything. */
+fun LibrarySettings.activeFilters(): Set<LibraryFilter> =
+    if (filter == LibraryFilter.All) emptySet() else setOf(filter) + extraFilters.filterNot { it == LibraryFilter.All }
+
+/**
+ * Toggles [kind] in the multi-select type filter. Choosing All clears it; removing the last kind
+ * returns to All; the first kind chosen stays the primary [LibrarySettings.filter].
+ */
+fun LibrarySettings.withFilterToggled(kind: LibraryFilter): LibrarySettings {
+    if (kind == LibraryFilter.All) return copy(filter = LibraryFilter.All, extraFilters = emptySet())
+    val next = activeFilters().let { if (kind in it) it - kind else it + kind }
+    val primary = next.firstOrNull() ?: return copy(filter = LibraryFilter.All, extraFilters = emptySet())
+    return copy(filter = primary, extraFilters = next - primary)
+}
+
 data class LibrarySettings(
     val sort: LibrarySort = LibrarySort.DateTaken,
     val ascending: Boolean = false,
     val filter: LibraryFilter = LibraryFilter.All,
+    /** More kinds shown together with [filter] (the Photos type chips are multi-select); always empty while [filter] is All. */
+    val extraFilters: Set<LibraryFilter> = emptySet(),
     val grouping: LibraryGrouping = LibraryGrouping.Day,
     val folderSelectionMode: FolderSelectionMode = FolderSelectionMode.AllExceptExcluded,
     val folderRules: Map<FolderSelectionTarget, Boolean> = emptyMap(),
@@ -226,6 +243,8 @@ data class OperationSettings(
     val pinnedFolders: Set<String> = emptySet(),
     /** Device folders: the last folder opened as `volume|path/`, restored on a cold start. */
     val lastFolder: String? = null,
+    /** Advanced mode: identities (`volume|path/`) of folders whose items Photos lists even though they are hidden. */
+    val showEvenIfHidden: Set<String> = emptySet(),
 )
 
 /** Confirmation dialogs the user can silence, and bring back from Settings. [key] is persisted: never rename it. */

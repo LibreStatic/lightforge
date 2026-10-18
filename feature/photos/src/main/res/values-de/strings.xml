@@ -63,4 +63,11 @@
         <item quantity="one">%1$s, %2$d Element</item>
         <item quantity="other">%1$s, %2$d Elemente</item>
     </plurals>
+    <string name="photos_menu_group">Gruppieren nach</string>
+    <string name="photos_menu_show_hidden">Verborgene Elemente vorerst anzeigen</string>
+    <string name="photos_menu_checked">Ausgewählt</string>
+    <string name="photos_group_day">Tag</string>
+    <string name="photos_group_month">Monat</string>
+    <string name="photos_group_year">Jahr</string>
+    <string name="photos_group_none">Keine Gruppierung</string>
 </resources>

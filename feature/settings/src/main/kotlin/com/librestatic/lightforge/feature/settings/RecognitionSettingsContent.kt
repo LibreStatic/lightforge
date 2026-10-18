@@ -1101,7 +1101,8 @@ private fun LibrarySection(
         }
         SettingsValueRow(
             stringResource(R.string.settings_library_filter),
-            stringResource(settings.library.filter.labelRes()),
+            stringResource(settings.library.filter.labelRes()) +
+                settings.library.extraFilters.size.let { if (it > 0) " +$it" else "" },
             modifier = Modifier.testTag("library_filter_row"),
             onClick = { filterDialogVisible = true },
         )
@@ -1168,7 +1169,7 @@ private fun LibrarySection(
             onDismiss = { filterDialogVisible = false },
         ) { index ->
             onSettingsChange { current ->
-                current.copy(library = current.library.copy(filter = LibraryFilter.entries[index]))
+                current.copy(library = current.library.copy(filter = LibraryFilter.entries[index], extraFilters = emptySet()))
             }
             filterDialogVisible = false
         }

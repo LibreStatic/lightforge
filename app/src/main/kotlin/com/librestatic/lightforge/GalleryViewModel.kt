@@ -7662,6 +7662,15 @@ class GalleryViewModel @Inject constructor(
                 com.librestatic.lightforge.core.preferences.LibraryFilter.Animated -> MediaQuery.KindFilter.Animated
                 com.librestatic.lightforge.core.preferences.LibraryFilter.Raw -> MediaQuery.KindFilter.Raw
             },
+            extraKinds = library.extraFilters.mapNotNullTo(HashSet()) {
+                when (it) {
+                    com.librestatic.lightforge.core.preferences.LibraryFilter.Images -> MediaQuery.KindFilter.Images
+                    com.librestatic.lightforge.core.preferences.LibraryFilter.Videos -> MediaQuery.KindFilter.Videos
+                    com.librestatic.lightforge.core.preferences.LibraryFilter.Animated -> MediaQuery.KindFilter.Animated
+                    com.librestatic.lightforge.core.preferences.LibraryFilter.Raw -> MediaQuery.KindFilter.Raw
+                    com.librestatic.lightforge.core.preferences.LibraryFilter.All -> null
+                }
+            },
             sort = if (library.ascending) MediaQuery.Sort.OldestFirst else MediaQuery.Sort.NewestFirst,
             sortField = when (library.sort) {
                 com.librestatic.lightforge.core.preferences.LibrarySort.DateTaken -> MediaQuery.SortField.DateTaken

@@ -279,6 +279,9 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                         filter =
                             p[Keys.LibraryFilter]?.enumOrDefault(LibraryFilter.All)
                                 ?: LibraryFilter.All,
+                        extraFilters = p[Keys.LibraryExtraFilters].orEmpty().mapNotNullTo(linkedSetOf()) {
+                            it.enumOrDefault(LibraryFilter.All).takeIf { kind -> kind != LibraryFilter.All }
+                        },
                         grouping =
                             p[Keys.LibraryGrouping]?.enumOrDefault(LibraryGrouping.Day)
                                 ?: LibraryGrouping.Day,
@@ -349,6 +352,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                         folderViewOptions = decodeStringMap(p[Keys.FolderViewOptions]),
                         pinnedFolders = p[Keys.PinnedFolders].orEmpty(),
                         lastFolder = p[Keys.LastFolder],
+                        showEvenIfHidden = p[Keys.ShowEvenIfHidden].orEmpty(),
                     ),
                 security =
                     SecuritySettings(
@@ -378,6 +382,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         p[Keys.LibraryAscending] = s.library.ascending
         s.library.albumSidePanelOpen?.let { p[Keys.AlbumSidePanelOpen] = it } ?: p.remove(Keys.AlbumSidePanelOpen)
         p[Keys.LibraryFilter] = s.library.filter.name
+        p[Keys.LibraryExtraFilters] = s.library.extraFilters.mapTo(linkedSetOf()) { it.name }
         p[Keys.LibraryGrouping] = s.library.grouping.name
         p[Keys.CollectionOrder] = s.library.collectionOrder.joinToString(",")
         p[Keys.HiddenCollections] = s.library.hiddenCollections.sorted().joinToString(",")
@@ -422,6 +427,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         p[Keys.FolderViewOptions] = encodeStringMap(s.operations.folderViewOptions)
         p[Keys.PinnedFolders] = s.operations.pinnedFolders
         s.operations.lastFolder?.let { p[Keys.LastFolder] = it } ?: p.remove(Keys.LastFolder)
+        p[Keys.ShowEvenIfHidden] = s.operations.showEvenIfHidden
         p[Keys.AppLock] = s.security.appLockEnabled
         p[Keys.DestructiveLock] = s.security.destructiveActionLockEnabled
         p[Keys.RelockTimeout] = s.security.relockTimeoutMinutes
@@ -443,6 +449,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     put("ascending", library.ascending)
                     library.albumSidePanelOpen?.let { put("albumSidePanelOpen", it) }
                     put("filter", library.filter.name)
+                    put("extraFilters", JSONArray(library.extraFilters.map { it.name }))
                     put("grouping", library.grouping.name)
                     put("collectionOrder", library.collectionOrder.joinToString(","))
                     put("hiddenCollections", library.hiddenCollections.sorted().joinToString(","))
@@ -511,6 +518,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     put("folderViewOptions", encodeStringMap(operations.folderViewOptions))
                     put("pinnedFolders", JSONArray(operations.pinnedFolders.sorted()))
                     operations.lastFolder?.let { put("lastFolder", it) }
+                    put("showEvenIfHidden", JSONArray(operations.showEvenIfHidden.sorted()))
                 },
             )
             put(
@@ -561,6 +569,9 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     ascending = l.bool("ascending", false),
                     albumSidePanelOpen = if (l.has("albumSidePanelOpen")) l.optBoolean("albumSidePanelOpen") else null,
                     filter = l.optString("filter").enumOrDefault(LibraryFilter.All),
+                    extraFilters = l.stringSet("extraFilters").mapNotNullTo(linkedSetOf()) {
+                        it.enumOrDefault(LibraryFilter.All).takeIf { kind -> kind != LibraryFilter.All }
+                    },
                     grouping = l.optString("grouping").enumOrDefault(LibraryGrouping.Day),
                     collectionOrder = CollectionLayoutPolicy.decode(l.optString("collectionOrder", "")),
                     hiddenCollections = CollectionLayoutPolicy.decode(l.optString("hiddenCollections", "")).toSet(),
@@ -632,6 +643,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     decodeStringMap(o.optString("folderViewOptions", "")),
                     o.stringSet("pinnedFolders"),
                     o.optString("lastFolder", "").ifBlank { null },
+                    o.stringSet("showEvenIfHidden"),
                 ),
             security =
                 SecuritySettings(
@@ -659,6 +671,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         val LibraryAscending = booleanPreferencesKey("library.ascending")
         val AlbumSidePanelOpen = booleanPreferencesKey("library.album_side_panel_open")
         val LibraryFilter = stringPreferencesKey("library.filter")
+        val LibraryExtraFilters = stringSetPreferencesKey("library.extra_filters")
         val LibraryGrouping = stringPreferencesKey("library.grouping")
         val CollectionOrder = stringPreferencesKey("library.collectionOrder")
         val HiddenCollections = stringPreferencesKey("library.hiddenCollections")
@@ -704,6 +717,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         val FolderViewOptions = stringPreferencesKey("folders.view_options")
         val PinnedFolders = stringSetPreferencesKey("folders.pinned")
         val LastFolder = stringPreferencesKey("folders.last")
+        val ShowEvenIfHidden = stringSetPreferencesKey("folders.show_even_if_hidden")
         val ProtectHiddenItems = booleanPreferencesKey("security.protect_hidden_items")
         val AppLock = booleanPreferencesKey("security.app_lock")
         val DestructiveLock = booleanPreferencesKey("security.destructive_lock")
