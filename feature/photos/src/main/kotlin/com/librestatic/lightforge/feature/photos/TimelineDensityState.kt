@@ -54,8 +54,11 @@ internal fun adaptiveDensityColumns(widthDp: Int): IntArray {
     val default = mediaGridLayout(widthDp.coerceAtLeast(1).dp).columns
     var previous = 1
     return IntArray(DensityScale.size) { level ->
-        val target = (default * DensityScale[level]).roundToInt().coerceAtLeast(2)
-        maxOf(target, previous + 1).also { previous = it }
+        // Every level stays inside the shared bounds and strictly increasing: the top levels give
+        // way so the largest level never exceeds MaxGridColumns and can always be persisted.
+        val ceiling = MaxGridColumns - (DensityScale.size - 1 - level)
+        val target = (default * DensityScale[level]).roundToInt().coerceAtLeast(MinGridColumns)
+        maxOf(target, previous + 1).coerceAtMost(ceiling).also { previous = it }
     }
 }
 

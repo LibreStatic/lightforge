@@ -58,7 +58,7 @@ class AdaptiveMediaGridTest {
     @Test
     fun columnCountIsClamped() {
         assertEquals(2, mediaGridLayout(150.dp).columns)
-        assertEquals(16, mediaGridLayout(8000.dp).columns)
+        assertEquals(AdaptiveMediaGridDefaults.MaxColumns, mediaGridLayout(8000.dp).columns)
     }
 
     @Test

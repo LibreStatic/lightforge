@@ -18,7 +18,7 @@ clean-room inventory; no GPL source code, resources, names, or visual assets are
 | Favorites backup/restore | Fingerprinted media records resolved against the current index, restored through chunked platform approval | Implemented |
 | Sort/filter/group and included/excluded folders | Persistent bound Room paging queries over MediaStore volume/bucket identities, shared by timeline, viewer navigation and select-all | Implemented |
 | Rename/copy/move/open-with/set-as/print/date repair | Write/delete requests, SAF tree copies, framework intents and local print adapter | Partial: single item from the viewer only; no batch copy/move/rename from the grid selection |
-| Hidden (`.nomedia`) folders, hide/unhide, in-place moves, folder operations | Opt-in advanced storage mode, `:core:storage-advanced` (ADR-046) | In progress |
+| Hidden (`.nomedia`) folders, hide/unhide, in-place moves, folder operations | Opt-in advanced storage mode, `:core:storage-advanced` (ADR-046) | Implemented behind the mode; SAF fallback and rename benchmark deferred |
 
 ## Explicit compatibility mappings
 

@@ -92,9 +92,47 @@ def verify_network_sources() -> list[str]:
     return sorted(violations)
 
 
+MANAGE_STORAGE = "android.permission.MANAGE_EXTERNAL_STORAGE"
+STORAGE_ADVANCED_MANIFEST = "core/storage-advanced/src/main/AndroidManifest.xml"
+
+
+def declares_all_files(path: Path) -> bool:
+    source = path.read_text(encoding="utf-8")
+    return bool(re.search(r'<uses-permission[^>]+android:name="' + re.escape(MANAGE_STORAGE) + '"', source)) and not re.search(
+        r'<uses-permission[^>]+android:name="' + re.escape(MANAGE_STORAGE) + r'"[^>]*tools:node="remove"', source
+    )
+
+
+def verify_all_files_isolation() -> list[str]:
+    """MANAGE_EXTERNAL_STORAGE may be declared only by :core:storage-advanced (ADR-046)."""
+    violations: list[str] = []
+    for path in ROOT.glob("**/src/*/AndroidManifest.xml"):
+        relative = path.relative_to(ROOT).as_posix()
+        if "/build/" in relative or relative == STORAGE_ADVANCED_MANIFEST:
+            continue
+        if declares_all_files(path):
+            violations.append(relative)
+    if not declares_all_files(ROOT / STORAGE_ADVANCED_MANIFEST):
+        violations.append(f"missing in {STORAGE_ADVANCED_MANIFEST}")
+    return violations
+
+
 def main() -> int:
+    args = sys.argv[1:]
+    unknown = [arg for arg in args if arg not in {"--expect-all-files", "--no-all-files", "--help", "-h"}]
+    if unknown or "--help" in args or "-h" in args or ("--expect-all-files" in args and "--no-all-files" in args):
+        print("usage: verify_offline_release.py [--expect-all-files | --no-all-files]\n"
+              "  --expect-all-files  the merged manifest must declare MANAGE_EXTERNAL_STORAGE (default build)\n"
+              "  --no-all-files      the merged manifest must not declare it (-Plightforge.allFilesAccess=false)")
+        return 0 if ("--help" in args or "-h" in args) and not unknown else 2
     manifest = merged_manifest()
     permissions = verify_manifest(manifest)
+    declared = declares_all_files(manifest)
+    if "--expect-all-files" in args and not declared:
+        permissions.append(f"missing:{MANAGE_STORAGE}")
+    if "--no-all-files" in args and declared:
+        permissions.append(f"unexpected:{MANAGE_STORAGE}")
+    permissions += [f"allFilesDeclaredOutsideStorageAdvanced:{item}" for item in verify_all_files_isolation()]
     dependencies = verify_dependencies()
     network_sources = verify_network_sources()
     if permissions or dependencies or network_sources:

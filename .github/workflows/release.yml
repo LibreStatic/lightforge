@@ -64,7 +64,7 @@ jobs:
         run: ./gradlew test lint :app:bundleOfflineRelease :app:assembleOfflineRelease
 
       - name: Verify offline release
-        run: python tools/verify_offline_release.py
+        run: python tools/verify_offline_release.py --expect-all-files
 
       - name: Verify release signature
         run: |

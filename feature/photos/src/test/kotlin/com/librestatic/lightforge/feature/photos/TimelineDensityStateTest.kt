@@ -1,5 +1,7 @@
 package com.librestatic.lightforge.feature.photos
 
+import com.librestatic.lightforge.core.preferences.MaxGridColumns
+import com.librestatic.lightforge.core.preferences.MinGridColumns
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -14,9 +16,18 @@ class TimelineDensityStateTest {
             val default = com.librestatic.lightforge.core.designsystem.mediaGridLayout(
                 androidx.compose.ui.unit.Dp(width.toFloat()),
             ).columns
-            assertEquals("width $width", default, levels[1])
+            assertEquals("width $width", minOf(default, MaxGridColumns - 3), levels[1])
             assertEquals("width $width", levels.sorted().distinct(), levels)
             assertTrue("width $width", levels.first() >= 2)
+        }
+    }
+
+    @Test
+    fun everyPinchLevelStaysWithinSharedBounds() {
+        for (width in 320..2560 step 8) {
+            val levels = adaptiveDensityColumns(width).toList()
+            assertTrue("width $width: $levels", levels.all { it in MinGridColumns..MaxGridColumns })
+            assertEquals("width $width", levels.sorted().distinct(), levels)
         }
     }
 

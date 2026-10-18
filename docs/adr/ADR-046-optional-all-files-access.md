@@ -136,8 +136,30 @@ Before shipping, the following checks must pass:
 - Hidden-item visibility should be protected by the existing app lock (biometric or device
   credential) once that UI exists.
 - Open checks:
-  - Verify on a device that, with the permission held, `MediaStore.Files` rows with
-    `media_type=0` and an image or video MIME type cover `.nomedia` content. If they do, the
-    app does not need to crawl the disk.
+  - `media_type=0` rows, owner deletion of its own `.nomedia` without the permission and
+    `_ID` preservation across a FUSE rename are measured by
+    `core/storage-advanced/src/androidTest/.../AdvancedStorageDeviceTest.kt` (run with
+    `ANDROID_SERIAL=emulator-5556`). The app reads hidden media from `MediaStore.Files` through
+    `AdvancedStorage.queryHiddenMedia()` and does not crawl the disk; when a device does not
+    report those rows, hidden items simply do not appear.
   - Benchmark rename against verified copy on about 1000 photos on the `remoteacceptance`
-    build.
+    build: still open.
+
+## Shipped scope and deferred follow-ups
+
+Shipped behind the mode (`AdvancedStorageStatus`, active only when supported, enabled and
+granted, re-read on every resume): hidden items overlay (read live, no Room column), temporary
+show-hidden with the 5-minute background timeout and app-lock gate, folder Hide/Unhide, folder
+create, rename, move and delete, a destination picker replacing SAF for Move/Copy, same-volume
+batch rename that keeps media identity, optional deletion of empty folders, and the revoked
+notice with unhide. Mode-independent fixes: a hidden row becomes inaccessible instead of being
+deleted, and folder counts use accessible rows only.
+
+Section 3 checks 1 and 3 are automated: CI builds with `-Plightforge.allFilesAccess=false` and
+runs `tools/verify_offline_release.py --no-all-files`, which also asserts that
+`MANAGE_EXTERNAL_STORAGE` is declared only in `core/storage-advanced`. The default build runs
+with `--expect-all-files`.
+
+Deferred: SAF tree-grant fallback after the flag flips, the rename benchmark, included
+folders that MediaStore does not index, a dot-prefixed-name view, and the viewer, system
+integration, photo editor, formats and slideshow sprints of the Simple Gallery gap plan.

@@ -14,6 +14,8 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.librestatic.lightforge.core.preferences.MaxGridColumns
+import com.librestatic.lightforge.core.preferences.MinGridColumns
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
@@ -57,8 +59,9 @@ object AdaptiveMediaGridDefaults {
     /** Upper bound for a cell in the sparse variant (one to a few results on a wide window). */
     val MaxSparseCell: Dp = 240.dp
 
-    const val MinColumns: Int = 2
-    const val MaxColumns: Int = 16
+    /** Shared with the Settings picker, the timeline pinch and settings import, so a persisted count always round-trips. */
+    const val MinColumns: Int = MinGridColumns
+    const val MaxColumns: Int = MaxGridColumns
 
     /**
      * Minimum cell size for a grid whose own width is [width]: 112 dp on phones, growing linearly
