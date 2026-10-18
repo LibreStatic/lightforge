@@ -19,13 +19,9 @@ gallery such as Simple Gallery or Fossify Gallery:
   SAF is slow by design: every `DocumentsContract` query is a binder call into
   `ExternalStorageProvider`, and moving between trees is always copy-then-delete.
 
-Simple Gallery and Fossify Gallery ship `MANAGE_EXTERNAL_STORAGE` on Google Play.
-Lightforge already has features that Play lists as permitted uses of all-files access:
-
-- verified local backup and restore;
-- SFTP/SMB mirroring to the user's own server;
-- Android-to-Android migration over the LAN;
-- encryption (Private Album).
+Simple Gallery and Fossify Gallery ship `MANAGE_EXTERNAL_STORAGE` on Google Play as media
+file managers. Lightforge's backup, SFTP/SMB mirroring, LAN migration and Private Album work
+through MediaStore and SAF and do not use the permission, so they are not its justification.
 
 ## Decision
 
@@ -121,8 +117,10 @@ Before shipping, the following checks must pass:
 ### 4. Distribution
 
 - **GitHub and F-Droid builds:** declare the permission.
-- **Google Play:** submit the "All files access" declaration, justified by backup and
-  restore, own-server sync, device migration and encryption.
+- **Google Play:** submit the "All files access" declaration as file management, which is
+  what the mode does: showing `.nomedia` folders, hiding and unhiding folders, in-place moves
+  and renames, and folder operations. Do not cite backup, sync, migration or encryption; they
+  do not use the permission.
 - **If Play rejects the declaration:**
   - ship the Play build with `-Plightforge.allFilesAccess=false`;
   - offer per-folder SAF tree grants for hidden folders as the slower fallback.
