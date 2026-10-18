@@ -30,4 +30,9 @@ class ObjectEraserTest {
             ObjectEraser.EraseMethod.ML_INPAINTING.name
         )
     }
+
+    @Test
+    fun eraseMethod_generativeInpainting_isDefined() {
+        assertEquals("GENERATIVE_INPAINTING", ObjectEraser.EraseMethod.GENERATIVE_INPAINTING.name)
+    }
 }

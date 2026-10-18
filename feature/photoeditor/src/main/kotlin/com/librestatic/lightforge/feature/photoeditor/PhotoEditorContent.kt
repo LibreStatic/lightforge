@@ -61,6 +61,10 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.foundation.layout.size
 import com.librestatic.lightforge.core.model.EditOperation
 import com.librestatic.lightforge.core.model.cameraFrame
 import com.librestatic.lightforge.core.editing.image.PhotoAutoEnhancementSuggestions
@@ -120,6 +124,8 @@ data class PhotoEditorContentState(
     val subjectClipSeed: PhotoPoint? = null,
     val subjectClipMethod: SubjectClipper.ClipMethod? = null,
     val isExperimentalProcessing: Boolean = false,
+    /** The eraser's model is still loading: painting works, Apply waits for it. */
+    val isEraserPreparing: Boolean = false,
     /** The photo with the whole colour grade applied by the GPU/CPU grader; wins over the legacy colour filter. */
     val gradedPreview: Bitmap? = null,
     val adjust: EditOperation.Adjust = EditOperation.Adjust(emptyMap()),
@@ -155,6 +161,7 @@ fun PhotoEditorContent(
     /** The crop tool opened or closed; a RAW then develops the full sensor area as the crop source. */
     onCropToolActiveChange: (Boolean) -> Unit = {},
     onApplyObjectErase: (List<PhotoPoint>) -> Unit = {},
+    onPrepareObjectEraser: () -> Unit = {},
     onClearObjectErase: () -> Unit = {},
     onPreviewSubjectClip: (PhotoPoint) -> Unit = {},
     onSaveSubjectClip: () -> Unit = {},
@@ -210,11 +217,17 @@ fun PhotoEditorContent(
         eraseStrokes = reprojectEditedPoints(eraseStrokes, eraseStrokesGeometry, state.geometry)
         eraseStrokesGeometry = state.geometry
     }
+    val eraserSelected = selectedTool == PhotoEditorTool.ObjectEraser
+    LaunchedEffect(eraserSelected) { if (eraserSelected) onPrepareObjectEraser() }
+    // The dabs of the erase in flight, drawn over the blurred photo until it finishes.
+    var appliedEraseStrokes by remember { mutableStateOf<List<PhotoPoint>>(emptyList()) }
     val experimental = ExperimentalToolActions(
         eraseStrokes = eraseStrokes,
+        processingStrokes = appliedEraseStrokes,
         onEraseStrokesChange = { eraseStrokes = it },
         onApplyErase = {
             onApplyObjectErase(eraseStrokes)
+            appliedEraseStrokes = eraseStrokes
             eraseStrokes = emptyList()
         },
         onClearErase = {
@@ -287,8 +300,8 @@ fun PhotoEditorContent(
         // Ctrl+Z / Ctrl+Shift+Z walk the history and Esc leaves the crop draft or the editor.
         modifier = modifier.mediaEditorShortcuts { command ->
             when (command) {
-                MediaEditorShortcut.Undo -> state.canUndo.also { if (it) onUndo() }
-                MediaEditorShortcut.Redo -> state.canRedo.also { if (it) onRedo() }
+                MediaEditorShortcut.Undo -> (state.canUndo && !state.isExperimentalProcessing).also { if (it) onUndo() }
+                MediaEditorShortcut.Redo -> (state.canRedo && !state.isExperimentalProcessing).also { if (it) onRedo() }
                 MediaEditorShortcut.Cancel -> { if (cropDraft != null) backFromCropDraft() else onBack(); true }
                 else -> false
             }
@@ -303,10 +316,10 @@ fun PhotoEditorContent(
                     commitCropDraft()
                     onSaveCopy()
                 },
-                actionEnabled = !state.isExporting,
+                actionEnabled = !state.isExporting && !state.isExperimentalProcessing,
                 history = MediaEditorHistory(
-                    canUndo = state.canUndo,
-                    canRedo = state.canRedo,
+                    canUndo = state.canUndo && !state.isExperimentalProcessing,
+                    canRedo = state.canRedo && !state.isExperimentalProcessing,
                     onUndo = onUndo,
                     onRedo = onRedo,
                     undoLabel = stringResource(R.string.photo_editor_undo),
@@ -337,7 +350,8 @@ fun PhotoEditorContent(
                 onApplyAutoSuggestion,
                 onRawOutputFormatChange,
                 experimental,
-                inspectorModifier,
+                // An erase or cut-out in flight owns the photo: the panel waits for it.
+                inspectorModifier.blockInputWhile(state.isExperimentalProcessing),
                 sideBySide = layout.isSideBySide,
                 // Eraser and cut-out panels hold prose (fallback notice + hint) that a 0.42 weight
                 // squeezed into a sliver; let them wrap up to a cap so the text reads in full (Z-05).
@@ -385,6 +399,7 @@ private fun PreviewStage(
             .background(MaterialTheme.colorScheme.surfaceContainerLowest)
             .clipToBounds()
             .onSizeChanged { stageSize = it }
+            .blockInputWhile(state.isExperimentalProcessing)
             .mediaEditorZoomGestures(
                 zoom,
                 enabled = zoomEnabled,
@@ -397,6 +412,9 @@ private fun PreviewStage(
     ) {
         val erasing = selectedTool == PhotoEditorTool.ObjectEraser && cropDraft == null
         val clipping = selectedTool == PhotoEditorTool.SubjectClip && cropDraft == null
+        val generating = erasing && state.isExperimentalProcessing
+        // Blur the photo while the eraser works so the marked shape stands out (no-op before Android 12).
+        val blur by animateDpAsState(if (generating) 12.dp else 0.dp, label = "erase-blur")
         val preview = when {
             cropDraft != null -> state.cropSourcePreview ?: state.originalPreview ?: state.preview
             compareOriginal -> state.originalPreview ?: state.preview
@@ -417,6 +435,7 @@ private fun PreviewStage(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer(rotationZ = cropDraft?.straightenDegrees ?: 0f)
+                    .then(if (blur > 0.dp) Modifier.blur(blur) else Modifier)
                     .pointerInput(state.originalPreview, cropDraft, erasing, clipping) {
                     if (cropDraft != null || state.originalPreview == null || erasing || clipping) return@pointerInput
                     awaitEachGesture {
@@ -466,15 +485,22 @@ private fun PreviewStage(
                 ExperimentalPreviewOverlay(
                     bitmapSize = IntSize(preview.width, preview.height),
                     erasing = erasing,
-                    eraseStrokes = experimental.eraseStrokes,
+                    eraseStrokes = if (generating) experimental.processingStrokes else experimental.eraseStrokes,
                     onEraseStrokesChange = experimental.onEraseStrokesChange,
                     subjectClipSeed = state.subjectClipSeed,
                     onSubjectTap = experimental.onPreviewSubjectClip,
                     modifier = Modifier.fillMaxSize(),
+                    processing = generating,
                 )
             }
             }
-            if (state.isExperimentalProcessing) GalleryLoadingIndicator()
+            if (generating) {
+                EraseProgressHint(stringResource(R.string.photo_editor_eraser_generating), Modifier.align(Alignment.BottomCenter).padding(12.dp))
+            } else if (erasing && state.isEraserPreparing && state.statusMessage == null) {
+                EraseProgressHint(stringResource(R.string.photo_editor_eraser_preparing), Modifier.align(Alignment.BottomCenter).padding(12.dp))
+            } else if (state.isExperimentalProcessing) {
+                GalleryLoadingIndicator()
+            }
         } else if (state.isRendering) {
             GalleryLoadingIndicator()
         } else {
@@ -501,6 +527,34 @@ private fun PreviewStage(
         }
     }
 }
+
+/** The eraser's busy pill: drawn over the photo, so it carries its own container like the status message. */
+@Composable
+private fun EraseProgressHint(text: String, modifier: Modifier) {
+    Surface(
+        modifier = modifier.testTag("photo-editor-eraser-progress"),
+        shape = MaterialTheme.shapes.large,
+        color = MaterialTheme.colorScheme.inverseSurface,
+        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+    ) {
+        Row(
+            Modifier.padding(start = GallerySpacing.Sm, end = GallerySpacing.Md, top = GallerySpacing.Xs, bottom = GallerySpacing.Xs),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Sm),
+        ) {
+            GalleryLoadingIndicator(Modifier.size(36.dp), color = MaterialTheme.colorScheme.inversePrimary)
+            Text(text, style = MaterialTheme.typography.labelLarge)
+        }
+    }
+}
+
+/** Swallows every touch on this element and its children while [blocked]. */
+private fun Modifier.blockInputWhile(blocked: Boolean): Modifier =
+    if (!blocked) this else pointerInput(Unit) {
+        awaitPointerEventScope {
+            while (true) awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
+        }
+    }
 
 @Composable
 private fun PhotoTools(

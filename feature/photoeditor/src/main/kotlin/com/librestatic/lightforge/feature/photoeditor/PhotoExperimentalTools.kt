@@ -1,5 +1,11 @@
 package com.librestatic.lightforge.feature.photoeditor
 
+import androidx.annotation.StringRes
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -34,7 +40,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -58,7 +67,9 @@ import com.librestatic.lightforge.core.designsystem.GallerySpacing
 import com.librestatic.lightforge.core.ml.ModelDownloadWait
 import com.librestatic.lightforge.core.ml.ModelDownloads
 import com.librestatic.lightforge.core.model.EditOperation
+import com.librestatic.lightforge.feature.objecteraser.InpaintModelCatalog
 import com.librestatic.lightforge.feature.objecteraser.InpaintModelDownloadWorker
+import com.librestatic.lightforge.feature.objecteraser.InpaintModelPackage
 import com.librestatic.lightforge.feature.objecteraser.InpaintModelStatus
 import com.librestatic.lightforge.feature.objecteraser.InpaintModelStore
 import com.librestatic.lightforge.feature.objecteraser.ObjectEraser
@@ -210,8 +221,53 @@ internal fun appendBrushPoint(
     }
 }
 
+/**
+ * When [stroke] closes on itself (its ends meet, allowing a gap of a third of its extent) around an area wider than
+ * the brush, returns it plus a grid of dabs covering the enclosed area; otherwise returns it unchanged. Points are
+ * normalized; distances are measured in units of the image's short side, like the brush radius.
+ */
+internal fun fillBrushLoop(stroke: List<PhotoPoint>, aspect: Float): List<PhotoPoint> {
+    if (stroke.size < 3) return stroke
+    val shortSide = min(1f, aspect)
+    val sx = aspect / shortSide
+    val sy = 1f / shortSide
+    val xs = stroke.map { it.x * sx }
+    val ys = stroke.map { it.y * sy }
+    val left = xs.min(); val right = xs.max(); val top = ys.min(); val bottom = ys.max()
+    val radius = PHOTO_ERASE_BRUSH_RADIUS
+    if (right - left < 3 * radius || bottom - top < 3 * radius) return stroke
+    val gap = kotlin.math.hypot(xs.last() - xs.first(), ys.last() - ys.first())
+    val extent = kotlin.math.hypot(right - left, bottom - top)
+    if (gap > extent / 3f) return stroke
+    // Grid spacing of one radius: neighbouring dabs overlap, so the area is covered without holes.
+    val interior = mutableListOf<PhotoPoint>()
+    var y = top + radius
+    while (y < bottom) {
+        var x = left + radius
+        while (x < right) {
+            if (insidePolygon(x, y, xs, ys)) interior += PhotoPoint(x / sx, y / sy)
+            x += radius
+        }
+        y += radius
+    }
+    return stroke + interior
+}
+
+/** Even-odd test of ([x], [y]) against the polygon through [xs], [ys], closed from the last vertex to the first. */
+private fun insidePolygon(x: Float, y: Float, xs: List<Float>, ys: List<Float>): Boolean {
+    var inside = false
+    var j = xs.lastIndex
+    for (i in xs.indices) {
+        if ((ys[i] > y) != (ys[j] > y) && x < (xs[j] - xs[i]) * (y - ys[i]) / (ys[j] - ys[i]) + xs[i]) inside = !inside
+        j = i
+    }
+    return inside
+}
+
 internal class ExperimentalToolActions(
     val eraseStrokes: List<PhotoPoint>,
+    /** The dabs being erased right now, kept on screen until the erase finishes. */
+    val processingStrokes: List<PhotoPoint> = emptyList(),
     val onEraseStrokesChange: (List<PhotoPoint>) -> Unit,
     val onApplyErase: () -> Unit,
     val onClearErase: () -> Unit,
@@ -228,6 +284,8 @@ internal fun ExperimentalPreviewOverlay(
     subjectClipSeed: PhotoPoint?,
     onSubjectTap: (PhotoPoint) -> Unit,
     modifier: Modifier,
+    /** An erase is running: the dabs are outlined and pulse, and painting is off. */
+    processing: Boolean = false,
 ) {
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
     val bounds = fittedImageBounds(containerSize, bitmapSize)
@@ -236,12 +294,24 @@ internal fun ExperimentalPreviewOverlay(
     val maskColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
     val markerOuter = MaterialTheme.colorScheme.primary
     val markerInner = MaterialTheme.colorScheme.onPrimary
+    val outlineColor = MaterialTheme.colorScheme.primary
+    val pulse = if (processing) {
+        rememberInfiniteTransition(label = "erase-mask").animateFloat(
+            initialValue = 0.3f,
+            targetValue = 0.65f,
+            animationSpec = infiniteRepeatable(tween(900), RepeatMode.Reverse),
+            label = "erase-mask-alpha",
+        )
+    } else null
     val maskDescription = stringResource(R.string.photo_editor_eraser_mask_description)
     Canvas(
         modifier
             .onSizeChanged { containerSize = it }
             .semantics { if (erasing) contentDescription = maskDescription }
-            .pointerInput(erasing, bounds) {
+            // Offscreen, so the fill can replace the outline inside the shape and only its edge stays.
+            .graphicsLayer { compositingStrategy = if (processing) CompositingStrategy.Offscreen else CompositingStrategy.Auto }
+            .pointerInput(erasing, processing, bounds) {
+                if (processing) return@pointerInput
                 if (erasing) {
                     awaitEachGesture {
                         val down = awaitFirstDown()
@@ -250,12 +320,14 @@ internal fun ExperimentalPreviewOverlay(
                         imagePointAt(down.position, bounds)?.let { strokes = appendBrushPoint(strokes, it, aspect, connect = false) }
                         onEraseStrokesChange(strokes)
                         down.consume()
+                        var cancelled = false
                         do {
                             val event = awaitPointerEvent()
                             // A second finger or a change consumed by the zoom layer makes this a
                             // pinch or pan: drop what this gesture painted and wait for release.
                             if (event.changes.count { it.pressed } >= 2 || event.changes.any { it.isConsumed }) {
                                 onEraseStrokesChange(strokesBeforeGesture)
+                                cancelled = true
                                 do {
                                     val rest = awaitPointerEvent()
                                 } while (rest.changes.any { it.pressed })
@@ -271,6 +343,12 @@ internal fun ExperimentalPreviewOverlay(
                             }
                             onEraseStrokesChange(strokes)
                         } while (event.changes.any { it.pressed })
+                        // A stroke drawn around an object marks everything inside it, not just the outline.
+                        if (!cancelled) {
+                            val gesture = strokes.drop(strokesBeforeGesture.size)
+                            val filled = fillBrushLoop(gesture, aspect)
+                            if (filled.size > gesture.size) onEraseStrokesChange(strokesBeforeGesture + filled)
+                        }
                     }
                 } else {
                     detectTapGestures { offset -> imagePointAt(offset, bounds)?.let(onSubjectTap) }
@@ -279,7 +357,14 @@ internal fun ExperimentalPreviewOverlay(
     ) {
         if (bounds.isEmpty) return@Canvas
         val radius = min(bounds.width, bounds.height) * PHOTO_ERASE_BRUSH_RADIUS
-        if (erasing) {
+        if (erasing && pulse != null) {
+            val centers = eraseStrokes.map { Offset(bounds.left + it.x * bounds.width, bounds.top + it.y * bounds.height) }
+            val outline = 3.dp.toPx()
+            centers.forEach { drawCircle(outlineColor, radius + outline, it) }
+            // Src overwrites instead of stacking, so overlapping dabs read as one evenly tinted shape.
+            val fill = outlineColor.copy(alpha = pulse.value)
+            centers.forEach { drawCircle(fill, radius, it, blendMode = BlendMode.Src) }
+        } else if (erasing) {
             eraseStrokes.forEach { point ->
                 drawCircle(
                     maskColor,
@@ -313,10 +398,15 @@ internal fun ObjectEraserControls(state: PhotoEditorContentState, actions: Exper
     // Null where WorkManager is not initialized (isolated UI tests); the eraser then offers no model.
     val statusFlow = remember(context) { runCatching { InpaintModelDownloadWorker.status(context) }.getOrNull() }
     val status by (statusFlow ?: flowOf(null)).collectAsState(initial = null)
+    // The generative package is only offered once its release assets are pinned.
+    val generativeFlow = remember(context) {
+        if (InpaintModelCatalog.Generative.published) runCatching { InpaintModelDownloadWorker.status(context, InpaintModelCatalog.Generative) }.getOrNull() else null
+    }
+    val generativeStatus by (generativeFlow ?: flowOf(null)).collectAsState(initial = null)
     val ai = when (state.eraseMethod) {
-        ObjectEraser.EraseMethod.ML_INPAINTING -> true
+        ObjectEraser.EraseMethod.ML_INPAINTING, ObjectEraser.EraseMethod.GENERATIVE_INPAINTING -> true
         ObjectEraser.EraseMethod.NEIGHBOR_INTERPOLATION_FALLBACK -> false
-        null -> status == InpaintModelStatus.Installed
+        null -> status == InpaintModelStatus.Installed || generativeStatus == InpaintModelStatus.Installed
     }
     if (!ai) {
         EraserCard(
@@ -327,6 +417,7 @@ internal fun ObjectEraserControls(state: PhotoEditorContentState, actions: Exper
         )
     }
     status?.let { EraserModelPanel(it) }
+    generativeStatus?.let { EraserModelPanel(it, InpaintModelCatalog.Generative, EraserModelTexts.Generative) }
     if (actions.eraseStrokes.isEmpty()) {
         EraserCard(icon = GalleryIconLightbulb, title = stringResource(R.string.photo_editor_eraser_hint))
     } else {
@@ -370,33 +461,63 @@ private fun EraserCard(
     }
 }
 
-/** Offers, tracks and removes the downloaded inpainting model; the download outlives the editor. */
+/** The texts and test tags that tell one downloadable eraser model from another. */
+internal class EraserModelTexts(
+    @StringRes val offerTitle: Int,
+    @StringRes val offer: Int,
+    @StringRes val downloading: Int,
+    @StringRes val ready: Int,
+    @StringRes val readyBody: Int,
+    @StringRes val failed: Int,
+    val tag: String,
+) {
+    companion object {
+        val Migan = EraserModelTexts(
+            R.string.photo_editor_eraser_model_offer_title, R.string.photo_editor_eraser_model_offer,
+            R.string.photo_editor_eraser_model_downloading, R.string.photo_editor_eraser_model_ready,
+            R.string.photo_editor_eraser_model_ready_body, R.string.photo_editor_eraser_model_failed,
+            "photo-editor-eraser-model",
+        )
+        val Generative = EraserModelTexts(
+            R.string.photo_editor_eraser_generative_offer_title, R.string.photo_editor_eraser_generative_offer,
+            R.string.photo_editor_eraser_generative_downloading, R.string.photo_editor_eraser_generative_ready,
+            R.string.photo_editor_eraser_generative_ready_body, R.string.photo_editor_eraser_generative_failed,
+            "photo-editor-eraser-generative",
+        )
+    }
+}
+
+/** Offers, tracks and removes a downloaded inpainting model package; the download outlives the editor. */
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
-internal fun EraserModelPanel(status: InpaintModelStatus) {
+internal fun EraserModelPanel(
+    status: InpaintModelStatus,
+    spec: InpaintModelPackage = InpaintModelCatalog.Migan,
+    texts: EraserModelTexts = EraserModelTexts.Migan,
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val totalMegabytes = (InpaintModelStore.PackageBytes / MegaByte).toInt()
-    val download = { scope.launch { InpaintModelDownloadWorker.enqueue(context) } }
+    val totalMegabytes = (spec.bytes / MegaByte).toInt()
+    val download = { scope.launch { InpaintModelDownloadWorker.enqueue(context, spec) } }
     // Assume the default Wi-Fi-only policy until the setting loads.
     val mobileData by produceState(false, context) {
         value = runCatching { ModelDownloads.mobileDataAllowed(context) }.getOrDefault(false)
     }
-    Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs), modifier = Modifier.testTag("photo-editor-eraser-model")) {
+    Column(verticalArrangement = Arrangement.spacedBy(GallerySpacing.Xs), modifier = Modifier.testTag(texts.tag)) {
         when (status) {
             InpaintModelStatus.NotInstalled, InpaintModelStatus.Failed -> {
                 if (status == InpaintModelStatus.Failed) {
                     EraserCard(
                         icon = GalleryIconError,
-                        title = stringResource(R.string.photo_editor_eraser_model_failed),
+                        title = stringResource(texts.failed),
                         container = MaterialTheme.colorScheme.errorContainer,
                         content = MaterialTheme.colorScheme.onErrorContainer,
                     )
                 }
                 EraserCard(
                     icon = GalleryIconDownload,
-                    title = stringResource(R.string.photo_editor_eraser_model_offer_title),
-                    body = stringResource(R.string.photo_editor_eraser_model_offer, totalMegabytes),
+                    title = stringResource(texts.offerTitle),
+                    body = stringResource(texts.offer, totalMegabytes),
                     container = MaterialTheme.colorScheme.secondaryContainer,
                     content = MaterialTheme.colorScheme.onSecondaryContainer,
                 ) {
@@ -420,7 +541,7 @@ internal fun EraserModelPanel(status: InpaintModelStatus) {
                                 style = MaterialTheme.typography.labelMedium,
                             )
                         }
-                        Button(onClick = { download() }, modifier = Modifier.testTag("photo-editor-eraser-model-download")) {
+                        Button(onClick = { download() }, modifier = Modifier.testTag("${texts.tag}-download")) {
                             Icon(GalleryIconDownload, contentDescription = null, modifier = Modifier.size(18.dp))
                             Text(
                                 stringResource(
@@ -438,7 +559,7 @@ internal fun EraserModelPanel(status: InpaintModelStatus) {
                 icon = GalleryIconDownload,
                 title = stringResource(
                     if ((status as? InpaintModelStatus.Queued)?.wait != null) R.string.photo_editor_eraser_model_paused
-                    else R.string.photo_editor_eraser_model_downloading,
+                    else texts.downloading,
                 ),
                 body = if (status is InpaintModelStatus.Downloading) {
                     stringResource(
@@ -470,23 +591,23 @@ internal fun EraserModelPanel(status: InpaintModelStatus) {
                         modifier = Modifier.weight(1f),
                     )
                     OutlinedButton(
-                        onClick = { InpaintModelDownloadWorker.cancel(context) },
-                        modifier = Modifier.testTag("photo-editor-eraser-model-cancel"),
+                        onClick = { InpaintModelDownloadWorker.cancel(context, spec) },
+                        modifier = Modifier.testTag("${texts.tag}-cancel"),
                     ) { Text(stringResource(R.string.photo_editor_eraser_model_cancel), maxLines = 1) }
                 }
             }
             InpaintModelStatus.Installed -> EraserCard(
                 icon = GalleryIconCheckCircle,
-                title = stringResource(R.string.photo_editor_eraser_model_ready),
-                body = stringResource(R.string.photo_editor_eraser_model_ready_body),
+                title = stringResource(texts.ready),
+                body = stringResource(texts.readyBody),
                 container = MaterialTheme.colorScheme.tertiaryContainer,
                 content = MaterialTheme.colorScheme.onTertiaryContainer,
                 trailing = {
                     TextButton(
-                        onClick = { scope.launch(Dispatchers.IO) { InpaintModelStore(context).delete() } },
+                        onClick = { scope.launch(Dispatchers.IO) { InpaintModelStore(context, spec).delete() } },
                         // The default TextButton text uses primary, which is not validated on tertiaryContainer.
                         colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onTertiaryContainer),
-                        modifier = Modifier.testTag("photo-editor-eraser-model-remove"),
+                        modifier = Modifier.testTag("${texts.tag}-remove"),
                     ) { Text(stringResource(R.string.photo_editor_eraser_model_remove), maxLines = 1) }
                 },
             )
@@ -502,12 +623,12 @@ internal fun ObjectEraserActions(state: PhotoEditorContentState, actions: Experi
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(GallerySpacing.Xs)) {
         OutlinedButton(
             onClick = actions.onClearErase,
-            enabled = actions.eraseStrokes.isNotEmpty() || state.erasePreview != null,
+            enabled = (actions.eraseStrokes.isNotEmpty() || state.erasePreview != null) && !state.isExperimentalProcessing,
             modifier = Modifier.weight(1f).testTag("photo-editor-eraser-clear"),
         ) { Text(stringResource(R.string.photo_editor_eraser_clear), maxLines = 1) }
         Button(
             onClick = actions.onApplyErase,
-            enabled = actions.eraseStrokes.isNotEmpty() && !state.isExperimentalProcessing,
+            enabled = actions.eraseStrokes.isNotEmpty() && !state.isExperimentalProcessing && !state.isEraserPreparing,
             modifier = Modifier.weight(1f).testTag("photo-editor-eraser-apply"),
         ) { Text(stringResource(R.string.photo_editor_eraser_apply), maxLines = 1) }
     }

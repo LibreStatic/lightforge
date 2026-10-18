@@ -69,6 +69,12 @@
     <string name="photo_editor_eraser_model_waiting_battery">Batterie sous le minimum d’analyse</string>
     <string name="photo_editor_eraser_model_cancel">Annuler</string>
     <string name="photo_editor_eraser_model_remove">Retirer</string>
+    <string name="photo_editor_eraser_generative_offer_title">Gomme générative</string>
+    <string name="photo_editor_eraser_generative_offer">Remplit les zones plus grandes avec des détails nouvellement générés. Plus lent ; fonctionne sur cet appareil. Téléchargement unique (%1$d Mo).</string>
+    <string name="photo_editor_eraser_generative_downloading">Téléchargement du modèle génératif</string>
+    <string name="photo_editor_eraser_generative_ready">Gomme générative prête</string>
+    <string name="photo_editor_eraser_generative_ready_body">Remplit les zones plus grandes avec des détails nouvellement générés. Plus lent ; fonctionne sur cet appareil.</string>
+    <string name="photo_editor_eraser_generative_failed">Le téléchargement du modèle génératif a échoué.</string>
     <string name="photo_editor_clip_fallback">Qualité de secours : conserve les pixels de couleur proche du point touché. Le résultat est approximatif.</string>
     <string name="photo_editor_eraser_hint">Peignez sur l’objet à retirer, puis touchez Appliquer. Enregistrer une copie ne modifie pas l’original.</string>
     <string name="photo_editor_clip_hint">Touchez le sujet pour prévisualiser le détourage. Il est enregistré comme nouveau PNG à fond transparent.</string>
@@ -76,6 +82,8 @@
     <string name="photo_editor_eraser_clear">Effacer</string>
     <string name="photo_editor_clip_save">Enregistrer le détourage</string>
     <string name="photo_editor_eraser_mask_description">Zones marquées à effacer</string>
+    <string name="photo_editor_eraser_generating">Génération de l\'image par IA…</string>
+    <string name="photo_editor_eraser_preparing">Chargement du modèle d\'IA…</string>
     <string name="photo_editor_experimental_too_large">Cette photo est trop grande pour l’outil expérimental</string>
     <string name="photo_editor_eraser_reset">Les zones effacées ont été retirées car la géométrie de la photo a changé</string>
     <string name="photo_editor_clip_no_subject">Aucun sujet trouvé à cet endroit. Touchez un objet ou une zone nettement distincte.</string>

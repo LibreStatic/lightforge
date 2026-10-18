@@ -71,6 +71,12 @@
     <string name="photo_editor_eraser_model_waiting_battery">Batería por debajo del mínimo de análisis</string>
     <string name="photo_editor_eraser_model_cancel">Cancelar</string>
     <string name="photo_editor_eraser_model_remove">Quitar</string>
+    <string name="photo_editor_eraser_generative_offer_title">Borrador generativo</string>
+    <string name="photo_editor_eraser_generative_offer">Rellena áreas más grandes con detalle recién generado. Más lento; funciona en este dispositivo. Descarga única (%1$d MB).</string>
+    <string name="photo_editor_eraser_generative_downloading">Descargando modelo generativo</string>
+    <string name="photo_editor_eraser_generative_ready">Borrador generativo listo</string>
+    <string name="photo_editor_eraser_generative_ready_body">Rellena áreas más grandes con detalle recién generado. Más lento; funciona en este dispositivo.</string>
+    <string name="photo_editor_eraser_generative_failed">Falló la descarga del modelo generativo.</string>
     <string name="photo_editor_clip_fallback">Calidad alternativa: conserva los píxeles de color parecido al punto tocado. El resultado es aproximado.</string>
     <string name="photo_editor_eraser_hint">Pinta sobre el objeto que quieres quitar y toca Aplicar. Guardar copia no modifica el original.</string>
     <string name="photo_editor_clip_hint">Toca el sujeto para previsualizar el recorte. Se guarda como un PNG nuevo con fondo transparente.</string>
@@ -78,6 +84,8 @@
     <string name="photo_editor_eraser_clear">Borrar</string>
     <string name="photo_editor_clip_save">Guardar recorte</string>
     <string name="photo_editor_eraser_mask_description">Zonas marcadas para borrar</string>
+    <string name="photo_editor_eraser_generating">Generando la imagen con inteligencia artificial…</string>
+    <string name="photo_editor_eraser_preparing">Cargando el modelo de inteligencia artificial…</string>
     <string name="photo_editor_experimental_too_large">Esta foto es demasiado grande para la herramienta experimental</string>
     <string name="photo_editor_eraser_reset">Se quitaron las zonas borradas porque cambió la geometría de la foto</string>
     <string name="photo_editor_clip_no_subject">No se encontró ningún sujeto en ese punto. Toca un objeto o una zona bien diferenciada.</string>

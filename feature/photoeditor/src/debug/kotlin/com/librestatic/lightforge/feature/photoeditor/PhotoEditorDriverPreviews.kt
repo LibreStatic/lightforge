@@ -30,6 +30,7 @@ import com.librestatic.lightforge.core.model.AdjustKey
 import com.librestatic.lightforge.core.model.ColorMixBand
 import com.librestatic.lightforge.core.model.ColorMixHue
 import com.librestatic.lightforge.core.model.EditOperation
+import com.librestatic.lightforge.feature.objecteraser.InpaintModelCatalog
 import com.librestatic.lightforge.feature.objecteraser.InpaintModelStatus
 
 // Debug-only, zero-argument entry points for tools/compose-driver and Android Studio previews.
@@ -154,6 +155,24 @@ fun EraserModelPanelStatesPreview() = DriverFrame {
     }
 }
 
+/** The generative eraser's model panel in each state, which sits below the MI-GAN panel in the eraser controls. */
+@Preview(heightDp = 1500)
+@Composable
+fun GenerativeEraserModelPanelStatesPreview() = DriverFrame {
+    Column(
+        Modifier.verticalScroll(rememberScrollState()).padding(GallerySpacing.Md),
+        verticalArrangement = Arrangement.spacedBy(GallerySpacing.Md),
+    ) {
+        listOf(
+            InpaintModelStatus.NotInstalled,
+            InpaintModelStatus.Failed,
+            InpaintModelStatus.Queued(wait = ModelDownloadWait.Battery),
+            InpaintModelStatus.Downloading(bytes = 212_000_000, total = 560_000_000),
+            InpaintModelStatus.Installed,
+        ).forEach { EraserModelPanel(it, InpaintModelCatalog.Generative, EraserModelTexts.Generative) }
+    }
+}
+
 private val previewLooks = listOf(
     "builtin:vivid", "builtin:natural", "builtin:warm", "builtin:cool", "builtin:golden", "builtin:film",
     "builtin:fade", "builtin:teal_orange", "builtin:pastel", "builtin:dramatic", "builtin:mono", "builtin:noir",
@@ -189,6 +208,25 @@ private fun EditorAt(
             onUndo = {},
             onRedo = {},
             onOpenWith = {},
+        )
+    }
+}
+
+/** Eraser: paint (swipe on photo-editor-preview), then Apply shows the busy state; it never finishes. */
+@Preview
+@Composable
+fun PhotoEraserProcessingPreview() = DriverFrame {
+    val photo = remember { fakePhoto() }
+    var processing by remember { mutableStateOf(false) }
+    CompositionLocalProvider(LocalPhotoEditorInitialUi provides PhotoEditorInitialUi(tool = PhotoEditorTool.ObjectEraser)) {
+        PhotoEditorContent(
+            state = PhotoEditorContentState(preview = photo, originalPreview = photo, canUndo = true, isExperimentalProcessing = processing),
+            onBack = {},
+            onSaveCopy = {},
+            onApply = {},
+            onUndo = {},
+            onRedo = {},
+            onApplyObjectErase = { processing = true },
         )
     }
 }

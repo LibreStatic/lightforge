@@ -417,6 +417,16 @@ data class EditHistory(
         )
     }
 
+    /**
+     * A step that keeps the operations, for edits held outside the recipe (the eraser): it gets its own revision,
+     * so undo and redo stop at it, and clears the redo stack like any new edit.
+     */
+    fun checkpoint(): EditHistory = copy(
+        past = (past + present).takeLast(maxEntries),
+        present = present.copy(revision = present.revision + 1),
+        future = emptyList(),
+    )
+
     fun undo(): EditHistory = if (past.isEmpty()) this else copy(
         past = past.dropLast(1),
         present = past.last(),

@@ -1821,6 +1821,7 @@ internal fun ProductionGalleryApp(
                         onApplyAutoSuggestion = viewModel::applyPhotoAutoSuggestion,
                         onRawOutputFormatChange = viewModel::setRawOutputFormat,
                         onApplyObjectErase = viewModel::applyObjectErase,
+                        onPrepareObjectEraser = viewModel::prepareObjectEraser,
                         onClearObjectErase = viewModel::clearObjectErase,
                         onPreviewSubjectClip = viewModel::previewSubjectClip,
                         onSaveSubjectClip = viewModel::saveSubjectClip,

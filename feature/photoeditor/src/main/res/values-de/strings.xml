@@ -69,6 +69,12 @@
     <string name="photo_editor_eraser_model_waiting_battery">Akku unter dem Analyse-Minimum</string>
     <string name="photo_editor_eraser_model_cancel">Abbrechen</string>
     <string name="photo_editor_eraser_model_remove">Entfernen</string>
+    <string name="photo_editor_eraser_generative_offer_title">Generativer Radierer</string>
+    <string name="photo_editor_eraser_generative_offer">Füllt größere Bereiche mit neu erzeugten Details. Langsamer; läuft auf diesem Gerät. Einmaliger Download (%1$d MB).</string>
+    <string name="photo_editor_eraser_generative_downloading">Generatives Modell wird geladen</string>
+    <string name="photo_editor_eraser_generative_ready">Generativer Radierer bereit</string>
+    <string name="photo_editor_eraser_generative_ready_body">Füllt größere Bereiche mit neu erzeugten Details. Langsamer; läuft auf diesem Gerät.</string>
+    <string name="photo_editor_eraser_generative_failed">Der Download des generativen Modells ist fehlgeschlagen.</string>
     <string name="photo_editor_clip_fallback">Ersatzqualität: behält Pixel mit ähnlicher Farbe wie der angetippte Punkt. Das Ergebnis ist eine Näherung.</string>
     <string name="photo_editor_eraser_hint">Male über das zu entfernende Objekt und tippe auf Anwenden. Kopie speichern lässt das Original unverändert.</string>
     <string name="photo_editor_clip_hint">Tippe auf das Motiv, um die Freistellung anzusehen. Sie wird als neue PNG-Datei mit transparentem Hintergrund gespeichert.</string>
@@ -76,6 +82,8 @@
     <string name="photo_editor_eraser_clear">Löschen</string>
     <string name="photo_editor_clip_save">Freistellung speichern</string>
     <string name="photo_editor_eraser_mask_description">Zum Entfernen markierte Bereiche</string>
+    <string name="photo_editor_eraser_generating">Bild wird mit KI erzeugt…</string>
+    <string name="photo_editor_eraser_preparing">KI-Modell wird geladen…</string>
     <string name="photo_editor_experimental_too_large">Dieses Foto ist zu groß für das experimentelle Werkzeug</string>
     <string name="photo_editor_eraser_reset">Die radierten Bereiche wurden entfernt, weil sich die Fotogeometrie geändert hat</string>
     <string name="photo_editor_clip_no_subject">An dieser Stelle wurde kein Motiv gefunden. Tippe auf ein klar abgegrenztes Objekt oder einen Bereich.</string>

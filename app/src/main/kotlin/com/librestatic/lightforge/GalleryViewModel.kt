@@ -283,7 +283,42 @@ data class PhotoEditorSession(
      */
     val eraseMarks: List<PhotoPoint> = emptyList(),
     val eraseGeometry: List<EditOperation>? = null,
+    /**
+     * The eraser state each eraser step of [history] left, keyed by that step's recipe instance (compared by
+     * identity). Any other history entry inherits the state of the nearest step before it, see [eraseStepFor].
+     */
+    val eraseSteps: List<Pair<EditRecipe, PhotoEraseStep>> = emptyList(),
 )
+
+data class PhotoEraseStep(val marks: List<PhotoPoint>, val geometry: List<EditOperation>?)
+
+/** The eraser marks in force at [history]'s present: those of the nearest eraser step at or before it. */
+internal fun PhotoEditorSession.eraseStepFor(history: EditHistory): PhotoEraseStep {
+    fun stepOf(recipe: EditRecipe) = eraseSteps.lastOrNull { it.first === recipe }?.second
+    stepOf(history.present)?.let { return it }
+    history.past.asReversed().forEach { recipe -> stepOf(recipe)?.let { return it } }
+    // A step older than the capped history still applies: the newest one that fell off its start.
+    val oldest = (history.past.firstOrNull() ?: history.present).revision
+    return eraseSteps.lastOrNull { (recipe, _) -> recipe.revision < oldest && !history.reaches(recipe) }?.second
+        ?: PhotoEraseStep(emptyList(), null)
+}
+
+private fun EditHistory.reaches(recipe: EditRecipe) =
+    present === recipe || past.any { it === recipe } || future.any { it === recipe }
+
+/** Records the current eraser state as a new undoable step, dropping steps of entries undo can no longer reach. */
+internal fun PhotoEditorSession.withEraseCheckpoint(): PhotoEditorSession {
+    val updated = history.checkpoint()
+    val oldest = (updated.past.firstOrNull() ?: updated.present).revision
+    // Evicted steps stay only while they are the newest one that fell off: eraseStepFor still needs that one.
+    val evicted = eraseSteps.lastOrNull { (recipe, _) -> recipe.revision < oldest && !updated.reaches(recipe) }
+    val kept = eraseSteps.filter { step -> updated.reaches(step.first) || step === evicted }
+    return copy(
+        history = updated,
+        eraseSteps = kept + (updated.present to PhotoEraseStep(eraseMarks, eraseGeometry)),
+        content = content.copy(canUndo = true, canRedo = false),
+    )
+}
 
 data class EditorMediaSource(
     val uriString: String,
@@ -4386,6 +4421,24 @@ class GalleryViewModel @Inject constructor(
         val updated = transform(session.history)
         if (updated == session.history) return
         val renderRequired = photoBaseOperations(session.history.present) != photoBaseOperations(updated.present)
+        val erase = session.eraseStepFor(updated)
+        val eraseChanged = erase.marks != session.eraseMarks || erase.geometry != session.eraseGeometry
+        if (eraseChanged) {
+            // Undo or redo crossed an eraser step: the erased frame is redone from the clean preview below.
+            photoExperimentalJob?.cancel()
+            session.content.erasePreview?.recycle()
+            retirePhotoBitmap(session.content.gradedPreview)
+            mutablePhotoEditor.value = session.copy(
+                eraseMarks = erase.marks,
+                eraseGeometry = erase.geometry,
+                content = session.content.copy(
+                    erasePreview = null,
+                    gradedPreview = null,
+                    eraseMethod = null,
+                    isExperimentalProcessing = false,
+                ),
+            )
+        }
         if (renderRequired) retargetExperimentalPhotoEdits(updated.present)
         mutablePhotoEditor.value = (mutablePhotoEditor.value ?: session).copy(
             history = updated,
@@ -4406,6 +4459,8 @@ class GalleryViewModel @Inject constructor(
         if (!renderRequired) {
             requestPhotoGrade(final = true)
             scheduleLookThumbnails()
+            // A render re-erases on its own once the preview is back; without one, erase now.
+            if (eraseChanged) mutablePhotoEditor.value?.takeIf { it.eraseMarks.isNotEmpty() }?.let(::runObjectErase)
         }
         if (session.content.isRaw && renderRequired) {
             enqueueRawPreview(selectedRawSettings(updated.present), updated.present, final = true)
@@ -4521,11 +4576,32 @@ class GalleryViewModel @Inject constructor(
         } else {
             session.copy(eraseMarks = session.eraseMarks + points, eraseGeometry = geometry)
         }
-        runObjectErase(updated)
+        runObjectErase(updated, record = true)
     }
 
-    /** Erases [session]'s marks from its current preview, e.g. after a geometry edit re-rendered it. */
-    private fun runObjectErase(session: PhotoEditorSession) {
+    /** Opens the inpainting model while the user paints, so the first Apply does not wait for it. */
+    fun prepareObjectEraser() {
+        val editor = mutablePhotoEditor.value ?: return
+        val session = photoInpaintingSession()
+        if (!session.needsPreparing() || editor.content.isEraserPreparing) return
+        // Apply stays disabled, with a notice, until the model is open.
+        mutablePhotoEditor.value = editor.copy(content = editor.content.copy(isEraserPreparing = true))
+        viewModelScope.launch {
+            try {
+                runCatching { session.prepare() }
+            } finally {
+                mutablePhotoEditor.value?.let { current ->
+                    mutablePhotoEditor.value = current.copy(content = current.content.copy(isEraserPreparing = false))
+                }
+            }
+        }
+    }
+
+    /**
+     * Erases [session]'s marks from its current preview, e.g. after a geometry edit re-rendered it. With [record]
+     * the new marks become an undoable step once the erase succeeds.
+     */
+    private fun runObjectErase(session: PhotoEditorSession, record: Boolean = false) {
         val preview = session.content.preview ?: return
         val marks = editedEraseMarks(session)
         // The new marks are stored only once the erase succeeds.
@@ -4560,7 +4636,7 @@ class GalleryViewModel @Inject constructor(
             }
             current.content.erasePreview?.recycle()
             retirePhotoBitmap(current.content.gradedPreview)
-            mutablePhotoEditor.value = current.copy(
+            val erasedSession = current.copy(
                 eraseMarks = session.eraseMarks,
                 eraseGeometry = session.eraseGeometry,
                 content = current.content.copy(
@@ -4572,6 +4648,7 @@ class GalleryViewModel @Inject constructor(
                     isDirty = true,
                 ),
             )
+            mutablePhotoEditor.value = if (record) erasedSession.withEraseCheckpoint() else erasedSession
             requestPhotoGrade(final = true)
         }
     }
@@ -4596,7 +4673,7 @@ class GalleryViewModel @Inject constructor(
         photoExperimentalJob?.cancel()
         session.content.erasePreview?.recycle()
         retirePhotoBitmap(session.content.gradedPreview)
-        mutablePhotoEditor.value = session.copy(
+        val cleared = session.copy(
             eraseMarks = emptyList(),
             eraseGeometry = null,
             content = session.content.copy(
@@ -4607,6 +4684,8 @@ class GalleryViewModel @Inject constructor(
                 isDirty = session.history.present.operations.isNotEmpty(),
             ),
         )
+        // Clearing is undoable too, when there was something to clear.
+        mutablePhotoEditor.value = if (session.eraseMarks.isNotEmpty()) cleared.withEraseCheckpoint() else cleared
         requestPhotoGrade(final = true)
     }
 

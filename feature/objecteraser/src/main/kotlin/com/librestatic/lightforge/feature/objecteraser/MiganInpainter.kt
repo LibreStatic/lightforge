@@ -6,7 +6,6 @@ import com.google.ai.edge.litert.CompiledModel
 import com.google.ai.edge.litert.Environment
 import com.google.ai.edge.litert.TensorBuffer
 import com.google.ai.edge.litert.TensorType
-import java.io.Closeable
 import java.io.File
 
 /**
@@ -16,8 +15,8 @@ import java.io.File
 class MiganInpainter private constructor(
     private val environment: Environment,
     private val model: CompiledModel,
-    val accelerator: Accelerator,
-) : Closeable {
+    override val accelerator: Accelerator,
+) : Inpainter {
     private val input: TensorBuffer
     private val output: TensorBuffer
     private var closed = false
@@ -40,9 +39,9 @@ class MiganInpainter private constructor(
         }
     }
 
-    /** Fills the pixels of the 512x512 [argb] image where [keep] is false; returns the whole generated image. */
+    /** MI-GAN is deterministic and one forward pass, so [seed] and [ensureActive] are not needed. */
     @Synchronized
-    fun inpaint(argb: IntArray, keep: BooleanArray): IntArray {
+    override fun inpaint(argb: IntArray, keep: BooleanArray, seed: Long, ensureActive: () -> Unit): IntArray {
         check(!closed) { "Inpainter closed" }
         input.writeFloat(InpaintPlan.encode(argb, keep))
         model.run(mapOf(Input to input), mapOf(Output to output), Signature)

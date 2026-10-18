@@ -53,6 +53,46 @@ class PhotoExperimentalToolsTest {
         }
     }
 
+    private fun circle(cx: Float, cy: Float, r: Float, sweep: Float = 1f, aspect: Float = 1f) = List(60) {
+        val angle = 2 * Math.PI * sweep * it / 59
+        PhotoPoint(cx + r / aspect * kotlin.math.cos(angle).toFloat(), cy + r * kotlin.math.sin(angle).toFloat())
+    }
+
+    @Test
+    fun brushLoop_fillsTheInsideOfAClosedStroke() {
+        val loop = circle(0.5f, 0.5f, 0.2f)
+        val filled = fillBrushLoop(loop, 1f)
+        assertTrue(filled.size > loop.size)
+        val interior = filled.drop(loop.size)
+        // Every added dab is inside the loop, and the centre is covered.
+        assertTrue(interior.all { kotlin.math.hypot(it.x - 0.5f, it.y - 0.5f) < 0.2f })
+        assertTrue(interior.any { kotlin.math.hypot(it.x - 0.5f, it.y - 0.5f) <= PHOTO_ERASE_BRUSH_RADIUS })
+    }
+
+    @Test
+    fun brushLoop_acceptsASmallGapButNotAnOpenArc() {
+        assertTrue(fillBrushLoop(circle(0.5f, 0.5f, 0.2f, sweep = 0.92f), 1f).size > 60)
+        assertEquals(60, fillBrushLoop(circle(0.5f, 0.5f, 0.2f, sweep = 0.5f), 1f).size)
+    }
+
+    @Test
+    fun brushLoop_leavesStraightAndTinyStrokesAlone() {
+        val line = List(20) { PhotoPoint(0.2f + it * 0.03f, 0.5f) }
+        assertEquals(line, fillBrushLoop(line, 1f))
+        val tiny = circle(0.5f, 0.5f, PHOTO_ERASE_BRUSH_RADIUS)
+        assertEquals(tiny, fillBrushLoop(tiny, 1f))
+    }
+
+    @Test
+    fun brushLoop_coversTheInsideOnAWidePhoto() {
+        val aspect = 2f
+        val loop = circle(0.5f, 0.5f, 0.3f, aspect = aspect)
+        val interior = fillBrushLoop(loop, aspect).drop(loop.size)
+        // In short-side units the loop is a circle of radius 0.3: dabs one radius apart fill about pi * 0.3² / r².
+        val expected = Math.PI * 0.3 * 0.3 / (PHOTO_ERASE_BRUSH_RADIUS * PHOTO_ERASE_BRUSH_RADIUS)
+        assertTrue("${interior.size} vs $expected", interior.size in (expected * 0.8).toInt()..(expected * 1.2).toInt())
+    }
+
     @Test
     fun marks_roundTripThroughRotateFlipAndCrop() {
         val geometry = listOf(

@@ -10,7 +10,7 @@ import kotlin.math.floor
 /**
  * Object eraser using local inpainting.
  *
- * With the downloaded MI-GAN model ([inpaintRegions]) each group of brush dabs is filled by the model from a
+ * With a downloaded inpainting model ([inpaintRegions]; MI-GAN, or the slower generative Moebius) each group of brush dabs is filled by the model from a
  * crop around it. Without it, [eraseRegions] is an explicit fallback that interpolates the colors around each
  * brushed square.
  *
@@ -34,6 +34,7 @@ class ObjectEraser {
 
     enum class EraseMethod {
         ML_INPAINTING,
+        GENERATIVE_INPAINTING,
         NEIGHBOR_INTERPOLATION_FALLBACK,
     }
 
@@ -59,13 +60,16 @@ class ObjectEraser {
     /**
      * Fills the round dabs inscribed in [regions] with [inpainter]. Each pass scales a crop around one group of
      * dabs to the model input, and the output is blended back at full resolution in row bands, so memory stays
-     * bounded on large photos. [ensureActive] is called between passes and bands so callers can cancel.
+     * bounded on large photos. [ensureActive] is called between passes and bands (and is handed to the inpainter)
+     * so callers can cancel. Each pass gets a seed derived from its index, so re-running the same marks, for
+     * example at export, repeats what the preview showed.
      */
     fun inpaintRegions(
         bitmap: Bitmap,
         regions: List<EraseRegion>,
-        inpainter: MiganInpainter,
+        inpainter: Inpainter,
         ensureActive: () -> Unit = {},
+        method: EraseMethod = EraseMethod.ML_INPAINTING,
     ): EraseResult {
         require(regions.isNotEmpty()) { "At least one region required" }
         val result = bitmap.copy(Bitmap.Config.ARGB_8888, true)
@@ -74,7 +78,7 @@ class ObjectEraser {
             val modelInput = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
             val pixels = IntArray(size * size)
             try {
-                for (pass in InpaintPlan.passes(regions, result.width, result.height)) {
+                for ((index, pass) in InpaintPlan.passes(regions, result.width, result.height).withIndex()) {
                     ensureActive()
                     modelInput.eraseColor(0)
                     Canvas(modelInput).drawBitmap(
@@ -84,13 +88,13 @@ class ObjectEraser {
                         Paint(Paint.FILTER_BITMAP_FLAG),
                     )
                     modelInput.getPixels(pixels, 0, size, 0, 0, size, size)
-                    val filled = inpainter.inpaint(pixels, InpaintPlan.keepMask(pass))
+                    val filled = inpainter.inpaint(pixels, InpaintPlan.keepMask(pass), MoebiusConfig.passSeed(index), ensureActive)
                     blend(result, pass, filled, ensureActive)
                 }
             } finally {
                 modelInput.recycle()
             }
-            return EraseResult(result, regions.size, EraseMethod.ML_INPAINTING)
+            return EraseResult(result, regions.size, method)
         } catch (failure: Throwable) {
             result.recycle()
             throw failure

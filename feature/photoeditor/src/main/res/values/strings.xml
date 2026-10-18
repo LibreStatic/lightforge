@@ -85,6 +85,12 @@
     <string name="photo_editor_eraser_model_waiting_battery">Battery below the analysis minimum</string>
     <string name="photo_editor_eraser_model_cancel">Cancel</string>
     <string name="photo_editor_eraser_model_remove">Remove</string>
+    <string name="photo_editor_eraser_generative_offer_title">Generative eraser</string>
+    <string name="photo_editor_eraser_generative_offer">Fills larger areas with newly generated detail. Slower; runs on this device. Download once (%1$d MB).</string>
+    <string name="photo_editor_eraser_generative_downloading">Downloading generative model</string>
+    <string name="photo_editor_eraser_generative_ready">Generative eraser ready</string>
+    <string name="photo_editor_eraser_generative_ready_body">Fills larger areas with newly generated detail. Slower; runs on this device.</string>
+    <string name="photo_editor_eraser_generative_failed">The generative model download failed.</string>
     <string name="photo_editor_clip_fallback">Fallback quality: keeps pixels close in color to the tapped point. Results are approximate.</string>
     <string name="photo_editor_eraser_hint">Brush over the object to remove, then tap Apply. Save copy keeps the original unchanged.</string>
     <string name="photo_editor_clip_hint">Tap the subject to preview the cut-out. It is saved as a new PNG with a transparent background.</string>
@@ -92,6 +98,8 @@
     <string name="photo_editor_eraser_clear">Clear</string>
     <string name="photo_editor_clip_save">Save cut-out</string>
     <string name="photo_editor_eraser_mask_description">Areas marked for erasing</string>
+    <string name="photo_editor_eraser_generating">Generating the image with AI…</string>
+    <string name="photo_editor_eraser_preparing">Loading the AI model…</string>
     <string name="photo_editor_experimental_too_large">This photo is too large for the experimental tool</string>
     <string name="photo_editor_eraser_reset">Erased areas were cleared because the photo geometry changed</string>
     <string name="photo_editor_clip_no_subject">No subject found at that point. Tap a clearly separated object or area.</string>

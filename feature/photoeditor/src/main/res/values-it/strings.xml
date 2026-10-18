@@ -69,6 +69,12 @@
     <string name="photo_editor_eraser_model_waiting_battery">Batteria sotto il minimo per l’analisi</string>
     <string name="photo_editor_eraser_model_cancel">Annulla</string>
     <string name="photo_editor_eraser_model_remove">Rimuovi</string>
+    <string name="photo_editor_eraser_generative_offer_title">Gomma generativa</string>
+    <string name="photo_editor_eraser_generative_offer">Riempie le aree più grandi con dettagli appena generati. Più lenta; funziona su questo dispositivo. Download una tantum (%1$d MB).</string>
+    <string name="photo_editor_eraser_generative_downloading">Download del modello generativo</string>
+    <string name="photo_editor_eraser_generative_ready">Gomma generativa pronta</string>
+    <string name="photo_editor_eraser_generative_ready_body">Riempie le aree più grandi con dettagli appena generati. Più lenta; funziona su questo dispositivo.</string>
+    <string name="photo_editor_eraser_generative_failed">Il download del modello generativo non è riuscito.</string>
     <string name="photo_editor_clip_fallback">Qualità di riserva: mantiene i pixel di colore simile al punto toccato. Il risultato è approssimativo.</string>
     <string name="photo_editor_eraser_hint">Dipingi sull’oggetto da rimuovere, poi tocca Applica. Salva copia non modifica l’originale.</string>
     <string name="photo_editor_clip_hint">Tocca il soggetto per vedere l’anteprima del ritaglio. Viene salvato come nuovo PNG con sfondo trasparente.</string>
@@ -76,6 +82,8 @@
     <string name="photo_editor_eraser_clear">Cancella</string>
     <string name="photo_editor_clip_save">Salva ritaglio</string>
     <string name="photo_editor_eraser_mask_description">Aree segnate da cancellare</string>
+    <string name="photo_editor_eraser_generating">Generazione dell\'immagine con l\'IA…</string>
+    <string name="photo_editor_eraser_preparing">Caricamento del modello di IA…</string>
     <string name="photo_editor_experimental_too_large">Questa foto è troppo grande per lo strumento sperimentale</string>
     <string name="photo_editor_eraser_reset">Le aree cancellate sono state rimosse perché la geometria della foto è cambiata</string>
     <string name="photo_editor_clip_no_subject">Nessun soggetto trovato in quel punto. Tocca un oggetto o un\'area ben distinta.</string>
