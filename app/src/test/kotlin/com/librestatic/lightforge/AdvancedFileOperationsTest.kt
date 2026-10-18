@@ -67,6 +67,27 @@ class AdvancedFileOperationsTest {
             directoryCalls += "rename $absolutePath -> $newName"
             return directoryResult
         }
+
+        val existing = HashSet<String>()
+        val deletedFiles = ArrayList<String>()
+        var deleteFilesResult: (String) -> AdvancedResult = { AdvancedResult.Unsupported }
+
+        override suspend fun pathExists(absolutePath: String): Boolean = absolutePath in existing
+
+        override suspend fun deleteFiles(absolutePaths: List<String>): List<AdvancedResult> {
+            deletedFiles += absolutePaths
+            return absolutePaths.map(deleteFilesResult)
+        }
+
+        override suspend fun copyDirectory(absolutePath: String, newParentAbsolutePath: String, newName: String?): AdvancedResult {
+            directoryCalls += "copy $absolutePath -> $newParentAbsolutePath as $newName"
+            return directoryResult
+        }
+
+        override suspend fun deleteDirectory(absolutePath: String): AdvancedResult {
+            directoryCalls += "delete $absolutePath"
+            return directoryResult
+        }
     }
 
     private class Env(
@@ -404,5 +425,121 @@ class AdvancedFileOperationsTest {
         assertEquals(TransferOutcome.Done, TransferResult(p, 2, moved = 2).outcome())
         assertEquals(TransferOutcome.Partial, TransferResult(p, 2, moved = 1, failed = 1).outcome())
         assertEquals(TransferOutcome.Failed, TransferResult(p, 2, failed = 2).outcome())
+    }
+
+    @Test fun aTakenNameGetsACounterInsteadOfFailingOnBothPaths() = runBlocking {
+        val env = Env()
+        env.storage.existing += "/external_primary/Pictures/Trips/IMG_1.jpg"
+        env.storage.existing += "/external_primary/Pictures/Trips/IMG_1 (1).jpg"
+        val key = env.item(1)
+        val result = env.operations.transfer(TransferPurpose.Move, listOf(key), dest)
+        assertEquals(
+            listOf("/external_primary/DCIM/Camera/IMG_1.jpg" to "/external_primary/Pictures/Trips/IMG_1 (2).jpg"),
+            env.storage.moves.single(),
+        )
+        assertEquals(1, result.moved)
+    }
+
+    @Test fun twoSourcesWithTheSameNameNeverMeetAtOneTarget() = runBlocking {
+        val env = Env()
+        val a = env.item(1, path = "DCIM/A/", name = "IMG.jpg")
+        val b = env.item(2, path = "DCIM/B/", name = "IMG.jpg")
+        env.operations.transfer(TransferPurpose.Copy, listOf(a, b), dest)
+        assertEquals(
+            listOf(
+                "/external_primary/DCIM/A/IMG.jpg" to "/external_primary/Pictures/Trips/IMG.jpg",
+                "/external_primary/DCIM/B/IMG.jpg" to "/external_primary/Pictures/Trips/IMG (1).jpg",
+            ),
+            env.storage.copies.single(),
+        )
+    }
+
+    @Test fun copyingIntoItsOwnFolderMakesANumberedDuplicate() = runBlocking {
+        val env = Env()
+        val here = env.item(1, path = "Pictures/Trips/")
+        env.storage.existing += "/external_primary/Pictures/Trips/IMG_1.jpg"
+        val result = env.operations.transfer(TransferPurpose.Copy, listOf(here), dest)
+        assertEquals(
+            listOf("/external_primary/Pictures/Trips/IMG_1.jpg" to "/external_primary/Pictures/Trips/IMG_1 (1).jpg"),
+            env.storage.copies.single(),
+        )
+        assertEquals(1, result.copied)
+    }
+
+    @Test fun theEngineDeletesTheOriginalOfAVerifiedCopyWithoutASystemDialog() = runBlocking {
+        val env = Env()
+        env.storage.deleteFilesResult = { AdvancedResult.Done }
+        val card = env.item(7, volume = "1234-ABCD", path = "DCIM/")
+        val result = env.operations.transfer(TransferPurpose.Move, listOf(card), dest)
+        assertEquals(listOf("/1234-ABCD/DCIM/IMG_7.jpg"), env.storage.deletedFiles)
+        assertTrue(env.retired.isEmpty())
+        assertEquals(listOf(card), env.hints)
+        assertEquals(1, result.relocated)
+        assertTrue(result.awaitingDelete.isEmpty())
+        assertEquals(TransferOutcome.Done, result.outcome())
+        assertEquals(1, env.refreshes)
+    }
+
+    @Test fun anOriginalTheEngineRefusesToDeleteGoesToTheConfirmedDelete() = runBlocking {
+        val env = Env()
+        env.storage.deleteFilesResult = { if (it.endsWith("IMG_8.jpg")) AdvancedResult.Failed("busy") else AdvancedResult.Done }
+        val a = env.item(7, volume = "1234-ABCD", path = "DCIM/")
+        val b = env.item(8, volume = "1234-ABCD", path = "DCIM/")
+        val result = env.operations.transfer(TransferPurpose.Move, listOf(a, b), dest)
+        assertEquals(1, result.relocated)
+        assertEquals(listOf(env.rows.getValue(b)), result.awaitingDelete)
+        assertEquals(listOf(listOf(env.rows.getValue(b))), env.retired)
+    }
+
+    @Test fun anUnverifiedCopyIsNeverDeletedByTheEngine() = runBlocking {
+        val env = Env()
+        env.storage.deleteFilesResult = { AdvancedResult.Done }
+        val card = env.item(7, volume = "1234-ABCD", path = "DCIM/")
+        env.corruptCopies += card
+        val result = env.operations.transfer(TransferPurpose.Move, listOf(card), dest)
+        assertTrue(env.storage.deletedFiles.isEmpty())
+        assertEquals(1, result.failed)
+    }
+
+    @Test fun copyFolderTakesAFreeNameAndReadsTheNewSubtree() = runBlocking {
+        val env = Env()
+        env.storage.existing += "/external_primary/Pictures/Trips/Day1"
+        val result = env.operations.copyFolder(FolderTarget("external_primary", "DCIM/Day1/"), dest)
+        assertEquals(
+            listOf("copy /external_primary/DCIM/Day1 -> /external_primary/Pictures/Trips as Day1 (1)"),
+            env.storage.directoryCalls,
+        )
+        assertEquals(AdvancedResult.Done, result.result)
+        assertEquals(listOf("external_primary" to "Pictures/Trips/Day1 (1)/"), env.reconciled)
+        assertEquals(1, env.refreshes)
+    }
+
+    @Test fun aFailedFolderCopyReconcilesNothingAndTheVolumeRootIsRefused() = runBlocking {
+        val env = Env()
+        env.storage.directoryResult = AdvancedResult.Failed("copy failed")
+        assertTrue(env.operations.copyFolder(FolderTarget("external_primary", "DCIM/Day1/"), dest).result is AdvancedResult.Failed)
+        assertTrue(env.reconciled.isEmpty())
+        assertTrue(env.operations.copyFolder(FolderTarget("external_primary", null), dest).result is AdvancedResult.Failed)
+        env.active = false
+        assertEquals(AdvancedResult.NotGranted, env.operations.copyFolder(FolderTarget("external_primary", "DCIM/Day1/"), dest).result)
+    }
+
+    @Test fun deleteFolderRemovesTheTreeAndReReadsItEvenWhenItFailedHalfway() = runBlocking {
+        val env = Env()
+        val done = env.operations.deleteFolder(FolderTarget("external_primary", "DCIM/Day1/"))
+        assertEquals(AdvancedResult.Done, done.result)
+        assertEquals(listOf("delete /external_primary/DCIM/Day1"), env.storage.directoryCalls)
+        assertEquals(listOf("external_primary" to "DCIM/Day1/"), env.reconciled)
+        env.storage.directoryResult = AdvancedResult.Failed("busy")
+        assertTrue(env.operations.deleteFolder(FolderTarget("external_primary", "DCIM/Day1/")).result is AdvancedResult.Failed)
+        assertEquals(2, env.reconciled.size)
+        assertTrue(env.operations.deleteFolder(FolderTarget("external_primary", "")).result is AdvancedResult.Failed)
+    }
+
+    @Test fun withCounterKeepsTheExtension() {
+        assertEquals("IMG_1 (2).jpg", withCounter("IMG_1.jpg", 2))
+        assertEquals("notes (1)", withCounter("notes", 1))
+        assertEquals(".hidden (1)", withCounter(".hidden", 1))
+        assertEquals("a.b (3).png", withCounter("a.b.png", 3))
     }
 }

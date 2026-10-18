@@ -72,6 +72,29 @@ interface AdvancedStorage {
     suspend fun copyAll(copies: List<Pair<String, String>>): List<AdvancedResult> =
         copies.map { AdvancedResult.Unsupported }
 
+    /** Whether [absolutePath] exists inside a mounted volume; false when unsupported, not granted or refused. */
+    suspend fun pathExists(absolutePath: String): Boolean = false
+
+    /**
+     * Hides a folder or media file by renaming it with a leading dot (`Trip` becomes `.Trip`) and records
+     * it ([HiddenKind.DotPrefix]) so [unhideFolder] can rename it back. The recorded path is the hidden one.
+     */
+    suspend fun hideWithDotPrefix(absolutePath: String): AdvancedResult = AdvancedResult.Unsupported
+
+    /** Deletes files (one result each, one scan). A file that is already gone counts as [AdvancedResult.Done]. */
+    suspend fun deleteFiles(absolutePaths: List<String>): List<AdvancedResult> =
+        absolutePaths.map { AdvancedResult.Unsupported }
+
+    /**
+     * Copies the folder into [newParentAbsolutePath] as [newName] (default: its own name) with every file
+     * byte-checked. A failure leaves nothing behind; an existing target is refused.
+     */
+    suspend fun copyDirectory(absolutePath: String, newParentAbsolutePath: String, newName: String? = null): AdvancedResult =
+        AdvancedResult.Unsupported
+
+    /** Deletes the folder and everything in it; standard folders, volume roots and the Android tree are refused. */
+    suspend fun deleteDirectory(absolutePath: String): AdvancedResult = AdvancedResult.Unsupported
+
     /** Immediate sub-folders of [absolutePath] (a volume root is allowed); empty when unsupported or not granted. */
     suspend fun listDirectories(absolutePath: String): List<DirectoryEntry> = emptyList()
 
@@ -113,7 +136,7 @@ data class HiddenMediaRow(
 
 data class HiddenEntry(val absolutePath: String, val kind: HiddenKind, val createdAtMillis: Long)
 
-/** Only [NoMediaFile] is implemented; [DotPrefix] is reserved. */
+/** [NoMediaFile]: a `.nomedia` inside the folder. [DotPrefix]: the folder or file was renamed with a leading dot. */
 enum class HiddenKind { NoMediaFile, DotPrefix }
 
 /** The [AdvancedResult.Failed] reason of a hide refused because another app already placed a `.nomedia`. */

@@ -103,6 +103,10 @@ internal class StorageEngine(
         val entries = registry.read()
         val entry = entries.firstOrNull { it.absolutePath == dir.path }
             ?: return AdvancedResult.Failed("Not hidden by this app")
+        if (entry.kind == HiddenKind.DotPrefix) {
+            // A dot prefix is undone by renaming; a tree grant cannot do that.
+            return if (deleteViaTree != null) AdvancedResult.Failed("Needs All files access") else undoDotPrefix(dir, entry, entries)
+        }
         val marker = File(dir, NOMEDIA)
         if (marker.exists() && looksLikeOurs(marker, entry)) {
             if (deleteViaTree != null) {
@@ -353,6 +357,175 @@ internal class StorageEngine(
         }
         scan(listOf(from.path, to.path))
         return AdvancedResult.Done
+    }
+
+    /** Whether [path] exists inside a mounted volume; false for anything the engine would refuse. */
+    fun exists(path: String): Boolean = validated(path)?.exists() == true
+
+    /**
+     * Hides a folder or a media file by giving it a dot-prefixed name (`Trip` becomes `.Trip`), which
+     * MediaStore treats like a `.nomedia`. The new path is recorded so [unhide] can undo it; a name that
+     * already starts with a dot, an existing target, the Android tree and standard folders are refused.
+     */
+    fun hideWithDotPrefix(path: String): AdvancedResult {
+        val source = validatedFolder(path) ?: return INVALID
+        if (!source.exists()) return AdvancedResult.Failed("Not found")
+        if (source.isDirectory && isStandardFolder(source)) return PROTECTED
+        if (source.name.startsWith(".")) return AdvancedResult.Failed("Already hidden")
+        val parent = source.parentFile ?: return INVALID
+        val target = File(parent, "." + source.name)
+        if (!validName(target.name)) return AdvancedResult.Failed("Invalid name")
+        if (target.exists()) return AdvancedResult.Failed("Target exists")
+        val createdAt = clock()
+        val result = if (source.isDirectory) {
+            moveDir(source, target)
+        } else {
+            when (val outcome = renameOne(source.path, target.path)) {
+                is Moved -> { scan(listOf(outcome.from.path, outcome.to.path)); AdvancedResult.Done }
+                else -> outcome.asFailure()
+            }
+        }
+        if (result != AdvancedResult.Done) return result
+        return try {
+            val entries = registry.read().filterNot { it.absolutePath == target.path }
+            registry.write(entries + HiddenEntry(target.path, HiddenKind.DotPrefix, createdAt))
+            AdvancedResult.Done
+        } catch (e: Exception) {
+            // Without the record the hide could not be undone from the app: put the name back.
+            runCatching { renameFile(target, source) }
+            scan(listOf(source.path, target.path))
+            AdvancedResult.Failed(e.message ?: "Could not record hide")
+        }
+    }
+
+    private fun undoDotPrefix(hidden: File, entry: HiddenEntry, entries: List<HiddenEntry>): AdvancedResult {
+        val forget = { registry.write(entries - entry) }
+        // Renamed or deleted behind our back: the hide is already resolved.
+        if (!hidden.exists() || !hidden.name.startsWith(".") || hidden.name.length < 2) {
+            return try { forget(); AdvancedResult.Done } catch (e: Exception) { AdvancedResult.Failed(e.message ?: "Could not update registry") }
+        }
+        if (!isGranted()) return AdvancedResult.NotGranted
+        val parent = hidden.parentFile ?: return INVALID
+        val visible = File(parent, hidden.name.substring(1))
+        if (visible.exists()) return AdvancedResult.Failed("Target exists")
+        val result = if (hidden.isDirectory) {
+            moveDir(hidden, visible)
+        } else {
+            when (val outcome = renameOne(hidden.path, visible.path)) {
+                is Moved -> { scan(listOf(outcome.from.path, outcome.to.path)); AdvancedResult.Done }
+                else -> outcome.asFailure()
+            }
+        }
+        if (result != AdvancedResult.Done) return result
+        return try {
+            // moveDir rewrote the record of a folder to its new path; drop whichever form is there.
+            registry.write(registry.read().filterNot { it.absolutePath == hidden.path || it.absolutePath == visible.path })
+            AdvancedResult.Done
+        } catch (e: Exception) {
+            AdvancedResult.Failed(e.message ?: "Could not update registry")
+        }
+    }
+
+    /** Deletes files, one result each and one scan for the batch. A file that is already gone counts as deleted. */
+    fun deleteFiles(paths: List<String>): List<AdvancedResult> {
+        val scanPaths = LinkedHashSet<String>()
+        val results = paths.map { path ->
+            if (!isGranted()) return@map AdvancedResult.NotGranted
+            val file = validated(path) ?: return@map INVALID
+            if (!file.exists()) { scanPaths += file.path; return@map AdvancedResult.Done }
+            if (!file.isFile) return@map AdvancedResult.Failed("Not a file")
+            try {
+                if (file.delete()) { scanPaths += file.path; AdvancedResult.Done } else lostOr("Delete failed")
+            } catch (_: SecurityException) {
+                AdvancedResult.NotGranted
+            }
+        }
+        if (scanPaths.isNotEmpty()) scan(scanPaths.toList())
+        return results
+    }
+
+    /**
+     * Copies the folder into [newParent] as [newName] (default: its own name), file by file with the
+     * same byte check as [copyAll]. The copy is made under a name that did not exist, so a failure removes
+     * everything it created. Symbolic links, pending or trashed files and the markers this app made are
+     * not copied: the copy of a folder this app hid is visible.
+     */
+    fun copyDirectory(path: String, newParent: String, newName: String? = null): AdvancedResult {
+        if (!isGranted()) return AdvancedResult.NotGranted
+        val from = validated(path) ?: return INVALID
+        if (!from.isDirectory) return AdvancedResult.Failed("Not a directory")
+        val parent = validatedFolder(newParent, allowRoot = true) ?: return INVALID
+        if (!parent.isDirectory) return AdvancedResult.Failed("Not a directory")
+        val name = newName ?: from.name
+        if (!validName(name)) return AdvancedResult.Failed("Invalid folder name")
+        val to = validatedFolder(File(parent, name).path) ?: return INVALID
+        if (to.exists()) return AdvancedResult.Failed("Target exists")
+        if (under(to, from)) return AdvancedResult.Failed("Cannot copy a folder into itself")
+        val ownMarkers = registry.read().filter { it.kind == HiddenKind.NoMediaFile }
+            .mapTo(HashSet()) { File(it.absolutePath, NOMEDIA).path }
+        val scanPaths = ArrayList<String>()
+        return try {
+            copyTree(from, to, ownMarkers, scanPaths)
+            scan(scanPaths + to.path)
+            AdvancedResult.Done
+        } catch (_: SecurityException) {
+            to.deleteTree(ArrayList())
+            AdvancedResult.NotGranted
+        } catch (e: IOException) {
+            to.deleteTree(ArrayList())
+            if (e.message?.contains("EACCES") == true) AdvancedResult.NotGranted else AdvancedResult.Failed("Copy failed")
+        }
+    }
+
+    private fun copyTree(from: File, to: File, skip: Set<String>, scanPaths: MutableList<String>) {
+        if (!to.isDirectory && !to.mkdirs()) throw IOException("Could not create ${to.name}")
+        for (child in from.listFiles().orEmpty()) {
+            if (java.nio.file.Files.isSymbolicLink(child.toPath())) continue
+            val target = File(to, child.name)
+            when {
+                child.isDirectory -> copyTree(child, target, skip, scanPaths)
+                !child.isFile || child.path in skip -> Unit
+                child.name.startsWith(PENDING_PREFIX) || child.name.startsWith(TRASHED_PREFIX) -> Unit
+                else -> when (val outcome = copyOne(child.path, target.path)) {
+                    is Moved -> scanPaths += outcome.to.path
+                    is Refused -> throw IOException(if (outcome.result == AdvancedResult.NotGranted) "EACCES" else "Copy failed")
+                }
+            }
+        }
+    }
+
+    /**
+     * Deletes the folder and everything in it, never following a symbolic link. Standard folders, the
+     * volume root and the Android tree are refused. Hide records inside it are dropped.
+     */
+    fun deleteDirectory(path: String): AdvancedResult {
+        val dir = validatedFolder(path) ?: return INVALID
+        if (isStandardFolder(dir)) return PROTECTED
+        if (!dir.isDirectory) return AdvancedResult.Failed("Not a directory")
+        if (!isGranted()) return AdvancedResult.NotGranted
+        val removed = ArrayList<String>()
+        val ok = try {
+            dir.deleteTree(removed)
+        } catch (_: SecurityException) {
+            false
+        }
+        // What was deleted is gone even when something else refused, so the index hears about it.
+        scan(removed + dir.path)
+        if (!ok) return lostOr("Delete failed")
+        runCatching { registry.write(registry.read().filterNot { under(File(it.absolutePath), dir) }) }
+        return AdvancedResult.Done
+    }
+
+    private fun File.deleteTree(deleted: MutableList<String>): Boolean {
+        val isLink = java.nio.file.Files.isSymbolicLink(toPath())
+        var clean = true
+        if (!isLink && isDirectory) {
+            for (child in listFiles().orEmpty()) clean = child.deleteTree(deleted) && clean
+        }
+        if (!clean) return false
+        val gone = delete()
+        if (gone) deleted += path
+        return gone
     }
 
     fun deleteEmptyDirectory(path: String): AdvancedResult {

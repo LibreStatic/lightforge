@@ -490,4 +490,174 @@ class StorageEngineTest {
         assertEquals(null, e.absolutePathOf("gone", "DCIM/", null))
         assertEquals(null, e.absolutePathOf("external_primary", "../x/", null))
     }
+
+    @Test fun dotPrefixHidesAFolderRecordsTheHiddenPathAndUnhideRenamesItBack() {
+        val folder = dir("Pictures/Trip").also { File(it, "a.jpg").writeText("x") }
+        val e = engine()
+        assertEquals(AdvancedResult.Done, e.hideWithDotPrefix(folder.path))
+        val hidden = File(volumeA, "Pictures/.Trip")
+        assertTrue(hidden.isDirectory && !folder.exists() && File(hidden, "a.jpg").isFile)
+        assertEquals(listOf(HiddenEntry(hidden.path, HiddenKind.DotPrefix, 42L)), e.hiddenByApp())
+        assertEquals(AdvancedResult.Done, e.unhide(hidden.path))
+        assertTrue(folder.isDirectory && !hidden.exists() && File(folder, "a.jpg").isFile)
+        assertTrue(e.hiddenByApp().isEmpty())
+    }
+
+    @Test fun dotPrefixWorksOnASingleFileAndIsUndone() {
+        val file = File(dir("Pictures"), "IMG_1.jpg").apply { writeText("x") }
+        val e = engine()
+        assertEquals(AdvancedResult.Done, e.hideWithDotPrefix(file.path))
+        val hidden = File(file.parentFile, ".IMG_1.jpg")
+        assertTrue(hidden.isFile && !file.exists())
+        assertEquals(AdvancedResult.Done, e.unhide(hidden.path))
+        assertTrue(file.isFile && !hidden.exists())
+        assertTrue(e.hiddenByApp().isEmpty())
+    }
+
+    @Test fun dotPrefixRefusesDottedNamesExistingTargetsStandardFoldersAndTheAndroidTree() {
+        val e = engine()
+        assertTrue(e.hideWithDotPrefix(dir("Pictures/.already").path) is AdvancedResult.Failed)
+        val a = dir("Pictures/A")
+        dir("Pictures/.A")
+        assertTrue(e.hideWithDotPrefix(a.path) is AdvancedResult.Failed)
+        assertTrue(a.isDirectory)
+        assertTrue(e.hideWithDotPrefix(dir("Pictures").path) is AdvancedResult.Failed)
+        assertTrue(e.hideWithDotPrefix(dir("Android/media/x").path) is AdvancedResult.Failed)
+        assertTrue(e.hideWithDotPrefix(File(volumeA, "Pictures/missing").path) is AdvancedResult.Failed)
+        assertTrue(e.hiddenByApp().isEmpty())
+    }
+
+    @Test fun dotPrefixUnhideNeedsThePermissionAndKeepsTheRecordWhenTheNameIsTaken() {
+        val folder = dir("Pictures/Trip")
+        val e = engine()
+        e.hideWithDotPrefix(folder.path)
+        val hidden = File(volumeA, "Pictures/.Trip")
+        granted = false
+        assertEquals(AdvancedResult.NotGranted, e.unhide(hidden.path))
+        granted = true
+        dir("Pictures/Trip")
+        assertTrue(e.unhide(hidden.path) is AdvancedResult.Failed)
+        assertEquals(1, e.hiddenByApp().size)
+        assertTrue(hidden.isDirectory)
+    }
+
+    @Test fun dotPrefixRecordIsResolvedWhenTheFolderWasRenamedByHand() {
+        val folder = dir("Pictures/Trip")
+        val e = engine()
+        e.hideWithDotPrefix(folder.path)
+        File(volumeA, "Pictures/.Trip").renameTo(File(volumeA, "Pictures/Other"))
+        assertEquals(AdvancedResult.Done, e.unhide(File(volumeA, "Pictures/.Trip").path))
+        assertTrue(e.hiddenByApp().isEmpty())
+        assertTrue(File(volumeA, "Pictures/Other").isDirectory)
+    }
+
+    @Test fun existsOnlySeesPathsInsideMountedVolumes() {
+        val e = engine()
+        val f = File(dir("Pictures"), "a.jpg").apply { writeText("x") }
+        assertTrue(e.exists(f.path))
+        assertFalse(e.exists(File(volumeA, "Pictures/none.jpg").path))
+        assertFalse(e.exists(tmp.root.path))
+        assertFalse(e.exists("relative"))
+    }
+
+    @Test fun deleteFilesDeletesOneScansOnceAndTreatsAMissingFileAsDone() {
+        val a = File(dir("Pictures"), "a.jpg").apply { writeText("x") }
+        val b = File(volumeA, "Pictures/gone.jpg")
+        val folder = dir("Pictures/Sub")
+        val e = engine()
+        val results = e.deleteFiles(listOf(a.path, b.path, folder.path, tmp.root.path))
+        assertEquals(AdvancedResult.Done, results[0])
+        assertEquals(AdvancedResult.Done, results[1])
+        assertTrue(results[2] is AdvancedResult.Failed)
+        assertTrue(results[3] is AdvancedResult.Failed)
+        assertFalse(a.exists())
+        assertTrue(folder.isDirectory)
+        assertEquals(listOf(listOf(a.path, b.path)), scans)
+        granted = false
+        assertEquals(listOf(AdvancedResult.NotGranted), e.deleteFiles(listOf(a.path)))
+    }
+
+    @Test fun copyDirectoryCopiesTheTreeVerifiedAndLeavesTheSourceAlone() {
+        val source = dir("Pictures/Trip")
+        File(source, "a.jpg").writeText("aaa")
+        File(dir("Pictures/Trip/Day1"), "b.jpg").writeText("bbb")
+        dir("Pictures/Trip/EmptySub")
+        val e = engine()
+        assertEquals(AdvancedResult.Done, e.copyDirectory(source.path, dir("DCIM").path, "TripCopy"))
+        val copy = File(volumeA, "DCIM/TripCopy")
+        assertEquals("aaa", File(copy, "a.jpg").readText())
+        assertEquals("bbb", File(copy, "Day1/b.jpg").readText())
+        assertTrue(File(copy, "EmptySub").isDirectory)
+        assertEquals("aaa", File(source, "a.jpg").readText())
+        assertTrue(File(copy, "a.jpg").path in scans.flatten())
+        assertFalse(copy.listFiles()!!.any { it.name.endsWith(".part") })
+    }
+
+    @Test fun copyDirectoryAcrossVolumesAndWithoutANameKeepsTheOriginalName() {
+        val source = dir("Pictures/Trip").also { File(it, "a.jpg").writeText("aaa") }
+        val e = engine()
+        assertEquals(AdvancedResult.Done, e.copyDirectory(source.path, dir("Pictures", volumeB).path))
+        assertEquals("aaa", File(volumeB, "Pictures/Trip/a.jpg").readText())
+    }
+
+    @Test fun copyDirectoryDoesNotCopyTheMarkerThisAppMade() {
+        val source = dir("Pictures/Trip").also { File(it, "a.jpg").writeText("aaa") }
+        val e = engine()
+        e.hide(source.path)
+        File(source, "keep.txt").writeText("k")
+        assertEquals(AdvancedResult.Done, e.copyDirectory(source.path, dir("DCIM").path, "T2"))
+        val copy = File(volumeA, "DCIM/T2")
+        assertFalse(File(copy, ".nomedia").exists())
+        assertTrue(File(copy, "a.jpg").isFile && File(copy, "keep.txt").isFile)
+    }
+
+    @Test fun copyDirectoryRefusesExistingTargetsItselfTheAndroidTreeAndRevokedAccess() {
+        val source = dir("Pictures/Trip").also { File(it, "a.jpg").writeText("aaa") }
+        val e = engine()
+        dir("DCIM/Trip")
+        assertTrue(e.copyDirectory(source.path, File(volumeA, "DCIM").path) is AdvancedResult.Failed)
+        assertTrue(e.copyDirectory(source.path, source.path, "Inner") is AdvancedResult.Failed)
+        assertFalse(File(source, "Inner").exists())
+        assertTrue(e.copyDirectory(source.path, dir("Android/media/x").path, "T") is AdvancedResult.Failed)
+        assertTrue(e.copyDirectory(source.path, File(volumeA, "DCIM").path, "bad/name") is AdvancedResult.Failed)
+        granted = false
+        assertEquals(AdvancedResult.NotGranted, e.copyDirectory(source.path, File(volumeA, "DCIM").path, "T3"))
+        assertFalse(File(volumeA, "DCIM/T3").exists())
+    }
+
+    @Test fun deleteDirectoryRemovesANonEmptyTreeScansItsFilesAndDropsTheRecords() {
+        val folder = dir("Pictures/Trip")
+        File(folder, "a.jpg").writeText("a")
+        File(dir("Pictures/Trip/Day1"), "b.jpg").writeText("b")
+        val e = engine()
+        e.hide(dir("Pictures/Trip/Day1").path)
+        scans.clear()
+        assertEquals(AdvancedResult.Done, e.deleteDirectory(folder.path))
+        assertFalse(folder.exists())
+        assertTrue(e.hiddenByApp().isEmpty())
+        assertTrue(File(folder, "a.jpg").path in scans.flatten())
+        assertTrue(File(folder, "Day1/b.jpg").path in scans.flatten())
+    }
+
+    @Test fun deleteDirectoryNeverFollowsASymbolicLink() {
+        val outside = dir("Elsewhere").also { File(it, "keep.jpg").writeText("k") }
+        val folder = dir("Pictures/Trip")
+        java.nio.file.Files.createSymbolicLink(File(folder, "link").toPath(), outside.toPath())
+        val e = engine()
+        assertEquals(AdvancedResult.Done, e.deleteDirectory(folder.path))
+        assertFalse(folder.exists())
+        assertEquals("k", File(outside, "keep.jpg").readText())
+    }
+
+    @Test fun deleteDirectoryRefusesStandardFoldersRootsTheAndroidTreeAndRevokedAccess() {
+        val e = engine()
+        assertTrue(e.deleteDirectory(dir("DCIM").also { File(it, "a.jpg").writeText("a") }.path) is AdvancedResult.Failed)
+        assertTrue(File(volumeA, "DCIM/a.jpg").exists())
+        assertTrue(e.deleteDirectory(volumeA.path) is AdvancedResult.Failed)
+        assertTrue(e.deleteDirectory(dir("Android/media/x").path) is AdvancedResult.Failed)
+        val folder = dir("Pictures/Trip")
+        granted = false
+        assertEquals(AdvancedResult.NotGranted, e.deleteDirectory(folder.path))
+        assertTrue(folder.isDirectory)
+    }
 }

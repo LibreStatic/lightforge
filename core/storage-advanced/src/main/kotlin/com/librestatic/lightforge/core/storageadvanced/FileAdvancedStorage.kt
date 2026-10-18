@@ -122,6 +122,30 @@ class FileAdvancedStorage(context: Context, private val recoveryOnly: Boolean = 
             }
         }
 
+    override suspend fun pathExists(absolutePath: String): Boolean =
+        unguardedValue { engine.exists(absolutePath) } ?: false
+
+    override suspend fun hideWithDotPrefix(absolutePath: String): AdvancedResult =
+        guarded { engine.hideWithDotPrefix(absolutePath) }
+
+    override suspend fun deleteFiles(absolutePaths: List<String>): List<AdvancedResult> =
+        mutex.withLock {
+            if (!isGranted()) return@withLock absolutePaths.map { AdvancedResult.NotGranted }
+            withContext(Dispatchers.IO) {
+                try {
+                    engine.deleteFiles(absolutePaths)
+                } catch (_: SecurityException) {
+                    absolutePaths.map { AdvancedResult.NotGranted }
+                }
+            }
+        }
+
+    override suspend fun copyDirectory(absolutePath: String, newParentAbsolutePath: String, newName: String?): AdvancedResult =
+        guarded { engine.copyDirectory(absolutePath, newParentAbsolutePath, newName) }
+
+    override suspend fun deleteDirectory(absolutePath: String): AdvancedResult =
+        guarded { engine.deleteDirectory(absolutePath) }
+
     override suspend fun listDirectories(absolutePath: String): List<DirectoryEntry> =
         mutex.withLock {
             if (!isGranted()) return@withLock emptyList()
@@ -251,6 +275,9 @@ class FileAdvancedStorage(context: Context, private val recoveryOnly: Boolean = 
                 }
             }
         }
+
+    private suspend fun <T> unguardedValue(block: () -> T): T? =
+        mutex.withLock { withContext(Dispatchers.IO) { runCatching(block).getOrNull() } }
 
     private suspend fun unguarded(block: () -> AdvancedResult): AdvancedResult =
         mutex.withLock {

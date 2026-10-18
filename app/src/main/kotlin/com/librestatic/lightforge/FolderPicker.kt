@@ -112,9 +112,9 @@ internal enum class TransferOutcome { Done, Nothing, Partial, Failed, NotGranted
 internal fun TransferResult.outcome(): TransferOutcome = when {
     inactive -> TransferOutcome.Inactive
     notGranted -> TransferOutcome.NotGranted
-    failed == 0 && moved + copied + awaitingDelete.size == 0 -> TransferOutcome.Nothing
+    failed == 0 && moved + copied + relocated + awaitingDelete.size == 0 -> TransferOutcome.Nothing
     failed == 0 -> TransferOutcome.Done
-    moved + copied + awaitingDelete.size + skipped > 0 -> TransferOutcome.Partial
+    moved + copied + relocated + awaitingDelete.size + skipped > 0 -> TransferOutcome.Partial
     else -> TransferOutcome.Failed
 }
 
@@ -150,8 +150,8 @@ internal fun AdvancedOperationsHost(
                 is AdvancedOpEvent.Transfer -> {
                     folderExplorer.diskChanged()
                     val result = event.result
-                    val done = result.moved + result.copied + result.awaitingDelete.size
-                                    when (result.outcome()) {
+                    val done = result.moved + result.copied + result.relocated + result.awaitingDelete.size
+                    when (result.outcome()) {
                         TransferOutcome.Inactive -> Unit
                         TransferOutcome.NotGranted ->
                             showFolderMessage(context, snackbarHostState, FolderMessage.NotGranted, onOpenStorageAccess)

@@ -22,13 +22,15 @@ internal data class FolderTarget(val volumeName: String, val relativePath: Strin
 /**
  * What a batch did. [moved] items were renamed in place (their index row, and everything attached
  * to it, was kept); [copied] are verified copies; [awaitingDelete] are originals of a verified copy
- * whose deletion the user still approves; [skipped] were already in the destination.
+ * the system still asks the user to approve deleting; [skipped] were already in the destination.
  */
 internal data class TransferResult(
     val purpose: TransferPurpose,
     val total: Int,
     val moved: Int = 0,
     val copied: Int = 0,
+    /** Verified copies whose original this app then deleted itself (All files access needs no confirmation). */
+    val relocated: Int = 0,
     val awaitingDelete: List<TransferSource> = emptyList(),
     val skipped: Int = 0,
     val failed: Int = 0,
@@ -36,12 +38,12 @@ internal data class TransferResult(
     /** The mode was not active, so nothing was touched. */
     val inactive: Boolean = false,
 ) {
-    val succeeded: Int get() = moved + copied + skipped
+    val succeeded: Int get() = moved + copied + relocated + skipped
 }
 
 internal data class FolderOpResult(val result: AdvancedResult, val reconciled: List<String> = emptyList())
 
-/** Hands the originals of verified cross-volume copies to the existing verified delete (system confirmation). */
+/** Hands the originals the engine could not delete to the existing system-confirmed delete. */
 internal fun interface OriginalRetirement {
     suspend fun retire(originals: List<TransferSource>)
 }
@@ -49,8 +51,9 @@ internal fun interface OriginalRetirement {
 /**
  * Moves, copies and renames media by path while advanced storage is active (ADR-046). One strategy
  * per item: [AdvancedStorage.moveAll] when source and target share a volume (the index row keeps its
- * id and every saved decision attached to it), otherwise a verified copy followed by the existing
- * verified delete of the original. An item whose rename already succeeded never falls back, so no
+ * id and every saved decision attached to it), otherwise a verified copy followed by the delete of the
+ * original, which the engine does itself (All files access needs no dialog) and which only falls back to
+ * the system-confirmed delete when the engine refuses it. A taken target name gets a "(n)" suffix. An item whose rename already succeeded never falls back, so no
  * duplicate is made. Every item is first checked against its current MediaStore row, and an original
  * is retired only after its copy is byte-compared with the item's own content URI; a crash before
  * that leaves a copy beside the original, never a lost file. With the mode inactive every entry point does nothing; callers use the SAF flow.
@@ -94,16 +97,25 @@ internal class AdvancedFileOperations(
         var skipped = 0
         val toMove = ArrayList<Planned>()
         val toCopy = ArrayList<Planned>()
+        // Names already claimed in this batch, so two sources with the same name never meet at one target.
+        val claimed = HashSet<String>()
         for (key in keys) {
             val source = byKey[key] ?: continue
             val from = advanced.absolutePathOf(source.volumeName, source.relativePath, source.displayName)
-            val to = advanced.absolutePathOf(destination.volumeName, destination.relativePath, source.displayName)
+            val plain = advanced.absolutePathOf(destination.volumeName, destination.relativePath, source.displayName)
             when {
-                from == null || to == null -> failed++
-                from == to -> skipped++
-                purpose == TransferPurpose.Move && source.volumeName == destination.volumeName ->
-                    toMove += Planned(source, from, to)
-                else -> toCopy += Planned(source, from, to)
+                from == null || plain == null -> failed++
+                from == plain && purpose == TransferPurpose.Move -> skipped++
+                else -> {
+                    // A name that is taken (by another file or an earlier item of this batch) gets "(1)", "(2)"...
+                    val to = uniqueTarget(destination, source.displayName, claimed)
+                    when {
+                        to == null -> failed++
+                        purpose == TransferPurpose.Move && source.volumeName == destination.volumeName ->
+                            toMove += Planned(source, from, to)
+                        else -> toCopy += Planned(source, from, to)
+                    }
+                }
             }
         }
 
@@ -136,26 +148,51 @@ internal class AdvancedFileOperations(
 
         // The rows of renamed files are re-read at once, so Room keeps their identity.
         moved.forEach { applyHint(it.source.key) }
-        if (moved.isNotEmpty() || copied.isNotEmpty()) runCatching { refresh() }
         // An original is only retired once its copy is proven to hold the item's own bytes.
-        val originals = if (purpose == TransferPurpose.Move) {
-            copied.filter { verifyCopy(it.source, it.to) }.map { it.source }.also { failed += copied.size - it.size }
+        val verified = if (purpose == TransferPurpose.Move) {
+            copied.filter { verifyCopy(it.source, it.to) }.also { failed += copied.size - it.size }
         } else {
             emptyList()
         }
-        if (originals.isNotEmpty()) retirement.retire(originals)
-        if (moved.isNotEmpty()) deleteEmptyParents(moved.map { it.source.volumeName to it.source.relativePath })
+        // With All files access the original is deleted here, without a system dialog; only what that
+        // refuses goes to the confirmed delete.
+        val deletions = if (verified.isEmpty()) emptyList() else advanced.deleteFiles(verified.map { it.from })
+        val deleted = verified.filterIndexed { index, _ -> deletions.getOrNull(index) == AdvancedResult.Done }
+        val awaiting = verified.filterNot { it in deleted }.map { it.source }
+        deleted.forEach { applyHint(it.source.key) }
+        if (moved.isNotEmpty() || copied.isNotEmpty()) runCatching { refresh() }
+        if (awaiting.isNotEmpty()) retirement.retire(awaiting)
+        val emptied = moved.map { it.source.volumeName to it.source.relativePath } +
+            deleted.map { it.source.volumeName to it.source.relativePath }
+        if (emptied.isNotEmpty()) deleteEmptyParents(emptied)
         onProgress(total, total)
         return TransferResult(
             purpose = purpose,
             total = total,
             moved = moved.size,
             copied = if (purpose == TransferPurpose.Copy) copied.size else 0,
-            awaitingDelete = originals,
+            relocated = deleted.size,
+            awaitingDelete = awaiting,
             skipped = skipped,
             failed = failed,
             notGranted = notGranted,
         )
+    }
+
+    /**
+     * The absolute path for [displayName] in [destination], or the first free "name (n).ext" when that
+     * path exists or is in [claimed]. The chosen path is added to [claimed]; null when the path is invalid.
+     */
+    private suspend fun uniqueTarget(destination: FolderTarget, displayName: String, claimed: MutableSet<String>): String? {
+        for (attempt in 0..MaxNameAttempts) {
+            val candidate = if (attempt == 0) displayName else withCounter(displayName, attempt)
+            val path = advanced.absolutePathOf(destination.volumeName, destination.relativePath, candidate) ?: return null
+            if (path !in claimed && !advanced.pathExists(path)) {
+                claimed += path
+                return path
+            }
+        }
+        return null
     }
 
     /**
@@ -219,6 +256,40 @@ internal class AdvancedFileOperations(
         return FolderOpResult(result, reconcileAfterMove(source.volumeName, source.volumeName, sourcePath, newPath, buckets))
     }
 
+    /** Copies the folder into [destination] under a free name; the new subtree is read into the library. */
+    suspend fun copyFolder(source: FolderTarget, destination: FolderTarget): FolderOpResult {
+        val sourcePath = source.relativePath?.takeIf { it.isNotBlank() } ?: return FolderOpResult(AdvancedResult.Failed("volume root"))
+        if (!isActive()) return FolderOpResult(AdvancedResult.NotGranted)
+        val from = advanced.absolutePathOf(source.volumeName, sourcePath) ?: return FolderOpResult(AdvancedResult.Failed("unknown path"))
+        val parent = advanced.absolutePathOf(destination.volumeName, destination.relativePath)
+            ?: return FolderOpResult(AdvancedResult.Failed("unknown path"))
+        val leaf = sourcePath.trim('/').substringAfterLast('/')
+        var name = leaf
+        var attempt = 0
+        while (advanced.pathExists(advanced.absolutePathOf(destination.volumeName, destination.relativePath, name) ?: return FolderOpResult(AdvancedResult.Failed("unknown path")))) {
+            if (++attempt > MaxNameAttempts) return FolderOpResult(AdvancedResult.Failed("no free name"))
+            name = withCounter(leaf, attempt)
+        }
+        val result = advanced.copyDirectory(from, parent, name)
+        if (result != AdvancedResult.Done) return FolderOpResult(result)
+        val newPath = (destination.relativePath.orEmpty().trim('/') + "/" + name).trim('/') + "/"
+        runCatching { reconcile(destination.volumeName, newPath) }
+        runCatching { refresh() }
+        return FolderOpResult(result, listOf(newPath))
+    }
+
+    /** Deletes the folder with everything in it and sweeps its subtree out of the library. */
+    suspend fun deleteFolder(source: FolderTarget): FolderOpResult {
+        val sourcePath = source.relativePath?.takeIf { it.isNotBlank() } ?: return FolderOpResult(AdvancedResult.Failed("volume root"))
+        if (!isActive()) return FolderOpResult(AdvancedResult.NotGranted)
+        val from = advanced.absolutePathOf(source.volumeName, sourcePath) ?: return FolderOpResult(AdvancedResult.Failed("unknown path"))
+        val result = advanced.deleteDirectory(from)
+        // A partly failed delete still removed files, so the subtree is re-read either way.
+        runCatching { reconcile(source.volumeName, sourcePath) }
+        runCatching { refresh() }
+        return FolderOpResult(result, listOf(sourcePath))
+    }
+
     // The new prefix first, so rows that kept their id are updated before the old prefix is swept.
     // The folder rules move once the new rows are indexed, because their bucket ids are read from them.
     private suspend fun reconcileAfterMove(
@@ -254,4 +325,12 @@ internal fun renameKeepingKind(currentName: String?, requested: String): String?
         '.' !in name -> "$name.$currentExt"
         else -> null
     }
+}
+
+private const val MaxNameAttempts = 999
+
+/** "IMG_1.jpg" becomes "IMG_1 (2).jpg"; a name without an extension just gets the counter. */
+internal fun withCounter(name: String, counter: Int): String {
+    val dot = name.lastIndexOf('.')
+    return if (dot <= 0) "$name ($counter)" else "${name.substring(0, dot)} ($counter)${name.substring(dot)}"
 }
