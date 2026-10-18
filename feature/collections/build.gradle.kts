@@ -38,6 +38,8 @@ dependencies {
     testImplementation(libs.junit4)
     // Driver previews in src/debug (tools/compose-driver); never part of release builds.
     debugImplementation("androidx.compose.ui:ui-tooling-preview")
+    // Driver previews build an in-memory GalleryDatabase to feed the real repositories.
+    debugImplementation(libs.androidx.room.runtime)
     androidTestImplementation(libs.androidx.room.runtime)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
