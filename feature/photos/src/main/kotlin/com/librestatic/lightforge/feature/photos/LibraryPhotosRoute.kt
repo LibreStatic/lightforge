@@ -502,7 +502,7 @@ private fun PhotosOverflowMenu(
     }
 }
 
-private val PhotosGrouping.icon: ImageVector
+internal val PhotosGrouping.icon: ImageVector
     get() = when (this) {
         PhotosGrouping.Day -> GalleryMenuIcons.GroupDay
         PhotosGrouping.Month -> GalleryMenuIcons.GroupMonth

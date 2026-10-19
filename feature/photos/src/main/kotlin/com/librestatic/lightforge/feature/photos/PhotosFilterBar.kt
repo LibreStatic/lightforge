@@ -146,7 +146,7 @@ private val PhotosFilter.labelRes: Int
         PhotosFilter.Raw -> R.string.photos_filter_raw
     }
 
-private val PhotosSort.icon: ImageVector
+internal val PhotosSort.icon: ImageVector
     get() = when (this) {
         PhotosSort.Newest -> GalleryMenuIcons.SortNewest
         PhotosSort.Oldest -> GalleryMenuIcons.SortOldest

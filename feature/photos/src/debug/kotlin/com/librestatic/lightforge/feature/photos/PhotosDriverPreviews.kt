@@ -2,6 +2,18 @@ package com.librestatic.lightforge.feature.photos
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.unit.dp
+import com.librestatic.lightforge.core.designsystem.GalleryIcons
+import com.librestatic.lightforge.core.designsystem.GalleryMenuDefaults
+import com.librestatic.lightforge.core.designsystem.GalleryMenuDivider
+import com.librestatic.lightforge.core.designsystem.GalleryMenuIcons
+import com.librestatic.lightforge.core.designsystem.GalleryMenuItem
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -231,3 +243,53 @@ private fun previewThumbnailLoader() = ThumbnailLoader(
     maxCacheBytes = 16L * 1024 * 1024,
     threadCount = 1,
 )
+
+/**
+ * The overflow and sort menus drawn inline: the renderer does not capture popup windows, so this
+ * lays the real [GalleryMenuItem] rows out in the same container the popup uses.
+ */
+@Preview
+@Composable
+fun PhotosMenusPreview() {
+    LightforgeTheme {
+        Surface(Modifier.fillMaxSize()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    MenuCard {
+                        GalleryMenuItem("Device folders", {}, icon = GalleryIcons.Folder)
+                        GalleryMenuDivider()
+                        GalleryMenuItem("Group by", {}, icon = GalleryMenuIcons.GroupBy)
+                        GalleryMenuItem("Show hidden items for now", {}, icon = GalleryIcons.Lock, checked = true)
+                        GalleryMenuDivider()
+                        GalleryMenuItem("Settings", {}, icon = GalleryIcons.Settings)
+                        GalleryMenuDivider()
+                        GalleryMenuItem("Delete", {}, icon = GalleryIcons.Trash, destructive = true)
+                        GalleryMenuItem("Disabled", {}, icon = GalleryIcons.Info, enabled = false)
+                    }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    MenuCard {
+                        PhotosSort.entries.forEach { option ->
+                            GalleryMenuItem(option.name, {}, icon = option.icon, checked = option == PhotosSort.Newest, radio = true)
+                        }
+                    }
+                    MenuCard {
+                        PhotosGrouping.entries.forEach { option ->
+                            GalleryMenuItem(option.name, {}, icon = option.icon, checked = option == PhotosGrouping.Month, radio = true)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MenuCard(content: @Composable ColumnScope.() -> Unit) {
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        shadowElevation = 3.dp,
+        modifier = Modifier.widthIn(min = GalleryMenuDefaults.MinWidth, max = GalleryMenuDefaults.MaxWidth),
+    ) { Column(Modifier.padding(vertical = 8.dp), content = content) }
+}
