@@ -41,6 +41,20 @@ class FolderViewOptionsTest {
         assertEquals(listOf("z", "m", "a"), sortFolderCards(cards, FolderViewOptions(descending = true)).map { it.name })
     }
 
+    @Test fun fileOptionsRoundTripAndAnOlderThreeFieldEntryKeepsTheFileDefaults() {
+        val options = FolderViewOptions(
+            FolderSortKey.Date, true, FolderViewMode.Grid,
+            fileSort = FolderFileSort.SizeDescending, fileFilter = FolderFileFilter.Videos, fileView = FolderViewMode.List,
+        )
+        assertEquals(options, FolderViewOptions.decode(options.encode()))
+        assertEquals(
+            FolderViewOptions(FolderSortKey.Size, true, FolderViewMode.List),
+            FolderViewOptions.decode("Size|1|List"),
+        )
+        assertNull(FolderViewOptions.decode("Name|0|Grid|Sideways|All|Grid"))
+        assertNull(FolderViewOptions.decode("Name|0|Grid|NewestFirst"))
+    }
+
     @Test fun optionsRoundTripAndRejectGarbage() {
         val options = FolderViewOptions(FolderSortKey.Size, true, FolderViewMode.List)
         assertEquals(options, FolderViewOptions.decode(options.encode()))

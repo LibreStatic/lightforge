@@ -250,6 +250,18 @@ class FolderExplorerStateTest {
     }
 
     @Test
+    fun theFilesScopeFollowsTheFolderFileOptions() {
+        val options = FolderViewOptions(fileSort = FolderFileSort.NameAscending, fileFilter = FolderFileFilter.Videos)
+        val state = buildFolderExplorerUiState(
+            single, FolderLocation("external_primary", "DCIM/Camera/"), options = options,
+        ) as FolderExplorerUiState.Folder
+        assertEquals(
+            FolderMediaScope("external_primary", "DCIM/Camera/", false, FolderFileFilter.Videos, FolderFileSort.NameAscending),
+            state.media,
+        )
+    }
+
+    @Test
     fun chainCompactionCanBeSwitchedOff() {
         val root = FolderLocation("external_primary", null)
         fun names(compact: Boolean) =

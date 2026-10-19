@@ -185,4 +185,17 @@
     <string name="folders_picker_other_location">Elegir otra ubicación</string>
     <string name="folders_picker_new_pending">La carpeta nueva «%1$s» se crea aquí</string>
     <string name="folders_picker_new_pending_clear">Quitar la carpeta nueva</string>
+    <string name="folders_view_files_sort_header">Ordenar archivos por</string>
+    <string name="folders_view_files_filter_header">Mostrar archivos</string>
+    <string name="folders_view_files_as_list">Mostrar archivos como lista</string>
+    <string name="folders_view_files_as_list_supporting">Un archivo por fila, con su nombre, tamaño y fecha</string>
+    <string name="folders_file_sort_newest">Más recientes primero</string>
+    <string name="folders_file_sort_oldest">Más antiguos primero</string>
+    <string name="folders_file_sort_name_asc">Nombre, de A a Z</string>
+    <string name="folders_file_sort_name_desc">Nombre, de Z a A</string>
+    <string name="folders_file_sort_size_asc">Tamaño, menores primero</string>
+    <string name="folders_file_sort_size_desc">Tamaño, mayores primero</string>
+    <string name="folders_file_filter_all">Fotos y vídeos</string>
+    <string name="folders_file_filter_images">Solo fotos</string>
+    <string name="folders_file_filter_videos">Solo vídeos</string>
 </resources>

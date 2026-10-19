@@ -149,7 +149,15 @@ data class HiddenItemUi(
 )
 
 /** What the inline file grid of a folder shows. */
-data class FolderMediaScope(val volumeName: String, val relativePath: String, val includeSubfolders: Boolean)
+data class FolderMediaScope(
+    val volumeName: String,
+    val relativePath: String,
+    val includeSubfolders: Boolean,
+    /** Which kinds of file the folder lists; follows the folder's view options. */
+    val filter: FolderFileFilter = FolderFileFilter.All,
+    /** The order of the files; follows the folder's view options. */
+    val sort: FolderFileSort = FolderFileSort.NewestFirst,
+)
 
 data class VolumeCardUi(
     val volumeName: String,
@@ -283,7 +291,7 @@ fun buildFolderExplorerUiState(
         ?.let { filesCard(node, it) }
     // The volume root has no folder path to query, so its files are never listed inline.
     val media = path?.takeIf { files != null || (includeSubfolders && tree.totals(node).totalCount > 0) }
-        ?.let { FolderMediaScope(volumeName, it, includeSubfolders) }
+        ?.let { FolderMediaScope(volumeName, it, includeSubfolders, options.fileFilter, options.fileSort) }
     val here = path?.let(::normalizedFolderPath)
     return FolderExplorerUiState.Folder(
         crumbs = crumbs(tree, volumeName, path, spaces[volumeName]?.label, compactChains),

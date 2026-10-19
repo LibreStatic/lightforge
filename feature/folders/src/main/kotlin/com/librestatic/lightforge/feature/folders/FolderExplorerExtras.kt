@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
@@ -325,15 +327,39 @@ internal fun IncludeDialog(folder: FolderCardUi, onDismiss: () -> Unit, onConfir
     )
 }
 
-/** Sort key, direction and grid or list for the level; every change applies at once and is stored per folder. */
+/**
+ * Sort key, direction and grid or list for the folder cards, and the sort, type filter and grid or list for the
+ * folder's own files; every change applies at once and is stored per folder.
+ */
 @Composable
 fun FolderViewOptionsDialog(options: FolderViewOptions, onChange: (FolderViewOptions) -> Unit, onDismiss: () -> Unit) {
     val transparent = androidx.compose.ui.graphics.Color.Transparent
+    @Composable
+    fun <T> RadioRow(value: T, current: T, label: Int, tag: String, onSelect: (T) -> Unit) {
+        ListItem(
+            headlineContent = { Text(stringResource(label)) },
+            leadingContent = { RadioButton(selected = current == value, onClick = null) },
+            colors = ListItemDefaults.colors(containerColor = transparent),
+            modifier = Modifier
+                .selectable(selected = current == value, role = Role.RadioButton) { onSelect(value) }
+                .testTag(tag),
+        )
+    }
+    @Composable
+    fun SwitchRow(checked: Boolean, label: Int, supporting: Int, tag: String, onToggle: () -> Unit) {
+        ListItem(
+            headlineContent = { Text(stringResource(label)) },
+            supportingContent = { Text(stringResource(supporting)) },
+            trailingContent = { Switch(checked = checked, onCheckedChange = null) },
+            colors = ListItemDefaults.colors(containerColor = transparent),
+            modifier = Modifier.clickable(role = Role.Switch, onClick = onToggle).testTag(tag),
+        )
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.folders_view_title)) },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(
                     stringResource(R.string.folders_view_sort_header),
                     style = MaterialTheme.typography.titleSmall,
@@ -341,41 +367,62 @@ fun FolderViewOptionsDialog(options: FolderViewOptions, onChange: (FolderViewOpt
                 )
                 Column(Modifier.selectableGroup()) {
                     FolderSortKey.entries.forEach { key ->
-                        ListItem(
-                            headlineContent = { Text(stringResource(key.labelRes())) },
-                            leadingContent = { RadioButton(selected = options.sort == key, onClick = null) },
-                            colors = ListItemDefaults.colors(containerColor = transparent),
-                            modifier = Modifier
-                                .selectable(selected = options.sort == key, role = Role.RadioButton) { onChange(options.copy(sort = key)) }
-                                .testTag("folder-sort-${key.name}"),
-                        )
+                        RadioRow(key, options.sort, key.labelRes(), "folder-sort-${key.name}") { onChange(options.copy(sort = it)) }
+                    }
+                }
+                SwitchRow(
+                    options.descending, R.string.folders_view_descending, R.string.folders_view_descending_supporting,
+                    "folder-sort-descending",
+                ) { onChange(options.copy(descending = !options.descending)) }
+                SwitchRow(
+                    options.view == FolderViewMode.List, R.string.folders_view_as_list, R.string.folders_view_as_list_supporting,
+                    "folder-view-list",
+                ) { onChange(options.copy(view = if (options.view == FolderViewMode.List) FolderViewMode.Grid else FolderViewMode.List)) }
+                HorizontalDivider()
+                Text(
+                    stringResource(R.string.folders_view_files_sort_header),
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp),
+                )
+                Column(Modifier.selectableGroup()) {
+                    FolderFileSort.entries.forEach { sort ->
+                        RadioRow(sort, options.fileSort, sort.labelRes(), "folder-file-sort-${sort.name}") { onChange(options.copy(fileSort = it)) }
                     }
                 }
                 HorizontalDivider()
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.folders_view_descending)) },
-                    supportingContent = { Text(stringResource(R.string.folders_view_descending_supporting)) },
-                    trailingContent = { Switch(checked = options.descending, onCheckedChange = null) },
-                    colors = ListItemDefaults.colors(containerColor = transparent),
-                    modifier = Modifier
-                        .clickable(role = Role.Switch) { onChange(options.copy(descending = !options.descending)) }
-                        .testTag("folder-sort-descending"),
+                Text(
+                    stringResource(R.string.folders_view_files_filter_header),
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp),
                 )
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.folders_view_as_list)) },
-                    supportingContent = { Text(stringResource(R.string.folders_view_as_list_supporting)) },
-                    trailingContent = { Switch(checked = options.view == FolderViewMode.List, onCheckedChange = null) },
-                    colors = ListItemDefaults.colors(containerColor = transparent),
-                    modifier = Modifier
-                        .clickable(role = Role.Switch) {
-                            onChange(options.copy(view = if (options.view == FolderViewMode.List) FolderViewMode.Grid else FolderViewMode.List))
-                        }
-                        .testTag("folder-view-list"),
-                )
+                Column(Modifier.selectableGroup()) {
+                    FolderFileFilter.entries.forEach { filter ->
+                        RadioRow(filter, options.fileFilter, filter.labelRes(), "folder-file-filter-${filter.name}") { onChange(options.copy(fileFilter = it)) }
+                    }
+                }
+                SwitchRow(
+                    options.fileView == FolderViewMode.List, R.string.folders_view_files_as_list, R.string.folders_view_files_as_list_supporting,
+                    "folder-file-view-list",
+                ) { onChange(options.copy(fileView = if (options.fileView == FolderViewMode.List) FolderViewMode.Grid else FolderViewMode.List)) }
             }
         },
         confirmButton = { TextButton(onClick = onDismiss, modifier = Modifier.testTag("folder-view-done")) { Text(stringResource(R.string.folders_view_done)) } },
     )
+}
+
+private fun FolderFileSort.labelRes(): Int = when (this) {
+    FolderFileSort.NewestFirst -> R.string.folders_file_sort_newest
+    FolderFileSort.OldestFirst -> R.string.folders_file_sort_oldest
+    FolderFileSort.NameAscending -> R.string.folders_file_sort_name_asc
+    FolderFileSort.NameDescending -> R.string.folders_file_sort_name_desc
+    FolderFileSort.SizeAscending -> R.string.folders_file_sort_size_asc
+    FolderFileSort.SizeDescending -> R.string.folders_file_sort_size_desc
+}
+
+private fun FolderFileFilter.labelRes(): Int = when (this) {
+    FolderFileFilter.All -> R.string.folders_file_filter_all
+    FolderFileFilter.Images -> R.string.folders_file_filter_images
+    FolderFileFilter.Videos -> R.string.folders_file_filter_videos
 }
 
 private fun FolderSortKey.labelRes(): Int = when (this) {

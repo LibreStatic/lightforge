@@ -185,4 +185,17 @@
     <string name="folders_picker_other_location">Escolher outro local</string>
     <string name="folders_picker_new_pending">A nova pasta “%1$s” é criada aqui</string>
     <string name="folders_picker_new_pending_clear">Remover a nova pasta</string>
+    <string name="folders_view_files_sort_header">Ordenar arquivos por</string>
+    <string name="folders_view_files_filter_header">Mostrar arquivos</string>
+    <string name="folders_view_files_as_list">Mostrar arquivos como lista</string>
+    <string name="folders_view_files_as_list_supporting">Um arquivo por linha, com nome, tamanho e data</string>
+    <string name="folders_file_sort_newest">Mais recentes primeiro</string>
+    <string name="folders_file_sort_oldest">Mais antigos primeiro</string>
+    <string name="folders_file_sort_name_asc">Nome, de A a Z</string>
+    <string name="folders_file_sort_name_desc">Nome, de Z a A</string>
+    <string name="folders_file_sort_size_asc">Tamanho, menores primeiro</string>
+    <string name="folders_file_sort_size_desc">Tamanho, maiores primeiro</string>
+    <string name="folders_file_filter_all">Fotos e vídeos</string>
+    <string name="folders_file_filter_images">Somente fotos</string>
+    <string name="folders_file_filter_videos">Somente vídeos</string>
 </resources>

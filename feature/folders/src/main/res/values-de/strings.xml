@@ -173,4 +173,17 @@
     <string name="folders_picker_other_location">Anderen Speicherort wählen</string>
     <string name="folders_picker_new_pending">Neuer Ordner „%1$s“ wird hier erstellt</string>
     <string name="folders_picker_new_pending_clear">Neuen Ordner entfernen</string>
+    <string name="folders_view_files_sort_header">Dateien sortieren nach</string>
+    <string name="folders_view_files_filter_header">Dateien anzeigen</string>
+    <string name="folders_view_files_as_list">Dateien als Liste anzeigen</string>
+    <string name="folders_view_files_as_list_supporting">Eine Datei pro Zeile mit Name, Größe und Datum</string>
+    <string name="folders_file_sort_newest">Neueste zuerst</string>
+    <string name="folders_file_sort_oldest">Älteste zuerst</string>
+    <string name="folders_file_sort_name_asc">Name, A bis Z</string>
+    <string name="folders_file_sort_name_desc">Name, Z bis A</string>
+    <string name="folders_file_sort_size_asc">Größe, kleinste zuerst</string>
+    <string name="folders_file_sort_size_desc">Größe, größte zuerst</string>
+    <string name="folders_file_filter_all">Fotos und Videos</string>
+    <string name="folders_file_filter_images">Nur Fotos</string>
+    <string name="folders_file_filter_videos">Nur Videos</string>
 </resources>

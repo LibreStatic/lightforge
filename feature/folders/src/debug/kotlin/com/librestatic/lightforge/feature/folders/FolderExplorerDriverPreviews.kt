@@ -180,6 +180,22 @@ fun FolderCoverDialogPreview() {
     }
 }
 
+/** The folder view options: folder sort and layout, then the file sort, filter and list layout. */
+@Composable
+fun FolderViewOptionsDialogPreview() {
+    LightforgeTheme {
+        FolderViewOptionsDialog(
+            options = FolderViewOptions(
+                fileSort = FolderFileSort.NameAscending,
+                fileFilter = FolderFileFilter.Images,
+                fileView = FolderViewMode.List,
+            ),
+            onChange = {},
+            onDismiss = {},
+        )
+    }
+}
+
 @Composable
 private fun SelectionFrame(advanced: Boolean, fileCount: Long, ticked: Set<String> = setOf("DCIM/Camera", "DCIM/Screenshots")) {
     LightforgeTheme {

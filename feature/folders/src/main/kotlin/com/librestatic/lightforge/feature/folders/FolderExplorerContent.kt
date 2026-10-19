@@ -498,6 +498,7 @@ private fun FolderLevelGrid(
         }
     }
     val listMode = state.options.view == FolderViewMode.List && picking == null
+    val filesAsList = state.options.fileView == FolderViewMode.List
     LazyVerticalGrid(
         columns = FolderLevelCells,
         state = gridState,
@@ -562,6 +563,7 @@ private fun FolderLevelGrid(
             items(
                 count = media.itemCount,
                 key = media.itemKey { "media:${it.key.volumeName}:${it.key.mediaStoreId}" },
+                span = { GridItemSpan(if (filesAsList) maxLineSpan else 1) },
             ) { index ->
                 media[index]?.let { item ->
                     val tileSelected = selection.isMediaSelected(item.key)
@@ -575,15 +577,14 @@ private fun FolderLevelGrid(
                         Modifier
                     }
                     Box(dnd) {
-                        MediaTile(
-                            media = item,
-                            loader = thumbnails,
-                            selecting = selection.selecting,
-                            selected = tileSelected,
-                            // A ticked tile's long press starts a touch drag, so it must not untick it.
-                            onLongClick = { if (!tileSelected || onDrop == null) selection.onToggleMedia(item) },
-                            onClick = { if (selection.selecting) selection.onToggleMedia(item) else onMediaClick(item, scope) },
-                        )
+                        // A ticked tile's long press starts a touch drag, so it must not untick it.
+                        val longClick = { if (!tileSelected || onDrop == null) selection.onToggleMedia(item) }
+                        val click = { if (selection.selecting) selection.onToggleMedia(item) else onMediaClick(item, scope) }
+                        if (filesAsList) {
+                            MediaRow(item, thumbnails, selection.selecting, tileSelected, longClick, click)
+                        } else {
+                            MediaTile(item, thumbnails, selection.selecting, tileSelected, longClick, click)
+                        }
                     }
                 }
             }
@@ -1431,6 +1432,80 @@ private fun MediaTile(
             VideoDurationBadge(media.durationMillis, Modifier.align(Alignment.BottomEnd).padding(4.dp))
         }
         if (selecting) SelectionCheck(selected, Modifier.align(Alignment.TopEnd).padding(6.dp))
+    }
+}
+
+/** One file as a row for the list view: small thumbnail, name, then size and date. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MediaRow(
+    media: TimelineMedia,
+    loader: ThumbnailLoader?,
+    selecting: Boolean,
+    selected: Boolean,
+    onLongClick: () -> Unit,
+    onClick: () -> Unit,
+) {
+    val request = ThumbnailRequest(media.key, media.generationModified, TileThumbnailPx, TileThumbnailPx)
+    val bitmap by produceState(loader?.cached(request), request, loader) {
+        if (value == null && loader != null) value = runCatching { loader.load(request) }.getOrNull()
+    }
+    val colors = MaterialTheme.colorScheme
+    val context = LocalContext.current
+    val isVideo = media.kind == MediaKind.Video
+    val selectLabel = stringResource(R.string.folders_select_action)
+    val selectedState = stringResource(R.string.folders_selected_state)
+    val description = mediaTileDescription(
+        if (isVideo) videoDurationDescription(media.durationMillis) else stringResource(R.string.folders_photo),
+        media.isFavorite,
+        media.displayName,
+        isVideo,
+    )
+    val date = DateUtils.formatDateTime(
+        context,
+        media.timelineSortMillis,
+        DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_YEAR or DateUtils.FORMAT_ABBREV_MONTH,
+    )
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("folder-media-${media.key.volumeName}-${media.key.mediaStoreId}")
+            .clip(MaterialTheme.shapes.medium)
+            .clearAndSetSemantics {
+                contentDescription = description
+                if (selecting) {
+                    this.selected = selected
+                    if (selected) stateDescription = selectedState
+                }
+                this.onClick { onClick(); true }
+                this.onLongClick(selectLabel) { onLongClick(); true }
+            }
+            .combinedClickable(onLongClickLabel = selectLabel, onLongClick = onLongClick, onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = colors.surfaceContainerHigh),
+        border = if (selected) BorderStroke(2.dp, colors.primary) else null,
+    ) {
+        Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(Modifier.size(56.dp).clip(MaterialTheme.shapes.small).background(colors.surfaceContainerHighest)) {
+                bitmap?.let { Image(it.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
+                if (selecting) SelectionCheck(selected, Modifier.align(Alignment.TopStart).padding(2.dp))
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    media.displayName.orEmpty(),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = colors.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    Formatter.formatShortFileSize(context, media.sizeBytes) + " · " + date,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
     }
 }
 

@@ -6,26 +6,44 @@ enum class FolderSortKey { Name, Items, Size, Date }
 /** Whether folder cards are shown as a grid of covers or as a one-row-per-folder list. */
 enum class FolderViewMode { Grid, List }
 
+/** What the files of a folder are ordered by; the same set the album screen offers. */
+enum class FolderFileSort { NewestFirst, OldestFirst, NameAscending, NameDescending, SizeAscending, SizeDescending }
+
+/** Which kinds of file a folder lists. */
+enum class FolderFileFilter { All, Images, Videos }
+
 /**
  * How one level of the explorer is presented. Pinned folders always come first, then the sort applies.
- * Stored per folder; a folder without its own entry uses the default entry.
+ * [sort], [descending] and [view] shape the folder cards; [fileSort], [fileFilter] and [fileView] shape the
+ * folder's own files. Stored per folder; a folder without its own entry uses the default entry.
  */
 data class FolderViewOptions(
     val sort: FolderSortKey = FolderSortKey.Name,
     val descending: Boolean = false,
     val view: FolderViewMode = FolderViewMode.Grid,
+    val fileSort: FolderFileSort = FolderFileSort.NewestFirst,
+    val fileFilter: FolderFileFilter = FolderFileFilter.All,
+    val fileView: FolderViewMode = FolderViewMode.Grid,
 ) {
     /** Compact text form kept in preferences. */
-    fun encode(): String = "${sort.name}|${if (descending) 1 else 0}|${view.name}"
+    fun encode(): String =
+        "${sort.name}|${if (descending) 1 else 0}|${view.name}|${fileSort.name}|${fileFilter.name}|${fileView.name}"
 
     companion object {
+        /** Reads both the current form and the older three-field one, which had no file options. */
         fun decode(text: String?): FolderViewOptions? {
             val parts = text?.split('|') ?: return null
-            if (parts.size != 3) return null
-            return FolderViewOptions(
+            if (parts.size != 3 && parts.size != 6) return null
+            val base = FolderViewOptions(
                 sort = FolderSortKey.entries.firstOrNull { it.name == parts[0] } ?: return null,
                 descending = parts[1] == "1",
                 view = FolderViewMode.entries.firstOrNull { it.name == parts[2] } ?: return null,
+            )
+            if (parts.size == 3) return base
+            return base.copy(
+                fileSort = FolderFileSort.entries.firstOrNull { it.name == parts[3] } ?: return null,
+                fileFilter = FolderFileFilter.entries.firstOrNull { it.name == parts[4] } ?: return null,
+                fileView = FolderViewMode.entries.firstOrNull { it.name == parts[5] } ?: return null,
             )
         }
 

@@ -174,4 +174,17 @@
     <string name="folders_picker_other_location">Choose another location</string>
     <string name="folders_picker_new_pending">New folder “%1$s” is created here</string>
     <string name="folders_picker_new_pending_clear">Remove the new folder</string>
+    <string name="folders_view_files_sort_header">Sort files by</string>
+    <string name="folders_view_files_filter_header">Show files</string>
+    <string name="folders_view_files_as_list">Show files as list</string>
+    <string name="folders_view_files_as_list_supporting">One file per row with its name, size and date</string>
+    <string name="folders_file_sort_newest">Newest first</string>
+    <string name="folders_file_sort_oldest">Oldest first</string>
+    <string name="folders_file_sort_name_asc">Name, A to Z</string>
+    <string name="folders_file_sort_name_desc">Name, Z to A</string>
+    <string name="folders_file_sort_size_asc">Size, smallest first</string>
+    <string name="folders_file_sort_size_desc">Size, largest first</string>
+    <string name="folders_file_filter_all">Photos and videos</string>
+    <string name="folders_file_filter_images">Photos only</string>
+    <string name="folders_file_filter_videos">Videos only</string>
 </resources>
