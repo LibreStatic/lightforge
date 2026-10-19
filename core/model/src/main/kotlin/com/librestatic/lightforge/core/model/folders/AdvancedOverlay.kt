@@ -15,13 +15,35 @@ data class HiddenFolderGroup(
     val maxSortMillis: Long,
     val coverMediaStoreId: Long?,
     val kind: HiddenMediaKind,
+    /**
+     * The folder itself is hidden (a `.nomedia` in it, or a dot name on it or an ancestor). False when the rows are
+     * only files hidden by their own dot name inside an otherwise visible folder.
+     */
+    val folderHidden: Boolean = true,
 )
 
 /**
  * A directory on disk the library lists no media for. [isEmpty] is true only when the directory holds nothing
  * (or just a lone `.nomedia`); a directory with other files or subfolders is false and is never shown as empty.
  */
-data class EmptyDirectory(val volumeName: String, val relativePath: String, val isEmpty: Boolean = true)
+data class EmptyDirectory(
+    val volumeName: String,
+    val relativePath: String,
+    val isEmpty: Boolean = true,
+    /** The directory itself is hidden: it holds a `.nomedia`, has a dot name, or sits below a directory that does. */
+    val isHidden: Boolean = false,
+)
+
+/**
+ * Android's own bookkeeping entries (the thumbnail cache, MediaStore's pending and trashed temporary names).
+ * They are never user folders or files, so the explorer lists none of them.
+ */
+fun isSystemEntryName(name: String): Boolean =
+    name == ".thumbnails" || name.startsWith(".pending-") || name.startsWith(".trashed-")
+
+/** Whether any segment of [relativePath] is a system entry (see [isSystemEntryName]). */
+fun hasSystemEntrySegment(relativePath: String): Boolean =
+    relativePath.split('/').any { it.isNotEmpty() && isSystemEntryName(it) }
 
 /**
  * Adds hidden folders and empty directories to [tree]. A hidden group lands on the folder it names
@@ -59,7 +81,7 @@ fun mergeAdvancedOverlay(
                         maxSortMillis = group.maxSortMillis,
                         coverMediaStoreId = group.coverMediaStoreId,
                         isAvailable = true,
-                        isHidden = true,
+                        isHidden = group.folderHidden,
                     ),
                 ),
             )
@@ -70,7 +92,7 @@ fun mergeAdvancedOverlay(
                     dir.volumeName,
                     dir.relativePath,
                     dir.relativePath.trim('/').substringAfterLast('/'),
-                    FolderStats(null, 0, 0, 0, 0, 0, 0, null, isAvailable = true, isEmptyDirectory = dir.isEmpty),
+                    FolderStats(null, 0, 0, 0, 0, 0, 0, null, isAvailable = true, isHidden = dir.isHidden, isEmptyDirectory = dir.isEmpty),
                 ),
             )
         }

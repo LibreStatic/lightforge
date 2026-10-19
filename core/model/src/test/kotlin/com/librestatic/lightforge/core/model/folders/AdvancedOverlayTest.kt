@@ -96,4 +96,32 @@ class AdvancedOverlayTest {
         )
         assertEquals(5, forest.single().children.single().direct!!.second)
     }
+
+    @Test fun aGroupOfNameHiddenFilesDoesNotFlagItsFolder() {
+        val group = hidden("DCIM/Camera/", 1, HiddenMediaKind.Image).copy(folderHidden = false)
+        val merged = mergeAdvancedOverlay(baseTree(), listOf(group), emptyList())
+        val camera = merged.find("v", "DCIM/Camera/")!!.direct!!
+        assertFalse(camera.isHidden)
+        assertEquals(4L, camera.directCount)
+    }
+
+    @Test fun aHiddenDirectoryFlagsItsFolderEvenWithoutHiddenMedia() {
+        val merged = mergeAdvancedOverlay(
+            baseTree(),
+            emptyList(),
+            listOf(EmptyDirectory("v", "DCIM/Camera/", isEmpty = false, isHidden = true), EmptyDirectory("v", ".cache/", isHidden = true)),
+        )
+        assertTrue(merged.find("v", "DCIM/Camera/")!!.direct!!.isHidden)
+        assertTrue(merged.find("v", ".cache/")!!.direct!!.isHidden)
+    }
+
+    @Test fun systemEntryNamesAreRecognised() {
+        assertTrue(isSystemEntryName(".thumbnails"))
+        assertTrue(isSystemEntryName(".pending-1700000000-IMG.jpg"))
+        assertTrue(isSystemEntryName(".trashed-1700000000-IMG.jpg"))
+        assertFalse(isSystemEntryName(".hidden"))
+        assertFalse(isSystemEntryName("Thumbnails"))
+        assertTrue(hasSystemEntrySegment("Pictures/.thumbnails/"))
+        assertFalse(hasSystemEntrySegment("Pictures/Travel/"))
+    }
 }

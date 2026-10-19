@@ -18,6 +18,8 @@ import com.librestatic.lightforge.core.mediastore.HiddenMediaRow
 import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.core.model.TimelineMedia
 import com.librestatic.lightforge.core.model.folders.EmptyDirectory
+import com.librestatic.lightforge.core.model.folders.hasSystemEntrySegment
+import com.librestatic.lightforge.core.model.folders.isSystemEntryName
 import com.librestatic.lightforge.core.model.folders.mergeAdvancedOverlay
 import com.librestatic.lightforge.core.preferences.FolderSelectionMode
 import com.librestatic.lightforge.core.preferences.FolderSelectionPolicy
@@ -177,6 +179,16 @@ class FolderExplorerViewModel @Inject constructor(
                         // marked .nomedia before the next sweep); the overlay only adds what the library lacks.
                         val inLibrary = repository.get().libraryKeysAmong(rows.map { MediaKey(it.volumeName, it.mediaStoreId) })
                         rows.filter { MediaKey(it.volumeName, it.mediaStoreId) !in inLibrary }
+                            // Android's own cache and temporary names are never listed.
+                            .filterNot { hasSystemEntrySegment(it.relativePath) || isSystemEntryName(it.displayName) }
+                            // A stale files-table row for a file that is gone would list an item that cannot be opened.
+                            .let { live ->
+                                filterExistingFiles(
+                                    live,
+                                    pathOf = { advanced.absolutePathOf(it.volumeName, it.relativePath, it.displayName) },
+                                    exists = { path -> java.io.File(path).exists() },
+                                )
+                            }
                     }
                     .flowOn(Dispatchers.IO)
             }
@@ -223,7 +235,7 @@ class FolderExplorerViewModel @Inject constructor(
 
     private val overlayDetails: Flow<Pair<List<HiddenItemUi>, Set<String>>> =
         combine(hiddenRows, recordedHides, status) { rows, recorded, st ->
-            (if (st.showHidden) rows.map { it.toUi() } else emptyList()) to (if (st.active) recorded else emptySet())
+            (if (st.showHidden) rows.map { it.toUi(advanced.absolutePathOf(it.volumeName, it.relativePath, it.displayName)) } else emptyList()) to (if (st.active) recorded else emptySet())
         }
 
     private val searchOpen = savedState.getStateFlow(SearchOpenKey, false)
@@ -723,7 +735,7 @@ internal fun decodeFolderCovers(stored: Map<String, String>): Map<String, MediaK
         folder to MediaKey(volume, id)
     }.toMap()
 
-private fun HiddenMediaRow.toUi() = HiddenItemUi(
+private fun HiddenMediaRow.toUi(absolutePath: String?) = HiddenItemUi(
     volumeName = volumeName,
     relativePath = relativePath,
     mediaStoreId = mediaStoreId,
@@ -733,6 +745,7 @@ private fun HiddenMediaRow.toUi() = HiddenItemUi(
     sizeBytes = sizeBytes,
     dateMillis = dateTakenOrModifiedMillis,
     uri = contentUri.toString(),
+    absolutePath = absolutePath,
 )
 
 private fun readSpaces(context: Context, names: List<String>): Map<String, VolumeSpace> {

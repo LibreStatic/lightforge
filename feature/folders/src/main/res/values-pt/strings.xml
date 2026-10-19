@@ -54,7 +54,8 @@
     <string name="folders_error_body">Algo deu errado ao ler suas pastas.</string>
     <string name="folders_retry">Tentar novamente</string>
     <string name="folders_up_one_level">Subir um nível</string>
-    <string name="folders_hidden_items">Itens ocultos</string>
+    <string name="folders_hidden_photo_description">Foto oculta, %1$s</string>
+    <string name="folders_hidden_video_description">Vídeo oculto, %1$s</string>
     <string name="folders_photo">Foto</string>
     <string name="folders_revoked_action">Mostrar pastas</string>
     <plurals name="folders_revoked_notice">

@@ -1,5 +1,10 @@
 package com.librestatic.lightforge.feature.folders
 
+import android.graphics.Bitmap
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.platform.LocalConfiguration
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import android.text.format.DateUtils
 import android.text.format.Formatter
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -500,6 +505,24 @@ private fun FolderLevelGrid(
     }
     val listMode = state.options.view == FolderViewMode.List && picking == null
     val filesAsList = state.options.fileView == FolderViewMode.List
+    // Hidden files join the library files in one grid, in the same order, instead of a block of their own.
+    val pagedMedia = if (state.media != null) media else null
+    val pagedCount = pagedMedia?.itemCount ?: 0
+    val pagedLoaded = pagedMedia == null ||
+        (pagedMedia.loadState.refresh !is LoadState.Loading && pagedMedia.loadState.append.endOfPaginationReached)
+    val placements = if (picking != null || state.hiddenItems.isEmpty()) {
+        emptyList()
+    } else {
+        placeHiddenItems(
+            filterHiddenItems(state.hiddenItems, state.options.fileFilter),
+            state.options.fileSort,
+            pagedCount,
+            pagedLoaded,
+        ) { index ->
+            pagedMedia?.peek(index)?.let { FileOrderKey(it.timelineSortMillis, it.displayName.orEmpty(), it.sizeBytes) }
+        }
+    }
+    val hiddenSlots = remember(placements) { IntArray(placements.size) { placements[it].mergedIndex } }
     LazyVerticalGrid(
         columns = FolderLevelCells,
         state = gridState,
@@ -552,21 +575,30 @@ private fun FolderLevelGrid(
             }
         }
         if (picking != null) return@LazyVerticalGrid
-        if (state.hiddenItems.isNotEmpty()) {
-            sectionHeader("hidden-header", R.string.folders_hidden_items, state.hiddenItems.size.toLong())
-            items(state.hiddenItems, key = { "hidden:${it.volumeName}:${it.mediaStoreId}" }) { item ->
-                HiddenTile(item) { actions?.onOpenHiddenItem?.invoke(item) }
-            }
-        }
         val scope = state.media
-        if (scope != null && media != null) {
+        if (scope != null && media != null || placements.isNotEmpty()) {
             sectionHeader("files-header", R.string.folders_files_in_folder, null)
+            val pagedKey = pagedMedia?.itemKey { "media:${it.key.volumeName}:${it.key.mediaStoreId}" }
             items(
-                count = media.itemCount,
-                key = media.itemKey { "media:${it.key.volumeName}:${it.key.mediaStoreId}" },
+                count = pagedCount + placements.size,
+                key = { index ->
+                    val slot = hiddenSlots.binarySearch(index)
+                    if (slot >= 0) {
+                        placements[slot].item.let { "hidden:${it.volumeName}:${it.mediaStoreId}" }
+                    } else {
+                        pagedKey?.invoke(index - (-slot - 1)) ?: index
+                    }
+                },
                 span = { GridItemSpan(if (filesAsList) maxLineSpan else 1) },
             ) { index ->
-                media[index]?.let { item ->
+                val slot = hiddenSlots.binarySearch(index)
+                if (slot >= 0) {
+                    val item = placements[slot].item
+                    val open = { if (!selection.selecting) actions?.onOpenHiddenItem?.invoke(item) }
+                    if (filesAsList) HiddenRow(item, thumbnails, open) else HiddenTile(item, thumbnails, open)
+                    return@items
+                }
+                pagedMedia?.get(index - (-slot - 1))?.let { item ->
                     val tileSelected = selection.isMediaSelected(item.key)
                     val dnd = if (onDrop != null) {
                         Modifier.explorerDragSource(
@@ -580,7 +612,7 @@ private fun FolderLevelGrid(
                     Box(dnd) {
                         // A ticked tile's long press starts a touch drag, so it must not untick it.
                         val longClick = { if (!tileSelected || onDrop == null) selection.onToggleMedia(item) }
-                        val click = { if (selection.selecting) selection.onToggleMedia(item) else onMediaClick(item, scope) }
+                        val click: () -> Unit = { if (selection.selecting) selection.onToggleMedia(item) else if (scope != null) onMediaClick(item, scope) }
                         if (filesAsList) {
                             MediaRow(item, thumbnails, selection.selecting, tileSelected, longClick, click)
                         } else {
@@ -893,37 +925,31 @@ private fun FolderCard(
 private fun CardSummary(folder: FolderCardUi) {
     val colors = MaterialTheme.colorScheme
     val style = MaterialTheme.typography.bodySmall
-    if (folder.isEmptyDirectory) {
-        Text(stringResource(R.string.folders_empty_directory), style = style, color = colors.onSurfaceVariant, maxLines = 1)
-        return
-    }
-    if (folder.subfolderCount > 0) {
-        Text(
-            stringResource(R.string.folders_here_total, folder.directCount.toIntClamped(), folder.itemCount.toIntClamped()),
-            style = style,
-            color = colors.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            pluralStringResource(R.plurals.folders_subfolder_count, folder.subfolderCount, folder.subfolderCount) +
-                " · " + Formatter.formatShortFileSize(LocalContext.current, folder.sizeBytes),
-            style = style,
-            color = colors.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    } else {
-        Text(
-            summaryText(folder.itemCount, folder.sizeBytes),
-            style = style,
-            color = colors.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-    dateRangeText(folder.minSortMillis, folder.maxSortMillis)?.let {
+    Text(cardCountText(folder), style = style, color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    shortDateRangeText(folder.minSortMillis, folder.maxSortMillis)?.let {
         Text(it, style = style, color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** The first line of a folder card: "15 items · 7.3 MB", "2 folders" for a folder without media, or "Empty folder". */
+@Composable
+internal fun cardCountText(folder: FolderCardUi): String = when (val line = cardCountLine(folder)) {
+    CardCountLine.Empty -> stringResource(R.string.folders_empty_directory)
+    is CardCountLine.Items -> summaryText(line.count, line.bytes)
+    is CardCountLine.Folders -> pluralStringResource(R.plurals.folders_subfolder_count, line.count, line.count)
+}
+
+/** A short, localized date range such as "Jul 3 – 9, 2026", "Jun – Oct 2026" or "2023 – 2026"; null without dates. */
+@Composable
+internal fun shortDateRangeText(min: Long?, max: Long?): String? {
+    if (min == null || max == null) return null
+    val locale = LocalConfiguration.current.locales[0]
+    return remember(min, max, locale) {
+        runCatching {
+            val skeleton = dateRangeSkeleton(min, max, java.time.ZoneId.systemDefault())
+            android.icu.text.DateIntervalFormat.getInstance(skeleton, locale)
+                .format(android.icu.util.DateInterval(minOf(min, max), maxOf(min, max)))
+        }.getOrNull()
     }
 }
 
@@ -1513,39 +1539,134 @@ private fun MediaRow(
     }
 }
 
-/** A hidden item: the system gallery excludes it, so the tile shows its name and opens it elsewhere. */
+/** The thumbnail of a hidden item: the shared loader first, then the file itself. Null while it loads or when neither works. */
 @Composable
-private fun HiddenTile(item: HiddenItemUi, onClick: () -> Unit) {
+private fun hiddenThumbnail(item: HiddenItemUi, loader: ThumbnailLoader?): Bitmap? {
+    val request = remember(item.volumeName, item.mediaStoreId) {
+        ThumbnailRequest(MediaKey(item.volumeName, item.mediaStoreId), 1L, TileThumbnailPx, TileThumbnailPx)
+    }
+    val bitmap by produceState(loader?.cached(request), request, loader, item.absolutePath) {
+        if (value == null && loader != null) value = runCatching { loader.load(request) }.getOrNull()
+        val path = item.absolutePath
+        if (value == null && path != null) {
+            value = withContext(Dispatchers.IO) { decodeFileThumbnail(path, item.isVideo, TileThumbnailPx) }
+        }
+    }
+    return bitmap
+}
+
+@Composable
+private fun hiddenDescription(item: HiddenItemUi): String {
+    val date = DateUtils.formatDateTime(
+        LocalContext.current,
+        item.dateMillis,
+        DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_YEAR or DateUtils.FORMAT_ABBREV_MONTH,
+    )
+    return stringResource(if (item.isVideo) R.string.folders_hidden_video_description else R.string.folders_hidden_photo_description, date)
+}
+
+/** The small "hidden" marker on the corner of a hidden file: a container chip with the crossed-out eye. */
+@Composable
+private fun HiddenFileChip(modifier: Modifier = Modifier) {
+    Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        modifier = modifier.testTag("folder-hidden-file-badge"),
+    ) {
+        Icon(GalleryIcons.VisibilityOff, contentDescription = null, modifier = Modifier.padding(4.dp).size(14.dp))
+    }
+}
+
+/**
+ * A hidden file in the file grid: the same tile as the other files, with its own thumbnail, faded, and a hidden
+ * marker. The system gallery excludes it, so a tap opens it in whichever app handles the file.
+ */
+@Composable
+private fun HiddenTile(item: HiddenItemUi, loader: ThumbnailLoader?, onClick: () -> Unit) {
     val colors = MaterialTheme.colorScheme
-    val description = item.name
-    Column(
+    val bitmap = hiddenThumbnail(item, loader)
+    val description = hiddenDescription(item)
+    Box(
         Modifier
             .fillMaxWidth()
             .aspectRatio(1f)
-            .clip(MaterialTheme.shapes.small)
-            .background(colors.surfaceContainerHigh)
-            .clickable(role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = description }
+            .background(colors.surfaceContainerHighest)
+            .clearAndSetSemantics {
+                contentDescription = description
+                this.onClick { onClick(); true }
+            }
             .testTag("folder-hidden-item-${item.mediaStoreId}")
-            .padding(6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+            .clickable(role = Role.Button, onClick = onClick),
     ) {
-        Icon(
-            if (item.isVideo) GalleryIcons.Video else GalleryIcons.Image,
-            contentDescription = null,
-            tint = colors.onSurfaceVariant,
-            modifier = Modifier.size(28.dp),
+        bitmap?.let { Image(it.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
+        Box(Modifier.fillMaxSize().background(colors.surface.copy(alpha = HiddenFileScrimAlpha)))
+        MediaTileBadges(
+            isFavorite = false,
+            displayName = item.name,
+            isVideo = item.isVideo,
+            modifier = Modifier.align(Alignment.TopStart).padding(4.dp),
         )
-        Text(
-            item.name,
-            style = MaterialTheme.typography.labelSmall,
-            color = colors.onSurface,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
+        HiddenFileChip(Modifier.align(Alignment.BottomStart).padding(6.dp))
+        if (item.isVideo) {
+            Surface(
+                shape = CircleShape,
+                color = colors.secondaryContainer,
+                contentColor = colors.onSecondaryContainer,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
+            ) {
+                Icon(GalleryIcons.Video, contentDescription = null, modifier = Modifier.padding(4.dp).size(14.dp))
+            }
+        }
     }
 }
+
+/** A hidden file as a row of the list view, shaped like the rows of the other files. */
+@Composable
+private fun HiddenRow(item: HiddenItemUi, loader: ThumbnailLoader?, onClick: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    val context = LocalContext.current
+    val bitmap = hiddenThumbnail(item, loader)
+    val description = hiddenDescription(item)
+    val date = DateUtils.formatDateTime(
+        context,
+        item.dateMillis,
+        DateUtils.FORMAT_SHOW_DATE or DateUtils.FORMAT_SHOW_YEAR or DateUtils.FORMAT_ABBREV_MONTH,
+    )
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("folder-hidden-item-${item.mediaStoreId}")
+            .clip(MaterialTheme.shapes.medium)
+            .clearAndSetSemantics {
+                contentDescription = description
+                this.onClick { onClick(); true }
+            }
+            .clickable(role = Role.Button, onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = colors.surfaceContainerHigh),
+    ) {
+        Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(Modifier.size(56.dp).clip(MaterialTheme.shapes.small).background(colors.surfaceContainerHighest)) {
+                bitmap?.let { Image(it.asImageBitmap(), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop) }
+                Box(Modifier.fillMaxSize().background(colors.surface.copy(alpha = HiddenFileScrimAlpha)))
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(item.name, style = MaterialTheme.typography.titleSmall, color = colors.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    Formatter.formatShortFileSize(context, item.sizeBytes) + " · " + date,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            HiddenFileChip()
+        }
+    }
+}
+
+/** How much of the surface colour covers a hidden file's thumbnail. */
+private const val HiddenFileScrimAlpha = 0.6f
 
 @Composable
 private fun FilesCard(files: FolderCardUi, onClick: () -> Unit) {

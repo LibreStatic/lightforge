@@ -146,6 +146,8 @@ data class HiddenItemUi(
     val sizeBytes: Long,
     val dateMillis: Long,
     val uri: String,
+    /** Where the file is on disk, for a thumbnail when the media index cannot make one; null when unknown. */
+    val absolutePath: String? = null,
 )
 
 /** What the inline file grid of a folder shows. */

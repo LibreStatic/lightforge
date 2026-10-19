@@ -92,7 +92,16 @@ internal data class HiddenRowFacts(
     val kind: com.librestatic.lightforge.core.model.folders.HiddenMediaKind,
     val sizeBytes: Long,
     val dateMillis: Long,
+    val displayName: String = "",
 )
+
+/**
+ * Whether this row proves its folder is hidden. A file that only carries a dot name inside a folder whose own path
+ * has no dot segment is hidden by its name alone; every other hidden row sits in a `.nomedia` folder or below a
+ * dot-named one. (A dot-named file in a `.nomedia` folder is told apart by the disk overlay, which reads the marker.)
+ */
+internal fun HiddenRowFacts.hidesFolder(): Boolean =
+    !displayName.startsWith(".") || relativePath.split('/').any { it.startsWith(".") }
 
 internal fun HiddenMediaRow.facts() = HiddenRowFacts(
     volumeName = volumeName,
@@ -106,6 +115,7 @@ internal fun HiddenMediaRow.facts() = HiddenRowFacts(
     },
     sizeBytes = sizeBytes,
     dateMillis = dateTakenOrModifiedMillis,
+    displayName = displayName,
 )
 
 /**
@@ -123,22 +133,43 @@ internal suspend fun diskOverlayDirectories(
 ): List<com.librestatic.lightforge.core.model.folders.EmptyDirectory> {
     val segments = normalizedFolderPath(location.orEmpty()).trim('/').split('/').filter { it.isNotEmpty() }
     val result = LinkedHashSet<com.librestatic.lightforge.core.model.folders.EmptyDirectory>()
+    var underHidden = false
     for (depth in 0..segments.size) {
         val parent = if (depth == 0) null else segments.take(depth).joinToString("/", postfix = "/")
         // A level that is gone ends the walk: nothing below it exists either.
         val children = listChildren(parent) ?: break
         children
+            .filter { !com.librestatic.lightforge.core.model.folders.isSystemEntryName(it.name) }
             .filter { (showHidden || !it.isDotPrefixed) && (it.isEmpty || showHidden || !it.hasNoMedia) }
-            .mapTo(result) { com.librestatic.lightforge.core.model.folders.EmptyDirectory(volumeName, "${parent.orEmpty()}${it.name}/", it.isEmpty) }
+            .mapTo(result) {
+                com.librestatic.lightforge.core.model.folders.EmptyDirectory(
+                    volumeName,
+                    "${parent.orEmpty()}${it.name}/",
+                    it.isEmpty,
+                    isHidden = underHidden || it.hasNoMedia || it.isDotPrefixed,
+                )
+            }
+        // The next level is hidden when the folder walked into is, or when it sits below one that is.
+        val next = segments.getOrNull(depth)
+        val entry = next?.let { name -> children.firstOrNull { it.name == name } }
+        underHidden = underHidden || entry?.let { it.hasNoMedia || it.isDotPrefixed } == true
     }
     return result.toList()
 }
+
+/**
+ * Keeps the [items] whose file is still on disk. MediaStore can keep a row for a file that is gone (a stale entry),
+ * and opening it would fail. [pathOf] gives the absolute path (null when it cannot be known, which drops the item).
+ */
+internal fun <T> filterExistingFiles(items: List<T>, pathOf: (T) -> String?, exists: (String) -> Boolean): List<T> =
+    items.filter { item -> pathOf(item)?.let(exists) == true }
 
 /** Groups hidden rows by folder and kind, the shape the folder tree overlay takes. */
 internal fun groupHiddenRows(rows: List<HiddenMediaRow>): List<HiddenFolderGroup> = groupHiddenFacts(rows.map { it.facts() })
 
 internal fun groupHiddenFacts(rows: List<HiddenRowFacts>): List<HiddenFolderGroup> = rows
     .filter { normalizedFolderPath(it.relativePath).isNotEmpty() }
+    .filterNot { com.librestatic.lightforge.core.model.folders.hasSystemEntrySegment(it.relativePath) }
     .groupBy { Triple(it.volumeName, normalizedFolderPath(it.relativePath), it.kind) }
     .map { (key, group) ->
         HiddenFolderGroup(
@@ -150,6 +181,7 @@ internal fun groupHiddenFacts(rows: List<HiddenRowFacts>): List<HiddenFolderGrou
             maxSortMillis = group.maxOf { it.dateMillis },
             coverMediaStoreId = group.maxByOrNull { it.dateMillis }?.mediaStoreId,
             kind = key.third,
+            folderHidden = group.any { it.hidesFolder() },
         )
     }
 

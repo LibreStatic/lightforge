@@ -532,11 +532,9 @@ internal fun FolderRow(
     val colors = MaterialTheme.colorScheme
     val context = LocalContext.current
     val selectedState = stringResource(R.string.folders_selected_state)
-    val itemCount = folder.itemCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
-    val items = pluralStringResource(R.plurals.folders_item_count, itemCount, itemCount)
-    val emptyText = stringResource(R.string.folders_empty_directory)
+    val counts = cardCountText(folder)
     val supporting = buildString {
-        append(if (folder.isEmptyDirectory) emptyText else items + " · " + Formatter.formatShortFileSize(context, folder.sizeBytes))
+        append(counts)
         folder.pathLabel?.let { append(" · ").append(it) }
     }
     Card(

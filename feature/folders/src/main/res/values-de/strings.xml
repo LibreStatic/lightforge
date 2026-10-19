@@ -52,7 +52,8 @@
     <string name="folders_error_body">Beim Lesen deiner Ordner ist etwas schiefgelaufen.</string>
     <string name="folders_retry">Erneut versuchen</string>
     <string name="folders_up_one_level">Eine Ebene nach oben</string>
-    <string name="folders_hidden_items">Versteckte Elemente</string>
+    <string name="folders_hidden_photo_description">Verstecktes Foto, %1$s</string>
+    <string name="folders_hidden_video_description">Verstecktes Video, %1$s</string>
     <string name="folders_photo">Foto</string>
     <string name="folders_revoked_action">Ordner einblenden</string>
     <plurals name="folders_revoked_notice">

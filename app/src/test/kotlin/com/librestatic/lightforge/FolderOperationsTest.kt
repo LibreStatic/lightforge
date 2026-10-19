@@ -112,6 +112,8 @@ class FolderOperationsTest {
         val dirs = dirs.toMutableSet()
         /** Directories that hold a file the library does not index (a PDF, an APK). */
         val withFiles = mutableSetOf<String>()
+        /** Directories that carry a .nomedia marker. */
+        val noMedia = mutableSetOf<String>()
         fun list(parent: String?): List<com.librestatic.lightforge.core.mediastore.DirectoryEntry>? {
             val base = parent?.trimEnd('/')
             if (base != null && base !in dirs) return null
@@ -120,7 +122,7 @@ class FolderOperationsTest {
                 com.librestatic.lightforge.core.mediastore.DirectoryEntry(
                     name, "/disk/$path",
                     isEmpty = path !in withFiles && dirs.none { it.startsWith("$path/") },
-                    hasNoMedia = false,
+                    hasNoMedia = path in noMedia,
                     isDotPrefixed = name.startsWith("."),
                 )
             }
@@ -181,5 +183,74 @@ class FolderOperationsTest {
     fun aDirectoryThatIsGoneEndsTheWalk() {
         val disk = FakeDisk("A")
         assertEquals(listOf("A/"), runBlocking { diskOverlayDirectories("v", "Gone/Deeper/", false, disk::list) }.map { it.relativePath })
+    }
+
+    private fun fileRow(id: Long, path: String, name: String) =
+        HiddenRowFacts("v", id, path, HiddenMediaKind.Image, 10, id, name)
+
+    @Test
+    fun aFolderIsHiddenByItsRowsOnlyWhenNotJustAFileWithADotName() {
+        // A dot-named file in a plain folder: the file is hidden, the folder is not.
+        val nameOnly = groupHiddenFacts(listOf(fileRow(1, "Pictures/Travel/", ".IMG_1.jpg"))).single()
+        assertFalse(nameOnly.folderHidden)
+        // A regular file the index keeps out sits in a .nomedia folder.
+        val nomedia = groupHiddenFacts(listOf(fileRow(2, "Pictures/Secret/", "IMG_2.jpg"))).single()
+        assertTrue(nomedia.folderHidden)
+        // A dot segment in the path hides the folder whatever the file is called.
+        val dotFolder = groupHiddenFacts(listOf(fileRow(3, "Pictures/.private/", ".IMG_3.jpg"))).single()
+        assertTrue(dotFolder.folderHidden)
+        // One proof is enough when both kinds of row share the folder.
+        val mixed = groupHiddenFacts(listOf(fileRow(4, "A/", ".x.jpg"), fileRow(5, "A/", "y.jpg"))).single()
+        assertTrue(mixed.folderHidden)
+    }
+
+    @Test
+    fun systemFoldersNeverReachTheOverlay() {
+        val groups = groupHiddenFacts(
+            listOf(
+                fileRow(1, ".thumbnails/", "a.jpg"),
+                fileRow(2, "Pictures/.pending-1700000000-x/", "b.jpg"),
+                fileRow(3, "Pictures/.trashed-1700000000-y/", "c.jpg"),
+                fileRow(4, "Pictures/.hidden/", "d.jpg"),
+            ),
+        )
+        assertEquals(listOf("Pictures/.hidden/"), groups.map { it.relativePath })
+    }
+
+    @Test
+    fun theDiskOverlayOmitsSystemEntriesAndBadgesEveryHiddenFolder() {
+        val disk = FakeDisk(
+            "Pictures", "Pictures/Travel", "Pictures/Secret", "Pictures/.dots", "Pictures/.thumbnails",
+            "Pictures/.pending-1-a", "Pictures/.trashed-2-b",
+        )
+        disk.noMedia += "Pictures/Secret"
+        val dirs = runBlocking { diskOverlayDirectories("v", "Pictures/", showHidden = true, listChildren = disk::list) }
+            .associateBy { it.relativePath }
+        assertEquals(setOf("Pictures/", "Pictures/Travel/", "Pictures/Secret/", "Pictures/.dots/"), dirs.keys)
+        assertFalse(dirs.getValue("Pictures/Travel/").isHidden)
+        assertTrue(dirs.getValue("Pictures/Secret/").isHidden)
+        assertTrue(dirs.getValue("Pictures/.dots/").isHidden)
+    }
+
+    @Test
+    fun aFolderBelowAHiddenOneIsHiddenToo() {
+        val disk = FakeDisk("Pictures", "Pictures/.dots", "Pictures/.dots/Inner", "Pictures/Plain", "Pictures/Plain/Inner")
+        val inDots = runBlocking { diskOverlayDirectories("v", "Pictures/.dots/", showHidden = true, listChildren = disk::list) }
+            .associateBy { it.relativePath }
+        assertTrue(inDots.getValue("Pictures/.dots/Inner/").isHidden)
+        val inPlain = runBlocking { diskOverlayDirectories("v", "Pictures/Plain/", showHidden = true, listChildren = disk::list) }
+            .associateBy { it.relativePath }
+        assertFalse(inPlain.getValue("Pictures/Plain/Inner/").isHidden)
+    }
+
+    @Test
+    fun staleEntriesWhoseFileIsGoneAreDropped() {
+        val onDisk = setOf("/s/A/one.jpg", "/s/A/two.jpg")
+        val kept = filterExistingFiles(
+            listOf("one.jpg", "gone.jpg", "two.jpg", "unmapped.jpg"),
+            pathOf = { if (it == "unmapped.jpg") null else "/s/A/$it" },
+            exists = { it in onDisk },
+        )
+        assertEquals(listOf("one.jpg", "two.jpg"), kept)
     }
 }

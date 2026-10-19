@@ -53,7 +53,8 @@
     <string name="folders_error_body">Something went wrong while reading your folders.</string>
     <string name="folders_retry">Retry</string>
     <string name="folders_up_one_level">Up one level</string>
-    <string name="folders_hidden_items">Hidden items</string>
+    <string name="folders_hidden_photo_description">Hidden photo, %1$s</string>
+    <string name="folders_hidden_video_description">Hidden video, %1$s</string>
     <string name="folders_photo">Photo</string>
     <string name="folders_revoked_action">Unhide folders</string>
     <plurals name="folders_revoked_notice">

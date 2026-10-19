@@ -54,7 +54,8 @@
     <string name="folders_error_body">Si è verificato un errore durante la lettura delle cartelle.</string>
     <string name="folders_retry">Riprova</string>
     <string name="folders_up_one_level">Livello superiore</string>
-    <string name="folders_hidden_items">Elementi nascosti</string>
+    <string name="folders_hidden_photo_description">Foto nascosta, %1$s</string>
+    <string name="folders_hidden_video_description">Video nascosto, %1$s</string>
     <string name="folders_photo">Foto</string>
     <string name="folders_revoked_action">Mostra cartelle</string>
     <plurals name="folders_revoked_notice">

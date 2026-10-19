@@ -73,6 +73,33 @@ fun FolderExplorerAdvancedHiddenFolderPreview() = Frame(
     hiddenItems = previewHiddenItems,
 )
 
+/**
+ * Advanced mode with hidden items shown, parent level: Travel (visible, it only holds a file hidden by its name),
+ * Private (hidden by a .nomedia), .cache (a dot folder, badged the same), an empty folder and a plain one.
+ */
+@Composable
+fun FolderExplorerHiddenParentPreview() = Frame(
+    hiddenMixTree, FolderLocation("external_primary", "Pictures/"), actions = previewActions,
+    hiddenItems = travelHiddenItems, recordedHides = setOf("Pictures/Private/"),
+)
+
+/**
+ * Advanced mode with hidden items shown, inside Travel: one grid; the two hidden files sit among the others in
+ * date order, with their thumbnail faded and a hidden marker.
+ */
+@Composable
+fun FolderExplorerHiddenMixedFilesPreview() = Frame(
+    hiddenMixTree, FolderLocation("external_primary", "Pictures/Travel/"), actions = previewActions,
+    hiddenItems = travelHiddenItems, withMedia = true,
+)
+
+/** The same folder with the file list layout. */
+@Composable
+fun FolderExplorerHiddenMixedFilesListPreview() = Frame(
+    hiddenMixTree, FolderLocation("external_primary", "Pictures/Travel/"), actions = previewActions,
+    hiddenItems = travelHiddenItems, withMedia = true, fileView = FolderViewMode.List,
+)
+
 /** Advanced mode was revoked while this app still hides folders: the notice offers to unhide them. */
 @Composable
 fun FolderExplorerRevokedPreview() = Frame(singleVolume, FolderLocation.Start, revoked = 2)
@@ -283,15 +310,21 @@ private fun Frame(
     excludedPaths: Set<String> = emptySet(),
     withTree: Boolean = false,
     advanced: Boolean = false,
+    withMedia: Boolean = false,
+    fileView: FolderViewMode = FolderViewMode.Grid,
+    recordedHides: Set<String> = setOf("Pictures/Private/"),
 ) {
     LightforgeTheme {
         Surface(Modifier.fillMaxSize()) {
+            val pagedFlow = remember { flowOf(PagingData.from((0..9).map(::previewMedia), sourceLoadStates = doneLoadStates)) }
+            val paged = pagedFlow.collectAsLazyPagingItems()
             var location by remember { mutableStateOf(start) }
             var expanded by remember { mutableStateOf(treeAncestorKeys(start)) }
             val loader = remember { ThumbnailLoader(FakeThumbnails, maxCacheBytes = 16L * 1024 * 1024, threadCount = 1) }
             FolderExplorerContent(
                 state = state ?: buildFolderExplorerUiState(
-                    tree, location, spaces, hiddenItems = hiddenItems, isRecordedHide = { it.relativePath == "Pictures/Private/" },
+                    tree, location, spaces, hiddenItems = hiddenItems, isRecordedHide = { it.relativePath in recordedHides },
+                    options = FolderViewOptions(fileView = fileView),
                     isExcluded = { _, _, path -> path in excludedPaths },
                 ),
                 thumbnails = loader,
@@ -301,6 +334,7 @@ private fun Frame(
                 },
                 onOpenFiles = {},
                 actions = actions,
+                media = if (withMedia) paged else null,
                 revokedWithHidden = revoked,
                 browse = browse,
                 selection = ExplorerSelection(advanced = advanced),
@@ -336,6 +370,24 @@ private val previewActions = FolderExplorerActions(
 private val previewHiddenItems = (1L..6L).map {
     HiddenItemUi("external_primary", "Pictures/Private/", it, "IMG_000$it.jpg", "image/jpeg", it % 3 == 0L, 3_200_000L, 1_700_000_000_000L + it, "content://media/$it")
 }
+
+private val doneLoadStates = androidx.paging.LoadStates(
+    androidx.paging.LoadState.NotLoading(true),
+    androidx.paging.LoadState.NotLoading(true),
+    androidx.paging.LoadState.NotLoading(true),
+)
+
+/** Two files hidden by their dot names, one between the library files and one older than all of them. */
+private val travelHiddenItems = listOf(
+    HiddenItemUi(
+        "external_primary", "Pictures/Travel/", 900L, ".IMG_20260710_173000.jpg", "image/jpeg", false, 2_900_000L,
+        1_780_000_000_000L - 2 * 3_600_000L - 1_800_000L, "content://media/900",
+    ),
+    HiddenItemUi(
+        "external_primary", "Pictures/Travel/", 901L, ".VID_20260601_090000.mp4", "video/mp4", true, 18_000_000L,
+        1_780_000_000_000L - 40 * 3_600_000L, "content://media/901",
+    ),
+)
 
 private val spaces = mapOf(
     "external_primary" to VolumeSpace(null, 41_000_000_000L, 128_000_000_000L),
@@ -378,6 +430,23 @@ private val advancedTree = mergeAdvancedOverlay(
         HiddenFolderGroup("external_primary", "Pictures/Private/", 6, 19_200_000L, 1_700_000_000_000L, 1_700_000_000_006L, 1L, HiddenMediaKind.Image),
     ),
     emptyDirs = listOf(EmptyDirectory("external_primary", "Empty/"), EmptyDirectory("external_primary", "Pictures/New/")),
+)
+private val hiddenMixTree = mergeAdvancedOverlay(
+    tree(
+        Row("external_primary", "Pictures/Travel/", 20, 8, 1000),
+        Row("external_primary", "Pictures/Instagram/", 21, 54, 600),
+    ),
+    hiddenGroups = listOf(
+        HiddenFolderGroup("external_primary", "Pictures/Private/", 6, 19_200_000L, 1_700_000_000_000L, 1_700_000_000_006L, 1L, HiddenMediaKind.Image),
+        HiddenFolderGroup(
+            "external_primary", "Pictures/Travel/", 2, 20_900_000L, 1_770_000_000_000L, 1_779_000_000_000L, 900L,
+            HiddenMediaKind.Image, folderHidden = false,
+        ),
+    ),
+    emptyDirs = listOf(
+        EmptyDirectory("external_primary", "Pictures/Empty/"),
+        EmptyDirectory("external_primary", "Pictures/.cache/", isEmpty = false, isHidden = true),
+    ),
 )
 private val twoVolumes = tree(*primaryRows, Row("1234-ABCD", "DCIM/Camera/", 7, 310, 400))
 

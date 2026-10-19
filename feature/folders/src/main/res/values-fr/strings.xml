@@ -54,7 +54,8 @@
     <string name="folders_error_body">Une erreur est survenue lors de la lecture de vos dossiers.</string>
     <string name="folders_retry">Réessayer</string>
     <string name="folders_up_one_level">Remonter d\'un niveau</string>
-    <string name="folders_hidden_items">Éléments masqués</string>
+    <string name="folders_hidden_photo_description">Photo masquée, %1$s</string>
+    <string name="folders_hidden_video_description">Vidéo masquée, %1$s</string>
     <string name="folders_photo">Photo</string>
     <string name="folders_revoked_action">Afficher les dossiers</string>
     <plurals name="folders_revoked_notice">
