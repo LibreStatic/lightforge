@@ -34,6 +34,7 @@ import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material.icons.rounded.BrokenImage
 import androidx.compose.material.icons.automirrored.rounded.ViewList
 import androidx.compose.material.icons.rounded.Collections
 import androidx.compose.material.icons.rounded.Crop
@@ -175,6 +176,7 @@ val GalleryIconCleanup: ImageVector get() = Icons.Rounded.CleaningServices
 val GalleryIconPet: ImageVector get() = Icons.Rounded.Pets
 val GalleryIconWarning: ImageVector get() = Icons.Rounded.Warning
 val GalleryIconImage: ImageVector get() = Icons.Rounded.Image
+val GalleryIconBrokenImage: ImageVector get() = Icons.Rounded.BrokenImage
 val GalleryIconPlay: ImageVector get() = Icons.Rounded.PlayArrow
 val GalleryIconPause: ImageVector get() = Icons.Rounded.Pause
 val GalleryIconRepeat: ImageVector get() = Icons.Rounded.Repeat
@@ -404,6 +406,7 @@ object GalleryIcons {
     val Pet get() = GalleryIconPet
     val Warning get() = GalleryIconWarning
     val Image get() = GalleryIconImage
+    val BrokenImage get() = GalleryIconBrokenImage
     val Play get() = GalleryIconPlay
     val Pause get() = GalleryIconPause
     val Repeat get() = GalleryIconRepeat

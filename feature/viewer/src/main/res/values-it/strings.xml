@@ -27,4 +27,6 @@
     <string name="viewer_delete_confirm_title">Eliminare definitivamente questo elemento?</string>
     <string name="viewer_cancel">Annulla</string>
     <string name="viewer_text_read_failed">Impossibile leggere il testo di questa foto</string>
+    <string name="viewer_unavailable_title">Impossibile aprire questo elemento</string>
+    <string name="viewer_unavailable_body">Potrebbe essere stato spostato o eliminato, oppure l\'app che lo ha condiviso non consente più l\'accesso.</string>
 </resources>

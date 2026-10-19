@@ -4366,10 +4366,7 @@ private fun ExternalViewer(
     val gallerySettings by viewModel.gallerySettings.collectAsState()
     val quickSlowMotionSave by viewModel.quickSlowMotionSave.collectAsState()
     if (!media.available) {
-        Column(Modifier.fillMaxSize().padding(24.dp)) {
-            Text(stringResource(R.string.external_grant_expired), color = MaterialTheme.colorScheme.error)
-            GalleryExpressiveButton(onClick = onClose) { Text(stringResource(R.string.details_close)) }
-        }
+        com.librestatic.lightforge.feature.viewer.ViewerMediaUnavailable(onClose = onClose)
         return
     }
     val video = if (media.kind == MediaKind.Video) remember(media.uri) {

@@ -27,4 +27,6 @@
     <string name="viewer_delete_confirm_title">Excluir este item permanentemente?</string>
     <string name="viewer_cancel">Cancelar</string>
     <string name="viewer_text_read_failed">Não foi possível ler o texto desta foto</string>
+    <string name="viewer_unavailable_title">Não foi possível abrir este item</string>
+    <string name="viewer_unavailable_body">Ele pode ter sido movido ou excluído, ou o app que o compartilhou não permite mais o acesso.</string>
 </resources>

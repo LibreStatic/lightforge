@@ -57,6 +57,11 @@ fun ViewerVideoPreview() = ViewerPreviewFrame(selected = 12, detailsOpen = false
 @Composable
 fun ViewerMotionPhotoPreview() = ViewerPreviewFrame(selected = 13, detailsOpen = false, motion = true)
 
+/** An item that cannot be opened (expired grant, moved or deleted file). */
+@Preview
+@Composable
+fun ViewerMediaUnavailablePreview() = LightforgeTheme { ViewerMediaUnavailable(onClose = {}) }
+
 /** A photo opened from the trash: the pill offers Restore and Delete permanently only. */
 @Preview
 @Composable

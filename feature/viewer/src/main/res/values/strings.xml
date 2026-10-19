@@ -27,4 +27,6 @@
     <string name="viewer_delete_confirm_title">Delete this item permanently?</string>
     <string name="viewer_cancel">Cancel</string>
     <string name="viewer_text_read_failed">Couldn’t read the text in this photo</string>
+    <string name="viewer_unavailable_title">Can\'t open this item</string>
+    <string name="viewer_unavailable_body">It may have been moved or deleted, or the app that shared it no longer allows access.</string>
 </resources>
