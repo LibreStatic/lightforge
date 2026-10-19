@@ -1,6 +1,5 @@
 package com.librestatic.lightforge
 
-import android.content.Intent
 import android.net.Uri
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -66,6 +65,8 @@ internal fun FolderExplorerHost(
     onOpenFiles: (AlbumSummary) -> Unit,
     onOpenMedia: (TimelineMedia, FolderMediaScope) -> Unit,
     onOpenStorageAccess: () -> Unit,
+    /** Opens a hidden file (not in the library) in this app's single-file viewer. */
+    onOpenHiddenItem: (Uri, String) -> Unit,
     onMoveFolder: (FolderCardUi) -> Unit,
     onCopyFolder: (FolderCardUi) -> Unit,
     /** Opens the destination picker for the ticked folders together with the ticked files. */
@@ -102,6 +103,7 @@ internal fun FolderExplorerHost(
         viewModel.messages.collect { message -> showFolderMessage(context, snackbarHostState, message, onOpenStorageAccess) }
     }
     val currentRunDestructive by rememberUpdatedState(runDestructive)
+    val currentOnOpenHidden by rememberUpdatedState(onOpenHiddenItem)
     val currentMediaSelection by rememberUpdatedState(mediaSelection)
     val canPinShortcut = remember(context) { canPinFolderShortcut(context) }
     val actions = remember(viewModel, active) {
@@ -122,12 +124,7 @@ internal fun FolderExplorerHost(
                 onMove = onMoveFolder,
                 onCopy = onCopyFolder,
                 onToggleShowEvenIfHidden = viewModel::toggleShowEvenIfHidden,
-                onOpenHiddenItem = { item ->
-                    val view = Intent(Intent.ACTION_VIEW)
-                        .setDataAndType(Uri.parse(item.uri), item.mimeType)
-                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    startExternalViewer(context, view)
-                },
+                onOpenHiddenItem = { item -> currentOnOpenHidden(Uri.parse(item.uri), item.mimeType) },
             )
         }
     }

@@ -805,7 +805,10 @@ internal fun ProductionGalleryApp(
             surfaceStateHolder.removeState(SettingsSurfaceStateKey)
         }
     }
-    var viewerReturnDestination by rememberSaveable(stateSaver = ViewerReturnDestinationSaver) {
+    /** The single-file viewer shows a hidden item opened from inside the app, not a file another app sent. */
+    var externalInApp by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(external == null) { if (external == null) externalInApp = false }
+        var viewerReturnDestination by rememberSaveable(stateSaver = ViewerReturnDestinationSaver) {
         mutableStateOf<ViewerReturnDestination?>(null)
     }
     var filter by rememberSaveable { mutableStateOf(AlbumMediaFilter.All) }
@@ -1164,6 +1167,15 @@ internal fun ProductionGalleryApp(
         route = SurfaceRoute.Viewer
     }
 
+    // Hidden items are not in the library, so they open in the single-file viewer used for other apps'
+    // files, without a second activity; Back returns to where they were opened instead of leaving the app.
+    fun openHiddenItem(uri: android.net.Uri, mimeType: String, destination: ViewerReturnDestination) {
+        openViewer(destination) {
+            externalInApp = true
+            viewModel.openExternal(Intent(Intent.ACTION_VIEW).setDataAndType(uri, mimeType))
+        }
+    }
+
     fun backKeepingMotionPhoto() {
         route = SurfaceRoute.Viewer
     }
@@ -1259,6 +1271,11 @@ internal fun ProductionGalleryApp(
                 route = SurfaceRoute.PrivateAlbum
             }
             route == SurfaceRoute.PrivateAlbum -> leavePrivateAlbum()
+            route == SurfaceRoute.Viewer && external != null && externalInApp -> {
+                viewModel.clearExternal()
+                externalInApp = false
+                restoreViewerReturnDestination()
+            }
             route == SurfaceRoute.Viewer && external != null -> {
                 viewModel.clearExternal()
                 activity?.finish()
@@ -1615,10 +1632,7 @@ internal fun ProductionGalleryApp(
                             if (media.isHiddenOverlay) {
                                 // Not in the library: open it in whatever app handles the file, as the folder explorer does.
                                 viewModel.hiddenOverlayRow(media.key)?.let { row ->
-                                    val view = Intent(Intent.ACTION_VIEW)
-                                        .setDataAndType(row.contentUri, row.mimeType)
-                                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                    startExternalViewer(context, view)
+                                    openHiddenItem(row.contentUri, row.mimeType, ViewerReturnDestination.Root(RootTab.Photos))
                                 }
                             } else if (selectionCount > 0) viewModel.toggleSelection(media)
                             else if (media.stack != null) {
@@ -1791,6 +1805,7 @@ internal fun ProductionGalleryApp(
                         openStorageAccessPage = true
                         route = SurfaceRoute.Settings
                     },
+                    onOpenHiddenItem = { uri, mime -> openHiddenItem(uri, mime, ViewerReturnDestination.Folders) },
                     onOpenMedia = { media, scope ->
                         openViewer(ViewerReturnDestination.Folders) {
                             viewModel.openFolderMedia(media, scope.volumeName, scope.relativePath, scope.includeSubfolders, scope.filter.toAlbumFilter(), scope.sort.toAlbumSort())
