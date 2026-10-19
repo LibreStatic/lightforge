@@ -152,6 +152,7 @@
 <string name="video_music_untitled">Audio track</string>
     <string name="share_cropped_failed">Could not prepare the cropped JPEG</string>
     <string name="share_cropped_too_large">Not enough memory to develop this RAW as a JPEG. Share the original or export it as TIFF from the editor.</string>
+    <string name="folder_shortcut_failed">Could not add the shortcut to the home screen</string>
     <string name="folder_op_hidden">Folder hidden</string>
     <string name="folder_op_unhidden">Folder unhidden</string>
     <string name="folder_op_renamed">Folder renamed</string>

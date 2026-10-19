@@ -30,34 +30,55 @@ sealed interface ExplorerMode {
 
     /**
      * Choose a folder: cards only navigate, files, menus and hidden badges are not shown.
-     * [sourceFolder] is the folder being moved for [PickPurpose.MoveFolder].
+     * [sourceFolders] are the folders being moved or copied (none when only files move): they are never
+     * offered as a destination, nor are their descendants. [withFiles] tells that files travel with them.
      */
-    data class PickDestination(val purpose: PickPurpose, val sourceFolder: FolderLocation? = null) : ExplorerMode
+    data class PickDestination(
+        val purpose: PickPurpose,
+        val sourceFolders: List<FolderLocation> = emptyList(),
+        val withFiles: Boolean = false,
+    ) : ExplorerMode {
+        constructor(purpose: PickPurpose, sourceFolder: FolderLocation?) : this(purpose, listOfNotNull(sourceFolder))
+
+        /** The single folder being moved, or null when there are none or several. */
+        val sourceFolder: FolderLocation? get() = sourceFolders.singleOrNull()
+    }
 }
 
 enum class PickPurpose { Move, Copy, MoveFolder, CopyFolder }
 
+/** Whether the purpose copies (as opposed to moves). */
+val PickPurpose.isCopy: Boolean get() = this == PickPurpose.Copy || this == PickPurpose.CopyFolder
+
 /**
  * Whether [here] is a valid destination. Nothing is valid at the volume list, and a folder cannot be
  * moved into itself, into one of its descendants, into the parent it already has, or to another volume.
+ * With several folders, one that does not fit refuses the destination, except that a move to the parent
+ * every folder already has (and no files travelling along) would change nothing.
  */
 fun ExplorerMode.PickDestination.canChoose(here: FolderLocation?): Boolean {
     val volume = here?.volumeName ?: return false
     // Android/media/<package> is wiped with its app, so nothing is ever moved or copied into the Android tree.
     if (here.relativePath?.let(::isAndroidAppTree) == true) return false
-    if (purpose != PickPurpose.MoveFolder && purpose != PickPurpose.CopyFolder) return true
-    val source = sourceFolder ?: return false
-    // A folder is only moved within its volume; a copy may go to another one.
-    if (purpose == PickPurpose.MoveFolder && source.volumeName != volume) return false
-    val sourcePath = normalizedFolderPath(source.relativePath.orEmpty())
-    if (sourcePath.isEmpty()) return false
+    val folderPurpose = purpose == PickPurpose.MoveFolder || purpose == PickPurpose.CopyFolder
+    if (sourceFolders.isEmpty()) return !folderPurpose
     val herePath = normalizedFolderPath(here.relativePath.orEmpty())
-    // Neither into itself nor into one of its own descendants (on the same volume).
-    if (source.volumeName == volume && herePath.startsWith(sourcePath)) return false
+    val moving = purpose == PickPurpose.Move || purpose == PickPurpose.MoveFolder
+    var allInPlace = true
+    for (source in sourceFolders) {
+        // A folder is only moved within its volume; a copy may go to another one.
+        if (moving && source.volumeName != volume) return false
+        val sourcePath = normalizedFolderPath(source.relativePath.orEmpty())
+        if (sourcePath.isEmpty()) return false
+        // Neither into itself nor into one of its own descendants (on the same volume).
+        if (source.volumeName == volume && herePath.startsWith(sourcePath)) return false
+        if (moving) {
+            val parent = sourcePath.trimEnd('/').substringBeforeLast('/', "").let { if (it.isEmpty()) "" else "$it/" }
+            if (herePath != parent) allInPlace = false
+        }
+    }
     // A copy into the parent is allowed: it makes "Name (1)".
-    if (purpose == PickPurpose.CopyFolder) return true
-    val parent = sourcePath.trimEnd('/').substringBeforeLast('/', "").let { if (it.isEmpty()) "" else "$it/" }
-    return herePath != parent
+    return !(moving && allInPlace && !withFiles)
 }
 
 sealed interface FolderAction {
@@ -92,6 +113,8 @@ data class FolderCardUi(
     /** The folder rules leave this folder out of the library; it is shown dimmed so it can be included again. */
     val isExcluded: Boolean = false,
     val isPinned: Boolean = false,
+    /** The user chose this folder's cover; it replaces the newest item. */
+    val hasCustomCover: Boolean = false,
     /** Advanced mode only: Photos lists this hidden folder's items even while hidden items are not shown. */
     val showEvenIfHidden: Boolean = false,
     /** Search results only: the folder's parent path, so equally named folders can be told apart. */
@@ -229,6 +252,8 @@ fun buildFolderExplorerUiState(
     pinned: Set<String> = emptySet(),
     /** Pin-style keys (see [pinKeyOf]) of the folders Photos shows even if hidden. */
     showEvenIfHidden: Set<String> = emptySet(),
+    /** Covers the user chose, by pin key. */
+    covers: Map<String, MediaKey> = emptyMap(),
 ): FolderExplorerUiState {
     if (tree.volumes.isEmpty()) return FolderExplorerUiState.Empty
     val resolved = resolveLocation(tree, location)
@@ -266,9 +291,9 @@ fun buildFolderExplorerUiState(
         folders = sortFolderCards(
             if (query.isBlank()) {
                 node.children.map { if (compactChains) it.compactSingleChildChains() else it }
-                    .map { card(tree, it, isRecordedHide, isExcluded, pinned, showEvenIfHidden) }
+                    .map { card(tree, it, isRecordedHide, isExcluded, pinned, showEvenIfHidden, covers) }
             } else {
-                searchCards(tree, node, query.trim(), isRecordedHide, isExcluded, pinned, showEvenIfHidden)
+                searchCards(tree, node, query.trim(), isRecordedHide, isExcluded, pinned, showEvenIfHidden, covers)
             },
             options,
         ),
@@ -291,13 +316,14 @@ private fun searchCards(
     isExcluded: (String, Long?, String) -> Boolean,
     pinned: Set<String>,
     showEvenIfHidden: Set<String>,
+    covers: Map<String, MediaKey>,
 ): List<FolderCardUi> {
     val found = ArrayList<FolderCardUi>()
     fun walk(node: FolderNode<FolderStats>) {
         for (child in node.children) {
             if (child.name.contains(query, ignoreCase = true)) {
                 val parent = child.relativePath.orEmpty().trim('/').substringBeforeLast('/', "")
-                found += card(tree, child, isRecordedHide, isExcluded, pinned, showEvenIfHidden).copy(pathLabel = parent.takeIf { it.isNotEmpty() })
+                found += card(tree, child, isRecordedHide, isExcluded, pinned, showEvenIfHidden, covers).copy(pathLabel = parent.takeIf { it.isNotEmpty() })
             }
             walk(child)
         }
@@ -362,6 +388,7 @@ private fun card(
     isExcluded: (String, Long?, String) -> Boolean = { _, _, _ -> false },
     pinned: Set<String> = emptySet(),
     showEvenIfHidden: Set<String> = emptySet(),
+    covers: Map<String, MediaKey> = emptyMap(),
 ): FolderCardUi {
     val totals = tree.totals(node)
     val stats = node.direct
@@ -374,6 +401,7 @@ private fun card(
     }
     // A folder this app hid is hidden even when its media sits only in sub-folders or it holds none.
     val recordedHide = isRecordedHide(location)
+    val customCover = pinKeyOf(location)?.let(covers::get)
     val isHidden = stats?.isHidden == true || recordedHide
     return FolderCardUi(
         key = FolderTree.keyOf(node),
@@ -381,9 +409,10 @@ private fun card(
         itemCount = totals.totalCount,
         sizeBytes = totals.totalBytes,
         subfolderCount = node.children.size,
-        cover = totals.cover(node.volumeName),
+        cover = customCover ?: totals.cover(node.volumeName),
         action = action,
         location = location,
+        hasCustomCover = customCover != null,
         isHidden = isHidden,
         isHiddenByApp = recordedHide,
         isEmptyDirectory = stats?.isEmptyDirectory == true && totals.totalCount == 0L,

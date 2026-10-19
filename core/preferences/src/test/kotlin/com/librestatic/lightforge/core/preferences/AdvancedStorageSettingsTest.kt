@@ -119,4 +119,19 @@ class AdvancedStorageSettingsTest {
         repo.importJson(JSONObject("""{"operations":{}}"""))
         assertTrue(repo.settings.first().operations.compactFolderChains)
     }
+
+    @Test
+    fun `folder covers survive export and import and an older export has none`() = test { repo ->
+        assertTrue(repo.settings.first().operations.folderCovers.isEmpty())
+        val covers = mapOf("external_primary|DCIM/Trips/" to "external_primary:42")
+        repo.update { it.copy(operations = it.operations.copy(folderCovers = covers)) }
+        assertEquals(covers, repo.settings.first().operations.folderCovers)
+        val exported = repo.exportJson()
+        repo.reset()
+        assertTrue(repo.settings.first().operations.folderCovers.isEmpty())
+        repo.importJson(exported)
+        assertEquals(covers, repo.settings.first().operations.folderCovers)
+        repo.importJson(JSONObject("""{"operations":{}}"""))
+        assertTrue(repo.settings.first().operations.folderCovers.isEmpty())
+    }
 }

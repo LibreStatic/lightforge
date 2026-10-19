@@ -139,6 +139,7 @@
 <string name="video_music_untitled">Piste audio</string>
     <string name="share_cropped_failed">Impossible de préparer le JPEG recadré</string>
     <string name="share_cropped_too_large">Mémoire insuffisante pour développer ce RAW en JPEG. Partagez l’original ou exportez-le en TIFF depuis l’éditeur.</string>
+    <string name="folder_shortcut_failed">Impossible d\'ajouter le raccourci à l\'écran d\'accueil</string>
     <string name="folder_op_hidden">Dossier masqué</string>
     <string name="folder_op_unhidden">Dossier de nouveau visible</string>
     <string name="folder_op_renamed">Dossier renommé</string>

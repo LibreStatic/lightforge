@@ -146,4 +146,23 @@
         <item quantity="one">Hier liegt %1$d Element aus dem Papierkorb. Stelle es wieder her oder lösche es zuerst aus dem Papierkorb, dann den Ordner.</item>
         <item quantity="other">Hier liegen %1$d Elemente aus dem Papierkorb. Stelle sie wieder her oder lösche sie zuerst aus dem Papierkorb, dann den Ordner.</item>
     </plurals>
+    <string name="folders_menu_add_to_album">Zu Album hinzufügen…</string>
+    <string name="folders_menu_cover">Titelbild wählen…</string>
+    <string name="folders_menu_cover_reset">Automatisches Titelbild verwenden</string>
+    <string name="folders_menu_shortcut">Zum Startbildschirm hinzufügen</string>
+    <string name="folders_excluded_badge_include">Wieder einbeziehen</string>
+    <string name="folders_cover_title">Titelbild für %1$s</string>
+    <string name="folders_cover_use">%1$s als Titelbild verwenden</string>
+    <string name="folders_cover_empty_title">Hier gibt es keine Fotos oder Videos</string>
+    <string name="folders_cover_empty_body">In diesem Ordner gibt es noch nichts, was als Titelbild dienen kann.</string>
+    <string name="folders_prop_selected_files">Zusätzlich ausgewählte Dateien</string>
+    <string name="folders_prop_names">Ordner</string>
+    <plurals name="folders_delete_also_files">
+        <item quantity="one">Die ausgewählte Datei (%1$d) wird ebenfalls in den Papierkorb verschoben.</item>
+        <item quantity="other">Die %1$d ausgewählten Dateien werden ebenfalls in den Papierkorb verschoben.</item>
+    </plurals>
+    <plurals name="folders_selection_properties_title">
+        <item quantity="one">%1$d Ordner ausgewählt</item>
+        <item quantity="other">%1$d Ordner ausgewählt</item>
+    </plurals>
 </resources>

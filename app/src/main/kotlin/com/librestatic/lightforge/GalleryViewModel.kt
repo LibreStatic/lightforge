@@ -2922,7 +2922,20 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
+    private val mutablePendingFolderShortcut = MutableStateFlow<FolderLocation?>(null)
+
+    /** A folder a launcher shortcut asked to open; the screen opens it and calls [consumeFolderShortcut]. */
+    val pendingFolderShortcut = mutablePendingFolderShortcut.asStateFlow()
+
+    fun consumeFolderShortcut() {
+        mutablePendingFolderShortcut.value = null
+    }
+
     fun openExternal(intent: Intent): Boolean {
+        intent.folderShortcutLocation()?.let {
+            mutablePendingFolderShortcut.value = it
+            return true
+        }
         val action = intent.action
         val uri = intent.data ?: return false
         if (action != Intent.ACTION_VIEW && action != Intent.ACTION_EDIT) return false
@@ -3062,7 +3075,14 @@ class GalleryViewModel @Inject constructor(
         val bucketMap = bucketRelocation(previousBuckets, oldPrefix, newPrefix, after)
         gallerySettingsRepository.update { settings ->
             val rules = relocateFolderRules(settings.library.folderRules, oldVolume, oldPrefix, newVolume, newPrefix, bucketMap)
-            if (rules == settings.library.folderRules) settings else settings.copy(library = settings.library.copy(folderRules = rules))
+            val operations = settings.operations
+            val pinned = relocateFolderKeys(operations.pinnedFolders, oldVolume, oldPrefix, newVolume, newPrefix)
+            val shown = relocateFolderKeys(operations.showEvenIfHidden, oldVolume, oldPrefix, newVolume, newPrefix)
+            val covers = relocateFolderKeyedMap(operations.folderCovers, oldVolume, oldPrefix, newVolume, newPrefix)
+            settings.copy(
+                library = if (rules == settings.library.folderRules) settings.library else settings.library.copy(folderRules = rules),
+                operations = operations.copy(pinnedFolders = pinned, showEvenIfHidden = shown, folderCovers = covers),
+            )
         }
     }
 
@@ -3440,11 +3460,43 @@ class GalleryViewModel @Inject constructor(
         }
     }
 
+    private val mutablePendingAlbumFolders = MutableStateFlow<List<FolderLocation>>(emptyList())
+
+    /** Folders waiting for an album to be chosen; their items are added together with the selected files. */
+    val pendingAlbumFolders = mutablePendingAlbumFolders.asStateFlow()
+
+    fun beginAddFoldersToAlbum(folders: List<FolderLocation>) {
+        mutablePendingAlbumFolders.value = folders
+    }
+
+    fun cancelAddFoldersToAlbum() {
+        mutablePendingAlbumFolders.value = emptyList()
+    }
+
     fun addSelectionToVirtualAlbum(albumId: Long) {
         require(albumId > 0)
         val selected = mutableSelection.value
+        val folders = mutablePendingAlbumFolders.value
+        mutablePendingAlbumFolders.value = emptyList()
         viewModelScope.launch(Dispatchers.IO) {
             val active = runtime.value ?: return@launch
+            // Everything in a ticked folder and below it, archived items included: the folder was picked as a whole.
+            for (folder in folders) {
+                val volume = folder.volumeName ?: continue
+                val path = folder.relativePath?.takeIf { it.isNotBlank() } ?: continue
+                val query = MediaQuery(
+                    scope = MediaQuery.Scope.Folder(volume, path, includeSubfolders = true),
+                    archiveMode = MediaQuery.ArchiveMode.Include,
+                )
+                var after: MediaKey? = null
+                while (true) {
+                    val page = active.selectionTargets.page(query, after, 500)
+                    if (page.isEmpty()) break
+                    after = page.last().key
+                    active.albums.addToVirtualAlbum(albumId, page.map(MediaActionTarget::key))
+                    if (page.size < 500) break
+                }
+            }
             when (selected) {
                 is SelectionSpec.Explicit -> selected.keys.chunked(500).forEach { chunk ->
                     active.albums.addToVirtualAlbum(albumId, chunk)
@@ -7051,22 +7103,7 @@ class GalleryViewModel @Inject constructor(
     /** Opens the picker for the current selection; with a select-all query the keys are resolved page by page. */
     fun beginSelectionFolderTransfer(move: Boolean) {
         viewModelScope.launch {
-            val keys = when (val selected = mutableSelection.value) {
-                is SelectionSpec.Explicit -> selected.keys.toList()
-                is SelectionSpec.QueryAll -> withContext(Dispatchers.IO) {
-                    val active = runtime.value ?: return@withContext emptyList()
-                    val resolved = mutableListOf<MediaKey>()
-                    var after: MediaKey? = null
-                    while (true) {
-                        val page = active.selectionTargets.page(selected.querySnapshot, after, 500)
-                        if (page.isEmpty()) break
-                        resolved += page.filterNot { it.key in selected.exclusions }.map { it.key }
-                        after = page.last().key
-                        if (page.size < 500) break
-                    }
-                    resolved
-                }
-            }
+            val keys = selectedKeys()
             if (keys.isNotEmpty()) {
                 mutableFolderPick.value = FolderPickRequest.Items(if (move) PickPurpose.Move else PickPurpose.Copy, keys)
             }
@@ -7075,6 +7112,40 @@ class GalleryViewModel @Inject constructor(
 
     fun beginItemFolderTransfer(media: TimelineMedia, move: Boolean) {
         mutableFolderPick.value = FolderPickRequest.Items(if (move) PickPurpose.Move else PickPurpose.Copy, listOf(media.key))
+    }
+
+    /**
+     * Opens the picker to move or copy the ticked folders together with the ticked files (plan 7.8). With
+     * no files and one folder this is the folder's own move or copy; the files are the current selection.
+     */
+    fun beginMixedTransfer(folders: List<FolderLocation>, move: Boolean) {
+        if (folders.isEmpty() || !advancedStatus.status.value.active) return
+        viewModelScope.launch {
+            val keys = selectedKeys()
+            mutableFolderPick.value = when {
+                keys.isEmpty() && folders.size == 1 ->
+                    if (move) FolderPickRequest.Folder(folders.single()) else FolderPickRequest.Folder(folders.single(), copy = true)
+                else -> FolderPickRequest.Mixed(folders, keys, copy = !move)
+            }
+        }
+    }
+
+    /** The keys of the ticked files; with a select-all query they are resolved page by page. */
+    private suspend fun selectedKeys(): List<MediaKey> = when (val selected = mutableSelection.value) {
+        is SelectionSpec.Explicit -> selected.keys.toList()
+        is SelectionSpec.QueryAll -> withContext(Dispatchers.IO) {
+            val active = runtime.value ?: return@withContext emptyList()
+            val resolved = mutableListOf<MediaKey>()
+            var after: MediaKey? = null
+            while (true) {
+                val page = active.selectionTargets.page(selected.querySnapshot, after, 500)
+                if (page.isEmpty()) break
+                resolved += page.filterNot { it.key in selected.exclusions }.map { it.key }
+                after = page.last().key
+                if (page.size < 500) break
+            }
+            resolved
+        }
     }
 
     fun beginFolderMovePick(source: FolderLocation) {
@@ -7108,16 +7179,7 @@ class GalleryViewModel @Inject constructor(
                         transferThroughMediaStore(purpose, request.keys, target)
                         return@launch
                     }
-                    mutableTransferProgress.value = TransferProgress(purpose, 0, request.keys.size)
-                    val result = try {
-                        advancedOperations.transfer(purpose, request.keys, target) { done, total ->
-                            mutableTransferProgress.value = TransferProgress(purpose, done, total)
-                        }
-                    } finally {
-                        mutableTransferProgress.value = null
-                    }
-                    if (result.succeeded > 0) clearSelection()
-                    advancedEventChannel.send(AdvancedOpEvent.Transfer(result))
+                    transferItemsAdvanced(purpose, request.keys, target)
                 }
                 is FolderPickRequest.Folder -> {
                     val sourceVolume = request.source.volumeName ?: return@launch
@@ -7127,8 +7189,38 @@ class GalleryViewModel @Inject constructor(
                         AdvancedOpEvent.Folder(outcome.result.toFolderMessage(if (request.copy) FolderOp.Copy else FolderOp.Move)),
                     )
                 }
+                is FolderPickRequest.Mixed -> {
+                    if (!advancedStatus.status.value.active) return@launch
+                    if (request.keys.isNotEmpty()) {
+                        val purpose = if (request.copy) TransferPurpose.Copy else TransferPurpose.Move
+                        transferItemsAdvanced(purpose, request.keys, target)
+                    }
+                    val op = if (request.copy) FolderOp.Copy else FolderOp.Move
+                    var first: AdvancedResult = AdvancedResult.Done
+                    for (location in request.folders) {
+                        val volume = location.volumeName ?: continue
+                        val source = FolderTarget(volume, location.relativePath)
+                        val result = (if (request.copy) advancedOperations.copyFolder(source, target) else advancedOperations.moveFolder(source, target)).result
+                        if (first == AdvancedResult.Done && result != AdvancedResult.Done) first = result
+                    }
+                    // One message sums the batch up: the first folder that failed, or Done.
+                    advancedEventChannel.send(AdvancedOpEvent.Folder(first.toFolderMessage(op)))
+                }
             }
         }
+    }
+
+    private suspend fun transferItemsAdvanced(purpose: TransferPurpose, keys: List<MediaKey>, target: FolderTarget) {
+        mutableTransferProgress.value = TransferProgress(purpose, 0, keys.size)
+        val result = try {
+            advancedOperations.transfer(purpose, keys, target) { done, total ->
+                mutableTransferProgress.value = TransferProgress(purpose, done, total)
+            }
+        } finally {
+            mutableTransferProgress.value = null
+        }
+        if (result.succeeded > 0) clearSelection()
+        advancedEventChannel.send(AdvancedOpEvent.Transfer(result))
     }
 
     private val mediaStoreTransfer by lazy {

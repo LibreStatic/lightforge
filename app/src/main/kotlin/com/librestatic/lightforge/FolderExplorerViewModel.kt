@@ -15,6 +15,7 @@ import com.librestatic.lightforge.core.preferences.GallerySettingsRepository
 import com.librestatic.lightforge.core.mediastore.AdvancedResult
 import com.librestatic.lightforge.core.mediastore.AdvancedStorage
 import com.librestatic.lightforge.core.mediastore.HiddenMediaRow
+import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.core.model.TimelineMedia
 import com.librestatic.lightforge.core.model.folders.EmptyDirectory
 import com.librestatic.lightforge.core.model.folders.mergeAdvancedOverlay
@@ -103,6 +104,7 @@ private data class ViewInputs(
     val showEvenIfHidden: Set<String>,
     val defaultSelected: Boolean,
     val rules: Map<FolderSelectionTarget, Boolean>,
+    val covers: Map<String, MediaKey>,
 )
 
 private sealed interface TreeLoad {
@@ -215,6 +217,8 @@ class FolderExplorerViewModel @Inject constructor(
     private val operations = settings.settings.map { it.operations }.distinctUntilChanged()
     private val libraryRules = settings.settings.map { it.library.folderSelectionMode to it.library.folderRules }.distinctUntilChanged()
 
+    private val covers: Flow<Map<String, MediaKey>> = operations.map { ops -> decodeFolderCovers(ops.folderCovers) }.distinctUntilChanged()
+
     private val viewInputs: Flow<ViewInputs> = combine(
         combine(includeSubfolders, compactChains, ::Pair),
         combine(location, operations, searchOpen, searchQuery) { at, ops, open, query ->
@@ -223,8 +227,9 @@ class FolderExplorerViewModel @Inject constructor(
             Triple(own ?: fallback ?: FolderViewOptions(), ops.pinnedFolders to ops.showEvenIfHidden, if (open) query else "")
         },
         libraryRules,
-    ) { (subfolders, compact), (options, sets, query), (mode, rules) ->
-        ViewInputs(subfolders, compact, options, query, sets.first, sets.second, mode == FolderSelectionMode.AllExceptExcluded, rules)
+        covers,
+    ) { (subfolders, compact), (options, sets, query), (mode, rules), covers ->
+        ViewInputs(subfolders, compact, options, query, sets.first, sets.second, mode == FolderSelectionMode.AllExceptExcluded, rules, covers)
     }
 
     private val mutableSelectedFolders = MutableStateFlow<Set<String>>(emptySet())
@@ -252,6 +257,7 @@ class FolderExplorerViewModel @Inject constructor(
                     },
                     pinned = inputs.pinned,
                     showEvenIfHidden = inputs.showEvenIfHidden,
+                    covers = inputs.covers,
                 )
             }
         }.flowOn(Dispatchers.Default)
@@ -426,7 +432,7 @@ class FolderExplorerViewModel @Inject constructor(
         mutableSelectedFolders.value = folders.mapTo(LinkedHashSet()) { it.key }
     }
 
-    private fun selectedCards(): List<FolderCardUi> {
+    fun selectedCards(): List<FolderCardUi> {
         val keys = mutableSelectedFolders.value
         return (uiState.value as? FolderExplorerUiState.Folder)?.folders.orEmpty().filter { it.key in keys }
     }
@@ -445,6 +451,49 @@ class FolderExplorerViewModel @Inject constructor(
         val cards = selectedCards()
         clearFolderSelection()
         cards.forEach { if (hide) hide(it) else unhide(it) }
+    }
+
+    // ---- Folder cover ----
+
+    private val mutableCoverTarget = MutableStateFlow<FolderCardUi?>(null)
+
+    /** The folder whose cover is being chosen; null when the chooser is closed. */
+    val coverTarget: StateFlow<FolderCardUi?> = mutableCoverTarget.asStateFlow()
+
+    /** Everything in the folder being given a cover, and below it, newest first. */
+    val coverCandidates: Flow<PagingData<TimelineMedia>> = combine(mutableCoverTarget.map { it?.location }.distinctUntilChanged(), library) { at, lib -> at to lib }
+        .flatMapLatest { (at, lib) ->
+            val volume = at?.volumeName
+            val path = at?.relativePath
+            if (volume == null || path == null || lib == null) flowOf(PagingData.empty()) else lib.media(volume, path, true)
+        }
+        .cachedIn(viewModelScope)
+
+    fun beginCover(card: FolderCardUi) {
+        mutableCoverTarget.value = card
+    }
+
+    fun dismissCover() {
+        mutableCoverTarget.value = null
+    }
+
+    fun setCover(media: MediaKey) {
+        val key = mutableCoverTarget.value?.location?.let(::pinKeyOf) ?: return
+        mutableCoverTarget.value = null
+        clearFolderSelection()
+        viewModelScope.launch {
+            settings.update { it.copy(operations = it.operations.copy(folderCovers = it.operations.folderCovers + (key to encodeFolderCover(media)))) }
+        }
+    }
+
+    /** Goes back to the automatic cover of [card] (the newest item). */
+    fun resetCover(card: FolderCardUi) {
+        val key = pinKeyOf(card.location) ?: return
+        mutableCoverTarget.value = null
+        clearFolderSelection()
+        viewModelScope.launch {
+            settings.update { it.copy(operations = it.operations.copy(folderCovers = it.operations.folderCovers - key)) }
+        }
     }
 
     // ---- Remembering where the user was ----
@@ -627,6 +676,17 @@ class FolderExplorerViewModel @Inject constructor(
         const val ChangeQuietWindowMillis = 500L
     }
 }
+
+/** `volume:id` for a stored folder cover. */
+internal fun encodeFolderCover(key: MediaKey): String = "${key.volumeName}:${key.mediaStoreId}"
+
+/** Stored covers by folder key; an entry that does not parse is dropped. */
+internal fun decodeFolderCovers(stored: Map<String, String>): Map<String, MediaKey> =
+    stored.mapNotNull { (folder, value) ->
+        val volume = value.substringBeforeLast(':', "").takeIf { it.isNotEmpty() } ?: return@mapNotNull null
+        val id = value.substringAfterLast(':').toLongOrNull()?.takeIf { it >= 0 } ?: return@mapNotNull null
+        folder to MediaKey(volume, id)
+    }.toMap()
 
 private fun HiddenMediaRow.toUi() = HiddenItemUi(
     volumeName = volumeName,

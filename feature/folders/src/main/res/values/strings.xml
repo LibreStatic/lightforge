@@ -147,4 +147,23 @@
         <item quantity="one">%1$d item from Trash is stored in here. Restore it or delete it from Trash first, then delete the folder.</item>
         <item quantity="other">%1$d items from Trash are stored in here. Restore them or delete them from Trash first, then delete the folder.</item>
     </plurals>
+    <string name="folders_menu_add_to_album">Add to album…</string>
+    <string name="folders_menu_cover">Choose cover…</string>
+    <string name="folders_menu_cover_reset">Use automatic cover</string>
+    <string name="folders_menu_shortcut">Add to home screen</string>
+    <string name="folders_excluded_badge_include">Include again</string>
+    <string name="folders_cover_title">Cover for %1$s</string>
+    <string name="folders_cover_use">Use %1$s as the cover</string>
+    <string name="folders_cover_empty_title">No photos or videos here</string>
+    <string name="folders_cover_empty_body">This folder has nothing to use as a cover yet.</string>
+    <string name="folders_prop_selected_files">Files selected too</string>
+    <string name="folders_prop_names">Folders</string>
+    <plurals name="folders_delete_also_files">
+        <item quantity="one">%1$d selected file will also move to the Trash.</item>
+        <item quantity="other">%1$d selected files will also move to the Trash.</item>
+    </plurals>
+    <plurals name="folders_selection_properties_title">
+        <item quantity="one">%1$d folder selected</item>
+        <item quantity="other">%1$d folders selected</item>
+    </plurals>
 </resources>

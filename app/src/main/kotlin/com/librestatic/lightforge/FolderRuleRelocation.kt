@@ -62,3 +62,39 @@ internal fun bucketRelocation(
     }
     return map
 }
+
+/**
+ * The key (`volume|path/`, see the explorer's pin key) of a folder after the folder at [oldPrefix] was renamed
+ * or moved to [newPrefix]: a key at or under the old prefix gets the new one, any other key is returned as is.
+ */
+internal fun relocateFolderKey(key: String, oldVolume: String, oldPrefix: String, newVolume: String, newPrefix: String): String {
+    val volume = key.substringBefore('|', "")
+    val path = key.substringAfter('|', "")
+    val old = oldPrefix.trim('/') + "/"
+    val new = newPrefix.trim('/') + "/"
+    if (volume != oldVolume || !path.startsWith(old)) return key
+    return "$newVolume|" + new + path.removePrefix(old)
+}
+
+/** Keeps pins and other keyed sets pointing at a renamed or moved folder; a key already at the new place wins. */
+internal fun relocateFolderKeys(keys: Set<String>, oldVolume: String, oldPrefix: String, newVolume: String, newPrefix: String): Set<String> =
+    keys.mapTo(LinkedHashSet()) { relocateFolderKey(it, oldVolume, oldPrefix, newVolume, newPrefix) }
+
+/** Same for maps keyed by folder (covers); an entry already set on the new location wins over a carried one. */
+internal fun <V> relocateFolderKeyedMap(
+    map: Map<String, V>,
+    oldVolume: String,
+    oldPrefix: String,
+    newVolume: String,
+    newPrefix: String,
+): Map<String, V> {
+    if (map.isEmpty()) return map
+    val result = LinkedHashMap<String, V>()
+    val moved = LinkedHashMap<String, V>()
+    for ((key, value) in map) {
+        val target = relocateFolderKey(key, oldVolume, oldPrefix, newVolume, newPrefix)
+        if (target == key) result[key] = value else moved[target] = value
+    }
+    for ((key, value) in moved) result.putIfAbsent(key, value)
+    return result
+}

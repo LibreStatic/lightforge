@@ -139,6 +139,7 @@
 <string name="video_music_untitled">Faixa de áudio</string>
     <string name="share_cropped_failed">Não foi possível preparar o JPEG cortado</string>
     <string name="share_cropped_too_large">Memória insuficiente para revelar este RAW como JPEG. Compartilhe o original ou exporte como TIFF no editor.</string>
+    <string name="folder_shortcut_failed">Não foi possível adicionar o atalho ao ecrã inicial</string>
     <string name="folder_op_hidden">Pasta oculta</string>
     <string name="folder_op_unhidden">Pasta visível novamente</string>
     <string name="folder_op_renamed">Pasta renomeada</string>

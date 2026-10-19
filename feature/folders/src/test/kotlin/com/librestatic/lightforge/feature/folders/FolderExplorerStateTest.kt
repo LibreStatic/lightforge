@@ -345,4 +345,18 @@ class FolderExplorerStateTest {
             org.junit.Assert.assertFalse(p, isAndroidAppTree(p))
         }
     }
+
+    @Test
+    fun chosenCoverReplacesTheNewestItemAndIsMarked() {
+        val chosen = com.librestatic.lightforge.core.model.MediaKey("external_primary", 77)
+        val state = buildFolderExplorerUiState(
+            single,
+            FolderLocation.Start,
+            covers = mapOf(pinKeyOf(FolderLocation("external_primary", "DCIM/Camera/"))!! to chosen),
+        ) as FolderExplorerUiState.Folder
+        val byName = state.folders.associateBy { it.name }
+        assertEquals(chosen, byName.getValue("DCIM/Camera").cover)
+        assertTrue(byName.getValue("DCIM/Camera").hasCustomCover)
+        assertTrue(!byName.getValue("Pictures/Screenshots").hasCustomCover)
+    }
 }

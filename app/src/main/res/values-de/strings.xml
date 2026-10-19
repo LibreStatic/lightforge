@@ -130,6 +130,7 @@
 <string name="video_music_untitled">Audiospur</string>
     <string name="share_cropped_failed">Zugeschnittenes JPEG konnte nicht vorbereitet werden</string>
     <string name="share_cropped_too_large">Nicht genug Arbeitsspeicher, um dieses RAW als JPEG zu entwickeln. Teile das Original oder exportiere es im Editor als TIFF.</string>
+    <string name="folder_shortcut_failed">Die Verknüpfung konnte dem Startbildschirm nicht hinzugefügt werden</string>
     <string name="folder_op_hidden">Ordner ausgeblendet</string>
     <string name="folder_op_unhidden">Ordner wieder eingeblendet</string>
     <string name="folder_op_renamed">Ordner umbenannt</string>

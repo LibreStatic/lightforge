@@ -424,6 +424,8 @@ internal fun ProductionGalleryApp(
     val engineState by viewModel.engineState.collectAsState()
     val thumbnails by viewModel.thumbnailLoader.collectAsState()
     val folderExplorer = rememberFolderExplorerViewModel()
+    val folderSelectionActive = folderExplorer.selectedFolders.collectAsState().value.isNotEmpty()
+    val pendingFolderShortcut by viewModel.pendingFolderShortcut.collectAsState()
     val currentMedia by viewModel.currentMedia.collectAsState()
     val viewerRestoreSnapshot by viewModel.viewerRestoreSnapshot.collectAsState()
     val viewerSourceChecking by viewModel.viewerSourceChecking.collectAsState()
@@ -1775,11 +1777,24 @@ internal fun ProductionGalleryApp(
                     },
                     onMoveFolder = { card -> viewModel.beginFolderMovePick(card.location) },
                     onCopyFolder = { card -> viewModel.beginFolderCopyPick(card.location) },
+                    onTransferSelection = { cards, move -> viewModel.beginMixedTransfer(cards.map { it.location }, move) },
+                    onAddFoldersToAlbum = { cards ->
+                        viewModel.beginAddFoldersToAlbum(cards.map { it.location })
+                        showAddToAlbum = true
+                    },
                     runDestructive = ::runDestructive,
                     mediaSelection = MediaSelectionAccess(
                         selecting = selectionCount > 0L,
                         isSelected = { key -> SelectionReducer.isSelected(selection, key) },
                         toggle = viewModel::toggleSelection,
+                        count = selectionCount,
+                        selectAll = {
+                            folderExplorer.currentMediaScope()?.let { scope ->
+                                viewModel.selectAllFolderMedia(scope.volumeName, scope.relativePath, scope.includeSubfolders)
+                            }
+                        },
+                        clear = viewModel::clearSelection,
+                        trash = { viewModel.beginSelectionSystemAction(MediaAction.Trash(true)) },
                     ),
                     onOpenFiles = { album ->
                         albumReturnToDeviceFolders = true
@@ -2781,7 +2796,7 @@ internal fun ProductionGalleryApp(
             Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
                 GalleryAnimatedVisibility(
                     // Moment keeps library selection for Back, but owns its chrome and top inset.
-                    visible = selectionCount > 0 && activeRoute !in setOf(SurfaceRoute.PublicationRecoveries, SurfaceRoute.PdfStudio, SurfaceRoute.Documents, SurfaceRoute.Stacks, SurfaceRoute.SmartAlbums, SurfaceRoute.MemoryControls, SurfaceRoute.Moment, SurfaceRoute.MomentParticipants, SurfaceRoute.ManualMoment, SurfaceRoute.MemoryVideo, SurfaceRoute.MotionPhoto, SurfaceRoute.CreationGif, SurfaceRoute.Collage, SurfaceRoute.MemoriesBrowser, SurfaceRoute.LocalBackup, SurfaceRoute.LocalBackupTasks, SurfaceRoute.RemoteBackup, SurfaceRoute.OwnSync, SurfaceRoute.OfflinePlaces, SurfaceRoute.LocalSharing, SurfaceRoute.PetIdentity),
+                    visible = selectionCount > 0 && !(activeRoute == SurfaceRoute.DeviceFolders && folderSelectionActive) && activeRoute !in setOf(SurfaceRoute.PublicationRecoveries, SurfaceRoute.PdfStudio, SurfaceRoute.Documents, SurfaceRoute.Stacks, SurfaceRoute.SmartAlbums, SurfaceRoute.MemoryControls, SurfaceRoute.Moment, SurfaceRoute.MomentParticipants, SurfaceRoute.ManualMoment, SurfaceRoute.MemoryVideo, SurfaceRoute.MotionPhoto, SurfaceRoute.CreationGif, SurfaceRoute.Collage, SurfaceRoute.MemoriesBrowser, SurfaceRoute.LocalBackup, SurfaceRoute.LocalBackupTasks, SurfaceRoute.RemoteBackup, SurfaceRoute.OwnSync, SurfaceRoute.OfflinePlaces, SurfaceRoute.LocalSharing, SurfaceRoute.PetIdentity),
                     edge = GalleryMotionEdge.Bottom,
                 ) {
                     when (activeRoute) {
@@ -3488,6 +3503,13 @@ internal fun ProductionGalleryApp(
         )
     }
 
+    LaunchedEffect(pendingFolderShortcut) {
+        pendingFolderShortcut?.let { location ->
+            folderExplorer.open(location)
+            route = SurfaceRoute.DeviceFolders
+            viewModel.consumeFolderShortcut()
+        }
+    }
     BackHandler(enabled = albumCoverWorking) { /* The pending write owns its album until completion. */ }
     AdvancedOperationsHost(
         viewModel = viewModel,
@@ -3565,10 +3587,14 @@ internal fun ProductionGalleryApp(
                 newAlbumName = ""
                 showCreateAlbum = true
             },
-            onDismiss = { showAddToAlbum = false },
+            onDismiss = {
+                showAddToAlbum = false
+                viewModel.cancelAddFoldersToAlbum()
+            },
             onSelect = { album ->
                 (album.key as? com.librestatic.lightforge.core.model.AlbumKey.Virtual)?.let {
                     viewModel.addSelectionToVirtualAlbum(it.albumId)
+                    folderExplorer.clearFolderSelection()
                 }
                 showAddToAlbum = false
             },

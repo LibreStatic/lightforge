@@ -63,7 +63,8 @@ import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
 
 /**
  * What the explorer offers in every mode, with or without All files access: pinning, the folder rules
- * (exclude or include a folder and everything below it) and the search field.
+ * (exclude or include a folder and everything below it), the folder cover, a launcher shortcut and the
+ * search field.
  */
 class FolderBrowseActions(
     val onTogglePin: (FolderCardUi) -> Unit,
@@ -73,24 +74,44 @@ class FolderBrowseActions(
     val onCloseSearch: () -> Unit,
     /** The search field is open. */
     val searching: Boolean = false,
+    /** Opens the cover chooser of the folder. */
+    val onChooseCover: (FolderCardUi) -> Unit = {},
+    /** Goes back to the automatic cover. */
+    val onResetCover: (FolderCardUi) -> Unit = {},
+    /** Pins a launcher shortcut that opens the folder; null when the launcher cannot pin shortcuts. */
+    val onCreateShortcut: ((FolderCardUi) -> Unit)? = null,
+    /** Adds everything in the folders (and below them) to an album chosen next. */
+    val onAddFoldersToAlbum: (List<FolderCardUi>) -> Unit = {},
+    /** Starts a move or copy of the folders (and of the ticked files, which the host knows) to a picked folder. */
+    val onTransfer: (List<FolderCardUi>, move: Boolean) -> Unit = { _, _ -> },
 )
 
 /**
- * Mixed selection. Folder cards are selected here (by [FolderCardUi.key]); media tiles are selected in the
- * gallery's own selection, whose bar carries the file actions, so only the lookup is needed.
+ * Mixed selection of folder cards and files. Folder cards are selected here (by [FolderCardUi.key]); media
+ * tiles are selected in the gallery's own selection, which the host reads through [mediaSelecting],
+ * [fileCount] and [isMediaSelected]. While any folder is ticked this bar replaces the file bar, so one bar
+ * serves both and the count is the sum.
  */
 class ExplorerSelection(
     val folders: Set<String> = emptySet(),
     val mediaSelecting: Boolean = false,
+    /** Files ticked in the gallery selection. */
+    val fileCount: Long = 0,
+    /** The advanced storage mode is active. */
+    val advanced: Boolean = false,
     val isMediaSelected: (MediaKey) -> Boolean = { false },
     val onToggleFolder: (FolderCardUi) -> Unit = {},
     val onToggleMedia: (TimelineMedia) -> Unit = {},
-    val onSelectAllFolders: () -> Unit = {},
-    val onClearFolders: () -> Unit = {},
+    /** Ticks every folder card and every file of the level. */
+    val onSelectAll: () -> Unit = {},
+    /** Clears the folders and the files. */
+    val onClear: () -> Unit = {},
     /** The bulk folder actions; each acts on the selected cards. */
     val onPinFolders: (Boolean) -> Unit = {},
     val onExcludeFolders: (Boolean) -> Unit = {},
     val onHideFolders: ((Boolean) -> Unit)? = null,
+    /** The launcher can pin a shortcut. */
+    val canPinShortcut: Boolean = false,
 ) {
     val selectingFolders: Boolean get() = folders.isNotEmpty()
     val selecting: Boolean get() = selectingFolders || mediaSelecting
@@ -150,13 +171,16 @@ internal fun SelectionCheck(selected: Boolean, modifier: Modifier = Modifier) {
 }
 
 @Composable
-internal fun ExcludedBadge(modifier: Modifier = Modifier) {
+internal fun ExcludedBadge(modifier: Modifier = Modifier, onInclude: (() -> Unit)? = null) {
     val colors = MaterialTheme.colorScheme
+    val includeLabel = stringResource(R.string.folders_excluded_badge_include)
     Surface(
         color = colors.secondaryContainer,
         contentColor = colors.onSecondaryContainer,
         shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-        modifier = modifier.testTag("folder-excluded-badge"),
+        modifier = modifier
+            .testTag("folder-excluded-badge")
+            .then(if (onInclude != null) Modifier.clickable(onClickLabel = includeLabel, role = Role.Button, onClick = onInclude) else Modifier),
     ) {
         Row(
             Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
@@ -348,56 +372,82 @@ private fun FolderSortKey.labelRes(): Int = when (this) {
     FolderSortKey.Date -> R.string.folders_sort_date
 }
 
-/** The bar shown over the folder list while cards are selected. */
+/** The bar shown over the folder list while cards are selected, with or without files ticked next to them. */
 @Composable
 internal fun FolderSelectionBar(
     selection: ExplorerSelection,
     selected: List<FolderCardUi>,
-    /** Asks to delete the selected folders (a confirmation follows); null hides the action. */
-    onDelete: (() -> Unit)?,
+    capabilities: SelectionCapabilities,
+    onCopy: () -> Unit,
+    onMove: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+    onProperties: () -> Unit,
+    onAddToAlbum: () -> Unit,
+    onChooseCover: () -> Unit,
+    onResetCover: () -> Unit,
+    onShortcut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val allPinned = selected.isNotEmpty() && selected.all { it.isPinned }
-    val allExcluded = selected.isNotEmpty() && selected.all { it.isExcluded }
-    val anyHidden = selected.any { it.isHidden }
     val actions = buildList {
+        if (capabilities.copy) {
+            add(GallerySelectionAction(stringResource(R.string.folders_menu_copy), GalleryIcons.ContentCopy, onCopy, testTag = "folder-selection-copy"))
+        }
+        if (capabilities.move) {
+            add(GallerySelectionAction(stringResource(R.string.folders_menu_move), GalleryIcons.DriveFileMove, onMove, testTag = "folder-selection-move"))
+        }
+        if (capabilities.delete) {
+            add(GallerySelectionAction(stringResource(R.string.folders_menu_delete), GalleryIcons.Trash, onDelete, testTag = "folder-selection-delete"))
+        }
         add(
             GallerySelectionAction(
-                stringResource(if (allPinned) R.string.folders_menu_unpin else R.string.folders_menu_pin),
-                GalleryIcons.Pin, { selection.onPinFolders(!allPinned) }, testTag = "folder-selection-pin",
+                stringResource(if (capabilities.unpin) R.string.folders_menu_unpin else R.string.folders_menu_pin),
+                GalleryIcons.Pin, { selection.onPinFolders(capabilities.pin) }, inline = false, testTag = "folder-selection-pin",
             ),
         )
         add(
             GallerySelectionAction(
-                stringResource(if (allExcluded) R.string.folders_menu_include else R.string.folders_menu_exclude),
-                GalleryIcons.Block, { selection.onExcludeFolders(!allExcluded) }, testTag = "folder-selection-exclude",
+                stringResource(if (capabilities.include) R.string.folders_menu_include else R.string.folders_menu_exclude),
+                GalleryIcons.Block, { selection.onExcludeFolders(capabilities.exclude) }, inline = false, testTag = "folder-selection-exclude",
             ),
         )
-        selection.onHideFolders?.let { hide ->
+        val hide = selection.onHideFolders
+        if (hide != null && (capabilities.hide || capabilities.unhide)) {
             add(
                 GallerySelectionAction(
-                    stringResource(if (anyHidden && selected.all { it.isHidden }) R.string.folders_menu_unhide else R.string.folders_menu_hide),
-                    GalleryIcons.VisibilityOff, { hide(!(selected.all { it.isHidden })) }, inline = false, testTag = "folder-selection-hide",
+                    stringResource(if (capabilities.unhide) R.string.folders_menu_unhide else R.string.folders_menu_hide),
+                    GalleryIcons.VisibilityOff, { hide(capabilities.hide) }, inline = false, testTag = "folder-selection-hide",
                 ),
             )
         }
-        onDelete?.let { delete ->
-            add(
-                GallerySelectionAction(
-                    stringResource(R.string.folders_menu_delete), GalleryIcons.Trash, delete, inline = false, testTag = "folder-selection-delete",
-                ),
-            )
+        if (capabilities.addToAlbum) {
+            add(GallerySelectionAction(stringResource(R.string.folders_menu_add_to_album), GalleryIcons.Album, onAddToAlbum, inline = false, testTag = "folder-selection-album"))
+        }
+        if (capabilities.rename) {
+            add(GallerySelectionAction(stringResource(R.string.folders_menu_rename), GalleryIcons.Rename, onRename, inline = false, testTag = "folder-selection-rename"))
+        }
+        if (capabilities.cover) {
+            add(GallerySelectionAction(stringResource(R.string.folders_menu_cover), GalleryIcons.Photo, onChooseCover, inline = false, testTag = "folder-selection-cover"))
+        }
+        if (capabilities.resetCover) {
+            add(GallerySelectionAction(stringResource(R.string.folders_menu_cover_reset), GalleryIcons.Undo, onResetCover, inline = false, testTag = "folder-selection-cover-reset"))
+        }
+        if (capabilities.shortcut) {
+            add(GallerySelectionAction(stringResource(R.string.folders_menu_shortcut), GalleryIcons.OpenInNew, onShortcut, inline = false, testTag = "folder-selection-shortcut"))
+        }
+        if (capabilities.properties) {
+            add(GallerySelectionAction(stringResource(R.string.folders_menu_properties), GalleryIcons.Info, onProperties, inline = false, testTag = "folder-selection-properties"))
         }
         add(
             GallerySelectionAction(
-                stringResource(R.string.folders_select_all), GalleryIcons.SelectAll, selection.onSelectAllFolders,
+                stringResource(R.string.folders_select_all), GalleryIcons.SelectAll, selection.onSelectAll,
                 inline = false, testTag = "folder-selection-all",
             ),
         )
     }
     GallerySelectionBar(
-        count = selection.folders.size.toLong(),
-        onClear = selection.onClearFolders,
+        count = selection.folders.size.toLong() + selection.fileCount,
+        onClear = selection.onClear,
         actions = actions,
         modifier = modifier.padding(bottom = 16.dp),
         clearLabel = stringResource(R.string.folders_select_clear),
@@ -417,6 +467,7 @@ internal fun FolderRow(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)?,
     menu: (@Composable () -> Unit)?,
+    onInclude: (() -> Unit)? = null,
 ) {
     val colors = MaterialTheme.colorScheme
     val context = LocalContext.current
@@ -453,7 +504,7 @@ internal fun FolderRow(
                 if ((folder.isHidden && !picking) || folder.isExcluded) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         if (folder.isHidden && !picking) HiddenBadge(Modifier)
-                        if (folder.isExcluded) ExcludedBadge()
+                        if (folder.isExcluded) ExcludedBadge(onInclude = onInclude)
                     }
                 }
             }

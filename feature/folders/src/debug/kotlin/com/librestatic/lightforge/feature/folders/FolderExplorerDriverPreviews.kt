@@ -9,6 +9,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.paging.PagingData
+import androidx.paging.compose.collectAsLazyPagingItems
+import com.librestatic.lightforge.core.model.MediaKey
+import com.librestatic.lightforge.core.model.MediaKind
+import com.librestatic.lightforge.core.model.TimelineMedia
+import kotlinx.coroutines.flow.flowOf
 import com.librestatic.lightforge.core.designsystem.LightforgeTheme
 import com.librestatic.lightforge.core.model.folders.EmptyDirectory
 import com.librestatic.lightforge.core.model.folders.FolderNode
@@ -115,6 +121,91 @@ fun FolderPickerAndroidTreePreview() =
 @Composable
 fun FolderPickerVolumesPreview() = PickerFrame(PickPurpose.Copy, twoVolumes, FolderLocation.Start)
 
+/**
+ * Advanced mode, two folders and three files ticked together: the one selection bar offers copy, move and
+ * delete inline and the rest (pin, exclude, hide, album, properties, select all) in its overflow.
+ */
+@Composable
+fun FolderExplorerMixedSelectionPreview() = SelectionFrame(advanced = true, fileCount = 3)
+
+/** Advanced mode off, one folder ticked: only the rules and library actions are offered. */
+@Composable
+fun FolderExplorerSelectionModeOffPreview() = SelectionFrame(advanced = false, fileCount = 0, ticked = setOf("DCIM/Camera"))
+
+/** One folder is excluded by the folder rules: its card is dimmed and the badge includes it again. */
+@Composable
+fun FolderExplorerExcludedPreview() = Frame(
+    singleVolume,
+    FolderLocation.Start,
+    browse = previewBrowse,
+    excludedPaths = setOf("Pictures/Instagram/"),
+)
+
+/** The cover chooser of a folder, with the current choice reset in the top bar. */
+@Composable
+fun FolderCoverDialogPreview() {
+    LightforgeTheme {
+        val loader = remember { ThumbnailLoader(FakeThumbnails, maxCacheBytes = 16L * 1024 * 1024, threadCount = 1) }
+        val items = remember { flowOf(PagingData.from((1..18).map(::previewMedia))) }.collectAsLazyPagingItems()
+        FolderCoverDialog(
+            folderName = "Camera",
+            media = items,
+            thumbnails = loader,
+            onPick = {},
+            onReset = {},
+            onDismiss = {},
+        )
+    }
+}
+
+@Composable
+private fun SelectionFrame(advanced: Boolean, fileCount: Long, ticked: Set<String> = setOf("DCIM/Camera", "DCIM/Screenshots")) {
+    LightforgeTheme {
+        Surface(Modifier.fillMaxSize()) {
+            var location by remember { mutableStateOf(FolderLocation("external_primary", "DCIM/")) }
+            var folders by remember { mutableStateOf(ticked) }
+            val loader = remember { ThumbnailLoader(FakeThumbnails, maxCacheBytes = 16L * 1024 * 1024, threadCount = 1) }
+            FolderExplorerContent(
+                state = buildFolderExplorerUiState(advancedTree, location, spaces),
+                thumbnails = loader,
+                onEnter = { location = it },
+                onOpenFiles = {},
+                actions = previewActions.takeIf { advanced },
+                browse = previewBrowse,
+                selection = ExplorerSelection(
+                    folders = folders,
+                    mediaSelecting = fileCount > 0,
+                    fileCount = fileCount,
+                    advanced = advanced,
+                    onToggleFolder = { card -> folders = if (card.key in folders) folders - card.key else folders + card.key },
+                    onClear = { folders = emptySet() },
+                    canPinShortcut = true,
+                ),
+            )
+        }
+    }
+}
+
+private val previewBrowse = FolderBrowseActions(
+    onTogglePin = {},
+    onSetExcluded = { _, _ -> },
+    onQueryChange = {},
+    onCloseSearch = {},
+    onCreateShortcut = {},
+)
+
+private fun previewMedia(index: Int) = TimelineMedia(
+    key = MediaKey("external_primary", 300L + index),
+    kind = MediaKind.Image,
+    generationModified = 1,
+    timelineSortMillis = 1_780_000_000_000L - index * 3_600_000L,
+    width = 4000,
+    height = 3000,
+    durationMillis = 0L,
+    isFavorite = false,
+    displayName = "IMG_$index.jpg",
+)
+
 @Composable
 private fun PickerFrame(
     purpose: PickPurpose,
@@ -127,7 +218,7 @@ private fun PickerFrame(
         val loader = remember { ThumbnailLoader(FakeThumbnails, maxCacheBytes = 16L * 1024 * 1024, threadCount = 1) }
         FolderPickerContent(
             purpose = purpose,
-            sourceFolder = source,
+            sourceFolders = listOfNotNull(source),
             state = buildFolderExplorerUiState(tree, location, spaces),
             thumbnails = loader,
             onEnter = { location = it },
@@ -146,6 +237,8 @@ private fun Frame(
     hiddenItems: List<HiddenItemUi> = emptyList(),
     revoked: Int = 0,
     state: FolderExplorerUiState? = null,
+    browse: FolderBrowseActions? = null,
+    excludedPaths: Set<String> = emptySet(),
 ) {
     LightforgeTheme {
         Surface(Modifier.fillMaxSize()) {
@@ -154,12 +247,14 @@ private fun Frame(
             FolderExplorerContent(
                 state = state ?: buildFolderExplorerUiState(
                     tree, location, spaces, hiddenItems = hiddenItems, isRecordedHide = { it.relativePath == "Pictures/Private/" },
+                    isExcluded = { _, _, path -> path in excludedPaths },
                 ),
                 thumbnails = loader,
                 onEnter = { location = it },
                 onOpenFiles = {},
                 actions = actions,
                 revokedWithHidden = revoked,
+                browse = browse,
             )
         }
     }
@@ -169,7 +264,7 @@ private val previewActions = FolderExplorerActions(
     onHide = {},
     onUnhide = {},
     onRename = { _, _ -> },
-    onDelete = {},
+    onDelete = { _, _ -> },
     onOpenHiddenItem = {},
 )
 

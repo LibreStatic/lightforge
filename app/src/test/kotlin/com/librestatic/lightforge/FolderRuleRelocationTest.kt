@@ -55,4 +55,17 @@ class FolderRuleRelocationTest {
         assertTrue(!sameBytes(ByteArrayInputStream(a), ByteArrayInputStream(b)))
         assertTrue(!sameBytes(ByteArrayInputStream(a), ByteArrayInputStream(a.copyOf(199_999))))
     }
+
+    @Test fun pinsAndCoversFollowARenamedFolderAndItsDescendants() {
+        val keys = setOf("external_primary|DCIM/Private/", "external_primary|DCIM/Private/2026/", "external_primary|DCIM/Privates/", "1234-ABCD|DCIM/Private/")
+        val out = relocateFolderKeys(keys, "external_primary", "DCIM/Private/", "external_primary", "DCIM/Vault/")
+        assertEquals(
+            setOf("external_primary|DCIM/Vault/", "external_primary|DCIM/Vault/2026/", "external_primary|DCIM/Privates/", "1234-ABCD|DCIM/Private/"),
+            out,
+        )
+        val covers = mapOf("external_primary|A/B/" to "external_primary:1", "external_primary|X/B/" to "external_primary:2")
+        val moved = relocateFolderKeyedMap(covers, "external_primary", "A/B/", "external_primary", "X/B/")
+        // The cover already set on the new location wins over the carried one.
+        assertEquals(mapOf("external_primary|X/B/" to "external_primary:2"), moved)
+    }
 }

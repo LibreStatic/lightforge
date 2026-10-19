@@ -92,7 +92,9 @@ class MainActivity : FragmentActivity() {
             intent.getBooleanExtra(BENCHMARK_ML_LOAD_EXTRA, false)
         usesProductionRuntime = !performanceBuild ||
             intent.getBooleanExtra(PRODUCTION_TIMELINE_EXTRA, false)
-        if (usesProductionRuntime) galleryViewModel.openExternal(intent)
+        // A recreated activity replays its launch intent; a folder shortcut must not reopen the folder then.
+        val replayedShortcut = savedInstanceState != null && intent.action == ACTION_OPEN_FOLDER
+        if (usesProductionRuntime && !replayedShortcut) galleryViewModel.openExternal(intent)
         if (benchmarkMlLoad) galleryViewModel.startBenchmarkMlLoad()
         val benchmarkItemCount = if (performanceBuild) {
             intent.getIntExtra(BENCHMARK_ITEM_COUNT_EXTRA, 100_000).coerceIn(0, 250_000)

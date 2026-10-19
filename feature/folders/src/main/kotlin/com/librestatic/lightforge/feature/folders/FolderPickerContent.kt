@@ -36,7 +36,7 @@ import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
 @Composable
 fun FolderPickerContent(
     purpose: PickPurpose,
-    sourceFolder: FolderLocation?,
+    sourceFolders: List<FolderLocation>,
     state: FolderExplorerUiState,
     thumbnails: ThumbnailLoader?,
     onEnter: (FolderLocation) -> Unit,
@@ -45,8 +45,10 @@ fun FolderPickerContent(
     onConfirm: (FolderLocation) -> Unit,
     modifier: Modifier = Modifier,
     onRetry: () -> Unit = {},
+    /** Files travel with the folders, so a destination that is only the folders' own parent still changes something. */
+    withFiles: Boolean = false,
 ) {
-    val mode = ExplorerMode.PickDestination(purpose, sourceFolder)
+    val mode = ExplorerMode.PickDestination(purpose, sourceFolders, withFiles)
     val here = (state as? FolderExplorerUiState.Folder)?.crumbs?.lastOrNull()?.location
     val canChoose = mode.canChoose(here)
     val title = stringResource(
@@ -100,12 +102,12 @@ fun FolderPickerContent(
                         modifier = Modifier.testTag("folder-picker-confirm"),
                     ) {
                         Icon(
-                            if (purpose == PickPurpose.Copy) GalleryIcons.ContentCopy else GalleryIcons.DriveFileMove,
+                            if (purpose.isCopy) GalleryIcons.ContentCopy else GalleryIcons.DriveFileMove,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
                         )
                         Text(
-                            stringResource(if (purpose == PickPurpose.Copy) R.string.folders_picker_copy_here else R.string.folders_picker_move_here),
+                            stringResource(if (purpose.isCopy) R.string.folders_picker_copy_here else R.string.folders_picker_move_here),
                             modifier = Modifier.padding(start = 8.dp),
                         )
                     }

@@ -139,6 +139,7 @@
 <string name="video_music_untitled">Traccia audio</string>
     <string name="share_cropped_failed">Impossibile preparare il JPEG ritagliato</string>
     <string name="share_cropped_too_large">Memoria insufficiente per sviluppare questo RAW come JPEG. Condividi l’originale o esportalo come TIFF dall’editor.</string>
+    <string name="folder_shortcut_failed">Impossibile aggiungere il collegamento alla schermata Home</string>
     <string name="folder_op_hidden">Cartella nascosta</string>
     <string name="folder_op_unhidden">Cartella di nuovo visibile</string>
     <string name="folder_op_renamed">Cartella rinominata</string>

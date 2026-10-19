@@ -139,6 +139,7 @@
 <string name="video_music_untitled">Pista de audio</string>
     <string name="share_cropped_failed">No se pudo preparar el JPEG recortado</string>
     <string name="share_cropped_too_large">No hay memoria suficiente para revelar este RAW como JPEG. Comparte el original o expórtalo como TIFF desde el editor.</string>
+    <string name="folder_shortcut_failed">No se pudo añadir el acceso directo a la pantalla de inicio</string>
     <string name="folder_op_hidden">Carpeta oculta</string>
     <string name="folder_op_unhidden">Carpeta visible de nuevo</string>
     <string name="folder_op_renamed">Carpeta renombrada</string>

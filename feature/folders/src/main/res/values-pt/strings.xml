@@ -156,4 +156,25 @@
         <item quantity="many">%1$d itens da lixeira estão guardados aqui. Restaure-os ou exclua-os da lixeira e depois exclua a pasta.</item>
         <item quantity="other">%1$d itens da lixeira estão guardados aqui. Restaure-os ou exclua-os da lixeira e depois exclua a pasta.</item>
     </plurals>
+    <string name="folders_menu_add_to_album">Adicionar a um álbum…</string>
+    <string name="folders_menu_cover">Escolher capa…</string>
+    <string name="folders_menu_cover_reset">Usar capa automática</string>
+    <string name="folders_menu_shortcut">Adicionar à tela inicial</string>
+    <string name="folders_excluded_badge_include">Incluir novamente</string>
+    <string name="folders_cover_title">Capa de %1$s</string>
+    <string name="folders_cover_use">Usar %1$s como capa</string>
+    <string name="folders_cover_empty_title">Nenhuma foto ou vídeo aqui</string>
+    <string name="folders_cover_empty_body">Esta pasta ainda não tem nada para usar como capa.</string>
+    <string name="folders_prop_selected_files">Arquivos também selecionados</string>
+    <string name="folders_prop_names">Pastas</string>
+    <plurals name="folders_delete_also_files">
+        <item quantity="one">O arquivo selecionado (%1$d) também irá para a lixeira.</item>
+        <item quantity="many">Os %1$d arquivos selecionados também irão para a lixeira.</item>
+        <item quantity="other">Os %1$d arquivos selecionados também irão para a lixeira.</item>
+    </plurals>
+    <plurals name="folders_selection_properties_title">
+        <item quantity="one">%1$d pasta selecionada</item>
+        <item quantity="many">%1$d pastas selecionadas</item>
+        <item quantity="other">%1$d pastas selecionadas</item>
+    </plurals>
 </resources>

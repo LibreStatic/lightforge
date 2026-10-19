@@ -156,4 +156,25 @@
         <item quantity="many">Hay %1$d elementos de la papelera guardados aquí. Restáuralos o elimínalos de la papelera y luego elimina la carpeta.</item>
         <item quantity="other">Hay %1$d elementos de la papelera guardados aquí. Restáuralos o elimínalos de la papelera y luego elimina la carpeta.</item>
     </plurals>
+    <string name="folders_menu_add_to_album">Añadir a un álbum…</string>
+    <string name="folders_menu_cover">Elegir portada…</string>
+    <string name="folders_menu_cover_reset">Usar portada automática</string>
+    <string name="folders_menu_shortcut">Añadir a la pantalla de inicio</string>
+    <string name="folders_excluded_badge_include">Incluir de nuevo</string>
+    <string name="folders_cover_title">Portada de %1$s</string>
+    <string name="folders_cover_use">Usar %1$s como portada</string>
+    <string name="folders_cover_empty_title">No hay fotos ni vídeos aquí</string>
+    <string name="folders_cover_empty_body">Esta carpeta aún no tiene nada que usar como portada.</string>
+    <string name="folders_prop_selected_files">También hay archivos seleccionados</string>
+    <string name="folders_prop_names">Carpetas</string>
+    <plurals name="folders_delete_also_files">
+        <item quantity="one">El archivo seleccionado (%1$d) también irá a la papelera.</item>
+        <item quantity="many">Los %1$d archivos seleccionados también irán a la papelera.</item>
+        <item quantity="other">Los %1$d archivos seleccionados también irán a la papelera.</item>
+    </plurals>
+    <plurals name="folders_selection_properties_title">
+        <item quantity="one">%1$d carpeta seleccionada</item>
+        <item quantity="many">%1$d carpetas seleccionadas</item>
+        <item quantity="other">%1$d carpetas seleccionadas</item>
+    </plurals>
 </resources>

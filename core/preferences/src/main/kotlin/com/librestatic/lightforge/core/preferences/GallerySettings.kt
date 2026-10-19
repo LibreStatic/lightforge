@@ -245,6 +245,8 @@ data class OperationSettings(
     val lastFolder: String? = null,
     /** Advanced mode: identities (`volume|path/`) of folders whose items Photos lists even though they are hidden. */
     val showEvenIfHidden: Set<String> = emptySet(),
+    /** Device folders: the cover the user chose per folder, as `volume|path/` to `volume:mediaStoreId`. */
+    val folderCovers: Map<String, String> = emptyMap(),
 )
 
 /** Confirmation dialogs the user can silence, and bring back from Settings. [key] is persisted: never rename it. */

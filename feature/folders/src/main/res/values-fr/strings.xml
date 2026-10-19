@@ -156,4 +156,25 @@
         <item quantity="many">%1$d éléments de la corbeille sont stockés ici. Restaurez-les ou supprimez-les de la corbeille, puis supprimez le dossier.</item>
         <item quantity="other">%1$d éléments de la corbeille sont stockés ici. Restaurez-les ou supprimez-les de la corbeille, puis supprimez le dossier.</item>
     </plurals>
+    <string name="folders_menu_add_to_album">Ajouter à un album…</string>
+    <string name="folders_menu_cover">Choisir la couverture…</string>
+    <string name="folders_menu_cover_reset">Utiliser la couverture automatique</string>
+    <string name="folders_menu_shortcut">Ajouter à l\'écran d\'accueil</string>
+    <string name="folders_excluded_badge_include">Inclure à nouveau</string>
+    <string name="folders_cover_title">Couverture de %1$s</string>
+    <string name="folders_cover_use">Utiliser %1$s comme couverture</string>
+    <string name="folders_cover_empty_title">Aucune photo ni vidéo ici</string>
+    <string name="folders_cover_empty_body">Ce dossier n\'a encore rien à utiliser comme couverture.</string>
+    <string name="folders_prop_selected_files">Fichiers également sélectionnés</string>
+    <string name="folders_prop_names">Dossiers</string>
+    <plurals name="folders_delete_also_files">
+        <item quantity="one">Le fichier sélectionné (%1$d) ira aussi dans la corbeille.</item>
+        <item quantity="many">Les %1$d fichiers sélectionnés iront aussi dans la corbeille.</item>
+        <item quantity="other">Les %1$d fichiers sélectionnés iront aussi dans la corbeille.</item>
+    </plurals>
+    <plurals name="folders_selection_properties_title">
+        <item quantity="one">%1$d dossier sélectionné</item>
+        <item quantity="many">%1$d dossiers sélectionnés</item>
+        <item quantity="other">%1$d dossiers sélectionnés</item>
+    </plurals>
 </resources>

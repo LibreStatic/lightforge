@@ -156,4 +156,25 @@
         <item quantity="many">Qui sono archiviati %1$d elementi del cestino. Ripristinali o eliminali dal cestino, poi elimina la cartella.</item>
         <item quantity="other">Qui sono archiviati %1$d elementi del cestino. Ripristinali o eliminali dal cestino, poi elimina la cartella.</item>
     </plurals>
+    <string name="folders_menu_add_to_album">Aggiungi a un album…</string>
+    <string name="folders_menu_cover">Scegli copertina…</string>
+    <string name="folders_menu_cover_reset">Usa la copertina automatica</string>
+    <string name="folders_menu_shortcut">Aggiungi alla schermata Home</string>
+    <string name="folders_excluded_badge_include">Includi di nuovo</string>
+    <string name="folders_cover_title">Copertina di %1$s</string>
+    <string name="folders_cover_use">Usa %1$s come copertina</string>
+    <string name="folders_cover_empty_title">Nessuna foto o video qui</string>
+    <string name="folders_cover_empty_body">Questa cartella non ha ancora nulla da usare come copertina.</string>
+    <string name="folders_prop_selected_files">Anche file selezionati</string>
+    <string name="folders_prop_names">Cartelle</string>
+    <plurals name="folders_delete_also_files">
+        <item quantity="one">Anche il file selezionato (%1$d) andrà nel cestino.</item>
+        <item quantity="many">Anche i %1$d file selezionati andranno nel cestino.</item>
+        <item quantity="other">Anche i %1$d file selezionati andranno nel cestino.</item>
+    </plurals>
+    <plurals name="folders_selection_properties_title">
+        <item quantity="one">%1$d cartella selezionata</item>
+        <item quantity="many">%1$d cartelle selezionate</item>
+        <item quantity="other">%1$d cartelle selezionate</item>
+    </plurals>
 </resources>

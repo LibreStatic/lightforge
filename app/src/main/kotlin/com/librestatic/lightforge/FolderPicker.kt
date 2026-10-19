@@ -34,10 +34,26 @@ import com.librestatic.lightforge.feature.folders.PickPurpose
 internal sealed interface FolderPickRequest {
     val purpose: PickPurpose
 
-    data class Items(override val purpose: PickPurpose, val keys: List<MediaKey>) : FolderPickRequest
+    /** The folders that travel with this request; they are never offered as a destination. */
+    val sourceFolders: List<FolderLocation> get() = emptyList()
+
+    /** Files travel with it. */
+    val withFiles: Boolean get() = false
+
+    data class Items(override val purpose: PickPurpose, val keys: List<MediaKey>) : FolderPickRequest {
+        override val withFiles: Boolean get() = true
+    }
 
     data class Folder(val source: FolderLocation, val copy: Boolean = false) : FolderPickRequest {
         override val purpose: PickPurpose get() = if (copy) PickPurpose.CopyFolder else PickPurpose.MoveFolder
+        override val sourceFolders: List<FolderLocation> get() = listOf(source)
+    }
+
+    /** Several folders, with or without ticked files, moved or copied to one destination (plan 7.8). */
+    data class Mixed(val folders: List<FolderLocation>, val keys: List<MediaKey>, val copy: Boolean) : FolderPickRequest {
+        override val purpose: PickPurpose get() = if (copy) PickPurpose.Copy else PickPurpose.Move
+        override val sourceFolders: List<FolderLocation> get() = folders
+        override val withFiles: Boolean get() = keys.isNotEmpty()
     }
 }
 
@@ -82,7 +98,6 @@ internal fun FolderPickerHost(
     LaunchedEffect(picker) {
         picker.messages.collect { Toast.makeText(context, resources.getString(it.textRes()), Toast.LENGTH_SHORT).show() }
     }
-    val source = (request as? FolderPickRequest.Folder)?.source
     val goBack = { if (!picker.navigateUp()) onCancel() }
     Dialog(
         onDismissRequest = goBack,
@@ -90,7 +105,8 @@ internal fun FolderPickerHost(
     ) {
         FolderPickerContent(
             purpose = request.purpose,
-            sourceFolder = source,
+            sourceFolders = request.sourceFolders,
+            withFiles = request.withFiles,
             state = state,
             thumbnails = thumbnails,
             onEnter = picker::open,
@@ -144,11 +160,13 @@ internal fun AdvancedOperationsHost(
             when (event) {
                 is AdvancedOpEvent.Folder -> {
                     folderExplorer.diskChanged()
+                    folderExplorer.clearFolderSelection()
                     showFolderMessage(context, snackbarHostState, event.message, onOpenStorageAccess)
                     if (event.leaveAlbum) currentOnLeave()
                 }
                 is AdvancedOpEvent.Transfer -> {
                     folderExplorer.diskChanged()
+                    folderExplorer.clearFolderSelection()
                     val result = event.result
                     val done = result.moved + result.copied + result.relocated + result.awaitingDelete.size
                     when (result.outcome()) {

@@ -216,6 +216,20 @@ by type; WebP, APNG, AVIF and HEIF sequences by their markers). Migration 32 to 
 and the MediaStore checkpoint's index format suffix (`+lf3`) forces one full reconciliation, which
 rewrites any unchanged row whose sniffed flag turned on, so an upgraded library is backfilled.
 
+Selection and rules (7.8, 7.9): folder cards and files are ticked together and one bar
+(`GallerySelectionBar`, counting both) replaces the file bar while a folder is ticked. Copy, move and
+delete are inline; pin, exclude/include, hide/unhide, add to album, rename (one folder), choose or reset
+the cover (one folder), launcher shortcut, properties and select all are in its overflow. What each
+selection allows is the pure function `selectionCapabilities`: copy, move, rename and delete need the
+mode and never touch the Android tree, and move, rename and delete refuse standard top-level folders. A
+mixed move or copy runs the files and then the folders through one destination picker (`Mixed`
+request) with one result message; a mixed delete also moves the ticked files to the Trash after the
+confirmation. Add to album adds everything below the folders, subfolders and archived items included. A
+dimmed excluded card has a badge that includes it again, and the card menu has Exclude/Include. Covers
+are stored in settings by folder key (`folders.covers`, in the settings export); the shortcut is a
+pinned launcher shortcut that opens the folder through an explicit intent to the exported activity.
+Pins, covers and the show-even-if-hidden rule follow a folder when it is renamed or moved.
+
 Explorer (plan section 7), all built: breadcrumb long-press path entry (7.3), compaction of
 single-child chains (7.4, switchable), per-folder sort, view and filter (7.6), search inside a
 folder and below it plus the `in:<path>` token of the global search (7.7), selecting files, alone or
@@ -226,8 +240,7 @@ show-hidden toggle in its overflow, and hidden items merged into the timeline; a
 carry the "Show in Photos even if hidden" rule. Hidden items in Photos carry a hidden badge, follow the library order including the grouping, and the Raw and Animated chips apply to them as to library items (Animated reads the file header). They open in an external viewer and
 cannot be selected or edited, because they are not in the library.
 
-Not built: tree pane, drag and drop and keyboard navigation on large screens (7.11); rewriting album covers, pins and other path-keyed
-settings on folder rename; the rename-against-verified-copy benchmark; included folders that
+Not built: tree pane, drag and drop and keyboard navigation on large screens (7.11); the rename-against-verified-copy benchmark; included folders that
 MediaStore does not index. The old SAF tree launch stack (`VerifiedMoveController` and its tree
 launchers) is no longer started by the folder picker and remains only because device tests use it.
 The scrubber histogram does not count hidden items merged into Photos. The viewer, system

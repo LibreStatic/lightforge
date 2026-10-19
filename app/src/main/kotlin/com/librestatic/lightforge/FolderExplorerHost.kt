@@ -10,7 +10,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -21,6 +23,7 @@ import com.librestatic.lightforge.core.thumbnail.ThumbnailLoader
 import com.librestatic.lightforge.core.model.MediaKey
 import com.librestatic.lightforge.feature.folders.ExplorerSelection
 import com.librestatic.lightforge.feature.folders.FolderBrowseActions
+import com.librestatic.lightforge.feature.folders.FolderCoverDialog
 import com.librestatic.lightforge.feature.folders.FolderCardUi
 import com.librestatic.lightforge.feature.folders.FolderViewOptionsDialog
 import com.librestatic.lightforge.feature.folders.FolderExplorerActions
@@ -29,11 +32,18 @@ import com.librestatic.lightforge.feature.folders.FolderExplorerUiState
 import com.librestatic.lightforge.feature.folders.FolderMediaScope
 import com.librestatic.lightforge.feature.folders.NewFolderDialog
 
-/** The slice of the gallery selection the explorer needs: whether files are selected and which. */
+/** The slice of the gallery selection the explorer needs: whether files are selected, which, and what mixed actions do to them. */
 internal class MediaSelectionAccess(
     val selecting: Boolean,
     val isSelected: (MediaKey) -> Boolean,
     val toggle: (TimelineMedia) -> Unit,
+    /** How many files are selected. */
+    val count: Long = 0,
+    /** Ticks every file of the folder being shown; a no-op where the level lists none. */
+    val selectAll: () -> Unit = {},
+    val clear: () -> Unit = {},
+    /** Moves the selected files to the Trash (the system asks for its own approval). */
+    val trash: () -> Unit = {},
 ) {
     companion object {
         val None = MediaSelectionAccess(false, { false }, {})
@@ -56,6 +66,10 @@ internal fun FolderExplorerHost(
     onOpenStorageAccess: () -> Unit,
     onMoveFolder: (FolderCardUi) -> Unit,
     onCopyFolder: (FolderCardUi) -> Unit,
+    /** Opens the destination picker for the ticked folders together with the ticked files. */
+    onTransferSelection: (List<FolderCardUi>, move: Boolean) -> Unit,
+    /** Opens the album chooser for everything in the folders. */
+    onAddFoldersToAlbum: (List<FolderCardUi>) -> Unit,
     /** The gallery selection that carries the file actions; the explorer only ticks and reads it. */
     mediaSelection: MediaSelectionAccess,
     /** Runs a destructive action behind the destructive-action lock (biometric prompt when it is on). */
@@ -70,6 +84,8 @@ internal fun FolderExplorerHost(
     val viewOptionsOpen by viewModel.viewOptionsOpen.collectAsState()
     val chrome by viewModel.chrome.collectAsState()
     val selectedFolders by viewModel.selectedFolders.collectAsState()
+    val coverTarget by viewModel.coverTarget.collectAsState()
+    val coverCandidates = viewModel.coverCandidates.collectAsLazyPagingItems()
     val media = viewModel.media.collectAsLazyPagingItems()
     LaunchedEffect(viewModel, library) { viewModel.bind(library) }
     LaunchedEffect(viewModel) {
@@ -80,6 +96,8 @@ internal fun FolderExplorerHost(
         viewModel.messages.collect { message -> showFolderMessage(context, snackbarHostState, message, onOpenStorageAccess) }
     }
     val currentRunDestructive by rememberUpdatedState(runDestructive)
+    val currentMediaSelection by rememberUpdatedState(mediaSelection)
+    val canPinShortcut = remember(context) { canPinFolderShortcut(context) }
     val actions = remember(viewModel, active) {
         if (!active) {
             null
@@ -88,7 +106,12 @@ internal fun FolderExplorerHost(
                 onHide = viewModel::hide,
                 onUnhide = viewModel::unhide,
                 onRename = viewModel::rename,
-                onDelete = { cards -> currentRunDestructive { viewModel.deleteFolders(cards) } },
+                onDelete = { cards, alsoTrashFiles ->
+                    currentRunDestructive {
+                        viewModel.deleteFolders(cards)
+                        if (alsoTrashFiles) currentMediaSelection.trash()
+                    }
+                },
                 summarizeDelete = viewModel::summarizeDelete,
                 onMove = onMoveFolder,
                 onCopy = onCopyFolder,
@@ -106,23 +129,49 @@ internal fun FolderExplorerHost(
             )
         }
     }
-    val browse = remember(viewModel, chrome.searching) {
+    val scope = rememberCoroutineScope()
+    val currentOnTransfer by rememberUpdatedState(onTransferSelection)
+    val currentOnAlbum by rememberUpdatedState(onAddFoldersToAlbum)
+    val browse = remember(viewModel, chrome.searching, canPinShortcut) {
         FolderBrowseActions(
             onTogglePin = viewModel::togglePin,
             onSetExcluded = viewModel::setExcluded,
             onQueryChange = viewModel::setQuery,
             onCloseSearch = viewModel::closeSearch,
             searching = chrome.searching,
+            onChooseCover = viewModel::beginCover,
+            onResetCover = viewModel::resetCover,
+            onCreateShortcut = if (canPinShortcut) {
+                { card ->
+                    viewModel.clearFolderSelection()
+                    if (!pinFolderShortcut(context, card.name, card.location)) {
+                        scope.launch { snackbarHostState.showSnackbar(context.getString(R.string.folder_shortcut_failed)) }
+                    }
+                }
+            } else {
+                null
+            },
+            onAddFoldersToAlbum = { cards -> currentOnAlbum(cards) },
+            onTransfer = { cards, move -> currentOnTransfer(cards, move) },
         )
     }
     val selection = ExplorerSelection(
         folders = selectedFolders,
         mediaSelecting = mediaSelection.selecting,
+        fileCount = mediaSelection.count,
+        advanced = active,
         isMediaSelected = mediaSelection.isSelected,
         onToggleFolder = viewModel::toggleFolder,
         onToggleMedia = mediaSelection.toggle,
-        onSelectAllFolders = viewModel::selectAllFolders,
-        onClearFolders = viewModel::clearFolderSelection,
+        onSelectAll = {
+            viewModel.selectAllFolders()
+            mediaSelection.selectAll()
+        },
+        onClear = {
+            viewModel.clearFolderSelection()
+            mediaSelection.clear()
+        },
+        canPinShortcut = canPinShortcut,
         onPinFolders = viewModel::pinSelected,
         onExcludeFolders = viewModel::excludeSelected,
         onHideFolders = if (active) viewModel::hideSelected else null,
@@ -143,6 +192,16 @@ internal fun FolderExplorerHost(
         selection = selection,
         scrollMemory = viewModel.scrollMemory,
     )
+    coverTarget?.let { target ->
+        FolderCoverDialog(
+            folderName = target.name,
+            media = coverCandidates,
+            thumbnails = thumbnails,
+            onPick = viewModel::setCover,
+            onReset = if (target.hasCustomCover) ({ viewModel.resetCover(target) }) else null,
+            onDismiss = viewModel::dismissCover,
+        )
+    }
     if (viewOptionsOpen) {
         FolderViewOptionsDialog(
             options = viewModel.currentViewOptions,

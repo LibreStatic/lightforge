@@ -353,6 +353,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                         pinnedFolders = p[Keys.PinnedFolders].orEmpty(),
                         lastFolder = p[Keys.LastFolder],
                         showEvenIfHidden = p[Keys.ShowEvenIfHidden].orEmpty(),
+                        folderCovers = decodeStringMap(p[Keys.FolderCovers]),
                     ),
                 security =
                     SecuritySettings(
@@ -428,6 +429,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         p[Keys.PinnedFolders] = s.operations.pinnedFolders
         s.operations.lastFolder?.let { p[Keys.LastFolder] = it } ?: p.remove(Keys.LastFolder)
         p[Keys.ShowEvenIfHidden] = s.operations.showEvenIfHidden
+        p[Keys.FolderCovers] = encodeStringMap(s.operations.folderCovers)
         p[Keys.AppLock] = s.security.appLockEnabled
         p[Keys.DestructiveLock] = s.security.destructiveActionLockEnabled
         p[Keys.RelockTimeout] = s.security.relockTimeoutMinutes
@@ -519,6 +521,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     put("pinnedFolders", JSONArray(operations.pinnedFolders.sorted()))
                     operations.lastFolder?.let { put("lastFolder", it) }
                     put("showEvenIfHidden", JSONArray(operations.showEvenIfHidden.sorted()))
+                    put("folderCovers", encodeStringMap(operations.folderCovers))
                 },
             )
             put(
@@ -644,6 +647,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
                     o.stringSet("pinnedFolders"),
                     o.optString("lastFolder", "").ifBlank { null },
                     o.stringSet("showEvenIfHidden"),
+                    decodeStringMap(o.optString("folderCovers", "")),
                 ),
             security =
                 SecuritySettings(
@@ -718,6 +722,7 @@ class GallerySettingsRepository(private val store: DataStore<Preferences>) :
         val PinnedFolders = stringSetPreferencesKey("folders.pinned")
         val LastFolder = stringPreferencesKey("folders.last")
         val ShowEvenIfHidden = stringSetPreferencesKey("folders.show_even_if_hidden")
+        val FolderCovers = stringPreferencesKey("folders.covers")
         val ProtectHiddenItems = booleanPreferencesKey("security.protect_hidden_items")
         val AppLock = booleanPreferencesKey("security.app_lock")
         val DestructiveLock = booleanPreferencesKey("security.destructive_lock")

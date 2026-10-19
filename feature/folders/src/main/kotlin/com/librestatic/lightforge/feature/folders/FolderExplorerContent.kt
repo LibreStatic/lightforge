@@ -112,8 +112,11 @@ class FolderExplorerActions(
     val onHide: (FolderCardUi) -> Unit,
     val onUnhide: (FolderCardUi) -> Unit,
     val onRename: (FolderCardUi, String) -> Unit,
-    /** Deletes the folders with everything in them; only called after the user confirmed the dialog. */
-    val onDelete: (List<FolderCardUi>) -> Unit,
+    /**
+     * Deletes the folders with everything in them; only called after the user confirmed the dialog. The flag
+     * says the selected files go to the Trash in the same step (the dialog told so).
+     */
+    val onDelete: (List<FolderCardUi>, alsoTrashFiles: Boolean) -> Unit,
     val onOpenHiddenItem: (HiddenItemUi) -> Unit,
     /** Opens the destination picker to move the folder. */
     val onMove: (FolderCardUi) -> Unit = {},
@@ -127,8 +130,9 @@ class FolderExplorerActions(
 
 private sealed interface FolderDialog {
     data class Rename(val folder: FolderCardUi) : FolderDialog
-    data class Delete(val folders: List<FolderCardUi>) : FolderDialog
+    data class Delete(val folders: List<FolderCardUi>, val withFiles: Boolean = false) : FolderDialog
     data class Properties(val folder: FolderCardUi) : FolderDialog
+    data class SelectionProperties(val folders: List<FolderCardUi>) : FolderDialog
     data class Exclude(val folder: FolderCardUi) : FolderDialog
     data class Include(val folder: FolderCardUi) : FolderDialog
 }
@@ -255,7 +259,7 @@ private fun FolderLevel(
             }
         }
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            if (picking != null && state.folders.none { it.location != picking.sourceFolder }) {
+            if (picking != null && state.folders.none { it.location !in picking.sourceFolders }) {
                 // Nothing to open below this level; the destination can still be chosen or created here.
                 GalleryStateContent(
                     title = stringResource(R.string.folders_picker_no_subfolders_title),
@@ -299,15 +303,24 @@ private fun FolderLevel(
             }
             if (picking == null && selection.selectingFolders) {
                 val selected = state.folders.filter { it.key in selection.folders }
+                val capabilities = selectionCapabilities(selected, selection.fileCount, selection.advanced, selection.canPinShortcut)
+                val withFiles = selection.fileCount > 0
                 FolderSelectionBar(
                     selection = selection,
                     selected = selected,
-                    // Delete only asks: the dialog below counts what is inside and the folders go after it is confirmed.
-                    onDelete = if (actions != null && selected.all { it.isDeletable() }) {
-                        { dialog = FolderDialog.Delete(selected) }
-                    } else {
-                        null
+                    capabilities = capabilities,
+                    onCopy = { browse?.onTransfer?.invoke(selected, false) },
+                    onMove = { browse?.onTransfer?.invoke(selected, true) },
+                    onRename = { selected.singleOrNull()?.let { dialog = FolderDialog.Rename(it) } },
+                    // Delete only asks: the dialog counts what is inside and the folders go after it is confirmed.
+                    onDelete = { dialog = FolderDialog.Delete(selected, withFiles) },
+                    onProperties = {
+                        dialog = if (selected.size == 1 && !withFiles) FolderDialog.Properties(selected.single()) else FolderDialog.SelectionProperties(selected)
                     },
+                    onAddToAlbum = { browse?.onAddFoldersToAlbum?.invoke(selected) },
+                    onChooseCover = { selected.singleOrNull()?.let { browse?.onChooseCover?.invoke(it) } },
+                    onResetCover = { selected.singleOrNull()?.let { browse?.onResetCover?.invoke(it) } },
+                    onShortcut = { selected.singleOrNull()?.let { browse?.onCreateShortcut?.invoke(it) } },
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }
@@ -336,10 +349,12 @@ private fun FolderLevel(
             is FolderDialog.Delete -> DeleteDialog(
                 folders = current.folders,
                 summarize = actions?.summarizeDelete ?: { null },
+                alsoFiles = if (current.withFiles) selection.fileCount else 0L,
                 onDismiss = close,
-                onConfirm = { close(); actions?.onDelete?.invoke(current.folders) },
+                onConfirm = { close(); actions?.onDelete?.invoke(current.folders, current.withFiles) },
             )
             is FolderDialog.Properties -> PropertiesDialog(current.folder, state.crumbs, close)
+            is FolderDialog.SelectionProperties -> SelectionPropertiesDialog(current.folders, selection.fileCount, close)
             is FolderDialog.Exclude -> ExcludeDialog(
                 folder = current.folder,
                 onDismiss = close,
@@ -396,7 +411,7 @@ private fun FolderLevelGrid(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        val cards = if (picking == null) state.folders else state.folders.filter { it.location != picking.sourceFolder }
+        val cards = if (picking == null) state.folders else state.folders.filter { it.location !in picking.sourceFolders }
         items(cards, key = { it.key }, span = { GridItemSpan(if (listMode) maxLineSpan else CardSpan) }) { folder ->
             val open = {
                 when (val action = folder.action) {
@@ -437,10 +452,10 @@ private fun FolderLevelGrid(
                     MediaTile(
                         media = item,
                         loader = thumbnails,
-                        selecting = selection.mediaSelecting,
+                        selecting = selection.selecting,
                         selected = selection.isMediaSelected(item.key),
                         onLongClick = { selection.onToggleMedia(item) },
-                        onClick = { if (selection.mediaSelecting) selection.onToggleMedia(item) else onMediaClick(item, scope) },
+                        onClick = { if (selection.selecting) selection.onToggleMedia(item) else onMediaClick(item, scope) },
                     )
                 }
             }
@@ -645,7 +660,7 @@ private fun FolderEntry(
     val isAndroidTree = folder.location.relativePath?.let { isAndroidAppTree(it) } == true
     val hasMenu = !picking && (browse != null || (actions != null && !isAndroidTree))
     val moreDescription = stringResource(R.string.folders_more_options_for, folder.name)
-    val selecting = selection.selectingFolders
+    val selecting = selection.selecting
     val selected = folder.key in selection.folders
     val canSelect = !picking && browse != null
     val menu: (@Composable () -> Unit)? = if (hasMenu) {
@@ -662,10 +677,16 @@ private fun FolderEntry(
     }
     val click = { if (selecting) selection.onToggleFolder(folder) else onClick() }
     val longClick = if (canSelect) ({ selection.onToggleFolder(folder) }) else null
-    if (listMode) {
-        FolderRow(folder, loader, selecting, selected, picking, click, longClick, menu)
+    // The dimmed card's badge is a shortcut back to the library: it opens the Include dialog.
+    val include: (() -> Unit)? = if (browse != null && !picking && !selecting && folder.location.relativePath != null) {
+        { onDialog(FolderDialog.Include(folder)) }
     } else {
-        FolderCard(folder, loader, picking, selecting, selected, click, longClick, menu, moreDescription)
+        null
+    }
+    if (listMode) {
+        FolderRow(folder, loader, selecting, selected, picking, click, longClick, menu, include)
+    } else {
+        FolderCard(folder, loader, picking, selecting, selected, click, longClick, menu, moreDescription, include)
     }
 }
 
@@ -681,6 +702,7 @@ private fun FolderCard(
     onLongClick: (() -> Unit)?,
     menu: (@Composable () -> Unit)?,
     moreDescription: String,
+    onInclude: (() -> Unit)? = null,
 ) {
     val colors = MaterialTheme.colorScheme
     val selectedState = stringResource(R.string.folders_selected_state)
@@ -711,7 +733,7 @@ private fun FolderCard(
                 if (selecting) SelectionCheck(selected)
                 if (folder.isPinned) PinnedBadge()
                 if (folder.isHidden && !picking) HiddenBadge(Modifier)
-                if (folder.isExcluded) ExcludedBadge()
+                if (folder.isExcluded) ExcludedBadge(onInclude = onInclude)
             }
         }
         Row(Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp, end = if (menu != null) 4.dp else 12.dp)) {
@@ -813,6 +835,38 @@ private fun FolderMenu(
                     },
                     modifier = Modifier.testTag("folder-menu-exclude"),
                 )
+            }
+            if (folder.itemCount > 0) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.folders_menu_add_to_album)) },
+                    leadingIcon = { Icon(GalleryIcons.Album, contentDescription = null) },
+                    onClick = { onDismiss(); browse.onAddFoldersToAlbum(listOf(folder)) },
+                    modifier = Modifier.testTag("folder-menu-album"),
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.folders_menu_cover)) },
+                    leadingIcon = { Icon(GalleryIcons.Photo, contentDescription = null) },
+                    onClick = { onDismiss(); browse.onChooseCover(folder) },
+                    modifier = Modifier.testTag("folder-menu-cover"),
+                )
+            }
+            if (folder.hasCustomCover) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.folders_menu_cover_reset)) },
+                    leadingIcon = { Icon(GalleryIcons.Undo, contentDescription = null) },
+                    onClick = { onDismiss(); browse.onResetCover(folder) },
+                    modifier = Modifier.testTag("folder-menu-cover-reset"),
+                )
+            }
+            browse.onCreateShortcut?.let { shortcut ->
+                if (folder.location.relativePath != null) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.folders_menu_shortcut)) },
+                        leadingIcon = { Icon(GalleryIcons.OpenInNew, contentDescription = null) },
+                        onClick = { onDismiss(); shortcut(folder) },
+                        modifier = Modifier.testTag("folder-menu-shortcut"),
+                    )
+                }
             }
         }
         if (actions != null && !isAndroidTree) {
@@ -998,6 +1052,8 @@ internal fun DeleteDialog(
     summarize: suspend (List<FolderCardUi>) -> FolderDeleteSummary?,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
+    /** Files ticked next to the folders; they move to the Trash in the same step. */
+    alsoFiles: Long = 0,
 ) {
     val context = LocalContext.current
     val allEmpty = folders.all { it.isEmptyDirectory && it.subfolderCount == 0 }
@@ -1028,6 +1084,13 @@ internal fun DeleteDialog(
                             pluralStringResource(R.plurals.folders_delete_intro_many, folders.size, folders.size)
                         },
                     )
+                    if (alsoFiles > 0) {
+                        val files = alsoFiles.toIntClamped()
+                        Text(
+                            pluralStringResource(R.plurals.folders_delete_also_files, files, files),
+                            modifier = Modifier.testTag("folder-delete-also-files"),
+                        )
+                    }
                     return@Column
                 }
                 Text(
@@ -1049,6 +1112,13 @@ internal fun DeleteDialog(
                         modifier = Modifier.testTag("folder-delete-unreadable"),
                     )
                     is DeleteScan.Counted -> DeleteSummaryLines(current.summary, Formatter.formatFileSize(context, current.summary.bytes))
+                }
+                if (alsoFiles > 0) {
+                    val files = alsoFiles.toIntClamped()
+                    Text(
+                        pluralStringResource(R.plurals.folders_delete_also_files, files, files),
+                        modifier = Modifier.testTag("folder-delete-also-files"),
+                    )
                 }
                 if (counted != null && !blockedByTrash) {
                     Text(
@@ -1131,6 +1201,30 @@ private fun PropertiesDialog(folder: FolderCardUi, crumbs: List<CrumbUi>, onDism
                     stringResource(R.string.folders_prop_status),
                     stringResource(if (folder.isHidden) R.string.folders_prop_hidden else R.string.folders_prop_visible),
                 )
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.folders_close)) } },
+    )
+}
+
+/** Properties of several ticked folders (and the number of files ticked with them) added up. */
+@Composable
+private fun SelectionPropertiesDialog(folders: List<FolderCardUi>, fileCount: Long, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val totals = selectionTotals(folders)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(pluralStringResource(R.plurals.folders_selection_properties_title, folders.size, folders.size)) },
+        text = {
+            Column(Modifier.testTag("folder-selection-properties-dialog"), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                PropertyRow(stringResource(R.string.folders_prop_items), countText(totals.items))
+                PropertyRow(stringResource(R.string.folders_prop_subfolders), totals.subfolders.toString())
+                PropertyRow(stringResource(R.string.folders_prop_size), Formatter.formatFileSize(context, totals.bytes))
+                if (fileCount > 0) {
+                    val files = fileCount.toIntClamped()
+                    PropertyRow(stringResource(R.string.folders_prop_selected_files), pluralStringResource(R.plurals.folders_item_count, files, files))
+                }
+                PropertyRow(stringResource(R.string.folders_prop_names), folders.joinToString(", ") { it.name })
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.folders_close)) } },
